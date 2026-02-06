@@ -7,6 +7,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { getFeatureFlags, getGasBuffer } from './feature-flags';
 import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token';
 import type { TransactionPayControllerMessenger } from '..';
 import { createModuleLogger, projectLogger } from '../logger';
@@ -195,6 +196,72 @@ export function calculateGasFeeTokenCost({
     human,
     raw,
     usd,
+  };
+}
+
+export function getFallbackGas(messenger: TransactionPayControllerMessenger): {
+  estimate: number;
+  max: number;
+} {
+  return getFeatureFlags(messenger).relayFallbackGas;
+}
+
+export async function estimateGasWithBufferOrFallback({
+  chainId,
+  data,
+  from,
+  messenger,
+  to,
+  value,
+}: {
+  chainId: Hex;
+  data: Hex;
+  from: Hex;
+  messenger: TransactionPayControllerMessenger;
+  to: Hex;
+  value?: Hex;
+}): Promise<{
+  estimate: number;
+  max: number;
+  usedFallback: boolean;
+  error?: unknown;
+}> {
+  const gasBuffer = getGasBuffer(messenger, chainId);
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    chainId,
+  );
+
+  let error: unknown;
+
+  try {
+    const { gas: gasHex, simulationFails } = await messenger.call(
+      'TransactionController:estimateGas',
+      { from, data, to, value: value ?? '0x0' },
+      networkClientId,
+    );
+
+    const estimatedGas = new BigNumber(gasHex).toNumber();
+    const bufferedGas = Math.ceil(estimatedGas * gasBuffer);
+
+    if (!simulationFails) {
+      return {
+        estimate: bufferedGas,
+        max: bufferedGas,
+        usedFallback: false,
+      };
+    }
+  } catch (caughtError) {
+    error = caughtError;
+  }
+
+  const fallbackGas = getFallbackGas(messenger);
+
+  return {
+    estimate: fallbackGas.estimate,
+    max: fallbackGas.max,
+    usedFallback: true,
+    error,
   };
 }
 

@@ -33,9 +33,15 @@ import {
   getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
+  getPayStrategiesConfig,
   getSlippage,
 } from '../../utils/feature-flags';
-import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+import {
+  calculateGasCost,
+  calculateGasFeeTokenCost,
+  estimateGasWithBufferOrFallback,
+  getFallbackGas,
+} from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -125,7 +131,7 @@ async function getSingleQuote(
 
     await processTransactions(transaction, request, body, messenger);
 
-    const url = getFeatureFlags(messenger).relayQuoteUrl;
+    const url = getPayStrategiesConfig(messenger).relay.relayQuoteUrl;
 
     log('Request body', { body, url });
 
@@ -304,6 +310,22 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
+  const expectedOutputUsd = new BigNumber(currencyOut.amountUsd ?? '0').abs();
+
+  const impactUsd = calculateImpactUsd(quote);
+
+  let impact: ReturnType<typeof getFiatValueFromUsd> | undefined;
+
+  if (impactUsd !== undefined) {
+    impact = getFiatValueFromUsd(impactUsd, usdToFiatRate);
+  }
+
+  let impactRatio: string | undefined;
+
+  if (impactUsd !== undefined && expectedOutputUsd.gt(0)) {
+    impactRatio = impactUsd.dividedBy(expectedOutputUsd).toString(10);
+  }
+
   const {
     gasLimits,
     isGasFeeToken: isSourceGasFeeToken,
@@ -336,6 +358,8 @@ async function normalizeQuote(
     estimatedDuration: details.timeEstimate,
     fees: {
       isSourceGasFeeToken,
+      impact,
+      impactRatio,
       provider,
       sourceNetwork,
       targetNetwork,
@@ -370,6 +394,43 @@ function calculateDustUsd(quote: RelayQuote, request: QuoteRequest): BigNumber {
   );
 
   return dustRaw.shiftedBy(-targetDecimals).multipliedBy(targetUsdRate);
+}
+
+function calculateImpactUsd(quote: RelayQuote): BigNumber | undefined {
+  const totalImpactUsd = quote.details.totalImpact?.usd;
+
+  if (totalImpactUsd !== undefined) {
+    return new BigNumber(totalImpactUsd).abs();
+  }
+
+  const { currencyOut } = quote.details;
+  const { amount, amountFormatted, amountUsd, minimumAmount } = currencyOut;
+
+  if (!minimumAmount || !amount) {
+    return undefined;
+  }
+
+  const formattedAmount = new BigNumber(amountFormatted);
+
+  if (!formattedAmount.isFinite() || formattedAmount.isZero()) {
+    return undefined;
+  }
+
+  const amountUsdValue = new BigNumber(amountUsd);
+
+  if (!amountUsdValue.isFinite()) {
+    return undefined;
+  }
+
+  const targetUsdRate = amountUsdValue.dividedBy(formattedAmount);
+  const rawImpact = new BigNumber(amount).minus(minimumAmount);
+  const normalizedRawImpact = rawImpact.isNegative()
+    ? new BigNumber(0)
+    : rawImpact;
+
+  return normalizedRawImpact
+    .shiftedBy(-currencyOut.currency.decimals)
+    .multipliedBy(targetUsdRate);
 }
 
 /**
@@ -626,7 +687,7 @@ async function calculateSourceNetworkGasLimit(
  * @returns - Provider fee in USD.
  */
 function calculateProviderFee(quote: RelayQuote): BigNumber {
-  return new BigNumber(quote.details.totalImpact.usd).abs();
+  return calculateImpactUsd(quote) ?? new BigNumber(0);
 }
 
 /**
@@ -676,59 +737,41 @@ async function calculateSourceNetworkGasLimitSingle(
     };
   }
 
-  try {
-    const {
-      chainId: chainIdNumber,
-      data,
-      from,
-      to,
-      value: valueString,
-    } = params;
+  const { chainId: chainIdNumber, data, from, to, value: valueString } = params;
+  const chainId = toHex(chainIdNumber);
+  const value = toHex(valueString ?? '0');
 
-    const chainId = toHex(chainIdNumber);
-    const value = toHex(valueString ?? '0');
-    const gasBuffer = getGasBuffer(messenger, chainId);
+  const result = await estimateGasWithBufferOrFallback({
+    chainId,
+    data,
+    from,
+    messenger,
+    to,
+    value,
+  });
 
-    const networkClientId = messenger.call(
-      'NetworkController:findNetworkClientIdByChainId',
+  if (!result.usedFallback) {
+    log('Estimated gas limit for single transaction', {
       chainId,
-    );
+      bufferedGas: result.estimate,
+    });
 
-    const { gas: gasHex, simulationFails } = await messenger.call(
-      'TransactionController:estimateGas',
-      { from, data, to, value },
-      networkClientId,
-    );
-
-    const estimatedGas = new BigNumber(gasHex).toNumber();
-    const bufferedGas = Math.ceil(estimatedGas * gasBuffer);
-
-    if (!simulationFails) {
-      log('Estimated gas limit for single transaction', {
-        chainId,
-        estimatedGas,
-        bufferedGas,
-        gasBuffer,
-      });
-
-      return {
-        totalGasEstimate: bufferedGas,
-        totalGasLimit: bufferedGas,
-        gasLimits: [bufferedGas],
-      };
-    }
-  } catch (error) {
-    log('Failed to estimate gas limit for single transaction', error);
+    return {
+      totalGasEstimate: result.estimate,
+      totalGasLimit: result.estimate,
+      gasLimits: [result.estimate],
+    };
   }
 
-  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
-
-  log('Using fallback gas for single transaction', { fallbackGas });
+  log('Using fallback gas for single transaction', {
+    estimate: result.estimate,
+    max: result.max,
+  });
 
   return {
-    totalGasEstimate: fallbackGas.estimate,
-    totalGasLimit: fallbackGas.max,
-    gasLimits: [fallbackGas.max],
+    totalGasEstimate: result.estimate,
+    totalGasLimit: result.max,
+    gasLimits: [result.max],
   };
 }
 
@@ -807,7 +850,7 @@ async function calculateSourceNetworkGasLimitBatch(
     log('Failed to estimate gas limit for batch', error);
   }
 
-  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
+  const fallbackGas = getFallbackGas(messenger);
 
   const totalGasEstimate = params.reduce((acc, singleParams) => {
     const gas = singleParams.gas ?? fallbackGas.estimate;

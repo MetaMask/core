@@ -43,14 +43,17 @@ const TRANSACTION_ID_MOCK = '123-456';
 describe('Source Amounts Utils', () => {
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getTransactionMock = jest.mocked(getTransaction);
-  const { messenger, getStrategyMock } = getMessengerMock();
+  const { messenger, getStrategiesMock } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
 
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
-    getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
-    getTransactionMock.mockReturnValue({ id: TRANSACTION_ID_MOCK } as never);
+    getStrategiesMock.mockReturnValue([TransactionPayStrategy.Test]);
+    getTransactionMock.mockReturnValue({
+      id: TRANSACTION_ID_MOCK,
+      txParams: { from: '0xabc' },
+    } as never);
   });
 
   describe('updateSourceAmounts', () => {
@@ -91,7 +94,7 @@ describe('Source Amounts Utils', () => {
     });
 
     it('does not return empty array if payment token matches but hyperliquid deposit and relay strategy', () => {
-      getStrategyMock.mockReturnValue(TransactionPayStrategy.Relay);
+      getStrategiesMock.mockReturnValue([TransactionPayStrategy.Relay]);
 
       const transactionData: TransactionData = {
         isLoading: false,
@@ -208,6 +211,93 @@ describe('Source Amounts Utils', () => {
     // eslint-disable-next-line jest/expect-expect
     it('does nothing if no transaction data', () => {
       updateSourceAmounts(TRANSACTION_ID_MOCK, undefined, messenger);
+    });
+
+    it('defaults to relay strategy when transaction is missing', () => {
+      getTransactionMock.mockReturnValue(undefined);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '2',
+          sourceAmountRaw: '2000000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('falls back to first strategy name when getStrategyByName throws', () => {
+      getStrategiesMock.mockReturnValue(['UnknownStrategy' as never]);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          address: ARBITRUM_USDC_ADDRESS,
+          chainId: CHAIN_ID_ARBITRUM,
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toStrictEqual([]);
+    });
+
+    it('sets targetAmountMinimum to zero when allowUnderMinimum is true', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            allowUnderMinimum: true,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '2',
+          sourceAmountRaw: '2000000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
+    });
+
+    it('falls back to relay when no strategies are configured', () => {
+      getStrategiesMock.mockReturnValue(undefined as never);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [TRANSACTION_TOKEN_MOCK],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toStrictEqual([
+        {
+          sourceAmountHuman: '2',
+          sourceAmountRaw: '2000000',
+          targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+        },
+      ]);
     });
   });
 });

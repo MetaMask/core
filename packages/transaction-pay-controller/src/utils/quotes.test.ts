@@ -6,9 +6,10 @@ import { cloneDeep } from 'lodash';
 
 import type { UpdateQuotesRequest } from './quotes';
 import { refreshQuotes, updateQuotes } from './quotes';
-import { getStrategy, getStrategyByName } from './strategy';
+import { getStrategies, getStrategyByName } from './strategy';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
+import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
   TransactionPaySourceAmount,
@@ -58,6 +59,7 @@ const QUOTE_MOCK = {
     usd: '1.23',
     fiat: '2.34',
   },
+  strategy: TransactionPayStrategy.Test,
 } as TransactionPayQuote<Json>;
 
 const TOTALS_MOCK = {
@@ -92,7 +94,7 @@ const BATCH_TRANSACTION_MOCK = {
 describe('Quotes Utils', () => {
   const { messenger, getControllerStateMock } = getMessengerMock();
   const updateTransactionDataMock = jest.fn();
-  const getStrategyMock = jest.mocked(getStrategy);
+  const getStrategiesMock = jest.mocked(getStrategies);
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
   const getTransactionMock = jest.mocked(getTransaction);
   const updateTransactionMock = jest.mocked(updateTransaction);
@@ -120,11 +122,13 @@ describe('Quotes Utils', () => {
     jest.resetAllMocks();
     jest.clearAllTimers();
 
-    getStrategyMock.mockReturnValue({
-      execute: jest.fn(),
-      getQuotes: getQuotesMock,
-      getBatchTransactions: getBatchTransactionsMock,
-    });
+    getStrategiesMock.mockReturnValue([
+      {
+        execute: jest.fn(),
+        getQuotes: getQuotesMock,
+        getBatchTransactions: getBatchTransactionsMock,
+      },
+    ]);
 
     getStrategyByNameMock.mockReturnValue({
       execute: jest.fn(),
@@ -196,6 +200,89 @@ describe('Quotes Utils', () => {
       expect(transactionDataMock).toMatchObject({
         quotes: [],
       });
+    });
+
+    it('falls back to next strategy when quotes fail', async () => {
+      const firstStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockRejectedValue(new Error('Strategy error')),
+        execute: jest.fn(),
+      };
+
+      const secondStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([firstStrategy, secondStrategy]);
+
+      await run();
+
+      expect(firstStrategy.getQuotes).toHaveBeenCalled();
+      expect(secondStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('skips strategies that do not support the request', async () => {
+      const unsupportedStrategy = {
+        supports: jest.fn().mockReturnValue(false),
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      const supportedStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        unsupportedStrategy,
+        supportedStrategy,
+      ]);
+
+      await run();
+
+      expect(unsupportedStrategy.getQuotes).not.toHaveBeenCalled();
+      expect(supportedStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('tries next strategy when quotes are empty', async () => {
+      const emptyStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([]),
+        execute: jest.fn(),
+      };
+
+      const fallbackStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([emptyStrategy, fallbackStrategy]);
+
+      await run();
+
+      expect(emptyStrategy.getQuotes).toHaveBeenCalled();
+      expect(fallbackStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('defaults to no batch transactions when strategy does not provide them', async () => {
+      const strategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([strategy]);
+
+      await run();
+
+      expect(strategy.getQuotes).toHaveBeenCalled();
     });
 
     it('clears state if no payment token', async () => {
@@ -302,6 +389,27 @@ describe('Quotes Utils', () => {
       const transactionMetaMock = {} as TransactionMeta;
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
+      expect(transactionMetaMock).toMatchObject({
+        metamaskPay: {
+          bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
+          chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
+          networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          targetFiat: TOTALS_MOCK.targetAmount.usd,
+          tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
+          totalFiat: TOTALS_MOCK.total.usd,
+        },
+      });
+    });
+
+    it('preserves existing metamask pay metadata', async () => {
+      await run();
+
+      const transactionMetaMock = {
+        metamaskPay: { executionLatencyMs: 1234 },
+      } as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.executionLatencyMs).toBe(1234);
       expect(transactionMetaMock).toMatchObject({
         metamaskPay: {
           bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,

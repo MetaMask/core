@@ -4,6 +4,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { cloneDeep } from 'lodash';
 
 import { CHAIN_ID_HYPERCORE } from './constants';
@@ -40,7 +41,12 @@ import {
 } from '../../utils/token';
 
 jest.mock('../../utils/token');
-jest.mock('../../utils/gas');
+jest.mock('../../utils/gas', () => ({
+  ...jest.requireActual('../../utils/gas'),
+  calculateGasCost: jest.fn(),
+  calculateGasFeeTokenCost: jest.fn(),
+  calculateTransactionGasCost: jest.fn(),
+}));
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
   getEIP7702SupportedChains: jest.fn(),
@@ -682,6 +688,147 @@ describe('Relay Quotes Utils', () => {
         usd: '1.11',
         fiat: '2.22',
       });
+    });
+
+    it('includes impact metrics', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const expectedRatio = new BigNumber('1.11')
+        .dividedBy('1.23')
+        .toString(10);
+
+      expect(result[0].fees.impact).toStrictEqual({
+        usd: '1.11',
+        fiat: '2.22',
+      });
+      expect(result[0].fees.impactRatio).toBe(expectedRatio);
+    });
+
+    it('calculates impact when total impact is missing', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.details.totalImpact = undefined as never;
+      quote.details.currencyOut.amount = '200';
+      quote.details.currencyOut.amountFormatted = '2';
+      quote.details.currencyOut.amountUsd = '2';
+      quote.details.currencyOut.minimumAmount = '100';
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quote,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.impact).toStrictEqual({
+        usd: '1',
+        fiat: '2',
+      });
+    });
+
+    it('normalizes negative impact to zero when total impact is missing', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.details.totalImpact = undefined as never;
+      quote.details.currencyOut.amount = '100';
+      quote.details.currencyOut.amountFormatted = '1';
+      quote.details.currencyOut.amountUsd = '1';
+      quote.details.currencyOut.minimumAmount = '125';
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quote,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.impact?.usd).toBe('0');
+    });
+
+    it('returns undefined impact when amount is missing', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.details.totalImpact = undefined as never;
+      quote.details.currencyOut.amount = '' as never;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quote,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.impact).toBeUndefined();
+    });
+
+    it('returns undefined impact when formatted amount is zero', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.details.totalImpact = undefined as never;
+      quote.details.currencyOut.amountFormatted = '0';
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quote,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.impact).toBeUndefined();
+    });
+
+    it('returns undefined impact when amountUsd is non-finite and total impact is missing', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.details.totalImpact = undefined as never;
+      quote.details.currencyOut.amount = '200';
+      quote.details.currencyOut.amountFormatted = '2';
+      quote.details.currencyOut.amountUsd = 'NaN';
+      quote.details.currencyOut.minimumAmount = '100';
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quote,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.impact).toBeUndefined();
+    });
+
+    it('returns undefined impact ratio when amountUsd is missing', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.details.currencyOut.amountUsd = undefined as never;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quote,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.impactRatio).toBeUndefined();
     });
 
     it('includes dust in quote', async () => {

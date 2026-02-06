@@ -836,6 +836,16 @@ export enum TransactionType {
   relayDeposit = 'relayDeposit',
 
   /**
+   * Deposit funds for Across quote via Perps.
+   */
+  perpsAcrossDeposit = 'perpsAcrossDeposit',
+
+  /**
+   * Deposit funds for Across quote via Predict.
+   */
+  predictAcrossDeposit = 'predictAcrossDeposit',
+
+  /**
    * When a transaction is failed it can be retried by
    * resubmitting the same transaction with a higher gas fee. This type is also used
    * to speed up pending transactions. This is accomplished by creating a new tx with
@@ -2095,6 +2105,9 @@ export type MetamaskPayMetadata = {
 
   /** Chain ID of the payment token. */
   chainId?: Hex;
+
+  /** Total time spent submitting the MetaMask Pay flow, in milliseconds. */
+  executionLatencyMs?: number;
 
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;

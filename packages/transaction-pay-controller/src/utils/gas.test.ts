@@ -3,12 +3,19 @@ import type { Hex } from '@metamask/utils';
 import { clone, cloneDeep } from 'lodash';
 
 import {
+  DEFAULT_GAS_BUFFER,
+  DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
+  DEFAULT_RELAY_FALLBACK_GAS_MAX,
+} from './feature-flags';
+import {
   calculateGasCost,
   calculateGasFeeTokenCost,
   calculateTransactionGasCost,
+  estimateGasWithBufferOrFallback,
 } from './gas';
 import { getTokenBalance, getTokenFiatRate } from './token';
 import type { GasFeeEstimates } from '../../../gas-fee-controller/src';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import type {
   GasFeeToken,
   TransactionMeta,
@@ -57,12 +64,22 @@ const GAS_FEE_CONTROLLER_STATE_MOCK = {
 describe('Gas Utils', () => {
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
-  const { messenger, getGasFeeControllerStateMock } = getMessengerMock();
+  const {
+    messenger,
+    estimateGasMock,
+    findNetworkClientIdByChainIdMock,
+    getGasFeeControllerStateMock,
+    getRemoteFeatureFlagControllerStateMock,
+  } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
 
     getGasFeeControllerStateMock.mockReturnValue(GAS_FEE_CONTROLLER_STATE_MOCK);
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+    });
+    findNetworkClientIdByChainIdMock.mockReturnValue('mainnet');
     getTokenBalanceMock.mockReturnValue('147000000000000');
 
     getTokenFiatRateMock.mockReturnValue({
@@ -393,6 +410,90 @@ describe('Gas Utils', () => {
       });
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('estimateGasWithBufferOrFallback', () => {
+    const FROM_MOCK = '0x123' as Hex;
+    const TO_MOCK = '0x456' as Hex;
+    const DATA_MOCK = '0x' as Hex;
+
+    it('returns buffered estimate when simulation succeeds', async () => {
+      estimateGasMock.mockResolvedValue({
+        gas: GAS_USED_MOCK,
+        simulationFails: undefined,
+      });
+
+      const result = await estimateGasWithBufferOrFallback({
+        chainId: CHAIN_ID_MOCK,
+        data: DATA_MOCK,
+        from: FROM_MOCK,
+        messenger,
+        to: TO_MOCK,
+      });
+
+      const bufferedGas = Math.ceil(
+        parseInt(GAS_USED_MOCK, 16) * DEFAULT_GAS_BUFFER,
+      );
+
+      expect(result).toStrictEqual({
+        estimate: bufferedGas,
+        max: bufferedGas,
+        usedFallback: false,
+      });
+    });
+
+    it('uses fallback when simulation fails', async () => {
+      estimateGasMock.mockResolvedValue({
+        gas: GAS_USED_MOCK,
+        simulationFails: { debug: {} },
+      });
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            relayFallbackGas: {
+              estimate: 111,
+              max: 222,
+            },
+          },
+        },
+      });
+
+      const result = await estimateGasWithBufferOrFallback({
+        chainId: CHAIN_ID_MOCK,
+        data: DATA_MOCK,
+        from: FROM_MOCK,
+        messenger,
+        to: TO_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        estimate: 111,
+        max: 222,
+        usedFallback: true,
+        error: undefined,
+      });
+    });
+
+    it('uses fallback when estimateGas throws', async () => {
+      estimateGasMock.mockRejectedValue(new Error('boom'));
+
+      const result = await estimateGasWithBufferOrFallback({
+        chainId: CHAIN_ID_MOCK,
+        data: DATA_MOCK,
+        from: FROM_MOCK,
+        messenger,
+        to: TO_MOCK,
+      });
+
+      expect(result).toMatchObject({
+        estimate: DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
+        max: DEFAULT_RELAY_FALLBACK_GAS_MAX,
+        usedFallback: true,
+      });
+      expect(result.error).toBeInstanceOf(Error);
     });
   });
 });

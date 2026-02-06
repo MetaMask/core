@@ -15,6 +15,7 @@ import type {
   TransactionPayControllerState,
   UpdatePaymentTokenRequest,
 } from './types';
+import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
@@ -43,9 +44,14 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy;
 
+  readonly #getStrategies?: (
+    transaction: TransactionMeta,
+  ) => TransactionPayStrategy[];
+
   constructor({
     getDelegationTransaction,
     getStrategy,
+    getStrategies,
     messenger,
     state,
   }: TransactionPayControllerOptions) {
@@ -58,6 +64,7 @@ export class TransactionPayController extends BaseController<
 
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
+    this.#getStrategies = getStrategies;
 
     this.#registerActionHandlers();
 
@@ -141,6 +148,16 @@ export class TransactionPayController extends BaseController<
   }
 
   #registerActionHandlers(): void {
+    const getStrategies =
+      this.#getStrategies ??
+      ((transaction: TransactionMeta): TransactionPayStrategy[] => {
+        if (this.#getStrategy) {
+          return [this.#getStrategy(transaction)];
+        }
+
+        return getStrategyOrder(this.messenger);
+      });
+
     this.messenger.registerActionHandler(
       'TransactionPayController:getDelegationTransaction',
       this.#getDelegationTransaction.bind(this),
@@ -148,8 +165,14 @@ export class TransactionPayController extends BaseController<
 
     this.messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ??
-        ((): TransactionPayStrategy => TransactionPayStrategy.Relay),
+      (transaction: TransactionMeta): TransactionPayStrategy =>
+        getStrategies(transaction)[0] ?? TransactionPayStrategy.Relay,
+    );
+
+    this.messenger.registerActionHandler(
+      'TransactionPayController:getStrategies',
+      (transaction: TransactionMeta): TransactionPayStrategy[] =>
+        getStrategies(transaction),
     );
 
     this.messenger.registerActionHandler(
