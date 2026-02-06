@@ -120,7 +120,11 @@ type WithControllerCallback<ReturnValue> = ({
 }: {
   controller: RpcDataSource;
   messenger: RootMessenger;
-  onActiveChainsUpdated: (chains: ChainId[]) => void;
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -211,8 +215,15 @@ async function withController<ReturnValue>(
   );
 
   const onActiveChainsUpdated =
-    (options as { onActiveChainsUpdated?: (chains: ChainId[]) => void })
-      .onActiveChainsUpdated ?? jest.fn();
+    (
+      options as {
+        onActiveChainsUpdated?: (
+          dataSourceName: string,
+          chains: ChainId[],
+          previousChains: ChainId[],
+        ) => void;
+      }
+    ).onActiveChainsUpdated ?? jest.fn();
   const controller = new RpcDataSource({
     messenger: rpcDataSourceMessenger as unknown as AssetsControllerMessenger,
     onActiveChainsUpdated,
@@ -283,10 +294,45 @@ describe('RpcDataSource', () => {
 
     it('reports active chains on initialization', async () => {
       await withController(async ({ onActiveChainsUpdated }) => {
-        expect(onActiveChainsUpdated).toHaveBeenCalledWith([
-          MOCK_CHAIN_ID_CAIP,
-        ]);
+        expect(onActiveChainsUpdated).toHaveBeenCalledWith(
+          'RpcDataSource',
+          [MOCK_CHAIN_ID_CAIP],
+          [],
+        );
       });
+    });
+
+    it('updates state.activeChains before calling onActiveChainsUpdated so getActiveChainsSync returns new chains', async () => {
+      let source: RpcDataSource | null = null;
+      await withController(
+        {
+          options: {
+            onActiveChainsUpdated: (
+              _name: string,
+              newChains: ChainId[],
+              _previousChains: ChainId[],
+            ) => {
+              // Simulate AssetsController: when handling the callback it calls
+              // source.getActiveChainsSync() to get available chains for subscriptions.
+              if (source !== null) {
+                expect(source.getActiveChainsSync()).toEqual(newChains);
+              }
+            },
+          },
+        },
+        async ({ controller, messenger }) => {
+          source = controller;
+          // Trigger callback again via network state change (first call is during construction, before source is set).
+          const newNetworkState = createMockNetworkState(NetworkStatus.Available);
+          (messenger.publish as CallableFunction)(
+            'NetworkController:stateChange',
+            newNetworkState,
+            [],
+          );
+          await new Promise(process.nextTick);
+          expect(source.getActiveChainsSync()).toContain(MOCK_CHAIN_ID_CAIP);
+        },
+      );
     });
   });
 
