@@ -63,7 +63,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/account-api": "^0.12.0",
+    "@metamask/account-api": "^1.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^21.4.0",
     "@metamask/providers": "^22.1.0",

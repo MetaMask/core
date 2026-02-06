@@ -2412,14 +2412,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-api@npm:^0.12.0":
-  version: 0.12.0
-  resolution: "@metamask/account-api@npm:0.12.0"
+"@metamask/account-api@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@metamask/account-api@npm:1.0.0"
   dependencies:
-    "@metamask/keyring-api": "npm:^21.0.0"
-    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/keyring-api": "npm:^21.4.0"
+    "@metamask/keyring-utils": "npm:^3.2.0"
     uuid: "npm:^9.0.1"
-  checksum: 10/d5e2bf9792926755429fd4696097376d74e4a6eb2c15b7913c092b3b9c34b6feeddd1f5dc9bcf79be87275d5450ff8fa6114834982fc0415e6ba8479b925e978
+  checksum: 10/221fe044b9fb2e1cf79edea22834cfcd4e2658e26a649375b77ac7436ed6bb2f90b76168d449aef52cdd608a8908ca84570387b200f39fcd8f1127134671e7ce
   languageName: node
   linkType: hard
 
@@ -2427,7 +2427,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
-    "@metamask/account-api": "npm:^0.12.0"
+    "@metamask/account-api": "npm:^1.0.0"
     "@metamask/accounts-controller": "npm:^35.0.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
@@ -2707,7 +2707,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.3"
-    "@metamask/account-api": "npm:^0.12.0"
+    "@metamask/account-api": "npm:^1.0.0"
     "@metamask/account-tree-controller": "npm:^4.1.0"
     "@metamask/accounts-controller": "npm:^35.0.2"
     "@metamask/approval-controller": "npm:^8.0.0"
@@ -3934,9 +3934,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^21.0.0, @metamask/keyring-api@npm:^21.4.0":
-  version: 21.4.0
-  resolution: "@metamask/keyring-api@npm:21.4.0"
+"@metamask/keyring-api@npm:^21.4.0":
+  version: 21.5.0
+  resolution: "@metamask/keyring-api@npm:21.5.0"
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
@@ -3947,7 +3947,7 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     bitcoin-address-validation: "npm:^2.2.3"
     uuid: "npm:^9.0.1"
-  checksum: 10/f780ccdda9f072effa0472bddefeb210618ba597e1c3c9d333056c8a7770d0fb6f18e6647d77069c63b0297184f676cc682d6347cf30e164567655f0fa82b567
+  checksum: 10/a7f2a8c66bc76edabde15b66b80904208b71fd62406ebb91579db4c65d74a8f66db6c610afe265823313df7423b6727a4de03cb1f43e41d840d51a5039f9ef4d
   languageName: node
   linkType: hard
 
@@ -4047,7 +4047,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^3.1.0, @metamask/keyring-utils@npm:^3.2.0":
+"@metamask/keyring-utils@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "@metamask/keyring-utils@npm:3.1.0"
+  dependencies:
+    "@ethereumjs/tx": "npm:^5.4.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    bitcoin-address-validation: "npm:^2.2.3"
+  checksum: 10/d7325bb72e47bd3d81b1bce55203d8343408c0d37dd2862203c21bb68c6a1e32a1cfa7ca46a4f6fe1f14e757084bbc45db8db3eedbefc90ce81805ce22d335e8
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-utils@npm:^3.2.0":
   version: 3.2.0
   resolution: "@metamask/keyring-utils@npm:3.2.0"
   dependencies:
@@ -4133,7 +4145,7 @@ __metadata:
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
     "@ethereumjs/util": "npm:^9.1.0"
-    "@metamask/account-api": "npm:^0.12.0"
+    "@metamask/account-api": "npm:^1.0.0"
     "@metamask/accounts-controller": "npm:^35.0.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
@@ -4166,7 +4178,7 @@ __metadata:
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
-    "@metamask/account-api": ^0.12.0
+    "@metamask/account-api": ^1.0.0
     "@metamask/providers": ^22.0.0
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
@@ -5003,7 +5015,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-sdk@npm:^10.1.0, @metamask/snaps-sdk@npm:^10.3.0, @metamask/snaps-sdk@npm:^10.4.0":
+"@metamask/snaps-sdk@npm:^10.1.0, @metamask/snaps-sdk@npm:^10.3.0":
+  version: 10.3.0
+  resolution: "@metamask/snaps-sdk@npm:10.3.0"
+  dependencies:
+    "@metamask/key-tree": "npm:^10.1.1"
+    "@metamask/providers": "npm:^22.1.1"
+    "@metamask/rpc-errors": "npm:^7.0.3"
+    "@metamask/superstruct": "npm:^3.2.1"
+    "@metamask/utils": "npm:^11.8.1"
+    luxon: "npm:^3.5.0"
+  checksum: 10/24efa7af91557d2365cd2199e0572566675efadbcc51a350938cb57e4b5c0861188c30d26a9ec3a42cb9059b37bba0f44a5486ec3ed32ac2e956cf48213d6485
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-sdk@npm:^10.4.0":
   version: 10.4.0
   resolution: "@metamask/snaps-sdk@npm:10.4.0"
   dependencies:
