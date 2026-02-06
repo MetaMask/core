@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Refactor: Consolidate reset logic with a shared resetResource helper and fix abort handling for dependent resources ([#7818](https://github.com/MetaMask/core/pull/7818))
+
 ## [7.0.0]
 
 ### Added
@@ -22,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Refactor: Consolidate reset logic with a shared resetResource helper and fix abort handling for dependent resources ([#7818](https://github.com/MetaMask/core/pull/7818))
 - **BREAKING:** Restructure `RampsControllerState` to use nested `ResourceState` objects for each resource with `data`, `selected`, `isLoading`, and `error` ([#7779](https://github.com/MetaMask/core/pull/7779))
 
 ## [5.1.0]
