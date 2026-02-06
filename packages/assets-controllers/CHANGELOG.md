@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Removed
+### Changed
 
 - Remove `Tempo Testnet` multicall address ([#7858](https://github.com/MetaMask/core/pull/7858)).
 
