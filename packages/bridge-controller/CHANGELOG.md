@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.14.0` to `^62.15.0` ([#7854](https://github.com/MetaMask/core/pull/7854))
+
 ## [65.3.0]
 
 ### Added
@@ -17,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING** Use `gasEstimatesByChainId` instead of `gasEstimates` to remove reference to the global selected network. Clients need to replace gasEstimates with the `gasEstimatesByChainId` state from the GasFeeController when using the `selectBridgeQuotes` selector ([#7826](https://github.com/MetaMask/core/pull/7826))
 - Bump `@metamask/transaction-controller` from `^62.13.0` to `^62.14.0` ([#7832](https://github.com/MetaMask/core/pull/7832))
 
 ## [65.2.0]
@@ -25,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `HYPEREVM` network support ([#7787](https://github.com/MetaMask/core/pull/7787))
   - Add `HYPEREVM` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+- Add `PollingStatusUpdated` to `UnifiedSwapBridgeEventName` enum and `PollingStatus` enum with `MaxPollingReached` and `ManuallyRestarted` values ([#7825](https://github.com/MetaMask/core/pull/7825))
 
 ### Changed
 

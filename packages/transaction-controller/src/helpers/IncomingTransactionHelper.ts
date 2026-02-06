@@ -4,7 +4,6 @@ import type {
   Transaction as AccountActivityTransaction,
   WebSocketConnectionInfo,
 } from '@metamask/core-backend';
-import { WebSocketState } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 import { isCaipChainId, parseCaipChainId } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -19,6 +18,11 @@ import {
   getIncomingTransactionsPollingInterval,
   isIncomingTransactionsUseWebsocketsEnabled,
 } from '../utils/feature-flags';
+
+export enum WebSocketState {
+  CONNECTED = 'connected',
+  DISCONNECTED = 'disconnected',
+}
 
 export type IncomingTransactionOptions = {
   /** Name of the client to include in requests. */
