@@ -1,8 +1,6 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger } from '@metamask/messenger';
-import type { MessengerActions } from '@metamask/messenger';
 
-import type { DetectionMiddlewareMessenger } from './DetectionMiddleware';
 import { DetectionMiddleware } from './DetectionMiddleware';
 import type {
   Context,
@@ -39,12 +37,20 @@ function createMockAccount(
   } as InternalAccount;
 }
 
-function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
+function createDataRequest(
+  overrides?: Partial<DataRequest> & { accounts?: InternalAccount[] },
+): DataRequest {
+  const chainIds = overrides?.chainIds ?? ['eip155:1'];
+  const accounts = overrides?.accounts ?? [createMockAccount()];
+  const { accounts: _a, ...rest } = overrides ?? {};
   return {
-    chainIds: ['eip155:1'],
-    accounts: [createMockAccount()],
+    chainIds,
+    accountsWithSupportedChains: accounts.map((a) => ({
+      account: a,
+      supportedChains: chainIds,
+    })),
     dataTypes: ['balance'],
-    ...overrides,
+    ...rest,
   } as DataRequest;
 }
 
@@ -74,23 +80,15 @@ function createMiddlewareContext(
   };
 }
 
-type SetupResult = {
+function setupController(): {
   middleware: DetectionMiddleware;
-  messenger: DetectionMiddlewareMessenger;
-};
-
-function setupController(): SetupResult {
-  const messenger = new Messenger<
-    'DetectionMiddleware',
-    MessengerActions<DetectionMiddlewareMessenger>,
-    never
-  >({
+  messenger: Messenger<'DetectionMiddleware', never, never>;
+} {
+  const messenger = new Messenger<'DetectionMiddleware', never, never>({
     namespace: 'DetectionMiddleware',
   });
 
-  const middlewareInstance = new DetectionMiddleware({
-    messenger,
-  });
+  const middlewareInstance = new DetectionMiddleware();
 
   return {
     middleware: middlewareInstance,
@@ -108,13 +106,10 @@ describe('DetectionMiddleware', () => {
     expect(middleware.name).toBe('DetectionMiddleware');
   });
 
-  it('registers getAssetsMiddleware action handler', () => {
-    const { messenger } = setupController();
+  it('exposes getAssetsMiddleware on instance', () => {
+    const { middleware } = setupController();
 
-    const middlewareFn = messenger.call(
-      'DetectionMiddleware:getAssetsMiddleware',
-    );
-
+    const middlewareFn = middleware.assetsMiddleware;
     expect(typeof middlewareFn).toBe('function');
   });
 
@@ -341,11 +336,9 @@ describe('DetectionMiddleware', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('retrieves middleware via messenger action', async () => {
-    const { messenger } = setupController();
-    const middlewareFn = messenger.call(
-      'DetectionMiddleware:getAssetsMiddleware',
-    );
+  it('retrieves middleware from instance', async () => {
+    const { middleware } = setupController();
+    const middlewareFn = middleware.assetsMiddleware;
 
     const context = createMiddlewareContext(
       {
