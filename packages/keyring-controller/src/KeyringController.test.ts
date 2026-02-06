@@ -2431,10 +2431,10 @@ describe('KeyringController', () => {
             };
             const baseTxs = [
               {
-                to: '',
+                to: '0x0',
                 value: '0x0',
                 data: '0x7064',
-              },
+              } as const,
             ];
             await controller.withKeyring({ id }, async ({ keyring }) => {
               jest
@@ -2522,7 +2522,7 @@ describe('KeyringController', () => {
               maxPriorityFeePerGas: '0x1dcd6500',
               paymasterAndData: '0x',
               signature: '0x',
-            };
+            } as const;
             const patch = {
               paymasterAndData: '0x1234',
             };
@@ -2570,7 +2570,7 @@ describe('KeyringController', () => {
               maxPriorityFeePerGas: '0x1dcd6500',
               paymasterAndData: '0x',
               signature: '0x',
-            };
+            } as const;
 
             await expect(
               controller.patchUserOperation(address, userOp, executionContext),
@@ -2636,7 +2636,7 @@ describe('KeyringController', () => {
               maxPriorityFeePerGas: '0x1dcd6500',
               paymasterAndData: '0x',
               signature: '0x',
-            };
+            } as const;
             const signature = '0x1234';
             await controller.withKeyring({ id }, async ({ keyring }) => {
               jest
@@ -2682,7 +2682,7 @@ describe('KeyringController', () => {
               maxPriorityFeePerGas: '0x1dcd6500',
               paymasterAndData: '0x',
               signature: '0x',
-            };
+            } as const;
 
             await expect(
               controller.signUserOperation(address, userOp, executionContext),
@@ -4068,7 +4068,7 @@ describe('KeyringController', () => {
                 to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
                 value: '0x0',
                 data: '0x0',
-              },
+              } as const,
             ];
 
             await messenger.call(
@@ -4108,7 +4108,7 @@ describe('KeyringController', () => {
               maxPriorityFeePerGas: '0x1dcd6500',
               paymasterAndData: '0x',
               signature: '0x',
-            };
+            } as const;
 
             await messenger.call(
               'KeyringController:patchUserOperation',
@@ -4147,7 +4147,7 @@ describe('KeyringController', () => {
               maxPriorityFeePerGas: '0x1dcd6500',
               paymasterAndData: '0x',
               signature: '0x',
-            };
+            } as const;
 
             await messenger.call(
               'KeyringController:signUserOperation',
