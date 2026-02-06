@@ -21,7 +21,11 @@ const STABLECOINS: Record<Hex, Hex[]> = {
  * Check if two tokens are the same (same address and chain).
  *
  * @param token1 - First token identifier.
+ * @param token1.address - Token address.
+ * @param token1.chainId - Token chain ID.
  * @param token2 - Second token identifier.
+ * @param token2.address - Token address.
+ * @param token2.chainId - Token chain ID.
  * @returns True if tokens are the same, false otherwise.
  */
 export function isSameToken(
