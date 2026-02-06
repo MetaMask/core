@@ -8,7 +8,7 @@ import type {
 import { SnapControllerState } from '@metamask/snaps-controllers';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import {
   SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   SOL_ACCOUNT_PROVIDER_NAME,
@@ -121,6 +121,11 @@ function setup({
   const keyring = new MockSolanaKeyring(accounts);
 
   messenger.registerActionHandler(
+    'AccountsController:getAccounts',
+    () => accounts,
+  );
+
+  messenger.registerActionHandler(
     'SnapController:getState',
     () => ({ isReady: true }) as SnapControllerState,
   );
@@ -128,6 +133,14 @@ function setup({
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     () => accounts,
+  );
+
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find((account) => account.id === id);
+  });
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
   );
 
   const mockHandleRequest = jest
@@ -161,10 +174,14 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const provider = new AccountProviderWrapper(
+  const solProvider = new MockSolAccountProvider(
     multichainMessenger,
-    new MockSolAccountProvider(multichainMessenger, config, mockTrace),
+    config,
+    mockTrace,
   );
+  const accountIds = accounts.map((account) => account.id);
+  solProvider.init(accountIds);
+  const provider = new AccountProviderWrapper(multichainMessenger, solProvider);
 
   return {
     provider,
@@ -214,6 +231,22 @@ describe('SolAccountProvider', () => {
     expect(() => provider.getAccount(unknownAccount.id)).toThrow(
       `Unable to find account: ${unknownAccount.id}`,
     );
+  });
+
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_SOL_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(false);
   });
 
   it('creates accounts', async () => {
