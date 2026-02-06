@@ -236,6 +236,13 @@ export class TransactionPoller {
       return;
     }
 
+    const isPendingTransaction = this.#pendingTransactions?.some(
+      (tx) => tx.hash?.toLowerCase() === transaction.id.toLowerCase(),
+    );
+    if (!isPendingTransaction) {
+      return;
+    }
+
     this.#interval(IntervalTrigger.Websocket).catch(() => {
       // Silently catch errors to prevent unhandled rejections
     });
