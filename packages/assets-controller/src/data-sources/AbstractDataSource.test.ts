@@ -84,6 +84,7 @@ function setupDataSource(
     dataSource.addTestSubscription(sub.id, {
       cleanup: sub.cleanup,
       chains: sub.chains,
+      onAssetsUpdate: jest.fn(),
     });
   }
 

@@ -1,6 +1,5 @@
 import type { Balance, CaipAssetType } from '@metamask/keyring-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
-import type { Messenger } from '@metamask/messenger';
 import type {
   Caveat,
   GetPermissions,
@@ -21,6 +20,7 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   AssetBalance,
@@ -137,52 +137,6 @@ const defaultSnapState: SnapDataSourceState = {
 // MESSENGER TYPES
 // ============================================================================
 
-export type SnapDataSourceGetAssetsMiddlewareAction = {
-  type: 'SnapDataSource:getAssetsMiddleware';
-  handler: () => Middleware;
-};
-
-export type SnapDataSourceGetActiveChainsAction = {
-  type: 'SnapDataSource:getActiveChains';
-  handler: () => Promise<ChainId[]>;
-};
-
-export type SnapDataSourceFetchAction = {
-  type: 'SnapDataSource:fetch';
-  handler: (request: DataRequest) => Promise<DataResponse>;
-};
-
-export type SnapDataSourceSubscribeAction = {
-  type: 'SnapDataSource:subscribe';
-  handler: (request: SubscriptionRequest) => Promise<void>;
-};
-
-export type SnapDataSourceUnsubscribeAction = {
-  type: 'SnapDataSource:unsubscribe';
-  handler: (subscriptionId: string) => Promise<void>;
-};
-
-export type SnapDataSourceActions =
-  | SnapDataSourceGetAssetsMiddlewareAction
-  | SnapDataSourceGetActiveChainsAction
-  | SnapDataSourceFetchAction
-  | SnapDataSourceSubscribeAction
-  | SnapDataSourceUnsubscribeAction;
-
-export type SnapDataSourceActiveChainsChangedEvent = {
-  type: 'SnapDataSource:activeChainsUpdated';
-  payload: [ChainId[]];
-};
-
-export type SnapDataSourceAssetsUpdatedEvent = {
-  type: 'SnapDataSource:assetsUpdated';
-  payload: [DataResponse, string | undefined];
-};
-
-export type SnapDataSourceEvents =
-  | SnapDataSourceActiveChainsChangedEvent
-  | SnapDataSourceAssetsUpdatedEvent;
-
 /**
  * Allowed events that SnapDataSource can subscribe to.
  */
@@ -190,37 +144,20 @@ export type SnapDataSourceAllowedEvents =
   | AccountsControllerAccountBalancesUpdatedEvent
   | PermissionControllerStateChange;
 
-// Actions to report to AssetsController
-type AssetsControllerActiveChainsUpdateAction = {
-  type: 'AssetsController:activeChainsUpdate';
-  handler: (dataSourceId: string, activeChains: ChainId[]) => void;
-};
-
-type AssetsControllerAssetsUpdateAction = {
-  type: 'AssetsController:assetsUpdate';
-  handler: (response: DataResponse, sourceId: string) => Promise<void>;
-};
-
 export type SnapDataSourceAllowedActions =
-  | AssetsControllerActiveChainsUpdateAction
-  | AssetsControllerAssetsUpdateAction
   | GetRunnableSnaps
   | HandleSnapRequest
   | GetPermissions;
-
-export type SnapDataSourceMessenger = Messenger<
-  typeof SNAP_DATA_SOURCE_NAME,
-  SnapDataSourceActions | SnapDataSourceAllowedActions,
-  SnapDataSourceEvents | SnapDataSourceAllowedEvents
->;
 
 // ============================================================================
 // OPTIONS
 // ============================================================================
 
 export type SnapDataSourceOptions = {
-  /** Messenger for this data source */
-  messenger: SnapDataSourceMessenger;
+  /** The AssetsController messenger (shared by all data sources). */
+  messenger: AssetsControllerMessenger;
+  /** Called when this data source's active chains change. */
+  onActiveChainsUpdated: (chains: ChainId[]) => void;
   /** Configured networks to support (defaults to all snap networks) */
   configuredNetworks?: ChainId[];
   /** Default polling interval in ms for subscriptions */
@@ -241,6 +178,7 @@ export type SnapDataSourceOptions = {
  * ```typescript
  * const snapDataSource = new SnapDataSource({
  *   messenger,
+ *   onActiveChainsUpdated: (chains) => { /* ... *\/ },
  * });
  *
  * // Fetch will automatically route to the correct snap
@@ -254,7 +192,9 @@ export class SnapDataSource extends AbstractDataSource<
   typeof SNAP_DATA_SOURCE_NAME,
   SnapDataSourceState
 > {
-  readonly #messenger: SnapDataSourceMessenger;
+  readonly #messenger: AssetsControllerMessenger;
+
+  readonly #onActiveChainsUpdated: (chains: ChainId[]) => void;
 
   /** Bound handler for snap keyring balance updates, stored for cleanup */
   readonly #handleSnapBalancesUpdatedBound: (
@@ -273,6 +213,7 @@ export class SnapDataSource extends AbstractDataSource<
     });
 
     this.#messenger = options.messenger;
+    this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
@@ -281,7 +222,6 @@ export class SnapDataSource extends AbstractDataSource<
     this.#handlePermissionStateChangeBound =
       this.#discoverKeyringSnaps.bind(this);
 
-    this.#registerActionHandlers();
     this.#subscribeToEvents();
 
     // Discover keyring-capable snaps and populate activeChains dynamically
@@ -293,17 +233,14 @@ export class SnapDataSource extends AbstractDataSource<
    * Groups snap keyring events and permission change events.
    */
   #subscribeToEvents(): void {
-    // Subscribe to snap keyring events for real-time balance updates.
-    // The snaps emit AccountBalancesUpdated events when balances change,
-    // which are re-published by AccountsController.
-    this.#messenger.subscribe(
+    // Subscribe to snap keyring events and permission changes (not in AssetsControllerEvents).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const messenger = this.#messenger as any;
+    messenger.subscribe(
       'AccountsController:accountBalancesUpdated',
       this.#handleSnapBalancesUpdatedBound,
     );
-
-    // Subscribe to permission changes to detect new keyring snaps at runtime.
-    // Re-runs snap discovery when permissions change.
-    this.#messenger.subscribe(
+    messenger.subscribe(
       'PermissionController:stateChange',
       this.#handlePermissionStateChangeBound,
     );
@@ -343,9 +280,9 @@ export class SnapDataSource extends AbstractDataSource<
     // Only report if we have snap-related updates
     if (assetsBalance) {
       const response: DataResponse = { assetsBalance };
-      this.#messenger
-        .call('AssetsController:assetsUpdate', response, SNAP_DATA_SOURCE_NAME)
-        .catch(console.error);
+      for (const subscription of this.activeSubscriptions.values()) {
+        subscription.onAssetsUpdate(response)?.catch(console.error);
+      }
     }
   }
 
@@ -357,36 +294,6 @@ export class SnapDataSource extends AbstractDataSource<
    */
   #isChainSupportedBySnap(chainId: ChainId): boolean {
     return this.state.activeChains.includes(chainId);
-  }
-
-  #registerActionHandlers(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messenger = this.#messenger as any;
-
-    messenger.registerActionHandler(
-      'SnapDataSource:getAssetsMiddleware',
-      () => this.assetsMiddleware,
-    );
-
-    messenger.registerActionHandler(
-      'SnapDataSource:getActiveChains',
-      async () => this.getActiveChains(),
-    );
-
-    messenger.registerActionHandler(
-      'SnapDataSource:fetch',
-      async (request: DataRequest) => this.fetch(request),
-    );
-
-    messenger.registerActionHandler(
-      'SnapDataSource:subscribe',
-      async (request: SubscriptionRequest) => this.subscribe(request),
-    );
-
-    messenger.registerActionHandler(
-      'SnapDataSource:unsubscribe',
-      async (subscriptionId: string) => this.unsubscribe(subscriptionId),
-    );
   }
 
   // ============================================================================
@@ -401,7 +308,10 @@ export class SnapDataSource extends AbstractDataSource<
    */
   #getRunnableSnaps(): Snap[] {
     try {
-      return this.#messenger.call('SnapController:getRunnableSnaps');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (this.#messenger as any).call(
+        'SnapController:getRunnableSnaps',
+      ) as Snap[];
     } catch (error) {
       log('Failed to get runnable snaps', error);
       return [];
@@ -418,7 +328,8 @@ export class SnapDataSource extends AbstractDataSource<
     snapId: string,
   ): SubjectPermissions<PermissionConstraint> | undefined {
     try {
-      return this.#messenger.call(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (this.#messenger as any).call(
         'PermissionController:getPermissions',
         snapId,
       ) as SubjectPermissions<PermissionConstraint>;
@@ -478,11 +389,7 @@ export class SnapDataSource extends AbstractDataSource<
       // Notify if chains changed
       try {
         this.updateActiveChains(supportedChains, (updatedChains) => {
-          this.#messenger.call(
-            'AssetsController:activeChainsUpdate',
-            SNAP_DATA_SOURCE_NAME,
-            updatedChains,
-          );
+          this.#onActiveChainsUpdated(updatedChains);
         });
       } catch {
         // AssetsController not ready yet - expected during initialization
@@ -492,11 +399,7 @@ export class SnapDataSource extends AbstractDataSource<
       this.state.chainToSnap = {};
       try {
         this.updateActiveChains([], (updatedChains) => {
-          this.#messenger.call(
-            'AssetsController:activeChainsUpdate',
-            SNAP_DATA_SOURCE_NAME,
-            updatedChains,
-          );
+          this.#onActiveChainsUpdated(updatedChains);
         });
       } catch {
         // AssetsController not ready yet - expected during initialization
@@ -511,8 +414,11 @@ export class SnapDataSource extends AbstractDataSource<
   async fetch(request: DataRequest): Promise<DataResponse> {
     // Guard against undefined request
     // Note: chainIds filtering is done by middleware/subscribe before calling fetch
-    if (!request?.accounts || !request?.chainIds?.length) {
+    if (!request?.chainIds?.length) {
       return {};
+    }
+    if (!request?.accountsWithSupportedChains?.length) {
+      return { assetsBalance: {}, assetsMetadata: {} };
     }
 
     const results: DataResponse = {
@@ -521,7 +427,7 @@ export class SnapDataSource extends AbstractDataSource<
     };
 
     // Fetch balances for each account using its snap ID from metadata
-    for (const account of request.accounts) {
+    for (const { account } of request.accountsWithSupportedChains) {
       // Skip accounts without snap metadata (non-snap accounts)
       const snapId = account.metadata.snap?.id;
       if (!snapId) {
@@ -700,11 +606,7 @@ export class SnapDataSource extends AbstractDataSource<
         })
           .then(async (fetchResponse) => {
             if (Object.keys(fetchResponse.assetsBalance ?? {}).length > 0) {
-              await this.#messenger.call(
-                'AssetsController:assetsUpdate',
-                fetchResponse,
-                SNAP_DATA_SOURCE_NAME,
-              );
+              await existing.onAssetsUpdate(fetchResponse);
             }
             return fetchResponse;
           })
@@ -726,6 +628,7 @@ export class SnapDataSource extends AbstractDataSource<
         // No timer to clear - we use event-based updates
       },
       chains: supportedChains,
+      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
     // Initial fetch to get current balances
@@ -735,12 +638,12 @@ export class SnapDataSource extends AbstractDataSource<
         chainIds: supportedChains,
       });
 
-      if (Object.keys(fetchResponse.assetsBalance ?? {}).length > 0) {
-        await this.#messenger.call(
-          'AssetsController:assetsUpdate',
-          fetchResponse,
-          SNAP_DATA_SOURCE_NAME,
-        );
+      const subscription = this.activeSubscriptions.get(subscriptionId);
+      if (
+        Object.keys(fetchResponse.assetsBalance ?? {}).length > 0 &&
+        subscription
+      ) {
+        await subscription.onAssetsUpdate(fetchResponse);
       }
     } catch (error) {
       log('Initial fetch failed', { subscriptionId, error });
@@ -766,12 +669,16 @@ export class SnapDataSource extends AbstractDataSource<
 
     const client = new KeyringClient({
       send: async (request: JsonRpcRequest): Promise<Json> =>
-        (await this.#messenger.call('SnapController:handleRequest', {
+        await (
+          this.#messenger as unknown as {
+            call: (action: string, ...args: unknown[]) => Promise<Json> | Json;
+          }
+        ).call('SnapController:handleRequest', {
           snapId: snapId as SnapId,
           origin: 'metamask',
           handler: HandlerType.OnKeyringRequest,
           request,
-        })) as Json,
+        }),
     });
 
     this.#keyringClientCache.set(snapId, client);

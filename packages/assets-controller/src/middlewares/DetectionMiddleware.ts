@@ -1,5 +1,3 @@
-import type { Messenger } from '@metamask/messenger';
-
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type { AccountId, Caip19AssetId, Middleware } from '../types';
@@ -14,38 +12,6 @@ const CONTROLLER_NAME = 'DetectionMiddleware';
 createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // ============================================================================
-// MESSENGER TYPES
-// ============================================================================
-
-/**
- * Action to get the DetectionMiddleware middleware.
- */
-export type DetectionMiddlewareGetAssetsMiddlewareAction = {
-  type: `${typeof CONTROLLER_NAME}:getAssetsMiddleware`;
-  handler: () => Middleware;
-};
-
-/**
- * All actions exposed by DetectionMiddleware.
- */
-export type DetectionMiddlewareActions =
-  DetectionMiddlewareGetAssetsMiddlewareAction;
-
-export type DetectionMiddlewareMessenger = Messenger<
-  typeof CONTROLLER_NAME,
-  DetectionMiddlewareActions,
-  never
->;
-
-// ============================================================================
-// OPTIONS
-// ============================================================================
-
-export type DetectionMiddlewareOptions = {
-  messenger: DetectionMiddlewareMessenger;
-};
-
-// ============================================================================
 // DETECTION MIDDLEWARE
 // ============================================================================
 
@@ -53,36 +19,18 @@ export type DetectionMiddlewareOptions = {
  * DetectionMiddleware identifies assets that do not have metadata.
  *
  * This middleware:
- * - Checks assets in the response for metadata in state
+ * - Checks assets in the response for metadata in state (via ctx.getAssetsState)
  * - Assets in response but without metadata are considered "detected"
  * - Fills response.detectedAssets with asset IDs per account that lack metadata
  *
  * Usage:
  * ```typescript
- * // Create and initialize (registers messenger actions)
- * const detectionMiddleware = new DetectionMiddleware({ messenger });
- *
- * // Later, get middleware via messenger
- * const middleware = messenger.call('DetectionMiddleware:getAssetsMiddleware');
+ * const detectionMiddleware = new DetectionMiddleware();
+ * const middleware = detectionMiddleware.assetsMiddleware;
  * ```
  */
 export class DetectionMiddleware {
   readonly name = CONTROLLER_NAME;
-
-  readonly #messenger: DetectionMiddlewareMessenger;
-
-  constructor(options: DetectionMiddlewareOptions) {
-    this.#messenger = options.messenger;
-    this.#registerActionHandlers();
-  }
-
-  #registerActionHandlers(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (this.#messenger as any).registerActionHandler(
-      'DetectionMiddleware:getAssetsMiddleware',
-      () => this.assetsMiddleware,
-    );
-  }
 
   /**
    * Get the middleware for detecting assets without metadata.

@@ -2,24 +2,17 @@
 import type { V5BalanceItem } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type {
-  MockAnyNamespace,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 
 import type {
-  AccountsApiDataSourceMessenger,
   AccountsApiDataSourceOptions,
+  AccountsApiDataSourceAllowedActions,
 } from './AccountsApiDataSource';
-import {
-  AccountsApiDataSource,
-  createAccountsApiDataSource,
-} from './AccountsApiDataSource';
+import { AccountsApiDataSource } from './AccountsApiDataSource';
 import type { ChainId, DataRequest, Context } from '../types';
 
-type AllActions = MessengerActions<AccountsApiDataSourceMessenger>;
-type AllEvents = MessengerEvents<AccountsApiDataSourceMessenger>;
+type AllActions = AccountsApiDataSourceAllowedActions;
+type AllEvents = never;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
@@ -81,12 +74,20 @@ function createMockBalanceItem(
   return { accountId, assetId, balance } as V5BalanceItem;
 }
 
-function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
+function createDataRequest(
+  overrides?: Partial<DataRequest> & { accounts?: InternalAccount[] },
+): DataRequest {
+  const chainIds = overrides?.chainIds ?? [CHAIN_MAINNET];
+  const accounts = overrides?.accounts ?? [createMockAccount()];
+  const { accounts: _a, ...rest } = overrides ?? {};
   return {
-    chainIds: [CHAIN_MAINNET],
-    accounts: [createMockAccount()],
+    chainIds,
+    accountsWithSupportedChains: accounts.map((a) => ({
+      account: a,
+      supportedChains: chainIds,
+    })),
     dataTypes: ['balance'],
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -126,8 +127,8 @@ async function setupController(
 
   const controllerMessenger = new Messenger<
     'AccountsApiDataSource',
-    MessengerActions<AccountsApiDataSourceMessenger>,
-    MessengerEvents<AccountsApiDataSourceMessenger>,
+    AllActions,
+    AllEvents,
     RootMessenger
   >({
     namespace: 'AccountsApiDataSource',
@@ -136,24 +137,12 @@ async function setupController(
 
   rootMessenger.delegate({
     messenger: controllerMessenger,
-    actions: [
-      'AssetsController:assetsUpdate',
-      'AssetsController:activeChainsUpdate',
-    ],
+    actions: [],
     events: [],
   });
 
   const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
   const activeChainsUpdateHandler = jest.fn();
-
-  rootMessenger.registerActionHandler(
-    'AssetsController:assetsUpdate',
-    assetsUpdateHandler,
-  );
-  rootMessenger.registerActionHandler(
-    'AssetsController:activeChainsUpdate',
-    activeChainsUpdateHandler,
-  );
 
   const apiClient = createMockApiClient(
     supportedChains,
@@ -162,9 +151,10 @@ async function setupController(
   );
 
   const controller = new AccountsApiDataSource({
-    messenger: controllerMessenger,
     queryApiClient:
       apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
+    onActiveChainsUpdated: (chains): void =>
+      activeChainsUpdateHandler('AccountsApiDataSource', chains),
   });
 
   // Wait for async initialization
@@ -230,17 +220,13 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  it('registers action handlers', async () => {
-    const { controller, messenger } = await setupController();
+  it('exposes assetsMiddleware and getActiveChains on instance', async () => {
+    const { controller } = await setupController();
 
-    const middleware = messenger.call(
-      'AccountsApiDataSource:getAssetsMiddleware',
-    );
+    const middleware = controller.assetsMiddleware;
     expect(middleware).toBeDefined();
 
-    const chains = await messenger.call(
-      'AccountsApiDataSource:getActiveChains',
-    );
+    const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([CHAIN_MAINNET, CHAIN_POLYGON]);
 
     controller.destroy();
@@ -343,8 +329,10 @@ describe('AccountsApiDataSource', () => {
   it('fetch skips API when no valid account-chain combinations', async () => {
     const { controller, apiClient } = await setupController();
 
+    const account = createMockAccount({ scopes: ['eip155:137'] });
     const request = createDataRequest({
-      accounts: [createMockAccount({ scopes: ['eip155:137'] })],
+      accountsWithSupportedChains: [{ account, supportedChains: [] }],
+      chainIds: [CHAIN_MAINNET],
     });
 
     await controller.fetch(request);
@@ -422,6 +410,7 @@ describe('AccountsApiDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
@@ -436,61 +425,11 @@ describe('AccountsApiDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest({ chainIds: [] }),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
 
     controller.destroy();
-  });
-
-  it('createAccountsApiDataSource factory creates instance', async () => {
-    const rootMessenger = new Messenger<
-      MockAnyNamespace,
-      AllActions,
-      AllEvents
-    >({
-      namespace: MOCK_ANY_NAMESPACE,
-    });
-
-    const controllerMessenger = new Messenger<
-      'AccountsApiDataSource',
-      MessengerActions<AccountsApiDataSourceMessenger>,
-      MessengerEvents<AccountsApiDataSourceMessenger>,
-      RootMessenger
-    >({
-      namespace: 'AccountsApiDataSource',
-      parent: rootMessenger,
-    });
-
-    rootMessenger.delegate({
-      messenger: controllerMessenger,
-      actions: [
-        'AssetsController:assetsUpdate',
-        'AssetsController:activeChainsUpdate',
-      ],
-      events: [],
-    });
-
-    rootMessenger.registerActionHandler(
-      'AssetsController:assetsUpdate',
-      jest.fn(),
-    );
-    rootMessenger.registerActionHandler(
-      'AssetsController:activeChainsUpdate',
-      jest.fn(),
-    );
-
-    const apiClient = createMockApiClient();
-
-    const instance = createAccountsApiDataSource({
-      messenger: controllerMessenger,
-      queryApiClient:
-        apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
-    });
-
-    expect(instance).toBeInstanceOf(AccountsApiDataSource);
-    expect(instance.getName()).toBe('AccountsApiDataSource');
-
-    instance.destroy();
   });
 });
