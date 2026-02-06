@@ -92,9 +92,7 @@ export function setupBip44AccountProvider({
       // Assuming this never fails.
       getAccounts().find((account) => account.id === id),
   );
-  mocks.createAccounts.mockImplementation(async () => {
-    return [];
-  });
+  mocks.createAccounts.mockResolvedValue([]);
   mocks.alignAccounts.mockImplementation(
     async ({
       entropySource,
