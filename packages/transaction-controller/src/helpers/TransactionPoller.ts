@@ -15,7 +15,7 @@ const log = createModuleLogger(projectLogger, 'transaction-poller');
 enum IntervalTrigger {
   Accelerated = 'Accelerated',
   BlockTracker = 'BlockTracker',
-  TransactionUpdate = 'TransactionUpdate',
+  Websocket = 'Websocket',
 }
 
 /**
@@ -168,7 +168,7 @@ export class TransactionPoller {
     latestBlockNumber?: string,
   ): Promise<void> {
     switch (trigger) {
-      case IntervalTrigger.TransactionUpdate:
+      case IntervalTrigger.Websocket:
         log('AccountActivityService:transactionUpdated received');
         break;
       case IntervalTrigger.Accelerated:
@@ -219,7 +219,11 @@ export class TransactionPoller {
       return;
     }
 
-    if (transaction.status !== 'confirmed') {
+    if (
+      transaction.status !== 'confirmed' &&
+      transaction.status !== 'dropped' &&
+      transaction.status !== 'failed'
+    ) {
       return;
     }
 
@@ -232,7 +236,7 @@ export class TransactionPoller {
       return;
     }
 
-    this.#interval(IntervalTrigger.TransactionUpdate).catch(() => {
+    this.#interval(IntervalTrigger.Websocket).catch(() => {
       // Silently catch errors to prevent unhandled rejections
     });
   };

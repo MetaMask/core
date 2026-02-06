@@ -383,39 +383,42 @@ describe('TransactionPoller', () => {
       );
     });
 
-    it('triggers interval when transaction with matching chainId and confirmed status is received', async () => {
-      const poller = new TransactionPoller({
-        blockTracker: BLOCK_TRACKER_MOCK,
-        messenger: MESSENGER_MOCK,
-        chainId: CHAIN_ID_MOCK,
-      });
+    it.each(['confirmed', 'dropped', 'failed'] as const)(
+      'triggers interval when transaction with matching chainId and %s status is received',
+      async (status) => {
+        const poller = new TransactionPoller({
+          blockTracker: BLOCK_TRACKER_MOCK,
+          messenger: MESSENGER_MOCK,
+          chainId: CHAIN_ID_MOCK,
+        });
 
-      BLOCK_TRACKER_MOCK.getLatestBlock.mockResolvedValue(BLOCK_NUMBER_MOCK);
+        BLOCK_TRACKER_MOCK.getLatestBlock.mockResolvedValue(BLOCK_NUMBER_MOCK);
 
-      const listener = jest.fn();
-      poller.start(listener);
+        const listener = jest.fn();
+        poller.start(listener);
 
-      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
-        (call) => call[0] === 'AccountActivityService:transactionUpdated',
-      );
-      const eventHandler = subscribeCall?.[1] as (
-        transaction: Transaction,
-      ) => void;
+        const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+          (call) => call[0] === 'AccountActivityService:transactionUpdated',
+        );
+        const eventHandler = subscribeCall?.[1] as (
+          transaction: Transaction,
+        ) => void;
 
-      const transaction: Transaction = {
-        id: '0xabc',
-        chain: 'eip155:1',
-        status: 'confirmed',
-        timestamp: Date.now(),
-        from: '0x123',
-        to: '0x456',
-      };
+        const transaction: Transaction = {
+          id: '0xabc',
+          chain: 'eip155:1',
+          status,
+          timestamp: Date.now(),
+          from: '0x123',
+          to: '0x456',
+        };
 
-      eventHandler(transaction);
-      await flushPromises();
+        eventHandler(transaction);
+        await flushPromises();
 
-      expect(listener).toHaveBeenCalledTimes(1);
-    });
+        expect(listener).toHaveBeenCalledTimes(1);
+      },
+    );
 
     it('does not trigger interval when transaction with non-matching chainId is received', async () => {
       const poller = new TransactionPoller({
