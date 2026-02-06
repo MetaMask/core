@@ -15,7 +15,12 @@ import type {
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';
-import type { MultichainAccountServiceMessenger } from '../types';
+import { AccountCreationType } from '../types';
+import type {
+  CreateAccountBip44DeriveIndexOptions,
+  CreateAccountBip44DeriveRangeOptions,
+  MultichainAccountServiceMessenger,
+} from '../types';
 
 export type TrxAccountProviderConfig = SnapAccountProviderConfig;
 
@@ -84,19 +89,44 @@ export class TrxAccountProvider extends SnapAccountProvider {
     });
   }
 
-  async createAccounts({
-    entropySource,
-    groupIndex: index,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withSnap(async ({ keyring }) => {
-      return this.#createAccounts({
-        keyring,
-        entropySource,
-        groupIndex: index,
+  async createAccounts(
+    options:
+      | CreateAccountBip44DeriveIndexOptions
+      | CreateAccountBip44DeriveRangeOptions,
+  ): Promise<
+    Bip44Account<KeyringAccount>[] | Bip44Account<KeyringAccount>[][]
+  > {
+    if (options.type === AccountCreationType.Bip44DeriveIndex) {
+      // Single account creation
+      const { entropySource, groupIndex } = options;
+      return this.withSnap(async ({ keyring }) => {
+        return this.#createAccounts({
+          keyring,
+          entropySource,
+          groupIndex,
+        });
       });
+    }
+
+    // Range account creation
+    const { entropySource, range } = options;
+    return this.withSnap(async ({ keyring }) => {
+      const result: Bip44Account<KeyringAccount>[][] = [];
+
+      for (
+        let groupIndex = range.from;
+        groupIndex <= range.to;
+        groupIndex++
+      ) {
+        const accounts = await this.#createAccounts({
+          keyring,
+          entropySource,
+          groupIndex,
+        });
+        result.push(accounts);
+      }
+
+      return result;
     });
   }
 

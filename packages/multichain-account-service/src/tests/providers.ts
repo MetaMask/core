@@ -6,6 +6,7 @@ import {
   EvmAccountProvider,
   BaseBip44AccountProvider,
 } from '../providers';
+import { AccountCreationType } from '../types';
 
 export type MockAccountProvider = {
   mockAccounts: KeyringAccount[];
@@ -17,7 +18,6 @@ export type MockAccountProvider = {
   getAccount: jest.Mock;
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
-  createMaxAccounts: jest.Mock;
   discoverAccounts: jest.Mock;
   isAccountCompatible: jest.Mock;
   getName: jest.Mock;
@@ -39,7 +39,6 @@ export function makeMockAccountProvider(
     getAccount: jest.fn(),
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),
-    createMaxAccounts: jest.fn(),
     discoverAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
     getName: jest.fn(),
@@ -85,7 +84,6 @@ export function setupBip44AccountProvider({
       getAccounts().find((account) => account.id === id),
   );
   mocks.createAccounts.mockResolvedValue([]);
-  mocks.createMaxAccounts.mockResolvedValue([]);
   mocks.alignAccounts.mockImplementation(
     async ({
       entropySource,
@@ -110,6 +108,7 @@ export function setupBip44AccountProvider({
         return ids;
       }
       const createdAccounts = await mocks.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource,
         groupIndex,
       });
@@ -119,6 +118,7 @@ export function setupBip44AccountProvider({
           alignAccounts: (
             this: {
               createAccounts: (o: {
+                type: AccountCreationType.Bip44DeriveIndex;
                 entropySource: EntropySourceId;
                 groupIndex: number;
               }) => Promise<unknown[]>;
@@ -186,36 +186,3 @@ export function mockCreateAccountsOnce(
   });
 }
 
-/**
- * Helper to mock a single createMaxAccounts call while updating the provider's
- * internal state so subsequent getAccount/getAccounts can resolve the accounts.
- *
- * @param provider - The mock provider whose createMaxAccounts call to mock.
- * @param created - The accounts to be returned and persisted in the mock state.
- */
-export function mockCreateMaxAccountsOnce(
-  provider: MockAccountProvider,
-  created: KeyringAccount[][],
-): void {
-  provider.createMaxAccounts.mockImplementationOnce(async () => {
-    // Add newly created accounts to the provider's internal store
-    for (const group of created) {
-      for (const account of group) {
-        if (
-          !provider.mockAccounts.some(
-            (existingAccount) => existingAccount.id === account.id,
-          )
-        ) {
-          provider.mockAccounts.push(account);
-        }
-      }
-    }
-    // Merge IDs into the visible list used by getAccounts/getAccount
-    const ids = created.flat().map((account) => account.id);
-    for (const id of ids) {
-      provider.accounts.add(id);
-    }
-
-    return created;
-  });
-}

@@ -7,7 +7,12 @@ import type {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { MultichainAccountServiceMessenger } from '../types';
+import { AccountCreationType } from '../types';
+import type {
+  CreateAccountBip44DeriveIndexOptions,
+  CreateAccountBip44DeriveRangeOptions,
+  MultichainAccountServiceMessenger,
+} from '../types';
 
 /**
  * Asserts a keyring account is BIP-44 compatible.
@@ -37,7 +42,7 @@ export function assertAreBip44Accounts(
 
 export type Bip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
-> = AccountProvider<Account> & {
+> = Omit<AccountProvider<Account>, 'createAccounts'> & {
   /**
    * Get the name of the provider.
    *
@@ -70,20 +75,16 @@ export type Bip44AccountProvider<
     groupIndex: number;
   }): Promise<Account['id'][]>;
   /**
-   * Create accounts for all group indices from 0 to maxGroupIndex (inclusive).
+   * Create accounts using BIP-44 derivation.
    *
    * @param options - The options for creating the accounts.
-   * @param options.entropySource - The entropy source.
-   * @param options.maxGroupIndex - The maximum group index (inclusive).
-   * @returns Array of account arrays indexed by group index.
+   * @returns The created accounts (single array for Bip44DeriveIndex, array of arrays for Bip44DeriveIndexRange).
    */
-  createMaxAccounts({
-    entropySource,
-    maxGroupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    maxGroupIndex: number;
-  }): Promise<Account[][]>;
+  createAccounts(
+    options:
+      | CreateAccountBip44DeriveIndexOptions
+      | CreateAccountBip44DeriveRangeOptions,
+  ): Promise<Account[] | Account[][]>;
   /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
@@ -196,10 +197,11 @@ export abstract class BaseBip44AccountProvider<
     groupIndex: number;
   }): Promise<Account['id'][]> {
     const accounts = await this.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource,
       groupIndex,
     });
-    const accountIds = accounts.map((account) => account.id);
+    const accountIds = (accounts as Account[]).map((account) => account.id);
     return accountIds;
   }
 
@@ -211,21 +213,11 @@ export abstract class BaseBip44AccountProvider<
 
   abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 
-  abstract createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Account[]>;
-
-  abstract createMaxAccounts({
-    entropySource,
-    maxGroupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    maxGroupIndex: number;
-  }): Promise<Account[][]>;
+  abstract createAccounts(
+    options:
+      | CreateAccountBip44DeriveIndexOptions
+      | CreateAccountBip44DeriveRangeOptions,
+  ): Promise<Account[] | Account[][]>;
 
   abstract discoverAccounts({
     entropySource,

@@ -29,6 +29,7 @@ import {
   MockAccountBuilder,
 } from '../tests';
 import type { MultichainAccountServiceMessenger } from '../types';
+import { AccountCreationType } from '../types';
 
 jest.mock('../analytics', () => {
   const actual = jest.requireActual('../analytics');
@@ -80,11 +81,46 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     return [];
   }
 
-  async createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options:
+      | {
+          type: AccountCreationType.Bip44DeriveIndex;
+          entropySource: EntropySourceId;
+          groupIndex: number;
+        }
+      | {
+          type: AccountCreationType.Bip44DeriveIndexRange;
+          entropySource: EntropySourceId;
+          range: { from: number; to: number };
+        },
+  ): Promise<
+    Bip44Account<KeyringAccount>[] | Bip44Account<KeyringAccount>[][]
+  > {
     const { tracker } = this;
+
+    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+      // For range type, create accounts sequentially and return array of arrays
+      return this.withSnap(async () => {
+        const results: Bip44Account<KeyringAccount>[][] = [];
+        for (let i = options.range.from; i <= options.range.to; i++) {
+          await this.withMaxConcurrency(async () => {
+            tracker.startLog.push(i);
+            tracker.activeCount += 1;
+            tracker.maxActiveCount = Math.max(
+              tracker.maxActiveCount,
+              tracker.activeCount,
+            );
+            await new Promise((resolve) =>
+              setTimeout(resolve, THROTTLED_OPERATION_DELAY_MS),
+            );
+            tracker.activeCount -= 1;
+            tracker.endLog.push(i);
+          });
+          results.push([]);
+        }
+        return results;
+      });
+    }
 
     return this.withMaxConcurrency(async () => {
       tracker.startLog.push(options.groupIndex);
@@ -582,6 +618,7 @@ describe('SnapAccountProvider', () => {
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -606,6 +643,7 @@ describe('SnapAccountProvider', () => {
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -626,6 +664,7 @@ describe('SnapAccountProvider', () => {
       // Start 3 concurrent calls
       const promises = [0, 1, 2].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -646,6 +685,7 @@ describe('SnapAccountProvider', () => {
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -695,6 +735,7 @@ describe('SnapAccountProvider', () => {
 
       const desyncedAccount = mockAccounts[1];
       expect(createAccountsSpy).toHaveBeenCalledWith({
+        type: 'bip44:derive-index',
         entropySource: desyncedAccount.options.entropy.id,
         groupIndex: desyncedAccount.options.entropy.groupIndex,
       });
@@ -793,6 +834,7 @@ describe('SnapAccountProvider', () => {
         mockAccounts[1].address,
       );
       expect(createAccountsSpy).toHaveBeenCalledWith({
+        type: 'bip44:derive-index',
         entropySource: mockAccounts[1].options.entropy.id,
         groupIndex: mockAccounts[1].options.entropy.groupIndex,
       });
@@ -833,13 +875,14 @@ describe('SnapAccountProvider', () => {
     });
   });
 
-  describe('createMaxAccounts', () => {
+  describe('createAccounts with range type', () => {
     it('creates accounts for all group indices from 0 to maxGroupIndex', async () => {
       const { provider, tracker } = setup();
 
-      const result = await provider.createMaxAccounts({
+      const result = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: TEST_ENTROPY_SOURCE,
-        maxGroupIndex: 2,
+        range: { from: 0, to: 2 },
       });
 
       // Should return array with 3 elements (indices 0, 1, 2).
@@ -858,9 +901,10 @@ describe('SnapAccountProvider', () => {
     it('returns array structure where index corresponds to group index', async () => {
       const { provider } = setup();
 
-      const result = await provider.createMaxAccounts({
+      const result = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: TEST_ENTROPY_SOURCE,
-        maxGroupIndex: 1,
+        range: { from: 0, to: 1 },
       });
 
       // result[0] should contain accounts for group 0.
@@ -874,9 +918,10 @@ describe('SnapAccountProvider', () => {
     it('handles maxGroupIndex of 0 (single account)', async () => {
       const { provider } = setup();
 
-      const result = await provider.createMaxAccounts({
+      const result = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: TEST_ENTROPY_SOURCE,
-        maxGroupIndex: 0,
+        range: { from: 0, to: 0 },
       });
 
       expect(result).toHaveLength(1);
@@ -886,9 +931,10 @@ describe('SnapAccountProvider', () => {
     it('respects maxConcurrency limits when creating accounts', async () => {
       const { provider, tracker } = setup({ maxConcurrency: 1 });
 
-      await provider.createMaxAccounts({
+      await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: TEST_ENTROPY_SOURCE,
-        maxGroupIndex: 3,
+        range: { from: 0, to: 3 },
       });
 
       // With maxConcurrency=1, only 1 operation should run at a time.
@@ -902,12 +948,13 @@ describe('SnapAccountProvider', () => {
     it('creates accounts sequentially even when maxConcurrency allows more', async () => {
       const { provider, tracker } = setup({ maxConcurrency: 3 });
 
-      await provider.createMaxAccounts({
+      await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: TEST_ENTROPY_SOURCE,
-        maxGroupIndex: 5,
+        range: { from: 0, to: 5 },
       });
 
-      // Since createMaxAccounts calls createAccounts sequentially, only 1 operation runs at a time.
+      // Since createAccounts with range type calls createAccounts sequentially, only 1 operation runs at a time.
       expect(tracker.maxActiveCount).toBe(1);
 
       // All 6 accounts should be created.
@@ -918,9 +965,10 @@ describe('SnapAccountProvider', () => {
     it('ensures snap platform is ready before creating accounts', async () => {
       const { provider, mocks } = setup();
 
-      await provider.createMaxAccounts({
+      await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: TEST_ENTROPY_SOURCE,
-        maxGroupIndex: 1,
+        range: { from: 0, to: 1 },
       });
 
       // Should have called ensureCanUseSnapPlatform.
@@ -938,9 +986,10 @@ describe('SnapAccountProvider', () => {
       );
 
       await expect(
-        provider.createMaxAccounts({
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndexRange,
           entropySource: TEST_ENTROPY_SOURCE,
-          maxGroupIndex: 1,
+          range: { from: 0, to: 1 },
         }),
       ).rejects.toThrow('Snap platform not ready');
     });
@@ -948,9 +997,10 @@ describe('SnapAccountProvider', () => {
     it('creates accounts sequentially in order', async () => {
       const { provider, tracker } = setup({ maxConcurrency: 1 });
 
-      await provider.createMaxAccounts({
+      await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: TEST_ENTROPY_SOURCE,
-        maxGroupIndex: 4,
+        range: { from: 0, to: 4 },
       });
 
       // With maxConcurrency=1, accounts should be created in strict order.
@@ -961,16 +1011,17 @@ describe('SnapAccountProvider', () => {
     it('creates large number of accounts', async () => {
       const { provider, tracker } = setup({ maxConcurrency: 5 });
 
-      await provider.createMaxAccounts({
+      await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: TEST_ENTROPY_SOURCE,
-        maxGroupIndex: 9,
+        range: { from: 0, to: 9 },
       });
 
       // Should create all 10 accounts (0-9).
       expect(tracker.startLog).toHaveLength(10);
       expect(tracker.endLog).toHaveLength(10);
 
-      // Since createMaxAccounts calls createAccounts sequentially, maxActiveCount is 1.
+      // Since createAccounts with range type calls createAccounts sequentially, maxActiveCount is 1.
       expect(tracker.maxActiveCount).toBe(1);
     });
 
@@ -981,9 +1032,10 @@ describe('SnapAccountProvider', () => {
       jest.spyOn(provider, 'createAccounts').mockRejectedValue(createError);
 
       await expect(
-        provider.createMaxAccounts({
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndexRange,
           entropySource: TEST_ENTROPY_SOURCE,
-          maxGroupIndex: 2,
+          range: { from: 0, to: 2 },
         }),
       ).rejects.toThrow('Failed to create account');
     });

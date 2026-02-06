@@ -1,5 +1,10 @@
 import { publicToAddress } from '@ethereumjs/util';
+import type { Bip44Account } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
+import {
+  KeyringAccountEntropyMnemonicOptions,
+  KeyringAccountEntropyTypeOption,
+} from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -31,7 +36,7 @@ import {
   mockAsInternalAccount,
   RootMessenger,
 } from '../tests';
-import { KeyringAccountEntropyMnemonicOptions, KeyringAccountEntropyTypeOption } from '@metamask/keyring-api';
+import { AccountCreationType } from '../types';
 
 jest.mock('@ethereumjs/util', () => {
   const actual = jest.requireActual('@ethereumjs/util');
@@ -292,10 +297,11 @@ describe('EvmAccountProvider', () => {
       accounts,
     });
 
-    const newAccounts = await provider.createAccounts({
+    const newAccounts = (await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 2,
-    });
+    })) as Bip44Account<InternalAccount>[];
     expect(newAccounts).toHaveLength(1);
     expect(newAccounts[0].options.entropy.type).toBe(
       KeyringAccountEntropyTypeOption.Mnemonic,
@@ -314,6 +320,7 @@ describe('EvmAccountProvider', () => {
     });
 
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
@@ -334,6 +341,7 @@ describe('EvmAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
@@ -347,6 +355,7 @@ describe('EvmAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 10,
       }),
@@ -363,23 +372,25 @@ describe('EvmAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 1,
       }),
     ).rejects.toThrow('Internal account does not exist');
   });
 
-  describe('createMaxAccounts', () => {
+  describe('createAccounts with range type', () => {
     it('creates accounts for all group indices from 0 to maxGroupIndex', async () => {
       const existingAccounts = [MOCK_HD_ACCOUNT_1]; // Group 0.
       const { provider } = setup({
         accounts: existingAccounts,
       });
 
-      const result = await provider.createMaxAccounts({
+      const result = (await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 2,
-      });
+        range: { from: 0, to: 2 },
+      })) as Bip44Account<InternalAccount>[][];
 
       // Should return array with 3 elements (indices 0, 1, 2).
       expect(result).toHaveLength(3);
@@ -395,9 +406,12 @@ describe('EvmAccountProvider', () => {
       expect(result[2]).toHaveLength(1);
 
       // Verify group indices.
-      const entropy0 = result[0][0].options.entropy as KeyringAccountEntropyMnemonicOptions;
-      const entropy1 = result[1][0].options.entropy as KeyringAccountEntropyMnemonicOptions;
-      const entropy2 = result[2][0].options.entropy as KeyringAccountEntropyMnemonicOptions;
+      const entropy0 = result[0][0].options
+        .entropy as KeyringAccountEntropyMnemonicOptions;
+      const entropy1 = result[1][0].options
+        .entropy as KeyringAccountEntropyMnemonicOptions;
+      const entropy2 = result[2][0].options
+        .entropy as KeyringAccountEntropyMnemonicOptions;
 
       expect(entropy0.groupIndex).toBe(0);
       expect(entropy1.groupIndex).toBe(1);
@@ -409,17 +423,20 @@ describe('EvmAccountProvider', () => {
         accounts: [],
       });
 
-      const result = await provider.createMaxAccounts({
+      const result = (await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 1,
-      });
+        range: { from: 0, to: 1 },
+      })) as Bip44Account<InternalAccount>[][];
 
       // result[0] should contain accounts for group 0.
-      const entropy0 = result[0][0].options.entropy as KeyringAccountEntropyMnemonicOptions;
+      const entropy0 = result[0][0].options
+        .entropy as KeyringAccountEntropyMnemonicOptions;
       expect(entropy0.groupIndex).toBe(0);
 
       // result[1] should contain accounts for group 1.
-      const entropy1 = result[1][0].options.entropy as KeyringAccountEntropyMnemonicOptions;
+      const entropy1 = result[1][0].options
+        .entropy as KeyringAccountEntropyMnemonicOptions;
       expect(entropy1.groupIndex).toBe(1);
     });
 
@@ -432,10 +449,11 @@ describe('EvmAccountProvider', () => {
         accounts: existingAccounts,
       });
 
-      const result = await provider.createMaxAccounts({
+      const result = (await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 1,
-      });
+        range: { from: 0, to: 1 },
+      })) as Bip44Account<InternalAccount>[][];
 
       expect(result).toHaveLength(2);
 
@@ -449,15 +467,17 @@ describe('EvmAccountProvider', () => {
         accounts: [],
       });
 
-      const result = await provider.createMaxAccounts({
+      const result = (await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 0,
-      });
+        range: { from: 0, to: 0 },
+      })) as Bip44Account<InternalAccount>[][];
 
       expect(result).toHaveLength(1);
       expect(result[0]).toHaveLength(1);
 
-      const entropy = result[0][0].options.entropy as KeyringAccountEntropyMnemonicOptions;
+      const entropy = result[0][0].options
+        .entropy as KeyringAccountEntropyMnemonicOptions;
       expect(entropy.groupIndex).toBe(0);
     });
 
@@ -467,10 +487,11 @@ describe('EvmAccountProvider', () => {
         accounts: [existingAccount],
       });
 
-      const result = await provider.createMaxAccounts({
+      const result = (await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 2,
-      });
+        range: { from: 0, to: 2 },
+      })) as Bip44Account<InternalAccount>[][];
 
       expect(result).toHaveLength(3);
 
@@ -478,8 +499,10 @@ describe('EvmAccountProvider', () => {
       expect(result[0][0]).toStrictEqual(existingAccount);
 
       // Groups 1 and 2 should be newly created.
-      const entropy1 = result[1][0].options.entropy as KeyringAccountEntropyMnemonicOptions;
-      const entropy2 = result[2][0].options.entropy as KeyringAccountEntropyMnemonicOptions;
+      const entropy1 = result[1][0].options
+        .entropy as KeyringAccountEntropyMnemonicOptions;
+      const entropy2 = result[2][0].options
+        .entropy as KeyringAccountEntropyMnemonicOptions;
 
       expect(entropy1.groupIndex).toBe(1);
       expect(entropy2.groupIndex).toBe(2);
@@ -492,17 +515,21 @@ describe('EvmAccountProvider', () => {
         accounts: [],
       });
 
-      const result = await provider.createMaxAccounts({
+      const result = (await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 2,
-      });
+        range: { from: 0, to: 2 },
+      })) as Bip44Account<InternalAccount>[][];
 
       // Check that all accounts have proper BIP-44 structure.
       for (const accountGroup of result) {
         for (const account of accountGroup) {
           expect(account.options.entropy).toBeDefined();
-          expect(account.options.entropy.type).toBe(KeyringAccountEntropyTypeOption.Mnemonic);
-          const mnemonicOptions = account.options.entropy as KeyringAccountEntropyMnemonicOptions;
+          expect(account.options.entropy.type).toBe(
+            KeyringAccountEntropyTypeOption.Mnemonic,
+          );
+          const mnemonicOptions = account.options
+            .entropy as KeyringAccountEntropyMnemonicOptions;
           expect(typeof mnemonicOptions.groupIndex).toBe('number');
           expect(mnemonicOptions.id).toBe(MOCK_HD_KEYRING_1.metadata.id);
         }
@@ -514,9 +541,10 @@ describe('EvmAccountProvider', () => {
         accounts: [],
       });
 
-      await provider.createMaxAccounts({
+      await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 2,
+        range: { from: 0, to: 2 },
       });
 
       // All 3 accounts should now be accessible via getAccounts.
@@ -540,9 +568,10 @@ describe('EvmAccountProvider', () => {
       });
 
       await expect(
-        provider.createMaxAccounts({
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndexRange,
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
-          maxGroupIndex: 2,
+          range: { from: 0, to: 2 },
         }),
       ).rejects.toThrow('Internal account does not exist');
     });
@@ -563,16 +592,18 @@ describe('EvmAccountProvider', () => {
             options: {}, // No options, so it cannot be BIP-44 compatible.
           };
         }
-        return accounts.find((account) =>
-          account.id === id ||
-          getUUIDFromAddressOfNormalAccount(account.address) === id
+        return accounts.find(
+          (account) =>
+            account.id === id ||
+            getUUIDFromAddressOfNormalAccount(account.address) === id,
         );
       });
 
       await expect(
-        provider.createMaxAccounts({
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndexRange,
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
-          maxGroupIndex: 2,
+          range: { from: 0, to: 2 },
         }),
       ).rejects.toThrow('Created account is not BIP-44 compatible');
     });
@@ -582,18 +613,20 @@ describe('EvmAccountProvider', () => {
         accounts: [MOCK_HD_ACCOUNT_1], // Only group 0 exists.
       });
 
-      // Should succeed even though there's a gap - createMaxAccounts doesn't enforce no-gap policy.
-      const result = await provider.createMaxAccounts({
+      // Should succeed even though there's a gap - createAccounts with range type doesn't enforce no-gap policy.
+      const result = (await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 5,
-      });
+        range: { from: 0, to: 5 },
+      })) as Bip44Account<InternalAccount>[][];
 
       expect(result).toHaveLength(6);
 
       // All indices should be filled.
       for (let i = 0; i <= 5; i++) {
         expect(result[i]).toHaveLength(1);
-        const entropy = result[i][0].options.entropy as KeyringAccountEntropyMnemonicOptions;
+        const entropy = result[i][0].options
+          .entropy as KeyringAccountEntropyMnemonicOptions;
         expect(entropy.groupIndex).toBe(i);
       }
     });

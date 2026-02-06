@@ -27,6 +27,7 @@ import {
   MockAccountBuilder,
 } from '../tests';
 import type { RootMessenger } from '../tests';
+import { AccountCreationType } from '../types';
 
 class MockBtcKeyring {
   readonly type = 'MockBtcKeyring';
@@ -258,6 +259,7 @@ describe('BtcAccountProvider', () => {
 
     const newGroupIndex = accounts.length; // Group-index are 0-based.
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: newGroupIndex,
     });
@@ -272,6 +274,7 @@ describe('BtcAccountProvider', () => {
     });
 
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
@@ -294,6 +297,7 @@ describe('BtcAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
@@ -317,6 +321,7 @@ describe('BtcAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),

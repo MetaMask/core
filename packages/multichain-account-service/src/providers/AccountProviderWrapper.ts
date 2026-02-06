@@ -3,7 +3,11 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
-import type { MultichainAccountServiceMessenger } from '../types';
+import type {
+  CreateAccountBip44DeriveIndexOptions,
+  CreateAccountBip44DeriveRangeOptions,
+  MultichainAccountServiceMessenger,
+} from '../types';
 
 /**
  * A simple wrapper that adds disable functionality to any BaseBip44AccountProvider.
@@ -115,37 +119,24 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   /**
    * Implement abstract method: Create accounts, returns empty array when disabled.
    *
+   * Supports two creation types:
+   * - Bip44DeriveIndex: Creates a single account at the specified group index
+   * - Bip44DeriveIndexRange: Creates accounts for all group indices in the range
+   *
    * @param options - Account creation options.
-   * @param options.entropySource - The entropy source to use.
-   * @param options.groupIndex - The group index to use.
-   * @returns Promise resolving to created accounts, or empty array if disabled.
+   * @returns Promise resolving to created accounts (single array or array of arrays), or empty array if disabled.
    */
-  async createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options:
+      | CreateAccountBip44DeriveIndexOptions
+      | CreateAccountBip44DeriveRangeOptions,
+  ): Promise<
+    Bip44Account<KeyringAccount>[] | Bip44Account<KeyringAccount>[][]
+  > {
     if (!this.isEnabled) {
       return [];
     }
     return this.provider.createAccounts(options);
-  }
-
-  /**
-   * Implement abstract method: Create accounts for multiple group indices, returns empty array when disabled.
-   *
-   * @param options - Account creation options.
-   * @param options.entropySource - The entropy source to use.
-   * @param options.maxGroupIndex - The maximum group index (inclusive).
-   * @returns Promise resolving to array of account arrays indexed by group index, or empty array if disabled.
-   */
-  async createMaxAccounts(options: {
-    entropySource: EntropySourceId;
-    maxGroupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[][]> {
-    if (!this.isEnabled) {
-      return [];
-    }
-    return this.provider.createMaxAccounts(options);
   }
 
   /**

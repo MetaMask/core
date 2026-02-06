@@ -23,7 +23,12 @@ import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';
 import { projectLogger as log, WARNING_PREFIX } from '../logger';
-import type { MultichainAccountServiceMessenger } from '../types';
+import {
+  AccountCreationType,
+  type CreateAccountBip44DeriveIndexOptions,
+  type CreateAccountBip44DeriveRangeOptions,
+  type MultichainAccountServiceMessenger,
+} from '../types';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 
@@ -166,59 +171,55 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   /**
    * Create accounts for the EVM provider.
    *
-   * @param opts - The options for the creation of the accounts.
-   * @param opts.entropySource - The entropy source to use for the creation of the accounts.
-   * @param opts.groupIndex - The index of the group to create the accounts for.
-   * @returns The accounts for the EVM provider.
-   */
-  async createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
-    const [address] = await this.#createAccount({
-      entropySource,
-      groupIndex,
-      throwOnGap: true,
-    });
-
-    const accountId = this.#getAccountId(address);
-
-    const account = this.messenger.call(
-      'AccountsController:getAccount',
-      accountId,
-    );
-
-    // We MUST have the associated internal account.
-    assertInternalAccountExists(account);
-
-    const accountsArray = [account];
-    assertAreBip44Accounts(accountsArray);
-
-    this.accounts.add(account.id);
-    return accountsArray;
-  }
-
-  /**
-   * Create accounts for all group indices from 0 to maxGroupIndex (inclusive).
+   * Supports two creation types:
+   * - Bip44DeriveIndex: Creates a single account at the specified group index
+   * - Bip44DeriveIndexRange: Creates accounts for all group indices in the range
    *
-   * @param opts - The options for the creation of the accounts.
-   * @param opts.entropySource - The entropy source to use for the creation of the accounts.
-   * @param opts.maxGroupIndex - The maximum group index (inclusive).
-   * @returns Array of account arrays indexed by group index.
+   * @param options - The options for the creation of the accounts.
+   * @returns The created accounts (single array for Bip44DeriveIndex, array of arrays for Bip44DeriveIndexRange).
    */
-  async createMaxAccounts({
-    entropySource,
-    maxGroupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    maxGroupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[][]> {
+  async createAccounts(
+    options:
+      | CreateAccountBip44DeriveIndexOptions
+      | CreateAccountBip44DeriveRangeOptions,
+  ): Promise<
+    Bip44Account<KeyringAccount>[] | Bip44Account<KeyringAccount>[][]
+  > {
+    if (options.type === AccountCreationType.Bip44DeriveIndex) {
+      // Single account creation
+      const { entropySource, groupIndex } = options;
+      const [address] = await this.#createAccount({
+        entropySource,
+        groupIndex,
+        throwOnGap: true,
+      });
+
+      const accountId = this.#getAccountId(address);
+
+      const account = this.messenger.call(
+        'AccountsController:getAccount',
+        accountId,
+      );
+
+      // We MUST have the associated internal account.
+      assertInternalAccountExists(account);
+
+      const accountsArray = [account];
+      assertAreBip44Accounts(accountsArray);
+
+      this.accounts.add(account.id);
+      return accountsArray;
+    }
+
+    // Range account creation
+    const { entropySource, range } = options;
     const result: Bip44Account<KeyringAccount>[][] = [];
 
-    for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
+    for (
+      let groupIndex = range.from;
+      groupIndex <= range.to;
+      groupIndex++
+    ) {
       const [address] = await this.#createAccount({
         entropySource,
         groupIndex,

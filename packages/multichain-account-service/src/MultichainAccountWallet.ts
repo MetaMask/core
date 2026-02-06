@@ -28,6 +28,7 @@ import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
+import { AccountCreationType } from './types';
 import type { MultichainAccountServiceMessenger } from './types';
 import { createSentryError } from './utils';
 
@@ -279,6 +280,7 @@ export class MultichainAccountWallet<
       const tasks = providers.map((provider) =>
         provider
           .createAccounts({
+            type: AccountCreationType.Bip44DeriveIndex,
             entropySource: this.#entropySource,
             groupIndex,
           })
@@ -316,7 +318,7 @@ export class MultichainAccountWallet<
       // No need to fetch the accounts list from the AccountsController since we already have the account IDs to be used in the controller
       const groupState = results.reduce<GroupState>((state, result, idx) => {
         if (result.status === 'fulfilled') {
-          state[providers[idx].getName()] = result.value.map(
+          state[providers[idx].getName()] = (result.value as Account[]).map(
             (account) => account.id,
           );
         }
@@ -329,11 +331,12 @@ export class MultichainAccountWallet<
       providers.forEach((provider) => {
         provider
           .createAccounts({
+            type: AccountCreationType.Bip44DeriveIndex,
             entropySource: this.#entropySource,
             groupIndex,
           })
           .then((accounts) => {
-            const accountIds = accounts.map((account) => account.id);
+            const accountIds = (accounts as Account[]).map((account) => account.id);
             group.update({ [provider.getName()]: accountIds });
             return group;
           })
@@ -478,10 +481,11 @@ export class MultichainAccountWallet<
 
       const evmAccounts = await evmProvider
         .createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: this.#entropySource,
           groupIndex,
         })
-        .then((accounts) => accounts.map((account) => account.id))
+        .then((accounts) => (accounts as Account[]).map((account) => account.id))
         .catch((error) => {
           const errorMessage = `Unable to create some accounts for group index: ${groupIndex} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
           console.warn(errorMessage);
@@ -599,10 +603,11 @@ export class MultichainAccountWallet<
 
       // Create EVM accounts for all indices (always awaited).
       // Provider is idempotent, so it will return existing accounts if they already exist.
-      const allEvmAccounts = await evmProvider
-        .createMaxAccounts({
+      const allEvmAccounts = (await evmProvider
+        .createAccounts({
+          type: AccountCreationType.Bip44DeriveIndexRange,
           entropySource: this.#entropySource,
-          maxGroupIndex,
+          range: { from: 0, to: maxGroupIndex },
         })
         .catch((error) => {
           const errorMessage = `Unable to create EVM accounts with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
@@ -618,7 +623,7 @@ export class MultichainAccountWallet<
           );
           this.#messenger.captureException?.(sentryError);
           throw error;
-        });
+        })) as Account[][];
 
       // Create or update groups with EVM accounts.
       for (let groupIndex = 0; groupIndex <= maxGroupIndex; groupIndex++) {
@@ -641,9 +646,10 @@ export class MultichainAccountWallet<
       if (otherProviders.length > 0) {
         const nonEvmPromises = otherProviders.map(async (provider) => {
           try {
-            const allOtherAccounts = await provider.createMaxAccounts({
+            const allOtherAccounts = await provider.createAccounts({
+              type: AccountCreationType.Bip44DeriveIndexRange,
               entropySource: this.#entropySource,
-              maxGroupIndex,
+              range: { from: 0, to: maxGroupIndex },
             });
 
             // Create or update each group with the provider's accounts.
@@ -652,7 +658,7 @@ export class MultichainAccountWallet<
               groupIndex <= maxGroupIndex;
               groupIndex++
             ) {
-              const accounts = allOtherAccounts[groupIndex];
+              const accounts = allOtherAccounts[groupIndex] as Account[] | undefined;
 
               // Skip if provider doesn't have accounts for this index.
               if (!accounts || accounts.length === 0) {

@@ -33,6 +33,7 @@ import {
   getRootMessenger,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
+import { AccountCreationType } from './types';
 
 function setup({
   entropySource = MOCK_WALLET_1_ENTROPY_SOURCE,
@@ -415,6 +416,7 @@ describe('MultichainAccountWallet', () => {
 
       // Sol provider is missing group 1; should be called to create it.
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex: 1,
       });
@@ -469,8 +471,20 @@ describe('MultichainAccountWallet', () => {
         [mockSolAccount2],
       ];
 
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
-      solProvider.createMaxAccounts.mockResolvedValue(solAccounts);
+      evmProvider.createAccounts.mockImplementation((options: any) => {
+        return Promise.resolve(
+          options.type === AccountCreationType.Bip44DeriveIndexRange
+            ? evmAccounts
+            : evmAccounts[options.groupIndex],
+        );
+      });
+      solProvider.createAccounts.mockImplementation((options: any) => {
+        return Promise.resolve(
+          options.type === AccountCreationType.Bip44DeriveIndexRange
+            ? solAccounts
+            : solAccounts[options.groupIndex],
+        );
+      });
 
       const groups = await wallet.createMultichainAccountGroups(maxGroupIndex);
 
@@ -513,7 +527,12 @@ describe('MultichainAccountWallet', () => {
         [mockEvmAccount1],
         [mockEvmAccount2],
       ];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
+      evmProvider.createAccounts.mockImplementation((options: any) => {
+        if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+          return Promise.resolve(evmAccounts);
+        }
+        return Promise.resolve([mockEvmAccount0]);
+      });
 
       const groups = await wallet.createMultichainAccountGroups(2);
 
@@ -549,16 +568,25 @@ describe('MultichainAccountWallet', () => {
       evmProvider.createAccounts.mockResolvedValueOnce([mockEvmAccount1]);
       await wallet.createMultichainAccountGroup(1);
 
-      // Now create 0-1, should return existing groups. createMaxAccounts is called (it's idempotent).
+      // Now create 0-1, should return existing groups. createAccounts with range type is called (it's idempotent).
       const evmAccounts = [[mockEvmAccount0], [mockEvmAccount1]];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
+      evmProvider.createAccounts.mockImplementation((options: any) => {
+        if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+          return Promise.resolve(evmAccounts);
+        }
+        if (options.groupIndex === 0) {
+          return Promise.resolve([mockEvmAccount0]);
+        }
+        return Promise.resolve([mockEvmAccount1]);
+      });
 
       const groups = await wallet.createMultichainAccountGroups(1);
 
       expect(groups).toHaveLength(2);
-      expect(evmProvider.createMaxAccounts).toHaveBeenCalledWith({
+      expect(evmProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: expect.any(String),
-        maxGroupIndex: 1,
+        range: { from: 0, to: 1 },
       });
     });
 
@@ -575,7 +603,7 @@ describe('MultichainAccountWallet', () => {
       const [evmProvider] = providers;
 
       const evmAccounts = [[mockEvmAccount0]];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
+      evmProvider.createAccounts.mockResolvedValue(evmAccounts);
 
       const groups = await wallet.createMultichainAccountGroups(0);
 
@@ -601,7 +629,7 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider] = providers;
 
-      evmProvider.createMaxAccounts.mockRejectedValue(
+      evmProvider.createAccounts.mockRejectedValue(
         new Error('EVM provider error'),
       );
 
@@ -623,8 +651,8 @@ describe('MultichainAccountWallet', () => {
       const [evmProvider, solProvider] = providers;
 
       const evmAccounts = [[mockEvmAccount0]];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
-      solProvider.createMaxAccounts.mockRejectedValue(
+      evmProvider.createAccounts.mockResolvedValue(evmAccounts);
+      solProvider.createAccounts.mockRejectedValue(
         new Error('Solana provider error'),
       );
 
@@ -651,8 +679,8 @@ describe('MultichainAccountWallet', () => {
       const [evmProvider, solProvider] = providers;
 
       const evmAccounts = [[mockEvmAccount0]];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
-      solProvider.createMaxAccounts.mockRejectedValue(
+      evmProvider.createAccounts.mockResolvedValue(evmAccounts);
+      solProvider.createAccounts.mockRejectedValue(
         new Error('Solana provider error'),
       );
 
@@ -679,11 +707,8 @@ describe('MultichainAccountWallet', () => {
 
       const [evmProvider] = providers;
 
-      const evmAccounts = [
-        [mockEvmAccount0],
-        [mockEvmAccount1],
-      ];
-      evmProvider.createMaxAccounts.mockResolvedValue(evmAccounts);
+      const evmAccounts = [[mockEvmAccount0], [mockEvmAccount1]];
+      evmProvider.createAccounts.mockResolvedValue(evmAccounts);
 
       const mockGroupCreated = jest.fn();
       messenger.subscribe(
@@ -733,11 +758,13 @@ describe('MultichainAccountWallet', () => {
 
       // Sol provider is missing group 0; should be called to create it.
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex: 0,
       });
 
       expect(providers[1].createAccounts).not.toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex: 1,
       });
