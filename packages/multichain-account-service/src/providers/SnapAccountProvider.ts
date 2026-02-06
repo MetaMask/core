@@ -12,7 +12,12 @@ import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { traceFallback } from '../analytics';
-import type { MultichainAccountServiceMessenger } from '../types';
+import { AccountCreationType } from '../types';
+import type {
+  CreateAccountBip44DeriveIndexOptions,
+  CreateAccountBip44DeriveRangeOptions,
+  MultichainAccountServiceMessenger,
+} from '../types';
 import { createSentryError } from '../utils';
 
 export type RestrictedSnapKeyring = {
@@ -213,6 +218,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 await keyring.removeAccount(account.address);
                 // The Snap has no account in its state for this one, we re-create it.
                 await this.createAccounts({
+                  type: AccountCreationType.Bip44DeriveIndex,
                   entropySource,
                   groupIndex,
                 });
@@ -267,10 +273,11 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
 
-  abstract createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]>;
+  abstract createAccounts(
+    options:
+      | CreateAccountBip44DeriveIndexOptions
+      | CreateAccountBip44DeriveRangeOptions,
+  ): Promise<Bip44Account<KeyringAccount>[] | Bip44Account<KeyringAccount>[][]>;
 
   abstract discoverAccounts(options: {
     entropySource: EntropySourceId;

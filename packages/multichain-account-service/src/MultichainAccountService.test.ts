@@ -28,6 +28,7 @@ import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_SOL_ACCOUNT_1,
   MockAccountBuilder,
+  mockCreateAccountsOnce,
 } from './tests';
 import {
   MOCK_HD_KEYRING_1,
@@ -37,6 +38,7 @@ import {
   makeMockAccountProvider,
   setupBip44AccountProvider,
 } from './tests';
+import { AccountCreationType } from './types';
 import type { MultichainAccountServiceMessenger } from './types';
 
 // Mock providers.
@@ -94,8 +96,9 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
-  idx: number,
-  _type: KeyringAccount['type'],
+  index: number,
+  name: string,
+  type: KeyringAccount['type'],
 ): void {
   jest.mocked(providerClass).mockImplementation((...args) => {
     mocks.constructor(...args);
@@ -105,21 +108,13 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   setupBip44AccountProvider({
     mocks,
     accounts,
-    index: idx,
+    index,
   });
 
-  // Provide stable provider name and compatibility logic for grouping
-  if (providerClass === (EvmAccountProvider as unknown)) {
-    mocks.getName.mockReturnValue(EVM_ACCOUNT_PROVIDER_NAME);
-    mocks.isAccountCompatible?.mockImplementation(
-      (account: KeyringAccount) => account.type === EthAccountType.Eoa,
-    );
-  } else if (providerClass === (SolAccountProvider as unknown)) {
-    mocks.getName.mockReturnValue(SOL_ACCOUNT_PROVIDER_NAME);
-    mocks.isAccountCompatible?.mockImplementation(
-      (account: KeyringAccount) => account.type === SolAccountType.DataAccount,
-    );
-  }
+  mocks.getName.mockReturnValue(name);
+  mocks.isAccountCompatible?.mockImplementation(
+    (account: KeyringAccount) => account.type === type,
+  );
 }
 
 async function setup({
@@ -239,6 +234,7 @@ async function setup({
       mocks.EvmAccountProvider,
       accounts,
       0,
+      EVM_ACCOUNT_PROVIDER_NAME,
       EthAccountType.Eoa,
     );
     mockAccountProvider<SolAccountProvider>(
@@ -246,6 +242,7 @@ async function setup({
       mocks.SolAccountProvider,
       accounts,
       1,
+      SOL_ACCOUNT_PROVIDER_NAME,
       SolAccountType.DataAccount,
     );
   }
@@ -582,6 +579,102 @@ describe('MultichainAccountService', () => {
     });
   });
 
+  describe('createMultichainAccountGroups', () => {
+    it('creates multiple multichain account groups from 0 to maxGroupIndex', async () => {
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+
+      const { service } = await setup({
+        accounts: [mockEvmAccount0, mockEvmAccount1],
+      });
+
+      const groups = await service.createMultichainAccountGroups({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        maxGroupIndex: 1,
+      });
+
+      expect(groups).toHaveLength(2);
+      expect(groups[0]?.groupIndex).toBe(0);
+      expect(groups[1]?.groupIndex).toBe(1);
+    });
+
+    it('returns existing groups when they already exist (idempotent)', async () => {
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service } = await setup({
+        accounts: [mockEvmAccount0],
+      });
+
+      // Create group 0 first.
+      await service.createMultichainAccountGroup({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      // Now create 0 again via createMultichainAccountGroups.
+      const groups = await service.createMultichainAccountGroups({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        maxGroupIndex: 0,
+      });
+
+      expect(groups).toHaveLength(1);
+      expect(groups[0]?.groupIndex).toBe(0);
+    });
+
+    it('emits multichainAccountGroupCreated events for newly created groups', async () => {
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .withUuid()
+        .get();
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .withUuid()
+        .get();
+      const mockEvmAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .withUuid()
+        .get();
+
+      const { service, messenger, mocks } = await setup({
+        accounts: [mockEvmAccount0],
+      });
+
+      const mockMultichainAccountGroupCreated = jest.fn();
+      messenger.subscribe(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        mockMultichainAccountGroupCreated,
+      );
+
+      // Mock createAccounts with range type to return the accounts
+      // The `createAccounts` method with range type is idempotent and must include
+      // existing accounts too.
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        [mockEvmAccount0],
+        [mockEvmAccount1],
+        [mockEvmAccount2],
+      ]);
+
+      await service.createMultichainAccountGroups({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        maxGroupIndex: 2,
+      });
+
+      expect(mockMultichainAccountGroupCreated).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('alignWallets', () => {
     it('aligns all multichain account wallets', async () => {
       const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -599,10 +692,12 @@ describe('MultichainAccountService', () => {
       await service.alignWallets();
 
       expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_2.metadata.id,
         groupIndex: 0,
       });
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
@@ -626,6 +721,7 @@ describe('MultichainAccountService', () => {
       await service.alignWallet(MOCK_HD_KEYRING_1.metadata.id);
 
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
@@ -741,6 +837,41 @@ describe('MultichainAccountService', () => {
       expect(firstGroup.getAccounts()[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
     });
 
+    it('creates a multichain account group with MultichainAccountService:createMultichainAccountGroups', async () => {
+      const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+      const { messenger, mocks } = await setup({ accounts });
+
+      // Mock the provider's createAccounts to return the accounts for range calls
+      mocks.EvmAccountProvider.createAccounts.mockImplementation(
+        (options: any) => {
+          if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+            return Promise.resolve([[MOCK_HD_ACCOUNT_1], [MOCK_HD_ACCOUNT_2]]);
+          }
+          return Promise.resolve([accounts[options.groupIndex]]);
+        },
+      );
+
+      const groups = await messenger.call(
+        'MultichainAccountService:createMultichainAccountGroups',
+        {
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          maxGroupIndex: 1,
+        },
+      );
+
+      expect(groups).toHaveLength(2);
+
+      expect(groups[0]).not.toBeNull();
+      expect(groups[0]?.groupIndex).toBe(0);
+      expect(groups[0]?.getAccounts()).toHaveLength(1);
+      expect(groups[0]?.getAccounts()[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
+
+      expect(groups[1]).not.toBeNull();
+      expect(groups[1]?.groupIndex).toBe(1);
+      expect(groups[1]?.getAccounts()).toHaveLength(1);
+      expect(groups[1]?.getAccounts()[0]).toStrictEqual(MOCK_HD_ACCOUNT_2);
+    });
+
     it('aligns a multichain account wallet with MultichainAccountService:alignWallet', async () => {
       const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
@@ -760,6 +891,7 @@ describe('MultichainAccountService', () => {
       );
 
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
@@ -781,10 +913,12 @@ describe('MultichainAccountService', () => {
       await messenger.call('MultichainAccountService:alignWallets');
 
       expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_2.metadata.id,
         groupIndex: 0,
       });
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
@@ -1017,6 +1151,7 @@ describe('MultichainAccountService', () => {
 
     it('returns empty array when createAccounts() is disabled', async () => {
       const options = {
+        type: AccountCreationType.Bip44DeriveIndex as const,
         entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
         groupIndex: 0,
       };
@@ -1027,6 +1162,28 @@ describe('MultichainAccountService', () => {
       ]);
       expect(await wrapper.createAccounts(options)).toStrictEqual([
         MOCK_HD_ACCOUNT_1,
+      ]);
+
+      // Disable - should return empty array and not call underlying provider
+      wrapper.setEnabled(false);
+
+      const result = await wrapper.createAccounts(options);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns empty array when createAccounts() with range type is disabled', async () => {
+      const options = {
+        type: AccountCreationType.Bip44DeriveIndexRange as const,
+        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
+        range: { from: 0, to: 0 },
+      };
+
+      // Enable first - should work normally
+      (solProvider.createAccounts as jest.Mock).mockResolvedValue([
+        [MOCK_HD_ACCOUNT_1],
+      ]);
+      expect(await wrapper.createAccounts(options)).toStrictEqual([
+        [MOCK_HD_ACCOUNT_1],
       ]);
 
       // Disable - should return empty array and not call underlying provider

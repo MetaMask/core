@@ -6,6 +6,7 @@ import {
   EvmAccountProvider,
   BaseBip44AccountProvider,
 } from '../providers';
+import { AccountCreationType } from '../types';
 
 export type MockAccountProvider = {
   mockAccounts: KeyringAccount[];
@@ -69,7 +70,7 @@ export function setupBip44AccountProvider({
   });
   mocks.isDisabled.mockImplementation(() => !mocks.isEnabled);
 
-  const getAccounts = () =>
+  const getAccounts = (): KeyringAccount[] =>
     mocks.mockAccounts.filter((account) =>
       [...mocks.accounts].includes(account.id),
     );
@@ -107,6 +108,7 @@ export function setupBip44AccountProvider({
         return ids;
       }
       const createdAccounts = await mocks.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource,
         groupIndex,
       });
@@ -116,6 +118,7 @@ export function setupBip44AccountProvider({
           alignAccounts: (
             this: {
               createAccounts: (o: {
+                type: AccountCreationType.Bip44DeriveIndex;
                 entropySource: EntropySourceId;
                 groupIndex: number;
               }) => Promise<unknown[]>;
@@ -164,9 +167,13 @@ export function mockCreateAccountsOnce(
 ): void {
   provider.createAccounts.mockImplementationOnce(async () => {
     // Add newly created accounts to the provider's internal store
-    for (const acc of created) {
-      if (!provider.mockAccounts.some((a) => a.id === acc.id)) {
-        provider.mockAccounts.push(acc);
+    for (const account of created) {
+      if (
+        !provider.mockAccounts.some(
+          (existingAccount) => existingAccount.id === account.id,
+        )
+      ) {
+        provider.mockAccounts.push(account);
       }
     }
     // Merge IDs into the visible list used by getAccounts/getAccount
@@ -178,3 +185,4 @@ export function mockCreateAccountsOnce(
     return created;
   });
 }
+

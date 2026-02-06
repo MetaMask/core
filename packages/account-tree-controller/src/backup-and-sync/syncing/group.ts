@@ -74,6 +74,80 @@ export const createMultichainAccountGroup = async (
 };
 
 /**
+ * Creates multiple multichain account groups in batch (from 0 to maxGroupIndex).
+ * This is an optimized version that creates all groups in one operation instead of
+ * creating them sequentially.
+ *
+ * @param context - The sync context containing controller and messenger.
+ * @param entropySourceId - The entropy source ID.
+ * @param maxGroupIndex - Maximum group index (inclusive) to create.
+ * @param profileId - The profile ID for analytics.
+ * @param analyticsAction - The analytics action to log for each created group.
+ * @returns Array of created group IDs.
+ */
+export const createMultichainAccountGroupsBatch = async (
+  context: BackupAndSyncContext,
+  entropySourceId: string,
+  maxGroupIndex: number,
+  profileId: ProfileId,
+  analyticsAction: BackupAndSyncAnalyticsAction,
+): Promise<string[]> => {
+  backupAndSyncLogger(
+    `Creating account groups 0-${maxGroupIndex} in batch for entropy source: ${entropySourceId}`,
+  );
+
+  try {
+    // Call the batched creation method.
+    const groups = await context.messenger.call(
+      'MultichainAccountService:createMultichainAccountGroups',
+      {
+        entropySource: entropySourceId,
+        maxGroupIndex,
+      },
+    );
+
+    // Emit analytics event for each newly created group.
+    // Note: groups array contains all groups (existing + newly created).
+    const createdGroupIds: string[] = [];
+
+    for (const group of groups) {
+      // TODO: A group should not be null here, but EVM provider might fail to create some groups sometimes, which means
+      // we can end up having an "empty group" for some time.
+      if (group) {
+        createdGroupIds.push(group.id);
+
+        // Emit analytics event.
+        context.emitAnalyticsEventFn({
+          action: analyticsAction,
+          profileId,
+        });
+      }
+    }
+
+    backupAndSyncLogger(
+      `Successfully created ${groups.length} groups (indices 0-${maxGroupIndex})`,
+    );
+
+    return createdGroupIds;
+  } catch (error) {
+    // This can happen if the Snap Keyring is not ready yet when invoking
+    // `MultichainAccountService:createMultichainAccountGroups`.
+    // Since `MultichainAccountService:createMultichainAccountGroups` will at
+    // least create the EVM account and the account group before throwing, we can safely
+    // ignore this error and swallow it.
+    // Any missing Snap accounts will be added later with alignment.
+
+    backupAndSyncLogger(
+      `Failed to create account groups batch:`,
+      // istanbul ignore next
+      error instanceof Error ? error.message : String(error),
+    );
+
+    return [];
+  }
+};
+
+/**
  * Creates local groups from user storage groups.
  *
  * @param context - The sync context containing controller and messenger.
@@ -93,19 +167,14 @@ export async function createLocalGroupsFromUserStorage(
 
   // Creating multichain account group is idempotent, so we can safely
   // re-create every groups starting from 0.
-  for (
-    let groupIndex = 0;
-    groupIndex <= numberOfAccountGroupsToCreate;
-    groupIndex++
-  ) {
-    await createMultichainAccountGroup(
-      context,
-      entropySourceId,
-      groupIndex,
-      profileId,
-      BackupAndSyncAnalyticsEvent.GroupAdded,
-    );
-  }
+  // Use batch creation for better performance.
+  await createMultichainAccountGroupsBatch(
+    context,
+    entropySourceId,
+    numberOfAccountGroupsToCreate,
+    profileId,
+    BackupAndSyncAnalyticsEvent.GroupAdded,
+  );
 }
 
 /**

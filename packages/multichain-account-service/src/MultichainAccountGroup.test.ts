@@ -25,6 +25,7 @@ import {
   mockCreateAccountsOnce,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
+import { AccountCreationType } from './types';
 
 function setup({
   groupIndex = 0,
@@ -195,10 +196,12 @@ describe('MultichainAccount', () => {
       await group.alignAccounts();
 
       expect(providers[0].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });
@@ -225,6 +228,7 @@ describe('MultichainAccount', () => {
       await group.alignAccounts();
 
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });
@@ -252,10 +256,12 @@ describe('MultichainAccount', () => {
       await group.alignAccounts();
 
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });
       expect(providers[2].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });

@@ -25,6 +25,7 @@ import {
   MockAccountBuilder,
 } from '../tests';
 import type { RootMessenger } from '../tests';
+import { AccountCreationType } from '../types';
 
 class MockSolanaKeyring {
   readonly type = 'MockSolanaKeyring';
@@ -257,6 +258,7 @@ describe('SolAccountProvider', () => {
 
     const newGroupIndex = accounts.length; // Group-index are 0-based.
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: newGroupIndex,
     });
@@ -271,6 +273,7 @@ describe('SolAccountProvider', () => {
     });
 
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
@@ -293,6 +296,7 @@ describe('SolAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
@@ -316,6 +320,7 @@ describe('SolAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
