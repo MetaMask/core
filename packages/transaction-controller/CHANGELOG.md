@@ -12,10 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `requiredAssets` to `TransactionMeta` ([#7820](https://github.com/MetaMask/core/pull/7820))
   - Provided by new options in `addTransaction` and `addTransactionBatch`.
 
-### Changed
-
-- Downgrade `@metamask/core-backend` from `^5.1.0` to `^5.0.0` ([#7851](https://github.com/MetaMask/core/pull/7851))
-
 ## [62.14.0]
 
 ### Changed
