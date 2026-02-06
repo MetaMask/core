@@ -88,6 +88,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
+- [`@metamask/ui-state-controller`](packages/ui-state-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 
 <!-- end package list -->
@@ -166,6 +167,7 @@ linkStyle default opacity:0.5
   subscription_controller(["@metamask/subscription-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
+  ui_state_controller(["@metamask/ui-state-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   account_tree_controller --> accounts_controller;
   account_tree_controller --> base_controller;
@@ -181,16 +183,29 @@ linkStyle default opacity:0.5
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   address_book_controller --> messenger;
+  ai_controllers --> base_controller;
+  ai_controllers --> messenger;
   analytics_controller --> base_controller;
   analytics_controller --> messenger;
+  analytics_data_regulation_controller --> base_controller;
+  analytics_data_regulation_controller --> controller_utils;
+  analytics_data_regulation_controller --> messenger;
   announcement_controller --> base_controller;
   announcement_controller --> messenger;
   app_metadata_controller --> base_controller;
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
   approval_controller --> messenger;
+  assets_controller --> account_tree_controller;
   assets_controller --> base_controller;
+  assets_controller --> controller_utils;
+  assets_controller --> core_backend;
+  assets_controller --> keyring_controller;
   assets_controller --> messenger;
+  assets_controller --> network_controller;
+  assets_controller --> network_enablement_controller;
+  assets_controller --> permission_controller;
+  assets_controller --> polling_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
@@ -201,11 +216,13 @@ linkStyle default opacity:0.5
   assets_controllers --> messenger;
   assets_controllers --> multichain_account_service;
   assets_controllers --> network_controller;
+  assets_controllers --> network_enablement_controller;
   assets_controllers --> permission_controller;
   assets_controllers --> phishing_controller;
   assets_controllers --> polling_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> profile_sync_controller;
+  assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
   base_controller --> messenger;
   base_controller --> json_rpc_engine;
@@ -412,12 +429,11 @@ linkStyle default opacity:0.5
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   subscription_controller --> transaction_controller;
-  token_search_discovery_controller --> base_controller;
-  token_search_discovery_controller --> messenger;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> core_backend;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> messenger;
   transaction_controller --> network_controller;
@@ -434,6 +450,8 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> remote_feature_flag_controller;
   transaction_pay_controller --> transaction_controller;
+  ui_state_controller --> base_controller;
+  ui_state_controller --> messenger;
   user_operation_controller --> approval_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;
