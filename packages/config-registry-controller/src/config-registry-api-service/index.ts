@@ -9,5 +9,5 @@ export { ConfigRegistryApiService } from './config-registry-api-service';
 
 export type { ConfigRegistryApiServiceOptions } from './config-registry-api-service';
 
-export type { NetworkFilterOptions } from './transformers';
-export { filterNetworks } from './transformers';
+export type { NetworkFilterOptions } from './filters';
+export { filterNetworks } from './filters';

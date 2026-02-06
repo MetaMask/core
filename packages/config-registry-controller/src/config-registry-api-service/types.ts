@@ -16,6 +16,11 @@ const RpcEndpointSchema = type({
   failoverUrls: array(string()),
 });
 
+/**
+ * Schema for a single network in the API response.
+ * Matches the flat shape returned by the config registry API
+ * (all fields at top level, not nested under "network").
+ */
 export const RegistryNetworkConfigSchema = type({
   chainId: string(),
   name: string(),

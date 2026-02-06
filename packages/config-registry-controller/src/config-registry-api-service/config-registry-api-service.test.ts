@@ -4,36 +4,13 @@ import { useFakeTimers } from 'sinon';
 
 import { ConfigRegistryApiService } from './config-registry-api-service';
 import type { FetchConfigResult, RegistryConfigApiResponse } from './types';
+import { createMockNetworkConfig } from '../test-helpers';
 
 const MOCK_API_RESPONSE: RegistryConfigApiResponse = {
   data: {
     version: '"24952800ba9dafbc5e2c91f57f386d28"',
     timestamp: 1761829548000,
-    networks: [
-      {
-        chainId: '0x1',
-        name: 'Ethereum Mainnet',
-        nativeCurrency: 'ETH',
-        rpcEndpoints: [
-          {
-            url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
-            type: 'infura',
-            networkClientId: 'mainnet',
-            failoverUrls: [],
-          },
-        ],
-        blockExplorerUrls: ['https://etherscan.io'],
-        defaultRpcEndpointIndex: 0,
-        defaultBlockExplorerUrlIndex: 0,
-        isActive: true,
-        isTestnet: false,
-        isDefault: true,
-        isFeatured: true,
-        isDeprecated: false,
-        priority: 0,
-        isDeletable: false,
-      },
-    ],
+    networks: [createMockNetworkConfig()],
   },
 };
 
@@ -71,12 +48,12 @@ describe('ConfigRegistryApiService', () => {
   });
 
   describe('constructor', () => {
-    it('should create instance with default options', () => {
+    it('creates instance with default options', () => {
       const service = new ConfigRegistryApiService();
       expect(service).toBeInstanceOf(ConfigRegistryApiService);
     });
 
-    it('should create instance with custom options', () => {
+    it('creates instance with custom options', () => {
       const customFetch = jest.fn();
       const service = new ConfigRegistryApiService({
         env: SDK.Env.DEV,
@@ -86,19 +63,19 @@ describe('ConfigRegistryApiService', () => {
       expect(service).toBeInstanceOf(ConfigRegistryApiService);
     });
 
-    it('should create instance with empty options object', () => {
+    it('creates instance with empty options object', () => {
       const service = new ConfigRegistryApiService({});
       expect(service).toBeInstanceOf(ConfigRegistryApiService);
     });
 
-    it('should use default values for unspecified options', () => {
+    it('uses default values for unspecified options', () => {
       const service = new ConfigRegistryApiService({
         env: SDK.Env.PRD,
       });
       expect(service).toBeInstanceOf(ConfigRegistryApiService);
     });
 
-    it('should use default fetch when not provided', () => {
+    it('uses default fetch when not provided', () => {
       const service = new ConfigRegistryApiService({
         env: SDK.Env.DEV,
       });
@@ -115,7 +92,7 @@ describe('ConfigRegistryApiService', () => {
       cleanAll();
     });
 
-    it('should successfully fetch config from API', async () => {
+    it('fetches config from API successfully', async () => {
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE, {
@@ -133,7 +110,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should successfully fetch config from API without ETag header', async () => {
+    it('fetches config from API without ETag header', async () => {
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
@@ -149,7 +126,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should handle 304 Not Modified response', async () => {
+    it('handles 304 Not Modified response', async () => {
       const etag = '"test-etag-123"';
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
@@ -163,7 +140,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should handle 304 Not Modified response without ETag header', async () => {
+    it('handles 304 Not Modified response without ETag header', async () => {
       const mockHeaders = {
         get: jest.fn().mockReturnValue(null),
       };
@@ -183,7 +160,7 @@ describe('ConfigRegistryApiService', () => {
       expect(result.etag).toBeUndefined();
     });
 
-    it('should include If-None-Match header when etag is provided', async () => {
+    it('includes If-None-Match header when etag is provided', async () => {
       const etag = '"test-etag-123"';
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
@@ -196,7 +173,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should not include If-None-Match header when etag is undefined', async () => {
+    it('does not include If-None-Match header when etag is undefined', async () => {
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
@@ -207,7 +184,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should handle fetchConfig called with undefined options', async () => {
+    it('handles fetchConfig called with undefined options', async () => {
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
@@ -219,7 +196,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should throw error on invalid response structure', async () => {
+    it('throws error on invalid response structure', async () => {
       const invalidResponse = { invalid: 'data' };
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
@@ -227,11 +204,13 @@ describe('ConfigRegistryApiService', () => {
 
       const service = new ConfigRegistryApiService();
 
-      await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
+      await expect(service.fetchConfig()).rejects.toMatchObject(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should throw error when data is null', async () => {
+    it('throws error when data is null', async () => {
       const mockHeaders = {
         get: jest.fn().mockReturnValue(null),
       };
@@ -246,10 +225,12 @@ describe('ConfigRegistryApiService', () => {
         fetch: customFetch,
       });
 
-      await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
+      await expect(service.fetchConfig()).rejects.toMatchObject(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
     });
 
-    it('should throw error when data.data is null', async () => {
+    it('throws error when data.data is null', async () => {
       const mockHeaders = {
         get: jest.fn().mockReturnValue(null),
       };
@@ -264,10 +245,12 @@ describe('ConfigRegistryApiService', () => {
         fetch: customFetch,
       });
 
-      await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
+      await expect(service.fetchConfig()).rejects.toMatchObject(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
     });
 
-    it('should throw error when data.data.networks is not an array', async () => {
+    it('throws error when data.data.networks is not an array', async () => {
       const mockHeaders = {
         get: jest.fn().mockReturnValue(null),
       };
@@ -282,10 +265,12 @@ describe('ConfigRegistryApiService', () => {
         fetch: customFetch,
       });
 
-      await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
+      await expect(service.fetchConfig()).rejects.toMatchObject(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
     });
 
-    it('should throw error on HTTP error status', async () => {
+    it('throws error on HTTP error status', async () => {
       const mockHeaders = {
         get: jest.fn().mockReturnValue(null),
       };
@@ -300,12 +285,14 @@ describe('ConfigRegistryApiService', () => {
         fetch: customFetch,
       });
 
-      await expect(service.fetchConfig()).rejects.toThrow(
-        'Failed to fetch config: 500 Internal Server Error',
+      await expect(service.fetchConfig()).rejects.toMatchObject(
+        expect.objectContaining({
+          message: 'Failed to fetch config: 500 Internal Server Error',
+        }),
       );
     });
 
-    it('should handle network errors', async () => {
+    it('handles network errors', async () => {
       const customFetch = jest
         .fn()
         .mockRejectedValue(new Error('Network connection failed'));
@@ -314,12 +301,12 @@ describe('ConfigRegistryApiService', () => {
         fetch: customFetch,
       });
 
-      await expect(service.fetchConfig()).rejects.toThrow(
-        'Network connection failed',
+      await expect(service.fetchConfig()).rejects.toMatchObject(
+        expect.objectContaining({ message: 'Network connection failed' }),
       );
     });
 
-    it('should retry on failure', async () => {
+    it('retries on failure', async () => {
       nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
         .replyWithError('Network error');
@@ -355,7 +342,7 @@ describe('ConfigRegistryApiService', () => {
       clock.restore();
     });
 
-    it('should register and call onBreak handler', async () => {
+    it('registers and calls onBreak handler', async () => {
       const maximumConsecutiveFailures = 3;
       const retries = 0;
 
@@ -375,7 +362,9 @@ describe('ConfigRegistryApiService', () => {
       service.onBreak(onBreakHandler);
 
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
-        await expect(service.fetchConfig()).rejects.toThrow(expect.any(Error));
+        await expect(service.fetchConfig()).rejects.toMatchObject(
+          expect.objectContaining({ message: expect.any(String) }),
+        );
         await clock.tickAsync(100);
       }
 
@@ -385,11 +374,13 @@ describe('ConfigRegistryApiService', () => {
       });
       await clock.tickAsync(100);
 
-      await expect(finalPromise).rejects.toThrow(expect.any(Error));
+      await expect(finalPromise).rejects.toMatchObject(
+        expect.objectContaining({ message: expect.any(String) }),
+      );
       expect(onBreakHandler).toHaveBeenCalled();
     });
 
-    it('should return the result from policy.onBreak', () => {
+    it('returns the result from policy.onBreak', () => {
       const service = new ConfigRegistryApiService();
       const handler = jest.fn();
       const result = service.onBreak(handler);
@@ -398,7 +389,7 @@ describe('ConfigRegistryApiService', () => {
   });
 
   describe('onDegraded', () => {
-    it('should register onDegraded handler', () => {
+    it('registers onDegraded handler', () => {
       const service = new ConfigRegistryApiService();
       const onDegradedHandler = jest.fn();
 
@@ -407,7 +398,7 @@ describe('ConfigRegistryApiService', () => {
       expect(service.onDegraded).toBeDefined();
     });
 
-    it('should call onDegraded handler when service becomes degraded', async () => {
+    it('calls onDegraded handler when service becomes degraded', async () => {
       const degradedThreshold = 2000; // 2 seconds
       const service = new ConfigRegistryApiService({
         degradedThreshold,
@@ -448,7 +439,7 @@ describe('ConfigRegistryApiService', () => {
       expect(slowService.onDegraded).toBeDefined();
     });
 
-    it('should return the result from policy.onDegraded', () => {
+    it('returns the result from policy.onDegraded', () => {
       const service = new ConfigRegistryApiService();
       const handler = jest.fn();
       const result = service.onDegraded(handler);
@@ -457,7 +448,7 @@ describe('ConfigRegistryApiService', () => {
   });
 
   describe('custom fetch function', () => {
-    it('should use custom fetch function when provided', async () => {
+    it('uses custom fetch function when provided', async () => {
       const mockHeaders = {
         get: jest.fn().mockReturnValue('"custom-etag"'),
       };
@@ -483,7 +474,7 @@ describe('ConfigRegistryApiService', () => {
   });
 
   describe('environment configuration', () => {
-    it('should use DEV environment URL when env is DEV', async () => {
+    it('uses DEV environment URL when env is DEV', async () => {
       const scope = nock('https://client-config.dev-api.cx.metamask.io')
         .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
@@ -497,7 +488,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should use UAT environment URL when env is UAT', async () => {
+    it('uses UAT environment URL when env is UAT', async () => {
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
@@ -511,7 +502,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should use PRD environment URL when env is PRD', async () => {
+    it('uses PRD environment URL when env is PRD', async () => {
       const scope = nock('https://client-config.api.cx.metamask.io')
         .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
@@ -525,7 +516,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should default to UAT environment', async () => {
+    it('defaults to UAT environment', async () => {
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
         .reply(200, MOCK_API_RESPONSE);
