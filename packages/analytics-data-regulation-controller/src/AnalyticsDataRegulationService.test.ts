@@ -5,26 +5,23 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService';
 import { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService';
 import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
 
 describe('AnalyticsDataRegulationService', () => {
-  let clock: SinonFakeTimers;
   const segmentSourceId = 'test-source-id';
   const segmentRegulationsEndpoint = 'https://proxy.example.com/v1beta';
 
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers('legacy');
     cleanAll();
     disableNetConnect();
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
     cleanAll();
     enableNetConnect();
   });
@@ -359,7 +356,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const onRetryListener = jest.fn();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.runOnlyPendingTimers();
         onRetryListener();
       });
 
@@ -383,7 +380,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.runOnlyPendingTimers();
       });
 
       const onBreakListener = jest.fn();
@@ -414,21 +411,29 @@ describe('AnalyticsDataRegulationService', () => {
   });
 
   describe('onDegraded', () => {
-    it('calls onDegraded listener when request takes longer than 5 seconds', async () => {
+    it('calls onDegraded listener when request takes longer than threshold', async () => {
+      // Use real timers for this test since cockatiel measures actual elapsed time
+      jest.useRealTimers();
+
+      const { service, rootMessenger } = getService({
+        options: {
+          policyOptions: {
+            degradedThreshold: 50, // Set a low threshold (50ms) for faster testing
+          },
+        },
+      });
+
       nock(segmentRegulationsEndpoint)
         .post(`/regulations/sources/${segmentSourceId}`)
-        .reply(200, () => {
-          clock.tick(6000);
-          return {
+        .delay(100) // 100ms delay exceeds the 50ms threshold
+        .reply(200, {
+          data: {
             data: {
-              data: {
-                regulateId: 'test-regulate-id',
-              },
+              regulateId: 'test-regulate-id',
             },
-          };
+          },
         });
 
-      const { service, rootMessenger } = getService();
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
@@ -438,6 +443,9 @@ describe('AnalyticsDataRegulationService', () => {
       );
 
       expect(onDegradedListener).toHaveBeenCalled();
+
+      // Restore fake timers for subsequent tests
+      jest.useFakeTimers('legacy');
     });
 
     it('calls onDegraded listener when maximum number of retries is exceeded', async () => {
@@ -448,7 +456,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.runOnlyPendingTimers();
       });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);

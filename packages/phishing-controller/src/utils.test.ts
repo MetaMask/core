@@ -1,5 +1,3 @@
-import * as sinon from 'sinon';
-
 import { ListKeys, ListNames } from './PhishingController';
 import type { PhishingListState } from './PhishingController';
 import type { TokenScanResultType } from './types';
@@ -79,15 +77,24 @@ const exampleRemoveDiff = {
 };
 
 describe('fetchTimeNow', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('correctly converts time from milliseconds to seconds', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers();
+    jest.setSystemTime(testTime);
     const result = fetchTimeNow();
     expect(result).toBe(1674773005);
   });
 });
 
 describe('applyDiffs', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('adds a valid addition diff to the state then sets lastUpdated to be the time of the latest diff', () => {
     const result = applyDiffs(
       exampleListState,
@@ -115,7 +122,8 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers();
+    jest.setSystemTime(testTime);
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -127,7 +135,8 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if the removal diff is older than the state.lastUpdated time.', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers();
+    jest.setSystemTime(testTime);
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
@@ -149,7 +158,8 @@ describe('applyDiffs', () => {
 
   it('does not add an addition diff to the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers();
+    jest.setSystemTime(testTime);
     const testExistingState = { ...exampleListState, lastUpdated: 1674773005 };
     const result = applyDiffs(
       testExistingState,
@@ -164,7 +174,8 @@ describe('applyDiffs', () => {
 
   it('does not remove a url from the state if it does not contain the same targetlist listkey.', () => {
     const testTime = 1674773005000;
-    sinon.useFakeTimers(testTime);
+    jest.useFakeTimers();
+    jest.setSystemTime(testTime);
     const testExistingState = {
       ...exampleListState,
       lastUpdated: 1674773005,
