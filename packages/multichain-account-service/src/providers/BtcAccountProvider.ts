@@ -7,7 +7,11 @@ import type {
   KeyringAccount,
   KeyringCapabilities,
 } from '@metamask/keyring-api';
-import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  BtcAccountType,
+  BtcScope,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
@@ -98,7 +102,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
-    if (options.type !== 'bip44:derive-index') {
+    if (options.type !== AccountCreationType.Bip44DeriveIndex) {
       throw new Error(
         `Unsupported account creation type: "${options.type}". Only "bip44:derive-index" is supported.`,
       );

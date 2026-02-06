@@ -352,7 +352,7 @@ describe('EvmAccountProvider', () => {
     ).rejects.toThrow('Internal account does not exist');
   });
 
-  it('should throw an error when type is not "bip44:derive-index"', async () => {
+  it('throws an error when type is not "bip44:derive-index"', async () => {
     const { provider } = setup({
       accounts: [MOCK_HD_ACCOUNT_1],
     });

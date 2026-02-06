@@ -1,9 +1,16 @@
 import type { Bip44Account } from '@metamask/account-api';
-import { AccountCreationType } from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  BtcScope,
+  EthScope,
+  SolScope,
+  TrxScope,
+} from '@metamask/keyring-api';
 import type {
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
+  KeyringCapabilities,
 } from '@metamask/keyring-api';
 
 import {
@@ -15,10 +22,7 @@ import {
 export type MockAccountProvider = {
   mockAccounts: KeyringAccount[];
   accounts: Set<KeyringAccount['id']>;
-  capabilities: {
-    scopes: `${string}:${string}`[];
-    bip44: { deriveIndex: boolean };
-  };
+  capabilities: KeyringCapabilities;
   constructor: jest.Mock;
   alignAccounts: jest.Mock;
   init: jest.Mock;
@@ -40,7 +44,16 @@ export function makeMockAccountProvider(
   return {
     mockAccounts: accounts,
     accounts: new Set(),
-    capabilities: { scopes: ['eip155:*'], bip44: { deriveIndex: true } },
+    capabilities: {
+      scopes: [
+        SolScope.Devnet,
+        SolScope.Testnet,
+        BtcScope.Testnet,
+        TrxScope.Shasta,
+        EthScope.Eoa,
+      ],
+      bip44: { deriveIndex: true },
+    },
     constructor: jest.fn(),
     alignAccounts: jest.fn(),
     init: jest.fn(),
@@ -79,7 +92,7 @@ export function setupBip44AccountProvider({
   });
   mocks.isDisabled.mockImplementation(() => !mocks.isEnabled);
 
-  const getAccounts = () =>
+  const getAccounts = (): KeyringAccount[] =>
     mocks.mockAccounts.filter((account) =>
       [...mocks.accounts].includes(account.id),
     );
@@ -126,11 +139,9 @@ export function setupBip44AccountProvider({
         BaseBip44AccountProvider.prototype as unknown as {
           alignAccounts: (
             this: {
-              createAccounts: (o: {
-                entropySource: EntropySourceId;
-                groupIndex: number;
-                type: CreateAccountOptions['type'];
-              }) => Promise<unknown[]>;
+              createAccounts: (
+                options: CreateAccountOptions,
+              ) => Promise<unknown[]>;
             },
             opts: { entropySource: EntropySourceId; groupIndex: number },
           ) => Promise<string[]>;
