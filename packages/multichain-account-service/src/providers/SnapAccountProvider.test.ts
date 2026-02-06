@@ -103,7 +103,7 @@ class MockSnapAccountProvider extends SnapAccountProvider {
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
-    if (options.type !== 'bip44:derive-index') {
+    if (options.type !== AccountCreationType.Bip44DeriveIndex) {
       throw new Error(
         `Unsupported account creation type: "${options.type}". Only "bip44:derive-index" is supported.`,
       );
@@ -690,7 +690,7 @@ describe('SnapAccountProvider', () => {
       expect(tracker.maxActiveCount).toBe(4);
     });
 
-    it('should throw an error when type is not "bip44:derive-index"', async () => {
+    it('throws an error when type is not "bip44:derive-index"', async () => {
       const { provider } = setup();
 
       await expect(

@@ -7,7 +7,7 @@ import type {
   KeyringAccount,
   KeyringCapabilities,
 } from '@metamask/keyring-api';
-import { SolScope } from '@metamask/keyring-api';
+import { AccountCreationType, SolScope } from '@metamask/keyring-api';
 import {
   KeyringAccountEntropyTypeOption,
   SolAccountType,
@@ -105,7 +105,7 @@ export class SolAccountProvider extends SnapAccountProvider {
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
-    if (options.type !== 'bip44:derive-index') {
+    if (options.type !== AccountCreationType.Bip44DeriveIndex) {
       throw new Error(
         `Unsupported account creation type: "${options.type}". Only "bip44:derive-index" is supported.`,
       );
