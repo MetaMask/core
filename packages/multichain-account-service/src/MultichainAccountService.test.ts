@@ -2,8 +2,8 @@ import { isBip44Account } from '@metamask/account-api';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type { KeyringObject } from '@metamask/keyring-controller';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
@@ -18,6 +18,7 @@ import {
   SolAccountProvider,
 } from './providers/SolAccountProvider';
 import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
+import type { RootMessenger, MockAccountProvider } from './tests';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
   MOCK_HD_ACCOUNT_1,
@@ -34,10 +35,8 @@ import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   makeMockAccountProvider,
-  mockAsInternalAccount,
-  setupNamedAccountProvider,
+  setupBip44AccountProvider,
 } from './tests';
-import type { MockAccountProvider, RootMessenger } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 
 // Mock providers.
@@ -61,10 +60,18 @@ type Mocks = {
     getState: jest.Mock;
     getKeyringsByType: jest.Mock;
     addNewKeyring: jest.Mock;
+    createNewVaultAndKeychain: jest.Mock;
+    createNewVaultAndRestore: jest.Mock;
+    withKeyring: jest.Mock;
+    removeAccount: jest.Mock;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
   AccountsController: {
     listMultichainAccounts: jest.Mock;
+  };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  ErrorReportingService: {
+    captureException: jest.Mock;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SnapController: {
@@ -87,18 +94,32 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
   providerClass: new (messenger: MultichainAccountServiceMessenger) => Provider,
   mocks: MockAccountProvider,
   accounts: KeyringAccount[],
-  type: KeyringAccount['type'],
+  idx: number,
+  _type: KeyringAccount['type'],
 ): void {
   jest.mocked(providerClass).mockImplementation((...args) => {
     mocks.constructor(...args);
     return mocks as unknown as Provider;
   });
 
-  setupNamedAccountProvider({
+  setupBip44AccountProvider({
     mocks,
     accounts,
-    filter: (account) => account.type === type,
+    index: idx,
   });
+
+  // Provide stable provider name and compatibility logic for grouping
+  if (providerClass === (EvmAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(EVM_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === EthAccountType.Eoa,
+    );
+  } else if (providerClass === (SolAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(SOL_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === SolAccountType.DataAccount,
+    );
+  }
 }
 
 async function setup({
@@ -124,9 +145,16 @@ async function setup({
       getState: jest.fn(),
       getKeyringsByType: jest.fn(),
       addNewKeyring: jest.fn(),
+      createNewVaultAndKeychain: jest.fn(),
+      createNewVaultAndRestore: jest.fn(),
+      withKeyring: jest.fn(),
+      removeAccount: jest.fn(),
     },
     AccountsController: {
       listMultichainAccounts: jest.fn(),
+    },
+    ErrorReportingService: {
+      captureException: jest.fn(),
     },
     SnapController: {
       getState: jest.fn(),
@@ -176,6 +204,21 @@ async function setup({
     mocks.KeyringController.addNewKeyring,
   );
 
+  rootMessenger.registerActionHandler(
+    'KeyringController:createNewVaultAndKeychain',
+    mocks.KeyringController.createNewVaultAndKeychain,
+  );
+
+  rootMessenger.registerActionHandler(
+    'KeyringController:createNewVaultAndRestore',
+    mocks.KeyringController.createNewVaultAndRestore,
+  );
+
+  rootMessenger.registerActionHandler(
+    'KeyringController:removeAccount',
+    mocks.KeyringController.removeAccount,
+  );
+
   if (accounts) {
     mocks.AccountsController.listMultichainAccounts.mockImplementation(
       () => accounts,
@@ -195,12 +238,14 @@ async function setup({
       EvmAccountProvider,
       mocks.EvmAccountProvider,
       accounts,
+      0,
       EthAccountType.Eoa,
     );
     mockAccountProvider<SolAccountProvider>(
       SolAccountProvider,
       mocks.SolAccountProvider,
       accounts,
+      1,
       SolAccountType.DataAccount,
     );
   }
@@ -441,288 +486,7 @@ describe('MultichainAccountService', () => {
     });
   });
 
-  describe('getAccountContext', () => {
-    const entropy1 = 'entropy-1';
-    const entropy2 = 'entropy-2';
-
-    const account1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-      .withId('mock-id-1')
-      .withEntropySource(entropy1)
-      .withGroupIndex(0)
-      .get();
-    const account2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-      .withId('mock-id-2')
-      .withEntropySource(entropy1)
-      .withGroupIndex(1)
-      .get();
-    const account3 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-      .withId('mock-id-3')
-      .withEntropySource(entropy2)
-      .withGroupIndex(0)
-      .get();
-
-    const keyring1 = {
-      type: KeyringTypes.hd,
-      accounts: [account1.address, account2.address],
-      metadata: { id: entropy1, name: '' },
-    };
-    const keyring2 = {
-      type: KeyringTypes.hd,
-      accounts: [account2.address],
-      metadata: { id: entropy2, name: '' },
-    };
-
-    const keyrings: KeyringObject[] = [keyring1, keyring2];
-
-    it('gets the wallet and multichain account for a given account ID', async () => {
-      const accounts = [account1, account2, account3];
-      const { service } = await setup({ accounts, keyrings });
-
-      const wallet1 = service.getMultichainAccountWallet({
-        entropySource: entropy1,
-      });
-      const wallet2 = service.getMultichainAccountWallet({
-        entropySource: entropy2,
-      });
-
-      const [multichainAccount1, multichainAccount2] =
-        wallet1.getMultichainAccountGroups();
-      const [multichainAccount3] = wallet2.getMultichainAccountGroups();
-
-      const walletAndMultichainAccount1 = service.getAccountContext(
-        account1.id,
-      );
-      const walletAndMultichainAccount2 = service.getAccountContext(
-        account2.id,
-      );
-      const walletAndMultichainAccount3 = service.getAccountContext(
-        account3.id,
-      );
-
-      // NOTE: We use `toBe` here, cause we want to make sure we use the same
-      // references with `get*` service's methods.
-      expect(walletAndMultichainAccount1?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount1?.group).toBe(multichainAccount1);
-
-      expect(walletAndMultichainAccount2?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount2?.group).toBe(multichainAccount2);
-
-      expect(walletAndMultichainAccount3?.wallet).toBe(wallet2);
-      expect(walletAndMultichainAccount3?.group).toBe(multichainAccount3);
-    });
-
-    it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountAdded', async () => {
-      const accounts = [account1, account3]; // No `account2` for now.
-      const { service, rootMessenger, mocks } = await setup({
-        accounts,
-        keyrings,
-      });
-
-      const wallet1 = service.getMultichainAccountWallet({
-        entropySource: entropy1,
-      });
-      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
-
-      // Now we're adding `account2`.
-      mocks.EvmAccountProvider.accounts = [account1, account2];
-      rootMessenger.publish(
-        'AccountsController:accountAdded',
-        mockAsInternalAccount(account2),
-      );
-      expect(wallet1.getMultichainAccountGroups()).toHaveLength(2);
-
-      const [multichainAccount1, multichainAccount2] =
-        wallet1.getMultichainAccountGroups();
-
-      const walletAndMultichainAccount1 = service.getAccountContext(
-        account1.id,
-      );
-      const walletAndMultichainAccount2 = service.getAccountContext(
-        account2.id,
-      );
-
-      // NOTE: We use `toBe` here, cause we want to make sure we use the same
-      // references with `get*` service's methods.
-      expect(walletAndMultichainAccount1?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount1?.group).toBe(multichainAccount1);
-
-      expect(walletAndMultichainAccount2?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount2?.group).toBe(multichainAccount2);
-    });
-
-    it('syncs the appropriate multichain account and update reverse mapping on AccountsController:accountAdded', async () => {
-      const otherAccount1 = MockAccountBuilder.from(account2)
-        .withGroupIndex(0)
-        .get();
-
-      const accounts = [account1]; // No `otherAccount1` for now.
-      const { service, rootMessenger, mocks } = await setup({
-        accounts,
-        keyrings,
-      });
-
-      const wallet1 = service.getMultichainAccountWallet({
-        entropySource: entropy1,
-      });
-      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
-
-      // Now we're adding `account2`.
-      mocks.EvmAccountProvider.accounts = [account1, otherAccount1];
-      rootMessenger.publish(
-        'AccountsController:accountAdded',
-        mockAsInternalAccount(otherAccount1),
-      );
-      // Still 1, that's the same multichain account, but a new "blockchain
-      // account" got added.
-      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
-
-      const [multichainAccount1] = wallet1.getMultichainAccountGroups();
-
-      const walletAndMultichainAccount1 = service.getAccountContext(
-        account1.id,
-      );
-      const walletAndMultichainOtherAccount1 = service.getAccountContext(
-        otherAccount1.id,
-      );
-
-      // NOTE: We use `toBe` here, cause we want to make sure we use the same
-      // references with `get*` service's methods.
-      expect(walletAndMultichainAccount1?.wallet).toBe(wallet1);
-      expect(walletAndMultichainAccount1?.group).toBe(multichainAccount1);
-
-      expect(walletAndMultichainOtherAccount1?.wallet).toBe(wallet1);
-      expect(walletAndMultichainOtherAccount1?.group).toBe(multichainAccount1);
-    });
-
-    it('emits multichainAccountGroupUpdated event when syncing existing group on account added', async () => {
-      const otherAccount1 = MockAccountBuilder.from(account2)
-        .withGroupIndex(0)
-        .get();
-
-      const accounts = [account1]; // No `otherAccount1` for now.
-      const { rootMessenger, messenger, mocks } = await setup({
-        accounts,
-        keyrings,
-      });
-      const publishSpy = jest.spyOn(messenger, 'publish');
-
-      // Now we're adding `otherAccount1` to an existing group.
-      mocks.EvmAccountProvider.accounts = [account1, otherAccount1];
-      rootMessenger.publish(
-        'AccountsController:accountAdded',
-        mockAsInternalAccount(otherAccount1),
-      );
-
-      // Should emit updated event for the existing group
-      expect(publishSpy).toHaveBeenCalled();
-      expect(publishSpy).toHaveBeenCalledWith(
-        'MultichainAccountService:multichainAccountGroupUpdated',
-        expect.objectContaining({
-          groupIndex: 0,
-        }),
-      );
-
-      const emittedGroup = publishSpy.mock.calls[0][1];
-      expect(emittedGroup).toBeDefined();
-      expect(emittedGroup).toHaveProperty('groupIndex', 0);
-      expect(emittedGroup).toHaveProperty('getAccounts');
-      expect(emittedGroup).toHaveProperty('select');
-      expect(emittedGroup).toHaveProperty('get');
-    });
-
-    it('creates new detected wallets and update reverse mapping on AccountsController:accountAdded', async () => {
-      const accounts = [account1, account2]; // No `account3` for now (associated with "Wallet 2").
-      const { service, rootMessenger, mocks } = await setup({
-        accounts,
-        keyrings: [keyring1],
-      });
-
-      const wallet1 = service.getMultichainAccountWallet({
-        entropySource: entropy1,
-      });
-      expect(wallet1.getMultichainAccountGroups()).toHaveLength(2);
-
-      // No wallet 2 yet.
-      expect(() =>
-        service.getMultichainAccountWallet({ entropySource: entropy2 }),
-      ).toThrow('Unknown wallet, no wallet matching this entropy source');
-
-      // Now we're adding `account3`.
-      mocks.KeyringController.keyrings = [keyring1, keyring2];
-      mocks.EvmAccountProvider.accounts = [account1, account2, account3];
-      rootMessenger.publish(
-        'AccountsController:accountAdded',
-        mockAsInternalAccount(account3),
-      );
-      const wallet2 = service.getMultichainAccountWallet({
-        entropySource: entropy2,
-      });
-      expect(wallet2).toBeDefined();
-      expect(wallet2.getMultichainAccountGroups()).toHaveLength(1);
-
-      const [multichainAccount3] = wallet2.getMultichainAccountGroups();
-
-      const walletAndMultichainAccount3 = service.getAccountContext(
-        account3.id,
-      );
-
-      // NOTE: We use `toBe` here, cause we want to make sure we use the same
-      // references with `get*` service's methods.
-      expect(walletAndMultichainAccount3?.wallet).toBe(wallet2);
-      expect(walletAndMultichainAccount3?.group).toBe(multichainAccount3);
-    });
-
-    it('ignores non-BIP-44 accounts on AccountsController:accountAdded', async () => {
-      const accounts = [account1];
-      const { service, rootMessenger } = await setup({
-        accounts,
-        keyrings,
-      });
-
-      const wallet1 = service.getMultichainAccountWallet({
-        entropySource: entropy1,
-      });
-      const oldMultichainAccounts = wallet1.getMultichainAccountGroups();
-      expect(oldMultichainAccounts).toHaveLength(1);
-      expect(oldMultichainAccounts[0].getAccounts()).toHaveLength(1);
-
-      // Now we're publishing a new account that is not BIP-44 compatible.
-      rootMessenger.publish(
-        'AccountsController:accountAdded',
-        mockAsInternalAccount(MOCK_SNAP_ACCOUNT_2),
-      );
-
-      const newMultichainAccounts = wallet1.getMultichainAccountGroups();
-      expect(newMultichainAccounts).toHaveLength(1);
-      expect(newMultichainAccounts[0].getAccounts()).toHaveLength(1);
-    });
-
-    it('syncs the appropriate wallet and update reverse mapping on AccountsController:accountRemoved', async () => {
-      const accounts = [account1, account2];
-      const { service, rootMessenger, mocks } = await setup({
-        accounts,
-        keyrings,
-      });
-
-      const wallet1 = service.getMultichainAccountWallet({
-        entropySource: entropy1,
-      });
-      expect(wallet1.getMultichainAccountGroups()).toHaveLength(2);
-
-      // Now we're removing `account2`.
-      mocks.EvmAccountProvider.accounts = [account1];
-      rootMessenger.publish('AccountsController:accountRemoved', account2.id);
-      expect(wallet1.getMultichainAccountGroups()).toHaveLength(1);
-
-      const walletAndMultichainAccount2 = service.getAccountContext(
-        account2.id,
-      );
-
-      expect(walletAndMultichainAccount2).toBeUndefined();
-    });
-  });
-
-  describe('createNextMultichainAccount', () => {
+  describe('createNextMultichainAccountGroup', () => {
     it('creates the next multichain account group', async () => {
       const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
@@ -865,7 +629,41 @@ describe('MultichainAccountService', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
-      expect(mocks.EvmAccountProvider.createAccounts).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeMultichainAccountWallet', () => {
+    it('calls KeyringController:removeAccount and removes the wallet', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service, mocks } = await setup({
+        accounts: [mockEvmAccount],
+      });
+
+      // Wallet should exist before removal
+      expect(
+        service.getMultichainAccountWallet({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        }),
+      ).toBeDefined();
+
+      const testAddress = '0xdeadbeef';
+      await service.removeMultichainAccountWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+        testAddress,
+      );
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledWith(
+        testAddress,
+      );
+      expect(() =>
+        service.getMultichainAccountWallet({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        }),
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
     });
   });
 
@@ -965,7 +763,6 @@ describe('MultichainAccountService', () => {
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
-      expect(mocks.EvmAccountProvider.createAccounts).not.toHaveBeenCalled();
     });
 
     it('aligns all multichain account wallets with MultichainAccountService:alignWallets', async () => {
@@ -1016,6 +813,8 @@ describe('MultichainAccountService', () => {
     it('creates a multichain account wallet with MultichainAccountService:createMultichainAccountWallet', async () => {
       const { messenger, mocks } = await setup({ accounts: [], keyrings: [] });
 
+      const mnemonic = mnemonicPhraseToBytes(MOCK_MNEMONIC);
+
       mocks.KeyringController.getKeyringsByType.mockImplementationOnce(
         () => [],
       );
@@ -1027,7 +826,7 @@ describe('MultichainAccountService', () => {
 
       const wallet = await messenger.call(
         'MultichainAccountService:createMultichainAccountWallet',
-        { mnemonic: MOCK_MNEMONIC },
+        { mnemonic, type: 'import' },
       );
 
       expect(wallet).toBeDefined();
@@ -1042,6 +841,22 @@ describe('MultichainAccountService', () => {
       const resyncAccountsSpy = jest.spyOn(service, 'resyncAccounts');
       await messenger.call('MultichainAccountService:resyncAccounts');
       expect(resyncAccountsSpy).toHaveBeenCalled();
+    });
+
+    it('removes a multichain account wallet with MultichainAccountService:removeMultichainAccountWallet', async () => {
+      const { messenger, mocks } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      await messenger.call(
+        'MultichainAccountService:removeMultichainAccountWallet',
+        MOCK_HD_KEYRING_1.metadata.id,
+        MOCK_HD_ACCOUNT_1.address,
+      );
+
+      expect(mocks.KeyringController.removeAccount).toHaveBeenCalledWith(
+        MOCK_HD_ACCOUNT_1.address,
+      );
     });
 
     it('checks for Snap platform readiness with MultichainAccountService:ensureCanUseSnapPlatform', async () => {
@@ -1257,48 +1072,134 @@ describe('MultichainAccountService', () => {
   });
 
   describe('createMultichainAccountWallet', () => {
-    it('creates a new multichain account wallet with the given mnemonic', async () => {
-      const { mocks, service } = await setup({
-        accounts: [],
-        keyrings: [],
+    describe('createWalletByImport', () => {
+      it('creates a new multichain account wallet by the import flow', async () => {
+        const { mocks, service } = await setup({
+          accounts: [],
+          keyrings: [],
+        });
+
+        const mnemonic = mnemonicPhraseToBytes(MOCK_MNEMONIC);
+
+        mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
+          {},
+        ]);
+
+        mocks.KeyringController.addNewKeyring.mockImplementationOnce(() => ({
+          id: 'abc',
+          name: '',
+        }));
+
+        const wallet = await service.createMultichainAccountWallet({
+          mnemonic,
+          type: 'import',
+        });
+
+        expect(wallet).toBeDefined();
+        expect(wallet.entropySource).toBe('abc');
       });
 
-      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
-        {},
-      ]);
+      it("throws an error if there's already an existing keyring from the same mnemonic", async () => {
+        const { service, mocks } = await setup({ accounts: [], keyrings: [] });
 
-      mocks.KeyringController.addNewKeyring.mockImplementationOnce(() => ({
-        id: 'abc',
-        name: '',
-      }));
+        const mnemonic = mnemonicPhraseToBytes(MOCK_MNEMONIC);
 
-      const wallet = await service.createMultichainAccountWallet({
-        mnemonic: MOCK_MNEMONIC,
+        mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
+          {
+            mnemonic,
+          },
+        ]);
+
+        await expect(
+          service.createMultichainAccountWallet({
+            mnemonic,
+            type: 'import',
+          }),
+        ).rejects.toThrow(
+          'This Secret Recovery Phrase has already been imported.',
+        );
+
+        // Ensure we did not attempt to create a new keyring when duplicate is detected
+        expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
       });
-
-      expect(wallet).toBeDefined();
-      expect(wallet.entropySource).toBe('abc');
     });
 
-    it("throws an error if there's already an existing keyring from the same mnemonic", async () => {
-      const { service, mocks } = await setup({ accounts: [], keyrings: [] });
+    describe('createWalletByNewVault', () => {
+      it('creates a new multichain account wallet by the new vault flow', async () => {
+        const { service, mocks, rootMessenger } = await setup({
+          accounts: [],
+          keyrings: [],
+        });
 
-      const mnemonic = mnemonicPhraseToBytes(MOCK_MNEMONIC);
+        const password = 'password';
 
-      mocks.KeyringController.getKeyringsByType.mockImplementationOnce(() => [
-        {
+        mocks.KeyringController.createNewVaultAndKeychain.mockImplementationOnce(
+          () => {
+            mocks.KeyringController.keyrings.push(MOCK_HD_KEYRING_1);
+          },
+        );
+
+        rootMessenger.registerActionHandler(
+          'KeyringController:withKeyring',
+          async (_, operation) => {
+            const newKeyring = mocks.KeyringController.keyrings.find(
+              (keyring) => keyring.type === 'HD Key Tree',
+            ) as KeyringObject;
+            return operation({
+              keyring: {} as unknown as EthKeyring,
+              metadata: newKeyring.metadata,
+            });
+          },
+        );
+
+        const newWallet = await service.createMultichainAccountWallet({
+          password,
+          type: 'create',
+        });
+
+        expect(newWallet).toBeDefined();
+        expect(newWallet.entropySource).toBe(MOCK_HD_KEYRING_1.metadata.id);
+      });
+    });
+
+    describe('createWalletByRestore', () => {
+      it('creates a new multichain account wallet by the restore flow', async () => {
+        const { service, mocks, rootMessenger } = await setup({
+          accounts: [],
+          keyrings: [],
+        });
+
+        const mnemonic = mnemonicPhraseToBytes(MOCK_MNEMONIC);
+        const password = 'password';
+
+        mocks.KeyringController.createNewVaultAndRestore.mockImplementationOnce(
+          () => {
+            mocks.KeyringController.keyrings.push(MOCK_HD_KEYRING_1);
+          },
+        );
+
+        rootMessenger.registerActionHandler(
+          'KeyringController:withKeyring',
+          async (_, operation) => {
+            const newKeyring = mocks.KeyringController.keyrings.find(
+              (keyring) => keyring.type === 'HD Key Tree',
+            ) as KeyringObject;
+            return operation({
+              keyring: {} as unknown as EthKeyring,
+              metadata: newKeyring.metadata,
+            });
+          },
+        );
+
+        const newWallet = await service.createMultichainAccountWallet({
+          password,
           mnemonic,
-        },
-      ]);
+          type: 'restore',
+        });
 
-      await expect(
-        service.createMultichainAccountWallet({ mnemonic: MOCK_MNEMONIC }),
-      ).rejects.toThrow(
-        'This Secret Recovery Phrase has already been imported.',
-      );
-
-      // Ensure we did not attempt to create a new keyring when duplicate is detected
-      expect(mocks.KeyringController.addNewKeyring).not.toHaveBeenCalled();
+        expect(newWallet).toBeDefined();
+        expect(newWallet.entropySource).toBe(MOCK_HD_KEYRING_1.metadata.id);
+      });
     });
   });
 

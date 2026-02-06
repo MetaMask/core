@@ -8,7 +8,7 @@ import type {
 import { SnapControllerState } from '@metamask/snaps-controllers';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import {
   TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   TRX_ACCOUNT_PROVIDER_NAME,
@@ -109,6 +109,11 @@ function setup({
   const keyring = new MockTronKeyring(accounts);
 
   messenger.registerActionHandler(
+    'AccountsController:getAccounts',
+    () => accounts,
+  );
+
+  messenger.registerActionHandler(
     'SnapController:getState',
     () => ({ isReady: true }) as SnapControllerState,
   );
@@ -116,6 +121,14 @@ function setup({
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     () => accounts,
+  );
+
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find((account) => account.id === id);
+  });
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
   );
 
   const mockHandleRequest = jest.fn().mockImplementation((request) => {
@@ -146,10 +159,10 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const provider = new AccountProviderWrapper(
-    multichainMessenger,
-    new MockTrxAccountProvider(multichainMessenger, config),
-  );
+  const trxProvider = new MockTrxAccountProvider(multichainMessenger, config);
+  const accountIds = accounts.map((account) => account.id);
+  trxProvider.init(accountIds);
+  const provider = new AccountProviderWrapper(multichainMessenger, trxProvider);
 
   return {
     provider,
@@ -199,6 +212,22 @@ describe('TrxAccountProvider', () => {
     expect(() => provider.getAccount(unknownAccount.id)).toThrow(
       `Unable to find account: ${unknownAccount.id}`,
     );
+  });
+
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_TRX_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(false);
   });
 
   it('creates accounts', async () => {
