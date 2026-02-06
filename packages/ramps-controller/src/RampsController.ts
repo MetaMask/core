@@ -265,6 +265,28 @@ export function getDefaultRampsControllerState(): RampsControllerState {
   };
 }
 
+const DEPENDENT_RESOURCE_KEYS = [
+  'providers',
+  'tokens',
+  'paymentMethods',
+  'quotes',
+] as const;
+
+type DependentResourceKey = (typeof DEPENDENT_RESOURCE_KEYS)[number];
+
+function resetResource(
+  state: RampsControllerState,
+  resourceType: DependentResourceKey,
+  defaultResource?: RampsControllerState[DependentResourceKey],
+): void {
+  const def = defaultResource ?? getDefaultRampsControllerState()[resourceType];
+  const resource = state[resourceType];
+  resource.data = def.data;
+  resource.selected = def.selected;
+  resource.isLoading = def.isLoading;
+  resource.error = def.error;
+}
+
 /**
  * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods, quotes).
  * Mutates state in place; use from within controller update() for atomic updates.
@@ -280,22 +302,10 @@ function resetDependentResources(
   if (options?.clearUserRegionData) {
     state.userRegion = null;
   }
-  state.providers.selected = null;
-  state.providers.data = [];
-  state.providers.isLoading = false;
-  state.providers.error = null;
-  state.tokens.selected = null;
-  state.tokens.data = null;
-  state.tokens.isLoading = false;
-  state.tokens.error = null;
-  state.paymentMethods.data = [];
-  state.paymentMethods.selected = null;
-  state.paymentMethods.isLoading = false;
-  state.paymentMethods.error = null;
-  state.quotes.data = null;
-  state.quotes.selected = null;
-  state.quotes.isLoading = false;
-  state.quotes.error = null;
+  const defaultState = getDefaultRampsControllerState();
+  for (const key of DEPENDENT_RESOURCE_KEYS) {
+    resetResource(state, key, defaultState[key]);
+  }
 }
 
 // === MESSENGER ===
@@ -533,30 +543,45 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Executes a request with caching and deduplication.
+   * Executes a request with caching, deduplication, and at most one in-flight
+   * request per resource type.
    *
-   * If a request with the same cache key is already in flight, returns the
-   * existing promise. If valid cached data exists, returns it without making
-   * a new request.
+   * 1. **Same cache key in flight** – If a request with this cache key is
+   *    already pending, returns that promise (deduplication; no second request).
    *
-   * @param cacheKey - Unique identifier for this request.
-   * @param fetcher - Function that performs the actual fetch. Receives an AbortSignal.
-   * @param options - Options for cache behavior.
-   * @returns The result of the request.
+   * 2. **Cache hit** – If valid, non-expired data exists in state.requests for
+   *    this key and forceRefresh is not set, returns that data without fetching.
+   *
+   * 3. **New request** – If options.resourceType is set, aborts any other
+   *    in-flight request for that resource so only one request per resource
+   *    runs at a time. Sets resource loading true, runs the fetcher, then on
+   *    success or error updates request state and resource error; in finally,
+   *    clears resource loading only if this request was not aborted.
+   *
+   * @param cacheKey - Unique identifier for this request (e.g. from createCacheKey).
+   * @param fetcher - Async function that performs the fetch. Receives an AbortSignal
+   *   that is aborted when this request is superseded by another for the same resource.
+   * @param options - Optional forceRefresh, ttl, and resourceType for loading/error state.
+   * @returns The result of the request (from cache, joined promise, or fetcher).
    */
   async executeRequest<TResult>(
     cacheKey: string,
     fetcher: (signal: AbortSignal) => Promise<TResult>,
     options?: ExecuteRequestOptions,
   ): Promise<TResult> {
+    // Get TTL for verifying cache expiration
     const ttl = options?.ttl ?? this.#requestCacheTTL;
 
-    // Check for existing pending request - join it instead of making a duplicate
+    // DEDUPLICATION:
+    // Check if a request is already in flight for this cache key
+    // If so, return the original promise for that request
     const pending = this.#pendingRequests.get(cacheKey);
     if (pending) {
       return pending.promise as Promise<TResult>;
     }
 
+    // CACHE HIT:
+    // If cache is not expired, return the cached data
     if (!options?.forceRefresh) {
       const cached = this.state.requests[cacheKey];
       if (cached && !isCacheExpired(cached, ttl)) {
@@ -564,7 +589,8 @@ export class RampsController extends BaseController<
       }
     }
 
-    // Create abort controller for this request
+    // Create a new abort controller for this request
+    // Record the time the request was started
     const abortController = new AbortController();
     const lastFetchedAt = Date.now();
     const { resourceType } = options ?? {};
@@ -587,7 +613,6 @@ export class RampsController extends BaseController<
       try {
         const data = await fetcher(abortController.signal);
 
-        // Don't update state if aborted
         if (abortController.signal.aborted) {
           throw new Error('Request was aborted');
         }
@@ -598,30 +623,23 @@ export class RampsController extends BaseController<
         );
 
         if (resourceType) {
-          // We need the extra logic because there are two situations where we’re allowed to clear the error:
-          // No callback → always clear
-          // Callback present → clear only when isResultCurrent() returns true.
           const isCurrent =
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, null);
           }
         }
-
         return data;
       } catch (error) {
-        // Don't update state if aborted
         if (abortController.signal.aborted) {
           throw error;
         }
 
         const errorMessage = (error as Error)?.message ?? 'Unknown error';
-
         this.#updateRequestState(
           cacheKey,
           createErrorState(errorMessage, lastFetchedAt),
         );
-
         if (resourceType) {
           const isCurrent =
             !options?.isResultCurrent || options.isResultCurrent();
@@ -629,12 +647,12 @@ export class RampsController extends BaseController<
             this.#setResourceError(resourceType, errorMessage);
           }
         }
-
         throw error;
       } finally {
-        // Only delete if this is still our entry (not replaced by a new request)
-        const currentPending = this.#pendingRequests.get(cacheKey);
-        if (currentPending?.abortController === abortController) {
+        if (
+          this.#pendingRequests.get(cacheKey)?.abortController ===
+          abortController
+        ) {
           this.#pendingRequests.delete(cacheKey);
         }
 
@@ -652,8 +670,11 @@ export class RampsController extends BaseController<
       }
     })();
 
-    // Store pending request for deduplication
-    this.#pendingRequests.set(cacheKey, { promise, abortController });
+    this.#pendingRequests.set(cacheKey, {
+      promise,
+      abortController,
+      resourceType,
+    });
 
     return promise;
   }
@@ -923,8 +944,10 @@ export class RampsController extends BaseController<
       this.stopQuotePolling();
       this.update((state) => {
         state.providers.selected = null;
-        state.paymentMethods.data = [];
-        state.paymentMethods.selected = null;
+        resetResource(
+          state as unknown as RampsControllerState,
+          'paymentMethods',
+        );
       });
       return;
     }
@@ -952,8 +975,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.providers.selected = provider;
-      state.paymentMethods.data = [];
-      state.paymentMethods.selected = null;
+      resetResource(state as unknown as RampsControllerState, 'paymentMethods');
       state.quotes.selected = null;
     });
 
@@ -1023,7 +1045,7 @@ export class RampsController extends BaseController<
     );
 
     this.update((state) => {
-      state.countries.data = countries;
+      state.countries.data = Array.isArray(countries) ? [...countries] : [];
     });
 
     return countries;
@@ -1106,8 +1128,10 @@ export class RampsController extends BaseController<
       this.stopQuotePolling();
       this.update((state) => {
         state.tokens.selected = null;
-        state.paymentMethods.data = [];
-        state.paymentMethods.selected = null;
+        resetResource(
+          state as unknown as RampsControllerState,
+          'paymentMethods',
+        );
       });
       return;
     }
@@ -1138,8 +1162,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.tokens.selected = token;
-      state.paymentMethods.data = [];
-      state.paymentMethods.selected = null;
+      resetResource(state as unknown as RampsControllerState, 'paymentMethods');
       state.quotes.selected = null;
     });
 

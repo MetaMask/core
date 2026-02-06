@@ -44,6 +44,17 @@ describe('RequestCache', () => {
   });
 
   describe('isCacheExpired', () => {
+    it('returns true for idle state', () => {
+      const state = {
+        status: RequestStatus.IDLE,
+        data: null,
+        error: null,
+        timestamp: Date.now(),
+        lastFetchedAt: Date.now(),
+      };
+      expect(isCacheExpired(state)).toBe(true);
+    });
+
     it('returns true for loading state', () => {
       const state = createLoadingState();
       expect(isCacheExpired(state)).toBe(true);

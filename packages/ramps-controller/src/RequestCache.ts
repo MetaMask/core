@@ -160,4 +160,6 @@ export type ExecuteRequestOptions = {
 export type PendingRequest<TResult = unknown> = {
   promise: Promise<TResult>;
   abortController: AbortController;
+  /** When set, used to abort other in-flight requests for this resource when a new one starts. */
+  resourceType?: ResourceType;
 };

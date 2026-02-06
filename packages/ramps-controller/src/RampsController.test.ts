@@ -10,11 +10,13 @@ import * as path from 'path';
 
 import type {
   RampsControllerMessenger,
+  RampsControllerState,
   ResourceState,
   UserRegion,
 } from './RampsController';
 import {
   RampsController,
+  getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 import type {
@@ -469,6 +471,61 @@ describe('RampsController', () => {
           'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
         );
       });
+    });
+
+    it('returns providers for region when state has providers (fetches and returns result)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(mockProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              serviceCalled = true;
+              return { providers: mockProviders };
+            },
+          );
+
+          const result = await controller.getProviders('us-ca');
+
+          expect(serviceCalled).toBe(true);
+          expect(result.providers).toStrictEqual(mockProviders);
+        },
+      );
+    });
+
+    it('calls service when getProviders is called with filter options even if state has providers', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(mockProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              serviceCalled = true;
+              return { providers: mockProviders };
+            },
+          );
+
+          await controller.getProviders('us-ca', { provider: 'moonpay' });
+
+          expect(serviceCalled).toBe(true);
+        },
+      );
     });
   });
 
@@ -1144,6 +1201,44 @@ describe('RampsController', () => {
         expect(controller.state.countries.data).toStrictEqual(mockCountries);
       });
     });
+
+    it('stores empty array when getCountries returns non-array (defensive)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => 'not an array' as unknown as Country[],
+        );
+
+        const countries = await controller.getCountries();
+
+        expect(countries).toBe('not an array');
+        expect(controller.state.countries.data).toStrictEqual([]);
+      });
+    });
+
+    it('does not throw when updating resource field and resource is null (defensive)', async () => {
+      const stateWithNullCountries = {
+        ...getDefaultRampsControllerState(),
+        countries: null,
+      } as unknown as RampsControllerState;
+
+      await withController(
+        {
+          options: {
+            state: stateWithNullCountries,
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+          await expect(controller.getCountries()).rejects.toThrow(
+            /Cannot set propert(y|ies) of null/u,
+          );
+        },
+      );
+    });
   });
 
   describe('init', () => {
@@ -1368,6 +1463,50 @@ describe('RampsController', () => {
           'Region code is required. Cannot hydrate state without valid region information.',
         );
       });
+    });
+
+    it('calls getTokens and getProviders when hydrating even if state has data', async () => {
+      const existingProviders: Provider[] = [
+        {
+          id: '/providers/test',
+          name: 'Test Provider',
+          environmentType: 'STAGING',
+          description: 'Test',
+          hqAddress: '123 Test St',
+          links: [],
+          logos: { light: '', dark: '', height: 24, width: 77 },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(existingProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let providersCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              providersCalled = true;
+              return { providers: [] };
+            },
+          );
+
+          controller.hydrateState();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          expect(providersCalled).toBe(true);
+        },
+      );
     });
   });
 
@@ -2069,6 +2208,8 @@ describe('RampsController', () => {
           expect(controller.state.providers.selected).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.isLoading).toBe(false);
+          expect(controller.state.paymentMethods.error).toBeNull();
         },
       );
     });
@@ -2263,6 +2404,8 @@ describe('RampsController', () => {
           expect(controller.state.tokens.selected).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.isLoading).toBe(false);
+          expect(controller.state.paymentMethods.error).toBeNull();
         },
       );
     });
@@ -2635,6 +2778,61 @@ describe('RampsController', () => {
           'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
         );
       });
+    });
+
+    it('returns tokens for region when state has tokens (fetches and returns result)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokens, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => {
+              serviceCalled = true;
+              return mockTokens;
+            },
+          );
+
+          const result = await controller.getTokens('us-ca', 'buy');
+
+          expect(serviceCalled).toBe(true);
+          expect(result).toStrictEqual(mockTokens);
+        },
+      );
+    });
+
+    it('calls service when getTokens is called with provider filter even if state has tokens', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokens, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => {
+              serviceCalled = true;
+              return mockTokens;
+            },
+          );
+
+          await controller.getTokens('us-ca', 'buy', { provider: 'moonpay' });
+
+          expect(serviceCalled).toBe(true);
+        },
+      );
     });
 
     it('prefers provided region over userRegion in state', async () => {
@@ -3402,10 +3600,10 @@ describe('RampsController', () => {
           );
 
           controller.setSelectedToken(tokenB.assetId);
-          await new Promise((resolve) => setTimeout(resolve, 10));
 
           resolveTokenARequest({ payments: paymentMethodsForTokenA });
           await tokenAPaymentMethodsPromise;
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(controller.state.tokens.selected).toStrictEqual(tokenB);
           expect(controller.state.paymentMethods.data).toStrictEqual(
@@ -3510,10 +3708,10 @@ describe('RampsController', () => {
           );
 
           controller.setSelectedProvider(providerB.id);
-          await new Promise((resolve) => setTimeout(resolve, 10));
 
           resolveProviderARequest({ payments: paymentMethodsForProviderA });
           await providerAPaymentMethodsPromise;
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(controller.state.providers.selected).toStrictEqual(providerB);
           expect(controller.state.paymentMethods.data).toStrictEqual(
