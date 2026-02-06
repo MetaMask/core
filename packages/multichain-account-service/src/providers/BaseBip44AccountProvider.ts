@@ -1,6 +1,12 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { AccountProvider, Bip44Account } from '@metamask/account-api';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import { AccountCreationType } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+  KeyringCapabilities,
+} from '@metamask/keyring-api';
 import type {
   KeyringMetadata,
   KeyringSelector,
@@ -39,6 +45,12 @@ export type Bip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
 > = AccountProvider<Account> & {
   /**
+   * Provider capabilities, including supported scopes and BIP-44 options.
+   *
+   * @returns The provider capabilities.
+   */
+  get capabilities(): KeyringCapabilities;
+  /**
    * Get the name of the provider.
    *
    * @returns The name of the provider.
@@ -69,6 +81,16 @@ export type Bip44AccountProvider<
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Account['id'][]>;
+  /**
+   * Create accounts for the provider.
+   *
+   * @param options - The options for creating the accounts.
+   * @param options.entropySource - The entropy source.
+   * @param options.groupIndex - The group index.
+   * @param options.type - The type of account creation.
+   * @returns The created accounts.
+   */
+  createAccounts(options: CreateAccountOptions): Promise<Account[]>;
   /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
@@ -181,12 +203,15 @@ export abstract class BaseBip44AccountProvider<
     groupIndex: number;
   }): Promise<Account['id'][]> {
     const accounts = await this.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource,
       groupIndex,
     });
     const accountIds = accounts.map((account) => account.id);
     return accountIds;
   }
+
+  abstract get capabilities(): KeyringCapabilities;
 
   abstract getName(): string;
 
@@ -196,13 +221,7 @@ export abstract class BaseBip44AccountProvider<
 
   abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 
-  abstract createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Account[]>;
+  abstract createAccounts(options: CreateAccountOptions): Promise<Account[]>;
 
   abstract discoverAccounts({
     entropySource,

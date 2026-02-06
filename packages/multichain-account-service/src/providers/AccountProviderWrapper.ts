@@ -1,5 +1,10 @@
 import type { Bip44Account } from '@metamask/account-api';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+  KeyringCapabilities,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
@@ -24,6 +29,10 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
 
   override getName(): string {
     return this.provider.getName();
+  }
+
+  get capabilities(): KeyringCapabilities {
+    return this.provider.capabilities;
   }
 
   /**
@@ -116,14 +125,11 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    * Implement abstract method: Create accounts, returns empty array when disabled.
    *
    * @param options - Account creation options.
-   * @param options.entropySource - The entropy source to use.
-   * @param options.groupIndex - The group index to use.
    * @returns Promise resolving to created accounts, or empty array if disabled.
    */
-  async createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
     if (!this.isEnabled) {
       return [];
     }

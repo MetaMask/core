@@ -1,7 +1,14 @@
 import { isBip44Account } from '@metamask/account-api';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
-import type { KeyringAccount } from '@metamask/keyring-api';
-import { EthAccountType, SolAccountType } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  KeyringAccount,
+} from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  EthAccountType,
+  SolAccountType,
+} from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
@@ -599,10 +606,12 @@ describe('MultichainAccountService', () => {
       await service.alignWallets();
 
       expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_2.metadata.id,
         groupIndex: 0,
       });
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
@@ -626,6 +635,7 @@ describe('MultichainAccountService', () => {
       await service.alignWallet(MOCK_HD_KEYRING_1.metadata.id);
 
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
@@ -760,6 +770,7 @@ describe('MultichainAccountService', () => {
       );
 
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
@@ -781,10 +792,12 @@ describe('MultichainAccountService', () => {
       await messenger.call('MultichainAccountService:alignWallets');
 
       expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_2.metadata.id,
         groupIndex: 0,
       });
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
@@ -949,7 +962,7 @@ describe('MultichainAccountService', () => {
     });
   });
 
-  describe('AccountProviderWrapper disabled behavior', () => {
+  describe('AccountProviderWrapper', () => {
     let wrapper: AccountProviderWrapper;
     let solProvider: SolAccountProvider;
 
@@ -975,6 +988,10 @@ describe('MultichainAccountService', () => {
         getMultichainAccountServiceMessenger(rootMessenger),
         solProvider,
       );
+    });
+
+    it('forwards capabilities from adapted provider', async () => {
+      expect(wrapper.capabilities).toStrictEqual(solProvider.capabilities);
     });
 
     it('forwards resyncAccounts() if provider is enabled', async () => {
@@ -1016,7 +1033,8 @@ describe('MultichainAccountService', () => {
     });
 
     it('returns empty array when createAccounts() is disabled', async () => {
-      const options = {
+      const options: CreateAccountOptions = {
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
         groupIndex: 0,
       };

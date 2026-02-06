@@ -1,5 +1,6 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
+import { AccountCreationType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -238,6 +239,7 @@ describe('TrxAccountProvider', () => {
 
     const newGroupIndex = accounts.length; // Group-index are 0-based.
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: newGroupIndex,
     });
@@ -254,6 +256,7 @@ describe('TrxAccountProvider', () => {
     const newAccounts = await provider.createAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
+      type: AccountCreationType.Bip44DeriveIndex,
     });
     expect(newAccounts).toHaveLength(1);
     expect(newAccounts[0]).toStrictEqual(MOCK_TRX_ACCOUNT_1);
@@ -274,6 +277,7 @@ describe('TrxAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
@@ -297,10 +301,26 @@ describe('TrxAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
     ).rejects.toThrow('Created account is not BIP-44 compatible');
+  });
+
+  it('should throw an error when type is not "bip44:derive-index"', async () => {
+    const { provider } = setup();
+
+    await expect(
+      provider.createAccounts({
+        // @ts-expect-error Testing invalid type handling.
+        type: 'unsupported-type',
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow(
+      'Unsupported account creation type: "unsupported-type". Only "bip44:derive-index" is supported.',
+    );
   });
 
   it('discover accounts at a new group index creates an account', async () => {

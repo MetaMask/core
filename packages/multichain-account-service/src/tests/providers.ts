@@ -1,5 +1,10 @@
 import type { Bip44Account } from '@metamask/account-api';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import { AccountCreationType } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
 
 import {
   AccountProviderWrapper,
@@ -10,6 +15,10 @@ import {
 export type MockAccountProvider = {
   mockAccounts: KeyringAccount[];
   accounts: Set<KeyringAccount['id']>;
+  capabilities: {
+    scopes: `${string}:${string}`[];
+    bip44: { deriveIndex: boolean };
+  };
   constructor: jest.Mock;
   alignAccounts: jest.Mock;
   init: jest.Mock;
@@ -31,6 +40,7 @@ export function makeMockAccountProvider(
   return {
     mockAccounts: accounts,
     accounts: new Set(),
+    capabilities: { scopes: ['eip155:*'], bip44: { deriveIndex: true } },
     constructor: jest.fn(),
     alignAccounts: jest.fn(),
     init: jest.fn(),
@@ -82,7 +92,9 @@ export function setupBip44AccountProvider({
       // Assuming this never fails.
       getAccounts().find((account) => account.id === id),
   );
-  mocks.createAccounts.mockResolvedValue([]);
+  mocks.createAccounts.mockImplementation(async () => {
+    return [];
+  });
   mocks.alignAccounts.mockImplementation(
     async ({
       entropySource,
@@ -107,6 +119,7 @@ export function setupBip44AccountProvider({
         return ids;
       }
       const createdAccounts = await mocks.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource,
         groupIndex,
       });
@@ -118,6 +131,7 @@ export function setupBip44AccountProvider({
               createAccounts: (o: {
                 entropySource: EntropySourceId;
                 groupIndex: number;
+                type: CreateAccountOptions['type'];
               }) => Promise<unknown[]>;
             },
             opts: { entropySource: EntropySourceId; groupIndex: number },

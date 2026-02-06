@@ -1,7 +1,12 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+  KeyringCapabilities,
+} from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
 import {
   KeyringAccountEntropyTypeOption,
@@ -42,6 +47,13 @@ export class SolAccountProvider extends SnapAccountProvider {
   static NAME = SOL_ACCOUNT_PROVIDER_NAME;
 
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
+
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [SolScope.Mainnet, SolScope.Devnet, SolScope.Testnet],
+    bip44: {
+      deriveIndex: true,
+    },
+  };
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
@@ -90,13 +102,17 @@ export class SolAccountProvider extends SnapAccountProvider {
     return account;
   }
 
-  async createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    if (options.type !== 'bip44:derive-index') {
+      throw new Error(
+        `Unsupported account creation type: "${options.type}". Only "bip44:derive-index" is supported.`,
+      );
+    }
+
+    const { entropySource, groupIndex } = options;
+
     return this.withSnap(async ({ keyring }) => {
       return this.withMaxConcurrency(async () => {
         const derivationPath = `m/44'/501'/${groupIndex}'/0'`;

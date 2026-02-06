@@ -2412,14 +2412,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/account-api@npm:^0.12.0":
-  version: 0.12.0
-  resolution: "@metamask/account-api@npm:0.12.0"
+"@metamask/account-api@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@metamask/account-api@npm:1.0.0"
   dependencies:
-    "@metamask/keyring-api": "npm:^21.0.0"
-    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/keyring-api": "npm:^21.4.0"
+    "@metamask/keyring-utils": "npm:^3.2.0"
     uuid: "npm:^9.0.1"
-  checksum: 10/d5e2bf9792926755429fd4696097376d74e4a6eb2c15b7913c092b3b9c34b6feeddd1f5dc9bcf79be87275d5450ff8fa6114834982fc0415e6ba8479b925e978
+  checksum: 10/221fe044b9fb2e1cf79edea22834cfcd4e2658e26a649375b77ac7436ed6bb2f90b76168d449aef52cdd608a8908ca84570387b200f39fcd8f1127134671e7ce
   languageName: node
   linkType: hard
 
@@ -2427,7 +2427,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/account-tree-controller@workspace:packages/account-tree-controller"
   dependencies:
-    "@metamask/account-api": "npm:^0.12.0"
+    "@metamask/account-api": "npm:^1.0.0"
     "@metamask/accounts-controller": "npm:^35.0.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
@@ -2707,7 +2707,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.3"
-    "@metamask/account-api": "npm:^0.12.0"
+    "@metamask/account-api": "npm:^1.0.0"
     "@metamask/account-tree-controller": "npm:^4.0.0"
     "@metamask/accounts-controller": "npm:^35.0.2"
     "@metamask/approval-controller": "npm:^8.0.0"
@@ -3934,7 +3934,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^21.0.0, @metamask/keyring-api@npm:^21.4.0":
+"@metamask/keyring-api@npm:^21.4.0":
   version: 21.4.0
   resolution: "@metamask/keyring-api@npm:21.4.0"
   dependencies:
@@ -4133,7 +4133,7 @@ __metadata:
   resolution: "@metamask/multichain-account-service@workspace:packages/multichain-account-service"
   dependencies:
     "@ethereumjs/util": "npm:^9.1.0"
-    "@metamask/account-api": "npm:^0.12.0"
+    "@metamask/account-api": "npm:^1.0.0"
     "@metamask/accounts-controller": "npm:^35.0.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
@@ -4166,7 +4166,7 @@ __metadata:
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
-    "@metamask/account-api": ^0.12.0
+    "@metamask/account-api": ^1.0.0
     "@metamask/providers": ^22.0.0
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
