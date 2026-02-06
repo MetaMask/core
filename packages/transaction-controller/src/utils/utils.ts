@@ -1,9 +1,12 @@
 import type { AccessList, AuthorizationList } from '@ethereumjs/common';
+import { toHex } from '@metamask/controller-utils';
 import type { Hex, Json } from '@metamask/utils';
 import {
   add0x,
   getKnownPropertyNames,
+  isCaipChainId,
   isStrictHexString,
+  parseCaipChainId,
 } from '@metamask/utils';
 import BN from 'bn.js';
 
@@ -296,5 +299,23 @@ export function setEnvelopeType(
     txParams.type = isEIP1559Compatible
       ? TransactionEnvelopeType.feeMarket
       : TransactionEnvelopeType.legacy;
+  }
+}
+
+/**
+ * Convert CAIP-2 chain ID to hex format.
+ *
+ * @param caip2ChainId - Chain ID in CAIP-2 format (e.g., 'eip155:1')
+ * @returns Hex chain ID (e.g., '0x1') or undefined if invalid format
+ */
+export function caip2ToHex(caip2ChainId: string): Hex | undefined {
+  if (!isCaipChainId(caip2ChainId)) {
+    return undefined;
+  }
+  try {
+    const { reference } = parseCaipChainId(caip2ChainId);
+    return toHex(reference);
+  } catch {
+    return undefined;
   }
 }
