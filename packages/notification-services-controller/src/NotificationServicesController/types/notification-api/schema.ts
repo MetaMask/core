@@ -170,6 +170,7 @@ export type components = {
       /** @example 0x881D40237659C251811CEC9c364ef91dC08D300C */
       tx_hash: string;
       address: string;
+      network?: components['schemas']['NetworkMetadata'];
       data?:
         | components['schemas']['Data_MetamaskSwapCompleted']
         | components['schemas']['Data_LidoStakeReadyToBeWithdrawn']
@@ -375,6 +376,28 @@ export type components = {
       image: string;
       /** Format: decimal */
       usd: string;
+    };
+    BlockExplorer: {
+      /**
+       * Format: uri
+       * @example https://etherscan.io
+       */
+      url: string;
+      /** @example Etherscan */
+      name: string;
+    };
+    NetworkMetadata: {
+      /**
+       * @description Human-readable network name
+       * @example Ethereum
+       */
+      name: string;
+      /**
+       * @description Native token symbol
+       * @example ETH
+       */
+      native_symbol: string;
+      block_explorer: components['schemas']['BlockExplorer'];
     };
   };
   responses: never;
