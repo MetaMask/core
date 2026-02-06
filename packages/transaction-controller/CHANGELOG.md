@@ -68,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Set `isExternalSign` for sponsored transactions to skip nonce assignment ([#7659](https://github.com/MetaMask/core/pull/7659))
 - Ensure provided `batchId` is used in `addTransactionBatch` when going through the publish batch hook route ([#7705](https://github.com/MetaMask/core/pull/7705))
 
 ## [62.9.2]
