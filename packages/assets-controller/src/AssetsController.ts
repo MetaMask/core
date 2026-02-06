@@ -30,7 +30,11 @@ import BigNumberJS from 'bignumber.js';
 import { isEqual } from 'lodash';
 
 import type { AssetsControllerMethodActions } from './AssetsController-method-action-types';
-import type { SubscriptionRequest } from './data-sources/AbstractDataSource';
+import type {
+  AbstractDataSource,
+  DataSourceState,
+  SubscriptionRequest,
+} from './data-sources/AbstractDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
@@ -55,7 +59,6 @@ import type {
   DataResponse,
   NextFunction,
   Middleware,
-  DataSourceDefinition,
   SubscriptionResponse,
   Asset,
   AssetsControllerStateInternal,
@@ -383,13 +386,6 @@ export class AssetsController extends BaseController<
     );
   }
 
-  /**
-   * Registered data sources with their available chains.
-   * Updated continuously and independently from subscription flows.
-   * Key: sourceId, Value: Set of currently available chainIds
-   */
-  readonly #dataSources: Map<string, Set<ChainId>> = new Map();
-
   readonly #backendWebsocketDataSource: BackendWebsocketDataSource;
 
   readonly #accountsApiDataSource: AccountsApiDataSource;
@@ -397,6 +393,25 @@ export class AssetsController extends BaseController<
   readonly #snapDataSource: SnapDataSource;
 
   readonly #rpcDataSource: RpcDataSource;
+
+  /**
+   * Subscription balance data sources in assignment priority order (first that supports a chain gets it).
+   *
+   * @returns The four balance data source instances in priority order.
+   */
+  get #subscriptionBalanceDataSources(): [
+    BackendWebsocketDataSource,
+    AccountsApiDataSource,
+    SnapDataSource,
+    RpcDataSource,
+  ] {
+    return [
+      this.#backendWebsocketDataSource,
+      this.#accountsApiDataSource,
+      this.#snapDataSource,
+      this.#rpcDataSource,
+    ];
+  }
 
   readonly #priceDataSource: PriceDataSource;
 
@@ -426,27 +441,29 @@ export class AssetsController extends BaseController<
     this.#defaultUpdateInterval = defaultUpdateInterval;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
+    const onActiveChainsUpdated = (
+      dataSourceName: string,
+      chains: ChainId[],
+      previousChains: ChainId[],
+    ): void =>
+      this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
       messenger: this.messenger,
       queryApiClient,
-      onActiveChainsUpdated: (chains): void =>
-        this.handleActiveChainsUpdate('BackendWebsocketDataSource', chains),
+      onActiveChainsUpdated,
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
-      onActiveChainsUpdated: (chains): void => {
-        this.handleActiveChainsUpdate('AccountsApiDataSource', chains);
-      },
+      onActiveChainsUpdated,
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated: (chains): void =>
-        this.handleActiveChainsUpdate('SnapDataSource', chains),
+      onActiveChainsUpdated,
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated: (chains): void =>
-        this.handleActiveChainsUpdate('RpcDataSource', chains),
+      onActiveChainsUpdated,
       ...rpcConfig,
     });
     this.#tokenDataSource = new TokenDataSource({
@@ -456,11 +473,6 @@ export class AssetsController extends BaseController<
       queryApiClient,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
-
-    this.#dataSources.set('BackendWebsocketDataSource', new Set());
-    this.#dataSources.set('AccountsApiDataSource', new Set());
-    this.#dataSources.set('SnapDataSource', new Set());
-    this.#dataSources.set('RpcDataSource', new Set());
 
     if (!this.#isEnabled) {
       log('AssetsController is disabled, skipping initialization');
@@ -474,34 +486,6 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
-  }
-
-  /**
-   * Returns the balance data source instance for subscribe/unsubscribe by sourceId.
-   *
-   * @param sourceId - Data source identifier (e.g. 'BackendWebsocketDataSource').
-   * @returns The balance data source instance, or undefined if not found.
-   */
-  #getBalanceDataSource(
-    sourceId: string,
-  ):
-    | BackendWebsocketDataSource
-    | AccountsApiDataSource
-    | SnapDataSource
-    | RpcDataSource
-    | undefined {
-    switch (sourceId) {
-      case 'BackendWebsocketDataSource':
-        return this.#backendWebsocketDataSource;
-      case 'AccountsApiDataSource':
-        return this.#accountsApiDataSource;
-      case 'SnapDataSource':
-        return this.#snapDataSource;
-      case 'RpcDataSource':
-        return this.#rpcDataSource;
-      default:
-        return undefined;
-    }
   }
 
   // ============================================================================
@@ -604,43 +588,26 @@ export class AssetsController extends BaseController<
   }
 
   // ============================================================================
-  // DATA SOURCE MANAGEMENT
-  // ============================================================================
-
-  /**
-   * Register data sources with the controller.
-   * Order of the array determines subscription order.
-   *
-   * Data sources report chain changes via the onActiveChainsUpdated callback passed at construction.
-   *
-   * @param dataSourceIds - Array of data source identifiers to register.
-   */
-  registerDataSources(dataSourceIds: DataSourceDefinition[]): void {
-    for (const id of dataSourceIds) {
-      log('Registering data source', { id });
-
-      // Initialize available chains tracking for this source
-      this.#dataSources.set(id, new Set());
-    }
-  }
-
-  // ============================================================================
   // DATA SOURCE CHAIN MANAGEMENT
   // ============================================================================
 
   /**
-   * Handle when a data source's active chains change.
-   * Active chains are chains that are both supported AND available.
-   * Updates centralized chain tracking and triggers re-selection if needed.
+   * Handle when a data source's supported chains change.
+   * Used to refresh balance subscriptions and run a one-time fetch when a new chain is supported.
    *
-   * Called from the onActiveChainsUpdated callbacks passed to data sources at construction.
+   * - On any add/remove: re-subscribes to data sources so chain assignment stays correct.
+   * - When chains are added: fetches balances for the new chains (for selected accounts on enabled networks).
+   *
+   * Controller does not store chains; sources report via this callback. previousChains is required for diff.
    *
    * @param dataSourceId - The identifier of the data source reporting the change.
-   * @param activeChains - Array of currently active chain IDs for this source.
+   * @param activeChains - Currently active (supported and available) chain IDs for this source.
+   * @param previousChains - Previous chains; used to compute added/removed.
    */
   handleActiveChainsUpdate(
     dataSourceId: string,
     activeChains: ChainId[],
+    previousChains: ChainId[],
   ): void {
     log('Data source active chains changed', {
       dataSourceId,
@@ -648,30 +615,15 @@ export class AssetsController extends BaseController<
       chains: activeChains,
     });
 
-    // When BackendWebsocketDataSource is updated via AccountsApiDataSource callback, sync its state
-    if (dataSourceId === 'BackendWebsocketDataSource') {
-      this.#backendWebsocketDataSource.setActiveChainsFromAccountsApi(
-        activeChains,
-      );
-    }
+    const previous: ChainId[] = previousChains;
 
-    const previousChains = this.#dataSources.get(dataSourceId) ?? new Set();
-    const newChains = new Set(activeChains);
-
-    // Update centralized available chains tracking
-    this.#dataSources.set(dataSourceId, newChains);
-
-    // Check for changes
-    const addedChains = activeChains.filter(
-      (chain) => !previousChains.has(chain),
-    );
-    const removedChains = Array.from(previousChains).filter(
-      (chain) => !newChains.has(chain),
-    );
+    const previousSet = new Set(previous);
+    const addedChains = activeChains.filter((ch) => !previousSet.has(ch));
+    const removedChains = previous.filter((ch) => !activeChains.includes(ch));
 
     if (addedChains.length > 0 || removedChains.length > 0) {
       // Refresh subscriptions to use updated data source availability
-      this.#subscribeToDataSources();
+      this.#subscribeAssets();
     }
 
     // If chains were added and we have selected accounts, do one-time fetch
@@ -980,48 +932,6 @@ export class AssetsController extends BaseController<
   // ============================================================================
   // SUBSCRIPTIONS
   // ============================================================================
-
-  /**
-   * Assign chains to data sources based on availability.
-   * Returns a map of sourceId -> chains to handle.
-   *
-   * @param requestedChains - Array of chain IDs to assign to data sources.
-   * @returns Map of sourceId to array of assigned chain IDs.
-   */
-  #assignChainsToDataSources(
-    requestedChains: ChainId[],
-  ): Map<string, ChainId[]> {
-    const assignment = new Map<string, ChainId[]>();
-    const remainingChains = new Set(requestedChains);
-
-    for (const sourceId of this.#dataSources.keys()) {
-      // Get available chains for this data source
-      const availableChains = this.#dataSources.get(sourceId);
-      if (!availableChains || availableChains.size === 0) {
-        continue;
-      }
-
-      const chainsForThisSource: ChainId[] = [];
-
-      for (const chainId of remainingChains) {
-        // Check if this chain is available on this source
-        if (availableChains.has(chainId)) {
-          chainsForThisSource.push(chainId);
-          remainingChains.delete(chainId);
-        }
-      }
-
-      if (chainsForThisSource.length > 0) {
-        assignment.set(sourceId, chainsForThisSource);
-        log('Assigned chains to data source', {
-          sourceId,
-          chains: chainsForThisSource,
-        });
-      }
-    }
-
-    return assignment;
-  }
 
   /**
    * Subscribe to price updates for all assets held by the given accounts.
@@ -1369,7 +1279,7 @@ export class AssetsController extends BaseController<
       enabledChainCount: this.#enabledChains.size,
     });
 
-    this.#subscribeToDataSources();
+    this.#subscribeAssets();
     if (this.#selectedAccounts.length > 0) {
       this.getAssets(this.#selectedAccounts, {
         chainIds: [...this.#enabledChains],
@@ -1398,10 +1308,14 @@ export class AssetsController extends BaseController<
     // Convert to array first to avoid modifying map during iteration
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
-      // Extract sourceId from subscription key (format: "ds:${sourceId}")
       if (subscriptionKey.startsWith('ds:')) {
         const sourceId = subscriptionKey.slice(3);
-        this.#unsubscribeDataSource(sourceId);
+        const source = this.#subscriptionBalanceDataSources.find(
+          (ds) => ds.getName() === sourceId,
+        );
+        if (source) {
+          this.#unsubscribeDataSource(source);
+        }
       }
     }
     this.#activeSubscriptions.clear();
@@ -1410,20 +1324,22 @@ export class AssetsController extends BaseController<
   /**
    * Subscribe to asset updates for all selected accounts.
    */
-  #subscribeToDataSources(): void {
+  #subscribeAssets(): void {
     if (this.#selectedAccounts.length === 0) {
       return;
     }
 
     // Subscribe to balance updates (batched by data source)
-    this.#subscribeAssetsBalance();
+    this.#subscribeAssetsBalance(this.#selectedAccounts, [
+      ...this.#enabledChains,
+    ]);
 
     // Subscribe to price updates for all assets held by selected accounts
     this.subscribeAssetsPrice(this.#selectedAccounts, [...this.#enabledChains]);
   }
 
   /**
-   * Subscribe to balance updates for all selected accounts.
+   * Subscribe to balance updates for the given accounts and chains.
    *
    * Strategy to minimize data source calls:
    * 1. Collect all chains to subscribe based on enabled networks
@@ -1432,52 +1348,46 @@ export class AssetsController extends BaseController<
    *
    * This ensures we make minimal subscriptions to each data source while covering
    * all accounts and chains.
+   *
+   * @param accounts - Accounts to subscribe balance updates for.
+   * @param chainIds - Chain IDs to subscribe for.
    */
-  #subscribeAssetsBalance(): void {
-    // Step 1: Build chain -> accounts mapping based on account scopes and enabled networks
+  #subscribeAssetsBalance(
+    accounts: InternalAccount[],
+    chainIds: ChainId[],
+  ): void {
     const chainToAccounts = this.#buildChainToAccountsMap(
-      this.#selectedAccounts,
-      this.#enabledChains,
+      accounts,
+      new Set(chainIds),
     );
-
-    // Step 2: Split by data source active chains (ordered by priority)
-    // Get all chains that need to be subscribed
     const remainingChains = new Set(chainToAccounts.keys());
 
-    // Assign chains to data sources based on availability (ordered by priority)
-    const chainAssignment = this.#assignChainsToDataSources(
-      Array.from(remainingChains),
-    );
+    for (const source of this.#subscriptionBalanceDataSources) {
+      const availableChains = new Set(source.getActiveChainsSync());
+      const assignedChains: ChainId[] = [];
 
-    log('Subscribe - chain assignment', {
-      totalChains: remainingChains.size,
-      dataSourceAssignments: Array.from(chainAssignment.entries()).map(
-        ([sourceId, chains]) => ({ sourceId, chainCount: chains.length }),
-      ),
-    });
+      for (const chainId of remainingChains) {
+        if (availableChains.has(chainId)) {
+          assignedChains.push(chainId);
+          remainingChains.delete(chainId);
+        }
+      }
 
-    // Subscribe to each data source with its assigned chains and relevant accounts
-    for (const sourceId of this.#dataSources.keys()) {
-      const assignedChains = chainAssignment.get(sourceId);
-
-      if (!assignedChains || assignedChains.length === 0) {
-        // Unsubscribe from data sources with no assigned chains
-        this.#unsubscribeDataSource(sourceId);
+      if (assignedChains.length === 0) {
+        this.#unsubscribeDataSource(source);
         continue;
       }
 
-      // Collect unique accounts that need any of the assigned chains
-      const accountsForSource = this.#getAccountsForChains(
-        assignedChains,
-        chainToAccounts,
-      );
-
-      if (accountsForSource.length === 0) {
-        continue;
+      const seenIds = new Set<string>();
+      const accountsForSource = assignedChains
+        .flatMap((chainId) => chainToAccounts.get(chainId) ?? [])
+        .filter(
+          (account) =>
+            !seenIds.has(account.id) && (seenIds.add(account.id), true),
+        );
+      if (accountsForSource.length > 0) {
+        this.#subscribeDataSource(source, accountsForSource, assignedChains);
       }
-
-      // Subscribe with ONE call per data source
-      this.#subscribeToDataSource(sourceId, accountsForSource, assignedChains);
     }
   }
 
@@ -1494,64 +1404,36 @@ export class AssetsController extends BaseController<
     chainsToSubscribe: Set<ChainId>,
   ): Map<ChainId, InternalAccount[]> {
     const chainToAccounts = new Map<ChainId, InternalAccount[]>();
-
     for (const account of accounts) {
-      const accountChains = this.#getEnabledChainsForAccount(account);
-
-      for (const chainId of accountChains) {
+      for (const chainId of this.#getEnabledChainsForAccount(account)) {
         if (!chainsToSubscribe.has(chainId)) {
           continue;
         }
-
-        const existingAccounts = chainToAccounts.get(chainId) ?? [];
-        existingAccounts.push(account);
-        chainToAccounts.set(chainId, existingAccounts);
+        let list = chainToAccounts.get(chainId);
+        if (!list) {
+          list = [];
+          chainToAccounts.set(chainId, list);
+        }
+        list.push(account);
       }
     }
-
     return chainToAccounts;
   }
 
   /**
-   * Get unique accounts that need any of the specified chains.
-   *
-   * @param chains - Array of chain IDs to find accounts for.
-   * @param chainToAccounts - Map of chainId to accounts.
-   * @returns Array of unique accounts that need any of the specified chains.
-   */
-  #getAccountsForChains(
-    chains: ChainId[],
-    chainToAccounts: Map<ChainId, InternalAccount[]>,
-  ): InternalAccount[] {
-    const accountIds = new Set<string>();
-    const accounts: InternalAccount[] = [];
-
-    for (const chainId of chains) {
-      const chainAccounts = chainToAccounts.get(chainId) ?? [];
-      for (const account of chainAccounts) {
-        if (!accountIds.has(account.id)) {
-          accountIds.add(account.id);
-          accounts.push(account);
-        }
-      }
-    }
-
-    return accounts;
-  }
-
-  /**
    * Subscribe to a specific data source with accounts and chains.
-   * Uses the data source ID as the subscription key for batching.
+   * Uses the data source name as the subscription key for batching.
    *
-   * @param sourceId - The data source identifier.
+   * @param source - The balance data source instance.
    * @param accounts - Array of accounts to subscribe for.
    * @param chains - Array of chain IDs to subscribe for.
    */
-  #subscribeToDataSource(
-    sourceId: string,
+  #subscribeDataSource(
+    source: AbstractDataSource<string, DataSourceState>,
     accounts: InternalAccount[],
     chains: ChainId[],
   ): void {
+    const sourceId = source.getName();
     const subscriptionKey = `ds:${sourceId}`;
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
     const isUpdate = existingSubscription !== undefined;
@@ -1576,11 +1458,7 @@ export class AssetsController extends BaseController<
       getAssetsState: () => this.state,
     };
 
-    const balanceDs = this.#getBalanceDataSource(sourceId);
-    if (!balanceDs) {
-      return;
-    }
-    balanceDs.subscribe(subscribeReq).catch((error) => {
+    source.subscribe(subscribeReq).catch((error) => {
       console.error(
         `[AssetsController] Failed to subscribe to '${sourceId}':`,
         error,
@@ -1604,17 +1482,16 @@ export class AssetsController extends BaseController<
   /**
    * Unsubscribe from a data source if we have an active subscription.
    *
-   * @param sourceId - The data source identifier to unsubscribe from.
+   * @param source - The balance data source instance to unsubscribe from.
    */
-  #unsubscribeDataSource(sourceId: string): void {
-    const subscriptionKey = `ds:${sourceId}`;
+  #unsubscribeDataSource(
+    source: AbstractDataSource<string, DataSourceState>,
+  ): void {
+    const subscriptionKey = `ds:${source.getName()}`;
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
 
     if (existingSubscription) {
-      const balanceDs = this.#getBalanceDataSource(sourceId);
-      if (balanceDs) {
-        balanceDs.unsubscribe(subscriptionKey).catch(() => undefined);
-      }
+      source.unsubscribe(subscriptionKey).catch(() => undefined);
       existingSubscription.unsubscribe();
     }
   }
@@ -1699,7 +1576,7 @@ export class AssetsController extends BaseController<
     });
 
     // Subscribe and fetch for the new account group
-    this.#subscribeToDataSources();
+    this.#subscribeAssets();
     if (accounts.length > 0) {
       await this.getAssets(accounts, {
         chainIds: [...this.#enabledChains],
@@ -1742,7 +1619,7 @@ export class AssetsController extends BaseController<
     // The data will simply not be updated until the network is re-enabled.
 
     // Refresh subscriptions for new chain set
-    this.#subscribeToDataSources();
+    this.#subscribeAssets();
 
     // Do one-time fetch for newly enabled chains
     if (addedChains.length > 0 && this.#selectedAccounts.length > 0) {
@@ -1798,7 +1675,7 @@ export class AssetsController extends BaseController<
 
   destroy(): void {
     log('Destroying AssetsController', {
-      dataSourceCount: this.#dataSources.size,
+      dataSourceCount: this.#subscriptionBalanceDataSources.length,
       subscriptionCount: this.#activeSubscriptions.size,
     });
 
@@ -1814,9 +1691,6 @@ export class AssetsController extends BaseController<
     ) {
       (this.#rpcDataSource as { destroy: () => void }).destroy();
     }
-
-    // Clear data sources
-    this.#dataSources.clear();
 
     // Stop all active subscriptions
     this.#stop();

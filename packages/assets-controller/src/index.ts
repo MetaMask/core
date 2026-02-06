@@ -72,9 +72,6 @@ export type {
   FetchContext,
   FetchNextFunction,
   FetchMiddleware,
-  // Data source registration
-  DataSourceDefinition,
-  RegisteredDataSource,
   SubscriptionResponse,
   // Combined asset type
   Asset,
