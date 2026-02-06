@@ -1,23 +1,21 @@
 /* eslint-disable jest/unbound-method */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type {
-  MockAnyNamespace,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 
 import type {
-  RpcDataSourceMessenger,
   RpcDataSourceOptions,
+  RpcDataSourceAllowedActions,
+  RpcDataSourceAllowedEvents,
 } from './RpcDataSource';
 import { RpcDataSource, createRpcDataSource } from './RpcDataSource';
-import type { ChainId, DataRequest, DataType, Context } from '../types';
+import type { AssetsControllerMessenger } from '../AssetsController';
+import type { ChainId, DataRequest, Context } from '../types';
 
-type AllActions = MessengerActions<RpcDataSourceMessenger>;
-type AllEvents = MessengerEvents<RpcDataSourceMessenger>;
+type AllActions = RpcDataSourceAllowedActions;
+type AllEvents = RpcDataSourceAllowedEvents;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const MOCK_CHAIN_ID_HEX = '0x1';
@@ -52,6 +50,23 @@ function createMockInternalAccount(
     },
     ...overrides,
   } as InternalAccount;
+}
+
+function createDataRequest(
+  overrides?: Partial<DataRequest> & { accounts?: InternalAccount[] },
+): DataRequest {
+  const chainIds = overrides?.chainIds ?? [MOCK_CHAIN_ID_CAIP];
+  const accounts = overrides?.accounts ?? [createMockInternalAccount()];
+  const { accounts: _a, ...rest } = overrides ?? {};
+  return {
+    chainIds,
+    accountsWithSupportedChains: accounts.map((a) => ({
+      account: a,
+      supportedChains: chainIds,
+    })),
+    dataTypes: ['balance'],
+    ...rest,
+  };
 }
 
 function createMockNetworkState(
@@ -101,9 +116,15 @@ type WithControllerOptions = {
 type WithControllerCallback<ReturnValue> = ({
   controller,
   messenger,
+  onActiveChainsUpdated,
 }: {
   controller: RpcDataSource;
   messenger: RootMessenger;
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains?: ChainId[],
+  ) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -131,8 +152,8 @@ async function withController<ReturnValue>(
 
   const rpcDataSourceMessenger = new Messenger<
     'RpcDataSource',
-    MessengerActions<RpcDataSourceMessenger>,
-    MessengerEvents<RpcDataSourceMessenger>,
+    AllActions,
+    AllEvents,
     RootMessenger
   >({
     namespace: 'RpcDataSource',
@@ -144,8 +165,6 @@ async function withController<ReturnValue>(
     actions: [
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
-      'AssetsController:activeChainsUpdate',
-      'AssetsController:assetsUpdate',
       'AssetsController:getState',
       'TokenListController:getState',
       'NetworkEnablementController:getState',
@@ -173,18 +192,6 @@ async function withController<ReturnValue>(
       })),
   );
 
-  // Mock AssetsController:activeChainsUpdate
-  messenger.registerActionHandler(
-    'AssetsController:activeChainsUpdate',
-    jest.fn(),
-  );
-
-  // Mock AssetsController:assetsUpdate
-  messenger.registerActionHandler(
-    'AssetsController:assetsUpdate',
-    jest.fn().mockResolvedValue(undefined),
-  );
-
   // Mock AssetsController:getState
   messenger.registerActionHandler('AssetsController:getState', () => ({
     assetsMetadata: {},
@@ -207,13 +214,24 @@ async function withController<ReturnValue>(
     }),
   );
 
+  const onActiveChainsUpdated =
+    (
+      options as {
+        onActiveChainsUpdated?: (
+          dataSourceName: string,
+          chains: ChainId[],
+          previousChains?: ChainId[],
+        ) => void;
+      }
+    ).onActiveChainsUpdated ?? jest.fn();
   const controller = new RpcDataSource({
-    messenger: rpcDataSourceMessenger as unknown as RpcDataSourceMessenger,
+    messenger: rpcDataSourceMessenger as unknown as AssetsControllerMessenger,
+    onActiveChainsUpdated,
     ...options,
   });
 
   try {
-    return await fn({ controller, messenger });
+    return await fn({ controller, messenger, onActiveChainsUpdated });
   } finally {
     controller.destroy();
   }
@@ -275,10 +293,12 @@ describe('RpcDataSource', () => {
     });
 
     it('reports active chains on initialization', async () => {
-      await withController(async ({ messenger }) => {
-        const activeChainsUpdate = messenger.call as jest.Mock;
-        // The controller should have called activeChainsUpdate during initialization
-        expect(activeChainsUpdate).toBeDefined();
+      await withController(async ({ onActiveChainsUpdated }) => {
+        expect(onActiveChainsUpdated).toHaveBeenCalledWith(
+          'RpcDataSource',
+          [MOCK_CHAIN_ID_CAIP],
+          [],
+        );
       });
     });
   });
@@ -346,8 +366,11 @@ describe('RpcDataSource', () => {
   describe('fetch', () => {
     it('fetches balances for accounts', async () => {
       await withController(async ({ controller }) => {
+        const account = createMockInternalAccount();
         const request: DataRequest = {
-          accounts: [createMockInternalAccount()],
+          accountsWithSupportedChains: [
+            { account, supportedChains: [MOCK_CHAIN_ID_CAIP] },
+          ],
           chainIds: [MOCK_CHAIN_ID_CAIP],
           dataTypes: ['balance'],
         };
@@ -359,8 +382,14 @@ describe('RpcDataSource', () => {
 
     it('returns empty response for unsupported chains', async () => {
       await withController(async ({ controller }) => {
+        const account = createMockInternalAccount();
         const request: DataRequest = {
-          accounts: [createMockInternalAccount()],
+          accountsWithSupportedChains: [
+            {
+              account,
+              supportedChains: ['eip155:999' as ChainId],
+            },
+          ],
           chainIds: ['eip155:999' as ChainId],
           dataTypes: ['balance'],
         };
@@ -377,7 +406,7 @@ describe('RpcDataSource', () => {
         });
 
         const request: DataRequest = {
-          accounts: [account],
+          accountsWithSupportedChains: [{ account, supportedChains: [] }],
           chainIds: [MOCK_CHAIN_ID_CAIP],
           dataTypes: ['balance'],
         };
@@ -391,14 +420,18 @@ describe('RpcDataSource', () => {
   describe('subscribe', () => {
     it('creates a subscription', async () => {
       await withController(async ({ controller }) => {
+        const account = createMockInternalAccount();
         await controller.subscribe({
           request: {
-            accounts: [createMockInternalAccount()],
+            accountsWithSupportedChains: [
+              { account, supportedChains: [MOCK_CHAIN_ID_CAIP] },
+            ],
             chainIds: [MOCK_CHAIN_ID_CAIP],
             dataTypes: ['balance'],
           },
           subscriptionId: 'test-sub',
           isUpdate: false,
+          onAssetsUpdate: jest.fn(),
         });
 
         // Should not throw
@@ -409,23 +442,17 @@ describe('RpcDataSource', () => {
     it('updates existing subscription', async () => {
       await withController(async ({ controller }) => {
         await controller.subscribe({
-          request: {
-            accounts: [createMockInternalAccount()],
-            chainIds: [MOCK_CHAIN_ID_CAIP],
-            dataTypes: ['balance'],
-          },
+          request: createDataRequest(),
           subscriptionId: 'test-sub',
           isUpdate: false,
+          onAssetsUpdate: jest.fn(),
         });
 
         await controller.subscribe({
-          request: {
-            accounts: [createMockInternalAccount()],
-            chainIds: [MOCK_CHAIN_ID_CAIP],
-            dataTypes: ['balance'],
-          },
+          request: createDataRequest(),
           subscriptionId: 'test-sub',
           isUpdate: true,
+          onAssetsUpdate: jest.fn(),
         });
 
         expect(true).toBe(true);
@@ -437,13 +464,10 @@ describe('RpcDataSource', () => {
     it('removes a subscription', async () => {
       await withController(async ({ controller }) => {
         await controller.subscribe({
-          request: {
-            accounts: [createMockInternalAccount()],
-            chainIds: [MOCK_CHAIN_ID_CAIP],
-            dataTypes: ['balance'],
-          },
+          request: createDataRequest(),
           subscriptionId: 'test-sub',
           isUpdate: false,
+          onAssetsUpdate: jest.fn(),
         });
 
         await controller.unsubscribe('test-sub');
@@ -475,11 +499,9 @@ describe('RpcDataSource', () => {
       await withController(async ({ controller }) => {
         const middleware = controller.assetsMiddleware;
         const context: Context = {
-          request: {
-            accounts: [createMockInternalAccount()],
+          request: createDataRequest({
             chainIds: ['eip155:999' as ChainId],
-            dataTypes: ['balance'] as DataType[],
-          },
+          }),
           response: {},
           getAssetsState: jest.fn(),
         };
@@ -497,11 +519,7 @@ describe('RpcDataSource', () => {
       await withController(async ({ controller }) => {
         const middleware = controller.assetsMiddleware;
         const context: Context = {
-          request: {
-            accounts: [createMockInternalAccount()],
-            chainIds: [MOCK_CHAIN_ID_CAIP],
-            dataTypes: ['balance'] as DataType[],
-          },
+          request: createDataRequest(),
           response: {},
           getAssetsState: jest.fn(),
         };
@@ -571,8 +589,8 @@ describe('RpcDataSource', () => {
 
       const rpcDataSourceMessenger = new Messenger<
         'RpcDataSource',
-        MessengerActions<RpcDataSourceMessenger>,
-        MessengerEvents<RpcDataSourceMessenger>,
+        AllActions,
+        AllEvents,
         RootMessenger
       >({
         namespace: 'RpcDataSource',
@@ -584,8 +602,6 @@ describe('RpcDataSource', () => {
         actions: [
           'NetworkController:getState',
           'NetworkController:getNetworkClientById',
-          'AssetsController:activeChainsUpdate',
-          'AssetsController:assetsUpdate',
         ],
         events: ['NetworkController:stateChange'],
       });
@@ -600,17 +616,11 @@ describe('RpcDataSource', () => {
           configuration: { chainId: MOCK_CHAIN_ID_HEX },
         }),
       );
-      messenger.registerActionHandler(
-        'AssetsController:activeChainsUpdate',
-        jest.fn(),
-      );
-      messenger.registerActionHandler(
-        'AssetsController:assetsUpdate',
-        jest.fn().mockResolvedValue(undefined),
-      );
 
       const controller = createRpcDataSource({
-        messenger: rpcDataSourceMessenger as unknown as RpcDataSourceMessenger,
+        messenger:
+          rpcDataSourceMessenger as unknown as AssetsControllerMessenger,
+        onActiveChainsUpdated: jest.fn(),
       });
 
       try {
@@ -622,50 +632,43 @@ describe('RpcDataSource', () => {
     });
   });
 
-  describe('messenger action handlers', () => {
-    it('registers getAssetsMiddleware action', async () => {
-      await withController(({ messenger }) => {
-        const middleware = messenger.call('RpcDataSource:getAssetsMiddleware');
+  describe('instance methods', () => {
+    it('exposes getAssetsMiddleware on instance', async () => {
+      await withController(({ controller }) => {
+        const middleware = controller.assetsMiddleware;
         expect(typeof middleware).toBe('function');
       });
     });
 
-    it('registers getActiveChains action', async () => {
-      await withController(async ({ messenger }) => {
-        const chains = await messenger.call('RpcDataSource:getActiveChains');
+    it('exposes getActiveChains on instance', async () => {
+      await withController(async ({ controller }) => {
+        const chains = await controller.getActiveChains();
         expect(Array.isArray(chains)).toBe(true);
       });
     });
 
-    it('registers fetch action', async () => {
-      await withController(async ({ messenger }) => {
-        const response = await messenger.call('RpcDataSource:fetch', {
-          accounts: [createMockInternalAccount()],
-          chainIds: [MOCK_CHAIN_ID_CAIP],
-          dataTypes: ['balance'],
-        });
+    it('exposes fetch on instance', async () => {
+      await withController(async ({ controller }) => {
+        const response = await controller.fetch(createDataRequest());
         expect(response).toBeDefined();
       });
     });
 
-    it('registers subscribe action', async () => {
-      await withController(async ({ messenger }) => {
-        await messenger.call('RpcDataSource:subscribe', {
-          request: {
-            accounts: [createMockInternalAccount()],
-            chainIds: [MOCK_CHAIN_ID_CAIP],
-            dataTypes: ['balance'],
-          },
+    it('exposes subscribe on instance', async () => {
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest(),
           subscriptionId: 'test-sub',
           isUpdate: false,
+          onAssetsUpdate: jest.fn(),
         });
         expect(true).toBe(true);
       });
     });
 
-    it('registers unsubscribe action', async () => {
-      await withController(async ({ messenger }) => {
-        await messenger.call('RpcDataSource:unsubscribe', 'test-sub');
+    it('exposes unsubscribe on instance', async () => {
+      await withController(async ({ controller }) => {
+        await controller.unsubscribe('test-sub');
         expect(true).toBe(true);
       });
     });
@@ -678,11 +681,10 @@ describe('RpcDataSource', () => {
           scopes: ['eip155:0'], // Wildcard for all EVM chains
         });
 
-        const request: DataRequest = {
+        const request = createDataRequest({
           accounts: [account],
           chainIds: [MOCK_CHAIN_ID_CAIP],
-          dataTypes: ['balance'],
-        };
+        });
 
         const response = await controller.fetch(request);
         expect(response).toBeDefined();
@@ -695,11 +697,10 @@ describe('RpcDataSource', () => {
           scopes: ['eip155:1'],
         });
 
-        const request: DataRequest = {
+        const request = createDataRequest({
           accounts: [account],
           chainIds: [MOCK_CHAIN_ID_CAIP],
-          dataTypes: ['balance'],
-        };
+        });
 
         const response = await controller.fetch(request);
         expect(response).toBeDefined();
@@ -713,7 +714,7 @@ describe('RpcDataSource', () => {
         });
 
         const request: DataRequest = {
-          accounts: [account],
+          accountsWithSupportedChains: [{ account, supportedChains: [] }],
           chainIds: [MOCK_CHAIN_ID_CAIP],
           dataTypes: ['balance'],
         };
