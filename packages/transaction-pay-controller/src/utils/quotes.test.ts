@@ -465,6 +465,7 @@ describe('Quotes Utils', () => {
           {
             from: TRANSACTION_META_MOCK.txParams.from,
             isMaxAmount: false,
+            isPostQuote: true,
             sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
             sourceChainId: SOURCE_TOKEN_MOCK.chainId,
             sourceTokenAddress: SOURCE_TOKEN_MOCK.address,

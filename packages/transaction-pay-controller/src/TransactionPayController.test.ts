@@ -99,6 +99,26 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
+    it('triggers source amounts and quotes update when only isPostQuote changes', () => {
+      const controller = createController();
+
+      // First call creates the entry with defaults
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => {
+        // no-op, just initializes
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      // Second call only changes isPostQuote
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isPostQuote = true;
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
     it('updates multiple config properties at once', () => {
       const controller = createController();
 

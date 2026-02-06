@@ -282,6 +282,45 @@ describe('Source Amounts Utils', () => {
         expect(transactionData.sourceAmounts).toBeUndefined();
       });
 
+      it('filters out zero amount tokens in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              amountRaw: '0',
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
+      it('filters out same token on same chain in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: DESTINATION_TOKEN_MOCK.address,
+              chainId: DESTINATION_TOKEN_MOCK.chainId,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
       it('uses token balance when isMaxAmount is true in post-quote flow', () => {
         const transactionData: TransactionData = {
           isLoading: false,
