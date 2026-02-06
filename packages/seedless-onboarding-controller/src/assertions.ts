@@ -2,6 +2,26 @@ import { SeedlessOnboardingControllerErrorMessage } from './constants';
 import type { AuthenticatedUserDetails, VaultData } from './types';
 
 /**
+ * Assert that the provided password is a valid non-empty string.
+ *
+ * @param password - The password to check.
+ * @throws If the password is not a valid string.
+ */
+export function assertIsValidPassword(
+  password: unknown,
+): asserts password is string {
+  if (typeof password !== 'string') {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
+  }
+
+  if (!password?.length) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
+    );
+  }
+}
+
+/**
  * Check if the provided value is a valid authenticated user.
  *
  * @param value - The value to check.
