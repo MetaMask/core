@@ -4255,7 +4255,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when payment method is not selected', async () => {
+    it('returns early without throwing when payment method is not selected', async () => {
       await withController(
         {
           options: {
@@ -4296,9 +4296,7 @@ describe('RampsController', () => {
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
               amount: 100,
             }),
-          ).toThrow(
-            'Payment method is required. Cannot start quote polling without a selected payment method.',
-          );
+          ).not.toThrow();
         },
       );
     });
