@@ -62,6 +62,10 @@ describe('TransactionPoller', () => {
       const listener = jest.fn();
       poller.start(listener);
 
+      // Advance timers by 0 to trigger initial timer setup with Jest 28
+      jest.advanceTimersByTime(0);
+      await flushPromises();
+
       expect(jest.getTimerCount()).toBe(1);
 
       jest.runOnlyPendingTimers();
@@ -79,6 +83,10 @@ describe('TransactionPoller', () => {
 
       const listener = jest.fn();
       poller.start(listener);
+
+      // Advance timers by 0 to trigger initial timer setup with Jest 28
+      jest.advanceTimersByTime(0);
+      await flushPromises();
 
       for (let i = 0; i < DEFAULT_ACCELERATED_COUNT_MAX * 3; i++) {
         jest.runOnlyPendingTimers();

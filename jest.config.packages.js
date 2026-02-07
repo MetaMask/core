@@ -89,6 +89,7 @@ module.exports = {
       // so in that case use their published versions
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
+    '^uuid$': require.resolve('uuid'),
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -102,6 +103,18 @@ module.exports = {
 
   // A preset that is used as a base for Jest's configuration
   preset: 'ts-jest',
+
+  // ts-jest configuration - use isolatedModules to skip type checking during tests
+  // Type checking should be done separately via `yarn build:types` or the IDE
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        isolatedModules: true,
+        diagnostics: false,
+      },
+    ],
+  },
 
   // The path to the Prettier executable used to format snapshots
   // Jest doesn't support Prettier 3 yet, so we use Prettier 2
@@ -188,8 +201,10 @@ module.exports = {
   // This option sets the URL for the jsdom environment. It is reflected in properties such as location.href
   // testURL: "http://localhost",
 
-  // Setting this value to "fake" allows the use of fake timers for functions such as "setTimeout"
-  // timers: "real",
+  // Enabling fake timers allows the use of fake timers for functions such as "setTimeout"
+  // fakeTimers: {
+  //   enableGlobally: false,
+  // },
 
   // A map from regular expressions to paths to transformers
   // transform: undefined,

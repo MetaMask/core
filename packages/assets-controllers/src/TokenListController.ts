@@ -251,7 +251,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       const prevData = this.#previousTokensChainsCache[chainId];
 
       // Chain is new or timestamp changed (indicating data update)
-      if (!prevData || prevData.timestamp !== newData.timestamp) {
+      if (prevData?.timestamp !== newData.timestamp) {
         this.#changedChainsToPersist.add(chainId);
       }
     }
