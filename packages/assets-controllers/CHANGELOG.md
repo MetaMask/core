@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [99.3.1]
+
+### Fixed
+
+- Remove `Tempo Testnet` multicall address ([#7858](https://github.com/MetaMask/core/pull/7858)).
+
+## [99.3.0]
+
 ### Added
 
 - Add optional `rwaData` support when adding tokens in `TokensController` ([#7804](https://github.com/MetaMask/core/pull/7804)).
@@ -2641,7 +2649,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.1...HEAD
+[99.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.0...@metamask/assets-controllers@99.3.1
+[99.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...@metamask/assets-controllers@99.3.0
 [99.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.1.0...@metamask/assets-controllers@99.2.0
 [99.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.0.0...@metamask/assets-controllers@99.1.0
 [99.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@98.0.0...@metamask/assets-controllers@99.0.0

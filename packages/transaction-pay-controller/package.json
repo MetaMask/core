@@ -51,7 +51,7 @@
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
-    "@metamask/assets-controllers": "^99.2.0",
+    "@metamask/assets-controllers": "^99.3.1",
     "@metamask/base-controller": "^9.0.0",
     "@metamask/bridge-controller": "^65.3.0",
     "@metamask/bridge-status-controller": "^66.0.0",
