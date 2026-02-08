@@ -53,6 +53,8 @@ const controllerName = 'GatorPermissionsController';
 const defaultGatorPermissionsProviderSnapId =
   'npm:@metamask/gator-permissions-snap' as SnapId;
 
+const DEFAULT_MAX_SYNC_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+
 /**
  * Timeout duration for pending revocations (2 hours in milliseconds).
  * After this time, event listeners will be cleaned up to prevent memory leaks.
@@ -75,6 +77,11 @@ export type GatorPermissionsControllerConfig = {
    * Optional ID of the gator permissions provider Snap. Defaults to npm:@metamask/gator-permissions-snap.
    */
   gatorPermissionsProviderSnapId?: SnapId;
+  /**
+   * Optional maximum age of cached permissions (ms) before {@link GatorPermissionsController.initialize}
+   * triggers a sync. Defaults to 30 days.
+   */
+  maxSyncIntervalMs?: number;
 };
 
 // === STATE ===
@@ -101,6 +108,12 @@ export type GatorPermissionsControllerState = {
     txId: string;
     permissionContext: Hex;
   }[];
+
+  /**
+   * Timestamp (ms) of the last successful sync of gator permissions from profile sync.
+   * -1 indicates that a sync has never completed successfully.
+   */
+  lastSyncedTimestamp: number;
 };
 
 const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControllerState> =
@@ -123,6 +136,12 @@ const gatorPermissionsControllerMetadata: StateMetadata<GatorPermissionsControll
       includeInDebugSnapshot: false,
       usedInUi: true,
     },
+    lastSyncedTimestamp: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
   } satisfies StateMetadata<GatorPermissionsControllerState>;
 
 /**
@@ -138,6 +157,7 @@ function createGatorPermissionsControllerState(
   return {
     grantedPermissions: [],
     pendingRevocations: [],
+    lastSyncedTimestamp: -1,
     ...state,
     // isFetchingGatorPermissions is _always_ false when the controller is created
     isFetchingGatorPermissions: false,
@@ -280,6 +300,14 @@ export default class GatorPermissionsController extends BaseController<
 
   readonly #gatorPermissionsProviderSnapId: SnapId;
 
+  readonly #maxSyncIntervalMs: number;
+
+  /**
+   * When a sync is in progress, holds the promise for that sync so concurrent
+   * callers receive the same promise. Cleared when the sync completes.
+   */
+  #fetchAndUpdateGatorPermissionsPromise: Promise<void> | null = null;
+
   /**
    * Creates a GatorPermissionsController instance.
    *
@@ -310,6 +338,8 @@ export default class GatorPermissionsController extends BaseController<
     this.#gatorPermissionsProviderSnapId =
       config.gatorPermissionsProviderSnapId ??
       defaultGatorPermissionsProviderSnapId;
+    this.#maxSyncIntervalMs =
+      config.maxSyncIntervalMs ?? DEFAULT_MAX_SYNC_INTERVAL_MS;
     this.#registerMessageHandlers();
   }
 
@@ -435,47 +465,78 @@ export default class GatorPermissionsController extends BaseController<
 
   /**
    * Fetches granted permissions from the gator permissions provider Snap and updates state.
+   * If a sync is already in progress, returns the same promise. After the sync completes,
+   * the next call will perform a new sync.
    *
-   * @returns A promise that resolves to the list of granted permissions with metadata.
+   * @returns A promise that resolves when the sync completes. All data is available via the controller's state.
    * @throws {GatorPermissionsFetchError} If the gator permissions fetch fails.
    */
-  public async fetchAndUpdateGatorPermissions(): Promise<
-    PermissionInfoWithMetadata[]
-  > {
-    try {
-      this.#setIsFetchingGatorPermissions(true);
+  public fetchAndUpdateGatorPermissions(): Promise<void> {
+    if (this.#fetchAndUpdateGatorPermissionsPromise !== null) {
+      return this.#fetchAndUpdateGatorPermissionsPromise;
+    }
 
-      // Only ever fetch non-revoked permissions. Revoked permissions may be
-      // left in storage by the gator permissions snap, but we don't need to
-      // fetch them.
-      const params = { isRevoked: false };
+    const performFetchAndUpdate = async (): Promise<void> => {
+      try {
+        this.#setIsFetchingGatorPermissions(true);
 
-      const permissionsData = await executeSnapRpc<
-        StoredGatorPermission[] | null
-      >({
-        messenger: this.messenger,
-        snapId: this.#gatorPermissionsProviderSnapId,
-        method:
-          GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
-        params,
-      });
+        // Only ever fetch non-revoked permissions. Revoked permissions may be
+        // left in storage by the gator permissions snap, but we don't need to
+        // fetch them.
+        const params = { isRevoked: false };
 
-      const grantedPermissions =
-        this.#storedPermissionsToPermissionInfoWithMetadata(permissionsData);
+        const permissionsData = await executeSnapRpc<
+          StoredGatorPermission[] | null
+        >({
+          messenger: this.messenger,
+          snapId: this.#gatorPermissionsProviderSnapId,
+          method:
+            GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+          params,
+        });
 
-      this.update((state) => {
-        state.grantedPermissions = grantedPermissions;
-      });
+        const grantedPermissions =
+          this.#storedPermissionsToPermissionInfoWithMetadata(permissionsData);
 
-      return grantedPermissions;
-    } catch (error) {
-      controllerLog('Failed to fetch gator permissions', error);
-      throw new GatorPermissionsFetchError({
-        message: 'Failed to fetch gator permissions',
-        cause: error as Error,
-      });
-    } finally {
-      this.#setIsFetchingGatorPermissions(false);
+        this.update((state) => {
+          state.grantedPermissions = grantedPermissions;
+          state.lastSyncedTimestamp = Date.now();
+        });
+      } catch (error) {
+        controllerLog('Failed to fetch gator permissions', error);
+        throw new GatorPermissionsFetchError({
+          message: 'Failed to fetch gator permissions',
+          cause: error as Error,
+        });
+      } finally {
+        this.#setIsFetchingGatorPermissions(false);
+        this.#fetchAndUpdateGatorPermissionsPromise = null;
+      }
+    };
+
+    this.#fetchAndUpdateGatorPermissionsPromise = performFetchAndUpdate();
+
+    return this.#fetchAndUpdateGatorPermissionsPromise;
+  }
+
+  /**
+   * Initializes the controller. Call once after construction to ensure the
+   * controller is ready for use.
+   *
+   * @returns A promise that resolves when initialization is complete.
+   */
+  public async initialize(): Promise<void> {
+    const currentTime = Date.now();
+    const millisecondsSinceLastSync =
+      currentTime - this.state.lastSyncedTimestamp;
+
+    // Sync only when we have no data or data is stale, to avoid excessive startup
+    // queries while still avoiding showing stale data while a refresh runs.
+    if (
+      this.state.lastSyncedTimestamp === -1 ||
+      millisecondsSinceLastSync > this.#maxSyncIntervalMs
+    ) {
+      await this.fetchAndUpdateGatorPermissions();
     }
   }
 

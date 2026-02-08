@@ -78,6 +78,7 @@ describe('GatorPermissionsController', () => {
 
       expect(controller.state.grantedPermissions).toStrictEqual([]);
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
+      expect(controller.state.lastSyncedTimestamp).toBe(-1);
       expect(controller.supportedPermissionTypes).toStrictEqual(
         DEFAULT_TEST_CONFIG.supportedPermissionTypes,
       );
@@ -87,6 +88,7 @@ describe('GatorPermissionsController', () => {
       const customState = {
         grantedPermissions: [] as PermissionInfoWithMetadata[],
         pendingRevocations: [],
+        lastSyncedTimestamp: -1,
       };
 
       const controller = new GatorPermissionsController({
@@ -178,14 +180,17 @@ describe('GatorPermissionsController', () => {
         config: DEFAULT_TEST_CONFIG,
       });
 
-      const result = await controller.fetchAndUpdateGatorPermissions();
+      await controller.fetchAndUpdateGatorPermissions();
 
-      expect(Array.isArray(result)).toBe(true);
-      expect(result).toHaveLength(mockStorageEntriesWithRules.length);
-      expect(controller.state.grantedPermissions).toStrictEqual(result);
+      const { grantedPermissions } = controller.state;
+      expect(Array.isArray(grantedPermissions)).toBe(true);
+      expect(grantedPermissions).toHaveLength(
+        mockStorageEntriesWithRules.length,
+      );
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
+      expect(controller.state.lastSyncedTimestamp).not.toBe(-1);
 
-      result.forEach((entry) => {
+      grantedPermissions.forEach((entry) => {
         expect(entry.permissionResponse).toBeDefined();
         expect(entry.siteOrigin).toBeDefined();
         // Sanitized response omits internal fields (to, dependencies)
@@ -198,7 +203,7 @@ describe('GatorPermissionsController', () => {
       });
 
       // Specifically verify that the entry with rules has rules preserved
-      const entryWithRules = result.find(
+      const entryWithRules = grantedPermissions.find(
         (entry) => entry.permissionResponse.rules !== undefined,
       );
       expect(entryWithRules).toBeDefined();
@@ -246,13 +251,14 @@ describe('GatorPermissionsController', () => {
         config: DEFAULT_TEST_CONFIG,
       });
 
-      const result = await controller.fetchAndUpdateGatorPermissions();
+      await controller.fetchAndUpdateGatorPermissions();
 
-      expect(result).toHaveLength(1);
-      expect(result[0].permissionResponse.permission.type).toBe(
+      const { grantedPermissions } = controller.state;
+      expect(grantedPermissions).toHaveLength(1);
+      expect(grantedPermissions[0].permissionResponse.permission.type).toBe(
         'erc20-token-revocation',
       );
-      expect(result[0].permissionResponse.chainId).toBe(chainId);
+      expect(grantedPermissions[0].permissionResponse.chainId).toBe(chainId);
     });
 
     it('handles null permissions data', async () => {
@@ -265,9 +271,8 @@ describe('GatorPermissionsController', () => {
         config: DEFAULT_TEST_CONFIG,
       });
 
-      const result = await controller.fetchAndUpdateGatorPermissions();
+      await controller.fetchAndUpdateGatorPermissions();
 
-      expect(result).toStrictEqual([]);
       expect(controller.state.grantedPermissions).toStrictEqual([]);
     });
 
@@ -281,9 +286,8 @@ describe('GatorPermissionsController', () => {
         config: DEFAULT_TEST_CONFIG,
       });
 
-      const result = await controller.fetchAndUpdateGatorPermissions();
+      await controller.fetchAndUpdateGatorPermissions();
 
-      expect(result).toStrictEqual([]);
       expect(controller.state.grantedPermissions).toStrictEqual([]);
     });
 
@@ -304,6 +308,150 @@ describe('GatorPermissionsController', () => {
       );
 
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
+      expect(controller.state.lastSyncedTimestamp).toBe(-1);
+    });
+
+    it('returns the same promise when called concurrently', async () => {
+      let resolveRequest:
+        | ((value: StoredGatorPermission[]) => void)
+        | undefined;
+
+      const requestPromise = new Promise<StoredGatorPermission[]>((resolve) => {
+        resolveRequest = resolve;
+      });
+      const mockHandleRequestHandler = jest
+        .fn()
+        .mockReturnValue(requestPromise);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: DEFAULT_TEST_CONFIG,
+      });
+
+      const promise1 = controller.fetchAndUpdateGatorPermissions();
+      const promise2 = controller.fetchAndUpdateGatorPermissions();
+
+      expect(promise1).toBe(promise2);
+
+      resolveRequest?.(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
+      await promise1;
+    });
+
+    it('performs a new sync when called after previous sync completes', async () => {
+      const mockHandleRequestHandler = jest
+        .fn()
+        .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: DEFAULT_TEST_CONFIG,
+      });
+
+      await controller.fetchAndUpdateGatorPermissions();
+      expect(mockHandleRequestHandler).toHaveBeenCalledTimes(1);
+
+      await controller.fetchAndUpdateGatorPermissions();
+      expect(mockHandleRequestHandler).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('initialize', () => {
+    it('calls fetchAndUpdateGatorPermissions when lastSyncedTimestamp is -1', async () => {
+      const mockHandleRequestHandler = jest
+        .fn()
+        .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: DEFAULT_TEST_CONFIG,
+      });
+
+      expect(controller.state.lastSyncedTimestamp).toBe(-1);
+
+      await controller.initialize();
+
+      expect(mockHandleRequestHandler).toHaveBeenCalledTimes(1);
+      expect(controller.state.lastSyncedTimestamp).not.toBe(-1);
+      expect(controller.state.grantedPermissions.length).toBeGreaterThan(0);
+    });
+
+    it('does not call fetchAndUpdateGatorPermissions when lastSyncedTimestamp is recent', async () => {
+      const mockHandleRequestHandler = jest
+        .fn()
+        .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+
+      const recentTimestamp = Date.now() - 1000; // 1 second ago
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: DEFAULT_TEST_CONFIG,
+        state: { lastSyncedTimestamp: recentTimestamp },
+      });
+
+      await controller.initialize();
+
+      expect(mockHandleRequestHandler).not.toHaveBeenCalled();
+      expect(controller.state.lastSyncedTimestamp).toBe(recentTimestamp);
+    });
+
+    it('calls fetchAndUpdateGatorPermissions when lastSyncedTimestamp is older than sync interval', async () => {
+      const mockHandleRequestHandler = jest
+        .fn()
+        .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+
+      const thirtyOneDaysMs = 31 * 24 * 60 * 60 * 1000;
+      const staleTimestamp = Date.now() - thirtyOneDaysMs;
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: DEFAULT_TEST_CONFIG,
+        state: { lastSyncedTimestamp: staleTimestamp },
+      });
+
+      await controller.initialize();
+
+      expect(mockHandleRequestHandler).toHaveBeenCalledTimes(1);
+      expect(controller.state.lastSyncedTimestamp).not.toBe(staleTimestamp);
+    });
+
+    it('respects custom maxSyncIntervalMs from config', async () => {
+      const mockHandleRequestHandler = jest
+        .fn()
+        .mockResolvedValue(MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+
+      const maxSyncIntervalMs = 500;
+      const lastSyncedTwoSecondsAgo = Date.now() - 2000;
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
+        config: {
+          ...DEFAULT_TEST_CONFIG,
+          maxSyncIntervalMs,
+        },
+        state: { lastSyncedTimestamp: lastSyncedTwoSecondsAgo },
+      });
+
+      await controller.initialize();
+
+      expect(mockHandleRequestHandler).toHaveBeenCalledTimes(1);
+      expect(controller.state.lastSyncedTimestamp).not.toBe(
+        lastSyncedTwoSecondsAgo,
+      );
     });
   });
 
@@ -361,6 +509,7 @@ describe('GatorPermissionsController', () => {
         Object {
           "grantedPermissions": Array [],
           "isFetchingGatorPermissions": false,
+          "lastSyncedTimestamp": -1,
           "pendingRevocations": Array [],
         }
       `);
