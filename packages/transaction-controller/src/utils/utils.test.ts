@@ -356,4 +356,26 @@ describe('utils', () => {
       );
     });
   });
+
+  describe('caip2ToHex', () => {
+    it('converts eip155:1 to 0x1', () => {
+      expect(util.caip2ToHex('eip155:1')).toBe('0x1');
+    });
+
+    it('converts eip155:137 to 0x89', () => {
+      expect(util.caip2ToHex('eip155:137')).toBe('0x89');
+    });
+
+    it('converts eip155:8453 to 0x2105', () => {
+      expect(util.caip2ToHex('eip155:8453')).toBe('0x2105');
+    });
+
+    it('returns undefined for invalid format', () => {
+      expect(util.caip2ToHex('invalid')).toBeUndefined();
+    });
+
+    it('returns undefined for malformed CAIP-2 format', () => {
+      expect(util.caip2ToHex('not:valid:format')).toBeUndefined();
+    });
+  });
 });
