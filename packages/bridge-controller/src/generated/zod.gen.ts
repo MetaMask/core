@@ -110,11 +110,125 @@ export const zCrossChainQuoteDto = z.object({
     destWalletAddress: z.optional(z.string())
 });
 
-export const zQuoteResponseDto = z.object({
+export const zTxDataDto = z.object({
+    chainId: z.union([
+        z.literal(20000000000001),
+        z.literal(1),
+        z.literal(10),
+        z.literal(56),
+        z.literal(137),
+        z.literal(143),
+        z.literal(324),
+        z.literal(1329),
+        z.literal(8453),
+        z.literal(42161),
+        z.literal(43114),
+        z.literal(59144),
+        z.literal(999),
+        z.literal(1151111081099710),
+        z.literal(728126428)
+    ]),
+    to: z.string(),
+    from: z.string(),
+    value: z.string(),
+    data: z.string(),
+    gasLimit: z.union([
+        z.number(),
+        z.null()
+    ]),
+    effectiveGas: z.optional(z.number())
+});
+
+export const zEvmQuoteResponseDto = z.object({
     quote: zCrossChainQuoteDto,
-    approval: z.optional(z.record(z.string(), z.unknown())),
-    trade: z.record(z.string(), z.unknown()),
+    approval: z.optional(zTxDataDto),
+    trade: zTxDataDto,
     estimatedProcessingTimeInSeconds: z.number()
+});
+
+export const zTronRawDataDto = z.object({
+    contract: z.array(z.record(z.string(), z.unknown())),
+    ref_block_bytes: z.string(),
+    ref_block_hash: z.string(),
+    expiration: z.number(),
+    timestamp: z.number(),
+    data: z.optional(z.record(z.string(), z.unknown())),
+    fee_limit: z.optional(z.record(z.string(), z.unknown()))
+});
+
+export const zRangoTronTxPayloadDto = z.object({
+    visible: z.optional(z.boolean()),
+    owner_address: z.string(),
+    call_value: z.number(),
+    contract_address: z.string(),
+    fee_limit: z.number(),
+    function_selector: z.string(),
+    parameter: z.string(),
+    chainType: z.number()
+});
+
+export const zTronTxWithPayloadDto = z.object({
+    visible: z.boolean(),
+    txID: z.string(),
+    raw_data: zTronRawDataDto,
+    raw_data_hex: z.string(),
+    payload: zRangoTronTxPayloadDto
+});
+
+export const zTvmQuoteResponseDto = z.object({
+    quote: zCrossChainQuoteDto,
+    approval: z.optional(zTronTxWithPayloadDto),
+    trade: zTronTxWithPayloadDto,
+    estimatedProcessingTimeInSeconds: z.number()
+});
+
+export const zSvmQuoteResponseDto = z.object({
+    quote: zCrossChainQuoteDto,
+    trade: z.string(),
+    estimatedProcessingTimeInSeconds: z.number()
+});
+
+export const zInputToSignDto = z.object({
+    address: z.string(),
+    signingIndexes: z.array(z.number())
+});
+
+export const zPsbtDto = z.object({
+    unsignedPsbtBase64: z.string(),
+    inputsToSign: z.array(zInputToSignDto)
+});
+
+export const zUtxoQuoteResponseDto = z.object({
+    quote: zCrossChainQuoteDto,
+    trade: zPsbtDto,
+    estimatedProcessingTimeInSeconds: z.number()
+});
+
+export const zStatusDto = z.object({
+    chainId: z.number(),
+    txHash: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    amount: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    token: z.optional(zTokenDto)
+});
+
+export const zStatusResponseDto = z.object({
+    status: z.string(),
+    srcChain: zStatusDto,
+    destChain: z.optional(zStatusDto),
+    bridge: z.optional(z.string()),
+    isExpectedToken: z.optional(z.boolean()),
+    isUnrecognizedRouterAddress: z.optional(z.boolean()),
+    get refuel(): z.ZodOptional {
+        return z.optional(z.lazy((): any => {
+            return zStatusResponseDto;
+        }));
+    }
 });
 
 export const zSubmitIntentOrderRequestDto = z.object({
@@ -218,9 +332,14 @@ export const zAggregatorControllerGetQuoteV2Data = z.object({
 });
 
 /**
- * Successfully retrieved quotes
+ * Array of bridge quotes from all aggregators
  */
-export const zAggregatorControllerGetQuoteV2Response = z.array(zQuoteResponseDto);
+export const zAggregatorControllerGetQuoteV2Response = z.array(z.union([
+    zEvmQuoteResponseDto,
+    zTvmQuoteResponseDto,
+    zSvmQuoteResponseDto,
+    zUtxoQuoteResponseDto
+]));
 
 export const zAggregatorControllerGetQuoteStreamV2Data = z.object({
     body: z.optional(z.never()),
@@ -242,10 +361,15 @@ export const zAggregatorControllerGetQuoteStreamV2Data = z.object({
 });
 
 /**
- * SSE stream of quotes. Each event contains a QuoteResponseDto.
+ * SSE stream of quote events. Each event has type "quote" and data containing a single quote.
  */
 export const zAggregatorControllerGetQuoteStreamV2Response = z.object({
-    data: z.optional(zQuoteResponseDto),
+    data: z.optional(z.union([
+        zEvmQuoteResponseDto,
+        zTvmQuoteResponseDto,
+        zSvmQuoteResponseDto,
+        zUtxoQuoteResponseDto
+    ])),
     type: z.optional(z.string()),
     id: z.optional(z.string())
 });
@@ -277,10 +401,15 @@ export const zAggregatorControllerGetQuoteStreamData = z.object({
 });
 
 /**
- * SSE stream of quotes. Each event contains a QuoteResponseDto.
+ * SSE stream of quote events. Each event has type "quote" and data containing a single quote.
  */
 export const zAggregatorControllerGetQuoteStreamResponse = z.object({
-    data: z.optional(zQuoteResponseDto),
+    data: z.optional(z.union([
+        zEvmQuoteResponseDto,
+        zTvmQuoteResponseDto,
+        zSvmQuoteResponseDto,
+        zUtxoQuoteResponseDto
+    ])),
     type: z.optional(z.string()),
     id: z.optional(z.string())
 });
@@ -312,9 +441,14 @@ export const zAggregatorControllerGetQuoteData = z.object({
 });
 
 /**
- * Successfully retrieved quotes
+ * Array of bridge quotes from all aggregators
  */
-export const zAggregatorControllerGetQuoteResponse = z.array(zQuoteResponseDto);
+export const zAggregatorControllerGetQuoteResponse = z.array(z.union([
+    zEvmQuoteResponseDto,
+    zTvmQuoteResponseDto,
+    zSvmQuoteResponseDto,
+    zUtxoQuoteResponseDto
+]));
 
 export const zAggregatorControllerGetTxStatusV2Data = z.object({
     body: z.optional(z.never()),
@@ -326,6 +460,11 @@ export const zAggregatorControllerGetTxStatusV2Data = z.object({
         refuel: z.boolean()
     })
 });
+
+/**
+ * Bridge transaction status
+ */
+export const zAggregatorControllerGetTxStatusV2Response = zStatusResponseDto;
 
 export const zAggregatorControllerGetTxStatusData = z.object({
     body: z.optional(z.never()),
@@ -339,6 +478,11 @@ export const zAggregatorControllerGetTxStatusData = z.object({
         refuel: z.boolean()
     })
 });
+
+/**
+ * Bridge transaction status
+ */
+export const zAggregatorControllerGetTxStatusResponse = zStatusResponseDto;
 
 export const zAggregatorControllerGetAllFeatureFlagsData = z.object({
     body: z.optional(z.never()),

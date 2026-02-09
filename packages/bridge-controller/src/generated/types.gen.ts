@@ -86,15 +86,189 @@ export type CrossChainQuoteDto = {
     destWalletAddress?: string;
 };
 
-export type QuoteResponseDto = {
+export type TxDataDto = {
+    /**
+     * Chain ID of the transaction
+     */
+    chainId: 20000000000001 | 1 | 10 | 56 | 137 | 143 | 324 | 1329 | 8453 | 42161 | 43114 | 59144 | 999 | 1151111081099710 | 728126428;
+    /**
+     * Recipient contract/address
+     */
+    to: string;
+    /**
+     * Sender address
+     */
+    from: string;
+    /**
+     * Native token value in wei (hex)
+     */
+    value: string;
+    /**
+     * Encoded transaction calldata
+     */
+    data: string;
+    /**
+     * Gas limit for the transaction
+     */
+    gasLimit: number | null;
+    /**
+     * Effective gas estimate
+     */
+    effectiveGas?: number;
+};
+
+export type EvmQuoteResponseDto = {
     quote: CrossChainQuoteDto;
-    approval?: {
-        [key: string]: unknown;
-    };
-    trade: {
-        [key: string]: unknown;
-    };
+    /**
+     * EVM approval transaction
+     */
+    approval?: TxDataDto;
+    /**
+     * EVM trade transaction
+     */
+    trade: TxDataDto;
+    /**
+     * Estimated processing time in seconds
+     */
     estimatedProcessingTimeInSeconds: number;
+};
+
+export type TronRawDataDto = {
+    /**
+     * Contract call details
+     */
+    contract: Array<{
+        [key: string]: unknown;
+    }>;
+    ref_block_bytes: string;
+    ref_block_hash: string;
+    expiration: number;
+    timestamp: number;
+    data?: {
+        [key: string]: unknown;
+    };
+    fee_limit?: {
+        [key: string]: unknown;
+    };
+};
+
+export type RangoTronTxPayloadDto = {
+    visible?: boolean;
+    /**
+     * Owner wallet address
+     */
+    owner_address: string;
+    call_value: number;
+    /**
+     * Target contract address
+     */
+    contract_address: string;
+    fee_limit: number;
+    /**
+     * Solidity function selector
+     */
+    function_selector: string;
+    /**
+     * ABI-encoded function parameters
+     */
+    parameter: string;
+    chainType: number;
+};
+
+export type TronTxWithPayloadDto = {
+    visible: boolean;
+    /**
+     * Transaction hash
+     */
+    txID: string;
+    raw_data: TronRawDataDto;
+    /**
+     * Hex-encoded raw data
+     */
+    raw_data_hex: string;
+    /**
+     * Rango-specific payload
+     */
+    payload: RangoTronTxPayloadDto;
+};
+
+export type TvmQuoteResponseDto = {
+    quote: CrossChainQuoteDto;
+    /**
+     * TVM approval transaction
+     */
+    approval?: TronTxWithPayloadDto;
+    /**
+     * TVM trade transaction
+     */
+    trade: TronTxWithPayloadDto;
+    /**
+     * Estimated processing time in seconds
+     */
+    estimatedProcessingTimeInSeconds: number;
+};
+
+export type SvmQuoteResponseDto = {
+    quote: CrossChainQuoteDto;
+    /**
+     * Base64-encoded SVM transaction
+     */
+    trade: string;
+    /**
+     * Estimated processing time in seconds
+     */
+    estimatedProcessingTimeInSeconds: number;
+};
+
+export type InputToSignDto = {
+    /**
+     * Wallet address that should sign
+     */
+    address: string;
+    /**
+     * Indexes of inputs to sign
+     */
+    signingIndexes: Array<number>;
+};
+
+export type PsbtDto = {
+    /**
+     * Base64-encoded unsigned PSBT
+     */
+    unsignedPsbtBase64: string;
+    /**
+     * Inputs that need signing
+     */
+    inputsToSign: Array<InputToSignDto>;
+};
+
+export type UtxoQuoteResponseDto = {
+    quote: CrossChainQuoteDto;
+    /**
+     * UTXO PSBT trade data
+     */
+    trade: PsbtDto;
+    /**
+     * Estimated processing time in seconds
+     */
+    estimatedProcessingTimeInSeconds: number;
+};
+
+export type StatusDto = {
+    chainId: number;
+    txHash?: string | null;
+    amount?: string | null;
+    token?: TokenDto;
+};
+
+export type StatusResponseDto = {
+    status: string;
+    srcChain: StatusDto;
+    destChain?: StatusDto;
+    bridge?: string;
+    isExpectedToken?: boolean;
+    isUnrecognizedRouterAddress?: boolean;
+    refuel?: StatusResponseDto;
 };
 
 export type SubmitIntentOrderRequestDto = {
@@ -218,9 +392,9 @@ export type AggregatorControllerGetQuoteV2Data = {
 
 export type AggregatorControllerGetQuoteV2Responses = {
     /**
-     * Successfully retrieved quotes
+     * Array of bridge quotes from all aggregators
      */
-    200: Array<QuoteResponseDto>;
+    200: Array<EvmQuoteResponseDto | TvmQuoteResponseDto | SvmQuoteResponseDto | UtxoQuoteResponseDto>;
 };
 
 export type AggregatorControllerGetQuoteV2Response = AggregatorControllerGetQuoteV2Responses[keyof AggregatorControllerGetQuoteV2Responses];
@@ -250,10 +424,10 @@ export type AggregatorControllerGetQuoteStreamV2Data = {
 
 export type AggregatorControllerGetQuoteStreamV2Responses = {
     /**
-     * SSE stream of quotes. Each event contains a QuoteResponseDto.
+     * SSE stream of quote events. Each event has type "quote" and data containing a single quote.
      */
     200: {
-        data?: QuoteResponseDto;
+        data?: EvmQuoteResponseDto | TvmQuoteResponseDto | SvmQuoteResponseDto | UtxoQuoteResponseDto;
         type?: string;
         id?: string;
     };
@@ -293,10 +467,10 @@ export type AggregatorControllerGetQuoteStreamData = {
 
 export type AggregatorControllerGetQuoteStreamResponses = {
     /**
-     * SSE stream of quotes. Each event contains a QuoteResponseDto.
+     * SSE stream of quote events. Each event has type "quote" and data containing a single quote.
      */
     200: {
-        data?: QuoteResponseDto;
+        data?: EvmQuoteResponseDto | TvmQuoteResponseDto | SvmQuoteResponseDto | UtxoQuoteResponseDto;
         type?: string;
         id?: string;
     };
@@ -336,9 +510,9 @@ export type AggregatorControllerGetQuoteData = {
 
 export type AggregatorControllerGetQuoteResponses = {
     /**
-     * Successfully retrieved quotes
+     * Array of bridge quotes from all aggregators
      */
-    200: Array<QuoteResponseDto>;
+    200: Array<EvmQuoteResponseDto | TvmQuoteResponseDto | SvmQuoteResponseDto | UtxoQuoteResponseDto>;
 };
 
 export type AggregatorControllerGetQuoteResponse = AggregatorControllerGetQuoteResponses[keyof AggregatorControllerGetQuoteResponses];
@@ -356,8 +530,13 @@ export type AggregatorControllerGetTxStatusV2Data = {
 };
 
 export type AggregatorControllerGetTxStatusV2Responses = {
-    200: unknown;
+    /**
+     * Bridge transaction status
+     */
+    200: StatusResponseDto;
 };
+
+export type AggregatorControllerGetTxStatusV2Response = AggregatorControllerGetTxStatusV2Responses[keyof AggregatorControllerGetTxStatusV2Responses];
 
 export type AggregatorControllerGetTxStatusData = {
     body?: never;
@@ -374,8 +553,13 @@ export type AggregatorControllerGetTxStatusData = {
 };
 
 export type AggregatorControllerGetTxStatusResponses = {
-    200: unknown;
+    /**
+     * Bridge transaction status
+     */
+    200: StatusResponseDto;
 };
+
+export type AggregatorControllerGetTxStatusResponse = AggregatorControllerGetTxStatusResponses[keyof AggregatorControllerGetTxStatusResponses];
 
 export type AggregatorControllerGetAllFeatureFlagsData = {
     body?: never;
