@@ -1150,11 +1150,6 @@
       "count": 7
     }
   },
-  "packages/multichain-account-service/src/tests/providers.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/multichain-account-service/src/utils.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
