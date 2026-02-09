@@ -13,7 +13,11 @@ export const InfuraNetworkType = {
   'bsc-mainnet': 'bsc-mainnet',
   'optimism-mainnet': 'optimism-mainnet',
   'polygon-mainnet': 'polygon-mainnet',
+  'avalanche-mainnet': 'avalanche-mainnet',
   'sei-mainnet': 'sei-mainnet',
+  'monad-mainnet': 'monad-mainnet',
+  'hyperevm-mainnet': 'hyperevm-mainnet',
+  'megaeth-mainnet': 'megaeth-mainnet',
 } as const;
 
 export type InfuraNetworkType =
@@ -98,6 +102,10 @@ export enum BuiltInNetworkName {
   OptimismMainnet = 'optimism-mainnet',
   PolygonMainnet = 'polygon-mainnet',
   SeiMainnet = 'sei-mainnet',
+  AvalancheMainnet = 'avalanche-mainnet',
+  MonadMainnet = 'monad-mainnet',
+  HyperevmMainnet = 'hyperevm-mainnet',
+  MegaETHMainnet = 'megaeth-mainnet',
 }
 
 /**
@@ -125,6 +133,10 @@ export const ChainId = {
   [BuiltInNetworkName.OptimismMainnet]: '0xa', // toHex(10)
   [BuiltInNetworkName.PolygonMainnet]: '0x89', // toHex(137)
   [BuiltInNetworkName.SeiMainnet]: '0x531', // toHex(1329)
+  [BuiltInNetworkName.AvalancheMainnet]: '0xa86a', // toHex(43114)
+  [BuiltInNetworkName.MonadMainnet]: '0x8f', // toHex(143)
+  [BuiltInNetworkName.HyperevmMainnet]: '0x3e7', // toHex(999)
+  [BuiltInNetworkName.MegaETHMainnet]: '0x10e6', // toHex(4326)
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
@@ -154,6 +166,12 @@ export enum NetworksTicker {
   'optimism-mainnet' = 'ETH',
   'polygon-mainnet' = 'POL',
   'sei-mainnet' = 'SEI',
+  'avalanche-mainnet' = 'AVAX',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'monad-mainnet' = 'MON',
+  'hyperevm-mainnet' = 'HYPE',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'megaeth-mainnet' = 'ETH',
   rpc = '',
 }
 /* eslint-enable @typescript-eslint/naming-convention */
@@ -178,6 +196,10 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.OptimismMainnet]: 'https://optimistic.etherscan.io',
   [BuiltInNetworkName.PolygonMainnet]: 'https://polygonscan.com',
   [BuiltInNetworkName.SeiMainnet]: 'https://seitrace.com',
+  [BuiltInNetworkName.AvalancheMainnet]: 'https://snowtrace.io',
+  [BuiltInNetworkName.MonadMainnet]: 'https://monadscan.com',
+  [BuiltInNetworkName.HyperevmMainnet]: 'https://hyperevmscan.io',
+  [BuiltInNetworkName.MegaETHMainnet]: 'https://megaeth.blockscout.com',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
@@ -201,6 +223,10 @@ export const NetworkNickname = {
   [BuiltInNetworkName.OptimismMainnet]: 'Optimism Mainnet',
   [BuiltInNetworkName.PolygonMainnet]: 'Polygon Mainnet',
   [BuiltInNetworkName.SeiMainnet]: 'Sei Mainnet',
+  [BuiltInNetworkName.AvalancheMainnet]: 'Avalanche',
+  [BuiltInNetworkName.MonadMainnet]: 'Monad',
+  [BuiltInNetworkName.HyperevmMainnet]: 'HyperEVM',
+  [BuiltInNetworkName.MegaETHMainnet]: 'MegaETH',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type NetworkNickname =
   (typeof NetworkNickname)[keyof typeof NetworkNickname];
