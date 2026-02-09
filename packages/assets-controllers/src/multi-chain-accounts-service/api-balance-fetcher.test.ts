@@ -25,9 +25,11 @@ const ZERO_ADDRESS =
 const STAKING_CONTRACT_ADDRESS =
   '0x4FEF9D741011476750A243aC70b9789a63dd47Df' as ChecksumAddress;
 
+type TokenBalance = GetBalancesResponse['balances'][number];
+
 const createMockNativeTokenBalance = (
-  overrides?: Partial<{ chainId: number; accountAddress: string }>,
-): GetBalancesResponse['balances'][number] => ({
+  overrides?: Partial<TokenBalance>,
+): TokenBalance => ({
   object: 'token',
   address: '0x0000000000000000000000000000000000000000',
   symbol: 'ETH',
@@ -41,13 +43,8 @@ const createMockNativeTokenBalance = (
   ...overrides,
 });
 const createMockERCTokenBalance = (
-  overrides?: Partial<{
-    address: string;
-    symbol: string;
-    name: string;
-    accountAddress: string;
-  }>,
-): GetBalancesResponse['balances'][number] => ({
+  overrides?: Partial<TokenBalance>,
+): TokenBalance => ({
   object: 'token',
   address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
   name: 'Dai Stablecoin',
@@ -62,40 +59,12 @@ const createMockERCTokenBalance = (
 const MOCK_BALANCES_RESPONSE: GetBalancesResponse = {
   count: 3,
   balances: [
-    {
-      object: 'token',
-      address: '0x0000000000000000000000000000000000000000',
-      symbol: 'ETH',
-      name: 'Ether',
-      type: 'native',
-      timestamp: '2015-07-30T03:26:13.000Z',
-      decimals: 18,
-      chainId: 1,
-      balance: '1.5',
-      accountAddress: 'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    },
-    {
-      object: 'token',
-      address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-      name: 'Dai Stablecoin',
-      symbol: 'DAI',
-      decimals: 18,
-      chainId: 1,
-      balance: '100.0',
-      accountAddress: 'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    },
-    {
-      object: 'token',
-      address: '0x0000000000000000000000000000000000000000',
-      symbol: 'ETH',
-      name: 'Ether',
-      type: 'native',
-      timestamp: '2015-07-30T03:26:13.000Z',
-      decimals: 18,
-      chainId: 1,
+    createMockNativeTokenBalance(),
+    createMockERCTokenBalance(),
+    createMockNativeTokenBalance({
       balance: '2.0',
       accountAddress: 'eip155:1:0x742d35cc6675c4f17f41140100aa83a4b1fa4c82',
-    },
+    }),
   ],
   unprocessedNetworks: [],
 };
@@ -103,26 +72,8 @@ const MOCK_BALANCES_RESPONSE: GetBalancesResponse = {
 const MOCK_LARGE_BALANCES_RESPONSE_BATCH_1: GetBalancesResponse = {
   count: 2,
   balances: [
-    {
-      object: 'token',
-      address: '0x0000000000000000000000000000000000000000',
-      symbol: 'ETH',
-      name: 'Ether',
-      decimals: 18,
-      chainId: 1,
-      balance: '1.0',
-      accountAddress: 'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    },
-    {
-      object: 'token',
-      address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-      symbol: 'DAI',
-      name: 'Dai',
-      decimals: 18,
-      chainId: 1,
-      balance: '50.0',
-      accountAddress: 'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    },
+    createMockNativeTokenBalance({ balance: '1.0' }),
+    createMockERCTokenBalance({ name: 'Dai', balance: '50.0' }),
   ],
   unprocessedNetworks: [],
 };
@@ -130,16 +81,10 @@ const MOCK_LARGE_BALANCES_RESPONSE_BATCH_1: GetBalancesResponse = {
 const MOCK_LARGE_BALANCES_RESPONSE_BATCH_2: GetBalancesResponse = {
   count: 1,
   balances: [
-    {
-      object: 'token',
-      address: '0x0000000000000000000000000000000000000000',
-      symbol: 'ETH',
-      name: 'Ether',
-      decimals: 18,
-      chainId: 1,
+    createMockNativeTokenBalance({
       balance: '2.0',
       accountAddress: 'eip155:1:0x742d35cc6675c4f17f41140100aa83a4b1fa4c82',
-    },
+    }),
   ],
   unprocessedNetworks: [],
 };
@@ -626,28 +571,14 @@ describe('AccountsApiBalanceFetcher', () => {
       const responseWithDifferentDecimals: GetBalancesResponse = {
         count: 2,
         balances: [
-          {
-            object: 'token',
-            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-            symbol: 'DAI',
-            name: 'Dai',
-            decimals: 18,
-            chainId: 1,
-            balance: '123.456789',
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
-          {
-            object: 'token',
+          createMockERCTokenBalance({ name: 'Dai', balance: '123.456789' }),
+          createMockERCTokenBalance({
             address: '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B',
             symbol: 'USDC',
             name: 'USD Coin',
             decimals: 6,
-            chainId: 1,
             balance: '100.5',
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
+          }),
         ],
         unprocessedNetworks: [],
       };
@@ -748,20 +679,7 @@ describe('AccountsApiBalanceFetcher', () => {
     it('should include native token entry for addresses even when API does not return native balance', async () => {
       const responseWithoutNative: GetBalancesResponse = {
         count: 1,
-        balances: [
-          {
-            object: 'token',
-            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-            name: 'Dai Stablecoin',
-            symbol: 'DAI',
-            decimals: 18,
-            chainId: 1,
-            balance: '100.0',
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
-          // No native token entry for this address
-        ],
+        balances: [createMockERCTokenBalance()],
         unprocessedNetworks: [],
       };
 
@@ -798,31 +716,14 @@ describe('AccountsApiBalanceFetcher', () => {
       const responsePartialNative: GetBalancesResponse = {
         count: 2,
         balances: [
-          {
-            object: 'token',
-            address: ZERO_ADDRESS,
-            symbol: 'ETH',
-            name: 'Ether',
-            type: 'native',
-            timestamp: '2015-07-30T03:26:13.000Z',
-            decimals: 18,
-            chainId: 1,
-            balance: '1.5',
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
+          createMockNativeTokenBalance(),
           // Native balance missing for MOCK_ADDRESS_2
-          {
-            object: 'token',
-            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+          createMockERCTokenBalance({
             name: 'Dai',
-            symbol: 'DAI',
-            decimals: 18,
-            chainId: 1,
             balance: '50.0',
             accountAddress:
               'eip155:1:0x742d35cc6675c4f17f41140100aa83a4b1fa4c82',
-          },
+          }),
         ],
         unprocessedNetworks: [],
       };
@@ -1314,17 +1215,10 @@ describe('AccountsApiBalanceFetcher', () => {
       const responseWithNaNBalance: GetBalancesResponse = {
         count: 1,
         balances: [
-          {
-            object: 'token',
-            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-            symbol: 'DAI',
+          createMockERCTokenBalance({
             name: 'Dai',
-            decimals: 18,
-            chainId: 1,
             balance: 'not-a-number',
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
+          }),
         ],
         unprocessedNetworks: [],
       };
@@ -1395,29 +1289,13 @@ describe('AccountsApiBalanceFetcher', () => {
       const responseWithMixedBalances: GetBalancesResponse = {
         count: 3,
         balances: [
-          {
-            object: 'token',
-            address: '0x0000000000000000000000000000000000000000', // Native token
-            symbol: 'ETH',
-            name: 'Ether',
-            type: 'native',
-            decimals: 18,
-            chainId: 1,
-            balance: '1.0',
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
-          {
-            object: 'token',
-            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-            symbol: 'DAI',
+          createMockNativeTokenBalance({ balance: '1.0' }),
+          createMockERCTokenBalance({
             name: 'Dai',
-            decimals: 18,
-            chainId: 1,
             balance: '100.0',
             accountAddress:
               'eip155:1:0x742d35cc6675c4f17f41140100aa83a4b1fa4c82',
-          },
+          }),
           // Missing native balance for second address
         ],
         unprocessedNetworks: [],
@@ -1842,17 +1720,13 @@ describe('AccountsApiBalanceFetcher', () => {
       const responseWithExtraDecimals: GetBalancesResponse = {
         count: 1,
         balances: [
-          {
-            object: 'token',
+          createMockERCTokenBalance({
             address: '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B',
             symbol: 'USDC',
             name: 'USD Coin',
             decimals: 6,
-            chainId: 1,
             balance: '100.1234567890123', // 13 decimal places, token has 6
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
+          }),
         ],
         unprocessedNetworks: [],
       };
@@ -1881,17 +1755,12 @@ describe('AccountsApiBalanceFetcher', () => {
       const responseWithLargeNumber: GetBalancesResponse = {
         count: 1,
         balances: [
-          {
-            object: 'token',
+          createMockERCTokenBalance({
             address: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
             symbol: 'SHIB',
             name: 'Shiba Inu',
-            decimals: 18,
-            chainId: 1,
             balance: '123456789123456789.123456789123456789', // Very large with high precision
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
+          }),
         ],
         unprocessedNetworks: [],
       };
@@ -1920,19 +1789,7 @@ describe('AccountsApiBalanceFetcher', () => {
     it('should handle zero balances correctly', async () => {
       const responseWithZeroBalance: GetBalancesResponse = {
         count: 1,
-        balances: [
-          {
-            object: 'token',
-            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-            symbol: 'DAI',
-            name: 'Dai',
-            decimals: 18,
-            chainId: 1,
-            balance: '0',
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
-        ],
+        balances: [createMockERCTokenBalance({ name: 'Dai', balance: '0' })],
         unprocessedNetworks: [],
       };
 
@@ -1956,17 +1813,10 @@ describe('AccountsApiBalanceFetcher', () => {
       const responseWithDecimalStart: GetBalancesResponse = {
         count: 1,
         balances: [
-          {
-            object: 'token',
-            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-            symbol: 'DAI',
+          createMockERCTokenBalance({
             name: 'Dai',
-            decimals: 18,
-            chainId: 1,
             balance: '.123456789', // Starts with decimal point
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
+          }),
         ],
         unprocessedNetworks: [],
       };
@@ -1994,17 +1844,10 @@ describe('AccountsApiBalanceFetcher', () => {
       const precisionTestResponse: GetBalancesResponse = {
         count: 1,
         balances: [
-          {
-            object: 'token',
-            address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-            symbol: 'DAI',
+          createMockERCTokenBalance({
             name: 'Dai',
-            decimals: 18,
-            chainId: 1,
             balance: '1234567890123456.123456789012345678', // High precision that would cause floating-point issues
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
+          }),
         ],
         unprocessedNetworks: [],
       };
@@ -2048,17 +1891,9 @@ describe('AccountsApiBalanceFetcher', () => {
       const responseWithZeroBalance: GetBalancesResponse = {
         count: 1,
         balances: [
-          {
-            object: 'token',
-            address: '0x0000000000000000000000000000000000000000',
-            symbol: 'ETH',
-            name: 'Ether',
-            decimals: 18,
-            chainId: 1,
+          createMockNativeTokenBalance({
             balance: '0', // Just "0", no decimal point - tests integerPart='0', decimalPart=''
-            accountAddress:
-              'eip155:1:0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-          },
+          }),
         ],
         unprocessedNetworks: [],
       };
