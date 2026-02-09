@@ -550,7 +550,6 @@ function getBaseUrl(
   environment: RampsEnvironment,
   service: RampsApiService,
 ): string {
-  return 'http://localhost:3000';
   const cache = service === RampsApiService.Regions ? '-cache' : '';
 
   switch (environment) {
