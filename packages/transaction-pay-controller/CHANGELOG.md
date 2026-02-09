@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^65.3.0` to `^66.0.0` ([#7862](https://github.com/MetaMask/core/pull/7862))
+- Bump `@metamask/transaction-controller` from `^62.14.0` to `^62.16.0` ([#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872))
+- Bump `@metamask/assets-controllers` from `^99.2.0` to `^99.3.1` ([#7855](https://github.com/MetaMask/core/pull/7855), [#7860](https://github.com/MetaMask/core/pull/7860))
+
+## [12.2.0]
+
 ### Added
 
 - Generate required tokens using `requiredAssets` from transaction metadata ([#7820](https://github.com/MetaMask/core/pull/7820))
@@ -21,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^65.2.0` to `^65.3.0` ([#7837](https://github.com/MetaMask/core/pull/7837))
+- Bump `@metamask/bridge-status-controller` from `^65.0.1` to `^66.0.0` ([#7850](https://github.com/MetaMask/core/pull/7850))
 
 ## [12.1.0]
 
@@ -344,7 +353,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.2.0...HEAD
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.1.0...@metamask/transaction-pay-controller@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.0.2...@metamask/transaction-pay-controller@12.1.0
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.0.1...@metamask/transaction-pay-controller@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@12.0.0...@metamask/transaction-pay-controller@12.0.1
