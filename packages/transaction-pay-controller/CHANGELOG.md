@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Generate required tokens using `requiredAssets` from transaction metadata ([#7820](https://github.com/MetaMask/core/pull/7820))
+- Add post-quote transaction support for withdrawal flows ([#7783](https://github.com/MetaMask/core/pull/7783))
+  - Add `setTransactionConfig` method replacing `setIsMaxAmount` and `setIsPostQuote`
+  - Add `TransactionConfig`, `TransactionConfigCallback` types
+  - Add `isPostQuote` to `TransactionData` and `QuoteRequest`
+  - Support reversed source/destination in Relay quotes for post-quote flows
+  - Add same-token-same-chain skip logic for post-quote transactions
+  - Add source amount fields (`sourceBalanceRaw`, `sourceChainId`, `sourceTokenAddress`) to `TransactionPaySourceAmount`
 
 ### Changed
 
