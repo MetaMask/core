@@ -54,7 +54,7 @@
     "@metamask/eth-hd-keyring": "^13.0.0",
     "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/eth-simple-keyring": "^11.0.0",
-    "@metamask/keyring-api": "^21.4.0",
+    "@metamask/keyring-api": "^21.5.0",
     "@metamask/keyring-internal-api": "^10.0.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/utils": "^11.9.0",
