@@ -388,6 +388,41 @@ function caipChainIdToHex(caipChainId: string): Hex | null {
 }
 
 /**
+ * Executes the actual fetch to the supported networks endpoint.
+ * Handles errors internally by falling back to the hardcoded list,
+ * and clears the in-flight promise when done.
+ *
+ * @returns The supported networks response.
+ */
+async function executeSupportedNetworksFetch(): Promise<SupportedNetworksResponse> {
+  try {
+    const url = `${BASE_URL_V2}/supportedNetworks`;
+    const response = await handleFetch(url, {
+      headers: { 'Cache-Control': 'no-cache' },
+    });
+
+    if (
+      response &&
+      typeof response === 'object' &&
+      'fullSupport' in response &&
+      'partialSupport' in response
+    ) {
+      lastFetchedSupportedNetworks = response as SupportedNetworksResponse;
+      return lastFetchedSupportedNetworks;
+    }
+
+    // Invalid response format, fall back to hardcoded list
+    return getSupportedNetworksFallback();
+  } catch {
+    // On any error, fall back to the hardcoded list
+    return getSupportedNetworksFallback();
+  } finally {
+    // Clear the in-flight promise once the request completes
+    runningSupportedNetworksRequest = null;
+  }
+}
+
+/**
  * Fetches the list of supported networks from the API.
  * Falls back to the hardcoded list if the fetch fails.
  * Deduplicates concurrent requests by returning the same promise if a fetch is already in progress.
@@ -401,34 +436,7 @@ export async function fetchSupportedNetworks(): Promise<SupportedNetworksRespons
   }
 
   // Start a new fetch and cache the promise
-  runningSupportedNetworksRequest =
-    (async (): Promise<SupportedNetworksResponse> => {
-      try {
-        const url = `${BASE_URL_V2}/supportedNetworks`;
-        const response = await handleFetch(url, {
-          headers: { 'Cache-Control': 'no-cache' },
-        });
-
-        if (
-          response &&
-          typeof response === 'object' &&
-          'fullSupport' in response &&
-          'partialSupport' in response
-        ) {
-          lastFetchedSupportedNetworks = response as SupportedNetworksResponse;
-          return lastFetchedSupportedNetworks;
-        }
-
-        // Invalid response format, fall back to hardcoded list
-        return getSupportedNetworksFallback();
-      } catch {
-        // On any error, fall back to the hardcoded list
-        return getSupportedNetworksFallback();
-      } finally {
-        // Clear the in-flight promise once the request completes
-        runningSupportedNetworksRequest = null;
-      }
-    })();
+  runningSupportedNetworksRequest = executeSupportedNetworksFetch();
 
   return runningSupportedNetworksRequest;
 }
