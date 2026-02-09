@@ -97,6 +97,15 @@ export abstract class AbstractDataSource<
   }
 
   /**
+   * Get currently active chains synchronously (no state duplication in controller).
+   *
+   * @returns Array of currently active chain IDs.
+   */
+  getActiveChainsSync(): ChainId[] {
+    return this.state.activeChains;
+  }
+
+  /**
    * Subscribe to updates for the given request.
    */
   abstract subscribe(request: SubscriptionRequest): Promise<void>;

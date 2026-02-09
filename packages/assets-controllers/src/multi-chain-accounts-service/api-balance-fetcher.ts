@@ -70,12 +70,24 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
   readonly #getProvider?: GetProviderFunction;
 
+  readonly #getUserTokens?: () => {
+    [accountId: ChecksumAddress]: {
+      [chainId: ChainIdHex]: { [tokenAddress: ChecksumAddress]: unknown };
+    };
+  };
+
   constructor(
     platform: 'extension' | 'mobile' = 'extension',
     getProvider?: GetProviderFunction,
+    getUserTokens?: () => {
+      [account: ChecksumAddress]: {
+        [chainId: ChainIdHex]: { [tokenAddress: ChecksumAddress]: unknown };
+      };
+    },
   ) {
     this.#platform = platform;
     this.#getProvider = getProvider;
+    this.#getUserTokens = getUserTokens;
   }
 
   supports(chainId: ChainIdHex): boolean {
@@ -329,7 +341,8 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     // Ensure native token entries exist for all addresses on all requested chains
     const ZERO_ADDRESS =
       '0x0000000000000000000000000000000000000000' as ChecksumAddress;
-    const nativeBalancesFromAPI = new Map<string, BN>(); // key: `${address}-${chainId}`
+    const nativeBalancesFromAPI = new Map<string, BN>(); // key: `${accountAddress}-${chainId}`
+    const nonNativeBalancesFromAPI = new Map<string, BN>(); // key: `${accountAddress}-${tokenAddress}-${chainId}`
 
     // Process regular API balances
     if (apiResponse.balances) {
@@ -373,6 +386,13 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
             nativeBalancesFromAPI.set(`${finalAccount}-${chainId}`, value);
           }
 
+          if (token !== ZERO_ADDRESS && value !== undefined) {
+            nonNativeBalancesFromAPI.set(
+              `${finalAccount.toLowerCase()}-${token.toLowerCase()}-${chainId}`,
+              value,
+            );
+          }
+
           return [
             {
               success: value !== undefined,
@@ -405,6 +425,30 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
         }
       });
     });
+
+    // Add zero erc-20 balance entries for addresses that API didn't return
+    if (this.#getUserTokens) {
+      const userTokens = this.#getUserTokens();
+      Object.entries(userTokens).forEach(([account, chains]) => {
+        Object.entries(chains).forEach(([chainId, tokens]) => {
+          Object.entries(tokens).forEach(([tokenAddress]) => {
+            const tokenLowerCase = tokenAddress.toLowerCase();
+            const key = `${account.toLowerCase()}-${tokenLowerCase}-${chainId}`;
+            const isERC = tokenAddress !== ZERO_ADDRESS;
+            const existingBalance = nonNativeBalancesFromAPI.get(key);
+            if (isERC && !existingBalance) {
+              results.push({
+                success: true,
+                value: new BN('0'),
+                account: account as ChecksumAddress,
+                token: tokenLowerCase as ChecksumAddress,
+                chainId: chainId as ChainIdHex,
+              });
+            }
+          });
+        });
+      });
+    }
 
     // Add staked balances
     results.push(...stakedBalances);

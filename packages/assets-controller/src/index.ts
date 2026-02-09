@@ -72,9 +72,6 @@ export type {
   FetchContext,
   FetchNextFunction,
   FetchMiddleware,
-  // Data source registration
-  DataSourceDefinition,
-  RegisteredDataSource,
   SubscriptionResponse,
   // Combined asset type
   Asset,
@@ -157,3 +154,17 @@ export { DetectionMiddleware } from './middlewares';
 
 // Utilities
 export { normalizeAssetId } from './utils';
+
+// Selectors
+export {
+  getAggregatedBalanceForAccount,
+  getGroupIdForAccount,
+  getInternalAccountsForGroup,
+} from './selectors/balance';
+
+export type {
+  AccountsById,
+  AggregatedBalanceEntry,
+  AggregatedBalanceForAccount,
+  EnabledNetworkMap,
+} from './selectors/balance';

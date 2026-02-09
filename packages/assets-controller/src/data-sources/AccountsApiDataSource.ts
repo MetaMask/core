@@ -51,8 +51,12 @@ const defaultState: AccountsApiDataSourceState = {
 export type AccountsApiDataSourceOptions = {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
-  /** Called when active chains are updated (e.g. to sync BackendWebsocketDataSource). */
-  onActiveChainsUpdated: (chains: ChainId[]) => void;
+  /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
   pollInterval?: number;
   state?: Partial<AccountsApiDataSourceState>;
 };
@@ -104,7 +108,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
   typeof CONTROLLER_NAME,
   AccountsApiDataSourceState
 > {
-  readonly #onActiveChainsUpdated: (chains: ChainId[]) => void;
+  readonly #onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
 
   readonly #pollInterval: number;
 
@@ -134,8 +142,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
   async #initializeActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
+      const previous = [...this.state.activeChains];
       this.updateActiveChains(chains, (updatedChains) =>
-        this.#onActiveChainsUpdated(updatedChains),
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
       );
 
       // Periodically refresh active chains (every 20 minutes)
@@ -163,8 +172,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
       );
 
       if (added.length > 0 || removed.length > 0) {
+        const previous = [...this.state.activeChains];
         this.updateActiveChains(chains, (updatedChains) =>
-          this.#onActiveChainsUpdated(updatedChains),
+          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
         );
       }
     } catch (error) {

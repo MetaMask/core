@@ -384,17 +384,6 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('registerDataSources', () => {
-    it('registers data sources in constructor', async () => {
-      await withController(({ controller }) => {
-        // The controller registers these data sources in the constructor:
-        // 'BackendWebsocketDataSource', 'AccountsApiDataSource', 'SnapDataSource', 'RpcDataSource'
-        // We verify initialization completed without error
-        expect(controller.state).toBeDefined();
-      });
-    });
-  });
-
   describe('getAssetMetadata', () => {
     it('returns metadata for existing asset', async () => {
       const initialState: Partial<AssetsControllerState> = {
@@ -489,7 +478,7 @@ describe('AssetsController', () => {
   describe('handleActiveChainsUpdate', () => {
     it('updates data source chains', async () => {
       await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1']);
+        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
 
         // Should not throw
         expect(controller.state).toBeDefined();
@@ -498,7 +487,7 @@ describe('AssetsController', () => {
 
     it('handles empty chains array', async () => {
       await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', []);
+        controller.handleActiveChainsUpdate('TestDataSource', [], []);
 
         expect(controller.state).toBeDefined();
       });
@@ -507,10 +496,10 @@ describe('AssetsController', () => {
     it('triggers fetch when chains are added', async () => {
       await withController(async ({ controller }) => {
         // First set no chains
-        controller.handleActiveChainsUpdate('TestDataSource', []);
+        controller.handleActiveChainsUpdate('TestDataSource', [], []);
 
         // Then add chains - this should trigger fetch for added chains
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1']);
+        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
 
         // Allow async operations to complete
         await new Promise(process.nextTick);

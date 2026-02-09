@@ -517,23 +517,7 @@ export type FetchNextFunction = NextFunction;
 export type FetchMiddleware = Middleware;
 
 /**
- * Data source ID.
- *
- * Data sources follow a standard messenger pattern:
- * - `${id}:getActiveChains` - action to get active chains
- * - `${id}:activeChainsUpdated` - event when chains change
- *
- * Registration order determines subscription order.
- */
-export type DataSourceDefinition = string;
-
-/**
- * Registered data source
- */
-export type RegisteredDataSource = DataSourceDefinition;
-
-/**
- * Subscription response
+ * Subscription response returned when subscribing to asset updates.
  */
 export type SubscriptionResponse = {
   /** Chains actively subscribed */

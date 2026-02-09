@@ -542,6 +542,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     const originalFetcher = new AccountsApiBalanceFetcher(
       this.#platform,
       this.#getProvider,
+      () => this.state.tokenBalances, // list of existing user tokens
     );
 
     return {
