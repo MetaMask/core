@@ -83,6 +83,12 @@ export type TransactionPayControllerUpdatePaymentTokenAction = {
   handler: (request: UpdatePaymentTokenRequest) => void;
 };
 
+/** Action to update transaction configuration using a callback. */
+export type TransactionPayControllerSetTransactionConfigAction = {
+  type: `${typeof CONTROLLER_NAME}:setTransactionConfig`;
+  handler: (transactionId: string, callback: TransactionConfigCallback) => void;
+};
+
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
   /** Whether the user has selected the maximum amount. */
@@ -98,12 +104,6 @@ export type TransactionConfig = {
 
 /** Callback to update transaction config. */
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
-
-/** Action to update transaction configuration using a callback. */
-export type TransactionPayControllerSetTransactionConfigAction = {
-  type: `${typeof CONTROLLER_NAME}:setTransactionConfig`;
-  handler: (transactionId: string, callback: TransactionConfigCallback) => void;
-};
 
 export type TransactionPayControllerStateChangeEvent =
   ControllerStateChangeEvent<
