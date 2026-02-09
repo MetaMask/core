@@ -303,20 +303,25 @@ async function submitTransactions(
 
   // For post-quote flows, prepend the original transaction params
   // so it gets included in the batch alongside the relay deposit(s)
-  const allParams =
-    isPostQuote && transaction.txParams.to
-      ? [
-          {
-            data: transaction.txParams.data as Hex | undefined,
-            to: transaction.txParams.to as Hex,
-            value: transaction.txParams.value as Hex | undefined,
-          },
-          ...normalizedParams,
-        ]
-      : normalizedParams;
+  if (isPostQuote && !transaction.txParams.to) {
+    throw new Error(
+      'Post-quote flow requires a recipient address on the original transaction',
+    );
+  }
 
-  const allGasLimits =
-    isPostQuote && transaction.txParams.to ? [0, ...gasLimits] : gasLimits;
+  const allParams = isPostQuote
+    ? [
+        {
+          ...transaction.txParams,
+          data: transaction.txParams.data as Hex | undefined,
+          to: transaction.txParams.to as Hex,
+          value: transaction.txParams.value as Hex | undefined,
+        } satisfies TransactionParams,
+        ...normalizedParams,
+      ]
+    : normalizedParams;
+
+  const allGasLimits = isPostQuote ? [0, ...gasLimits] : gasLimits;
 
   log('Adding transactions', {
     normalizedParams: allParams,

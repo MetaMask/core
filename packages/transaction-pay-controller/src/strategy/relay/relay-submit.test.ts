@@ -541,6 +541,22 @@ describe('Relay Submit Utils', () => {
         );
       });
 
+      it('throws if original transaction has no recipient address', async () => {
+        request.transaction = {
+          id: ORIGINAL_TRANSACTION_ID_MOCK,
+          txParams: {
+            from: FROM_MOCK,
+            data: '0xorigdata' as Hex,
+            value: '0x100' as Hex,
+          },
+          type: TransactionType.simpleSend,
+        } as TransactionMeta;
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Post-quote flow requires a recipient address on the original transaction',
+        );
+      });
+
       it('sets gas to undefined when gasLimits entry is missing', async () => {
         request.quotes[0].original.metamask.gasLimits = [];
 
