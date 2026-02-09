@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [7.1.0]
 
 ### Fixed
-
 - Fixes quote race condition bug with missing payment method ([#7863](https://github.com/MetaMask/core/pull/7863))
 
 ## [7.0.0]
