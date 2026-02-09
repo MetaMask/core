@@ -139,6 +139,27 @@ function setupTransactionCollection({
 }
 
 /**
+ * Determine the transaction type for a given index in the batch.
+ *
+ * @param isPostQuote - Whether this is a post-quote flow.
+ * @param index - Index of the transaction in the batch.
+ * @param originalType - Type of the original transaction (used for post-quote index 0).
+ * @returns The transaction type.
+ */
+function getTransactionType(
+  isPostQuote: boolean | undefined,
+  index: number,
+  originalType: TransactionMeta['type'],
+): TransactionMeta['type'] {
+  if (isPostQuote && index === 0) {
+    return originalType;
+  }
+  return index === 0
+    ? TransactionType.tokenMethodApprove
+    : TransactionType.relayDeposit;
+}
+
+/**
  * Submits Relay quotes.
  *
  * @param request - Request object.
@@ -321,7 +342,7 @@ async function submitTransactions(
       ]
     : normalizedParams;
 
-  const allGasLimits = isPostQuote ? [0, ...gasLimits] : gasLimits;
+  const allGasLimits = isPostQuote ? [undefined, ...gasLimits] : gasLimits;
 
   log('Adding transactions', {
     normalizedParams: allParams,
@@ -354,10 +375,11 @@ async function submitTransactions(
       : undefined;
 
   if (allParams.length === 1) {
+    const gasLimit = allGasLimits[0];
     const transactionParams = {
       ...allParams[0],
       authorizationList,
-      gas: toHex(allGasLimits[0]),
+      gas: gasLimit === undefined ? undefined : toHex(gasLimit),
     };
 
     result = await messenger.call(
@@ -373,24 +395,27 @@ async function submitTransactions(
     );
   } else {
     const gasLimit7702 =
-      allGasLimits.length === 1 ? toHex(allGasLimits[0]) : undefined;
+      allGasLimits.length === 1 && allGasLimits[0] !== undefined
+        ? toHex(allGasLimits[0])
+        : undefined;
 
-    const transactions = allParams.map((singleParams, index) => ({
-      params: {
-        data: singleParams.data as Hex,
-        gas: gasLimit7702 ? undefined : toHex(allGasLimits[index]),
-        maxFeePerGas: singleParams.maxFeePerGas as Hex,
-        maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
-        to: singleParams.to as Hex,
-        value: singleParams.value as Hex,
-      },
-      type:
-        isPostQuote && index === 0
-          ? transaction.type
-          : index === 0
-            ? TransactionType.tokenMethodApprove
-            : TransactionType.relayDeposit,
-    }));
+    const transactions = allParams.map((singleParams, index) => {
+      const gasLimit = allGasLimits[index];
+      const gas =
+        gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
+
+      return {
+        params: {
+          data: singleParams.data as Hex,
+          gas,
+          maxFeePerGas: singleParams.maxFeePerGas as Hex,
+          maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
+          to: singleParams.to as Hex,
+          value: singleParams.value as Hex,
+        },
+        type: getTransactionType(isPostQuote, index, transaction.type),
+      };
+    });
 
     await messenger.call('TransactionController:addTransactionBatch', {
       from,
