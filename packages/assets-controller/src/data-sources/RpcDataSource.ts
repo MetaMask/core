@@ -151,8 +151,12 @@ export type RpcDataSourceConfig = {
 export type RpcDataSourceOptions = {
   /** The AssetsController messenger (shared by all data sources). */
   messenger: AssetsControllerMessenger;
-  /** Called when active chains are updated (e.g. to notify AssetsController). */
-  onActiveChainsUpdated: (chains: ChainId[]) => void;
+  /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
   /** Request timeout in ms */
   timeout?: number;
   /** Balance polling interval in ms (default: 30s) */
@@ -221,7 +225,11 @@ export class RpcDataSource extends AbstractDataSource<
 > {
   readonly #messenger: AssetsControllerMessenger;
 
-  readonly #onActiveChainsUpdated: (chains: ChainId[]) => void;
+  readonly #onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
 
   readonly #timeout: number;
 
@@ -582,19 +590,22 @@ export class RpcDataSource extends AbstractDataSource<
     });
 
     // Check if chains changed
-    const previousChains = new Set(this.#activeChains);
+    const previousChains = [...this.#activeChains];
+    const previousSet = new Set(previousChains);
     const hasChanges =
-      previousChains.size !== activeChains.length ||
-      activeChains.some((chain) => !previousChains.has(chain));
+      previousChains.length !== activeChains.length ||
+      activeChains.some((chain) => !previousSet.has(chain));
 
-    // Update internal state
+    // Update internal state and data source state before notifying, so that
+    // when the controller handles the callback and calls getActiveChainsSync(),
+    // it receives the updated chains (same order as AbstractDataSource.updateActiveChains).
     this.#chainStatuses = chainStatuses;
     this.#activeChains = activeChains;
+    this.state.activeChains = activeChains;
 
     if (hasChanges) {
-      this.#onActiveChainsUpdated(activeChains);
+      this.#onActiveChainsUpdated(this.getName(), activeChains, previousChains);
     }
-    this.state.activeChains = activeChains;
   }
 
   #getProvider(chainId: ChainId): Web3Provider | undefined {

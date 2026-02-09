@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [62.15.0]
+## [62.16.0]
 
 ### Added
 
 - Add event-driven transaction polling via `AccountActivityService:transactionUpdated` ([#7822](https://github.com/MetaMask/core/pull/7822))
+
+## [62.15.0]
+
+### Added
+
 - Add optional `requiredAssets` to `TransactionMeta` ([#7820](https://github.com/MetaMask/core/pull/7820))
   - Provided by new options in `addTransaction` and `addTransactionBatch`.
 
@@ -2149,7 +2154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.15.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.16.0...HEAD
+[62.16.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.15.0...@metamask/transaction-controller@62.16.0
 [62.15.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.14.0...@metamask/transaction-controller@62.15.0
 [62.14.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.13.0...@metamask/transaction-controller@62.14.0
 [62.13.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.12.0...@metamask/transaction-controller@62.13.0
