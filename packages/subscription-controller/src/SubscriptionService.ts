@@ -9,6 +9,7 @@ import {
   getErrorFromResponse,
   SubscriptionServiceError,
 } from './errors';
+import { createModuleLogger, projectLogger } from './logger';
 import type {
   AssignCohortRequest,
   AuthUtils,
@@ -42,6 +43,8 @@ export type SubscriptionServiceConfig = {
 
 export const SUBSCRIPTION_URL = (env: Env, path: string): string =>
   `${getEnvUrls(env).subscriptionApiUrl}/v1/${path}`;
+
+const log = createModuleLogger(projectLogger, 'SubscriptionService');
 
 export class SubscriptionService implements ISubscriptionService {
   readonly #env: Env;
@@ -329,7 +332,7 @@ export class SubscriptionService implements ISubscriptionService {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error(errorMessage, error);
+      log(errorMessage, error);
 
       const errorMessageWithUrl = `${errorMessage} (url: ${url.toString()})`;
       const errorToCapture =
