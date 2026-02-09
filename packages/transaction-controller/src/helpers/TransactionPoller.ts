@@ -8,7 +8,6 @@ import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { getAcceleratedPollingParams } from '../utils/feature-flags';
-import { caip2ToHex } from '../utils/utils';
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
 
@@ -214,24 +213,10 @@ export class TransactionPoller {
       return;
     }
 
-    const hexChainId = caip2ToHex(transaction.chain);
-    if (hexChainId !== this.#chainId) {
-      return;
-    }
-
     if (
       transaction.status !== 'confirmed' &&
       transaction.status !== 'dropped' &&
       transaction.status !== 'failed'
-    ) {
-      return;
-    }
-
-    const selectedAccount = this.#messenger.call(
-      'AccountsController:getSelectedAccount',
-    );
-    if (
-      selectedAccount.address.toLowerCase() !== transaction.from.toLowerCase()
     ) {
       return;
     }
