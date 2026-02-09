@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
+  - Add logic in the `createMultichainAccountWallet` method in `MultichainAccountService` so that it can handle all entry points: importing an SRP, recovering a vault and creating a new vault.
+  - Add a `getAccountIds` method which returns all the account ids pertaining to a group.
+  - Add an `addAccounts` method on the `BaseBip44AccountProvider` class which keeps track of all the account IDs that pertain to it.
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
@@ -123,7 +130,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
+  - The `MultichainAccountService` is refactored to construct a top level service state for its `init` function, this state is passed down to the `MultichainAccountWallet` and `MultichainAccountGroup` classes in slices for them to construct their internal states.
+  - Additional state is generated at the entry points where it needs to be updated i.e. `createMultichainAccountGroup`, `discoverAccounts` and `alignAccounts`.
+  - We no longer prevent group creation if some providers' `createAccounts` calls fail during group creation, only if they all fail.
+  - The `getAccounts` method in the `BaseBip44AccountProvider` class no longer relies on fetching the entire list of internal accounts from the `AccountsController`, instead it gets the specific accounts that it stores in its internal accounts list.
+  - The `EvmAccountProvider` no longer fetches from the `AccountController` to get an account for its ID, we deterministically get the associated account ID through `getUUIDFromAddressOfNormalAccount`.
+  - The `EvmAccountProvider` now uses the `getAccount` method from the `AccountsController` when fetching an account after account creation as it is more efficient.
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+### Removed
+
+- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
+  - Remove `#handleOnAccountAdded` and `#handleOnAccountRemoved` methods in `MultichainAccountService` due to internal state being updated within the service.
+  - Remove `getAccountContext` (and associated map) in the `MultichainAccountService` as the service no longer uses that method.
+  - Remove the `sync` method in favor of the sole `init` method for both `MultichainAccountWallet` and `MultichainAccountGroup`.
 
 ## [1.6.1]
 

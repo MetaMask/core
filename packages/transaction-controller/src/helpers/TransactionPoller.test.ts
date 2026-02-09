@@ -1,3 +1,4 @@
+import type { Transaction } from '@metamask/core-backend';
 import type { BlockTracker } from '@metamask/network-controller';
 
 import { TransactionPoller } from './TransactionPoller';
@@ -18,11 +19,23 @@ const BLOCK_TRACKER_MOCK = {
   removeListener: jest.fn(),
 } as unknown as jest.Mocked<BlockTracker>;
 
-const MESSENGER_MOCK = {
-  call: jest.fn().mockReturnValue({
-    remoteFeatureFlags: {},
-  }),
-} as unknown as jest.Mocked<TransactionControllerMessenger>;
+const SELECTED_ACCOUNT_MOCK = {
+  address: '0x123',
+};
+
+const createMessengerMock = (): jest.Mocked<TransactionControllerMessenger> =>
+  ({
+    call: jest.fn().mockImplementation((action: string) => {
+      if (action === 'AccountsController:getSelectedAccount') {
+        return SELECTED_ACCOUNT_MOCK;
+      }
+      return {};
+    }),
+    subscribe: jest.fn(),
+    unsubscribe: jest.fn(),
+  }) as unknown as jest.Mocked<TransactionControllerMessenger>;
+
+let MESSENGER_MOCK: jest.Mocked<TransactionControllerMessenger>;
 
 jest.mock('../utils/feature-flags', () => ({
   getAcceleratedPollingParams: (): {
@@ -32,23 +45,24 @@ jest.mock('../utils/feature-flags', () => ({
     countMax: DEFAULT_ACCELERATED_COUNT_MAX,
     intervalMs: DEFAULT_ACCELERATED_POLLING_INTERVAL_MS,
   }),
-  FEATURE_FLAG_TRANSACTIONS: 'confirmations_transactions',
 }));
 
 /**
  * Creates a mock transaction metadata object.
  *
  * @param id - The transaction ID.
+ * @param hash - The transaction hash.
  * @returns The mock transaction metadata object.
  */
-function createTransactionMetaMock(id: string): TransactionMeta {
-  return { id } as TransactionMeta;
+function createTransactionMetaMock(id: string, hash?: string): TransactionMeta {
+  return { id, hash } as TransactionMeta;
 }
 
 describe('TransactionPoller', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     jest.clearAllTimers();
+    MESSENGER_MOCK = createMessengerMock();
   });
 
   describe('Accelerated Polling', () => {
@@ -334,5 +348,356 @@ describe('TransactionPoller', () => {
         );
       },
     );
+  });
+
+  describe('AccountActivityService:transactionUpdated event', () => {
+    it('subscribes to event when started', () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const listener = jest.fn();
+      poller.start(listener);
+
+      expect(MESSENGER_MOCK.subscribe).toHaveBeenCalledWith(
+        'AccountActivityService:transactionUpdated',
+        expect.any(Function),
+      );
+    });
+
+    it('unsubscribes from event when stopped', () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const listener = jest.fn();
+      poller.start(listener);
+      poller.stop();
+
+      expect(MESSENGER_MOCK.unsubscribe).toHaveBeenCalledWith(
+        'AccountActivityService:transactionUpdated',
+        expect.any(Function),
+      );
+    });
+
+    it.each(['confirmed', 'dropped', 'failed'] as const)(
+      'triggers interval when transaction with matching chainId and %s status is received',
+      async (status) => {
+        const poller = new TransactionPoller({
+          blockTracker: BLOCK_TRACKER_MOCK,
+          messenger: MESSENGER_MOCK,
+          chainId: CHAIN_ID_MOCK,
+        });
+
+        BLOCK_TRACKER_MOCK.getLatestBlock.mockResolvedValue(BLOCK_NUMBER_MOCK);
+
+        poller.setPendingTransactions([
+          createTransactionMetaMock('tx1', '0xabc'),
+        ]);
+
+        const listener = jest.fn();
+        poller.start(listener);
+
+        const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+          (call) => call[0] === 'AccountActivityService:transactionUpdated',
+        );
+        const eventHandler = subscribeCall?.[1] as (
+          transaction: Transaction,
+        ) => void;
+
+        const transaction: Transaction = {
+          id: '0xabc',
+          chain: 'eip155:1',
+          status,
+          timestamp: Date.now(),
+          from: '0x123',
+          to: '0x456',
+        };
+
+        eventHandler(transaction);
+        await flushPromises();
+
+        expect(listener).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('does not trigger interval when transaction with non-matching chainId is received', async () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const listener = jest.fn();
+      poller.start(listener);
+
+      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountActivityService:transactionUpdated',
+      );
+      const eventHandler = subscribeCall?.[1] as (
+        transaction: Transaction,
+      ) => void;
+
+      const transaction: Transaction = {
+        id: '0xabc',
+        chain: 'eip155:137', // Different chain
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: '0x123',
+        to: '0x456',
+      };
+
+      eventHandler(transaction);
+      await flushPromises();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger interval when transaction with pending status is received', async () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const listener = jest.fn();
+      poller.start(listener);
+
+      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountActivityService:transactionUpdated',
+      );
+      const eventHandler = subscribeCall?.[1] as (
+        transaction: Transaction,
+      ) => void;
+
+      const transaction: Transaction = {
+        id: '0xabc',
+        chain: 'eip155:1',
+        status: 'pending',
+        timestamp: Date.now(),
+        from: '0x123',
+        to: '0x456',
+      };
+
+      eventHandler(transaction);
+      await flushPromises();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger interval when transaction is from a different address than the selected account', async () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const listener = jest.fn();
+      poller.start(listener);
+
+      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountActivityService:transactionUpdated',
+      );
+      const eventHandler = subscribeCall?.[1] as (
+        transaction: Transaction,
+      ) => void;
+
+      const transaction: Transaction = {
+        id: '0xabc',
+        chain: 'eip155:1',
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: '0x999',
+        to: '0x456',
+      };
+
+      eventHandler(transaction);
+      await flushPromises();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('triggers interval when transaction from address matches selected account (case-insensitive)', async () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      BLOCK_TRACKER_MOCK.getLatestBlock.mockResolvedValue(BLOCK_NUMBER_MOCK);
+
+      poller.setPendingTransactions([
+        createTransactionMetaMock('tx1', '0xabc'),
+      ]);
+
+      const listener = jest.fn();
+      poller.start(listener);
+
+      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountActivityService:transactionUpdated',
+      );
+      const eventHandler = subscribeCall?.[1] as (
+        transaction: Transaction,
+      ) => void;
+
+      const transaction: Transaction = {
+        id: '0xabc',
+        chain: 'eip155:1',
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: '0X123',
+        to: '0x456',
+      };
+
+      eventHandler(transaction);
+      await flushPromises();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not trigger interval when poller is stopped', async () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const listener = jest.fn();
+      poller.start(listener);
+
+      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountActivityService:transactionUpdated',
+      );
+      const eventHandler = subscribeCall?.[1] as (
+        transaction: Transaction,
+      ) => void;
+
+      poller.stop();
+
+      const transaction: Transaction = {
+        id: '0xabc',
+        chain: 'eip155:1',
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: '0x123',
+        to: '0x456',
+      };
+
+      eventHandler(transaction);
+      await flushPromises();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger interval when transaction id does not match any pending transaction hash', async () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      poller.setPendingTransactions([
+        createTransactionMetaMock('tx1', '0xdef'),
+        createTransactionMetaMock('tx2', '0xghi'),
+      ]);
+
+      const listener = jest.fn();
+      poller.start(listener);
+
+      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountActivityService:transactionUpdated',
+      );
+      const eventHandler = subscribeCall?.[1] as (
+        transaction: Transaction,
+      ) => void;
+
+      const transaction: Transaction = {
+        id: '0xabc',
+        chain: 'eip155:1',
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: '0x123',
+        to: '0x456',
+      };
+
+      eventHandler(transaction);
+      await flushPromises();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger interval when no pending transactions are set', async () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const listener = jest.fn();
+      poller.start(listener);
+
+      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountActivityService:transactionUpdated',
+      );
+      const eventHandler = subscribeCall?.[1] as (
+        transaction: Transaction,
+      ) => void;
+
+      const transaction: Transaction = {
+        id: '0xabc',
+        chain: 'eip155:1',
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: '0x123',
+        to: '0x456',
+      };
+
+      eventHandler(transaction);
+      await flushPromises();
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('triggers interval when transaction id matches pending transaction hash (case-insensitive)', async () => {
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      BLOCK_TRACKER_MOCK.getLatestBlock.mockResolvedValue(BLOCK_NUMBER_MOCK);
+
+      poller.setPendingTransactions([
+        createTransactionMetaMock('tx1', '0xABC'),
+      ]);
+
+      const listener = jest.fn();
+      poller.start(listener);
+
+      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
+        (call) => call[0] === 'AccountActivityService:transactionUpdated',
+      );
+      const eventHandler = subscribeCall?.[1] as (
+        transaction: Transaction,
+      ) => void;
+
+      const transaction: Transaction = {
+        id: '0xabc',
+        chain: 'eip155:1',
+        status: 'confirmed',
+        timestamp: Date.now(),
+        from: '0x123',
+        to: '0x456',
+      };
+
+      eventHandler(transaction);
+      await flushPromises();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
   });
 });

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/eth-json-rpc-middleware` from `^23.0.0` to `^23.1.0` ([#7810](https://github.com/MetaMask/core/pull/7810))
+- Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
 
 ## [29.0.0]
 
