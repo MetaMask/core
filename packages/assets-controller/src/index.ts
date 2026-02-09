@@ -154,3 +154,17 @@ export { DetectionMiddleware } from './middlewares';
 
 // Utilities
 export { normalizeAssetId } from './utils';
+
+// Selectors
+export {
+  getAggregatedBalanceForAccount,
+  getGroupIdForAccount,
+  getInternalAccountsForGroup,
+} from './selectors/balance';
+
+export type {
+  AccountsById,
+  AggregatedBalanceEntry,
+  AggregatedBalanceForAccount,
+  EnabledNetworkMap,
+} from './selectors/balance';
