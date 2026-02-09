@@ -119,3 +119,22 @@ export function wrapError<Throwable>(
 
   return new Error(String(originalError));
 }
+
+/**
+ * Ensures we have a proper Error object.
+ * If the input is already an Error, returns it unchanged.
+ * Otherwise, converts to an Error with an appropriate message and preserves
+ * the original value as the cause.
+ *
+ * @param error - The caught error (could be Error, string, or unknown).
+ * @returns A proper Error instance.
+ */
+export function ensureError(error: unknown): Error {
+  if (isError(error)) {
+    return error;
+  }
+
+  const newError: Error & { cause?: unknown } = new Error('Unknown error');
+  newError.cause = error;
+  return newError;
+}

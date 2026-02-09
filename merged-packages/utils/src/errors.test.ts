@@ -1,6 +1,7 @@
 import fs from 'fs';
 
 import {
+  ensureError,
   getErrorMessage,
   isErrorWithCode,
   isErrorWithMessage,
@@ -318,5 +319,70 @@ describe('getErrorMessage', () => {
 
   it('returns an empty string if given undefined', () => {
     expect(getErrorMessage(undefined)).toBe('');
+  });
+});
+
+describe('ensureError', () => {
+  it('returns Error instance unchanged', () => {
+    const originalError = new Error('original message');
+    const result = ensureError(originalError);
+
+    expect(result).toBe(originalError);
+    expect(result.message).toBe('original message');
+  });
+
+  it('returns fs.promises-style error unchanged', async () => {
+    let originalError;
+    try {
+      await fs.promises.readFile('/tmp/nonexistent', 'utf8');
+    } catch (error: unknown) {
+      originalError = error;
+    }
+
+    const result = ensureError(originalError);
+
+    expect(result).toBe(originalError);
+  });
+
+  it('converts string to Error and preserves original as cause', () => {
+    const result = ensureError('something went wrong');
+
+    expect(result).toBeInstanceOf(Error);
+    expect(result.message).toBe('Unknown error');
+    expect(result.cause).toBe('something went wrong');
+  });
+
+  it('converts object to Error and preserves original as cause', () => {
+    const originalObject = { some: 'object' };
+    const result = ensureError(originalObject);
+
+    expect(result).toBeInstanceOf(Error);
+    expect(result.message).toBe('Unknown error');
+    expect(result.cause).toBe(originalObject);
+  });
+
+  it('handles null with descriptive message', () => {
+    const result = ensureError(null);
+
+    expect(result).toBeInstanceOf(Error);
+    expect(result.message).toBe('Unknown error');
+    expect(result.cause).toBeNull();
+  });
+
+  it('handles undefined with descriptive message', () => {
+    const result = ensureError(undefined);
+
+    expect(result).toBeInstanceOf(Error);
+    expect(result.message).toBe('Unknown error');
+    expect(result.cause).toBeUndefined();
+  });
+
+  it('preserves stack trace for Error instances', () => {
+    const originalError = new Error('original message');
+    const originalStack = originalError.stack;
+
+    const result = ensureError(originalError);
+
+    expect(result.stack).toBe(originalStack);
   });
 });

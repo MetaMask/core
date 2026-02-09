@@ -93,6 +93,7 @@ describe('node', () => {
         "definePattern",
         "directoryExists",
         "ensureDirectoryStructureExists",
+        "ensureError",
         "exactOptional",
         "fileExists",
         "forceRemove",

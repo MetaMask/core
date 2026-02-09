@@ -90,6 +90,7 @@ describe('index', () => {
         "createNumber",
         "createProjectLogger",
         "definePattern",
+        "ensureError",
         "exactOptional",
         "fromWei",
         "getChecksumAddress",
