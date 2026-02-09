@@ -9,19 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.0.0]
 
-### Uncategorized
-
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-
-### Added
+### Changed
 
 - **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
   - Add logic in the `createMultichainAccountWallet` method in `MultichainAccountService` so that it can handle all entry points: importing an SRP, recovering a vault and creating a new vault.
   - Add a `getAccountIds` method which returns all the account ids pertaining to a group.
   - Add an `addAccounts` method on the `BaseBip44AccountProvider` class which keeps track of all the account IDs that pertain to it.
-
-### Changed
-
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
 
 ## [5.1.0]
