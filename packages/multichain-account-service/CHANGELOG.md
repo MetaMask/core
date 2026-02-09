@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
 ### Uncategorized
 
 - chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
@@ -370,7 +372,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...@metamask/multichain-account-service@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.0.0...@metamask/multichain-account-service@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.1.0...@metamask/multichain-account-service@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.1...@metamask/multichain-account-service@4.1.0

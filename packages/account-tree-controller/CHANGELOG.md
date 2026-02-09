@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0]
+
 ### Uncategorized
 
 - chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
@@ -436,7 +438,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@4.0.0...@metamask/account-tree-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@3.0.0...@metamask/account-tree-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@2.0.0...@metamask/account-tree-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@1.6.0...@metamask/account-tree-controller@2.0.0

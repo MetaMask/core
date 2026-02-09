@@ -51,7 +51,7 @@
     "@ethereumjs/util": "^9.1.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/account-tree-controller": "^4.0.0",
+    "@metamask/account-tree-controller": "^4.1.0",
     "@metamask/base-controller": "^9.0.0",
     "@metamask/controller-utils": "^11.18.0",
     "@metamask/core-backend": "^5.1.0",
