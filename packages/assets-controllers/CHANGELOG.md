@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix trending tokens showing incorrect market cap values by adding `usePriceApiData` parameter (defaults to `true`) to use price API data for accurate market data ([#7829](https://github.com/MetaMask/core/pull/7829))
 - Bump `@metamask/transaction-controller` from `^62.13.0` to `^62.15.0` ([#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854))
 
+### Fixed
+
+- Ensure TokenBalancesController zeroes out ERC tokens that are not returned from Accounts API ([#7861](https://github.com/MetaMask/core/pull/7861))
+  - The Accounts API does not return tokens that are empty/have zero balance, but we need to make sure that the API service can return zero balance, so we can correctly update the TokenBalancesController state and prevent stale values (e.g. when a user swaps/sends all their balance for a given ERC-20 token - we need to update the state for that token to zero and not show the old value)
+
 ## [99.2.0]
 
 ### Added
