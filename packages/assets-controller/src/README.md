@@ -88,24 +88,9 @@ registerActionHandlers()
 └── AssetsController:assetsUpdate         // Data sources push asset updates
 ```
 
-#### 1.5 Register Data Sources
+#### 1.5 Balance data source priority
 
-```typescript
-registerDataSources([
-  'BackendWebsocketDataSource', // Real-time push updates (highest priority)
-  'AccountsApiDataSource', // HTTP polling fallback
-  'SnapDataSource', // Solana/Bitcoin/Tron snaps
-  'RpcDataSource', // Direct blockchain queries (lowest priority)
-]);
-```
-
-**Registration order determines subscription priority**:
-
-- Data sources are processed in registration order
-- Earlier sources get first pick for chain assignment
-- Later sources act as fallbacks for remaining chains
-
-Data sources report their active chains by calling `AssetsController:activeChainsUpdate` action.
+Built-in balance data sources are fixed and processed in priority order: BackendWebsocketDataSource, AccountsApiDataSource, SnapDataSource, RpcDataSource. Earlier sources get first pick for chain assignment; later sources act as fallbacks. Data sources report active chains via the `onActiveChainsUpdated` callback passed at construction.
 
 #### 1.6 Middleware Chains
 
@@ -145,15 +130,15 @@ When the keyring unlocks:
 ```
 start()  // Called by KeyringController:unlock
 │
-├── subscribeToDataSources()
+├── subscribeAssets()
 │   │
-│   ├── subscribeAssetsBalance()
+│   ├── subscribeAssetsBalance(selectedAccounts, enabledChains)
 │   │   │
 │   │   ├── Build chain → accounts mapping based on account scopes
 │   │   ├── assignChainsToDataSources(enabledChains)  // Order-based assignment
 │   │   │
 │   │   └── For each dataSource (in registration order):
-│   │       └── subscribeToDataSource(sourceId, accounts, chains)
+│   │       └── subscribeDataSource(sourceId, accounts, chains)
 │   │           └── Call {sourceId}:subscribe via Messenger
 │   │
 │   └── subscribeAssetsPrice(selectedAccounts, enabledChains)
@@ -899,7 +884,7 @@ flowchart LR
     end
 
     subgraph Subscribe["Subscription Flow"]
-        S1[subscribeToDataSources]
+        S1[subscribeAssets]
         S2[assignChainsToDataSources]
         S3[Call DataSource:subscribe]
         S4[DataSource calls AssetsController:assetsUpdate]
