@@ -19,18 +19,9 @@ const BLOCK_TRACKER_MOCK = {
   removeListener: jest.fn(),
 } as unknown as jest.Mocked<BlockTracker>;
 
-const SELECTED_ACCOUNT_MOCK = {
-  address: '0x123',
-};
-
 const createMessengerMock = (): jest.Mocked<TransactionControllerMessenger> =>
   ({
-    call: jest.fn().mockImplementation((action: string) => {
-      if (action === 'AccountsController:getSelectedAccount') {
-        return SELECTED_ACCOUNT_MOCK;
-      }
-      return {};
-    }),
+    call: jest.fn(),
     subscribe: jest.fn(),
     unsubscribe: jest.fn(),
   }) as unknown as jest.Mocked<TransactionControllerMessenger>;
@@ -385,7 +376,7 @@ describe('TransactionPoller', () => {
     });
 
     it.each(['confirmed', 'dropped', 'failed'] as const)(
-      'triggers interval when transaction with matching chainId and %s status is received',
+      'triggers interval when transaction with %s status is received',
       async (status) => {
         const poller = new TransactionPoller({
           blockTracker: BLOCK_TRACKER_MOCK,
@@ -425,38 +416,6 @@ describe('TransactionPoller', () => {
       },
     );
 
-    it('does not trigger interval when transaction with non-matching chainId is received', async () => {
-      const poller = new TransactionPoller({
-        blockTracker: BLOCK_TRACKER_MOCK,
-        messenger: MESSENGER_MOCK,
-        chainId: CHAIN_ID_MOCK,
-      });
-
-      const listener = jest.fn();
-      poller.start(listener);
-
-      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
-        (call) => call[0] === 'AccountActivityService:transactionUpdated',
-      );
-      const eventHandler = subscribeCall?.[1] as (
-        transaction: Transaction,
-      ) => void;
-
-      const transaction: Transaction = {
-        id: '0xabc',
-        chain: 'eip155:137', // Different chain
-        status: 'confirmed',
-        timestamp: Date.now(),
-        from: '0x123',
-        to: '0x456',
-      };
-
-      eventHandler(transaction);
-      await flushPromises();
-
-      expect(listener).not.toHaveBeenCalled();
-    });
-
     it('does not trigger interval when transaction with pending status is received', async () => {
       const poller = new TransactionPoller({
         blockTracker: BLOCK_TRACKER_MOCK,
@@ -487,76 +446,6 @@ describe('TransactionPoller', () => {
       await flushPromises();
 
       expect(listener).not.toHaveBeenCalled();
-    });
-
-    it('does not trigger interval when transaction is from a different address than the selected account', async () => {
-      const poller = new TransactionPoller({
-        blockTracker: BLOCK_TRACKER_MOCK,
-        messenger: MESSENGER_MOCK,
-        chainId: CHAIN_ID_MOCK,
-      });
-
-      const listener = jest.fn();
-      poller.start(listener);
-
-      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
-        (call) => call[0] === 'AccountActivityService:transactionUpdated',
-      );
-      const eventHandler = subscribeCall?.[1] as (
-        transaction: Transaction,
-      ) => void;
-
-      const transaction: Transaction = {
-        id: '0xabc',
-        chain: 'eip155:1',
-        status: 'confirmed',
-        timestamp: Date.now(),
-        from: '0x999',
-        to: '0x456',
-      };
-
-      eventHandler(transaction);
-      await flushPromises();
-
-      expect(listener).not.toHaveBeenCalled();
-    });
-
-    it('triggers interval when transaction from address matches selected account (case-insensitive)', async () => {
-      const poller = new TransactionPoller({
-        blockTracker: BLOCK_TRACKER_MOCK,
-        messenger: MESSENGER_MOCK,
-        chainId: CHAIN_ID_MOCK,
-      });
-
-      BLOCK_TRACKER_MOCK.getLatestBlock.mockResolvedValue(BLOCK_NUMBER_MOCK);
-
-      poller.setPendingTransactions([
-        createTransactionMetaMock('tx1', '0xabc'),
-      ]);
-
-      const listener = jest.fn();
-      poller.start(listener);
-
-      const subscribeCall = MESSENGER_MOCK.subscribe.mock.calls.find(
-        (call) => call[0] === 'AccountActivityService:transactionUpdated',
-      );
-      const eventHandler = subscribeCall?.[1] as (
-        transaction: Transaction,
-      ) => void;
-
-      const transaction: Transaction = {
-        id: '0xabc',
-        chain: 'eip155:1',
-        status: 'confirmed',
-        timestamp: Date.now(),
-        from: '0X123',
-        to: '0x456',
-      };
-
-      eventHandler(transaction);
-      await flushPromises();
-
-      expect(listener).toHaveBeenCalledTimes(1);
     });
 
     it('does not trigger interval when poller is stopped', async () => {
