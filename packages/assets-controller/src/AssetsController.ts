@@ -9,6 +9,11 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import type {
+  ApiPlatformClient,
+  BackendWebSocketServiceActions,
+  BackendWebSocketServiceEvents,
+} from '@metamask/core-backend';
+import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
@@ -24,18 +29,17 @@ import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
 import { isEqual } from 'lodash';
 
-import type { AccountsApiDataSourceGetAssetsMiddlewareAction } from './data-sources/AccountsApiDataSource';
-import type {
-  PriceDataSourceGetAssetsMiddlewareAction,
-  PriceDataSourceFetchAction,
-  PriceDataSourceSubscribeAction,
-  PriceDataSourceUnsubscribeAction,
-} from './data-sources/PriceDataSource';
-import type { RpcDataSourceGetAssetsMiddlewareAction } from './data-sources/RpcDataSource';
-import type { SnapDataSourceGetAssetsMiddlewareAction } from './data-sources/SnapDataSource';
-import type { TokenDataSourceGetAssetsMiddlewareAction } from './data-sources/TokenDataSource';
+import type { AssetsControllerMethodActions } from './AssetsController-method-action-types';
+import type { SubscriptionRequest } from './data-sources/AbstractDataSource';
+import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
+import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
+import { PriceDataSource } from './data-sources/PriceDataSource';
+import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
+import { RpcDataSource } from './data-sources/RpcDataSource';
+import { SnapDataSource } from './data-sources/SnapDataSource';
+import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
-import type { DetectionMiddlewareGetAssetsMiddlewareAction } from './middlewares/DetectionMiddleware';
+import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
 import type {
   AccountId,
   AssetPreferences,
@@ -44,6 +48,7 @@ import type {
   AssetMetadata,
   AssetPrice,
   AssetBalance,
+  AccountWithSupportedChains,
   AssetType,
   DataType,
   DataRequest,
@@ -62,6 +67,19 @@ import { normalizeAssetId } from './utils';
 // ============================================================================
 
 const CONTROLLER_NAME = 'AssetsController' as const;
+
+/** Method names exposed as messenger actions (AssetsController:getAssets, etc.) */
+const MESSENGER_EXPOSED_METHODS = [
+  'getAssets',
+  'getAssetsBalance',
+  'getAssetMetadata',
+  'getAssetsPrice',
+  'addCustomAsset',
+  'removeCustomAsset',
+  'getCustomAssets',
+  'hideAsset',
+  'unhideAsset',
+] as const;
 
 /** Default polling interval hint for data sources (30 seconds) */
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
@@ -117,74 +135,9 @@ export type AssetsControllerGetStateAction = ControllerGetStateAction<
   AssetsControllerState
 >;
 
-export type AssetsControllerGetAssetsAction = {
-  type: `${typeof CONTROLLER_NAME}:getAssets`;
-  handler: AssetsController['getAssets'];
-};
-
-export type AssetsControllerGetAssetsBalanceAction = {
-  type: `${typeof CONTROLLER_NAME}:getAssetsBalance`;
-  handler: AssetsController['getAssetsBalance'];
-};
-
-export type AssetsControllerGetAssetMetadataAction = {
-  type: `${typeof CONTROLLER_NAME}:getAssetMetadata`;
-  handler: AssetsController['getAssetMetadata'];
-};
-
-export type AssetsControllerGetAssetsPriceAction = {
-  type: `${typeof CONTROLLER_NAME}:getAssetsPrice`;
-  handler: AssetsController['getAssetsPrice'];
-};
-
-export type AssetsControllerActiveChainsUpdateAction = {
-  type: `${typeof CONTROLLER_NAME}:activeChainsUpdate`;
-  handler: AssetsController['handleActiveChainsUpdate'];
-};
-
-export type AssetsControllerAssetsUpdateAction = {
-  type: `${typeof CONTROLLER_NAME}:assetsUpdate`;
-  handler: AssetsController['handleAssetsUpdate'];
-};
-
-export type AssetsControllerAddCustomAssetAction = {
-  type: `${typeof CONTROLLER_NAME}:addCustomAsset`;
-  handler: AssetsController['addCustomAsset'];
-};
-
-export type AssetsControllerRemoveCustomAssetAction = {
-  type: `${typeof CONTROLLER_NAME}:removeCustomAsset`;
-  handler: AssetsController['removeCustomAsset'];
-};
-
-export type AssetsControllerGetCustomAssetsAction = {
-  type: `${typeof CONTROLLER_NAME}:getCustomAssets`;
-  handler: AssetsController['getCustomAssets'];
-};
-
-export type AssetsControllerHideAssetAction = {
-  type: `${typeof CONTROLLER_NAME}:hideAsset`;
-  handler: AssetsController['hideAsset'];
-};
-
-export type AssetsControllerUnhideAssetAction = {
-  type: `${typeof CONTROLLER_NAME}:unhideAsset`;
-  handler: AssetsController['unhideAsset'];
-};
-
 export type AssetsControllerActions =
   | AssetsControllerGetStateAction
-  | AssetsControllerGetAssetsAction
-  | AssetsControllerGetAssetsBalanceAction
-  | AssetsControllerGetAssetMetadataAction
-  | AssetsControllerGetAssetsPriceAction
-  | AssetsControllerActiveChainsUpdateAction
-  | AssetsControllerAssetsUpdateAction
-  | AssetsControllerAddCustomAssetAction
-  | AssetsControllerRemoveCustomAssetAction
-  | AssetsControllerGetCustomAssetsAction
-  | AssetsControllerHideAssetAction
-  | AssetsControllerUnhideAssetAction;
+  | AssetsControllerMethodActions;
 
 export type AssetsControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof CONTROLLER_NAME,
@@ -222,39 +175,13 @@ export type AssetsControllerEvents =
 type AllowedActions =
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
   | NetworkEnablementControllerGetStateAction
-  // Data source middlewares
-  | AccountsApiDataSourceGetAssetsMiddlewareAction
-  | SnapDataSourceGetAssetsMiddlewareAction
-  | RpcDataSourceGetAssetsMiddlewareAction
-  // Enrichment middlewares
-  | TokenDataSourceGetAssetsMiddlewareAction
-  | PriceDataSourceGetAssetsMiddlewareAction
-  | PriceDataSourceFetchAction
-  | PriceDataSourceSubscribeAction
-  | PriceDataSourceUnsubscribeAction
-  | DetectionMiddlewareGetAssetsMiddlewareAction;
-
-/**
- * App lifecycle event: fired when app becomes active (opened/foregrounded)
- */
-export type AppStateControllerAppOpenedEvent = {
-  type: 'AppStateController:appOpened';
-  payload: [];
-};
-
-/**
- * App lifecycle event: fired when app becomes inactive (closed/backgrounded)
- */
-export type AppStateControllerAppClosedEvent = {
-  type: 'AppStateController:appClosed';
-  payload: [];
-};
+  // BackendWebsocketDataSource calls BackendWebSocketService
+  | BackendWebSocketServiceActions;
 
 type AllowedEvents =
   | AccountTreeControllerSelectedAccountGroupChangeEvent
   | NetworkEnablementControllerEvents
-  | AppStateControllerAppOpenedEvent
-  | AppStateControllerAppClosedEvent
+  | BackendWebSocketServiceEvents
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent;
 
@@ -275,6 +202,13 @@ export type AssetsControllerOptions = {
   defaultUpdateInterval?: number;
   /** Function to determine if the controller is enabled. Defaults to true. */
   isEnabled?: () => boolean;
+  /**
+   * API client for balance/price/metadata. The controller instantiates data sources
+   * and uses them directly when this is provided.
+   */
+  queryApiClient: ApiPlatformClient;
+  /** Optional configuration for RpcDataSource. */
+  rpcDataSourceConfig?: RpcDataSourceConfig;
 };
 
 // ============================================================================
@@ -403,13 +337,8 @@ function normalizeResponse(response: DataResponse): DataResponse {
  *    based on which chains they support. When active chains change, the controller
  *    dynamically adjusts subscriptions.
  *
- * 4. **App Lifecycle Management**: Listens to app open/close events via messenger
- *    to start/stop subscriptions automatically, conserving resources when app is closed.
- *
- * ## App Lifecycle
- *
- * - **App Opened** (`AppStateController:appOpened`): Starts subscriptions, fetches initial data
- * - **App Closed** (`AppStateController:appClosed`): Stops all subscriptions to conserve resources
+ * 4. **Keyring Lifecycle**: Listens to KeyringController unlock/lock events to
+ *    start/stop subscriptions when the wallet is unlocked or locked.
  *
  * ## Architecture
  *
@@ -461,11 +390,27 @@ export class AssetsController extends BaseController<
    */
   readonly #dataSources: Map<string, Set<ChainId>> = new Map();
 
+  readonly #backendWebsocketDataSource: BackendWebsocketDataSource;
+
+  readonly #accountsApiDataSource: AccountsApiDataSource;
+
+  readonly #snapDataSource: SnapDataSource;
+
+  readonly #rpcDataSource: RpcDataSource;
+
+  readonly #priceDataSource: PriceDataSource;
+
+  readonly #detectionMiddleware: DetectionMiddleware;
+
+  readonly #tokenDataSource: TokenDataSource;
+
   constructor({
     messenger,
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
     isEnabled = (): boolean => true,
+    queryApiClient,
+    rpcDataSourceConfig,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -479,6 +424,43 @@ export class AssetsController extends BaseController<
 
     this.#isEnabled = isEnabled();
     this.#defaultUpdateInterval = defaultUpdateInterval;
+    const rpcConfig = rpcDataSourceConfig ?? {};
+
+    this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
+      messenger: this.messenger,
+      queryApiClient,
+      onActiveChainsUpdated: (chains): void =>
+        this.handleActiveChainsUpdate('BackendWebsocketDataSource', chains),
+    });
+    this.#accountsApiDataSource = new AccountsApiDataSource({
+      queryApiClient,
+      onActiveChainsUpdated: (chains): void => {
+        this.handleActiveChainsUpdate('AccountsApiDataSource', chains);
+      },
+    });
+    this.#snapDataSource = new SnapDataSource({
+      messenger: this.messenger,
+      onActiveChainsUpdated: (chains): void =>
+        this.handleActiveChainsUpdate('SnapDataSource', chains),
+    });
+    this.#rpcDataSource = new RpcDataSource({
+      messenger: this.messenger,
+      onActiveChainsUpdated: (chains): void =>
+        this.handleActiveChainsUpdate('RpcDataSource', chains),
+      ...rpcConfig,
+    });
+    this.#tokenDataSource = new TokenDataSource({
+      queryApiClient,
+    });
+    this.#priceDataSource = new PriceDataSource({
+      queryApiClient,
+    });
+    this.#detectionMiddleware = new DetectionMiddleware();
+
+    this.#dataSources.set('BackendWebsocketDataSource', new Set());
+    this.#dataSources.set('AccountsApiDataSource', new Set());
+    this.#dataSources.set('SnapDataSource', new Set());
+    this.#dataSources.set('RpcDataSource', new Set());
 
     if (!this.#isEnabled) {
       log('AssetsController is disabled, skipping initialization');
@@ -486,20 +468,40 @@ export class AssetsController extends BaseController<
     }
 
     log('Initializing AssetsController', {
-      defaultUpdateInterval,
+      defaultUpdateInterval: this.#defaultUpdateInterval,
     });
 
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
+  }
 
-    // Register data sources (order = subscription priority)
-    this.registerDataSources([
-      'BackendWebsocketDataSource', // Real-time push updates
-      'AccountsApiDataSource', // HTTP polling fallback
-      'SnapDataSource', // Solana/Bitcoin/Tron snaps
-      'RpcDataSource', // Direct blockchain queries
-    ]);
+  /**
+   * Returns the balance data source instance for subscribe/unsubscribe by sourceId.
+   *
+   * @param sourceId - Data source identifier (e.g. 'BackendWebsocketDataSource').
+   * @returns The balance data source instance, or undefined if not found.
+   */
+  #getBalanceDataSource(
+    sourceId: string,
+  ):
+    | BackendWebsocketDataSource
+    | AccountsApiDataSource
+    | SnapDataSource
+    | RpcDataSource
+    | undefined {
+    switch (sourceId) {
+      case 'BackendWebsocketDataSource':
+        return this.#backendWebsocketDataSource;
+      case 'AccountsApiDataSource':
+        return this.#accountsApiDataSource;
+      case 'SnapDataSource':
+        return this.#snapDataSource;
+      case 'RpcDataSource':
+        return this.#rpcDataSource;
+      default:
+        return undefined;
+    }
   }
 
   // ============================================================================
@@ -589,73 +591,15 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // App lifecycle: start when opened, stop when closed
-    this.messenger.subscribe('AppStateController:appOpened', () =>
-      this.#start(),
-    );
-    this.messenger.subscribe('AppStateController:appClosed', () =>
-      this.#stop(),
-    );
-
     // Keyring lifecycle: start when unlocked, stop when locked
     this.messenger.subscribe('KeyringController:unlock', () => this.#start());
     this.messenger.subscribe('KeyringController:lock', () => this.#stop());
   }
 
   #registerActionHandlers(): void {
-    this.messenger.registerActionHandler(
-      'AssetsController:getAssets',
-      this.getAssets.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:getAssetsBalance',
-      this.getAssetsBalance.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:getAssetMetadata',
-      this.getAssetMetadata.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:getAssetsPrice',
-      this.getAssetsPrice.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:activeChainsUpdate',
-      this.handleActiveChainsUpdate.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:assetsUpdate',
-      this.handleAssetsUpdate.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:addCustomAsset',
-      this.addCustomAsset.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:removeCustomAsset',
-      this.removeCustomAsset.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:getCustomAssets',
-      this.getCustomAssets.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:hideAsset',
-      this.hideAsset.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AssetsController:unhideAsset',
-      this.unhideAsset.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -667,7 +611,7 @@ export class AssetsController extends BaseController<
    * Register data sources with the controller.
    * Order of the array determines subscription order.
    *
-   * Data sources report chain changes by calling `AssetsController:activeChainsUpdate` action.
+   * Data sources report chain changes via the onActiveChainsUpdated callback passed at construction.
    *
    * @param dataSourceIds - Array of data source identifiers to register.
    */
@@ -689,7 +633,7 @@ export class AssetsController extends BaseController<
    * Active chains are chains that are both supported AND available.
    * Updates centralized chain tracking and triggers re-selection if needed.
    *
-   * Data sources should call this via `AssetsController:activeChainsUpdate` action.
+   * Called from the onActiveChainsUpdated callbacks passed to data sources at construction.
    *
    * @param dataSourceId - The identifier of the data source reporting the change.
    * @param activeChains - Array of currently active chain IDs for this source.
@@ -703,6 +647,13 @@ export class AssetsController extends BaseController<
       chainCount: activeChains.length,
       chains: activeChains,
     });
+
+    // When BackendWebsocketDataSource is updated via AccountsApiDataSource callback, sync its state
+    if (dataSourceId === 'BackendWebsocketDataSource') {
+      this.#backendWebsocketDataSource.setActiveChainsFromAccountsApi(
+        activeChains,
+      );
+    }
 
     const previousChains = this.#dataSources.get(dataSourceId) ?? new Set();
     const newChains = new Set(activeChains);
@@ -809,23 +760,22 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
+      const request = this.#buildDataRequest(accounts, chainIds, {
+        assetTypes,
+        dataTypes,
+        customAssets: customAssets.length > 0 ? customAssets : undefined,
+        forceUpdate: true,
+      });
       const response = await this.#executeMiddlewares(
         [
-          this.messenger.call('AccountsApiDataSource:getAssetsMiddleware'),
-          this.messenger.call('SnapDataSource:getAssetsMiddleware'),
-          this.messenger.call('RpcDataSource:getAssetsMiddleware'),
-          this.messenger.call('DetectionMiddleware:getAssetsMiddleware'),
-          this.messenger.call('TokenDataSource:getAssetsMiddleware'),
-          this.messenger.call('PriceDataSource:getAssetsMiddleware'),
+          this.#accountsApiDataSource.assetsMiddleware,
+          this.#snapDataSource.assetsMiddleware,
+          this.#rpcDataSource.assetsMiddleware,
+          this.#detectionMiddleware.assetsMiddleware,
+          this.#tokenDataSource.assetsMiddleware,
+          this.#priceDataSource.assetsMiddleware,
         ],
-        {
-          accounts,
-          chainIds,
-          assetTypes,
-          dataTypes,
-          customAssets: customAssets.length > 0 ? customAssets : undefined,
-          forceUpdate: true,
-        },
+        request,
       );
       await this.#updateState(response);
     }
@@ -1093,19 +1043,19 @@ export class AssetsController extends BaseController<
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
     const isUpdate = existingSubscription !== undefined;
 
-    // Fire-and-forget - errors are handled internally by PriceDataSource
-    this.messenger
-      .call('PriceDataSource:subscribe', {
-        request: {
-          accounts,
-          chainIds,
-          dataTypes: ['price'],
-          updateInterval,
-        },
-        subscriptionId: subscriptionKey,
-        isUpdate,
-      })
-      .catch(console.error);
+    const subscribeReq: SubscriptionRequest = {
+      request: this.#buildDataRequest(accounts, chainIds, {
+        dataTypes: ['price'],
+        updateInterval,
+      }),
+      subscriptionId: subscriptionKey,
+      isUpdate,
+      onAssetsUpdate: (response) =>
+        this.handleAssetsUpdate(response, 'PriceDataSource'),
+      getAssetsState: () => this.state,
+    };
+
+    this.#priceDataSource.subscribe(subscribeReq).catch(console.error);
 
     // Track subscription
     const subscription: SubscriptionResponse = {
@@ -1131,12 +1081,7 @@ export class AssetsController extends BaseController<
     if (!existingSubscription) {
       return;
     }
-
-    // Fire-and-forget - errors are handled internally by PriceDataSource
-    this.messenger
-      .call('PriceDataSource:unsubscribe', subscriptionKey)
-      .catch(console.error);
-
+    this.#priceDataSource.unsubscribe(subscriptionKey).catch(console.error);
     existingSubscription.unsubscribe();
   }
 
@@ -1619,37 +1564,35 @@ export class AssetsController extends BaseController<
       chainCount: chains.length,
     });
 
-    // Call data source subscribe action via Messenger (fire-and-forget)
-    (async (): Promise<void> => {
-      try {
-        await (this.messenger.call as CallableFunction)(
-          `${sourceId}:subscribe`,
-          {
-            request: {
-              accounts,
-              chainIds: chains,
-              assetTypes: ['fungible'],
-              dataTypes: ['balance'],
-              updateInterval: this.#defaultUpdateInterval,
-            },
-            subscriptionId: subscriptionKey,
-            isUpdate,
-          },
-        );
-      } catch (error) {
-        console.error(
-          `[AssetsController] Failed to subscribe to '${sourceId}':`,
-          error,
-        );
-      }
-    })().catch(console.error);
+    const subscribeReq: SubscriptionRequest = {
+      request: this.#buildDataRequest(accounts, chains, {
+        assetTypes: ['fungible'],
+        dataTypes: ['balance'],
+        updateInterval: this.#defaultUpdateInterval,
+      }),
+      subscriptionId: subscriptionKey,
+      isUpdate,
+      onAssetsUpdate: (response) => this.handleAssetsUpdate(response, sourceId),
+      getAssetsState: () => this.state,
+    };
+
+    const balanceDs = this.#getBalanceDataSource(sourceId);
+    if (!balanceDs) {
+      return;
+    }
+    balanceDs.subscribe(subscribeReq).catch((error) => {
+      console.error(
+        `[AssetsController] Failed to subscribe to '${sourceId}':`,
+        error,
+      );
+    });
 
     // Track subscription
     const subscription: SubscriptionResponse = {
       chains,
       accountId: subscriptionKey,
       assetTypes: ['fungible'],
-      dataTypes: ['balance', 'price'],
+      dataTypes: ['balance'],
       unsubscribe: () => {
         this.#activeSubscriptions.delete(subscriptionKey);
       },
@@ -1668,19 +1611,10 @@ export class AssetsController extends BaseController<
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
 
     if (existingSubscription) {
-      // Fire-and-forget unsubscribe call
-      (async (): Promise<void> => {
-        try {
-          await (this.messenger.call as CallableFunction)(
-            `${sourceId}:unsubscribe`,
-            subscriptionKey,
-          );
-        } catch {
-          // Ignore errors - source may not have been subscribed
-        }
-      })().catch(() => {
-        // Ignore errors - source may not have been subscribed
-      });
+      const balanceDs = this.#getBalanceDataSource(sourceId);
+      if (balanceDs) {
+        balanceDs.unsubscribe(subscriptionKey).catch(() => undefined);
+      }
       existingSubscription.unsubscribe();
     }
   }
@@ -1688,6 +1622,36 @@ export class AssetsController extends BaseController<
   // ============================================================================
   // HELPERS
   // ============================================================================
+
+  /**
+   * Build a DataRequest with accountsWithSupportedChains (enabled chains ∩ account scope ∩ requested chainIds).
+   *
+   * @param accounts - Accounts to include.
+   * @param chainIds - Requested chain IDs (e.g. enabled chains or subset).
+   * @param partial - Rest of the request (dataTypes, assetTypes, etc.).
+   * @returns DataRequest with accountsWithSupportedChains and chainIds.
+   */
+  #buildDataRequest(
+    accounts: InternalAccount[],
+    chainIds: ChainId[],
+    partial: Partial<
+      Omit<DataRequest, 'accountsWithSupportedChains' | 'chainIds'>
+    > = {},
+  ): DataRequest {
+    const chainIdSet = new Set(chainIds);
+    const accountsWithSupportedChains: AccountWithSupportedChains[] =
+      accounts.map((account) => ({
+        account,
+        supportedChains: this.#getEnabledChainsForAccount(account).filter(
+          (chain) => chainIdSet.has(chain),
+        ),
+      }));
+    return {
+      accountsWithSupportedChains,
+      chainIds,
+      ...partial,
+    } as DataRequest;
+  }
 
   /**
    * Get the chains that an account supports based on its scopes.
@@ -1791,53 +1755,40 @@ export class AssetsController extends BaseController<
 
   /**
    * Handle assets updated from a data source.
-   * Called via `AssetsController:assetsUpdate` action by data sources.
+   * Called via the onAssetsUpdate callback passed in SubscriptionRequest when the controller subscribes to a data source.
+   * Enriches the response with token metadata (via middlewares) before updating state.
    *
    * @param response - The data response with updated assets
    * @param sourceId - The data source ID reporting the update
+   * @param request - Optional original request for context when enriching
    */
   async handleAssetsUpdate(
     response: DataResponse,
     sourceId: string,
+    request?: DataRequest,
   ): Promise<void> {
     log('Assets updated from data source', {
       sourceId,
       hasBalance: Boolean(response.assetsBalance),
       hasPrice: Boolean(response.assetsPrice),
     });
-    await this.#handleSubscriptionUpdate(response, sourceId);
-  }
 
-  /**
-   * Handle an async update from a data source subscription.
-   * Enriches response with token metadata before updating state.
-   *
-   * @param response - The data response from the data source.
-   * @param _sourceId - The source ID (unused but kept for logging context).
-   * @param request - Optional original request for context.
-   */
-  async #handleSubscriptionUpdate(
-    response: DataResponse,
-    _sourceId?: string,
-    request?: DataRequest,
-  ): Promise<void> {
     // Run through enrichment middlewares (Event Stack: Detection → Token → Price)
     // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
     const enrichedResponse = await this.#executeMiddlewares(
       [
-        this.messenger.call('DetectionMiddleware:getAssetsMiddleware'),
-        this.messenger.call('TokenDataSource:getAssetsMiddleware'),
-        this.messenger.call('PriceDataSource:getAssetsMiddleware'),
+        this.#detectionMiddleware.assetsMiddleware,
+        this.#tokenDataSource.assetsMiddleware,
+        this.#priceDataSource.assetsMiddleware,
       ],
       request ?? {
-        accounts: [],
+        accountsWithSupportedChains: [],
         chainIds: [],
         dataTypes: ['balance', 'metadata', 'price'],
       },
       response,
     );
 
-    // Update state
     await this.#updateState(enrichedResponse);
   }
 
@@ -1851,6 +1802,19 @@ export class AssetsController extends BaseController<
       subscriptionCount: this.#activeSubscriptions.size,
     });
 
+    // Destroy instantiated data sources
+    this.#backendWebsocketDataSource?.destroy?.();
+    this.#accountsApiDataSource?.destroy?.();
+    this.#snapDataSource?.destroy?.();
+    if (
+      this.#rpcDataSource &&
+      'destroy' in this.#rpcDataSource &&
+      typeof (this.#rpcDataSource as { destroy: () => void }).destroy ===
+        'function'
+    ) {
+      (this.#rpcDataSource as { destroy: () => void }).destroy();
+    }
+
     // Clear data sources
     this.#dataSources.clear();
 
@@ -1862,10 +1826,6 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
-    this.messenger.unregisterActionHandler(
-      'AssetsController:activeChainsUpdate',
-    );
-    this.messenger.unregisterActionHandler('AssetsController:assetsUpdate');
     this.messenger.unregisterActionHandler('AssetsController:addCustomAsset');
     this.messenger.unregisterActionHandler(
       'AssetsController:removeCustomAsset',
