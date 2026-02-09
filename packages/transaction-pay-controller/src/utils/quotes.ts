@@ -320,11 +320,7 @@ function buildPostQuoteRequests({
   );
 
   // Same-token-same-chain cases are already filtered in source-amounts.ts
-  if (
-    !sourceAmount?.sourceTokenAddress ||
-    !sourceAmount.sourceChainId ||
-    !sourceAmount.sourceBalanceRaw
-  ) {
+  if (!sourceAmount) {
     log('No source amount found for post-quote request', { transactionId });
     return [];
   }
@@ -333,10 +329,10 @@ function buildPostQuoteRequests({
     from,
     isMaxAmount,
     isPostQuote: true,
-    sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
+    sourceBalanceRaw: sourceAmount.sourceBalanceRaw as string,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
-    sourceChainId: sourceAmount.sourceChainId,
-    sourceTokenAddress: sourceAmount.sourceTokenAddress,
+    sourceChainId: sourceAmount.sourceChainId as Hex,
+    sourceTokenAddress: sourceAmount.sourceTokenAddress as Hex,
     // For post-quote flows, use EXACT_INPUT - user specifies how much to send,
     // and we show them how much they'll receive after fees
     targetAmountMinimum: '0',
