@@ -64,8 +64,12 @@ export type BackendWebsocketDataSourceOptions = {
   messenger: AssetsControllerMessenger;
   /** ApiPlatformClient for fetching supported networks at init (same as AccountsApiDataSource). */
   queryApiClient: ApiPlatformClient;
-  /** Called when active chains are updated (e.g. to notify AssetsController). */
-  onActiveChainsUpdated: (chains: ChainId[]) => void;
+  /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
   state?: Partial<BackendWebsocketDataSourceState>;
 };
 
@@ -207,7 +211,11 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   readonly #apiClient: ApiPlatformClient;
 
-  readonly #onActiveChainsUpdated: (chains: ChainId[]) => void;
+  readonly #onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
 
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -242,8 +250,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   async #initializeActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
+      const previous = [...this.state.activeChains];
       this.updateActiveChains(chains, (updatedChains) =>
-        this.#onActiveChainsUpdated(updatedChains),
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
       );
 
       this.#chainsRefreshTimer = setInterval(() => {
@@ -266,8 +275,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       );
 
       if (added.length > 0 || removed.length > 0) {
+        const previous = [...this.state.activeChains];
         this.updateActiveChains(chains, (updatedChains) =>
-          this.#onActiveChainsUpdated(updatedChains),
+          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
         );
       }
     } catch (error) {
@@ -379,8 +389,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
    * @param chains - Array of supported chain IDs.
    */
   updateSupportedChains(chains: ChainId[]): void {
+    const previous = [...this.state.activeChains];
     this.updateActiveChains(chains, (updatedChains) =>
-      this.#onActiveChainsUpdated(updatedChains),
+      this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
     );
   }
 
