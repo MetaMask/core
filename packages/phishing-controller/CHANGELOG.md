@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Monad network (`0x8f`) in token scanning ([#7237](https://github.com/MetaMask/core/pull/7237))
+- Add support for HyperEVM network (`0x3e7`) in token scanning ([#7873](https://github.com/MetaMask/core/pull/7873))
 
 ### Changed
 
