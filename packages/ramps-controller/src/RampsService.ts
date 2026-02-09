@@ -76,6 +76,53 @@ export type ProviderLogos = {
 };
 
 /**
+ * Provider type classification.
+ */
+export type ProviderType = 'aggregator' | 'native';
+
+/**
+ * Browser type for provider buy features.
+ */
+export type ProviderBrowserType = 'APP_BROWSER' | 'IN_APP_OS_BROWSER' | null;
+
+/**
+ * Provider features for buy actions.
+ */
+export type ProviderBuyFeatures = {
+  enabled?: boolean;
+  userAgent?: string | null;
+  padCustomOrderId?: boolean;
+  orderCustomId?: string;
+  browser?: ProviderBrowserType;
+  orderCustomIdRequired?: boolean;
+  orderCustomIdExpiration?: number | null;
+  orderCustomIdSeparator?: string | null;
+  orderCustomIdPrefixes?: string[];
+  supportedByBackend?: boolean;
+  redirection?: string;
+};
+
+/**
+ * Provider features object.
+ */
+export type ProviderFeatures = {
+  buy?: ProviderBuyFeatures;
+  quotes?: {
+    enabled?: boolean;
+    supportedByBackend?: boolean;
+  };
+  sell?: {
+    enabled?: boolean;
+  };
+  sellQuotes?: {
+    enabled?: boolean;
+  };
+  recurringBuy?: {
+    enabled?: boolean;
+  };
+};
+
+/**
  * Represents a ramp provider.
  */
 export type Provider = {
@@ -89,6 +136,19 @@ export type Provider = {
   supportedCryptoCurrencies?: Record<string, boolean>;
   supportedFiatCurrencies?: Record<string, boolean>;
   supportedPaymentMethods?: Record<string, boolean>;
+  /**
+   * Provider type classification (aggregator or native/whitelabel).
+   */
+  type?: ProviderType;
+  /**
+   * Reference to the native counterpart provider (for aggregator providers).
+   * e.g., "/providers/transak-native"
+   */
+  nativeCounterpart?: string;
+  /**
+   * Provider features and capabilities.
+   */
+  features?: ProviderFeatures;
 };
 
 /**
@@ -180,6 +240,17 @@ export type Quote = {
    */
   provider: string;
   /**
+   * The widget URL for aggregator providers.
+   * Present for aggregator providers that redirect to their widget.
+   * Null or undefined for native/whitelabel providers.
+   */
+  url?: string | null;
+  /**
+   * Full provider information embedded in the quote.
+   * Contains provider details including type, features, and configuration.
+   */
+  providerInfo?: Provider;
+  /**
    * The quote details.
    */
   quote: {
@@ -199,10 +270,6 @@ export type Quote = {
      * The fiat value of the output amount (for buy actions).
      */
     amountOutInFiat?: number;
-    /**
-     * The widget URL for redirect providers.
-     */
-    widgetUrl?: string;
     /**
      * Crypto translation info for display.
      */
