@@ -83,6 +83,16 @@ export type AssetsControllerUnhideAssetAction = {
 };
 
 /**
+ * Rebuild balance and price subscriptions (e.g. after the "use external services"
+ * / "basic functionality" setting changes). Call this from the host when the
+ * preference changes so subscriptions use the new data sources.
+ */
+export type AssetsControllerRefreshSubscriptionsAction = {
+  type: `AssetsController:refreshSubscriptions`;
+  handler: AssetsController['refreshSubscriptions'];
+};
+
+/**
  * Union of all AssetsController action types.
  */
 export type AssetsControllerMethodActions =
@@ -94,4 +104,5 @@ export type AssetsControllerMethodActions =
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction
   | AssetsControllerHideAssetAction
-  | AssetsControllerUnhideAssetAction;
+  | AssetsControllerUnhideAssetAction
+  | AssetsControllerRefreshSubscriptionsAction;

@@ -153,8 +153,8 @@ async function setupController(
   const controller = new AccountsApiDataSource({
     queryApiClient:
       apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
-    onActiveChainsUpdated: (chains): void =>
-      activeChainsUpdateHandler('AccountsApiDataSource', chains),
+    onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
+      activeChainsUpdateHandler(dataSourceName, chains, previousChains),
   });
 
   // Wait for async initialization
@@ -215,6 +215,7 @@ describe('AccountsApiDataSource', () => {
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
       'AccountsApiDataSource',
       [CHAIN_MAINNET, CHAIN_POLYGON, CHAIN_ARBITRUM],
+      [],
     );
 
     controller.destroy();
@@ -244,6 +245,7 @@ describe('AccountsApiDataSource', () => {
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
       'AccountsApiDataSource',
       [expected],
+      [],
     );
 
     controller.destroy();

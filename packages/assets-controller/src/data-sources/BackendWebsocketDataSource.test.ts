@@ -176,8 +176,8 @@ function setupController(
   const controller = new BackendWebsocketDataSource({
     messenger: controllerMessenger as unknown as AssetsControllerMessenger,
     queryApiClient: queryApiClient as unknown as ApiPlatformClient,
-    onActiveChainsUpdated: (chains): void =>
-      activeChainsUpdateHandler('BackendWebsocketDataSource', chains),
+    onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
+      activeChainsUpdateHandler(dataSourceName, chains, previousChains),
     state: { activeChains: initialActiveChains },
   });
 
@@ -195,7 +195,11 @@ function setupController(
 
   const triggerActiveChainsUpdate = (chains: ChainId[]): void => {
     controller.setActiveChainsFromAccountsApi(chains);
-    activeChainsUpdateHandler('BackendWebsocketDataSource', chains);
+    activeChainsUpdateHandler(
+      'BackendWebsocketDataSource',
+      chains,
+      initialActiveChains,
+    );
   };
 
   return {
@@ -242,6 +246,7 @@ describe('BackendWebsocketDataSource', () => {
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
       'BackendWebsocketDataSource',
       [CHAIN_MAINNET, CHAIN_POLYGON],
+      [],
     );
 
     controller.destroy();
@@ -257,6 +262,7 @@ describe('BackendWebsocketDataSource', () => {
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
       'BackendWebsocketDataSource',
       [CHAIN_MAINNET, CHAIN_BASE],
+      [],
     );
 
     controller.destroy();

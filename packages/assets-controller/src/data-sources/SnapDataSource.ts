@@ -156,8 +156,12 @@ export type SnapDataSourceAllowedActions =
 export type SnapDataSourceOptions = {
   /** The AssetsController messenger (shared by all data sources). */
   messenger: AssetsControllerMessenger;
-  /** Called when this data source's active chains change. */
-  onActiveChainsUpdated: (chains: ChainId[]) => void;
+  /** Called when this data source's active chains change. Pass dataSourceName so the controller knows the source. */
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
   /** Configured networks to support (defaults to all snap networks) */
   configuredNetworks?: ChainId[];
   /** Default polling interval in ms for subscriptions */
@@ -194,7 +198,11 @@ export class SnapDataSource extends AbstractDataSource<
 > {
   readonly #messenger: AssetsControllerMessenger;
 
-  readonly #onActiveChainsUpdated: (chains: ChainId[]) => void;
+  readonly #onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
 
   /** Bound handler for snap keyring balance updates, stored for cleanup */
   readonly #handleSnapBalancesUpdatedBound: (
@@ -388,8 +396,9 @@ export class SnapDataSource extends AbstractDataSource<
 
       // Notify if chains changed
       try {
+        const previous = [...this.state.activeChains];
         this.updateActiveChains(supportedChains, (updatedChains) => {
-          this.#onActiveChainsUpdated(updatedChains);
+          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous);
         });
       } catch {
         // AssetsController not ready yet - expected during initialization
@@ -398,8 +407,9 @@ export class SnapDataSource extends AbstractDataSource<
       log('Keyring snap discovery failed', { error });
       this.state.chainToSnap = {};
       try {
+        const previous = [...this.state.activeChains];
         this.updateActiveChains([], (updatedChains) => {
-          this.#onActiveChainsUpdated(updatedChains);
+          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous);
         });
       } catch {
         // AssetsController not ready yet - expected during initialization

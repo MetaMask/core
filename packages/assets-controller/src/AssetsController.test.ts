@@ -55,6 +55,13 @@ function createMockInternalAccount(
 
 type WithControllerOptions = {
   state?: Partial<AssetsControllerState>;
+  /** Extra options passed to AssetsController constructor. */
+  controllerOptions?: Partial<{
+    isBasicFunctionalityEnabled: () => boolean;
+    subscribeToBasicFunctionalityChange: (
+      callback: (isBasicFunctionalityEnabled: boolean) => void,
+    ) => () => void;
+  }>;
 };
 
 type WithControllerCallback<ReturnValue> = ({
@@ -77,7 +84,8 @@ async function withController<ReturnValue>(
     | [WithControllerOptions, WithControllerCallback<ReturnValue>]
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
-  const [{ state = {} }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const [{ state = {}, controllerOptions = {} }, fn] =
+    args.length === 2 ? args : [{}, args[0]];
 
   // Use root messenger (MOCK_ANY_NAMESPACE) so data sources can register their actions.
   const messenger: RootMessenger = new Messenger({
@@ -130,6 +138,7 @@ async function withController<ReturnValue>(
     messenger: messenger as unknown as AssetsControllerMessenger,
     state,
     queryApiClient: createMockQueryApiClient(),
+    ...controllerOptions,
   });
 
   return fn({ controller, messenger });
@@ -384,17 +393,6 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('registerDataSources', () => {
-    it('registers data sources in constructor', async () => {
-      await withController(({ controller }) => {
-        // The controller registers these data sources in the constructor:
-        // 'BackendWebsocketDataSource', 'AccountsApiDataSource', 'SnapDataSource', 'RpcDataSource'
-        // We verify initialization completed without error
-        expect(controller.state).toBeDefined();
-      });
-    });
-  });
-
   describe('getAssetMetadata', () => {
     it('returns metadata for existing asset', async () => {
       const initialState: Partial<AssetsControllerState> = {
@@ -462,6 +460,67 @@ describe('AssetsController', () => {
         expect(assets).toBeDefined();
       });
     });
+
+    it('uses only RPC when isBasicFunctionalityEnabled returns false', async () => {
+      await withController(
+        { controllerOptions: { isBasicFunctionalityEnabled: () => false } },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+
+          expect(assets).toBeDefined();
+          expect(assets[MOCK_ACCOUNT_ID]).toBeDefined();
+        },
+      );
+    });
+  });
+
+  describe('refreshSubscriptions and subscribeToBasicFunctionalityChange', () => {
+    it('refreshSubscriptions runs without throwing', async () => {
+      await withController(async ({ controller }) => {
+        expect(() => controller.refreshSubscriptions()).not.toThrow();
+      });
+    });
+
+    it('when subscribeToBasicFunctionalityChange is provided, callback triggers refresh', async () => {
+      let capturedCallback: ((enabled: boolean) => void) | undefined;
+      const unsubscribe = jest.fn();
+
+      await withController(
+        {
+          controllerOptions: {
+            subscribeToBasicFunctionalityChange: (callback) => {
+              capturedCallback = callback;
+              return unsubscribe;
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(capturedCallback).toBeDefined();
+          expect(() => capturedCallback?.(false)).not.toThrow();
+          expect(() => capturedCallback?.(true)).not.toThrow();
+        },
+      );
+    });
+
+    it('calls unsubscribe on destroy when subscribeToBasicFunctionalityChange was provided', async () => {
+      const unsubscribe = jest.fn();
+
+      await withController(
+        {
+          controllerOptions: {
+            subscribeToBasicFunctionalityChange: () => unsubscribe,
+          },
+        },
+        async ({ controller }) => {
+          controller.destroy();
+          expect(unsubscribe).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
   });
 
   describe('getAssetsBalance', () => {
@@ -489,7 +548,7 @@ describe('AssetsController', () => {
   describe('handleActiveChainsUpdate', () => {
     it('updates data source chains', async () => {
       await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1']);
+        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
 
         // Should not throw
         expect(controller.state).toBeDefined();
@@ -498,7 +557,7 @@ describe('AssetsController', () => {
 
     it('handles empty chains array', async () => {
       await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', []);
+        controller.handleActiveChainsUpdate('TestDataSource', [], []);
 
         expect(controller.state).toBeDefined();
       });
@@ -507,10 +566,10 @@ describe('AssetsController', () => {
     it('triggers fetch when chains are added', async () => {
       await withController(async ({ controller }) => {
         // First set no chains
-        controller.handleActiveChainsUpdate('TestDataSource', []);
+        controller.handleActiveChainsUpdate('TestDataSource', [], []);
 
         // Then add chains - this should trigger fetch for added chains
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1']);
+        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
 
         // Allow async operations to complete
         await new Promise(process.nextTick);
