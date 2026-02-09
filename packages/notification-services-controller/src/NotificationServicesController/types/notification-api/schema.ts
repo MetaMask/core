@@ -170,7 +170,7 @@ export type components = {
       /** @example 0x881D40237659C251811CEC9c364ef91dC08D300C */
       tx_hash: string;
       address: string;
-      network?: components['schemas']['NetworkMetadata'];
+      network: components['schemas']['NetworkMetadata'];
       data?:
         | components['schemas']['Data_MetamaskSwapCompleted']
         | components['schemas']['Data_LidoStakeReadyToBeWithdrawn']
