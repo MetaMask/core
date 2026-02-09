@@ -77,6 +77,12 @@ export type TransactionPayControllerGetStrategyAction = {
   handler: (transaction: TransactionMeta) => TransactionPayStrategy;
 };
 
+/** Action to get the ordered pay strategies for a transaction. */
+export type TransactionPayControllerGetStrategiesAction = {
+  type: `${typeof CONTROLLER_NAME}:getStrategies`;
+  handler: (transaction: TransactionMeta) => TransactionPayStrategy[];
+};
+
 /** Action to update the payment token for a transaction. */
 export type TransactionPayControllerUpdatePaymentTokenAction = {
   type: `${typeof CONTROLLER_NAME}:updatePaymentToken`;
@@ -116,6 +122,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerSetTransactionConfigAction
+  | TransactionPayControllerGetStrategiesAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =
@@ -134,6 +141,9 @@ export type TransactionPayControllerOptions = {
 
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
+
+  /** Callback to select ordered PayStrategies for a transaction. */
+  getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
@@ -434,6 +444,12 @@ export type PayStrategyGetRefreshIntervalRequest = {
 
 /** Strategy used to obtain required tokens for a transaction. */
 export type PayStrategy<OriginalQuote> = {
+  /**
+   * Check if the strategy supports the given request.
+   * Defaults to true if not implemented.
+   */
+  supports?: (request: PayStrategyGetQuotesRequest) => boolean;
+
   /** Retrieve quotes for required tokens. */
   getQuotes: (
     request: PayStrategyGetQuotesRequest,

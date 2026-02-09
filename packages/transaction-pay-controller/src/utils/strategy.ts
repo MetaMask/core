@@ -7,22 +7,28 @@ import { TestStrategy } from '../strategy/test/TestStrategy';
 import type { PayStrategy, TransactionPayControllerMessenger } from '../types';
 
 /**
- * Get the payment strategy instance.
+ * Get the ordered list of payment strategy instances.
  *
  * @param messenger - Controller messenger
- * @param transaction - Transaction to get the strategy for.
- * @returns The payment strategy instance.
+ * @param transaction - Transaction to get the strategies for.
+ * @returns The ordered payment strategy instances.
  */
-export function getStrategy(
+export function getStrategies(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
-): PayStrategy<unknown> {
-  const strategyName = messenger.call(
-    'TransactionPayController:getStrategy',
-    transaction,
-  );
+): PayStrategy<unknown>[] {
+  const strategyNames =
+    messenger.call('TransactionPayController:getStrategies', transaction) ?? [];
 
-  return getStrategyByName(strategyName);
+  return strategyNames
+    .map((strategyName) => {
+      try {
+        return getStrategyByName(strategyName);
+      } catch {
+        return undefined;
+      }
+    })
+    .filter(Boolean) as PayStrategy<unknown>[];
 }
 
 /**

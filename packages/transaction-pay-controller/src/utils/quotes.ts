@@ -4,7 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { getStrategy, getStrategyByName } from './strategy';
+import { getStrategies, getStrategyByName } from './strategy';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
 import { projectLogger } from '../logger';
@@ -227,7 +227,7 @@ export async function refreshQuotes(
  * @param request.transactionId - ID of the transaction.
  * @returns Array of quote requests.
  */
-function buildQuoteRequests({
+export function buildQuoteRequests({
   from,
   isMaxAmount,
   isPostQuote,
@@ -370,35 +370,60 @@ async function getQuotes(
   quotes: TransactionPayQuote<Json>[];
 }> {
   const { id: transactionId } = transaction;
-  const strategy = getStrategy(messenger as never, transaction);
-  let quotes: TransactionPayQuote<Json>[] | undefined = [];
+  const strategies = getStrategies(messenger as never, transaction);
 
-  try {
-    quotes = requests?.length
-      ? ((await strategy.getQuotes({
-          messenger,
-          requests,
-          transaction,
-        })) as TransactionPayQuote<Json>[])
-      : [];
-  } catch (error) {
-    log('Error fetching quotes', { error, transactionId });
+  if (!requests?.length) {
+    return {
+      batchTransactions: [],
+      quotes: [],
+    };
   }
 
-  log('Updated', { transactionId, quotes });
+  const request = {
+    messenger,
+    requests,
+    transaction,
+  };
 
-  const batchTransactions =
-    quotes?.length && strategy.getBatchTransactions
-      ? await strategy.getBatchTransactions({
-          messenger,
-          quotes,
-        })
-      : [];
+  for (const strategy of strategies) {
+    try {
+      if (strategy.supports && !strategy.supports(request)) {
+        continue;
+      }
 
-  log('Batch transactions', { transactionId, batchTransactions });
+      const quotes = (await strategy.getQuotes(
+        request,
+      )) as TransactionPayQuote<Json>[];
+
+      if (!quotes.length) {
+        continue;
+      }
+
+      log('Updated', { transactionId, quotes });
+
+      const batchTransactions = strategy.getBatchTransactions
+        ? await strategy.getBatchTransactions({
+            messenger,
+            quotes,
+          })
+        : [];
+
+      log('Batch transactions', { transactionId, batchTransactions });
+
+      return {
+        batchTransactions,
+        quotes,
+      };
+    } catch (error) {
+      log('Error evaluating strategy fallback step', { error, transactionId });
+      continue;
+    }
+  }
+
+  log('No quotes available', { transactionId });
 
   return {
-    batchTransactions,
-    quotes,
+    batchTransactions: [],
+    quotes: [],
   };
 }

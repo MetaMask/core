@@ -44,9 +44,14 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy;
 
+  readonly #getStrategies?: (
+    transaction: TransactionMeta,
+  ) => TransactionPayStrategy[];
+
   constructor({
     getDelegationTransaction,
     getStrategy,
+    getStrategies,
     messenger,
     state,
   }: TransactionPayControllerOptions) {
@@ -59,6 +64,7 @@ export class TransactionPayController extends BaseController<
 
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
+    this.#getStrategies = getStrategies;
 
     this.#registerActionHandlers();
 
@@ -160,6 +166,8 @@ export class TransactionPayController extends BaseController<
   }
 
   #registerActionHandlers(): void {
+    const getStrategies = this.#getStrategiesWithFallback.bind(this);
+
     this.messenger.registerActionHandler(
       'TransactionPayController:getDelegationTransaction',
       this.#getDelegationTransaction.bind(this),
@@ -167,8 +175,14 @@ export class TransactionPayController extends BaseController<
 
     this.messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ??
-        ((): TransactionPayStrategy => TransactionPayStrategy.Relay),
+      (transaction: TransactionMeta): TransactionPayStrategy =>
+        getStrategies(transaction)[0] ?? TransactionPayStrategy.Relay,
+    );
+
+    this.messenger.registerActionHandler(
+      'TransactionPayController:getStrategies',
+      (transaction: TransactionMeta): TransactionPayStrategy[] =>
+        getStrategies(transaction),
     );
 
     this.messenger.registerActionHandler(
@@ -180,5 +194,19 @@ export class TransactionPayController extends BaseController<
       'TransactionPayController:updatePaymentToken',
       this.updatePaymentToken.bind(this),
     );
+  }
+
+  #getStrategiesWithFallback(
+    transaction: TransactionMeta,
+  ): TransactionPayStrategy[] {
+    let strategies: TransactionPayStrategy[] = [];
+
+    if (this.#getStrategies) {
+      strategies = this.#getStrategies(transaction);
+    } else if (this.#getStrategy) {
+      strategies = [this.#getStrategy(transaction)];
+    }
+
+    return strategies.length ? strategies : [TransactionPayStrategy.Relay];
   }
 }
