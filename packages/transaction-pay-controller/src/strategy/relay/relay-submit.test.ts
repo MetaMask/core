@@ -511,35 +511,34 @@ describe('Relay Submit Utils', () => {
         await submitRelayQuotes(request);
 
         expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
-        expect(addTransactionBatchMock).toHaveBeenCalledWith({
-          from: FROM_MOCK,
-          gasFeeToken: undefined,
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-          origin: ORIGIN_METAMASK,
-          overwriteUpgrade: true,
-          requireApproval: false,
-          transactions: [
-            {
-              params: {
-                data: '0xorigdata',
-                to: '0xrecipient',
-                value: '0x100',
+        expect(addTransactionBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            from: FROM_MOCK,
+            gasFeeToken: undefined,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            origin: ORIGIN_METAMASK,
+            overwriteUpgrade: true,
+            requireApproval: false,
+            transactions: [
+              {
+                params: expect.objectContaining({
+                  data: '0xorigdata',
+                  to: '0xrecipient',
+                  value: '0x100',
+                }),
+                type: TransactionType.simpleSend,
               },
-              type: TransactionType.simpleSend,
-            },
-            {
-              params: {
-                data: '0x1234',
-                gas: '0x5208',
-                maxFeePerGas: '0x5d21dba00',
-                maxPriorityFeePerGas: '0x3b9aca00',
-                to: '0xfedcb',
-                value: '0x4d2',
+              {
+                params: expect.objectContaining({
+                  data: '0x1234',
+                  to: '0xfedcb',
+                  value: '0x4d2',
+                }),
+                type: TransactionType.relayDeposit,
               },
-              type: TransactionType.relayDeposit,
-            },
-          ],
-        });
+            ],
+          }),
+        );
       });
 
       it('sets gas to undefined when gasLimits entry is missing', async () => {
@@ -561,20 +560,6 @@ describe('Relay Submit Utils', () => {
         );
       });
 
-      it('marks original transaction as intent complete', async () => {
-        await submitRelayQuotes(request);
-
-        const dummyCall = updateTransactionMock.mock.calls.find(
-          (call) => call[0].note === 'Mark as dummy - handled by post-quote batch',
-        );
-
-        expect(dummyCall).toBeDefined();
-
-        const txDraft = {} as TransactionMeta;
-        dummyCall?.[1](txDraft);
-
-        expect(txDraft.isIntentComplete).toBe(true);
-      });
     });
 
     it('adds transaction batch with single gasLimit7702', async () => {

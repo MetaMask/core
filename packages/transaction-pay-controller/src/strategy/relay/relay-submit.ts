@@ -301,8 +301,25 @@ async function submitTransactions(
     sourceChainId,
   } = getSubmitContext(quote, messenger);
 
+  // For post-quote flows, prepend the original transaction params
+  // so it gets included in the batch alongside the relay deposit(s)
+  const allParams =
+    isPostQuote && transaction.txParams.to
+      ? [
+          {
+            data: transaction.txParams.data as Hex | undefined,
+            to: transaction.txParams.to as Hex,
+            value: transaction.txParams.value as Hex | undefined,
+          },
+          ...normalizedParams,
+        ]
+      : normalizedParams;
+
+  const allGasLimits =
+    isPostQuote && transaction.txParams.to ? [0, ...gasLimits] : gasLimits;
+
   log('Adding transactions', {
-    normalizedParams,
+    normalizedParams: allParams,
     sourceChainId,
     from,
     networkClientId,
@@ -331,64 +348,11 @@ async function submitTransactions(
         }))
       : undefined;
 
-  // For post-quote flows, always use batch with original transaction prepended
-  if (isPostQuote) {
-    const { txParams, type: originalType } = transaction;
-
-    const transactions: {
-      params: {
-        data?: Hex;
-        gas?: Hex;
-        maxFeePerGas?: Hex;
-        maxPriorityFeePerGas?: Hex;
-        to: Hex;
-        value?: Hex;
-      };
-      type?: TransactionType;
-    }[] = [];
-
-    // Add original transaction as first entry
-    if (txParams.to) {
-      transactions.push({
-        params: {
-          data: txParams.data as Hex | undefined,
-          to: txParams.to as Hex,
-          value: txParams.value as Hex | undefined,
-        },
-        type: originalType,
-      });
-    }
-
-    // Add relay deposit transaction(s)
-    for (let i = 0; i < normalizedParams.length; i++) {
-      const relayParams = normalizedParams[i];
-      transactions.push({
-        params: {
-          data: relayParams.data as Hex,
-          gas: gasLimits[i] ? toHex(gasLimits[i]) : undefined,
-          maxFeePerGas: relayParams.maxFeePerGas as Hex,
-          maxPriorityFeePerGas: relayParams.maxPriorityFeePerGas as Hex,
-          to: relayParams.to as Hex,
-          value: relayParams.value as Hex,
-        },
-        type: TransactionType.relayDeposit,
-      });
-    }
-
-    await messenger.call('TransactionController:addTransactionBatch', {
-      from,
-      gasFeeToken,
-      networkClientId,
-      origin: ORIGIN_METAMASK,
-      overwriteUpgrade: true,
-      requireApproval: false,
-      transactions,
-    });
-  } else if (normalizedParams.length === 1) {
+  if (allParams.length === 1) {
     const transactionParams = {
-      ...normalizedParams[0],
+      ...allParams[0],
       authorizationList,
-      gas: toHex(gasLimits[0]),
+      gas: toHex(allGasLimits[0]),
     };
 
     result = await messenger.call(
@@ -404,21 +368,23 @@ async function submitTransactions(
     );
   } else {
     const gasLimit7702 =
-      gasLimits.length === 1 ? toHex(gasLimits[0]) : undefined;
+      allGasLimits.length === 1 ? toHex(allGasLimits[0]) : undefined;
 
-    const transactions = normalizedParams.map((singleParams, index) => ({
+    const transactions = allParams.map((singleParams, index) => ({
       params: {
         data: singleParams.data as Hex,
-        gas: gasLimit7702 ? undefined : toHex(gasLimits[index]),
+        gas: gasLimit7702 ? undefined : toHex(allGasLimits[index]),
         maxFeePerGas: singleParams.maxFeePerGas as Hex,
         maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
         to: singleParams.to as Hex,
         value: singleParams.value as Hex,
       },
       type:
-        index === 0
-          ? TransactionType.tokenMethodApprove
-          : TransactionType.relayDeposit,
+        isPostQuote && index === 0
+          ? transaction.type
+          : index === 0
+            ? TransactionType.tokenMethodApprove
+            : TransactionType.relayDeposit,
     }));
 
     await messenger.call('TransactionController:addTransactionBatch', {
@@ -437,20 +403,6 @@ async function submitTransactions(
   }
 
   end();
-
-  // For post-quote flows, mark original transaction as handled by nested batch
-  if (isPostQuote) {
-    updateTransaction(
-      {
-        transactionId: transaction.id,
-        messenger,
-        note: 'Mark as dummy - handled by post-quote batch',
-      },
-      (tx) => {
-        tx.isIntentComplete = true;
-      },
-    );
-  }
 
   log('Added transactions', transactionIds);
 
