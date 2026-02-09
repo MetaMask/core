@@ -8,6 +8,7 @@ import {
   parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
+import BigNumberJS from 'bignumber.js';
 
 import type { AssetsControllerState } from '../AssetsController';
 import type {
@@ -51,9 +52,9 @@ const getAmountFromBalance = (balance: AssetBalance): string => {
   return '0';
 };
 
-const toNumberOrZero = (value: string): number => {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+const toBigNumberOrZero = (value: string): BigNumberJS => {
+  const parsed = new BigNumberJS(value);
+  return parsed.isNaN() || !parsed.isFinite() ? new BigNumberJS(0) : parsed;
 };
 
 const getPriceDatumFast = (
@@ -155,10 +156,10 @@ const getAssetInfo = (
 
 /**
  * Merge across accounts without building per-account entries arrays.
- * Also avoids Number.parseFloat twice by keeping a numeric accumulator.
+ * Uses BigNumber for amount accumulation to avoid float precision loss.
  */
 type AggRow = {
-  amount: number;
+  amount: BigNumberJS;
   decimals?: number;
   symbol?: string;
   name?: string;
@@ -197,20 +198,20 @@ function mergeBalancesIntoMap(args: {
     }
 
     const amountStr = getAmountFromBalance(accountBalances[typedAssetId]);
-    const amountNum = toNumberOrZero(amountStr);
-    if (amountNum === 0) {
+    const amountBn = toBigNumberOrZero(amountStr);
+    if (amountBn.isZero()) {
       continue; // skip zeros early to reduce map pressure
     }
 
     const existing = out.get(typedAssetId);
     if (existing) {
-      existing.amount += amountNum;
+      existing.amount = existing.amount.plus(amountBn);
       continue;
     }
 
     const meta = metadata[typedAssetId];
     out.set(typedAssetId, {
-      amount: amountNum,
+      amount: amountBn,
       decimals: meta?.decimals,
       symbol: meta?.symbol,
       name: meta?.name,
@@ -437,7 +438,7 @@ export function getAggregatedBalanceForAccount(
         assetsPrice,
         assetId,
       );
-      const contribution = amount * price;
+      const contribution = amount.multipliedBy(price).toNumber();
       if (contribution > 0) {
         totalBalanceInFiat += contribution;
         weightedNumerator += contribution * pricePercentChange1d;
