@@ -7,10 +7,10 @@ import type {
   Bip44Account,
 } from '@metamask/account-api';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
-import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { areUint8ArraysEqual } from '@metamask/utils';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
 import { traceFallback } from './analytics';
 import { projectLogger as log } from './logger';
@@ -53,11 +53,42 @@ export type MultichainAccountServiceOptions = {
   config?: MultichainAccountServiceConfig;
 };
 
-/** Reverse mapping object used to map account IDs and their wallet/multichain account. */
-type AccountContext<Account extends Bip44Account<KeyringAccount>> = {
-  wallet: MultichainAccountWallet<Account>;
-  group: MultichainAccountGroup<Account>;
+/**
+ * The keys used to identify an account in the service state.
+ */
+export type StateKeys = {
+  entropySource: EntropySourceId;
+  groupIndex: number;
+  providerName: string;
 };
+
+/**
+ * The service state.
+ */
+export type ServiceState = {
+  [entropySource: StateKeys['entropySource']]: {
+    [groupIndex: string]: {
+      [
+        providerName: StateKeys['providerName']
+      ]: Bip44Account<KeyringAccount>['id'][];
+    };
+  };
+};
+
+export type CreateWalletParams =
+  | {
+      type: 'restore';
+      password: string;
+      mnemonic: Uint8Array;
+    }
+  | {
+      type: 'import';
+      mnemonic: Uint8Array;
+    }
+  | {
+      type: 'create';
+      password: string;
+    };
 
 /**
  * Service to expose multichain accounts capabilities.
@@ -72,11 +103,6 @@ export class MultichainAccountService {
   readonly #wallets: Map<
     MultichainAccountWalletId,
     MultichainAccountWallet<Bip44Account<KeyringAccount>>
-  >;
-
-  readonly #accountIdToContext: Map<
-    Bip44Account<KeyringAccount>['id'],
-    AccountContext<Bip44Account<KeyringAccount>>
   >;
 
   /**
@@ -102,7 +128,6 @@ export class MultichainAccountService {
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
-    this.#accountIdToContext = new Map();
 
     // Pass trace callback directly to preserve original 'this' context
     // This avoids binding the callback to the MultichainAccountService instance
@@ -174,16 +199,66 @@ export class MultichainAccountService {
       (...args) => this.resyncAccounts(...args),
     );
     this.#messenger.registerActionHandler(
+      'MultichainAccountService:removeMultichainAccountWallet',
+      (...args) => this.removeMultichainAccountWallet(...args),
+    );
+    this.#messenger.registerActionHandler(
       'MultichainAccountService:ensureCanUseSnapPlatform',
       (...args) => this.ensureCanUseSnapPlatform(...args),
     );
+  }
 
-    this.#messenger.subscribe('AccountsController:accountAdded', (account) =>
-      this.#handleOnAccountAdded(account),
+  /**
+   * Get the keys used to identify an account in the service state.
+   *
+   * @param account - The account to get the keys for.
+   * @returns The keys used to identify an account in the service state.
+   * Returns null if the account is not compatible with any provider.
+   */
+  #getStateKeys(account: InternalAccount): StateKeys | null {
+    for (const provider of this.#providers) {
+      if (isBip44Account(account) && provider.isAccountCompatible(account)) {
+        return {
+          entropySource: account.options.entropy.id,
+          groupIndex: account.options.entropy.groupIndex,
+          providerName: provider.getName(),
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Construct the service and provider state.
+   *
+   * @returns The service and provider state.
+   */
+  #constructServiceState(): {
+    serviceState: ServiceState;
+    providerState: Record<string, Bip44Account<KeyringAccount>['id'][]>;
+  } {
+    const accounts = this.#messenger.call(
+      'AccountsController:listMultichainAccounts',
     );
-    this.#messenger.subscribe('AccountsController:accountRemoved', (id) =>
-      this.#handleOnAccountRemoved(id),
-    );
+
+    const serviceState: ServiceState = {};
+
+    const providerState: Record<string, Bip44Account<KeyringAccount>['id'][]> =
+      {};
+
+    for (const account of accounts) {
+      const keys = this.#getStateKeys(account);
+      if (keys) {
+        const { entropySource, groupIndex, providerName } = keys;
+        serviceState[entropySource] ??= {};
+        serviceState[entropySource][groupIndex] ??= {};
+        serviceState[entropySource][groupIndex][providerName] ??= [];
+        serviceState[entropySource][groupIndex][providerName].push(account.id);
+        providerState[providerName] ??= [];
+        providerState[providerName].push(account.id);
+      }
+    }
+    return { serviceState, providerState };
   }
 
   /**
@@ -194,36 +269,25 @@ export class MultichainAccountService {
     log('Initializing...');
 
     this.#wallets.clear();
-    this.#accountIdToContext.clear();
 
-    // Create initial wallets.
-    const { keyrings } = this.#messenger.call('KeyringController:getState');
-    for (const keyring of keyrings) {
-      if (keyring.type === (KeyringTypes.hd as string)) {
-        // Only HD keyrings have an entropy source/SRP.
-        const entropySource = keyring.metadata.id;
+    const { serviceState, providerState } = this.#constructServiceState();
 
-        log(`Adding new wallet for entropy: "${entropySource}"`);
+    for (const provider of this.#providers) {
+      const providerName = provider.getName();
+      // Initialize providers even if there are no accounts yet.
+      // Passing an empty array ensures providers start in a valid state.
+      const state = providerState[providerName] ?? [];
+      provider.init(state);
+    }
 
-        // This will automatically "associate" all multichain accounts for that wallet
-        // (based on the accounts owned by each account providers).
-        const wallet = new MultichainAccountWallet({
-          entropySource,
-          providers: this.#providers,
-          messenger: this.#messenger,
-        });
-        this.#wallets.set(wallet.id, wallet);
-
-        // Reverse mapping between account ID and their multichain wallet/account:
-        for (const group of wallet.getMultichainAccountGroups()) {
-          for (const account of group.getAccounts()) {
-            this.#accountIdToContext.set(account.id, {
-              wallet,
-              group,
-            });
-          }
-        }
-      }
+    for (const entropySource of Object.keys(serviceState)) {
+      const wallet = new MultichainAccountWallet({
+        entropySource,
+        providers: this.#providers,
+        messenger: this.#messenger,
+      });
+      wallet.init(serviceState[entropySource]);
+      this.#wallets.set(wallet.id, wallet);
     }
 
     log('Initialized');
@@ -274,84 +338,13 @@ export class MultichainAccountService {
     return this.#watcher.ensureCanUseSnapPlatform();
   }
 
-  #handleOnAccountAdded(account: KeyringAccount): void {
-    // We completely omit non-BIP-44 accounts!
-    if (!isBip44Account(account)) {
-      return;
-    }
-
-    let sync = true;
-
-    let wallet = this.#wallets.get(
-      toMultichainAccountWalletId(account.options.entropy.id),
-    );
-    if (!wallet) {
-      log(
-        `Adding new wallet for entropy: "${account.options.entropy.id}" (for account: "${account.id}")`,
-      );
-
-      // That's a new wallet.
-      wallet = new MultichainAccountWallet({
-        entropySource: account.options.entropy.id,
-        providers: this.#providers,
-        messenger: this.#messenger,
-      });
-      this.#wallets.set(wallet.id, wallet);
-
-      // If that's a new wallet wallet. There's nothing to "force-sync".
-      sync = false;
-    }
-
-    let group = wallet.getMultichainAccountGroup(
-      account.options.entropy.groupIndex,
-    );
-    if (!group) {
-      // This new account is a new multichain account, let the wallet know
-      // it has to re-sync with its providers.
-      if (sync) {
-        wallet.sync();
-      }
-
-      group = wallet.getMultichainAccountGroup(
-        account.options.entropy.groupIndex,
-      );
-
-      // If that's a new multichain account. There's nothing to "force-sync".
-      sync = false;
-    }
-
-    // We have to check against `undefined` in case `getMultichainAccount` is
-    // not able to find this multichain account (which should not be possible...)
-    if (group) {
-      if (sync) {
-        group.sync();
-      }
-
-      // Same here, this account should have been already grouped in that
-      // multichain account.
-      this.#accountIdToContext.set(account.id, {
-        wallet,
-        group,
-      });
-    }
-  }
-
-  #handleOnAccountRemoved(id: KeyringAccount['id']): void {
-    // Force sync of the appropriate wallet if an account got removed.
-    const found = this.#accountIdToContext.get(id);
-    if (found) {
-      const { wallet } = found;
-
-      log(
-        `Re-synchronize wallet [${wallet.id}] since account "${id}" got removed`,
-      );
-      wallet.sync();
-    }
-
-    // Safe to call delete even if the `id` was not referencing a BIP-44 account.
-    this.#accountIdToContext.delete(id);
-  }
-
+  /**
+   * Get the wallet matching the given entropy source.
+   *
+   * @param entropySource - The entropy source of the wallet.
+   * @returns The wallet matching the given entropy source.
+   * @throws If no wallet matches the given entropy source.
+   */
   #getWallet(
     entropySource: EntropySourceId,
   ): MultichainAccountWallet<Bip44Account<KeyringAccount>> {
@@ -364,19 +357,6 @@ export class MultichainAccountService {
     }
 
     return wallet;
-  }
-
-  /**
-   * Gets the account's context which contains its multichain wallet and
-   * multichain account group references.
-   *
-   * @param id - Account ID.
-   * @returns The account context if any, undefined otherwise.
-   */
-  getAccountContext(
-    id: KeyringAccount['id'],
-  ): AccountContext<Bip44Account<KeyringAccount>> | undefined {
-    return this.#accountIdToContext.get(id);
   }
 
   /**
@@ -406,52 +386,146 @@ export class MultichainAccountService {
     return Array.from(this.#wallets.values());
   }
 
+  #getPrimaryEntropySourceId(): EntropySourceId {
+    const { keyrings } = this.#messenger.call('KeyringController:getState');
+    const primaryKeyring = keyrings.find(
+      (keyring) => keyring.type === KeyringTypes.hd,
+    );
+    assert(primaryKeyring, 'Primary keyring not found');
+    return primaryKeyring.metadata.id;
+  }
+
   /**
-   * Creates a new multichain account wallet with the given mnemonic.
+   * Creates a new multichain account wallet by importing an existing mnemonic.
    *
-   * NOTE: This method should only be called in client code where a mutex lock is acquired.
-   * `discoverAndCreateAccounts` should be called after this method to discover and create accounts.
-   *
-   * @param options - Options.
-   * @param options.mnemonic - The mnemonic to use to create the new wallet.
-   * @throws If the mnemonic has already been imported.
+   * @param mnemonic - The mnemonic to use to create the new wallet.
    * @returns The new multichain account wallet.
    */
-  async createMultichainAccountWallet({
-    mnemonic,
-  }: {
-    mnemonic: string;
-  }): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+  async #createWalletByImport(
+    mnemonic: Uint8Array,
+  ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    log(`Creating new wallet by importing an existing mnemonic...`);
     const existingKeyrings = this.#messenger.call(
       'KeyringController:getKeyringsByType',
       KeyringTypes.hd,
     ) as HdKeyring[];
 
-    const mnemonicAsBytes = mnemonicPhraseToBytes(mnemonic);
-
     const alreadyHasImportedSrp = existingKeyrings.some((keyring) => {
       if (!keyring.mnemonic) {
         return false;
       }
-      return areUint8ArraysEqual(keyring.mnemonic, mnemonicAsBytes);
+      return areUint8ArraysEqual(keyring.mnemonic, mnemonic);
     });
 
     if (alreadyHasImportedSrp) {
       throw new Error('This Secret Recovery Phrase has already been imported.');
     }
 
-    log(`Creating new wallet...`);
-
     const result = await this.#messenger.call(
       'KeyringController:addNewKeyring',
       KeyringTypes.hd,
-      { mnemonic },
+      { mnemonic, numberOfAccounts: 1 },
     );
 
-    const wallet = new MultichainAccountWallet({
+    return new MultichainAccountWallet({
       providers: this.#providers,
       entropySource: result.id,
       messenger: this.#messenger,
+    });
+  }
+
+  /**
+   * Creates a new multichain account wallet by creating a new vault and keychain.
+   *
+   * @param password - The password to encrypt the vault with.
+   * @returns The new multichain account wallet.
+   */
+  async #createWalletByNewVault(
+    password: string,
+  ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    log(`Creating new wallet by creating a new vault and keychain...`);
+    await this.#messenger.call(
+      'KeyringController:createNewVaultAndKeychain',
+      password,
+    );
+
+    const entropySourceId = this.#getPrimaryEntropySourceId();
+
+    return new MultichainAccountWallet({
+      providers: this.#providers,
+      entropySource: entropySourceId,
+      messenger: this.#messenger,
+    });
+  }
+
+  /**
+   * Creates a new multichain account wallet by restoring a vault and keyring.
+   *
+   * @param password - The password to encrypt the vault with.
+   * @param mnemonic - The mnemonic to use to restore the new wallet.
+   * @returns The new multichain account wallet.
+   */
+  async #createWalletByRestore(
+    password: string,
+    mnemonic: Uint8Array,
+  ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    log(`Creating new wallet by restoring vault and keyring...`);
+    await this.#messenger.call(
+      'KeyringController:createNewVaultAndRestore',
+      password,
+      mnemonic,
+    );
+
+    const entropySourceId = this.#getPrimaryEntropySourceId();
+
+    return new MultichainAccountWallet({
+      providers: this.#providers,
+      entropySource: entropySourceId,
+      messenger: this.#messenger,
+    });
+  }
+
+  /**
+   * Creates a new multichain account wallet by either importing an existing mnemonic,
+   * creating a new vault and keychain, or restoring a vault and keyring.
+   *
+   * NOTE: This method should only be called in client code where a mutex lock is acquired.
+   * `discoverAccounts` should be called after this method to discover and create accounts.
+   *
+   * @param params - The parameters to use to create the new wallet.
+   * @param params.mnemonic - The mnemonic to use to create the new wallet.
+   * @param params.password - The password to encrypt the vault with.
+   * @param params.type - The flow type to use to create the new wallet.
+   * @throws If the mnemonic has already been imported.
+   * @returns The new multichain account wallet.
+   */
+  async createMultichainAccountWallet(
+    params: CreateWalletParams,
+  ): Promise<MultichainAccountWallet<Bip44Account<KeyringAccount>>> {
+    let wallet:
+      | MultichainAccountWallet<Bip44Account<KeyringAccount>>
+      | undefined;
+
+    if (params.type === 'import') {
+      wallet = await this.#createWalletByImport(params.mnemonic);
+    } else if (params.type === 'create') {
+      wallet = await this.#createWalletByNewVault(params.password);
+    } else if (params.type === 'restore') {
+      wallet = await this.#createWalletByRestore(
+        params.password,
+        params.mnemonic,
+      );
+    }
+
+    assert(wallet, 'Failed to create wallet.');
+
+    wallet.init({});
+    // READ THIS CAREFULLY:
+    // We do not await for non-EVM account creations as they
+    // are depending on the Snap platform to be ready (which is, waiting for onboarding to be completed).
+    // Awaiting for this might cause a deadlock otherwise (during onboarding at least).
+    await wallet.createMultichainAccountGroup(0, {
+      waitForAllProvidersToFinishCreatingAccounts: false,
     });
 
     this.#wallets.set(wallet.id, wallet);
@@ -459,6 +533,31 @@ export class MultichainAccountService {
     log(`Wallet created: [${wallet.id}]`);
 
     return wallet;
+  }
+
+  /**
+   * Removes a multichain account wallet.
+   *
+   * NOTE: This method should only be called in client code as a revert mechanism.
+   * At the point that this code is called, discovery shouldn't have been triggered.
+   * This is meant to be used in the scenario where a seed phrase backup is not successful.
+   *
+   * @param entropySource - The entropy source of the multichain account wallet.
+   * @param accountAddress - The address of the account to remove.
+   * @returns The removed multichain account wallet.
+   */
+  async removeMultichainAccountWallet(
+    entropySource: EntropySourceId,
+    accountAddress: string,
+  ): Promise<void> {
+    const wallet = this.#getWallet(entropySource);
+
+    await this.#messenger.call(
+      'KeyringController:removeAccount',
+      accountAddress,
+    );
+
+    this.#wallets.delete(wallet.id);
   }
 
   /**

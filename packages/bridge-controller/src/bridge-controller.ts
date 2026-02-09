@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
@@ -174,11 +175,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #fetchFn: FetchFunction;
 
   readonly #trackMetaMetricsFn: <
-    T extends
+    EventName extends
       (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
   >(
-    eventName: T,
-    properties: CrossChainSwapsEventProperties<T>,
+    eventName: EventName,
+    properties: CrossChainSwapsEventProperties<EventName>,
   ) => void;
 
   readonly #trace: TraceCallback;
@@ -208,11 +209,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       customBridgeApiBaseUrl?: string;
     };
     trackMetaMetricsFn: <
-      T extends
+      EventName extends
         (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
     >(
-      eventName: T,
-      properties: CrossChainSwapsEventProperties<T>,
+      eventName: EventName,
+      properties: CrossChainSwapsEventProperties<EventName>,
     ) => void;
     traceFn?: TraceCallback;
   }) {
@@ -874,12 +875,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #getEventProperties = <
-    T extends
+    EventName extends
       (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
   >(
-    eventName: T,
-    propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
-  ): CrossChainSwapsEventProperties<T> => {
+    eventName: EventName,
+    propertiesFromClient: Pick<
+      RequiredEventContextFromClient,
+      EventName
+    >[EventName],
+  ): CrossChainSwapsEventProperties<EventName> => {
     const baseProperties = {
       ...propertiesFromClient,
       action_type: MetricsActionType.SWAPBRIDGE_V1,
@@ -1000,14 +1004,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * });
    */
   trackUnifiedSwapBridgeEvent = <
-    T extends
+    EventName extends
       (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
   >(
-    eventName: T,
-    propertiesFromClient: Pick<RequiredEventContextFromClient, T>[T],
+    eventName: EventName,
+    propertiesFromClient: Pick<
+      RequiredEventContextFromClient,
+      EventName
+    >[EventName],
   ) => {
     try {
-      const combinedPropertiesForEvent = this.#getEventProperties<T>(
+      const combinedPropertiesForEvent = this.#getEventProperties<EventName>(
         eventName,
         propertiesFromClient,
       );

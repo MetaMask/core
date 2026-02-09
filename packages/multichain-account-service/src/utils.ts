@@ -1,16 +1,3 @@
-export const toRejectedErrorMessage = <Result>(
-  prefix: string,
-  results: PromiseSettledResult<Result>[],
-) => {
-  let errorMessage = `${prefix}:`;
-  for (const r of results) {
-    if (r.status === 'rejected') {
-      errorMessage += `\n- ${r.reason}`;
-    }
-  }
-  return errorMessage;
-};
-
 /**
  * Creates a Sentry error from an error message, an inner error and a context.
  *

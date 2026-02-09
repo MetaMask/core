@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
+
+## [23.1.0]
+
 ### Added
 
 - Add prototype pollution validation for `signTypedData` methods (V1, V3, V4) to block dangerous properties (`__proto__`, `constructor`, `prototype`, etc.) in message data. ([#7732](https://github.com/MetaMask/core/pull/7732))
@@ -73,7 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-json-rpc-middleware`](https://github.com/MetaMask/eth-json-rpc-middleware/blob/main/CHANGELOG.md)
     for the original changelog.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@23.0.0...@metamask/eth-json-rpc-middleware@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.1...@metamask/eth-json-rpc-middleware@23.0.0
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@22.0.0...@metamask/eth-json-rpc-middleware@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-middleware@21.0.0...@metamask/eth-json-rpc-middleware@22.0.0
