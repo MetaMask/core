@@ -58,6 +58,8 @@ import type {
   DataType,
   DataRequest,
   DataResponse,
+  FetchContext,
+  FetchNextFunction,
   NextFunction,
   Middleware,
   SubscriptionResponse,
@@ -200,6 +202,23 @@ export type AssetsControllerMessenger = Messenger<
 // CONTROLLER OPTIONS
 // ============================================================================
 
+/**
+ * Payload for the first init/fetch MetaMetrics event.
+ * Passed to the optional trackMetaMetricsEvent callback when the initial
+ * asset fetch completes after unlock or app open.
+ */
+export type AssetsControllerFirstInitFetchMetaMetricsPayload = {
+  /** Duration of the first init fetch in milliseconds (wall-clock). */
+  durationMs: number;
+  /** Chain IDs requested in the fetch (e.g. ['eip155:1', 'eip155:137']). */
+  chainIds: string[];
+  /**
+   * Exclusive latency in ms per data source (time spent in that source only).
+   * Sum of values approximates durationMs. Order: same as middleware chain.
+   */
+  durationByDataSource: Record<string, number>;
+};
+
 export type AssetsControllerOptions = {
   messenger: AssetsControllerMessenger;
   state?: Partial<AssetsControllerState>;
@@ -233,6 +252,13 @@ export type AssetsControllerOptions = {
   queryApiClient: ApiPlatformClient;
   /** Optional configuration for RpcDataSource. */
   rpcDataSourceConfig?: RpcDataSourceConfig;
+  /**
+   * Optional callback invoked when the first init/fetch completes (e.g. after unlock).
+   * Use this to track first init fetch duration in MetaMetrics.
+   */
+  trackMetaMetricsEvent?: (
+    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+  ) => void;
 };
 
 // ============================================================================
@@ -384,6 +410,14 @@ export class AssetsController extends BaseController<
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
+  /** Optional callback for first init/fetch MetaMetrics (duration). */
+  readonly #trackMetaMetricsEvent?: (
+    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+  ) => void;
+
+  /** Whether we have already reported first init fetch for this session (reset on #stop). */
+  #firstInitFetchReported = false;
+
   readonly #controllerMutex = new Mutex();
 
   /**
@@ -455,6 +489,7 @@ export class AssetsController extends BaseController<
     subscribeToBasicFunctionalityChange,
     queryApiClient,
     rpcDataSourceConfig,
+    trackMetaMetricsEvent,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -469,7 +504,7 @@ export class AssetsController extends BaseController<
     this.#isEnabled = isEnabled();
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
-
+    this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
     const onActiveChainsUpdated = (
@@ -691,18 +726,44 @@ export class AssetsController extends BaseController<
 
   /**
    * Execute middlewares with request/response context.
+   * Returns response and exclusive duration per source (sum ≈ wall time).
    *
-   * @param middlewares - Middlewares to execute in order.
+   * @param sources - Data sources or middlewares with getName() and assetsMiddleware (executed in order).
    * @param request - The data request.
    * @param initialResponse - Optional initial response (for enriching existing data).
-   * @returns The final DataResponse after all middlewares have processed.
+   * @returns Response and durationByDataSource (exclusive ms per source name).
    */
   async #executeMiddlewares(
-    middlewares: Middleware[],
+    sources: { getName(): string; assetsMiddleware: Middleware }[],
     request: DataRequest,
     initialResponse: DataResponse = {},
-  ): Promise<DataResponse> {
-    const chain = middlewares.reduceRight<NextFunction>(
+  ): Promise<{
+    response: DataResponse;
+    durationByDataSource: Record<string, number>;
+  }> {
+    const names = sources.map((source) => source.getName());
+    const middlewares = sources.map((source) => source.assetsMiddleware);
+    const inclusive: number[] = [];
+    const wrapped = middlewares.map(
+      (middleware, i) =>
+        (async (
+          ctx: FetchContext,
+          next: FetchNextFunction,
+        ): Promise<{
+          request: DataRequest;
+          response: DataResponse;
+          getAssetsState: () => AssetsControllerStateInternal;
+        }> => {
+          const start = Date.now();
+          try {
+            return await middleware(ctx, next);
+          } finally {
+            inclusive[i] = Date.now() - start;
+          }
+        }) as Middleware,
+    );
+
+    const chain = wrapped.reduceRight<NextFunction>(
       (next, middleware) =>
         async (
           ctx,
@@ -726,7 +787,17 @@ export class AssetsController extends BaseController<
       response: initialResponse,
       getAssetsState: () => this.state as AssetsControllerStateInternal,
     });
-    return result.response;
+
+    const durationByDataSource: Record<string, number> = {};
+    for (let i = 0; i < inclusive.length; i++) {
+      const nextInc = i + 1 < inclusive.length ? (inclusive[i + 1] ?? 0) : 0;
+      const exclusive = Math.max(0, (inclusive[i] ?? 0) - nextInc);
+      const name = names[i];
+      if (name !== undefined) {
+        durationByDataSource[name] = exclusive;
+      }
+    }
+    return { response: result.response, durationByDataSource };
   }
 
   // ============================================================================
@@ -754,27 +825,37 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
+      const startTime = Date.now();
       const request = this.#buildDataRequest(accounts, chainIds, {
         assetTypes,
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
       });
-      const middlewares = this.#isBasicFunctionality()
+      const sources = this.#isBasicFunctionality()
         ? [
-            this.#accountsApiDataSource.assetsMiddleware,
-            this.#snapDataSource.assetsMiddleware,
-            this.#rpcDataSource.assetsMiddleware,
-            this.#detectionMiddleware.assetsMiddleware,
-            this.#tokenDataSource.assetsMiddleware,
-            this.#priceDataSource.assetsMiddleware,
+            this.#accountsApiDataSource,
+            this.#snapDataSource,
+            this.#rpcDataSource,
+            this.#detectionMiddleware,
+            this.#tokenDataSource,
+            this.#priceDataSource,
           ]
-        : [
-            this.#rpcDataSource.assetsMiddleware,
-            this.#detectionMiddleware.assetsMiddleware,
-          ];
-      const response = await this.#executeMiddlewares(middlewares, request);
+        : [this.#rpcDataSource, this.#detectionMiddleware];
+      const { response, durationByDataSource } = await this.#executeMiddlewares(
+        sources,
+        request,
+      );
       await this.#updateState(response);
+      if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
+        this.#firstInitFetchReported = true;
+        const durationMs = Date.now() - startTime;
+        this.#trackMetaMetricsEvent({
+          durationMs,
+          chainIds,
+          durationByDataSource,
+        });
+      }
     }
 
     return this.#getAssetsFromState(accounts, chainIds, assetTypes);
@@ -1325,14 +1406,12 @@ export class AssetsController extends BaseController<
     });
 
     this.#subscribeAssets();
-    if (this.#selectedAccounts.length > 0) {
-      this.getAssets(this.#selectedAccounts, {
-        chainIds: [...this.#enabledChains],
-        forceUpdate: true,
-      }).catch((error) => {
-        log('Failed to fetch assets', error);
-      });
-    }
+    this.getAssets(this.#selectedAccounts, {
+      chainIds: [...this.#enabledChains],
+      forceUpdate: true,
+    }).catch((error) => {
+      log('Failed to fetch assets', error);
+    });
   }
 
   /**
@@ -1344,6 +1423,8 @@ export class AssetsController extends BaseController<
       activeSubscriptionCount: this.#activeSubscriptions.size,
       hasPriceSubscription: this.#activeSubscriptions.has('ds:PriceDataSource'),
     });
+
+    this.#firstInitFetchReported = false;
 
     // Stop price subscription first (uses direct messenger call)
     this.unsubscribeAssetsPrice();
@@ -1716,12 +1797,8 @@ export class AssetsController extends BaseController<
 
     // Run through enrichment middlewares (Event Stack: Detection → Token → Price)
     // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
-    const enrichedResponse = await this.#executeMiddlewares(
-      [
-        this.#detectionMiddleware.assetsMiddleware,
-        this.#tokenDataSource.assetsMiddleware,
-        this.#priceDataSource.assetsMiddleware,
-      ],
+    const { response: enrichedResponse } = await this.#executeMiddlewares(
+      [this.#detectionMiddleware, this.#tokenDataSource, this.#priceDataSource],
       request ?? {
         accountsWithSupportedChains: [],
         chainIds: [],

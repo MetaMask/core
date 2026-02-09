@@ -100,7 +100,11 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
  * Usage: Create with queryApiClient; subscribe() requires getAssetsState in the request for balance-based pricing.
  */
 export class PriceDataSource {
-  readonly name = CONTROLLER_NAME;
+  static readonly controllerName = CONTROLLER_NAME;
+
+  getName(): string {
+    return PriceDataSource.controllerName;
+  }
 
   readonly #currency: SupportedCurrency;
 

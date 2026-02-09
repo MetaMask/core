@@ -13,6 +13,7 @@ import {
   getDefaultAssetsControllerState,
 } from './AssetsController';
 import type {
+  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
@@ -56,6 +57,12 @@ function createMockInternalAccount(
 type WithControllerOptions = {
   state?: Partial<AssetsControllerState>;
   isBasicFunctionality?: () => boolean;
+  /** Extra options passed to AssetsController constructor (e.g. trackMetaMetricsEvent). */
+  controllerOptions?: Partial<{
+    trackMetaMetricsEvent: (
+      payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+    ) => void;
+  }>;
 };
 
 type WithControllerCallback<ReturnValue> = ({
@@ -78,10 +85,15 @@ async function withController<ReturnValue>(
     | [WithControllerOptions, WithControllerCallback<ReturnValue>]
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
-  const [{ state = {}, isBasicFunctionality = (): boolean => true }, fn]: [
-    WithControllerOptions,
-    WithControllerCallback<ReturnValue>,
-  ] = args.length === 2 ? args : [{}, args[0]];
+  const [
+    {
+      state = {},
+      isBasicFunctionality = (): boolean => true,
+      controllerOptions = {},
+    },
+    fn,
+  ]: [WithControllerOptions, WithControllerCallback<ReturnValue>] =
+    args.length === 2 ? args : [{}, args[0]];
 
   // Use root messenger (MOCK_ANY_NAMESPACE) so data sources can register their actions.
   const messenger: RootMessenger = new Messenger({
@@ -138,6 +150,7 @@ async function withController<ReturnValue>(
     subscribeToBasicFunctionalityChange: (): void => {
       /* no-op for tests */
     },
+    ...controllerOptions,
   });
 
   return fn({ controller, messenger });
@@ -727,6 +740,51 @@ describe('AssetsController', () => {
 
         expect(true).toBe(true);
       });
+    });
+
+    it('invokes trackMetaMetricsEvent with first init fetch duration on unlock', async () => {
+      const trackMetaMetricsEvent = jest.fn();
+
+      await withController(
+        { controllerOptions: { trackMetaMetricsEvent } },
+        async ({ messenger }) => {
+          messenger.publish('KeyringController:unlock');
+
+          // Allow #start() -> getAssets() to resolve so the callback runs
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
+          expect(trackMetaMetricsEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+              durationMs: expect.any(Number),
+              chainIds: expect.any(Array),
+              durationByDataSource: expect.any(Object),
+            }),
+          );
+          const payload = trackMetaMetricsEvent.mock
+            .calls[0][0] as AssetsControllerFirstInitFetchMetaMetricsPayload;
+          expect(payload.durationMs).toBeGreaterThanOrEqual(0);
+          expect(Array.isArray(payload.chainIds)).toBe(true);
+          expect(typeof payload.durationByDataSource).toBe('object');
+        },
+      );
+    });
+
+    it('invokes trackMetaMetricsEvent only once per session until lock', async () => {
+      const trackMetaMetricsEvent = jest.fn();
+
+      await withController(
+        { controllerOptions: { trackMetaMetricsEvent } },
+        async ({ messenger }) => {
+          messenger.publish('KeyringController:unlock');
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          messenger.publish('KeyringController:unlock');
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
+        },
+      );
     });
   });
 

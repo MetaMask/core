@@ -9,6 +9,7 @@ export type {
   AssetsControllerState,
   AssetsControllerMessenger,
   AssetsControllerOptions,
+  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerGetStateAction,
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
