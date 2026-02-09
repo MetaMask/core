@@ -57,6 +57,29 @@ const toBigNumberOrZero = (value: string): BigNumberJS => {
   return parsed.isNaN() || !parsed.isFinite() ? new BigNumberJS(0) : parsed;
 };
 
+/**
+ * When state contains raw base units (e.g. SPORE "16201541034.639288184" with 9 decimals),
+ * scale to human (16.2) before pricing. Only scale when amount >= 10^decimals so we don't
+ * double-scale amounts that are already human (e.g. "1", "0.227285").
+ *
+ * @param amountRaw - Amount from state (may be raw or human).
+ * @param decimals - Token decimals from metadata.
+ * @returns Human amount for display and fiat (amountRaw or amountRaw / 10^decimals).
+ */
+const scaleToHumanIfRaw = (
+  amountRaw: BigNumberJS,
+  decimals: number,
+): BigNumberJS => {
+  if (decimals <= 0) {
+    return amountRaw;
+  }
+  const scale = new BigNumberJS(10).pow(decimals);
+  if (amountRaw.lt(scale)) {
+    return amountRaw;
+  }
+  return amountRaw.dividedBy(scale);
+};
+
 const getPriceDatumFast = (
   assetsPrice: AssetsControllerState['assetsPrice'] | undefined,
   assetId: Caip19AssetId,
@@ -198,7 +221,11 @@ function mergeBalancesIntoMap(args: {
     }
 
     const amountStr = getAmountFromBalance(accountBalances[typedAssetId]);
-    const amountBn = toBigNumberOrZero(amountStr);
+    let amountBn = toBigNumberOrZero(amountStr);
+    const meta = metadata[typedAssetId];
+    if (meta?.decimals !== undefined) {
+      amountBn = scaleToHumanIfRaw(amountBn, meta.decimals);
+    }
     if (amountBn.isZero()) {
       continue; // skip zeros early to reduce map pressure
     }
@@ -209,7 +236,6 @@ function mergeBalancesIntoMap(args: {
       continue;
     }
 
-    const meta = metadata[typedAssetId];
     out.set(typedAssetId, {
       amount: amountBn,
       decimals: meta?.decimals,
