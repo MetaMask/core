@@ -229,7 +229,7 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   assetsPrice: {
-    persist: true,
+    persist: false,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
