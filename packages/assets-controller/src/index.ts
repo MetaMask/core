@@ -150,7 +150,12 @@ export type {
 } from './data-sources';
 
 // Middlewares
-export { DetectionMiddleware } from './middlewares';
+export {
+  createParallelBalanceMiddleware,
+  type BalanceMiddlewareSource,
+  type ParallelBalanceMiddlewareOptions,
+  DetectionMiddleware,
+} from './middlewares';
 
 // Utilities
 export { normalizeAssetId } from './utils';

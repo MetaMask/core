@@ -43,6 +43,7 @@ import { RpcDataSource } from './data-sources/RpcDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
+import { createParallelBalanceMiddleware } from './middlewares/parallelBalanceMiddleware';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
 import type {
   AccountId,
@@ -720,9 +721,28 @@ export class AssetsController extends BaseController<
       });
       const response = await this.#executeMiddlewares(
         [
-          this.#accountsApiDataSource.assetsMiddleware,
-          this.#snapDataSource.assetsMiddleware,
-          this.#rpcDataSource.assetsMiddleware,
+          createParallelBalanceMiddleware(
+            [
+              {
+                middleware: this.#accountsApiDataSource.assetsMiddleware,
+                getActiveChains: () =>
+                  this.#accountsApiDataSource.getActiveChainsSync(),
+              },
+              {
+                middleware: this.#snapDataSource.assetsMiddleware,
+                getActiveChains: () =>
+                  this.#snapDataSource.getActiveChainsSync(),
+              },
+              {
+                middleware: this.#rpcDataSource.assetsMiddleware,
+                getActiveChains: () =>
+                  this.#rpcDataSource.getActiveChainsSync(),
+              },
+            ],
+            {
+              fallbackMiddlewares: [this.#rpcDataSource.assetsMiddleware],
+            },
+          ),
           this.#detectionMiddleware.assetsMiddleware,
           this.#tokenDataSource.assetsMiddleware,
           this.#priceDataSource.assetsMiddleware,

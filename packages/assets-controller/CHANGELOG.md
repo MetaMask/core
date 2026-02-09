@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createParallelBalanceMiddleware(sources, options?)` to run balance sources in parallel with chain distribution (same strategy as subscription): each chain is assigned to one source via `getActiveChains`, so there is no overlap. Uses `Promise.allSettled` so failures in one source do not block others. Optional `options.fallbackMiddlewares` run only for remaining chains (no balance after primary run)
+
 ### Changed
 
 - **BREAKING:** Require `previousChains` in `handleActiveChainsUpdate(dataSourceId, activeChains, previousChains)` and in the `onActiveChainsUpdated` callback used by data sources; the third parameter is no longer optional. Callers and data sources must pass the previous chain list for correct added/removed chain diff computation ([#7867](https://github.com/MetaMask/core/pull/7867))
