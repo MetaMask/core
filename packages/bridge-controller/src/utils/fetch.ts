@@ -10,7 +10,6 @@ import { fetchServerEvents } from './fetch-server-events';
 import { isEvmTxData } from './trade-utils';
 import type { FeatureId } from './validators';
 import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
-import { createBridgeApiClient } from '../client';
 import type {
   QuoteResponse,
   FetchFunction,
@@ -19,10 +18,7 @@ import type {
   BridgeAsset,
 } from '../types';
 
-export const getClientHeaders = (
-  clientId: string,
-  clientVersion?: string,
-): Record<string, string> => ({
+export const getClientHeaders = (clientId: string, clientVersion?: string) => ({
   'X-Client-Id': clientId,
   ...(clientVersion ? { 'Client-Version': clientVersion } : {}),
 });
@@ -129,62 +125,29 @@ export async function fetchBridgeQuotes(
   quotes: QuoteResponse[];
   validationFailures: string[];
 }> {
-  const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
+  const queryParams = formatQueryParams(request);
 
-  const client = createBridgeApiClient(bridgeApiBaseUrl);
-  const { data: quotes, error } = await client.GET('/getQuote', {
-    params: {
-      query: {
-        walletAddress: formatAddressToCaipReference(request.walletAddress),
-        destWalletAddress: formatAddressToCaipReference(destWalletAddress),
-        srcChainId: Number(formatChainIdToDec(request.srcChainId)),
-        destChainId: Number(formatChainIdToDec(request.destChainId)),
-        srcTokenAddress: formatAddressToCaipReference(request.srcTokenAddress),
-        destTokenAddress: formatAddressToCaipReference(
-          request.destTokenAddress,
-        ),
-        srcTokenAmount: request.srcTokenAmount,
-        insufficientBal: Boolean(request.insufficientBal),
-        resetApproval: Boolean(request.resetApproval),
-        gasIncluded: Boolean(request.gasIncluded),
-        gasIncluded7702: Boolean(request.gasIncluded7702),
-        slippage: request.slippage,
-        fee: request.fee,
-        aggIds:
-          request.aggIds && request.aggIds.length > 0
-            ? request.aggIds
-            : undefined,
-        bridgeIds:
-          request.bridgeIds && request.bridgeIds.length > 0
-            ? request.bridgeIds
-            : undefined,
-        clientId,
-      },
-    },
-    signal: signal ?? undefined,
+  const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
+  const quotes: unknown[] = await fetchFn(url, {
     headers: getClientHeaders(clientId, clientVersion),
-    fetch: fetchFn as typeof fetch,
+    signal,
   });
 
-  if (error) {
-    throw new Error(`Bridge API error: ${String(error)}`);
-  }
-
   const uniqueValidationFailures: Set<string> = new Set<string>([]);
-  const filteredQuotes = ((quotes ?? []) as unknown[])
+  const filteredQuotes = quotes
     .filter((quoteResponse: unknown): quoteResponse is QuoteResponse => {
       try {
         return validateQuoteResponse(quoteResponse);
-      } catch (validationError) {
-        if (validationError instanceof StructError) {
-          validationError.failures().forEach(({ branch, path }) => {
+      } catch (error) {
+        if (error instanceof StructError) {
+          error.failures().forEach(({ branch, path }) => {
             const aggregatorId =
-              branch?.[0]?.quote?.bridgeId ??
-              branch?.[0]?.quote?.bridges?.[0] ??
-              (quoteResponse as QuoteResponse)?.quote?.bridgeId ??
-              (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ??
+              branch?.[0]?.quote?.bridgeId ||
+              branch?.[0]?.quote?.bridges?.[0] ||
+              (quoteResponse as QuoteResponse)?.quote?.bridgeId ||
+              (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
               'unknown';
-            const pathString = path?.join('.') ?? 'unknown';
+            const pathString = path?.join('.') || 'unknown';
             uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
           });
         }
@@ -353,16 +316,16 @@ export async function fetchBridgeQuoteStream(
               : undefined,
         });
       }
-    } catch (streamError) {
-      if (streamError instanceof StructError) {
-        streamError.failures().forEach(({ branch, path }) => {
+    } catch (error) {
+      if (error instanceof StructError) {
+        error.failures().forEach(({ branch, path }) => {
           const aggregatorId =
-            branch?.[0]?.quote?.bridgeId ??
-            branch?.[0]?.quote?.bridges?.[0] ??
-            (quoteResponse as QuoteResponse)?.quote?.bridgeId ??
-            (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ??
+            branch?.[0]?.quote?.bridgeId ||
+            branch?.[0]?.quote?.bridges?.[0] ||
+            (quoteResponse as QuoteResponse)?.quote?.bridgeId ||
+            (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
             'unknown';
-          const pathString = path?.join('.') ?? 'unknown';
+          const pathString = path?.join('.') || 'unknown';
           uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
         });
       }
@@ -372,7 +335,7 @@ export async function fetchBridgeQuoteStream(
         return serverEventHandlers.onValidationFailure(validationFailures);
       }
       // Rethrow any unexpected errors
-      throw streamError;
+      throw error;
     }
     return undefined;
   };
@@ -385,9 +348,9 @@ export async function fetchBridgeQuoteStream(
     },
     signal,
     onMessage,
-    onError: (fetchError) => {
+    onError: (e) => {
       // Rethrow error to prevent silent fetch failures
-      throw fetchError;
+      throw e;
     },
     onClose: async () => {
       await serverEventHandlers.onClose();
