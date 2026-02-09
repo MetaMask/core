@@ -338,7 +338,7 @@ describe('BtcAccountProvider', () => {
         groupIndex: 0,
       }),
     ).rejects.toThrow(
-      'Unsupported account creation type: "unsupported-type". Only "bip44:derive-index" is supported.',
+      'Unsupported create account option type: unsupported-type',
     );
   });
 

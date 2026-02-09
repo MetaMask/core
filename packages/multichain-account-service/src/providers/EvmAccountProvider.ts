@@ -11,6 +11,7 @@ import type {
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
+  assertCreateAccountOptionIsSupported,
   EthAccountType,
   EthScope,
 } from '@metamask/keyring-api';
@@ -188,11 +189,9 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
-    if (options.type !== AccountCreationType.Bip44DeriveIndex) {
-      throw new Error(
-        `Unsupported account creation type: "${options.type}". Only "bip44:derive-index" is supported.`,
-      );
-    }
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+    ]);
 
     const { entropySource, groupIndex } = options;
 

@@ -9,6 +9,7 @@ import type {
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
+  assertCreateAccountOptionIsSupported,
   TrxAccountType,
   TrxScope,
 } from '@metamask/keyring-api';
@@ -103,11 +104,9 @@ export class TrxAccountProvider extends SnapAccountProvider {
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
-    if (options.type !== AccountCreationType.Bip44DeriveIndex) {
-      throw new Error(
-        `Unsupported account creation type: "${options.type}". Only "bip44:derive-index" is supported.`,
-      );
-    }
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+    ]);
 
     const { entropySource, groupIndex } = options;
 

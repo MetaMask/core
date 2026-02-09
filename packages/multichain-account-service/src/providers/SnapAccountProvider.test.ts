@@ -3,6 +3,7 @@ import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import {
   AccountCreationType,
+  assertCreateAccountOptionIsSupported,
   BtcScope,
   KeyringRpcMethod,
   SolScope,
@@ -103,11 +104,9 @@ class MockSnapAccountProvider extends SnapAccountProvider {
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
-    if (options.type !== AccountCreationType.Bip44DeriveIndex) {
-      throw new Error(
-        `Unsupported account creation type: "${options.type}". Only "bip44:derive-index" is supported.`,
-      );
-    }
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+    ]);
 
     const { tracker } = this;
 
@@ -701,7 +700,7 @@ describe('SnapAccountProvider', () => {
           groupIndex: 0,
         }),
       ).rejects.toThrow(
-        'Unsupported account creation type: "unsupported-type". Only "bip44:derive-index" is supported.',
+        'Unsupported create account option type: unsupported-type',
       );
     });
   });
