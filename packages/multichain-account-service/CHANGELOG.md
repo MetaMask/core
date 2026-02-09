@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Use new `AccountProvider.createAccounts` method with `CreateAccountOptions` ([#7857](https://github.com/MetaMask/core/pull/7857))
+  - All account providers now accept `CreateAccountOptions` with `type` field.
+  - Added `capabilities` property to all account providers defining supported account creation types.
+- Bump `@metamask/account-api` from `^0.12.0` to `^1.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+
 ## [6.0.0]
 
 ### Changed
