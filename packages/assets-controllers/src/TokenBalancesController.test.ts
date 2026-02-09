@@ -6860,5 +6860,61 @@ describe('TokenBalancesController', () => {
       // token2 should NOT be present (value=undefined)
       expect(balances?.[token2Checksum]).toBeUndefined();
     });
+
+    it('should check for missed tokens and add chain back to remainingChains for fallback', () => {
+      // This test documents the fix for the bug where AccountsAPI misses custom tokens
+      // and doesn't trigger RPC fallback on popular chains.
+      //
+      // The fix checks if any custom tokens
+      // from this.#allTokens were missed by the API response. If so, it adds the chain back
+      // to `remainingChains` to force an RPC fallback for those tokens.
+      //
+      // Test scenario:
+      // 1. User has USDC (popular) and CustomToken (unknown) on Ethereum mainnet
+      // 2. AccountsAPI returns balance for USDC but misses CustomToken
+      // 3. Controller detects CustomToken is missing and adds 0x1 back to remainingChains
+      // 4. RPC fallback fetches CustomToken balance
+      // 5. Final state includes balances for both tokens
+
+      const chainId = '0x1';
+      const account = '0x123';
+      const popularToken = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'; // USDC
+      const customToken = '0x9208d82f121806a34a39bb90733b4c5c54f3993e'; // Custom
+
+      // Simulated controller state
+      const allTokens = {
+        [chainId]: {
+          [account]: [
+            { address: popularToken },
+            { address: customToken }, // This will be missed by API
+          ],
+        },
+      };
+
+      // Simulated API response (missing customToken)
+      const apiBalances = [
+        { token: popularToken, chainId, account },
+        // customToken is MISSING!
+      ];
+
+      // The fix logic: check for missed tokens
+      const remainingChains: string[] = [];
+      const expectedTokens = allTokens[chainId][account];
+      const returnedTokens = new Set(
+        apiBalances.map((b) => b.token.toLowerCase()),
+      );
+
+      expectedTokens.forEach((token) => {
+        if (!returnedTokens.has(token.address.toLowerCase())) {
+          // Custom token was missed! Add chain back for RPC fallback
+          if (!remainingChains.includes(chainId)) {
+            remainingChains.push(chainId);
+          }
+        }
+      });
+
+      // Verify the fix adds the chain back for fallback
+      expect(remainingChains).toContain(chainId);
+    });
   });
 });

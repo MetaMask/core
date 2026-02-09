@@ -843,6 +843,44 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           remainingChains = remainingChains.filter(
             (chain) => !processed.has(chain),
           );
+
+          // Check if API missed any custom tokens and force RPC fallback
+          const chainsWithMissingTokens = new Set<ChainIdHex>();
+          for (const chainId of supportedChains) {
+            const allTokensForChain = this.#allTokens[chainId];
+            if (!allTokensForChain) {
+              continue;
+            }
+
+            // Get all tokens that should exist for this chain
+            const accountsWithTokens = Object.keys(allTokensForChain);
+            for (const account of accountsWithTokens) {
+              const tokensForAccount = allTokensForChain[account];
+              if (!tokensForAccount) {
+                continue;
+              }
+
+              // Check if all tokens got balances from API
+              for (const token of tokensForAccount) {
+                const tokenAddress = checksum(token.address);
+                const hasBalance = result.balances.some(
+                  (b) =>
+                    b.chainId === chainId &&
+                    checksum(b.account) === checksum(account) &&
+                    checksum(b.token) === tokenAddress,
+                );
+                if (!hasBalance) {
+                  chainsWithMissingTokens.add(chainId);
+                }
+              }
+            }
+          }
+
+          // Add chains with missing tokens back to remaining for RPC fallback
+          if (chainsWithMissingTokens.size > 0) {
+            const missingChainsList = Array.from(chainsWithMissingTokens);
+            remainingChains.push(...missingChainsList);
+          }
         }
 
         if (result.unprocessedChainIds?.length) {
