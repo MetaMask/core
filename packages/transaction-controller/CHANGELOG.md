@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: TransactionPoller cleanup ([#7866](https://github.com/MetaMask/core/pull/7866))
+
 ## [62.15.0]
 
 ### Added
