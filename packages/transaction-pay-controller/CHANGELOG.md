@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add ordered strategy fallback mechanism for quote retrieval and publish-time execution ([#7868](https://github.com/MetaMask/core/pull/7868))
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^65.3.0` to `^66.0.0` ([#7862](https://github.com/MetaMask/core/pull/7862))
