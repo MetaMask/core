@@ -1,20 +1,13 @@
 import type { V3AssetResponse } from '@metamask/core-backend';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type {
-  MockAnyNamespace,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 
-import type {
-  TokenDataSourceMessenger,
-  TokenDataSourceOptions,
-} from './TokenDataSource';
+import type { TokenDataSourceOptions } from './TokenDataSource';
 import { TokenDataSource } from './TokenDataSource';
 import type { Context, DataRequest, Caip19AssetId, ChainId } from '../types';
 
-type AllActions = MessengerActions<TokenDataSourceMessenger>;
-type AllEvents = MessengerEvents<TokenDataSourceMessenger>;
+type AllActions = never;
+type AllEvents = never;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
@@ -76,17 +69,26 @@ function createMockAssetResponse(
   };
 }
 
-function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
+const mockAccount = {
+  id: 'mock-account-id',
+  address: MOCK_ADDRESS,
+};
+function createDataRequest(
+  overrides?: Partial<DataRequest> & {
+    accounts?: { id: string; address: string }[];
+  },
+): DataRequest {
+  const chainIds = overrides?.chainIds ?? [CHAIN_MAINNET];
+  const accounts = overrides?.accounts ?? [mockAccount];
+  const { accounts: _a, ...rest } = overrides ?? {};
   return {
-    chainIds: [CHAIN_MAINNET],
-    accounts: [
-      {
-        id: 'mock-account-id',
-        address: MOCK_ADDRESS,
-      },
-    ],
+    chainIds,
+    accountsWithSupportedChains: accounts.map((a) => ({
+      account: a,
+      supportedChains: chainIds,
+    })),
     dataTypes: ['metadata'],
-    ...overrides,
+    ...rest,
   } as DataRequest;
 }
 
@@ -113,26 +115,9 @@ function setupController(
     namespace: MOCK_ANY_NAMESPACE,
   });
 
-  const controllerMessenger = new Messenger<
-    'TokenDataSource',
-    MessengerActions<TokenDataSourceMessenger>,
-    MessengerEvents<TokenDataSourceMessenger>,
-    RootMessenger
-  >({
-    namespace: 'TokenDataSource',
-    parent: rootMessenger,
-  });
-
-  rootMessenger.delegate({
-    messenger: controllerMessenger,
-    actions: [],
-    events: [],
-  });
-
   const apiClient = createMockApiClient(supportedNetworks, assetsResponse);
 
   const controller = new TokenDataSource({
-    messenger: controllerMessenger,
     queryApiClient:
       apiClient as unknown as TokenDataSourceOptions['queryApiClient'],
   });
@@ -154,10 +139,10 @@ describe('TokenDataSource', () => {
     expect(controller.name).toBe('TokenDataSource');
   });
 
-  it('registers action handlers', () => {
-    const { messenger } = setupController();
+  it('exposes assetsMiddleware on instance', () => {
+    const { controller } = setupController();
 
-    const middleware = messenger.call('TokenDataSource:getAssetsMiddleware');
+    const middleware = controller.assetsMiddleware;
     expect(middleware).toBeDefined();
     expect(typeof middleware).toBe('function');
   });
