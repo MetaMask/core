@@ -35,6 +35,7 @@ import {
 } from './utils/bridge';
 import {
   formatAddressToAssetId,
+  formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
@@ -123,12 +124,12 @@ export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
 const getExchangeRateByChainIdAndAddress = (
   exchangeRateSources: ExchangeRateControllerState,
   chainId?: GenericQuoteRequest['srcChainId'],
-  address?: GenericQuoteRequest['srcTokenAddress'],
+  rawAddress?: GenericQuoteRequest['srcTokenAddress'],
 ): ExchangeRate => {
-  if (!chainId || !address) {
+  if (!chainId) {
     return {};
   }
-  // TODO return usd exchange rate if user has opted into metrics
+  const address = formatAddressToCaipReference(rawAddress ?? '');
   const assetId = formatAddressToAssetId(address, chainId);
   if (!assetId) {
     return {};
@@ -140,9 +141,12 @@ const getExchangeRateByChainIdAndAddress = (
   // If the asset exchange rate is available in the bridge controller, use it
   // This is defined if the token's rate is not available from the assets controllers
   const bridgeControllerRate =
-    assetExchangeRates?.[assetId] ??
-    assetExchangeRates?.[assetId.toLowerCase() as CaipAssetType];
-  if (bridgeControllerRate?.exchangeRate) {
+    assetExchangeRates?.[assetId.toLowerCase() as CaipAssetType] ??
+    assetExchangeRates?.[assetId];
+  if (
+    bridgeControllerRate?.exchangeRate &&
+    bridgeControllerRate?.usdExchangeRate
+  ) {
     return bridgeControllerRate;
   }
   // If the chain is a non-EVM chain, use the conversion rate from the multichain assets controller
@@ -394,11 +398,28 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           'asc',
         );
       default:
+        if (quotesWithMetadata.every((quote) => quote.cost.valueInCurrency)) {
+          return orderBy(
+            quotesWithMetadata,
+            ({ cost }) => Number(cost.valueInCurrency),
+            'asc',
+          );
+        }
+        if (
+          quotesWithMetadata.every(
+            (quote) => quote.quote.priceData?.priceImpact,
+          )
+        ) {
+          return orderBy(
+            quotesWithMetadata,
+            ({ quote }) => Number(quote.priceData?.priceImpact),
+            'asc',
+          );
+        }
         return orderBy(
           quotesWithMetadata,
-          ({ cost }) =>
-            cost.valueInCurrency ? Number(cost.valueInCurrency) : 0,
-          'asc',
+          ({ quote }) => Number(quote.destTokenAmount) * -1,
+          'desc',
         );
     }
   },
