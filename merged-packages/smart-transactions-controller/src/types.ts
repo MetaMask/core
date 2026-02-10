@@ -76,6 +76,29 @@ export enum ClientId {
   Extension = 'extension',
 }
 
+export enum OriginalTransactionStatus {
+  PENDING = 'PENDING',
+  PENDING_CANCELLED = 'PENDING_CANCELLED',
+
+  VALIDATED = 'VALIDATED',
+  REVERTED = 'REVERTED',
+  NONCE_TOO_LOW = 'NONCE_TOO_LOW',
+  CANCELLED = 'CANCELLED',
+
+  FAILED = 'FAILED',
+  FAILED_WOULD_REVERT = 'FAILED_WOULD_REVERT',
+  FAILED_INSUFFICIENT_FUNDS = 'FAILED_INSUFFICIENT_FUNDS',
+  FAILED_UNKNOWN = 'FAILED_UNKNOWN',
+  FAILED_TIMEOUT = 'FAILED_TIMEOUT',
+  FAILED_GAS_TOO_LOW = 'FAILED_GAS_TOO_LOW',
+  FAILED_NONCE_TOO_HIGH = 'FAILED_NONCE_TOO_HIGH',
+
+  LEAKED_VALIDATED = 'LEAKED_VALIDATED',
+  LEAKED_REVERTED = 'LEAKED_REVERTED',
+  CANCELLED_LEAKED_VALIDATED = 'CANCELLED_LEAKED_VALIDATED',
+  CANCELLED_LEAKED_REVERTED = 'CANCELLED_LEAKED_REVERTED',
+}
+
 export const cancellationReasonToStatusMap = {
   [SmartTransactionCancellationReason.WOULD_REVERT]:
     SmartTransactionStatuses.CANCELLED,
@@ -93,6 +116,7 @@ export type SmartTransactionsStatus = {
   error?: string;
   cancellationFeeWei: number;
   cancellationReason?: SmartTransactionCancellationReason;
+  originalTransactionStatus?: OriginalTransactionStatus;
   deadlineRatio: number;
   minedHash: string;
   minedTx: SmartTransactionMinedTx;

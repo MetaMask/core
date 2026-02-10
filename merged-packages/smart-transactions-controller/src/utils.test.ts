@@ -13,6 +13,7 @@ import {
   APIType,
   SmartTransactionStatuses,
   SmartTransactionCancellationReason,
+  OriginalTransactionStatus,
   ClientId,
 } from './types';
 import * as utils from './utils';
@@ -578,6 +579,41 @@ describe('src/utils.js', () => {
       );
     });
 
+    it('includes originalTransactionStatus in error message when available', () => {
+      const updateTransactionMock = jest.fn();
+      const smartTransaction = {
+        ...createSmartTransaction(SmartTransactionStatuses.CANCELLED),
+        statusMetadata: {
+          cancellationFeeWei: 0,
+          deadlineRatio: 0,
+          minedHash: '',
+          minedTx: SmartTransactionMinedTx.NOT_MINED,
+          isSettled: false,
+          originalTransactionStatus:
+            OriginalTransactionStatus.FAILED_WOULD_REVERT,
+        },
+      };
+
+      utils.markRegularTransactionsAsFailed({
+        smartTransaction,
+        getRegularTransactions: () => [mockTransaction],
+        updateTransaction: updateTransactionMock,
+      });
+
+      expect(updateTransactionMock).toHaveBeenCalledWith(
+        {
+          ...mockTransaction,
+          status: TransactionStatus.failed,
+          error: {
+            name: 'SmartTransactionFailed',
+            message:
+              'Smart transaction failed with status: cancelled, originalTransactionStatus: FAILED_WOULD_REVERT',
+          },
+        },
+        'Smart transaction status: cancelled',
+      );
+    });
+
     it('throws error if original transaction cannot be found', () => {
       const updateTransactionMock = jest.fn();
       const getRegularTransactionsMock = jest.fn(() => []);
@@ -663,6 +699,59 @@ describe('src/utils.js', () => {
         },
         'Smart transaction status: cancelled',
       );
+    });
+  });
+
+  describe('getSmartTransactionMetricsProperties', () => {
+    it('includes stx_original_transaction_status from statusMetadata', () => {
+      const smartTransaction = {
+        uuid: 'test-uuid',
+        status: SmartTransactionStatuses.SUCCESS,
+        time: Date.now(),
+        statusMetadata: {
+          cancellationFeeWei: 0,
+          deadlineRatio: 0.5,
+          minedHash: '0xabc',
+          minedTx: SmartTransactionMinedTx.SUCCESS,
+          isSettled: true,
+          duplicated: false,
+          timedOut: false,
+          proxied: false,
+          originalTransactionStatus: OriginalTransactionStatus.VALIDATED,
+        },
+      };
+
+      const result =
+        utils.getSmartTransactionMetricsProperties(smartTransaction);
+
+      expect(result).toStrictEqual(
+        expect.objectContaining({
+          stx_original_transaction_status: OriginalTransactionStatus.VALIDATED,
+          stx_duplicated: false,
+          stx_timed_out: false,
+          stx_proxied: false,
+        }),
+      );
+    });
+
+    it('returns undefined for stx_original_transaction_status when not in statusMetadata', () => {
+      const smartTransaction = {
+        uuid: 'test-uuid',
+        status: SmartTransactionStatuses.PENDING,
+        time: Date.now(),
+        statusMetadata: {
+          cancellationFeeWei: 0,
+          deadlineRatio: 0,
+          minedHash: '',
+          minedTx: SmartTransactionMinedTx.NOT_MINED,
+          isSettled: false,
+        },
+      };
+
+      const result =
+        utils.getSmartTransactionMetricsProperties(smartTransaction);
+
+      expect(result.stx_original_transaction_status).toBeUndefined();
     });
   });
 });

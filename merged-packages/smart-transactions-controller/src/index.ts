@@ -22,6 +22,7 @@ export {
   SmartTransactionMinedTx,
   SmartTransactionCancellationReason,
   SmartTransactionStatuses,
+  OriginalTransactionStatus,
   ClientId,
   Feature,
   Kind,

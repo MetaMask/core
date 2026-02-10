@@ -213,6 +213,8 @@ export const getSmartTransactionMetricsProperties = (
     stx_duplicated: smartTransactionStatusMetadata?.duplicated,
     stx_timed_out: smartTransactionStatusMetadata?.timedOut,
     stx_proxied: smartTransactionStatusMetadata?.proxied,
+    stx_original_transaction_status:
+      smartTransactionStatusMetadata?.originalTransactionStatus,
   };
 };
 
@@ -275,7 +277,8 @@ export const markRegularTransactionsAsFailed = ({
   getRegularTransactions: TransactionControllerGetTransactionsAction['handler'];
   updateTransaction: TransactionControllerUpdateTransactionAction['handler'];
 }) => {
-  const { transactionId, status, txHashes } = smartTransaction;
+  const { transactionId, status, statusMetadata, txHashes } = smartTransaction;
+  const originalTransactionStatus = statusMetadata?.originalTransactionStatus;
 
   const transactionsToFail = getRegularTransactions().filter(
     (tx) => (tx.hash && txHashes?.includes(tx.hash)) || tx.id === transactionId,
@@ -284,6 +287,10 @@ export const markRegularTransactionsAsFailed = ({
   if (!transactionsToFail.length) {
     throw new Error('Cannot find regular transaction to mark it as failed');
   }
+
+  const errorMessage = originalTransactionStatus
+    ? `Smart transaction failed with status: ${status}, originalTransactionStatus: ${originalTransactionStatus}`
+    : `Smart transaction failed with status: ${status}`;
 
   for (const tx of transactionsToFail) {
     if (tx.status === TransactionStatus.failed) {
@@ -294,7 +301,7 @@ export const markRegularTransactionsAsFailed = ({
       status: TransactionStatus.failed,
       error: {
         name: 'SmartTransactionFailed',
-        message: `Smart transaction failed with status: ${status}`,
+        message: errorMessage,
       },
     };
 
