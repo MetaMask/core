@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [36.0.0]
+
 ### Uncategorized
 
 - chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
@@ -695,7 +697,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.0...HEAD
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.2...@metamask/accounts-controller@36.0.0
 [35.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.1...@metamask/accounts-controller@35.0.2
 [35.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.0...@metamask/accounts-controller@35.0.1
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@34.0.0...@metamask/accounts-controller@35.0.0

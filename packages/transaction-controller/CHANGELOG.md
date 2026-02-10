@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: simplify null checks with optional chaining ([#7887](https://github.com/MetaMask/core/pull/7887))
-
 ## [62.16.0]
 
 ### Added

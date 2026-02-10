@@ -7,17 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/799.0.0 ([#7872](https://github.com/MetaMask/core/pull/7872))
-- Release/793.0.0 ([#7854](https://github.com/MetaMask/core/pull/7854))
-- Release/785.0.0 ([#7832](https://github.com/MetaMask/core/pull/7832))
-- Release/781.0.0 ([#7802](https://github.com/MetaMask/core/pull/7802))
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- Release/777.0.0 ([#7775](https://github.com/MetaMask/core/pull/7775))
-- Release/771.0.0 ([#7760](https://github.com/MetaMask/core/pull/7760))
-- Release/768.0.0 ([#7737](https://github.com/MetaMask/core/pull/7737))
-
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
