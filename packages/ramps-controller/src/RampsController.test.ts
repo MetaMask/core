@@ -3687,9 +3687,6 @@ describe('RampsController', () => {
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
-            buyWidget: {
-              url: 'https://buy.moonpay.com/widget?txId=123',
-            },
           },
           metadata: {
             reliability: 95,
