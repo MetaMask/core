@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Remove non-actionable internal `log.error` calls for expected silent-failure notification paths, while preserving thrown errors where propagation is required ([#7885](https://github.com/MetaMask/core/pull/7885))
 - Fix `createOnChainTriggers` to preserve user preferences on notification re-subscriptions ([#7423](https://github.com/MetaMask/core/pull/7423))
   - Previously, `isFeatureAnnouncementsEnabled` was unconditionally set to `true` on every re-subscription, overriding user preferences
   - Now, existing preferences are preserved when `isNotificationServicesEnabled` is already `true`
