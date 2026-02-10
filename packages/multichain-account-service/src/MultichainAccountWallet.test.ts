@@ -376,6 +376,192 @@ describe('MultichainAccountWallet', () => {
     });
   });
 
+  describe('createMultichainAccountGroups', () => {
+    it('creates multiple groups from 0 to maxGroupIndex when no groups exist', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[], []],
+      });
+
+      const [evmProvider, solProvider] = providers;
+
+      // Mock EVM provider to return accounts for groups 0, 1, 2
+      const evmAccounts = [
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(0)
+          .get(),
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(1)
+          .get(),
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(2)
+          .get(),
+      ];
+      evmProvider.createAccounts.mockResolvedValueOnce(evmAccounts);
+
+      // Mock SOL provider for each group
+      for (let i = 0; i <= 2; i++) {
+        const solAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(i)
+          .get();
+        solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
+      }
+
+      const groups = await wallet.createMultichainAccountGroups(2);
+
+      expect(groups).toHaveLength(3);
+      expect(groups[0].groupIndex).toBe(0);
+      expect(groups[1].groupIndex).toBe(1);
+      expect(groups[2].groupIndex).toBe(2);
+      expect(wallet.getAccountGroups()).toHaveLength(3);
+    });
+
+    it('returns existing groups and creates new ones when some groups already exist', async () => {
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount0 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { wallet, providers } = setup({
+        accounts: [[mockEvmAccount0], [mockSolAccount0]],
+      });
+
+      const [evmProvider, solProvider] = providers;
+
+      // Mock EVM provider to return accounts for groups 1, 2 (group 0 already exists)
+      const evmAccounts = [
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(1)
+          .get(),
+        MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(2)
+          .get(),
+      ];
+      evmProvider.createAccounts.mockResolvedValueOnce(evmAccounts);
+
+      // Mock SOL provider for groups 1 and 2
+      for (let i = 1; i <= 2; i++) {
+        const solAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+          .withGroupIndex(i)
+          .get();
+        solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
+      }
+
+      const groups = await wallet.createMultichainAccountGroups(2);
+
+      expect(groups).toHaveLength(3);
+      expect(groups[0].groupIndex).toBe(0); // Existing group
+      expect(groups[1].groupIndex).toBe(1); // New group
+      expect(groups[2].groupIndex).toBe(2); // New group
+      expect(wallet.getAccountGroups()).toHaveLength(3);
+    });
+
+    it('returns all existing groups when maxGroupIndex is less than nextGroupIndex', async () => {
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockEvmAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .get();
+
+      const { wallet } = setup({
+        accounts: [[mockEvmAccount0, mockEvmAccount1, mockEvmAccount2]],
+      });
+
+      // Request groups 0-1 when groups 0-2 exist
+      const groups = await wallet.createMultichainAccountGroups(1);
+
+      expect(groups).toHaveLength(2);
+      expect(groups[0].groupIndex).toBe(0);
+      expect(groups[1].groupIndex).toBe(1);
+      // Verify we didn't create any new groups
+      expect(wallet.getAccountGroups()).toHaveLength(3);
+    });
+
+    it('throws when maxGroupIndex is negative', async () => {
+      const { wallet } = setup({
+        accounts: [[]],
+      });
+
+      await expect(
+        wallet.createMultichainAccountGroups(-1),
+      ).rejects.toThrow('maxGroupIndex must be >= 0');
+    });
+
+    it('captures an error with batch mode message when EVM provider fails', async () => {
+      const { wallet, providers, messenger } = setup({
+        accounts: [[]],
+      });
+
+      const [evmProvider] = providers;
+      const providerError = new Error('EVM provider failed');
+      evmProvider.createAccounts.mockRejectedValueOnce(providerError);
+
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+
+      await expect(
+        wallet.createMultichainAccountGroups(2),
+      ).rejects.toThrow('EVM provider failed');
+
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
+        new Error('Unable to create batch accounts with provider "Mocked Provider 0"'),
+      );
+      expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
+        'cause',
+        providerError,
+      );
+    });
+
+    it('waits for all providers when waitForAllProvidersToFinishCreatingAccounts is true', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[], []],
+      });
+
+      const [evmProvider, solProvider] = providers;
+
+      // Mock EVM provider
+      const evmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      evmProvider.createAccounts.mockResolvedValueOnce([evmAccount]);
+
+      // Mock SOL provider
+      const solAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
+
+      const groups = await wallet.createMultichainAccountGroups(0, {
+        waitForAllProvidersToFinishCreatingAccounts: true,
+      });
+
+      expect(groups).toHaveLength(1);
+      expect(groups[0].groupIndex).toBe(0);
+
+      // Verify both providers were called
+      expect(evmProvider.createAccounts).toHaveBeenCalled();
+      expect(solProvider.createAccounts).toHaveBeenCalled();
+    });
+  });
+
   describe('alignAccounts', () => {
     it('creates missing accounts only for providers with no accounts associated with a particular group index', async () => {
       const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
