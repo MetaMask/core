@@ -8,10 +8,7 @@ import { useFakeTimers } from 'sinon';
 
 import type { RegistryNetworkConfig } from './config-registry-api-service';
 import type { FetchConfigResult } from './config-registry-api-service';
-import type {
-  ConfigRegistryMessenger,
-  ConfigRegistryState,
-} from './ConfigRegistryController';
+import type { ConfigRegistryMessenger } from './ConfigRegistryController';
 import {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
@@ -181,7 +178,7 @@ describe('ConfigRegistryController', () => {
           name: 'Test Network',
         }),
       };
-      const initialState: Partial<ConfigRegistryState> = {
+      const initialState = {
         configs: { networks: initialNetworks },
         version: 'v1.0.0',
         lastFetched: 1234567890,
@@ -218,17 +215,6 @@ describe('ConfigRegistryController', () => {
           });
         },
       );
-    });
-
-    it('works when API service is registered on messenger', async () => {
-      await withController(({ controller }) => {
-        expect(controller.state).toStrictEqual({
-          configs: { networks: {} },
-          version: null,
-          lastFetched: null,
-          etag: null,
-        });
-      });
     });
   });
 

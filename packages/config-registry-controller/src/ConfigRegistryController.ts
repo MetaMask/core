@@ -88,11 +88,20 @@ const stateMetadata = {
   },
 } satisfies StateMetadata<ConfigRegistryState>;
 
+/**
+ * Default fallback configuration when no configs are available.
+ */
 const DEFAULT_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {};
 
+/**
+ * Published when the state of {@link ConfigRegistryController} changes.
+ */
 export type ConfigRegistryControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof controllerName, ConfigRegistryState>;
 
+/**
+ * Retrieves the state of the {@link ConfigRegistryController}.
+ */
 export type ConfigRegistryControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   ConfigRegistryState
@@ -108,6 +117,9 @@ export type ConfigRegistryControllerStopPollingAction = {
   handler: () => void;
 };
 
+/**
+ * Actions that {@link ConfigRegistryControllerMessenger} exposes to other consumers.
+ */
 export type ConfigRegistryControllerActions =
   | ConfigRegistryControllerGetStateAction
   | ConfigRegistryControllerStartPollingAction
@@ -118,6 +130,9 @@ export type ConfigRegistryControllerActions =
       handler: (options?: FetchConfigOptions) => Promise<FetchConfigResult>;
     };
 
+/**
+ * Events that {@link ConfigRegistryControllerMessenger} exposes to other consumers.
+ */
 export type ConfigRegistryControllerEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
@@ -182,11 +197,12 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
     this.messenger.registerActionHandler(
       `${controllerName}:startPolling`,
-      (input: null) => this.startPolling(input),
+      this.startPolling.bind(this),
     );
 
-    this.messenger.registerActionHandler(`${controllerName}:stopPolling`, () =>
-      this.stopAllPolling(),
+    this.messenger.registerActionHandler(
+      `${controllerName}:stopPolling`,
+      this.stopAllPolling.bind(this),
     );
 
     this.messenger.subscribe('KeyringController:unlock', () =>

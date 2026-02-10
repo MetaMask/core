@@ -1,5 +1,5 @@
 import { SDK } from '@metamask/profile-sync-controller';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
 import { ConfigRegistryApiService } from './config-registry-api-service';
@@ -48,50 +48,16 @@ describe('ConfigRegistryApiService', () => {
   });
 
   describe('constructor', () => {
-    it('creates instance with default options', () => {
-      const service = new ConfigRegistryApiService();
-      expect(service).toBeInstanceOf(ConfigRegistryApiService);
-    });
-
-    it('creates instance with custom options', () => {
-      const customFetch = jest.fn();
+    it('creates instance with policyOptions', () => {
       const service = new ConfigRegistryApiService({
         env: SDK.Env.DEV,
-        fetch: customFetch,
-        retries: 5,
-      });
-      expect(service).toBeInstanceOf(ConfigRegistryApiService);
-    });
-
-    it('creates instance with empty options object', () => {
-      const service = new ConfigRegistryApiService({});
-      expect(service).toBeInstanceOf(ConfigRegistryApiService);
-    });
-
-    it('uses default values for unspecified options', () => {
-      const service = new ConfigRegistryApiService({
-        env: SDK.Env.PRD,
-      });
-      expect(service).toBeInstanceOf(ConfigRegistryApiService);
-    });
-
-    it('uses default fetch when not provided', () => {
-      const service = new ConfigRegistryApiService({
-        env: SDK.Env.DEV,
+        policyOptions: { maxRetries: 5 },
       });
       expect(service).toBeInstanceOf(ConfigRegistryApiService);
     });
   });
 
   describe('fetchConfig', () => {
-    beforeEach(() => {
-      cleanAll();
-    });
-
-    afterEach(() => {
-      cleanAll();
-    });
-
     it('fetches config from API successfully', async () => {
       const scope = nock('https://client-config.uat-api.cx.metamask.io')
         .get('/v1/config/networks')
@@ -190,8 +156,7 @@ describe('ConfigRegistryApiService', () => {
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await service.fetchConfig(undefined as any);
+      await service.fetchConfig(undefined);
 
       expect(scope.isDone()).toBe(true);
     });
@@ -318,7 +283,7 @@ describe('ConfigRegistryApiService', () => {
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService({
-        retries: 2,
+        policyOptions: { maxRetries: 2 },
       });
 
       const result = await service.fetchConfig();
@@ -354,9 +319,11 @@ describe('ConfigRegistryApiService', () => {
 
       const onBreakHandler = jest.fn();
       const service = new ConfigRegistryApiService({
-        retries,
-        maximumConsecutiveFailures,
-        circuitBreakDuration: 10000,
+        policyOptions: {
+          maxRetries: retries,
+          maxConsecutiveFailures: maximumConsecutiveFailures,
+          circuitBreakDuration: 10000,
+        },
       });
 
       service.onBreak(onBreakHandler);
@@ -401,8 +368,7 @@ describe('ConfigRegistryApiService', () => {
     it('calls onDegraded handler when service becomes degraded', async () => {
       const degradedThreshold = 2000; // 2 seconds
       const service = new ConfigRegistryApiService({
-        degradedThreshold,
-        retries: 0,
+        policyOptions: { degradedThreshold, maxRetries: 0 },
       });
 
       const onDegradedHandler = jest.fn();
@@ -428,8 +394,7 @@ describe('ConfigRegistryApiService', () => {
 
       const slowService = new ConfigRegistryApiService({
         fetch: slowFetch,
-        degradedThreshold,
-        retries: 0,
+        policyOptions: { degradedThreshold, maxRetries: 0 },
       });
 
       slowService.onDegraded(onDegradedHandler);

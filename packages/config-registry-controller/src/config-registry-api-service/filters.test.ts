@@ -71,7 +71,7 @@ describe('filters', () => {
       expect(result[0].chainId).toBe('0x1');
     });
 
-    it('filters by multiple criteria', () => {
+    it('filters by multiple criteria (requiring all filters to match)', () => {
       const result = filterNetworks(networks, {
         isFeatured: true,
         isActive: true,
