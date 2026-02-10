@@ -155,12 +155,7 @@ Array [
 
 exports[`BridgeController SSE should rethrow error from server 1`] = `
 Object {
-  "assetExchangeRates": Object {
-    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
-      "exchangeRate": undefined,
-      "usdExchangeRate": "100",
-    },
-  },
+  "assetExchangeRates": Object {},
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
@@ -264,12 +259,7 @@ Array [
 
 exports[`BridgeController SSE should trigger quote polling if request is valid 1`] = `
 Object {
-  "assetExchangeRates": Object {
-    "eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": Object {
-      "exchangeRate": undefined,
-      "usdExchangeRate": "100",
-    },
-  },
+  "assetExchangeRates": Object {},
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": Object {
