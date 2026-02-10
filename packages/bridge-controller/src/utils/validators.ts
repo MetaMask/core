@@ -11,6 +11,7 @@ import {
   nullable,
   optional,
   enums,
+  unknown,
   define,
   union,
   assert,
@@ -332,6 +333,11 @@ export const IntentSchema = type({
    * Optional relayer address responsible for order submission.
    */
   relayer: optional(HexAddressSchema),
+
+  /**
+   * Optional EIP-712 typed data payload for signing.
+   */
+  typedData: optional(unknown()),
 });
 
 export const QuoteSchema = type({
