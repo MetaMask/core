@@ -3,8 +3,18 @@ import type { Bip44Account } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { EthAccountType } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+  KeyringCapabilities,
+} from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
+  EthAccountType,
+  EthScope,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -66,6 +76,13 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   readonly #config: EvmAccountProviderConfig;
 
   readonly #trace: TraceCallback;
+
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [EthScope.Eoa],
+    bip44: {
+      deriveIndex: true,
+    },
+  };
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
@@ -166,18 +183,18 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   /**
    * Create accounts for the EVM provider.
    *
-   * @param opts - The options for the creation of the accounts.
-   * @param opts.entropySource - The entropy source to use for the creation of the accounts.
-   * @param opts.groupIndex - The index of the group to create the accounts for.
+   * @param options - The options for the creation of the accounts.
    * @returns The accounts for the EVM provider.
    */
-  async createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+    ]);
+
+    const { entropySource, groupIndex } = options;
+
     const [address] = await this.#createAccount({
       entropySource,
       groupIndex,

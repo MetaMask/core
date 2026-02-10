@@ -1,7 +1,12 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import { AccountCreationType } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -213,6 +218,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 await keyring.removeAccount(account.address);
                 // The Snap has no account in its state for this one, we re-create it.
                 await this.createAccounts({
+                  type: AccountCreationType.Bip44DeriveIndex,
                   entropySource,
                   groupIndex,
                 });
@@ -267,10 +273,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
 
-  abstract createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]>;
+  abstract createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]>;
 
   abstract discoverAccounts(options: {
     entropySource: EntropySourceId;

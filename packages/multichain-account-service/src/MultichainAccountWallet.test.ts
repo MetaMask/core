@@ -11,6 +11,7 @@ import {
   EthAccountType,
   SolAccountType,
   KeyringAccountEntropyTypeOption,
+  AccountCreationType,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -415,6 +416,7 @@ describe('MultichainAccountWallet', () => {
 
       // Sol provider is missing group 1; should be called to create it.
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex: 1,
       });
@@ -457,11 +459,13 @@ describe('MultichainAccountWallet', () => {
 
       // Sol provider is missing group 0; should be called to create it.
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex: 0,
       });
 
       expect(providers[1].createAccounts).not.toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex: 1,
       });
