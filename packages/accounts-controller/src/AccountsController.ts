@@ -58,6 +58,7 @@ export type AccountId = string;
 export type AccountsControllerState = {
   internalAccounts: {
     accounts: Record<AccountId, InternalAccount>;
+    accountIdByAddress: Record<string, AccountId>;
     selectedAccount: string; // id of the selected account
   };
 };
@@ -228,6 +229,7 @@ const accountsControllerMetadata = {
 const defaultState: AccountsControllerState = {
   internalAccounts: {
     accounts: {},
+    accountIdByAddress: {},
     selectedAccount: '',
   },
 };
@@ -437,9 +439,8 @@ export class AccountsController extends BaseController<
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    return this.listMultichainAccounts().find(
-      (account) => account.address.toLowerCase() === address.toLowerCase(),
-    );
+    const accountId = this.state.internalAccounts.accountIdByAddress[address];
+    return accountId ? this.getAccount(accountId) : undefined;
   }
 
   /**
@@ -857,6 +858,7 @@ export class AccountsController extends BaseController<
         for (const patch of [patches.snap, patches.normal]) {
           for (const account of patch.removed) {
             delete internalAccounts.accounts[account.id];
+            delete internalAccounts.accountIdByAddress[account.address];
 
             diff.removed.push(account.id);
           }
@@ -884,6 +886,8 @@ export class AccountsController extends BaseController<
                   lastSelected,
                 },
               };
+
+              internalAccounts.accountIdByAddress[account.address] = account.id;
 
               diff.added.push(internalAccounts.accounts[account.id]);
             }
