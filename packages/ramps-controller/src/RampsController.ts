@@ -17,7 +17,6 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
-  GetQuotesParams,
   RampsToken,
   RampsServiceActions,
 } from './RampsService';
@@ -1399,7 +1398,9 @@ export class RampsController extends BaseController<
     const paymentMethodsToUse =
       options.paymentMethods ??
       this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
-    const providersToUse = options.providers ?? this.state.providers.data.map((p: Provider) => p.id);
+    const providersToUse =
+      options.providers ??
+      this.state.providers.data.map((provider: Provider) => provider.id);
     const action = options.action ?? 'buy';
 
     if (!regionToUse) {

@@ -549,7 +549,7 @@ export type RampsServiceMessenger = Messenger<
 function getBaseUrl(
   environment: RampsEnvironment,
   service: RampsApiService,
-): string {  
+): string {
   const cache = service === RampsApiService.Regions ? '-cache' : '';
 
   switch (environment) {
