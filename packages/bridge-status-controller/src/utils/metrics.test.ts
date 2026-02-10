@@ -991,7 +991,7 @@ describe('metrics utils', () => {
         chain_id_destination: 'eip155:1',
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
-        usd_amount_source: 100,
+        usd_amount_source: 0,
         source_transaction: 'COMPLETE',
         stx_enabled: false,
         token_address_source: 'eip155:1/slip44:60',
