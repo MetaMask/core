@@ -5733,6 +5733,34 @@ describe('RampsController', () => {
         expect(widgetUrl).toBeNull();
       });
     });
+
+    it('returns null when service returns BuyWidget with null url', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: null as unknown as string,
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
   });
 });
 
