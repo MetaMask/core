@@ -6862,16 +6862,15 @@ describe('TokenBalancesController', () => {
     });
 
     it('should fetch custom token balances correctly and only for queried accounts', async () => {
-      // This test verifies the fixes for custom token balance fetching:
-      // 1. Custom tokens (that may be missed by AccountsAPI) get their balances fetched
-      // 2. Only tokens for queried accounts are checked to avoid false missing token detection
+      // This test verifies that only tokens for queried accounts are fetched.
+      // It uses RPC-only fetching to simplify mocking.
       //
       // Test scenarios:
       // A) queryAllAccounts=false (regular polling): Only selected account is queried
       //    - Selected account has USDC token
-      //    - Non-selected account has a custom token
+      //    - Non-selected account has a custom token  
       //    - Controller should fetch balance only for the selected account
-      //    - Non-selected account's token should NOT trigger fallback (wasn't queried)
+      //    - Non-selected account's token should NOT be queried
       //
       // B) queryAllAccounts=true (multi-account mode): All accounts are queried
       //    - Both accounts should get balances fetched
