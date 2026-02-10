@@ -2716,6 +2716,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/base-data-service@workspace:packages/base-data-service":
+  version: 0.0.0-use.local
+  resolution: "@metamask/base-data-service@workspace:packages/base-data-service"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/bridge-controller@npm:^67.2.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
