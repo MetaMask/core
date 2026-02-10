@@ -861,7 +861,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           );
 
           const chainsWithMissingTokens = new Set<ChainIdHex>();
-          for (const chainId of supportedChains) {
+          for (const chainId of processed) {
             const allTokensForChain = this.#allTokens[chainId];
             if (!allTokensForChain) {
               continue;
