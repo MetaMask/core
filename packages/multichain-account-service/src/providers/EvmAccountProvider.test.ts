@@ -156,7 +156,14 @@ function setup({
 
   messenger.registerActionHandler(
     'AccountsController:getAccounts',
-    () => accounts,
+    (accountIds: string[]) =>
+      keyring.accounts.filter(
+        (account) =>
+          accountIds.includes(account.id) ||
+          accountIds.includes(
+            getUUIDFromAddressOfNormalAccount(account.address),
+          ),
+      ),
   );
 
   const mockGetAccount = jest.fn().mockImplementation((id) => {
@@ -318,9 +325,10 @@ describe('EvmAccountProvider', () => {
     });
 
     expect(newAccounts).toHaveLength(3);
-    expect(keyring.addAccounts).toHaveBeenCalledTimes(3);
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(1);
+    expect(keyring.addAccounts).toHaveBeenCalledWith(3);
 
-    // Verify each account has the correct group index
+    // Verify each account has the correct group index.
     expect(
       isBip44Account(newAccounts[0]) &&
         newAccounts[0].options.entropy.groupIndex,
@@ -350,7 +358,8 @@ describe('EvmAccountProvider', () => {
     });
 
     expect(newAccounts).toHaveLength(3);
-    expect(keyring.addAccounts).toHaveBeenCalledTimes(3);
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(1);
+    expect(keyring.addAccounts).toHaveBeenCalledWith(3);
   });
 
   it('creates a single account when range from equals to', async () => {
@@ -379,7 +388,7 @@ describe('EvmAccountProvider', () => {
     });
 
     expect(newAccounts).toHaveLength(1);
-    expect(keyring.addAccounts).toHaveBeenCalledTimes(6); // 5 from setup + 1 from the test.
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(2); // 1 call for range 0-4, 1 call for account 5.
     expect(
       isBip44Account(newAccounts[0]) &&
         newAccounts[0].options.entropy.groupIndex,
@@ -418,12 +427,13 @@ describe('EvmAccountProvider', () => {
       },
     });
 
-    // Should return 4 accounts: 2 existing (indices 0,1) + 2 new (indices 2,3)
+    // Should return 4 accounts: 2 existing (indices 0,1) + 2 new (indices 2,3).
     expect(newAccounts).toHaveLength(4);
     expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
     expect(newAccounts[1]).toStrictEqual(MOCK_HD_ACCOUNT_2);
-    // Only 2 new accounts should be created (indices 2 and 3)
-    expect(keyring.addAccounts).toHaveBeenCalledTimes(2);
+    // Only 2 new accounts should be created (indices 2 and 3) in a single batched call.
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(1);
+    expect(keyring.addAccounts).toHaveBeenCalledWith(2);
   });
 
   it('throws if the created account is not BIP-44 compatible', async () => {
