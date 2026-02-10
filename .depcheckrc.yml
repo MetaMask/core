@@ -18,7 +18,6 @@ ignores:
   - 'typedoc'
   # Ignore plugins for tools
   - '@typescript-eslint/*'
-  - 'babel-jest'
   - 'eslint-config-*'
   - 'eslint-plugin-*'
   - 'jest-silent-reporter'

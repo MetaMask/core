@@ -50,9 +50,6 @@
     "ws@7.4.6": "^7.5.10"
   },
   "devDependencies": {
-    "@babel/core": "^7.23.5",
-    "@babel/plugin-transform-modules-commonjs": "^7.23.3",
-    "@babel/preset-typescript": "^7.23.3",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/create-release-branch": "^4.1.4",
@@ -73,7 +70,6 @@
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
     "@yarnpkg/types": "^4.0.0",
-    "babel-jest": "^29.7.0",
     "comment-json": "^4.5.1",
     "depcheck": "^1.4.7",
     "eslint": "^9.39.1",
