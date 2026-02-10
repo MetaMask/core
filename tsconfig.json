@@ -45,6 +45,9 @@
       "path": "./packages/base-controller"
     },
     {
+      "path": "./packages/base-data-service"
+    },
+    {
       "path": "./packages/bridge-controller"
     },
     {

@@ -32,6 +32,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/assets-controller`](packages/assets-controller)
 - [`@metamask/assets-controllers`](packages/assets-controllers)
 - [`@metamask/base-controller`](packages/base-controller)
+- [`@metamask/base-data-service`](packages/base-data-service)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
@@ -110,6 +111,7 @@ linkStyle default opacity:0.5
   assets_controller(["@metamask/assets-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
   base_controller(["@metamask/base-controller"]);
+  base_data_service(["@metamask/base-data-service"]);
   bridge_controller(["@metamask/bridge-controller"]);
   bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);
@@ -181,31 +183,45 @@ linkStyle default opacity:0.5
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   address_book_controller --> messenger;
+  ai_controllers --> base_controller;
+  ai_controllers --> messenger;
   analytics_controller --> base_controller;
   analytics_controller --> messenger;
+  analytics_data_regulation_controller --> base_controller;
+  analytics_data_regulation_controller --> controller_utils;
+  analytics_data_regulation_controller --> messenger;
   announcement_controller --> base_controller;
   announcement_controller --> messenger;
   app_metadata_controller --> base_controller;
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
   approval_controller --> messenger;
+  assets_controller --> account_tree_controller;
   assets_controller --> base_controller;
+  assets_controller --> controller_utils;
+  assets_controller --> core_backend;
+  assets_controller --> keyring_controller;
   assets_controller --> messenger;
+  assets_controller --> network_controller;
+  assets_controller --> network_enablement_controller;
+  assets_controller --> permission_controller;
+  assets_controller --> polling_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
-  assets_controllers --> core_backend;
   assets_controllers --> keyring_controller;
   assets_controllers --> messenger;
   assets_controllers --> multichain_account_service;
   assets_controllers --> network_controller;
+  assets_controllers --> network_enablement_controller;
   assets_controllers --> permission_controller;
   assets_controllers --> phishing_controller;
   assets_controllers --> polling_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> profile_sync_controller;
+  assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
   base_controller --> messenger;
   base_controller --> json_rpc_engine;
@@ -412,8 +428,6 @@ linkStyle default opacity:0.5
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   subscription_controller --> transaction_controller;
-  token_search_discovery_controller --> base_controller;
-  token_search_discovery_controller --> messenger;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
