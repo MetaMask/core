@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+- Release/763.0.0 ([#7713](https://github.com/MetaMask/core/pull/7713))
+
 ### Added
 
 - Pass `requiredAssets` from `wallet_sendCalls` to `addTransaction` and `addTransactionBatch` ([#7819](https://github.com/MetaMask/core/pull/7819))

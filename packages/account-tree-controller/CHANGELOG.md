@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: simplify null checks with optional chaining ([#7887](https://github.com/MetaMask/core/pull/7887))
+- feat: bump `accounts` deps + use new `AccountProvider.createAccounts` ([#7857](https://github.com/MetaMask/core/pull/7857))
+
 ## [4.1.0]
 
 ### Added
