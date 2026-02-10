@@ -3961,9 +3961,6 @@ describe('BridgeStatusController', () => {
         expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
 
         // Now advance timer again - polling should work since attempts are reset
-        // Advance in steps to allow recursive setTimeout to be set up properly with Jest 28
-        jest.advanceTimersByTime(0);
-        await flushPromises();
         jest.advanceTimersByTime(10000);
         await flushPromises();
 
@@ -4481,20 +4478,10 @@ describe('BridgeStatusController', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
-        // Mock 3 responses - all invalid to test retry behavior
-        mockFetchFn
-          .mockResolvedValueOnce({
-            ...MockStatusResponse.getComplete(),
-            status: 'INVALID',
-          })
-          .mockResolvedValueOnce({
-            ...MockStatusResponse.getComplete(),
-            status: 'INVALID',
-          })
-          .mockResolvedValueOnce({
-            ...MockStatusResponse.getComplete(),
-            status: 'INVALID',
-          });
+        mockFetchFn.mockResolvedValueOnce({
+          ...MockStatusResponse.getComplete(),
+          status: 'INVALID',
+        });
         const oldHistoryItem =
           bridgeStatusController.getBridgeHistoryItemByTxMetaId(
             'bridgeTxMetaId1',
@@ -4509,16 +4496,7 @@ describe('BridgeStatusController', () => {
           id: 'bridgeTxMetaId1',
         });
 
-        // Advance timers in steps to allow recursive setTimeout to be set up properly
-        // First call happens immediately (0ms delay for first poll)
-        jest.advanceTimersByTime(0);
-        await flushPromises();
-        // Second call after 10 second interval
-        jest.advanceTimersByTime(10000);
-        await flushPromises();
-        // Third call after another 10 second interval
-        jest.advanceTimersByTime(10000);
-        await flushPromises();
+        jest.advanceTimersByTime(500);
         bridgeStatusController.stopAllPolling();
         await flushPromises();
 
@@ -4537,7 +4515,7 @@ describe('BridgeStatusController', () => {
         ).toStrictEqual({
           ...oldHistoryItem,
           attempts: expect.objectContaining({
-            counter: 2,
+            counter: 1,
           }),
         });
         expect(consoleFnSpy.mock.calls).toMatchSnapshot();

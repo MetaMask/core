@@ -4776,7 +4776,7 @@ Array [
     "failures": Array [
       "across|status",
     ],
-    "refresh_count": 1,
+    "refresh_count": 0,
     "token_address_destination": "eip155:10/slip44:60",
     "token_address_source": "eip155:42161/slip44:60",
   },
@@ -4787,7 +4787,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 Array [
   Array [
     "Failed to fetch bridge tx status",
-    [Error: Bridge status validation failed: across|status],
+    [Error: Bridge status validation failed: across|unknown],
   ],
   Array [
     "Failed to fetch bridge tx status",
@@ -4798,32 +4798,48 @@ Array [
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for completed bridge tx with featureId 1`] = `
 Object {
+  "bridge": "across",
   "destChain": Object {
+    "amount": "990654755978611",
     "chainId": 10,
-    "token": Object {},
+    "token": Object {
+      "address": "0x0000000000000000000000000000000000000000",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "txHash": "0xdestTxHash1",
   },
+  "isExpectedToken": true,
   "srcChain": Object {
     "amount": "991250000000000",
     "chainId": 42161,
     "token": Object {
       "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
       "coinKey": "ETH",
       "decimals": 18,
       "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
       "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
       "name": "ETH",
-      "priceUSD": "2518.47",
+      "priceUSD": "2478.7",
       "symbol": "ETH",
     },
-    "txHash": "0xsrcTxHash1",
+    "txHash": "0xperpsSrcTxHash1",
   },
-  "status": "PENDING",
+  "status": "COMPLETE",
 }
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for failed bridge tx with featureId 1`] = `
 Object {
+  "bridge": "debridge",
   "destChain": Object {
     "chainId": 10,
     "token": Object {},
@@ -4833,18 +4849,18 @@ Object {
     "chainId": 42161,
     "token": Object {
       "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
       "coinKey": "ETH",
       "decimals": 18,
       "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
       "name": "ETH",
-      "priceUSD": "2518.47",
       "symbol": "ETH",
     },
-    "txHash": "0xsrcTxHash1",
+    "txHash": "0xperpsSrcTxHash1",
   },
-  "status": "PENDING",
+  "status": "FAILED",
 }
 `;
 
