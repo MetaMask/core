@@ -39,8 +39,6 @@ jobs:
           is-high-risk-environment: false
           node-version: ${{ matrix.node-version }}
       - run: yarn lint
-        env:
-          NODE_OPTIONS: '--max-old-space-size=8192'
       - name: Require clean working directory
         shell: bash
         run: |
