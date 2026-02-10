@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "25.0.0",
+  "version": "25.1.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -73,12 +73,12 @@
     "@metamask/keyring-utils": "^3.1.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "jest-environment-node": "^27.5.1",
     "sinon": "^9.2.4",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3",

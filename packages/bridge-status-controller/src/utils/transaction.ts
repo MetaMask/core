@@ -8,6 +8,7 @@ import {
   isCrossChain,
 } from '@metamask/bridge-controller';
 import type {
+  Intent,
   QuoteMetadata,
   QuoteResponse,
   Trade,
@@ -34,6 +35,7 @@ import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
 } from '../types';
+import type { BridgeStatusControllerState } from '../types';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
@@ -235,6 +237,66 @@ export const getClientRequest = (
     selectedAccount.id,
     options,
   );
+};
+
+export const waitForTxConfirmation = async (
+  messenger: BridgeStatusControllerMessenger,
+  txId: string,
+  {
+    timeoutMs = 5 * 60_000,
+    pollMs = 3_000,
+  }: { timeoutMs?: number; pollMs?: number } = {},
+): Promise<TransactionMeta> => {
+  const start = Date.now();
+  while (true) {
+    const { transactions } = messenger.call('TransactionController:getState');
+    const meta = transactions.find((tx: TransactionMeta) => tx.id === txId);
+
+    if (meta) {
+      if (meta.status === TransactionStatus.confirmed) {
+        return meta;
+      }
+      if (
+        meta.status === TransactionStatus.failed ||
+        meta.status === TransactionStatus.dropped ||
+        meta.status === TransactionStatus.rejected
+      ) {
+        throw new Error('Approval transaction did not confirm');
+      }
+    }
+
+    if (Date.now() - start > timeoutMs) {
+      throw new Error('Timed out waiting for approval confirmation');
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+};
+
+export const rekeyHistoryItemInState = (
+  state: BridgeStatusControllerState,
+  actionId: string,
+  txMeta: { id: string; hash?: string },
+): boolean => {
+  const historyItem = state.txHistory[actionId];
+  if (!historyItem) {
+    return false;
+  }
+
+  state.txHistory[txMeta.id] = {
+    ...historyItem,
+    txMetaId: txMeta.id,
+    originalTransactionId: historyItem.originalTransactionId ?? txMeta.id,
+    status: {
+      ...historyItem.status,
+      srcChain: {
+        ...historyItem.status.srcChain,
+        txHash: txMeta.hash ?? historyItem.status.srcChain?.txHash,
+      },
+    },
+  };
+  delete state.txHistory[actionId];
+  return true;
 };
 
 export const toBatchTxParams = (
@@ -453,3 +515,42 @@ export const findAndUpdateTransactionsInBatch = ({
 
   return txBatch;
 };
+
+/**
+ * Determines the key to use for storing a bridge history item.
+ * Uses actionId for pre-submission tracking, or bridgeTxMetaId for post-submission.
+ *
+ * @param actionId - The action ID used for pre-submission tracking
+ * @param bridgeTxMetaId - The transaction meta ID from bridgeTxMeta
+ * @returns The key to use for the history item
+ * @throws Error if neither actionId nor bridgeTxMetaId is provided
+ */
+export function getHistoryKey(
+  actionId: string | undefined,
+  bridgeTxMetaId: string | undefined,
+): string {
+  const historyKey = actionId ?? bridgeTxMetaId;
+  if (!historyKey) {
+    throw new Error(
+      'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+    );
+  }
+  return historyKey;
+}
+
+/**
+ * Extracts and validates the intent data from a quote response.
+ *
+ * @param quoteResponse - The quote response that may contain intent data
+ * @returns The intent data from the quote
+ * @throws Error if the quote does not contain intent data
+ */
+export function getIntentFromQuote(
+  quoteResponse: QuoteResponse & { quote: { intent?: Intent } },
+): Intent {
+  const { intent } = quoteResponse.quote;
+  if (!intent) {
+    throw new Error('submitIntent: missing intent data');
+  }
+  return intent;
+}

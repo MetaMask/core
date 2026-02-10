@@ -55,18 +55,18 @@
     "@metamask/multichain-network-controller": "^3.0.2",
     "@metamask/network-controller": "^29.0.0",
     "@metamask/slip44": "^4.3.0",
-    "@metamask/transaction-controller": "^62.9.2",
+    "@metamask/transaction-controller": "^62.16.0",
     "@metamask/utils": "^11.9.0",
     "reselect": "^5.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "sinon": "^9.2.4",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

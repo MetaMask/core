@@ -23,7 +23,9 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
+- [`@metamask/ai-controllers`](packages/ai-controllers)
 - [`@metamask/analytics-controller`](packages/analytics-controller)
+- [`@metamask/analytics-data-regulation-controller`](packages/analytics-data-regulation-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
@@ -85,7 +87,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
-- [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
@@ -101,7 +102,9 @@ linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
+  ai_controllers(["@metamask/ai-controllers"]);
   analytics_controller(["@metamask/analytics-controller"]);
+  analytics_data_regulation_controller(["@metamask/analytics-data-regulation-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
@@ -163,7 +166,6 @@ linkStyle default opacity:0.5
   signature_controller(["@metamask/signature-controller"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
-  token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);

@@ -44,6 +44,7 @@ import type {
   ISubscriptionService,
 } from './types';
 import {
+  CANCEL_TYPES,
   MODAL_TYPE,
   PAYMENT_TYPES,
   PRODUCT_TYPES,
@@ -84,6 +85,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
     },
   },
   isEligibleForSupport: true,
+  cancelType: CANCEL_TYPES.ALLOWED_AT_PERIOD_END,
 };
 
 const MOCK_PRODUCT_PRICE: ProductPricing = {
@@ -432,6 +434,23 @@ describe('SubscriptionController', () => {
         expect(controller.state.subscriptions).toStrictEqual([]);
         expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
       });
+    });
+
+    it('should surface triggerAccessTokenRefresh errors', async () => {
+      await withController(
+        async ({ controller, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          mockPerformSignOut.mockImplementation(() => {
+            throw new Error('Wallet is locked');
+          });
+
+          await expect(controller.getSubscriptions()).rejects.toThrow(
+            'Wallet is locked',
+          );
+        },
+      );
     });
 
     it('should update state when subscription is fetched', async () => {
@@ -1757,6 +1776,119 @@ describe('SubscriptionController', () => {
           SubscriptionControllerErrorMessage.PaymentTokenAddressAndSymbolRequiredForCrypto,
         );
       });
+    });
+  });
+
+  describe('clearLastSelectedPaymentMethod', () => {
+    it('should clear last selected payment method successfully', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCard,
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({
+            [PRODUCT_TYPES.SHIELD]: {
+              type: PAYMENT_TYPES.byCard,
+              plan: RECURRING_INTERVALS.month,
+            },
+          });
+
+          controller.clearLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD);
+
+          expect(controller.state.lastSelectedPaymentMethod).toStrictEqual({});
+        },
+      );
+    });
+
+    it('should do nothing when lastSelectedPaymentMethod is undefined', async () => {
+      await withController(async ({ controller }) => {
+        expect(controller.state.lastSelectedPaymentMethod).toBeUndefined();
+
+        controller.clearLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD);
+
+        expect(controller.state.lastSelectedPaymentMethod).toBeUndefined();
+      });
+    });
+
+    it('should remove the product key while preserving the state object', async () => {
+      await withController(
+        {
+          state: {
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0x123',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+              'test-product-type': {
+                type: PAYMENT_TYPES.byCard,
+              },
+            } as Record<ProductType, CachedLastSelectedPaymentMethod>,
+          },
+        },
+        async ({ controller }) => {
+          expect(
+            controller.state.lastSelectedPaymentMethod?.[PRODUCT_TYPES.SHIELD],
+          ).toBeDefined();
+
+          controller.clearLastSelectedPaymentMethod(PRODUCT_TYPES.SHIELD);
+
+          expect(
+            controller.state.lastSelectedPaymentMethod?.[
+              'test-product-type' as ProductType
+            ],
+          ).toBeDefined();
+          expect(
+            controller.state.lastSelectedPaymentMethod?.[PRODUCT_TYPES.SHIELD],
+          ).toBeUndefined();
+        },
+      );
+    });
+  });
+
+  describe('clearState', () => {
+    it('should reset state to default values', async () => {
+      await withController(
+        {
+          state: {
+            subscriptions: [MOCK_SUBSCRIPTION],
+            pricing: MOCK_PRICE_INFO_RESPONSE,
+            lastSelectedPaymentMethod: {
+              [PRODUCT_TYPES.SHIELD]: {
+                type: PAYMENT_TYPES.byCrypto,
+                paymentTokenAddress: '0xtoken',
+                paymentTokenSymbol: 'USDT',
+                plan: RECURRING_INTERVALS.month,
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.subscriptions).toStrictEqual([
+            MOCK_SUBSCRIPTION,
+          ]);
+          expect(controller.state.pricing).toStrictEqual(
+            MOCK_PRICE_INFO_RESPONSE,
+          );
+
+          controller.clearState();
+
+          expect(controller.state).toStrictEqual(
+            getDefaultSubscriptionControllerState(),
+          );
+          expect(controller.state.subscriptions).toHaveLength(0);
+          expect(controller.state.pricing).toBeUndefined();
+          expect(controller.state.lastSelectedPaymentMethod).toBeUndefined();
+        },
+      );
     });
   });
 

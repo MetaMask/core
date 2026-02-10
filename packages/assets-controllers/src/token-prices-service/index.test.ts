@@ -7,6 +7,9 @@ describe('token-prices-service', () => {
         "CodefiTokenPricesServiceV2",
         "SUPPORTED_CHAIN_IDS",
         "getNativeTokenAddress",
+        "fetchSupportedNetworks",
+        "getSupportedNetworks",
+        "resetSupportedNetworksCache",
       ]
     `);
   });

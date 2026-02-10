@@ -101,18 +101,12 @@ export type StatusResponse = Infer<typeof StatusResponseSchema>;
 export type RefuelStatusResponse = object & StatusResponse;
 
 export type BridgeHistoryItem = {
-  txMetaId: string; // Need this to handle STX that might not have a txHash immediately
+  txMetaId?: string; // Optional: not available pre-submission or on sync failure
+  actionId?: string; // Only for non-batch EVM transactions
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
   status: StatusResponse;
-  /**
-   * For intent-based orders (e.g., CoW) that can be partially filled across
-   * multiple on-chain settlements, we keep all discovered source tx hashes here.
-   * The canonical status.srcChain.txHash continues to hold the latest known hash
-   * for backward compatibility with consumers expecting a single hash.
-   */
-  srcTxHashes?: string[];
   startTime?: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
@@ -195,7 +189,7 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta: TransactionMeta;
+  bridgeTxMeta?: TransactionMeta;
   statusRequest: StatusRequest;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];

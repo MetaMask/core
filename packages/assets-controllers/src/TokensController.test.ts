@@ -34,6 +34,7 @@ import { v1 as uuidV1 } from 'uuid';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
+import type { TokenRwaData } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
 import type {
@@ -1881,6 +1882,115 @@ describe('TokensController', () => {
         },
       );
     });
+
+    it('overwrites rwaData when re-adding tokens via addTokens', async () => {
+      await withController(async ({ controller }) => {
+        const existingRwaData: TokenRwaData = {
+          ticker: 'OLD',
+        };
+        const updatedRwaData: TokenRwaData = {
+          ticker: 'NEW',
+        };
+
+        await controller.addTokens(
+          [
+            {
+              address: '0x01',
+              symbol: 'bar',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+              rwaData: existingRwaData,
+            },
+          ],
+          'mainnet',
+        );
+
+        await controller.addTokens(
+          [
+            {
+              address: '0x01',
+              symbol: 'bar',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+              rwaData: updatedRwaData,
+            },
+          ],
+          'mainnet',
+        );
+
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([
+          {
+            address: '0x01',
+            symbol: 'bar',
+            decimals: 2,
+            aggregators: [],
+            image: undefined,
+            name: undefined,
+            rwaData: updatedRwaData,
+          },
+        ]);
+      });
+    });
+
+    it('clears rwaData when re-adding tokens without rwaData', async () => {
+      await withController(async ({ controller }) => {
+        const existingRwaData: TokenRwaData = {
+          ticker: 'OLD',
+        };
+
+        await controller.addTokens(
+          [
+            {
+              address: '0x01',
+              symbol: 'bar',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+              rwaData: existingRwaData,
+            },
+          ],
+          'mainnet',
+        );
+
+        await controller.addTokens(
+          [
+            {
+              address: '0x01',
+              symbol: 'bar',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+            },
+          ],
+          'mainnet',
+        );
+
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ],
+        ).toStrictEqual([
+          {
+            address: '0x01',
+            symbol: 'bar',
+            decimals: 2,
+            aggregators: [],
+            image: undefined,
+            name: undefined,
+          },
+        ]);
+      });
+    });
   });
 
   describe('watchAsset', () => {
@@ -3184,7 +3294,6 @@ describe('TokensController', () => {
 
         messenger.publish(
           'TokenListController:stateChange',
-          // @ts-expect-error Passing a partial TokensState for brevity
           {
             tokensChainsCache: {
               [ChainId.mainnet]: {
@@ -3220,6 +3329,60 @@ describe('TokensController', () => {
           aggregators: [],
           name: 'BarName',
         });
+      });
+    });
+
+    it('overwrites rwaData for tokens with cached rwaData', async () => {
+      await withController(async ({ controller, messenger }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+
+        await controller.addTokens(
+          [
+            {
+              address: '0x01',
+              symbol: 'bar',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+              rwaData: { ticker: 'OLD' },
+            },
+          ],
+          'mainnet',
+        );
+
+        messenger.publish(
+          'TokenListController:stateChange',
+          {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 1,
+                data: {
+                  '0x01': {
+                    address: '0x01',
+                    symbol: 'bar',
+                    decimals: 2,
+                    occurrences: 1,
+                    name: 'BarName',
+                    iconUrl:
+                      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+                    aggregators: ['Aave'],
+                    rwaData: { ticker: 'NEW' },
+                  },
+                },
+              },
+            },
+          },
+          [],
+        );
+
+        expect(
+          controller.state.allTokens[ChainId.mainnet][
+            defaultMockInternalAccount.address
+          ][0].rwaData,
+        ).toStrictEqual({ ticker: 'NEW' });
       });
     });
   });

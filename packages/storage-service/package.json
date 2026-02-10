@@ -1,6 +1,6 @@
 {
   "name": "@metamask/storage-service",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Platform-agnostic service for storing large, infrequently accessed controller data",
   "keywords": [
     "MetaMask",
@@ -54,10 +54,10 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

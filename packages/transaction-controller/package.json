@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "62.9.2",
+  "version": "62.16.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -59,6 +59,7 @@
     "@metamask/approval-controller": "^8.0.0",
     "@metamask/base-controller": "^9.0.0",
     "@metamask/controller-utils": "^11.18.0",
+    "@metamask/core-backend": "5.0.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/gas-fee-controller": "^26.0.2",
     "@metamask/messenger": "^0.3.0",
@@ -84,14 +85,14 @@
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/bn.js": "^5.1.5",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "@types/node": "^16.18.54",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
     "jest": "^27.5.1",
     "nock": "^13.3.1",
     "sinon": "^9.2.4",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

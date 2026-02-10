@@ -18,6 +18,20 @@ export type CountryPhone = {
 };
 
 /**
+ * Indicates whether a region supports buy and/or sell actions.
+ */
+export type SupportedActions = {
+  /**
+   * Whether buy actions are supported.
+   */
+  buy: boolean;
+  /**
+   * Whether sell actions are supported.
+   */
+  sell: boolean;
+};
+
+/**
  * Represents a state/province within a country.
  */
 export type State = {
@@ -34,9 +48,9 @@ export type State = {
    */
   stateId?: string;
   /**
-   * Whether this state is supported for ramps.
+   * Whether this state is supported for buy and/or sell ramp actions.
    */
-  supported?: boolean;
+  supported?: SupportedActions;
   /**
    * Whether this state is recommended.
    */
@@ -72,6 +86,9 @@ export type Provider = {
   hqAddress: string;
   links: ProviderLink[];
   logos: ProviderLogos;
+  supportedCryptoCurrencies?: Record<string, boolean>;
+  supportedFiatCurrencies?: Record<string, boolean>;
+  supportedPaymentMethods?: Record<string, boolean>;
 };
 
 /**
@@ -103,9 +120,9 @@ export type PaymentMethod = {
    */
   disclaimer?: string;
   /**
-   * Human-readable delay description (e.g., "5 to 10 minutes.").
+   * Delay in minutes (e.g., [5, 10]).
    */
-  delay?: string;
+  delay?: number[];
   /**
    * Localized pending order description (optional).
    */
@@ -127,6 +144,219 @@ export type PaymentMethodsResponse = {
     ids: string[];
     sortBy: string;
   };
+};
+
+// === QUOTES TYPES ===
+
+/**
+ * Sort criteria for quotes.
+ */
+export type QuoteSortBy = 'price' | 'reliability';
+
+/**
+ * Represents crypto translation info for a quote.
+ */
+export type QuoteCryptoTranslation = {
+  /**
+   * The crypto currency ID.
+   */
+  id?: string;
+  /**
+   * The crypto symbol.
+   */
+  symbol?: string;
+  /**
+   * The chain ID.
+   */
+  chainId?: string;
+};
+
+/**
+ * Represents an individual quote from a provider.
+ */
+export type Quote = {
+  /**
+   * The provider ID (e.g., "/providers/moonpay").
+   */
+  provider: string;
+  /**
+   * The quote details.
+   */
+  quote: {
+    /**
+     * The amount the user is paying (in fiat for buy, crypto for sell).
+     */
+    amountIn: number | string;
+    /**
+     * The amount the user will receive (in crypto for buy, fiat for sell).
+     */
+    amountOut: number | string;
+    /**
+     * The payment method used for this quote.
+     */
+    paymentMethod: string;
+    /**
+     * The fiat value of the output amount (for buy actions).
+     */
+    amountOutInFiat?: number;
+    /**
+     * The widget URL for redirect providers.
+     */
+    widgetUrl?: string;
+    /**
+     * Crypto translation info for display.
+     */
+    cryptoTranslation?: QuoteCryptoTranslation;
+    /**
+     * Total fees in the source currency.
+     */
+    totalFees?: number | string;
+    /**
+     * Network fees.
+     */
+    networkFee?: number | string;
+    /**
+     * Provider fees.
+     */
+    providerFee?: number | string;
+  };
+  /**
+   * Metadata about the quote.
+   */
+  metadata?: {
+    /**
+     * Reliability score for the provider (0-100).
+     */
+    reliability?: number;
+    /**
+     * Tags for the quote.
+     */
+    tags?: {
+      /**
+       * Whether this is the best rate quote.
+       */
+      isBestRate?: boolean;
+      /**
+       * Whether this is the most reliable provider.
+       */
+      isMostReliable?: boolean;
+    };
+  };
+};
+
+/**
+ * Represents an error from a provider when fetching quotes.
+ */
+export type QuoteError = {
+  /**
+   * The provider ID that failed.
+   */
+  provider: string;
+  /**
+   * Error message.
+   */
+  error?: string;
+};
+
+/**
+ * Sort order information for quotes.
+ */
+export type QuoteSortOrder = {
+  /**
+   * The sort criteria.
+   */
+  sortBy: QuoteSortBy;
+  /**
+   * Provider IDs in sorted order.
+   */
+  ids: string[];
+};
+
+/**
+ * Custom action for a provider (e.g., Apple Pay).
+ */
+export type QuoteCustomAction = {
+  /**
+   * Buy action details.
+   */
+  buy: {
+    /**
+     * Provider ID.
+     */
+    providerId: string;
+  };
+  /**
+   * Payment method ID this action applies to.
+   */
+  paymentMethodId: string;
+  /**
+   * Supported payment method IDs.
+   */
+  supportedPaymentMethodIds: string[];
+};
+
+/**
+ * Response from the quotes API.
+ */
+export type QuotesResponse = {
+  /**
+   * Successfully retrieved quotes.
+   */
+  success: Quote[];
+  /**
+   * Sort orders for the quotes.
+   */
+  sorted: QuoteSortOrder[];
+  /**
+   * Errors from providers that failed to return quotes.
+   */
+  error: QuoteError[];
+  /**
+   * Custom actions available from providers.
+   */
+  customActions: QuoteCustomAction[];
+};
+
+/**
+ * Parameters for fetching quotes.
+ */
+export type GetQuotesParams = {
+  /**
+   * The region code (e.g., "us", "us-ca").
+   */
+  region: string;
+  /**
+   * Array of payment method IDs to get quotes for.
+   */
+  paymentMethods: string[];
+  /**
+   * The CAIP-19 asset ID (e.g., "eip155:1/erc20:0x...").
+   */
+  assetId: string;
+  /**
+   * The fiat currency code (e.g., "usd").
+   */
+  fiat: string;
+  /**
+   * The amount (in fiat for buy, crypto for sell).
+   */
+  amount: number;
+  /**
+   * The destination wallet address.
+   */
+  walletAddress: string;
+  /**
+   * Optional redirect URL after order completion.
+   */
+  redirectUrl?: string;
+  /**
+   * Optional provider ID to filter quotes.
+   */
+  provider?: string;
+  /**
+   * The ramp action type. Defaults to 'buy'.
+   */
+  action?: RampAction;
 };
 
 /**
@@ -159,9 +389,9 @@ export type Country = {
    */
   currency: string;
   /**
-   * Whether this country is supported for ramps.
+   * Whether this country is supported for buy and/or sell ramp actions.
    */
-  supported: boolean;
+  supported: SupportedActions;
   /**
    * Whether this country is recommended.
    */
@@ -253,6 +483,7 @@ export enum RampsEnvironment {
   Production = 'production',
   Staging = 'staging',
   Development = 'development',
+  Local = 'local',
 }
 
 /**
@@ -272,6 +503,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getTokens',
   'getProviders',
   'getPaymentMethods',
+  'getQuotes',
 ] as const;
 
 /**
@@ -326,6 +558,8 @@ function getBaseUrl(
     case RampsEnvironment.Staging:
     case RampsEnvironment.Development:
       return `https://on-ramp${cache}.uat-api.cx.metamask.io`;
+    case RampsEnvironment.Local:
+      return 'http://localhost:3000';
     default:
       throw new Error(`Invalid environment: ${String(environment)}`);
   }
@@ -420,6 +654,11 @@ export class RampsService {
   readonly #context: string;
 
   /**
+   * Optional base URL override for local development.
+   */
+  readonly #baseUrlOverride?: string;
+
+  /**
    * Constructs a new RampsService object.
    *
    * @param args - The constructor arguments.
@@ -432,6 +671,7 @@ export class RampsService {
    * `node-fetch`).
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
+   * @param args.baseUrlOverride - Optional base URL override for local development.
    */
   constructor({
     messenger,
@@ -439,12 +679,14 @@ export class RampsService {
     context,
     fetch: fetchFunction,
     policyOptions = {},
+    baseUrlOverride,
   }: {
     messenger: RampsServiceMessenger;
     environment?: RampsEnvironment;
     context: string;
     fetch: typeof fetch;
     policyOptions?: CreateServicePolicyOptions;
+    baseUrlOverride?: string;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -452,11 +694,25 @@ export class RampsService {
     this.#policy = createServicePolicy(policyOptions);
     this.#environment = environment;
     this.#context = context;
+    this.#baseUrlOverride = baseUrlOverride;
 
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Gets the base URL for API requests, respecting the baseUrlOverride if set.
+   *
+   * @param service - The API service type.
+   * @returns The base URL to use.
+   */
+  #getBaseUrl(service: RampsApiService): string {
+    if (this.#baseUrlOverride) {
+      return this.#baseUrlOverride;
+    }
+    return getBaseUrl(this.#environment, service);
   }
 
   /**
@@ -547,7 +803,7 @@ export class RampsService {
     },
   ): Promise<TResponse> {
     return this.#policy.execute(async () => {
-      const baseUrl = getBaseUrl(this.#environment, service);
+      const baseUrl = this.#getBaseUrl(service);
       const url = new URL(path, baseUrl);
       this.#addCommonParams(url, options.action);
 
@@ -588,16 +844,16 @@ export class RampsService {
 
   /**
    * Makes a request to the cached API to retrieve the list of supported countries.
+   * The API returns countries with support information for both buy and sell actions.
    * Filters countries based on aggregator support (preserves OnRampSDK logic).
    *
-   * @param action - The ramp action type ('buy' or 'sell').
    * @returns An array of countries filtered by aggregator support.
    */
-  async getCountries(action: RampAction = 'buy'): Promise<Country[]> {
+  async getCountries(): Promise<Country[]> {
     const countries = await this.#request<Country[]>(
       RampsApiService.Regions,
       getApiPath('regions/countries'),
-      { action, responseType: 'json' },
+      { responseType: 'json' },
     );
 
     if (!Array.isArray(countries)) {
@@ -605,14 +861,18 @@ export class RampsService {
     }
 
     return countries.filter((country) => {
+      const isCountrySupported =
+        country.supported.buy || country.supported.sell;
+
       if (country.states && country.states.length > 0) {
         const hasSupportedState = country.states.some(
-          (state) => state.supported !== false,
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- intentionally using || to treat false as unsupported
+          (state) => state.supported?.buy || state.supported?.sell,
         );
-        return country.supported || hasSupportedState;
+        return isCountrySupported || hasSupportedState;
       }
 
-      return country.supported;
+      return isCountrySupported;
     });
   }
 
@@ -636,7 +896,7 @@ export class RampsService {
     const normalizedRegion = region.toLowerCase().trim();
     const url = new URL(
       getApiPath(`regions/${normalizedRegion}/topTokens`),
-      getBaseUrl(this.#environment, RampsApiService.Regions),
+      this.#getBaseUrl(RampsApiService.Regions),
     );
     this.#addCommonParams(url, action);
 
@@ -696,7 +956,7 @@ export class RampsService {
     const normalizedRegion = regionCode.toLowerCase().trim();
     const url = new URL(
       getApiPath(`regions/${normalizedRegion}/providers`),
-      getBaseUrl(this.#environment, RampsApiService.Regions),
+      this.#getBaseUrl(RampsApiService.Regions),
     );
     this.#addCommonParams(url);
 
@@ -766,15 +1026,16 @@ export class RampsService {
     assetId: string;
     provider: string;
   }): Promise<PaymentMethodsResponse> {
+    const normalizedRegion = options.region.toLowerCase().trim();
     const url = new URL(
-      getApiPath('paymentMethods'),
-      getBaseUrl(this.#environment, RampsApiService.Regions),
+      getApiPath(`regions/${normalizedRegion}/payments`),
+      this.#getBaseUrl(RampsApiService.Regions),
     );
     this.#addCommonParams(url);
 
     url.searchParams.set('region', options.region.toLowerCase().trim());
     url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
-    url.searchParams.set('assetId', options.assetId);
+    url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
     const response = await this.#policy.execute(async () => {
@@ -794,6 +1055,82 @@ export class RampsService {
 
     if (!Array.isArray(response.payments)) {
       throw new Error('Malformed response received from paymentMethods API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Fetches quotes from all providers for a given set of parameters.
+   * Uses the V2 orders API to get quotes for multiple payment methods at once.
+   *
+   * @param params - The parameters for fetching quotes.
+   * @param params.region - User's region code (e.g., "us", "us-ca").
+   * @param params.paymentMethods - Array of payment method IDs.
+   * @param params.assetId - CAIP-19 cryptocurrency identifier.
+   * @param params.fiat - Fiat currency code (e.g., "usd").
+   * @param params.amount - The amount (in fiat for buy, crypto for sell).
+   * @param params.walletAddress - The destination wallet address.
+   * @param params.redirectUrl - Optional redirect URL after order completion.
+   * @param params.provider - Optional provider ID to filter quotes.
+   * @param params.action - The ramp action type. Defaults to 'buy'.
+   * @returns The quotes response containing success, sorted, error, and customActions.
+   */
+  async getQuotes(params: GetQuotesParams): Promise<QuotesResponse> {
+    const normalizedRegion = params.region.toLowerCase().trim();
+    const normalizedFiat = params.fiat.toLowerCase().trim();
+    const action = params.action ?? 'buy';
+
+    const url = new URL(
+      getApiPath('quotes'),
+      getBaseUrl(this.#environment, RampsApiService.Orders),
+    );
+    this.#addCommonParams(url, action);
+
+    // Build region ID in the format expected by the API
+    url.searchParams.set('region', normalizedRegion);
+    url.searchParams.set('fiat', normalizedFiat);
+    url.searchParams.set('crypto', params.assetId);
+    url.searchParams.set('amount', String(params.amount));
+    url.searchParams.set('walletAddress', params.walletAddress);
+
+    // Add payment methods as array parameters
+    params.paymentMethods.forEach((paymentMethod) => {
+      url.searchParams.append('payments', paymentMethod);
+    });
+
+    // Add provider filter if specified
+    if (params.provider) {
+      url.searchParams.append('providers', params.provider);
+    }
+
+    // Add redirect URL if specified
+    if (params.redirectUrl) {
+      url.searchParams.set('redirectUrl', params.redirectUrl);
+    }
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<QuotesResponse>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from quotes API');
+    }
+
+    if (
+      !Array.isArray(response.success) ||
+      !Array.isArray(response.sorted) ||
+      !Array.isArray(response.error) ||
+      !Array.isArray(response.customActions)
+    ) {
+      throw new Error('Malformed response received from quotes API');
     }
 
     return response;

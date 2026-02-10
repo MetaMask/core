@@ -116,7 +116,7 @@ export const ChainRankingItemSchema = type({
   name: string(),
 });
 
-export const ChainRankingSchema = array(ChainRankingItemSchema);
+export const ChainRankingSchema = optional(array(ChainRankingItemSchema));
 
 export const ChainConfigurationSchema = type({
   isActiveSrc: boolean(),

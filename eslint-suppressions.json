@@ -337,20 +337,12 @@
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
+      "count": 1
     },
     "id-denylist": {
       "count": 2
     },
     "import-x/namespace": {
-      "count": 7
-    }
-  },
-  "packages/assets-controllers/src/TokenListController.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "no-restricted-syntax": {
       "count": 7
     }
   },
@@ -366,7 +358,7 @@
   },
   "packages/assets-controllers/src/TokenSearchDiscoveryDataController/TokenSearchDiscoveryDataController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/assets-controllers/src/TokenSearchDiscoveryDataController/TokenSearchDiscoveryDataController.ts": {
@@ -374,7 +366,7 @@
       "count": 1
     },
     "no-negated-condition": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
@@ -431,9 +423,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
     },
-    "@typescript-eslint/naming-convention": {
-      "count": 22
-    },
     "no-negated-condition": {
       "count": 2
     }
@@ -466,17 +455,6 @@
     },
     "no-param-reassign": {
       "count": 4
-    }
-  },
-  "packages/assets-controllers/src/multi-chain-accounts-service/api-balance-fetcher.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 11
-    },
-    "id-length": {
-      "count": 37
-    },
-    "require-atomic-updates": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/multi-chain-accounts-service/api-balance-fetcher.ts": {
@@ -573,30 +551,6 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/bridge-controller.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 18
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    }
-  },
-  "packages/bridge-controller/src/selectors.test.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
-  "packages/bridge-controller/src/selectors.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 25
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 1
-    },
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
   "packages/bridge-controller/src/types.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 12
@@ -621,11 +575,6 @@
     },
     "id-denylist": {
       "count": 1
-    }
-  },
-  "packages/bridge-controller/src/utils/caip-formatters.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
     }
   },
   "packages/bridge-controller/src/utils/feature-flags.ts": {
@@ -661,19 +610,9 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/utils/metrics/constants.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 2
-    }
-  },
   "packages/bridge-controller/src/utils/metrics/properties.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 5
-    }
-  },
-  "packages/bridge-controller/src/utils/metrics/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 83
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
@@ -685,14 +624,6 @@
     },
     "id-length": {
       "count": 2
-    }
-  },
-  "packages/bridge-controller/src/utils/quote.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 15
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 4
     }
   },
   "packages/bridge-controller/src/utils/slippage.ts": {
@@ -1150,20 +1081,11 @@
   "packages/multichain-account-service/src/MultichainAccountWallet.test.ts": {
     "id-length": {
       "count": 2
-    },
-    "no-param-reassign": {
-      "count": 1
     }
   },
   "packages/multichain-account-service/src/MultichainAccountWallet.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 1
+      "count": 2
     },
     "require-atomic-updates": {
       "count": 2
@@ -1182,11 +1104,6 @@
   "packages/multichain-account-service/src/providers/BtcAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
-    }
-  },
-  "packages/multichain-account-service/src/providers/EvmAccountProvider.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
     }
   },
   "packages/multichain-account-service/src/providers/EvmAccountProvider.ts": {
@@ -1224,17 +1141,14 @@
   },
   "packages/multichain-account-service/src/tests/providers.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/utils.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    },
-    "id-denylist": {
       "count": 1
     },
-    "id-length": {
+    "id-denylist": {
       "count": 1
     }
   },
@@ -1699,20 +1613,6 @@
       "count": 1
     }
   },
-  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/services.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    },
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    },
-    "id-length": {
-      "count": 5
-    },
-    "no-restricted-globals": {
-      "count": 1
-    }
-  },
   "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/types.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 5
@@ -1918,16 +1818,6 @@
     },
     "id-length": {
       "count": 2
-    }
-  },
-  "packages/token-search-discovery-controller/src/token-discovery-api-service/token-discovery-api-service.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
-  "packages/token-search-discovery-controller/src/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 18
     }
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {

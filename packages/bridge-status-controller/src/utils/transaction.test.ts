@@ -3,7 +3,9 @@ import {
   FeeType,
   formatChainIdToCaip,
   formatChainIdToHex,
+  StatusTypes,
 } from '@metamask/bridge-controller';
+import type { Quote } from '@metamask/bridge-controller';
 import type {
   QuoteMetadata,
   QuoteResponse,
@@ -13,7 +15,9 @@ import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 
+import * as snaps from './snaps';
 import {
   getStatusRequestParams,
   getTxMetaFields,
@@ -24,11 +28,175 @@ import {
   toBatchTxParams,
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
+  getHistoryKey,
+  getIntentFromQuote,
+  rekeyHistoryItemInState,
+  waitForTxConfirmation,
 } from './transaction';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type { BridgeStatusControllerMessenger } from '../types';
+import type {
+  BridgeStatusControllerState,
+  BridgeHistoryItem,
+  StatusResponse,
+} from '../types';
 
 describe('Bridge Status Controller Transaction Utils', () => {
+  describe('rekeyHistoryItemInState', () => {
+    const makeState = (
+      overrides?: Partial<BridgeStatusControllerState>,
+    ): BridgeStatusControllerState =>
+      ({
+        txHistory: {},
+        ...overrides,
+      }) as BridgeStatusControllerState;
+
+    it('returns false when history item missing', () => {
+      const state = makeState();
+      const result = rekeyHistoryItemInState(state, 'missing', {
+        id: 'tx1',
+        hash: '0xhash',
+      });
+      expect(result).toBe(false);
+    });
+
+    it('rekeys and preserves srcTxHash', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.SUBMITTED,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            } as StatusResponse,
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+          } as BridgeHistoryItem,
+        },
+      });
+
+      const result = rekeyHistoryItemInState(state, 'action1', {
+        id: 'tx1',
+        hash: '0xnew',
+      });
+
+      expect(result).toBe(true);
+      expect(state.txHistory.action1).toBeUndefined();
+      expect(state.txHistory.tx1.status.srcChain.txHash).toBe('0xnew');
+    });
+
+    it('uses existing srcTxHash when txMeta hash is missing', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.SUBMITTED,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            } as StatusResponse,
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+          } as BridgeHistoryItem,
+        },
+      });
+
+      const result = rekeyHistoryItemInState(state, 'action1', { id: 'tx1' });
+
+      expect(result).toBe(true);
+      expect(state.txHistory.tx1.status.srcChain.txHash).toBe('0xold');
+    });
+  });
+
+  describe('waitForTxConfirmation', () => {
+    it('resolves when confirmed', async () => {
+      const messenger = {
+        call: jest.fn(() => ({
+          transactions: [
+            {
+              id: 'tx1',
+              status: TransactionStatus.confirmed,
+            } as TransactionMeta,
+          ],
+        })),
+      } as unknown as BridgeStatusControllerMessenger;
+
+      const promise = waitForTxConfirmation(messenger, 'tx1', {
+        timeoutMs: 10,
+        pollMs: 1,
+      });
+      expect(await promise).toStrictEqual(
+        expect.objectContaining({ id: 'tx1' }),
+      );
+    });
+
+    it('throws when rejected', async () => {
+      const messenger = {
+        call: jest.fn(() => ({
+          transactions: [
+            {
+              id: 'tx1',
+              status: TransactionStatus.rejected,
+            } as TransactionMeta,
+          ],
+        })),
+      } as unknown as BridgeStatusControllerMessenger;
+
+      const promise = waitForTxConfirmation(messenger, 'tx1', {
+        timeoutMs: 10,
+        pollMs: 1,
+      });
+      expect(await promise.catch((error) => error)).toStrictEqual(
+        expect.objectContaining({
+          message: expect.stringMatching(/did not confirm/iu),
+        }),
+      );
+    });
+
+    it('times out when status never changes', async () => {
+      jest.useFakeTimers();
+      const messenger = {
+        call: jest.fn(() => ({
+          transactions: [
+            {
+              id: 'tx1',
+              status: TransactionStatus.submitted,
+            } as TransactionMeta,
+          ],
+        })),
+      } as unknown as BridgeStatusControllerMessenger;
+      const nowSpy = jest.spyOn(Date, 'now');
+      let now = 0;
+      nowSpy.mockImplementation(() => now);
+
+      const promise = waitForTxConfirmation(messenger, 'tx1', {
+        timeoutMs: 5,
+        pollMs: 1,
+      });
+
+      now = 10;
+      jest.advanceTimersByTime(1);
+      await Promise.resolve();
+
+      expect(await promise.catch((error) => error)).toStrictEqual(
+        expect.objectContaining({
+          message: expect.stringMatching(/Timed out/iu),
+        }),
+      );
+
+      nowSpy.mockRestore();
+      jest.useRealTimers();
+    });
+  });
   describe('getStatusRequestParams', () => {
     it('should extract status request parameters from a quote response', () => {
       const mockQuoteResponse: QuoteResponse = {
@@ -1513,6 +1681,43 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       });
     });
+
+    it('should include Tron options when trade is Tron', () => {
+      const createClientRequestSpy = jest
+        .spyOn(snaps, 'createClientTransactionRequest')
+        .mockReturnValue({ mocked: true } as never);
+
+      const tronTrade = {
+        raw_data_hex: 'abcdef',
+        raw_data: {
+          contract: [{ type: 'TransferContract' }],
+        },
+        visible: true,
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      } as never;
+
+      const result = getClientRequest(tronTrade, ChainId.TRON, mockAccount);
+
+      expect(result).toStrictEqual({ mocked: true });
+      expect(createClientRequestSpy).toHaveBeenCalledWith(
+        'test-snap-id',
+        expect.any(String),
+        formatChainIdToCaip(ChainId.TRON),
+        'test-account-id',
+        {
+          visible: true,
+          type: 'TransferContract',
+        },
+      );
+
+      createClientRequestSpy.mockRestore();
+    });
   });
 
   describe('toBatchTxParams', () => {
@@ -1698,6 +1903,25 @@ describe('Bridge Status Controller Transaction Utils', () => {
       // Should not use txFee for gas calculation when both gasIncluded and gasIncluded7702 are false
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].type).toBe(TransactionType.swap);
+    });
+
+    it('uses swap approval when approval provided and isBridgeTx is false', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        includeApproval: true,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messenger: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        approval: mockQuoteResponse.approval,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.transactions).toHaveLength(2);
+      expect(result.transactions[0].type).toBe(TransactionType.swapApproval);
+      expect(result.transactions[1].type).toBe(TransactionType.swap);
     });
 
     it('should handle gasIncluded with gasIncluded7702', async () => {
@@ -2035,6 +2259,68 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Should not match since it's looking for bridge but finds batch type
       expect(mockUpdateTransactionFn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getHistoryKey', () => {
+    it('returns actionId when both actionId and bridgeTxMetaId are provided', () => {
+      expect(getHistoryKey('action-123', 'tx-456')).toBe('action-123');
+    });
+
+    it('returns bridgeTxMetaId when only bridgeTxMetaId is provided', () => {
+      expect(getHistoryKey(undefined, 'tx-456')).toBe('tx-456');
+    });
+
+    it('returns actionId when only actionId is provided', () => {
+      expect(getHistoryKey('action-123', undefined)).toBe('action-123');
+    });
+
+    it('throws error when neither actionId nor bridgeTxMetaId is provided', () => {
+      expect(() => getHistoryKey(undefined, undefined)).toThrow(
+        'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+      );
+    });
+  });
+
+  describe('getIntentFromQuote', () => {
+    it('returns intent when present in quote response', () => {
+      const mockIntent = { protocol: 'cowswap', order: { some: 'data' } };
+      const quoteResponse = {
+        quote: {
+          intent: mockIntent,
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(getIntentFromQuote(quoteResponse)).toBe(mockIntent);
+    });
+
+    it('throws error when intent is missing from quote', () => {
+      const quoteResponse = {
+        quote: {
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(() => getIntentFromQuote(quoteResponse)).toThrow(
+        'submitIntent: missing intent data',
+      );
+    });
+
+    it('throws error when intent is undefined', () => {
+      const quoteResponse = {
+        quote: {
+          intent: undefined,
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(() => getIntentFromQuote(quoteResponse)).toThrow(
+        'submitIntent: missing intent data',
+      );
     });
   });
 });
