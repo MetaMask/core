@@ -1293,7 +1293,7 @@ describe('GasFeeController', () => {
           gasFeeController.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -1304,11 +1304,11 @@ describe('GasFeeController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "estimatedGasFeeTimeBounds": Object {},
+        {
+          "estimatedGasFeeTimeBounds": {},
           "gasEstimateType": "none",
-          "gasFeeEstimates": Object {},
-          "gasFeeEstimatesByChainId": Object {},
+          "gasFeeEstimates": {},
+          "gasFeeEstimatesByChainId": {},
           "nonRPCGasFeeApisDisabled": false,
         }
       `);
@@ -1322,11 +1322,11 @@ describe('GasFeeController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "estimatedGasFeeTimeBounds": Object {},
+        {
+          "estimatedGasFeeTimeBounds": {},
           "gasEstimateType": "none",
-          "gasFeeEstimates": Object {},
-          "gasFeeEstimatesByChainId": Object {},
+          "gasFeeEstimates": {},
+          "gasFeeEstimatesByChainId": {},
           "nonRPCGasFeeApisDisabled": false,
         }
       `);
@@ -1340,11 +1340,11 @@ describe('GasFeeController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "estimatedGasFeeTimeBounds": Object {},
+        {
+          "estimatedGasFeeTimeBounds": {},
           "gasEstimateType": "none",
-          "gasFeeEstimates": Object {},
-          "gasFeeEstimatesByChainId": Object {},
+          "gasFeeEstimates": {},
+          "gasFeeEstimatesByChainId": {},
         }
       `);
     });

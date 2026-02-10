@@ -822,8 +822,8 @@ describe('BridgeStatusController', () => {
 
       bridgeStatusController.stopAllPolling();
       expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
+        [
+          [
             "Failed to fetch bridge tx status",
             [Error: Network error],
           ],
@@ -879,32 +879,32 @@ describe('BridgeStatusController', () => {
       );
       bridgeStatusController.stopAllPolling();
       expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
+        [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
@@ -3457,7 +3457,7 @@ describe('BridgeStatusController', () => {
 
       const { txParams, ...resultsToCheck } = result;
       expect(resultsToCheck).toMatchInlineSnapshot(`
-        Object {
+        {
           "batchId": "batchId1",
           "chainId": "0xa4b1",
           "hash": "0xevmTxHash",
@@ -4669,7 +4669,7 @@ describe('BridgeStatusController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -4682,8 +4682,8 @@ describe('BridgeStatusController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
+        {
+          "txHistory": {},
         }
       `);
     });
@@ -4698,8 +4698,8 @@ describe('BridgeStatusController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
+        {
+          "txHistory": {},
         }
       `);
     });
@@ -4714,8 +4714,8 @@ describe('BridgeStatusController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
+        {
+          "txHistory": {},
         }
       `);
     });

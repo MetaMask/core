@@ -9,7 +9,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 
-jest.useFakeTimers({});
+jest.useFakeTimers();
 
 const REQUEST_MOCK = {} as QuoteRequest;
 const QUOTE_MOCK = {} as TransactionPayQuote<void>;

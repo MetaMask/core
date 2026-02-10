@@ -1,11 +1,6 @@
 /*
  * For a detailed explanation regarding each configuration property and type check, visit:
  * https://jestjs.io/docs/configuration
- *
- * NOTE:
- * This config uses `babel-jest` due to ESM- / TypeScript-related incompatibilities with our
- * current version (`^27`) of `jest` and `ts-jest`. We can switch to `ts-jest` once we have
- * migrated our Jest dependencies to version `>=29`.
  */
 
 module.exports = {
@@ -42,9 +37,7 @@ module.exports = {
     '^uuid$': require.resolve('uuid'),
   },
 
-  // Disabled due to use of 'transform' below.
-  // // A preset that is used as a base for Jest's configuration
-  // preset: 'ts-jest',
+  preset: 'ts-jest',
 
   // The path to the Prettier executable used to format snapshots
   // Jest doesn't support Prettier 3 yet, so we use Prettier 2
@@ -80,9 +73,4 @@ module.exports = {
 
   // Default timeout of a test in milliseconds.
   testTimeout: 5000,
-
-  // A map from regular expressions to paths to transformers
-  transform: {
-    '\\.[jt]sx?$': 'babel-jest',
-  },
 };

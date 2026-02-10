@@ -328,7 +328,7 @@ describe('fetch', () => {
         })),
       );
       expect(result.validationFailures).toMatchInlineSnapshot(`
-        Array [
+        [
           "unknown|quote",
           "lifi|quote.requestId",
           "lifi|quote.srcChainId",

@@ -206,7 +206,7 @@ describe('LoggingController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -223,8 +223,8 @@ describe('LoggingController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "logs": Object {},
+        {
+          "logs": {},
         }
       `);
     });
@@ -243,8 +243,8 @@ describe('LoggingController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "logs": Object {},
+        {
+          "logs": {},
         }
       `);
     });
@@ -262,7 +262,7 @@ describe('LoggingController', () => {
           controller.metadata,
           'usedInUi',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
   });
 });

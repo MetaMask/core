@@ -4359,7 +4359,7 @@ describe('AccountTreeController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -4372,13 +4372,13 @@ describe('AccountTreeController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "accountGroupsMetadata": Object {},
-          "accountTree": Object {
+        {
+          "accountGroupsMetadata": {},
+          "accountTree": {
             "selectedAccountGroup": "",
-            "wallets": Object {},
+            "wallets": {},
           },
-          "accountWalletsMetadata": Object {},
+          "accountWalletsMetadata": {},
           "hasAccountTreeSyncingSyncedAtLeastOnce": false,
         }
       `);
@@ -4394,9 +4394,9 @@ describe('AccountTreeController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "accountGroupsMetadata": Object {},
-          "accountWalletsMetadata": Object {},
+        {
+          "accountGroupsMetadata": {},
+          "accountWalletsMetadata": {},
           "hasAccountTreeSyncingSyncedAtLeastOnce": false,
         }
       `);
@@ -4412,13 +4412,13 @@ describe('AccountTreeController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "accountGroupsMetadata": Object {},
-          "accountTree": Object {
+        {
+          "accountGroupsMetadata": {},
+          "accountTree": {
             "selectedAccountGroup": "",
-            "wallets": Object {},
+            "wallets": {},
           },
-          "accountWalletsMetadata": Object {},
+          "accountWalletsMetadata": {},
           "hasAccountTreeSyncingSyncedAtLeastOnce": false,
           "isAccountTreeSyncingInProgress": false,
         }

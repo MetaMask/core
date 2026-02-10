@@ -23,7 +23,7 @@ jest.mock('./strategy');
 jest.mock('./transaction');
 jest.mock('./totals');
 
-jest.useFakeTimers({});
+jest.useFakeTimers();
 
 const TRANSACTION_ID_MOCK = '123-456';
 

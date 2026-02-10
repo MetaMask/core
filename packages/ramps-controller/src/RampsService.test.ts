@@ -336,34 +336,34 @@ describe('RampsService', () => {
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
-        Array [
-          Object {
+        [
+          {
             "currency": "USD",
             "flag": "🇺🇸",
             "isoCode": "US",
             "name": "United States of America",
-            "phone": Object {
+            "phone": {
               "placeholder": "(555) 123-4567",
               "prefix": "+1",
               "template": "(XXX) XXX-XXXX",
             },
             "recommended": true,
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": true,
             },
           },
-          Object {
+          {
             "currency": "EUR",
             "flag": "🇦🇹",
             "isoCode": "AT",
             "name": "Austria",
-            "phone": Object {
+            "phone": {
               "placeholder": "660 1234567",
               "prefix": "+43",
               "template": "XXX XXXXXXX",
             },
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": false,
             },
@@ -391,34 +391,34 @@ describe('RampsService', () => {
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
-        Array [
-          Object {
+        [
+          {
             "currency": "USD",
             "flag": "🇺🇸",
             "isoCode": "US",
             "name": "United States of America",
-            "phone": Object {
+            "phone": {
               "placeholder": "(555) 123-4567",
               "prefix": "+1",
               "template": "(XXX) XXX-XXXX",
             },
             "recommended": true,
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": true,
             },
           },
-          Object {
+          {
             "currency": "EUR",
             "flag": "🇦🇹",
             "isoCode": "AT",
             "name": "Austria",
-            "phone": Object {
+            "phone": {
               "placeholder": "660 1234567",
               "prefix": "+43",
               "template": "XXX XXXXXXX",
             },
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": false,
             },
@@ -446,34 +446,34 @@ describe('RampsService', () => {
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
-        Array [
-          Object {
+        [
+          {
             "currency": "USD",
             "flag": "🇺🇸",
             "isoCode": "US",
             "name": "United States of America",
-            "phone": Object {
+            "phone": {
               "placeholder": "(555) 123-4567",
               "prefix": "+1",
               "template": "(XXX) XXX-XXXX",
             },
             "recommended": true,
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": true,
             },
           },
-          Object {
+          {
             "currency": "EUR",
             "flag": "🇦🇹",
             "isoCode": "AT",
             "name": "Austria",
-            "phone": Object {
+            "phone": {
               "placeholder": "660 1234567",
               "prefix": "+43",
               "template": "XXX XXXXXXX",
             },
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": false,
             },
@@ -665,18 +665,18 @@ describe('RampsService', () => {
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
-        Array [
-          Object {
+        [
+          {
             "currency": "USD",
             "flag": "🇺🇸",
             "isoCode": "US",
             "name": "United States",
-            "phone": Object {
+            "phone": {
               "placeholder": "",
               "prefix": "+1",
               "template": "",
             },
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": true,
             },
@@ -884,9 +884,9 @@ describe('RampsService', () => {
       const tokensResponse = await tokensPromise;
 
       expect(tokensResponse).toMatchInlineSnapshot(`
-        Object {
-          "allTokens": Array [
-            Object {
+        {
+          "allTokens": [
+            {
               "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
               "chainId": "eip155:1",
               "decimals": 6,
@@ -896,8 +896,8 @@ describe('RampsService', () => {
               "tokenSupported": true,
             },
           ],
-          "topTokens": Array [
-            Object {
+          "topTokens": [
+            {
               "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
               "chainId": "eip155:1",
               "decimals": 6,

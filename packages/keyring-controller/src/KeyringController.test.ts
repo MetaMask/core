@@ -1475,7 +1475,7 @@ describe('KeyringController', () => {
               ]),
             ).rejects.toThrow(KeyringControllerErrorMessage.DuplicatedAccount);
           });
-        });
+        }, 15000);
       });
 
       describe('when wrong data is provided', () => {
@@ -4386,7 +4386,7 @@ describe('KeyringController', () => {
               'includeInDebugSnapshot',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "isUnlocked": false,
             }
           `);
@@ -4406,9 +4406,9 @@ describe('KeyringController', () => {
               'includeInStateLogs',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "isUnlocked": false,
-              "keyrings": Array [],
+              "keyrings": [],
             }
           `);
         },
@@ -4427,8 +4427,8 @@ describe('KeyringController', () => {
               'persist',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
-              "vault": "{\\"data\\":\\"{\\\\\\"tag\\\\\\":{\\\\\\"key\\\\\\":{\\\\\\"password\\\\\\":\\\\\\"password123\\\\\\",\\\\\\"salt\\\\\\":\\\\\\"salt\\\\\\"},\\\\\\"iv\\\\\\":\\\\\\"iv\\\\\\"},\\\\\\"value\\\\\\":[{\\\\\\"type\\\\\\":\\\\\\"HD Key Tree\\\\\\",\\\\\\"data\\\\\\":{\\\\\\"mnemonic\\\\\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\\\\\"numberOfAccounts\\\\\\":1,\\\\\\"hdPath\\\\\\":\\\\\\"m/44'/60'/0'/0\\\\\\"},\\\\\\"metadata\\\\\\":{\\\\\\"id\\\\\\":\\\\\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\\\\\",\\\\\\"name\\\\\\":\\\\\\"\\\\\\"}}]}\\",\\"iv\\":\\"iv\\",\\"salt\\":\\"salt\\"}",
+            {
+              "vault": "{"data":"{\\"tag\\":{\\"key\\":{\\"password\\":\\"password123\\",\\"salt\\":\\"salt\\"},\\"iv\\":\\"iv\\"},\\"value\\":[{\\"type\\":\\"HD Key Tree\\",\\"data\\":{\\"mnemonic\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\"numberOfAccounts\\":1,\\"hdPath\\":\\"m/44'/60'/0'/0\\"},\\"metadata\\":{\\"id\\":\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\",\\"name\\":\\"\\"}}]}","iv":"iv","salt":"salt"}",
             }
           `);
         },
@@ -4447,9 +4447,9 @@ describe('KeyringController', () => {
               'usedInUi',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "isUnlocked": false,
-              "keyrings": Array [],
+              "keyrings": [],
             }
           `);
         },

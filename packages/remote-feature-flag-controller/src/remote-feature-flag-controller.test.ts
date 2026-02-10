@@ -1291,11 +1291,11 @@ describe('RemoteFeatureFlagController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "localOverrides": Object {},
-          "rawRemoteFeatureFlags": Object {},
-          "remoteFeatureFlags": Object {},
+          "localOverrides": {},
+          "rawRemoteFeatureFlags": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -1310,11 +1310,11 @@ describe('RemoteFeatureFlagController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "localOverrides": Object {},
-          "rawRemoteFeatureFlags": Object {},
-          "remoteFeatureFlags": Object {},
+          "localOverrides": {},
+          "rawRemoteFeatureFlags": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -1329,11 +1329,11 @@ describe('RemoteFeatureFlagController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "localOverrides": Object {},
-          "rawRemoteFeatureFlags": Object {},
-          "remoteFeatureFlags": Object {},
+          "localOverrides": {},
+          "rawRemoteFeatureFlags": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -1348,9 +1348,9 @@ describe('RemoteFeatureFlagController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "localOverrides": Object {},
-          "remoteFeatureFlags": Object {},
+        {
+          "localOverrides": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });

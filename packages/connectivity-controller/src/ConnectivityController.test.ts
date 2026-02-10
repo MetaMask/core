@@ -60,7 +60,7 @@ describe('ConnectivityController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "connectivityStatus": "online",
           }
         `);
@@ -76,7 +76,7 @@ describe('ConnectivityController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "connectivityStatus": "online",
           }
         `);
@@ -91,7 +91,7 @@ describe('ConnectivityController', () => {
             controller.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -104,7 +104,7 @@ describe('ConnectivityController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "connectivityStatus": "online",
           }
         `);
