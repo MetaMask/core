@@ -180,9 +180,8 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
         const selectedAddress = this.#getSelectedEvmAdress();
 
         if (
-          !selectedAddress ||
-          selectedAddress.toLowerCase() !==
-            transactionMeta.txParams.from.toLowerCase()
+          selectedAddress?.toLowerCase() !==
+          transactionMeta.txParams.from.toLowerCase()
         ) {
           return;
         }
