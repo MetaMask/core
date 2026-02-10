@@ -802,7 +802,7 @@ describe('AccountsController', () => {
               },
               accountIdByAddress: {
                 [mockAccount.address]: mockAccount.id,
-                [mockAccount3.address]: mockAccount3.id,
+                [mockAccount4.address]: mockAccount4.id,
               },
               selectedAccount: mockAccount.id,
             },
