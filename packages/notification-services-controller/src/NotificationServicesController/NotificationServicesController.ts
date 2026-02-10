@@ -342,8 +342,8 @@ export default class NotificationServicesController extends BaseController<
           'NotificationServicesPushController:enablePushNotifications',
           addresses,
         );
-      } catch (error) {
-        log.error('Silently failed to enable push notifications', error);
+      } catch {
+        // Do nothing, failing silently.
       }
     },
     disablePushNotifications: async (): Promise<void> => {
@@ -351,8 +351,8 @@ export default class NotificationServicesController extends BaseController<
         await this.messenger.call(
           'NotificationServicesPushController:disablePushNotifications',
         );
-      } catch (error) {
-        log.error('Silently failed to disable push notifications', error);
+      } catch {
+        // Do nothing, failing silently.
       }
     },
     subscribe: (): void => {
@@ -728,8 +728,8 @@ export default class NotificationServicesController extends BaseController<
       if (addresses.length > 0) {
         await this.#pushNotifications.enablePushNotifications(addresses);
       }
-    } catch (error) {
-      log.error('Failed to enable push notifications', error);
+    } catch {
+      // Do nothing, failing silently.
     }
   }
 
@@ -939,8 +939,7 @@ export default class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: false })),
         this.#env,
       );
-    } catch (error) {
-      log.error('Failed to delete OnChain triggers', error);
+    } catch {
       throw new Error('Failed to delete OnChain triggers');
     } finally {
       this.#clearUpdatingAccountsState(accounts);
