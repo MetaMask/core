@@ -4101,6 +4101,130 @@ describe('RampsController', () => {
       );
     });
 
+    it('passes providers parameter to getQuotes', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedProviders = params.providers;
+              return mockQuotesResponse;
+            },
+          );
+
+          await controller.getQuotes({
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            paymentMethods: ['/payments/debit-credit-card'],
+            providers: ['/providers/moonpay', '/providers/transak'],
+          });
+
+          expect(capturedProviders).toStrictEqual([
+            '/providers/moonpay',
+            '/providers/transak',
+          ]);
+        },
+      );
+    });
+
+    it('uses state providers when providers option is not provided', async () => {
+      const stateProviders = [
+        {
+          id: '/providers/moonpay',
+          name: 'MoonPay',
+          environmentType: 'PRODUCTION' as const,
+          description: 'MoonPay',
+          hqAddress: '',
+          links: [],
+          logos: {
+            light: '',
+            dark: '',
+            height: 24,
+            width: 77,
+          },
+        },
+        {
+          id: '/providers/transak',
+          name: 'Transak',
+          environmentType: 'PRODUCTION' as const,
+          description: 'Transak',
+          hqAddress: '',
+          links: [],
+          logos: {
+            light: '',
+            dark: '',
+            height: 24,
+            width: 77,
+          },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+              providers: createResourceState(stateProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedProviders = params.providers;
+              return mockQuotesResponse;
+            },
+          );
+
+          await controller.getQuotes({
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            paymentMethods: ['/payments/debit-credit-card'],
+          });
+
+          expect(capturedProviders).toStrictEqual([
+            '/providers/moonpay',
+            '/providers/transak',
+          ]);
+        },
+      );
+    });
+
     it('does not update state when region changes during request', async () => {
       await withController(
         {

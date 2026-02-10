@@ -1882,7 +1882,42 @@ describe('RampsService', () => {
         amount: 100,
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
-        provider: '/providers/moonpay',
+        providers: ['/providers/moonpay'],
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+      const quotesResponse = await quotesPromise;
+
+      expect(quotesResponse.success).toHaveLength(2);
+    });
+
+    it('includes multiple provider filters when specified', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+          providers: ['/providers/moonpay', '/providers/transak'],
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+        providers: ['/providers/moonpay', '/providers/transak'],
       });
       await clock.runAllAsync();
       await flushPromises();

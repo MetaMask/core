@@ -87,7 +87,7 @@ export type RampsServiceGetPaymentMethodsAction = {
  * @param params.amount - The amount (in fiat for buy, crypto for sell).
  * @param params.walletAddress - The destination wallet address.
  * @param params.redirectUrl - Optional redirect URL after order completion.
- * @param params.provider - Optional provider ID to filter quotes.
+ * @param params.providers - Optional provider IDs to filter quotes.
  * @param params.action - The ramp action type. Defaults to 'buy'.
  * @returns The quotes response containing success, sorted, error, and customActions.
  */
