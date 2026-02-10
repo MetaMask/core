@@ -845,6 +845,21 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           );
 
           // Check if API missed any custom tokens and force RPC fallback
+          // Only check accounts that were actually queried by the API
+          const queriedAccounts = queryAllAccounts
+            ? allAccounts.map((acc) => acc.address as ChecksumAddress)
+            : [selectedAccount];
+          const queriedAccountsSet = new Set(
+            queriedAccounts.map((addr) => checksum(addr)),
+          );
+
+          // Build a Set of balance keys for O(1) lookups, avoiding repeated checksum calls
+          const balanceKeys = new Set(
+            result.balances.map(
+              (b) => `${b.chainId}-${checksum(b.account)}-${checksum(b.token)}`,
+            ),
+          );
+
           const chainsWithMissingTokens = new Set<ChainIdHex>();
           for (const chainId of supportedChains) {
             const allTokensForChain = this.#allTokens[chainId];
@@ -852,23 +867,24 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
               continue;
             }
 
-            // Get all tokens that should exist for this chain
-            const accountsWithTokens = Object.keys(allTokensForChain);
+            // Only check tokens for accounts that were actually queried
+            const accountsWithTokens = Object.keys(allTokensForChain).filter(
+              (account) => queriedAccountsSet.has(checksum(account)),
+            );
             for (const account of accountsWithTokens) {
               const tokensForAccount = allTokensForChain[account];
               if (!tokensForAccount) {
                 continue;
               }
 
+              // Checksum account once for this iteration
+              const checksummedAccount = checksum(account);
+
               // Check if all tokens got balances from API
               for (const token of tokensForAccount) {
                 const tokenAddress = checksum(token.address);
-                const hasBalance = result.balances.some(
-                  (b) =>
-                    b.chainId === chainId &&
-                    checksum(b.account) === checksum(account) &&
-                    checksum(b.token) === tokenAddress,
-                );
+                const balanceKey = `${chainId}-${checksummedAccount}-${tokenAddress}`;
+                const hasBalance = balanceKeys.has(balanceKey);
                 if (!hasBalance) {
                   chainsWithMissingTokens.add(chainId);
                 }
