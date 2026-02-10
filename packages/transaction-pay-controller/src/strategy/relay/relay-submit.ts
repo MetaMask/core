@@ -144,17 +144,30 @@ function setupTransactionCollection({
  * @param isPostQuote - Whether this is a post-quote flow.
  * @param index - Index of the transaction in the batch.
  * @param originalType - Type of the original transaction (used for post-quote index 0).
+ * @param relayParamCount - Number of relay-only params (excludes prepended original tx).
  * @returns The transaction type.
  */
 function getTransactionType(
   isPostQuote: boolean | undefined,
   index: number,
   originalType: TransactionMeta['type'],
+  relayParamCount: number,
 ): TransactionMeta['type'] {
   if (isPostQuote && index === 0) {
     return originalType;
   }
-  return index === 0
+
+  // When isPostQuote, the original transaction is prepended at index 0,
+  // so relay params start at index 1. Adjust to get the relay-relative index.
+  const relayIndex = isPostQuote ? index - 1 : index;
+
+  // Single relay step is always a deposit (no approval needed).
+  // Multiple relay steps: first is approval, rest are deposits.
+  if (relayParamCount === 1) {
+    return TransactionType.relayDeposit;
+  }
+
+  return relayIndex === 0
     ? TransactionType.tokenMethodApprove
     : TransactionType.relayDeposit;
 }
@@ -413,7 +426,12 @@ async function submitTransactions(
           to: singleParams.to as Hex,
           value: singleParams.value as Hex,
         },
-        type: getTransactionType(isPostQuote, index, transaction.type),
+        type: getTransactionType(
+          isPostQuote,
+          index,
+          transaction.type,
+          normalizedParams.length,
+        ),
       };
     });
 

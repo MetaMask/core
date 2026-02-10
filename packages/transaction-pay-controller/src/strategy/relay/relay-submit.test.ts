@@ -557,6 +557,42 @@ describe('Relay Submit Utils', () => {
         );
       });
 
+      it('assigns correct transaction types with multi-step relay (approve + deposit)', async () => {
+        // Add a second item to simulate approve + deposit from the relay
+        request.quotes[0].original.steps[0].items.push({
+          ...request.quotes[0].original.steps[0].items[0],
+          data: {
+            ...request.quotes[0].original.steps[0].items[0].data,
+            data: '0xapprove' as Hex,
+            to: '0xapproveTarget' as Hex,
+          },
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+
+        const { transactions } =
+          addTransactionBatchMock.mock.calls[0][0] as unknown as Record<string, unknown[]>;
+
+        expect(transactions).toHaveLength(3);
+        expect(transactions[0]).toEqual(
+          expect.objectContaining({
+            type: TransactionType.simpleSend,
+          }),
+        );
+        expect(transactions[1]).toEqual(
+          expect.objectContaining({
+            type: TransactionType.tokenMethodApprove,
+          }),
+        );
+        expect(transactions[2]).toEqual(
+          expect.objectContaining({
+            type: TransactionType.relayDeposit,
+          }),
+        );
+      });
+
       it('sets gas to undefined when gasLimits entry is missing', async () => {
         request.quotes[0].original.metamask.gasLimits = [];
 
