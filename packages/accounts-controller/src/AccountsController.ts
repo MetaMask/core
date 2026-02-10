@@ -619,6 +619,7 @@ export class AccountsController extends BaseController<
           },
         };
 
+        // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
         accountIdByAddress[internalAccount.address.toLowerCase()] =
           internalAccount.id;
 
@@ -643,6 +644,7 @@ export class AccountsController extends BaseController<
       const accountIdByAddress = Object.values(
         backup.internalAccounts.accounts,
       ).reduce<AccountsControllerState['accountIdByAddress']>((acc, account) => {
+          // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
           acc[account.address.toLowerCase()] = account.id;
           return acc;
         },
@@ -879,6 +881,7 @@ export class AccountsController extends BaseController<
         for (const patch of [patches.snap, patches.normal]) {
           for (const account of patch.removed) {
             delete internalAccounts.accounts[account.id];
+            // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
             delete accountIdByAddress[account.address.toLowerCase()];
 
             diff.removed.push(account.id);
@@ -908,6 +911,7 @@ export class AccountsController extends BaseController<
                 },
               };
 
+              // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
               accountIdByAddress[account.address.toLowerCase()] = account.id;
 
               diff.added.push(internalAccounts.accounts[account.id]);
