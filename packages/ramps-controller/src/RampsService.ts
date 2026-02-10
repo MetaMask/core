@@ -305,6 +305,11 @@ export type Quote = {
      */
     providerFee?: number | string;
     /**
+     * Buy URL endpoint that returns the actual provider widget URL.
+     * This is a MetaMask-hosted endpoint that, when fetched, returns JSON with the provider's widget URL.
+     */
+    buyURL?: string;
+    /**
      * Widget information for native/whitelabel providers.
      */
     buyWidget?: BuyWidget;

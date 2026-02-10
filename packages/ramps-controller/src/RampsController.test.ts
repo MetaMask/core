@@ -5653,31 +5653,51 @@ describe('RampsController', () => {
   });
 
   describe('getWidgetUrl', () => {
-    it('returns widget URL from buyWidget.url when present', async () => {
-      await withController(({ controller }) => {
+    const mockFetch = jest.fn();
+    const originalFetch = global.fetch;
+
+    beforeEach(() => {
+      global.fetch = mockFetch;
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+      jest.clearAllMocks();
+    });
+
+    it('fetches and returns widget URL from buyURL endpoint', async () => {
+      await withController(async ({ controller }) => {
         const quote: Quote = {
           provider: '/providers/transak-staging',
           quote: {
             amountIn: 100,
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
-            buyWidget: {
-              url: 'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
-              browser: 'APP_BROWSER',
-            },
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            url: 'https://global.transak.com/?apiKey=test',
+            browser: 'APP_BROWSER',
+            orderId: null,
+          }),
+        });
 
-        expect(widgetUrl).toBe(
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(mockFetch).toHaveBeenCalledWith(
           'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
         );
+        expect(widgetUrl).toBe('https://global.transak.com/?apiKey=test');
       });
     });
 
-    it('returns null when widget URL is not present', async () => {
-      await withController(({ controller }) => {
+    it('returns null when buyURL is not present', async () => {
+      await withController(async ({ controller }) => {
         const quote: Quote = {
           provider: '/providers/transak',
           quote: {
@@ -5687,19 +5707,94 @@ describe('RampsController', () => {
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+        expect(mockFetch).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns null when quote object is malformed', async () => {
+      await withController(async ({ controller }) => {
+        const quote = {
+          provider: '/providers/moonpay',
+        } as unknown as Quote;
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+        expect(mockFetch).not.toHaveBeenCalled();
+      });
+    });
+
+    it('returns null when fetch fails', async () => {
+      await withController(async ({ controller }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+        });
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });
     });
 
-    it('returns null when quote object is malformed', async () => {
-      await withController(({ controller }) => {
-        const quote = {
-          provider: '/providers/moonpay',
-        } as unknown as Quote;
+    it('returns null when fetch throws an error', async () => {
+      await withController(async ({ controller }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns null when response does not contain url field', async () => {
+      await withController(async ({ controller }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            browser: 'APP_BROWSER',
+            orderId: null,
+          }),
+        });
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });

@@ -1614,14 +1614,30 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Extracts the widget URL from a quote for redirect providers.
-   * Returns the widget URL if available, or null if the quote doesn't have one.
+   * Fetches the widget URL from a quote for redirect providers.
+   * Makes a request to the buyURL endpoint to get the actual provider widget URL.
    *
-   * @param quote - The quote to extract the widget URL from.
-   * @returns The widget URL string, or null if not available.
+   * @param quote - The quote to fetch the widget URL from.
+   * @returns Promise resolving to the widget URL string, or null if not available.
    */
-  getWidgetUrl(quote: Quote): string | null {
-    // TODO: Update API to return widget URL at top-level instead of nested in buyWidget
-    return quote.quote?.buyWidget?.url ?? null;
+  async getWidgetUrl(quote: Quote): Promise<string | null> {
+    const buyUrl = quote.quote?.buyURL;
+    if (!buyUrl) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(buyUrl);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch widget URL: ${response.status} ${response.statusText}`,
+        );
+      }
+      const data = await response.json();
+      return data.url ?? null;
+    } catch (error) {
+      console.error('Error fetching widget URL:', error);
+      return null;
+    }
   }
 }
