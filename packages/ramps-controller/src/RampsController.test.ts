@@ -3751,6 +3751,58 @@ describe('RampsController', () => {
       );
     });
 
+    it('uses selected token assetId from state when assetId option is not provided', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              expect(params.assetId).toBe('eip155:1/slip44:60');
+              return mockQuotesResponse;
+            },
+          );
+
+          const result = await controller.getQuotes({
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          });
+
+          expect(result.success).toHaveLength(1);
+        },
+      );
+    });
+
     it('uses userRegion from state when not provided', async () => {
       await withController(
         {
@@ -3941,6 +3993,38 @@ describe('RampsController', () => {
           await expect(
             controller.getQuotes({
               assetId: '   ',
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            }),
+          ).rejects.toThrow('assetId is required');
+        },
+      );
+    });
+
+    it('throws when assetId is not provided and no token is selected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getQuotes({
               amount: 100,
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
             }),

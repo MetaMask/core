@@ -1383,7 +1383,7 @@ export class RampsController extends BaseController<
   async getQuotes(options: {
     region?: string;
     fiat?: string;
-    assetId: string;
+    assetId?: string;
     amount: number;
     walletAddress: string;
     paymentMethods?: string[];
@@ -1402,6 +1402,7 @@ export class RampsController extends BaseController<
       options.providers ??
       this.state.providers.data.map((provider: Provider) => provider.id);
     const action = options.action ?? 'buy';
+    const assetIdToUse = options.assetId ?? this.state.tokens.selected?.assetId;
 
     if (!regionToUse) {
       throw new Error(
@@ -1415,7 +1416,12 @@ export class RampsController extends BaseController<
       );
     }
 
-    if (!paymentMethodsToUse || paymentMethodsToUse.length === 0) {
+    const normalizedAssetIdForValidation = (assetIdToUse ?? '').trim();
+    if (normalizedAssetIdForValidation === '') {
+      throw new Error('assetId is required.');
+    }
+
+    if (!paymentMethodsToUse || paymentMethodsToUse.length === 0 || paymentMethodsToUse.some((pm) => pm.trim() === '')) {
       throw new Error(
         'Payment methods are required. Either provide paymentMethods parameter or ensure paymentMethods are set in controller state.',
       );
@@ -1425,17 +1431,13 @@ export class RampsController extends BaseController<
       throw new Error('Amount must be a positive finite number.');
     }
 
-    if (!options.assetId || options.assetId.trim() === '') {
-      throw new Error('assetId is required.');
-    }
-
     if (!options.walletAddress || options.walletAddress.trim() === '') {
       throw new Error('walletAddress is required.');
     }
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const normalizedFiat = fiatToUse.toLowerCase().trim();
-    const normalizedAssetId = options.assetId.trim();
+    const normalizedAssetId = normalizedAssetIdForValidation;
     const normalizedWalletAddress = options.walletAddress.trim();
 
     const cacheKey = createCacheKey('getQuotes', [
