@@ -37,16 +37,6 @@
         "default": "./dist/NotificationServicesController/index.cjs"
       }
     },
-    "./notification-services/ui": {
-      "import": {
-        "types": "./dist/NotificationServicesController/ui/index.d.mts",
-        "default": "./dist/NotificationServicesController/ui/index.mjs"
-      },
-      "require": {
-        "types": "./dist/NotificationServicesController/ui/index.d.cts",
-        "default": "./dist/NotificationServicesController/ui/index.cjs"
-      }
-    },
     "./notification-services/mocks": {
       "import": {
         "types": "./dist/NotificationServicesController/mocks/index.d.mts",

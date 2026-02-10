@@ -12,6 +12,7 @@ import {
   toDefaultAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
+import { AccountCreationType } from '@metamask/keyring-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -224,6 +225,7 @@ export class MultichainAccountWallet<
       const tasks = providers.map((provider) =>
         provider
           .createAccounts({
+            type: AccountCreationType.Bip44DeriveIndex,
             entropySource: this.#entropySource,
             groupIndex,
           })
@@ -274,6 +276,7 @@ export class MultichainAccountWallet<
       providers.forEach((provider) => {
         provider
           .createAccounts({
+            type: AccountCreationType.Bip44DeriveIndex,
             entropySource: this.#entropySource,
             groupIndex,
           })
@@ -423,6 +426,7 @@ export class MultichainAccountWallet<
 
       const evmAccounts = await evmProvider
         .createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: this.#entropySource,
           groupIndex,
         })
