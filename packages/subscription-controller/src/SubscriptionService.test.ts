@@ -240,6 +240,31 @@ describe('SubscriptionService', () => {
       });
     });
 
+    it('should send correct URL and headers', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.fetchMock.mockResolvedValue(
+          createMockResponse({
+            jsonData: {
+              customerId: 'cus_1',
+              subscriptions: [],
+              trialedProducts: [],
+            },
+          }),
+        );
+
+        await service.getSubscriptions();
+
+        expect(config.fetchMock).toHaveBeenCalledWith(
+          SUBSCRIPTION_URL(config.env, 'subscriptions'),
+          {
+            method: 'GET',
+            headers: MOCK_HEADERS,
+            body: undefined,
+          },
+        );
+      });
+    });
+
     it('should throw when URL construction fails', async () => {
       const config = createMockConfig({ env: 'invalid' as Env });
       const service = new SubscriptionService(config);
@@ -402,10 +427,27 @@ describe('SubscriptionService', () => {
         ).rejects.toThrow(SubscriptionServiceError);
       });
     });
+
+    it('should throw SubscriptionServiceError for non-ok responses', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.fetchMock.mockResolvedValue(
+          createMockResponse({
+            ok: false,
+            status: 404,
+            jsonData: { message: 'Subscription not found' },
+          }),
+        );
+
+        await expect(
+          service.cancelSubscription({ subscriptionId: 'sub_invalid' }),
+        ).rejects.toThrow(SubscriptionServiceError);
+        expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('uncancelSubscription', () => {
-    it('should cancel subscription successfully', async () => {
+    it('should uncancel subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
         config.fetchMock.mockResolvedValue(
           createMockResponse({ jsonData: {} }),
@@ -474,22 +516,32 @@ describe('SubscriptionService', () => {
         SubscriptionControllerErrorMessage.SubscriptionProductsEmpty,
       );
     });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.startSubscriptionWithCard(MOCK_START_SUBSCRIPTION_REQUEST),
+        ).rejects.toThrow(SubscriptionServiceError);
+      });
+    });
   });
 
   describe('startCryptoSubscription', () => {
+    const MOCK_CRYPTO_REQUEST: StartCryptoSubscriptionRequest = {
+      products: [PRODUCT_TYPES.SHIELD],
+      isTrialRequested: false,
+      recurringInterval: RECURRING_INTERVALS.month,
+      billingCycles: 3,
+      chainId: '0x1',
+      payerAddress: '0x0000000000000000000000000000000000000001',
+      tokenSymbol: 'USDC',
+      rawTransaction: '0xdeadbeef',
+    };
+
     it('should start crypto subscription successfully', async () => {
       await withMockSubscriptionService(async ({ service, config }) => {
-        const request: StartCryptoSubscriptionRequest = {
-          products: [PRODUCT_TYPES.SHIELD],
-          isTrialRequested: false,
-          recurringInterval: RECURRING_INTERVALS.month,
-          billingCycles: 3,
-          chainId: '0x1',
-          payerAddress: '0x0000000000000000000000000000000000000001',
-          tokenSymbol: 'USDC',
-          rawTransaction: '0xdeadbeef',
-        };
-
         const response = {
           subscriptionId: 'sub_crypto_123',
           status: SUBSCRIPTION_STATUSES.active,
@@ -499,7 +551,8 @@ describe('SubscriptionService', () => {
           createMockResponse({ jsonData: response }),
         );
 
-        const result = await service.startSubscriptionWithCrypto(request);
+        const result =
+          await service.startSubscriptionWithCrypto(MOCK_CRYPTO_REQUEST);
 
         expect(result).toStrictEqual(response);
       });
@@ -589,6 +642,25 @@ describe('SubscriptionService', () => {
             }),
           },
         );
+      });
+    });
+
+    it('should throw SubscriptionServiceError for crypto payment method errors', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.updatePaymentMethodCrypto({
+            subscriptionId: 'sub_123456789',
+            chainId: '0x1',
+            payerAddress: '0x0000000000000000000000000000000000000001',
+            tokenSymbol: 'USDC',
+            rawTransaction: '0xdeadbeef',
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 3,
+          }),
+        ).rejects.toThrow(SubscriptionServiceError);
+        expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -710,6 +782,17 @@ describe('SubscriptionService', () => {
         expect(config.auth.getAccessToken).toHaveBeenCalledTimes(1);
       });
     });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(service.getSubscriptionsEligibilities()).rejects.toThrow(
+          SubscriptionServiceError,
+        );
+        expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('submitUserEvent', () => {
@@ -758,6 +841,19 @@ describe('SubscriptionService', () => {
             }),
           },
         );
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.submitUserEvent({
+            event: SubscriptionUserEvent.ShieldEntryModalViewed,
+          }),
+        ).rejects.toThrow(SubscriptionServiceError);
+        expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -829,6 +925,24 @@ describe('SubscriptionService', () => {
         );
       });
     });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.submitSponsorshipIntents({
+            chainId: '0x1',
+            address: '0x1234567890123456789012345678901234567890',
+            products: [PRODUCT_TYPES.SHIELD],
+            recurringInterval: RECURRING_INTERVALS.month,
+            billingCycles: 12,
+            paymentTokenSymbol: 'USDT',
+          }),
+        ).rejects.toThrow(SubscriptionServiceError);
+        expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('linkRewards', () => {
@@ -854,6 +968,40 @@ describe('SubscriptionService', () => {
             }),
           },
         );
+      });
+    });
+
+    it('should throw SubscriptionServiceError for network errors', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.fetchMock.mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          service.linkRewards({
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
+          }),
+        ).rejects.toThrow(SubscriptionServiceError);
+        expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should throw SubscriptionServiceError for non-ok responses', async () => {
+      await withMockSubscriptionService(async ({ service, config }) => {
+        config.fetchMock.mockResolvedValue(
+          createMockResponse({
+            ok: false,
+            status: 400,
+            jsonData: { message: 'Bad request' },
+          }),
+        );
+
+        await expect(
+          service.linkRewards({
+            rewardAccountId:
+              'eip155:1:0x1234567890123456789012345678901234567890',
+          }),
+        ).rejects.toThrow(SubscriptionServiceError);
+        expect(config.captureExceptionMock).toHaveBeenCalledTimes(1);
       });
     });
   });

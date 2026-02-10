@@ -6,7 +6,7 @@ import {
 import type { Env } from './constants';
 import {
   createSentryError,
-  getErrorFromResponse,
+  getSubscriptionErrorFromResponse,
   SubscriptionServiceError,
 } from './errors';
 import { createModuleLogger, projectLogger } from './logger';
@@ -325,7 +325,7 @@ export class SubscriptionService implements ISubscriptionService {
       });
 
       if (!response.ok) {
-        const error = await getErrorFromResponse(response);
+        const error = await getSubscriptionErrorFromResponse(response);
         throw error;
       }
 

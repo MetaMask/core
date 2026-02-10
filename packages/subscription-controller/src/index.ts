@@ -28,6 +28,7 @@ export {
   getDefaultSubscriptionControllerState,
 } from './SubscriptionController';
 export type {
+  SubscriptionApiError,
   Subscription,
   AuthUtils,
   CancelSubscriptionRequest,
