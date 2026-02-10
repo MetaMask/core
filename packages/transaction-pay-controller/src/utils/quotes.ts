@@ -329,10 +329,10 @@ function buildPostQuoteRequests({
     from,
     isMaxAmount,
     isPostQuote: true,
-    sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
+    sourceBalanceRaw: sourceAmount.sourceBalanceRaw as string,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
-    sourceChainId: sourceAmount.sourceChainId,
-    sourceTokenAddress: sourceAmount.sourceTokenAddress,
+    sourceChainId: sourceAmount.sourceChainId as Hex,
+    sourceTokenAddress: sourceAmount.sourceTokenAddress as Hex,
     // For post-quote flows, use EXACT_INPUT - user specifies how much to send,
     // and we show them how much they'll receive after fees
     targetAmountMinimum: '0',
