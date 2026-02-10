@@ -643,7 +643,8 @@ export class AccountsController extends BaseController<
     if (backup.internalAccounts) {
       const accountIdByAddress = Object.values(
         backup.internalAccounts.accounts,
-      ).reduce<AccountsControllerState['accountIdByAddress']>((acc, account) => {
+      ).reduce<AccountsControllerState['accountIdByAddress']>(
+        (acc, account) => {
           // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
           acc[account.address.toLowerCase()] = account.id;
           return acc;
