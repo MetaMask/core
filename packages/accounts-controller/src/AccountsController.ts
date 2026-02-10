@@ -439,7 +439,8 @@ export class AccountsController extends BaseController<
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    const accountId = this.state.internalAccounts.accountIdByAddress[address];
+    const accountId =
+      this.state.internalAccounts.accountIdByAddress[address.toLowerCase()];
     return accountId ? this.getAccount(accountId) : undefined;
   }
 
@@ -572,6 +573,8 @@ export class AccountsController extends BaseController<
     const existingInternalAccounts = this.state.internalAccounts.accounts;
     const internalAccounts: AccountsControllerState['internalAccounts']['accounts'] =
       {};
+    const accountIdByAddress: AccountsControllerState['internalAccounts']['accountIdByAddress'] =
+      {};
 
     const { keyrings } = this.messenger.call('KeyringController:getState');
     for (const keyring of keyrings) {
@@ -611,6 +614,9 @@ export class AccountsController extends BaseController<
           },
         };
 
+        accountIdByAddress[internalAccount.address.toLowerCase()] =
+          internalAccount.id;
+
         // Increment the account index for this keyring.
         keyringAccountIndexes.set(keyringTypeName, keyringAccountIndex + 1);
       }
@@ -618,6 +624,7 @@ export class AccountsController extends BaseController<
 
     this.#update((state) => {
       state.internalAccounts.accounts = internalAccounts;
+      state.internalAccounts.accountIdByAddress = accountIdByAddress;
     });
   }
 
@@ -858,7 +865,9 @@ export class AccountsController extends BaseController<
         for (const patch of [patches.snap, patches.normal]) {
           for (const account of patch.removed) {
             delete internalAccounts.accounts[account.id];
-            delete internalAccounts.accountIdByAddress[account.address];
+            delete internalAccounts.accountIdByAddress[
+              account.address.toLowerCase()
+            ];
 
             diff.removed.push(account.id);
           }
@@ -887,7 +896,9 @@ export class AccountsController extends BaseController<
                 },
               };
 
-              internalAccounts.accountIdByAddress[account.address] = account.id;
+              internalAccounts.accountIdByAddress[
+                account.address.toLowerCase()
+              ] = account.id;
 
               diff.added.push(internalAccounts.accounts[account.id]);
             }
