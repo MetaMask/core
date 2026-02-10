@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `getWidgetUrl()` to extract widget URL from `quote.quote.buyWidget.url` instead of top-level `quote.url` ([#7881](https://github.com/MetaMask/core/pull/7881))
+
 ## [7.1.0]
 
 ### Fixed
