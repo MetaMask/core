@@ -1,5 +1,3 @@
-export {};
-
 // Node.js v24 native fetch uses undici, which nock cannot intercept.
 // Clear it so isomorphic-fetch sets up node-fetch (http-based, nock-compatible).
 // @ts-expect-error Intentionally clearing native globals
@@ -10,6 +8,7 @@ delete globalThis.Headers;
 delete globalThis.Request;
 // @ts-expect-error - Clear Response to ensure isomorphic-fetch sets up node-fetch version
 delete globalThis.Response;
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports, import-x/no-unassigned-import
-require('isomorphic-fetch');
+// We need to import this *after* we delete `fetch` etc. above.
+// Additionally, this import is used for side effects only.
+// eslint-disable-next-line import-x/first, import-x/no-unassigned-import
+import 'isomorphic-fetch';
