@@ -1,4 +1,5 @@
 import { isValidHexAddress } from '@metamask/controller-utils';
+import { JsonStruct } from '@metamask/utils';
 import type { Infer } from '@metamask/superstruct';
 import {
   string,
@@ -11,7 +12,6 @@ import {
   nullable,
   optional,
   enums,
-  unknown,
   define,
   union,
   assert,
@@ -336,8 +336,9 @@ export const IntentSchema = type({
 
   /**
    * Optional EIP-712 typed data payload for signing.
+   * Must be JSON-serializable to satisfy controller state constraints.
    */
-  typedData: optional(unknown()),
+  typedData: optional(JsonStruct),
 });
 
 export const QuoteSchema = type({
