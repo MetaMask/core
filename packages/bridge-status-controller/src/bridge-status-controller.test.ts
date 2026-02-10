@@ -4501,8 +4501,8 @@ describe('BridgeStatusController', () => {
         });
 
         jest.advanceTimersByTime(500);
-        await flushPromises();
         bridgeStatusController.stopAllPolling();
+        await flushPromises();
 
         expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
         expect(mockFetchFn).toHaveBeenCalledTimes(3);
@@ -4543,8 +4543,8 @@ describe('BridgeStatusController', () => {
         });
 
         jest.advanceTimersByTime(30500);
-        await flushPromises();
         bridgeStatusController.stopAllPolling();
+        await flushPromises();
 
         expect(messengerCallSpy).not.toHaveBeenCalled();
         expect(mockFetchFn).toHaveBeenCalledWith(
@@ -4579,8 +4579,8 @@ describe('BridgeStatusController', () => {
         });
 
         jest.advanceTimersByTime(40500);
-        await flushPromises();
         bridgeStatusController.stopAllPolling();
+        await flushPromises();
 
         expect(messengerCallSpy).not.toHaveBeenCalled();
         expect(mockFetchFn).toHaveBeenCalledWith(
