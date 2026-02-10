@@ -575,7 +575,6 @@ describe('Relay Submit Utils', () => {
           }),
         );
       });
-
     });
 
     it('adds transaction batch with single gasLimit7702', async () => {
