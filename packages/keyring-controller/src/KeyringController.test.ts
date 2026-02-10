@@ -1475,7 +1475,7 @@ describe('KeyringController', () => {
               ]),
             ).rejects.toThrow(KeyringControllerErrorMessage.DuplicatedAccount);
           });
-        }, 15000);
+        });
       });
 
       describe('when wrong data is provided', () => {
