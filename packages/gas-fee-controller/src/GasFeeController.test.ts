@@ -102,6 +102,7 @@ const setupNetworkController = async ({
     getRpcServiceOptions: () => ({
       fetch,
       btoa,
+      isOffline: (): boolean => false,
     }),
   });
 

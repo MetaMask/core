@@ -23,7 +23,10 @@ import type {
 } from '../../types';
 import {
   DEFAULT_RELAY_QUOTE_URL,
+  DEFAULT_SLIPPAGE,
+  getEIP7702SupportedChains,
   getGasBuffer,
+  getSlippage,
 } from '../../utils/feature-flags';
 import {
   calculateGasCost,
@@ -40,7 +43,9 @@ jest.mock('../../utils/token');
 jest.mock('../../utils/gas');
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
+  getEIP7702SupportedChains: jest.fn(),
   getGasBuffer: jest.fn(),
+  getSlippage: jest.fn(),
 }));
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -54,6 +59,7 @@ const TOKEN_TRANSFER_RECIPIENT_MOCK =
 const NESTED_TRANSACTION_DATA_MOCK = '0xdef' as Hex;
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
+const CHAIN_ID_LINEA = '0xe708' as Hex;
 
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: FROM_MOCK,
@@ -69,9 +75,12 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 const QUOTE_MOCK = {
   details: {
     currencyIn: {
+      amount: '1240000000000000000',
+      amountFormatted: '1.24',
       amountUsd: '1.24',
     },
     currencyOut: {
+      amount: '100',
       amountFormatted: '1.0',
       amountUsd: '1.23',
       currency: {
@@ -94,6 +103,7 @@ const QUOTE_MOCK = {
   },
   steps: [
     {
+      id: 'swap',
       items: [
         {
           check: {
@@ -147,7 +157,9 @@ describe('Relay Quotes Utils', () => {
   const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
   const getNativeTokenMock = jest.mocked(getNativeToken);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
+  const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
   const getGasBufferMock = jest.mocked(getGasBuffer);
+  const getSlippageMock = jest.mocked(getSlippage);
 
   const calculateTransactionGasCostMock = jest.mocked(
     calculateTransactionGasCost,
@@ -196,7 +208,11 @@ describe('Relay Quotes Utils', () => {
       ...getDefaultRemoteFeatureFlagControllerState(),
     });
 
+    getEIP7702SupportedChainsMock.mockReturnValue([
+      QUOTE_REQUEST_MOCK.sourceChainId,
+    ]);
     getGasBufferMock.mockReturnValue(1.0);
+    getSlippageMock.mockReturnValue(DEFAULT_SLIPPAGE);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
     getGasFeeTokensMock.mockResolvedValue([]);
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
@@ -249,9 +265,49 @@ describe('Relay Quotes Utils', () => {
           originChainId: 1,
           originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
           recipient: QUOTE_REQUEST_MOCK.from,
-          tradeType: 'EXACT_OUTPUT',
+          tradeType: 'EXPECTED_OUTPUT',
           user: QUOTE_REQUEST_MOCK.from,
         }),
+      );
+    });
+
+    it('sends request with EXACT_INPUT trade type when isMaxAmount is true', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+          tradeType: 'EXACT_INPUT',
+        }),
+      );
+    });
+
+    it('throws if isMaxAmount is true and transaction includes data', async () => {
+      await expect(
+        getRelayQuotes({
+          messenger,
+          requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            txParams: {
+              data: '0xabc' as Hex,
+            },
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(
+        'Max amount quotes do not support included transactions',
       );
     });
 
@@ -314,15 +370,13 @@ describe('Relay Quotes Utils', () => {
 
       expect(result[0].original.request).toStrictEqual({
         amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-        authorizationList: expect.any(Array),
         destinationChainId: 2,
         destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
         originChainId: 1,
         originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
         recipient: QUOTE_REQUEST_MOCK.from,
         slippageTolerance: '50',
-        tradeType: 'EXACT_OUTPUT',
-        txs: expect.any(Array),
+        tradeType: 'EXPECTED_OUTPUT',
         user: QUOTE_REQUEST_MOCK.from,
       });
     });
@@ -955,6 +1009,44 @@ describe('Relay Quotes Utils', () => {
           },
         });
       });
+
+      it('not using gas fee token if insufficient native balance and chain does not support EIP-7702', async () => {
+        const lineaQuoteRequest: QuoteRequest = {
+          ...QUOTE_REQUEST_MOCK,
+          sourceChainId: CHAIN_ID_LINEA,
+        };
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getEIP7702SupportedChainsMock.mockReturnValue([
+          QUOTE_REQUEST_MOCK.sourceChainId,
+        ]);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [lineaQuoteRequest],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+        expect(result[0].fees.sourceNetwork).toStrictEqual({
+          estimate: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+          max: {
+            fiat: '4.56',
+            human: '1.725',
+            raw: '1725000000000000',
+            usd: '3.45',
+          },
+        });
+      });
     });
 
     it('includes target network fee in quote', async () => {
@@ -971,6 +1063,25 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.targetNetwork).toStrictEqual({
         usd: '0',
         fiat: '0',
+      });
+    });
+
+    it('includes target amount in quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
+        human: QUOTE_MOCK.details.currencyOut.amountFormatted,
+        raw: QUOTE_MOCK.details.currencyOut.amount,
+        usd: '1.23',
+        fiat: '2.46',
       });
     });
 
@@ -1036,6 +1147,8 @@ describe('Relay Quotes Utils', () => {
       getNativeTokenMock.mockReturnValue(
         '0x0000000000000000000000000000000000001010',
       );
+
+      getEIP7702SupportedChainsMock.mockReturnValue([CHAIN_ID_POLYGON]);
 
       const polygonToHyperliquidRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,

@@ -230,6 +230,11 @@ export type TransactionMeta = {
    */
   isGasFeeSponsored?: boolean;
 
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   */
+  isStateOnly?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -388,6 +393,11 @@ export type TransactionMeta = {
    * ID of JSON-RPC request from DAPP.
    */
   requestId?: string;
+
+  /**
+   * Assets required by the transaction.
+   */
+  requiredAssets?: RequiredAsset[];
 
   /**
    * IDs of any transactions that must be confirmed before this one is submitted.
@@ -766,6 +776,11 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * A transaction that claims yield from a mUSD contract.
+   */
+  musdClaim = 'musdClaim',
+
+  /**
    * A transaction that converts tokens to mUSD.
    */
   musdConversion = 'musdConversion',
@@ -774,6 +789,12 @@ export enum TransactionType {
    * Deposit funds to be available for trading via Perps.
    */
   perpsDeposit = 'perpsDeposit',
+
+  /**
+   * Deposit funds and place an order for trading via Perps.
+   * Supports paying with any token, not just native assets.
+   */
+  perpsDepositAndOrder = 'perpsDepositAndOrder',
 
   /**
    * A transaction for personal sign.
@@ -1111,6 +1132,12 @@ export interface RemoteTransactionSourceRequest {
    * The address of the account to fetch transactions for.
    */
   address: Hex;
+
+  /**
+   * Optional array of chain IDs to fetch transactions for.
+   * If not provided, defaults to all supported chains.
+   */
+  chainIds?: Hex[];
 
   /**
    * Whether to also include incoming token transfers.
@@ -1540,6 +1567,9 @@ export type SimulationError = {
 
 /** Simulation data for a transaction. */
 export type SimulationData = {
+  /** Error messages extracted from call traces, if any. */
+  callTraceErrors?: string[];
+
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
 
@@ -1778,6 +1808,9 @@ export type TransactionBatchRequest = {
 
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
+
+  /** Assets required by the batch transaction. */
+  requiredAssets?: RequiredAsset[];
 
   /** Security alert ID to persist on the transaction. */
   securityAlertId?: string;
@@ -2066,6 +2099,9 @@ export type MetamaskPayMetadata = {
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
 
+  /** Total amount of target token provided in fiat currency. */
+  targetFiat?: string;
+
   /** Address of the payment token that the transaction funds were sourced from. */
   tokenAddress?: Hex;
 
@@ -2114,6 +2150,13 @@ export type AddTransactionOptions = {
   /** Whether MetaMask will sponsor the gas fee for the transaction. */
   isGasFeeSponsored?: boolean;
 
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   *
+   * @deprecated If absolutely necessary, update state instead via `TranasctionController:emulateTransactionUpdate`.
+   */
+  isStateOnly?: boolean;
+
   /** RPC method that requested the transaction. */
   method?: string;
 
@@ -2132,6 +2175,9 @@ export type AddTransactionOptions = {
   /** ID of JSON-RPC request from DAPP.  */
   requestId?: string;
 
+  /** Assets required by the transaction. */
+  requiredAssets?: RequiredAsset[];
+
   /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
   requireApproval?: boolean | undefined;
 
@@ -2144,7 +2190,11 @@ export type AddTransactionOptions = {
   /** Whether to skip the initial gas calculation and rely only on the polling. */
   skipInitialGasEstimate?: boolean;
 
-  /** Options for swaps transactions. */
+  /**
+   * Options for swaps transactions.
+   *
+   * @deprecated Usage is pending removal as only used by legacy features.
+   */
   swaps?: {
     /** Whether the transaction has an approval transaction. */
     hasApproveTx?: boolean;
@@ -2178,4 +2228,18 @@ export type GetGasFeeTokensRequest = {
 
   /** Value of the transaction. */
   value?: Hex;
+};
+
+/**
+ * An asset required by a transaction.
+ */
+export type RequiredAsset = {
+  /** Contract address of the asset. */
+  address: Hex;
+
+  /** Amount of the asset required. */
+  amount: Hex;
+
+  /** Token standard of the asset (e.g., 'erc20'). */
+  standard: string;
 };

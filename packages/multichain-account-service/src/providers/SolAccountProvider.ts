@@ -1,18 +1,28 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { SolScope } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+  KeyringCapabilities,
+} from '@metamask/keyring-api';
 import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
   KeyringAccountEntropyTypeOption,
   SolAccountType,
+  SolScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
 import { SnapAccountProvider } from './SnapAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type {
+  RestrictedSnapKeyring,
+  SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';
@@ -40,6 +50,13 @@ export class SolAccountProvider extends SnapAccountProvider {
 
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [SolScope.Mainnet, SolScope.Devnet, SolScope.Testnet],
+    bip44: {
+      deriveIndex: true,
+    },
+  };
+
   constructor(
     messenger: MultichainAccountServiceMessenger,
     config: SolAccountProviderConfig = SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
@@ -60,17 +77,18 @@ export class SolAccountProvider extends SnapAccountProvider {
   }
 
   async #createAccount({
+    keyring,
     entropySource,
     groupIndex,
     derivationPath,
   }: {
+    keyring: RestrictedSnapKeyring;
     entropySource: EntropySourceId;
     groupIndex: number;
     derivationPath: string;
   }): Promise<Bip44Account<KeyringAccount>> {
-    const createAccount = await this.getRestrictedSnapAccountCreator();
     const account = await withTimeout(
-      createAccount({ entropySource, derivationPath }),
+      keyring.createAccount({ entropySource, derivationPath }),
       this.config.createAccounts.timeoutMs,
     );
 
@@ -86,22 +104,28 @@ export class SolAccountProvider extends SnapAccountProvider {
     return account;
   }
 
-  async createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withMaxConcurrency(async () => {
-      const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
-      const account = await this.#createAccount({
-        entropySource,
-        groupIndex,
-        derivationPath,
-      });
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+    ]);
 
-      return [account];
+    const { entropySource, groupIndex } = options;
+
+    return this.withSnap(async ({ keyring }) => {
+      return this.withMaxConcurrency(async () => {
+        const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
+        const account = await this.#createAccount({
+          keyring,
+          entropySource,
+          groupIndex,
+          derivationPath,
+        });
+
+        this.accounts.add(account.id);
+        return [account];
+      });
     });
   }
 
@@ -112,50 +136,57 @@ export class SolAccountProvider extends SnapAccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    return await super.trace(
-      {
-        name: TraceName.SnapDiscoverAccounts,
-        data: {
-          provider: this.getName(),
+    return this.withSnap(async ({ client, keyring }) => {
+      return await super.trace(
+        {
+          name: TraceName.SnapDiscoverAccounts,
+          data: {
+            provider: this.getName(),
+          },
         },
-      },
-      async () => {
-        if (!this.config.discovery.enabled) {
-          return [];
-        }
+        async () => {
+          if (!this.config.discovery.enabled) {
+            return [];
+          }
 
-        const discoveredAccounts = await withRetry(
-          () =>
-            withTimeout(
-              this.client.discoverAccounts(
-                [SolScope.Mainnet],
+          const discoveredAccounts = await withRetry(
+            () =>
+              withTimeout(
+                client.discoverAccounts(
+                  [SolScope.Mainnet],
+                  entropySource,
+                  groupIndex,
+                ),
+                this.config.discovery.timeoutMs,
+              ),
+            {
+              maxAttempts: this.config.discovery.maxAttempts,
+              backOffMs: this.config.discovery.backOffMs,
+            },
+          );
+
+          if (!discoveredAccounts.length) {
+            return [];
+          }
+
+          const createdAccounts = await Promise.all(
+            discoveredAccounts.map((d) =>
+              this.#createAccount({
+                keyring,
                 entropySource,
                 groupIndex,
-              ),
-              this.config.discovery.timeoutMs,
+                derivationPath: d.derivationPath,
+              }),
             ),
-          {
-            maxAttempts: this.config.discovery.maxAttempts,
-            backOffMs: this.config.discovery.backOffMs,
-          },
-        );
+          );
 
-        if (!discoveredAccounts.length) {
-          return [];
-        }
+          for (const account of createdAccounts) {
+            this.accounts.add(account.id);
+          }
 
-        const createdAccounts = await Promise.all(
-          discoveredAccounts.map((d) =>
-            this.#createAccount({
-              entropySource,
-              groupIndex,
-              derivationPath: d.derivationPath,
-            }),
-          ),
-        );
-
-        return createdAccounts;
-      },
-    );
+          return createdAccounts;
+        },
+      );
+    });
   }
 }

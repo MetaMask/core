@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "11.17.0",
+  "version": "11.18.0",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
@@ -64,14 +64,14 @@
     "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "jest-environment-jsdom": "^27.5.1",
     "nock": "^13.3.1",
     "sinon": "^9.2.4",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

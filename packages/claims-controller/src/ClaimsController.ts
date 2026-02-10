@@ -293,6 +293,15 @@ export class ClaimsController extends BaseController<
   }
 
   /**
+   * Clears the claims state and resets to default values.
+   */
+  clearState(): void {
+    this.update(() => {
+      return getDefaultClaimsControllerState();
+    });
+  }
+
+  /**
    * Validate the claim before submitting it.
    *
    * @param claim - The claim to validate.

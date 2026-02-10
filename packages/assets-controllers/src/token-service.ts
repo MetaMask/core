@@ -23,7 +23,7 @@ function getTokensURL(chainId: Hex): string {
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`;
 }
 
 /**
@@ -36,7 +36,7 @@ function getTokensURL(chainId: Hex): string {
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string): string {
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
-  )}?address=${tokenAddress}`;
+  )}?address=${tokenAddress}&includeRwaData=true`;
 }
 
 /**
@@ -93,6 +93,7 @@ function getTokenSearchURL(options: {
  * @param options.maxMarketCap - The maximum market cap.
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to false).
  * @returns The trending tokens URL.
  */
 function getTrendingTokensURL(options: {
@@ -105,6 +106,7 @@ function getTrendingTokensURL(options: {
   maxMarketCap?: number;
   excludeLabels?: string[];
   includeRwaData?: boolean;
+  usePriceApiData?: boolean;
 }): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
@@ -210,7 +212,7 @@ export async function searchTokens(
   {
     limit = 10,
     includeMarketData = false,
-    includeRwaData,
+    includeRwaData = true,
   }: SearchTokenOptions = {},
 ): Promise<{ count: number; data: TokenSearchItem[] }> {
   const tokenSearchURL = getTokenSearchURL({
@@ -228,7 +230,7 @@ export async function searchTokens(
     // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
       return {
-        count: result.count || result.data.length,
+        count: result.count ?? result.data.length,
         data: result.data,
       };
     }
@@ -278,7 +280,8 @@ export type TrendingAsset = {
  * @param options.minMarketCap - The minimum market cap.
  * @param options.maxMarketCap - The maximum market cap.
  * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
+ * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to true).
+ * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to true).
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
@@ -291,7 +294,8 @@ export async function getTrendingTokens({
   minMarketCap,
   maxMarketCap,
   excludeLabels,
-  includeRwaData,
+  includeRwaData = true,
+  usePriceApiData = true,
 }: {
   chainIds: CaipChainId[];
   sortBy?: SortTrendingBy;
@@ -302,6 +306,7 @@ export async function getTrendingTokens({
   maxMarketCap?: number;
   excludeLabels?: string[];
   includeRwaData?: boolean;
+  usePriceApiData?: boolean;
 }): Promise<TrendingAsset[]> {
   if (chainIds.length === 0) {
     console.error('No chains provided');
@@ -318,6 +323,7 @@ export async function getTrendingTokens({
     maxMarketCap,
     excludeLabels,
     includeRwaData,
+    usePriceApiData,
   });
 
   try {

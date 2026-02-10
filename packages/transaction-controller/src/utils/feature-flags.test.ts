@@ -17,9 +17,12 @@ import {
   getGasFeeRandomisation,
   getGasEstimateFallback,
   getGasEstimateBuffer,
+  getSubmitHistoryLimit,
+  getTransactionHistoryLimit,
   FeatureFlag,
   getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
+  isIncomingTransactionsUseWebsocketsEnabled,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -346,6 +349,58 @@ describe('Feature Flags Utils', () => {
     it('returns default value if undefined', () => {
       mockFeatureFlags({});
       expect(getBatchSizeLimit(controllerMessenger)).toBe(10);
+    });
+  });
+
+  describe('getSubmitHistoryLimit', () => {
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          submitHistoryLimit: 50,
+        },
+      });
+
+      expect(getSubmitHistoryLimit(controllerMessenger)).toBe(50);
+    });
+
+    it('returns default value if undefined', () => {
+      mockFeatureFlags({});
+      expect(getSubmitHistoryLimit(controllerMessenger)).toBe(100);
+    });
+
+    it('returns default value if Transactions flag is defined but submitHistoryLimit is not', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          batchSizeLimit: 5,
+        },
+      });
+      expect(getSubmitHistoryLimit(controllerMessenger)).toBe(100);
+    });
+  });
+
+  describe('getTransactionHistoryLimit', () => {
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          transactionHistoryLimit: 20,
+        },
+      });
+
+      expect(getTransactionHistoryLimit(controllerMessenger)).toBe(20);
+    });
+
+    it('returns default value if undefined', () => {
+      mockFeatureFlags({});
+      expect(getTransactionHistoryLimit(controllerMessenger)).toBe(40);
+    });
+
+    it('returns default value if Transactions flag is defined but transactionHistoryLimit is not', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          batchSizeLimit: 5,
+        },
+      });
+      expect(getTransactionHistoryLimit(controllerMessenger)).toBe(40);
     });
   });
 
@@ -810,6 +865,50 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(0);
+    });
+  });
+
+  describe('isIncomingTransactionsUseWebsocketsEnabled', () => {
+    it('returns true when useWebsockets is true', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {
+          useWebsockets: true,
+        },
+      });
+
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(true);
+    });
+
+    it('returns false when useWebsockets is false', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {
+          useWebsockets: false,
+        },
+      });
+
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(false);
+    });
+
+    it('returns false when flag is not present', () => {
+      mockFeatureFlags({});
+
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(false);
+    });
+
+    it('returns false when useWebsockets property is not present', () => {
+      mockFeatureFlags({
+        [FeatureFlag.IncomingTransactions]: {},
+      });
+
+      expect(
+        isIncomingTransactionsUseWebsocketsEnabled(controllerMessenger),
+      ).toBe(false);
     });
   });
 });

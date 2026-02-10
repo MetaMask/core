@@ -1,11 +1,12 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
-import { BtcAccountType } from '@metamask/keyring-api';
+import { AccountCreationType, BtcAccountType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { SnapControllerState } from '@metamask/snaps-controllers';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import {
@@ -98,6 +99,11 @@ class MockBtcKeyring {
       return account;
     });
 }
+class MockBtcAccountProvider extends BtcAccountProvider {
+  override async ensureCanUseSnapPlatform(): Promise<void> {
+    // Override to avoid waiting during tests.
+  }
+}
 
 /**
  * Sets up a BtcAccountProvider for testing.
@@ -130,8 +136,26 @@ function setup({
   const keyring = new MockBtcKeyring(accounts);
 
   messenger.registerActionHandler(
+    'AccountsController:getAccounts',
+    () => accounts,
+  );
+
+  messenger.registerActionHandler(
+    'SnapController:getState',
+    () => ({ isReady: true }) as SnapControllerState,
+  );
+
+  messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     () => accounts,
+  );
+
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find((account) => account.id === id);
+  });
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
   );
 
   const mockHandleRequest = jest
@@ -156,10 +180,10 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const provider = new AccountProviderWrapper(
-    multichainMessenger,
-    new BtcAccountProvider(multichainMessenger, config),
-  );
+  const btcProvider = new MockBtcAccountProvider(multichainMessenger, config);
+  const accountIds = accounts.map((account) => account.id);
+  btcProvider.init(accountIds);
+  const provider = new AccountProviderWrapper(multichainMessenger, btcProvider);
 
   return {
     provider,
@@ -210,6 +234,22 @@ describe('BtcAccountProvider', () => {
     );
   });
 
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_BTC_P2WPKH_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(false);
+  });
+
   it('creates accounts', async () => {
     const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
     const { provider, keyring } = setup({
@@ -218,6 +258,7 @@ describe('BtcAccountProvider', () => {
 
     const newGroupIndex = accounts.length; // Group-index are 0-based.
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: newGroupIndex,
     });
@@ -232,6 +273,7 @@ describe('BtcAccountProvider', () => {
     });
 
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
@@ -254,6 +296,7 @@ describe('BtcAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
@@ -277,10 +320,26 @@ describe('BtcAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
     ).rejects.toThrow('Created account is not BIP-44 compatible');
+  });
+
+  it('throws an error when type is not "bip44:derive-index"', async () => {
+    const { provider } = setup();
+
+    await expect(
+      provider.createAccounts({
+        // @ts-expect-error Testing invalid type handling.
+        type: 'unsupported-type',
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow(
+      'Unsupported create account option type: unsupported-type',
+    );
   });
 
   it('discover accounts at a new group index creates an account', async () => {
@@ -373,7 +432,7 @@ describe('BtcAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new BtcAccountProvider(
+      const btcProvider = new MockBtcAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -425,7 +484,7 @@ describe('BtcAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new BtcAccountProvider(
+      const btcProvider = new MockBtcAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,
@@ -458,7 +517,7 @@ describe('BtcAccountProvider', () => {
 
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new BtcAccountProvider(
+      const btcProvider = new MockBtcAccountProvider(
         multichainMessenger,
         undefined,
         mockTrace,

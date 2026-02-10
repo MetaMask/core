@@ -37,16 +37,6 @@
         "default": "./dist/NotificationServicesController/index.cjs"
       }
     },
-    "./notification-services/ui": {
-      "import": {
-        "types": "./dist/NotificationServicesController/ui/index.d.mts",
-        "default": "./dist/NotificationServicesController/ui/index.mjs"
-      },
-      "require": {
-        "types": "./dist/NotificationServicesController/ui/index.d.cts",
-        "default": "./dist/NotificationServicesController/ui/index.cjs"
-      }
-    },
     "./notification-services/mocks": {
       "import": {
         "types": "./dist/NotificationServicesController/mocks/index.d.mts",
@@ -112,10 +102,10 @@
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.17.0",
-    "@metamask/keyring-controller": "^25.0.0",
+    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/keyring-controller": "^25.1.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/profile-sync-controller": "^27.0.0",
+    "@metamask/profile-sync-controller": "^27.1.0",
     "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",
     "firebase": "^11.2.0",
@@ -128,7 +118,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^27.5.2",
     "@types/readable-stream": "^2.3.0",
     "@types/semver": "^7",
     "contentful": "^10.15.0",
@@ -136,7 +126,7 @@
     "jest": "^27.5.1",
     "jest-environment-jsdom": "^27.5.1",
     "nock": "^13.3.1",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^27.1.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

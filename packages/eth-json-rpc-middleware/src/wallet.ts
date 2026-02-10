@@ -10,6 +10,10 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import { isValidHexAddress } from '@metamask/utils';
 import type { JsonRpcRequest, Json, Hex } from '@metamask/utils';
 
+import { createWalletGetGrantedExecutionPermissionsHandler } from './methods/wallet-get-granted-execution-permissions';
+import type { ProcessGetGrantedExecutionPermissionsHook } from './methods/wallet-get-granted-execution-permissions';
+import { createWalletGetSupportedExecutionPermissionsHandler } from './methods/wallet-get-supported-execution-permissions';
+import type { ProcessGetSupportedExecutionPermissionsHook } from './methods/wallet-get-supported-execution-permissions';
 import { createWalletRequestExecutionPermissionsHandler } from './methods/wallet-request-execution-permissions';
 import type { ProcessRequestExecutionPermissionsHook } from './methods/wallet-request-execution-permissions';
 import { createWalletRevokeExecutionPermissionHandler } from './methods/wallet-revoke-execution-permission';
@@ -19,6 +23,8 @@ import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder as validateKeyholder,
+  validateTypedDataForPrototypePollution,
+  validateTypedDataV1ForPrototypePollution,
 } from './utils/validation';
 
 export type TransactionParams = {
@@ -83,6 +89,8 @@ export type WalletMiddlewareOptions = {
   ) => Promise<string>;
   processRequestExecutionPermissions?: ProcessRequestExecutionPermissionsHook;
   processRevokeExecutionPermission?: ProcessRevokeExecutionPermissionHook;
+  processGetGrantedExecutionPermissions?: ProcessGetGrantedExecutionPermissionsHook;
+  processGetSupportedExecutionPermissions?: ProcessGetSupportedExecutionPermissionsHook;
 };
 
 export type WalletMiddlewareKeyValues = {
@@ -117,6 +125,8 @@ export type WalletMiddlewareParams = MiddlewareParams<
  * @param options.processTypedMessageV4 - The function to process the typed message v4 request.
  * @param options.processRequestExecutionPermissions - The function to process the request execution permissions request.
  * @param options.processRevokeExecutionPermission - The function to process the revoke execution permission request.
+ * @param options.processGetGrantedExecutionPermissions - The function to process the get granted execution permissions request.
+ * @param options.processGetSupportedExecutionPermissions - The function to process the get supported execution permissions request.
  * @returns A JSON-RPC middleware that handles wallet-related JSON-RPC methods.
  */
 export function createWalletMiddleware({
@@ -131,6 +141,8 @@ export function createWalletMiddleware({
   processTypedMessageV4,
   processRequestExecutionPermissions,
   processRevokeExecutionPermission,
+  processGetGrantedExecutionPermissions,
+  processGetSupportedExecutionPermissions,
 }: WalletMiddlewareOptions): JsonRpcMiddleware<
   JsonRpcRequest,
   Json,
@@ -166,6 +178,14 @@ export function createWalletMiddleware({
     wallet_revokeExecutionPermission:
       createWalletRevokeExecutionPermissionHandler({
         processRevokeExecutionPermission,
+      }),
+    wallet_getGrantedExecutionPermissions:
+      createWalletGetGrantedExecutionPermissionsHandler({
+        processGetGrantedExecutionPermissions,
+      }),
+    wallet_getSupportedExecutionPermissions:
+      createWalletGetSupportedExecutionPermissionsHandler({
+        processGetSupportedExecutionPermissions,
       }),
   });
 
@@ -305,6 +325,7 @@ export function createWalletMiddleware({
     const message = params[0];
     const address = await validateAndNormalizeKeyholder(params[1], context);
     const version = 'V1';
+    validateTypedDataV1ForPrototypePollution(message);
     // Not using nullish coalescing, since `params` may be `null`.
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const extraParams = params[2] || {};
@@ -348,6 +369,7 @@ export function createWalletMiddleware({
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
+    validateTypedDataForPrototypePollution(message);
     const version = 'V3';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -388,6 +410,7 @@ export function createWalletMiddleware({
     const message = normalizeTypedMessage(params[1]);
     validatePrimaryType(message);
     validateVerifyingContract(message);
+    validateTypedDataForPrototypePollution(message);
     const version = 'V4';
     const msgParams: TypedMessageParams = {
       data: message,

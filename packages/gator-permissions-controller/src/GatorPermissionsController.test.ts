@@ -1,4 +1,3 @@
-import type { AccountSigner } from '@metamask/7715-permission-types';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   createTimestampTerms,
@@ -18,6 +17,7 @@ import type {
 import type { HandleSnapRequest, HasSnap } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import { hexToBigInt, numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
@@ -45,45 +45,43 @@ const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
 const MOCK_CHAIN_ID_2: Hex = '0x1';
 const MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID =
   'local:http://localhost:8082' as SnapId;
-const MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES: StoredGatorPermission<
-  AccountSigner,
-  PermissionTypesWithCustom
->[] = mockGatorPermissionsStorageEntriesFactory({
-  [MOCK_CHAIN_ID_1]: {
-    nativeTokenStream: 5,
-    nativeTokenPeriodic: 5,
-    erc20TokenStream: 5,
-    erc20TokenPeriodic: 5,
-    custom: {
-      count: 2,
-      data: [
-        {
-          customData: 'customData-0',
-        },
-        {
-          customData: 'customData-1',
-        },
-      ],
+const MOCK_GATOR_PERMISSIONS_STORAGE_ENTRIES: StoredGatorPermission<PermissionTypesWithCustom>[] =
+  mockGatorPermissionsStorageEntriesFactory({
+    [MOCK_CHAIN_ID_1]: {
+      nativeTokenStream: 5,
+      nativeTokenPeriodic: 5,
+      erc20TokenStream: 5,
+      erc20TokenPeriodic: 5,
+      custom: {
+        count: 2,
+        data: [
+          {
+            customData: 'customData-0',
+          },
+          {
+            customData: 'customData-1',
+          },
+        ],
+      },
     },
-  },
-  [MOCK_CHAIN_ID_2]: {
-    nativeTokenStream: 5,
-    nativeTokenPeriodic: 5,
-    erc20TokenStream: 5,
-    erc20TokenPeriodic: 5,
-    custom: {
-      count: 2,
-      data: [
-        {
-          customData: 'customData-0',
-        },
-        {
-          customData: 'customData-1',
-        },
-      ],
+    [MOCK_CHAIN_ID_2]: {
+      nativeTokenStream: 5,
+      nativeTokenPeriodic: 5,
+      erc20TokenStream: 5,
+      erc20TokenPeriodic: 5,
+      custom: {
+        count: 2,
+        data: [
+          {
+            customData: 'customData-0',
+          },
+          {
+            customData: 'customData-1',
+          },
+        ],
+      },
     },
-  },
-});
+  });
 
 describe('GatorPermissionsController', () => {
   describe('constructor', () => {
@@ -199,7 +197,7 @@ describe('GatorPermissionsController', () => {
                 isAdjustmentAllowed: false,
                 data: {
                   target: '0x1234567890123456789012345678901234567890',
-                  sig: '0xabcd',
+                  signature: '0xabcd',
                   expiry: 1735689600, // Example expiry timestamp
                 },
               },
@@ -246,13 +244,15 @@ describe('GatorPermissionsController', () => {
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
 
       // check that the gator permissions map is sanitized
-      const sanitizedCheck = (permissionType: keyof GatorPermissionsMap) => {
+      const sanitizedCheck = (
+        permissionType: keyof GatorPermissionsMap,
+      ): void => {
         const flattenedStoredGatorPermissions = Object.values(
           result[permissionType],
         ).flat();
         flattenedStoredGatorPermissions.forEach((permission) => {
-          expect(permission.permissionResponse.signer).toBeUndefined();
-          expect(permission.permissionResponse.dependencyInfo).toBeUndefined();
+          expect(permission.permissionResponse.to).toBeUndefined();
+          expect(permission.permissionResponse.dependencies).toBeUndefined();
         });
       };
 
@@ -275,7 +275,7 @@ describe('GatorPermissionsController', () => {
           isAdjustmentAllowed: false,
           data: {
             target: '0x1234567890123456789012345678901234567890',
-            sig: '0xabcd',
+            signature: '0xabcd',
             expiry: 1735689600,
           },
         },
@@ -288,11 +288,8 @@ describe('GatorPermissionsController', () => {
       const revocationEntry = {
         permissionResponse: {
           chainId,
-          address: '0x0000000000000000000000000000000000000001',
-          signer: {
-            type: 'account',
-            data: { address: '0x0000000000000000000000000000000000000002' },
-          },
+          from: '0x0000000000000000000000000000000000000001',
+          to: '0x0000000000000000000000000000000000000002',
           permission: {
             type: 'erc20-token-revocation',
             isAdjustmentAllowed: false,
@@ -301,10 +298,8 @@ describe('GatorPermissionsController', () => {
             data: {} as any,
           },
           context: '0xdeadbeef',
-          dependencyInfo: [],
-          signerMeta: {
-            delegationManager: '0x0000000000000000000000000000000000000003',
-          },
+          dependencies: [],
+          delegationManager: '0x0000000000000000000000000000000000000003',
         },
         siteOrigin: 'https://example.org',
       } as unknown;
@@ -490,10 +485,11 @@ describe('GatorPermissionsController', () => {
         'registerActionHandler',
       );
 
-      new GatorPermissionsController({
+      const controller = new GatorPermissionsController({
         messenger,
       });
 
+      expect(controller.state.isGatorPermissionsEnabled).toBe(false);
       expect(mockRegisterActionHandler).toHaveBeenCalledWith(
         'GatorPermissionsController:fetchAndUpdateGatorPermissions',
         expect.any(Function),
@@ -607,7 +603,9 @@ describe('GatorPermissionsController', () => {
     const delegateAddressB =
       '0x2222222222222222222222222222222222222222' as Hex;
     const metamaskOrigin = 'https://metamask.io';
-    const buildMetadata = (justification: string) => ({
+    const buildMetadata = (
+      justification: string,
+    ): { justification: string; origin: string } => ({
       justification,
       origin: metamaskOrigin,
     });
@@ -692,11 +690,8 @@ describe('GatorPermissionsController', () => {
       });
 
       expect(result.chainId).toBe(numberToHex(chainId));
-      expect(result.address).toBe(delegator);
-      expect(result.signer).toStrictEqual({
-        type: 'account',
-        data: { address: delegate },
-      });
+      expect(result.from).toBe(delegator);
+      expect(result.to).toStrictEqual(delegate);
       expect(result.permission.type).toBe('native-token-stream');
       expect(result.expiry).toBe(timestampBeforeThreshold);
       // amounts are hex-encoded in decoded data; startTime is numeric
@@ -847,6 +842,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        txHash: undefined,
       };
 
       await controller.submitRevocation(revocationParams);
@@ -875,6 +871,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        txHash: undefined,
       };
 
       await expect(
@@ -903,6 +900,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        txHash: undefined,
       };
 
       await expect(
@@ -947,6 +945,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        txHash: undefined,
       };
 
       // Should throw GatorPermissionsFetchError (not GatorPermissionsProviderError)
@@ -987,6 +986,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        txHash: undefined,
       };
 
       await controller.submitDirectRevocation(revocationParams);
@@ -1028,6 +1028,7 @@ describe('GatorPermissionsController', () => {
         '0x1234567890abcdef1234567890abcdef12345678' as Hex;
       const revocationParams: RevocationParams = {
         permissionContext,
+        txHash: undefined,
       };
 
       // Spy on submitRevocation to check pending state before it's called
@@ -1052,6 +1053,7 @@ describe('GatorPermissionsController', () => {
 
       const revocationParams: RevocationParams = {
         permissionContext: '0x1234567890abcdef1234567890abcdef12345678',
+        txHash: undefined,
       };
 
       await expect(
@@ -1082,6 +1084,7 @@ describe('GatorPermissionsController', () => {
         '0x1234567890abcdef1234567890abcdef12345678' as Hex;
       const revocationParams: RevocationParams = {
         permissionContext,
+        txHash: undefined,
       };
 
       await expect(
@@ -1206,6 +1209,7 @@ describe('GatorPermissionsController', () => {
       // Emit transaction confirmed event
       rootMessenger.publish('TransactionController:transactionConfirmed', {
         id: txId,
+        status: TransactionStatus.confirmed,
       } as TransactionMeta);
 
       await flushPromises();
@@ -1218,7 +1222,124 @@ describe('GatorPermissionsController', () => {
         request: {
           jsonrpc: '2.0',
           method: 'permissionsProvider_submitRevocation',
-          params: { permissionContext },
+          params: { permissionContext, txHash: undefined },
+        },
+      });
+
+      // Verify that permissions are refreshed after revocation (getGrantedPermissions is called)
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        origin: 'metamask',
+        handler: 'onRpcRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_getGrantedPermissions',
+          params: { isRevoked: false },
+        },
+      });
+    });
+
+    it('should throw and error if the transaction fails', async () => {
+      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
+
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: true,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        },
+      });
+
+      const txId = 'test-tx-id';
+      const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
+
+      await controller.addPendingRevocation({ txId, permissionContext });
+
+      // Emit transaction approved event (user confirms)
+      rootMessenger.publish('TransactionController:transactionApproved', {
+        transactionMeta: { id: txId } as TransactionMeta,
+      });
+
+      // Emit transaction confirmed event
+      rootMessenger.publish('TransactionController:transactionConfirmed', {
+        id: txId,
+        status: TransactionStatus.failed,
+      } as TransactionMeta);
+
+      await flushPromises();
+
+      // Should not call submitRevocation
+      expect(mockHandleRequestHandler).toHaveBeenCalledTimes(1);
+
+      // Verify that permissions are refreshed after revocation (getGrantedPermissions is called)
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        origin: 'metamask',
+        handler: 'onRpcRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_getGrantedPermissions',
+          params: { isRevoked: false },
+        },
+      });
+
+      // Should not be in pending revocations
+      expect(controller.pendingRevocations).toStrictEqual([]);
+    });
+
+    it('should submit revocation metadata when transaction is confirmed', async () => {
+      const mockHandleRequestHandler = jest.fn().mockResolvedValue(undefined);
+      const rootMessenger = getRootMessenger({
+        snapControllerHandleRequestActionHandler: mockHandleRequestHandler,
+      });
+      const messenger = getMessenger(rootMessenger);
+
+      const controller = new GatorPermissionsController({
+        messenger,
+        state: {
+          isGatorPermissionsEnabled: true,
+          gatorPermissionsProviderSnapId:
+            MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        },
+      });
+
+      const txId = 'test-tx-id';
+      const permissionContext = '0x1234567890abcdef1234567890abcdef12345678';
+      const hash = '0x-mock-hash';
+
+      await controller.addPendingRevocation({ txId, permissionContext });
+
+      // Emit transaction approved event (user confirms)
+      rootMessenger.publish('TransactionController:transactionApproved', {
+        transactionMeta: { id: txId } as TransactionMeta,
+      });
+
+      // Emit transaction confirmed event
+      rootMessenger.publish('TransactionController:transactionConfirmed', {
+        id: txId,
+        status: TransactionStatus.confirmed,
+        hash,
+      } as TransactionMeta);
+
+      await flushPromises();
+
+      // Verify submitRevocation was called
+      expect(mockHandleRequestHandler).toHaveBeenCalledWith({
+        snapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
+        origin: 'metamask',
+        handler: 'onRpcRequest',
+        request: {
+          jsonrpc: '2.0',
+          method: 'permissionsProvider_submitRevocation',
+          params: {
+            permissionContext,
+            txHash: hash,
+          },
         },
       });
 
@@ -1536,6 +1657,7 @@ describe('GatorPermissionsController', () => {
       // Emit transaction confirmed event for different transaction
       rootMessenger.publish('TransactionController:transactionConfirmed', {
         id: 'different-tx-id',
+        status: TransactionStatus.confirmed,
       } as TransactionMeta);
 
       // Wait for async operations
@@ -1576,6 +1698,7 @@ describe('GatorPermissionsController', () => {
       // Emit transaction confirmed event
       rootMessenger.publish('TransactionController:transactionConfirmed', {
         id: txId,
+        status: TransactionStatus.confirmed,
       } as TransactionMeta);
 
       // Wait for async operations

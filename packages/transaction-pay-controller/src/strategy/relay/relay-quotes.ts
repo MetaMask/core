@@ -29,7 +29,12 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { getFeatureFlags, getGasBuffer } from '../../utils/feature-flags';
+import {
+  getEIP7702SupportedChains,
+  getFeatureFlags,
+  getGasBuffer,
+  getSlippage,
+} from '../../utils/feature-flags';
 import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
@@ -83,7 +88,23 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger, transaction } = fullRequest;
-  const { slippage: slippageDecimal } = getFeatureFlags(messenger);
+
+  const {
+    from,
+    isMaxAmount,
+    sourceChainId,
+    sourceTokenAddress,
+    sourceTokenAmount,
+    targetAmountMinimum,
+    targetChainId,
+    targetTokenAddress,
+  } = request;
+
+  const slippageDecimal = getSlippage(
+    messenger,
+    sourceChainId,
+    sourceTokenAddress,
+  );
 
   const slippageTolerance = new BigNumber(slippageDecimal * 100 * 100).toFixed(
     0,
@@ -91,15 +112,15 @@ async function getSingleQuote(
 
   try {
     const body: RelayQuoteRequest = {
-      amount: request.targetAmountMinimum,
-      destinationChainId: Number(request.targetChainId),
-      destinationCurrency: request.targetTokenAddress,
-      originChainId: Number(request.sourceChainId),
-      originCurrency: request.sourceTokenAddress,
-      recipient: request.from,
+      amount: isMaxAmount ? sourceTokenAmount : targetAmountMinimum,
+      destinationChainId: Number(targetChainId),
+      destinationCurrency: targetTokenAddress,
+      originChainId: Number(sourceChainId),
+      originCurrency: sourceTokenAddress,
+      recipient: from,
       slippageTolerance,
-      tradeType: 'EXPECTED_OUTPUT',
-      user: request.from,
+      tradeType: isMaxAmount ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
+      user: from,
     };
 
     await processTransactions(transaction, request, body, messenger);
@@ -141,12 +162,13 @@ async function processTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
   const { nestedTransactions, txParams } = transaction;
+  const { isMaxAmount, targetChainId } = request;
   const data = txParams?.data as Hex | undefined;
 
   const singleData =
     nestedTransactions?.length === 1 ? nestedTransactions[0].data : data;
 
-  const isHypercore = request.targetChainId === CHAIN_ID_HYPERCORE;
+  const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
 
   const isTokenTransfer =
     !isHypercore && Boolean(singleData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE));
@@ -157,11 +179,16 @@ async function processTransactions(
     log('Updating recipient as token transfer', requestBody.recipient);
   }
 
-  const skipDelegation = isTokenTransfer || isHypercore;
+  const hasNoData = singleData === undefined || singleData === '0x';
+  const skipDelegation = hasNoData || isTokenTransfer || isHypercore;
 
   if (skipDelegation) {
     log('Skipping delegation as token transfer or Hypercore deposit');
     return;
+  }
+
+  if (isMaxAmount) {
+    throw new Error('Max amount quotes do not support included transactions');
   }
 
   const delegation = await messenger.call(
@@ -263,7 +290,7 @@ async function normalizeQuote(
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger } = fullRequest;
   const { details } = quote;
-  const { currencyIn } = details;
+  const { currencyIn, currencyOut } = details;
 
   const { usdToFiatRate } = getFiatRates(messenger, request);
 
@@ -294,6 +321,12 @@ async function normalizeQuote(
     ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
   };
 
+  const targetAmount: Amount = {
+    human: currencyOut.amountFormatted,
+    raw: currencyOut.amount,
+    ...getFiatValueFromUsd(new BigNumber(currencyOut.amountUsd), usdToFiatRate),
+  };
+
   const metamask = {
     gasLimits,
   };
@@ -313,6 +346,7 @@ async function normalizeQuote(
     },
     request,
     sourceAmount,
+    targetAmount,
     strategy: TransactionPayStrategy.Relay,
   };
 }
@@ -468,6 +502,20 @@ async function calculateSourceNetworkCost(
     log('Skipping gas station as disabled chain', {
       sourceChainId,
       disabledChainIds: relayDisabledGasStationChains,
+    });
+
+    return result;
+  }
+
+  const supportedChains = getEIP7702SupportedChains(messenger);
+  const chainSupportsGasStation = supportedChains.some(
+    (supportedChainId) =>
+      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
+  );
+
+  if (!chainSupportsGasStation) {
+    log('Skipping gas station as chain does not support EIP-7702', {
+      sourceChainId,
     });
 
     return result;

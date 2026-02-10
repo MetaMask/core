@@ -35,6 +35,7 @@ describe('decodePermission', () => {
     ExactCalldataEnforcer,
     TimestampEnforcer,
     ValueLteEnforcer,
+    AllowedCalldataEnforcer,
     ERC20StreamingEnforcer,
     ERC20PeriodTransferEnforcer,
     NativeTokenStreamingEnforcer,
@@ -360,7 +361,6 @@ describe('decodePermission', () => {
 
     describe('erc20-token-revocation', () => {
       const expectedPermissionType = 'erc20-token-revocation';
-      const { AllowedCalldataEnforcer } = contracts;
 
       it('matches with two AllowedCalldataEnforcer and ValueLteEnforcer and NonceEnforcer', () => {
         const enforcers = [
@@ -1159,9 +1159,32 @@ describe('decodePermission', () => {
 
     describe('erc20-token-revocation', () => {
       const permissionType = 'erc20-token-revocation';
+      const approveSelectorTerms =
+        '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as Hex;
+      const zeroAmountTerms =
+        '0x00000000000000000000000000000000000000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000' as Hex;
+      const zeroValueLteTerms =
+        '0x0000000000000000000000000000000000000000000000000000000000000000' as Hex;
 
       it('returns the correct expiry and data', () => {
-        const caveats = [expiryCaveat];
+        const caveats = [
+          expiryCaveat,
+          {
+            enforcer: AllowedCalldataEnforcer,
+            terms: approveSelectorTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: AllowedCalldataEnforcer,
+            terms: zeroAmountTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ValueLteEnforcer,
+            terms: zeroValueLteTerms,
+            args: '0x',
+          } as const,
+        ];
 
         const { expiry, data } = getPermissionDataAndExpiry({
           contracts,
@@ -1171,6 +1194,68 @@ describe('decodePermission', () => {
 
         expect(expiry).toStrictEqual(timestampBeforeThreshold);
         expect(data).toStrictEqual({});
+      });
+
+      it('rejects invalid allowed calldata terms', () => {
+        const caveats = [
+          expiryCaveat,
+          {
+            enforcer: AllowedCalldataEnforcer,
+            terms:
+              '0x0000000000000000000000000000000000000000000000000000000000000000deadbeef' as Hex,
+            args: '0x',
+          } as const,
+          {
+            enforcer: AllowedCalldataEnforcer,
+            terms: zeroAmountTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ValueLteEnforcer,
+            terms: zeroValueLteTerms,
+            args: '0x',
+          } as const,
+        ];
+
+        expect(() =>
+          getPermissionDataAndExpiry({
+            contracts,
+            caveats,
+            permissionType,
+          }),
+        ).toThrow(
+          'Invalid erc20-token-revocation terms: expected approve selector and zero amount constraints',
+        );
+      });
+
+      it('rejects non-zero valueLte terms', () => {
+        const caveats = [
+          expiryCaveat,
+          {
+            enforcer: AllowedCalldataEnforcer,
+            terms: approveSelectorTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: AllowedCalldataEnforcer,
+            terms: zeroAmountTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ValueLteEnforcer,
+            terms:
+              '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
+            args: '0x',
+          } as const,
+        ];
+
+        expect(() =>
+          getPermissionDataAndExpiry({
+            contracts,
+            caveats,
+            permissionType,
+          }),
+        ).toThrow('Invalid ValueLteEnforcer terms: maxValue must be 0');
       });
     });
   });
@@ -1204,11 +1289,8 @@ describe('decodePermission', () => {
       });
 
       expect(result.chainId).toBe(numberToHex(chainId));
-      expect(result.address).toBe(delegator);
-      expect(result.signer).toStrictEqual({
-        type: 'account',
-        data: { address: delegate },
-      });
+      expect(result.from).toBe(delegator);
+      expect(result.to).toStrictEqual(delegate);
       expect(result.permission).toStrictEqual({
         type: permissionType,
         data,

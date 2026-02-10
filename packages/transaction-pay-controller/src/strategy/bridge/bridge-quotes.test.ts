@@ -716,6 +716,20 @@ describe('Bridge Quotes Utils', () => {
       });
     });
 
+    it('returns target amount in quote', async () => {
+      const quotes = await getBridgeQuotes({
+        ...request,
+        requests: [QUOTE_REQUEST_1_MOCK],
+      });
+
+      expect(quotes[0].targetAmount).toStrictEqual({
+        fiat: '24.6',
+        human: '12.3',
+        raw: QUOTE_REQUEST_1_MOCK.targetAmountMinimum,
+        usd: '36.9',
+      });
+    });
+
     it('returns target network fee in quote', async () => {
       calculateTransactionGasCostMock.mockReturnValue({
         fiat: '1.23',

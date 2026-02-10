@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { getAddress } from '@ethersproject/address';
 import { AddressZero } from '@ethersproject/constants';
-import { convertHexToDecimal } from '@metamask/controller-utils';
+import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import {
@@ -8,7 +9,6 @@ import {
   isStrictHexString,
   parseCaipChainId,
   isCaipReference,
-  numberToHex,
   isCaipAssetType,
   CaipAssetTypeStruct,
 } from '@metamask/utils';
@@ -48,7 +48,7 @@ export const formatChainIdToCaip = (
   if (isTronChainId(chainId)) {
     return TrxScope.Mainnet;
   }
-  return toEvmCaipChainId(numberToHex(Number(chainId)));
+  return toEvmCaipChainId(toHex(chainId));
 };
 
 /**
@@ -95,12 +95,12 @@ export const formatChainIdToHex = (
     return chainId;
   }
   if (typeof chainId === 'number' || parseInt(chainId, 10)) {
-    return numberToHex(Number(chainId));
+    return toHex(chainId);
   }
   if (isCaipChainId(chainId)) {
     const { reference } = parseCaipChainId(chainId);
     if (isCaipReference(reference) && !isNaN(Number(reference))) {
-      return numberToHex(Number(reference));
+      return toHex(reference);
     }
   }
   // Throw an error if a non-evm chainId is passed to this function

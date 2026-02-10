@@ -6,6 +6,7 @@ import type {
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   MetricsSwapType,
+  PollingStatus,
 } from './constants';
 import type { SortOrder, StatusTypes } from '../../types';
 
@@ -38,6 +39,7 @@ export type QuoteFetchData = {
   quotes_list: `${string}_${string}`[];
   initial_load_time_all_quotes: number;
   price_impact: number;
+  has_gas_included_quote: boolean;
 };
 
 export type TradeData = {
@@ -118,6 +120,7 @@ export type RequiredEventContextFromClient = {
     best_quote_provider: QuoteFetchData['best_quote_provider'];
     price_impact: QuoteFetchData['price_impact'];
     can_submit: QuoteFetchData['can_submit'];
+    usd_balance_source?: number;
   };
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
@@ -220,6 +223,20 @@ export type RequiredEventContextFromClient = {
     chain_id: CaipChainId | null;
     location: 'source' | 'destination';
   };
+  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: TradeData &
+    Pick<QuoteFetchData, 'price_impact'> &
+    Omit<RequestMetadata, 'security_warnings'> &
+    Pick<
+      RequestParams,
+      | 'token_symbol_source'
+      | 'token_symbol_destination'
+      | 'chain_id_source'
+      | 'chain_id_destination'
+    > & {
+      action_type: MetricsActionType;
+      polling_status: PollingStatus;
+      retry_attempts: number;
+    };
 };
 
 /**
@@ -278,6 +295,7 @@ export type EventPropertiesFromControllerState = {
   };
   [UnifiedSwapBridgeEventName.AssetPickerOpened]: null;
   [UnifiedSwapBridgeEventName.AssetSelected]: null;
+  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: null;
 };
 
 /**

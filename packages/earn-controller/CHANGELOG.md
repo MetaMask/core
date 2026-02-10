@@ -7,20 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.0` ([#7869](https://github.com/MetaMask/core/pull/7869))
+
+## [11.1.0]
+
 ### Added
 
 - Add Tron staking APY support with `tron_staking` state, methods, and selectors ([#7448](https://github.com/MetaMask/core/pull/7448))
 
 ### Changed
 
-- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258), [#7534](https://github.com/MetaMask/core/pull/7534))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
   - The dependencies moved are:
     - `@metamask/account-tree-controller` (^4.0.0)
-    - `@metamask/network-controller` (^27.1.0)
+    - `@metamask/network-controller` (^29.0.0)
   - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
     - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
   - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
-- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
 
 ## [11.0.0]
 
@@ -342,7 +349,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.0.0...@metamask/earn-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@10.0.0...@metamask/earn-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@9.0.0...@metamask/earn-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@8.0.2...@metamask/earn-controller@9.0.0

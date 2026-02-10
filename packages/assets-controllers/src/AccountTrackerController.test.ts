@@ -427,6 +427,29 @@ describe('AccountTrackerController', () => {
     );
   });
 
+  it('should refresh balances when keyring is unlocked', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        const refreshSpy = jest.spyOn(controller, 'refresh');
+
+        // Lock the keyring first
+        messenger.publish('KeyringController:lock');
+
+        // Clear any previous calls
+        refreshSpy.mockClear();
+
+        // Unlock the keyring - should trigger refresh
+        messenger.publish('KeyringController:unlock');
+
+        expect(refreshSpy).toHaveBeenCalled();
+      },
+    );
+  });
+
   describe('refresh', () => {
     it('does not refresh when fetching is disabled', async () => {
       const expectedState = {

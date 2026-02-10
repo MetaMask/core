@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.12.0` to `^62.16.0` ([#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872))
+
+## [5.0.1]
+
+### Added
+
+- Added new public method, `clearState` to clear/reset the shield controller state. ([#7780](https://github.com/MetaMask/core/pull/7780))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.12.0` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775))
+- Bump `@metamask/signature-controller` from `^39.0.0` to `^39.0.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [5.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+- **BREAKING:** Bump `@metamask/signature-controller` from `^38.0.0` to `^39.0.0` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7634](https://github.com/MetaMask/core/pull/7634))
+  - When passing a signature request to `checkSignatureCoverage`, the `decodedPermission` property of the request has a different shape. See changelog for `@metamask/gator-permissions-controller` 1.0.0 for more.
+- Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.9.1` ([#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
+
 ## [4.1.0]
 
 ### Added
@@ -181,7 +205,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@5.0.0...@metamask/shield-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@4.1.0...@metamask/shield-controller@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@4.0.0...@metamask/shield-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@3.1.0...@metamask/shield-controller@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@3.0.0...@metamask/shield-controller@3.1.0

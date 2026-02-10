@@ -9,6 +9,7 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
+import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
@@ -16,6 +17,7 @@ import { isEqual } from 'lodash';
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
+import { TokenRwaData } from './token-service';
 import type {
   TokensControllerGetStateAction,
   TokensControllerStateChangeEvent,
@@ -45,6 +47,7 @@ export type Token = {
   hasBalanceError?: boolean;
   isERC721?: boolean;
   name?: string;
+  rwaData?: TokenRwaData;
 };
 
 const DEFAULT_INTERVAL = 180000;
@@ -91,7 +94,8 @@ type ChainIdAndNativeCurrency = {
  */
 export type AllowedActions =
   | TokensControllerGetStateAction
-  | NetworkControllerGetStateAction;
+  | NetworkControllerGetStateAction
+  | NetworkEnablementControllerGetStateAction;
 
 /**
  * The external events available to the {@link TokenRatesController}.
@@ -232,6 +236,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#allTokens = allTokens;
     this.#allDetectedTokens = allDetectedTokens;
 
+    // Set native asset identifiers from NetworkEnablementController for CAIP-19 native token lookups
+    this.#initNativeAssetIdentifiers();
+
     this.#subscribeToTokensStateChange();
 
     this.#subscribeToNetworkStateChange();
@@ -313,6 +320,21 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         }
       },
     );
+  }
+
+  /**
+   * Initialize the native asset identifiers from NetworkEnablementController.
+   * This provides CAIP-19 native asset IDs for the token prices service.
+   */
+  #initNativeAssetIdentifiers(): void {
+    if (this.#tokenPricesService.setNativeAssetIdentifiers) {
+      const { nativeAssetIdentifiers } = this.messenger.call(
+        'NetworkEnablementController:getState',
+      );
+      this.#tokenPricesService.setNativeAssetIdentifiers(
+        nativeAssetIdentifiers,
+      );
+    }
   }
 
   /**
