@@ -232,6 +232,24 @@ export type QuoteCryptoTranslation = {
 };
 
 /**
+ * Widget information for executing a buy order.
+ */
+export type BuyWidget = {
+  /**
+   * The widget URL to open for the user to complete the purchase.
+   */
+  url: string;
+  /**
+   * The browser type to use for opening the widget.
+   */
+  browser?: ProviderBrowserType;
+  /**
+   * Order ID if already created.
+   */
+  orderId?: string | null;
+};
+
+/**
  * Represents an individual quote from a provider.
  */
 export type Quote = {
@@ -286,6 +304,10 @@ export type Quote = {
      * Provider fees.
      */
     providerFee?: number | string;
+    /**
+     * Widget information for native/whitelabel providers.
+     */
+    buyWidget?: BuyWidget;
   };
   /**
    * Metadata about the quote.

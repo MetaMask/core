@@ -5651,7 +5651,7 @@ describe('RampsController', () => {
   });
 
   describe('getWidgetUrl', () => {
-    it('returns widget URL when present in quote', async () => {
+    it('returns widget URL from top-level url field for aggregator providers', async () => {
       await withController(({ controller }) => {
         const quote: Quote = {
           provider: '/providers/moonpay',
@@ -5666,6 +5666,30 @@ describe('RampsController', () => {
         const widgetUrl = controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBe('https://buy.moonpay.com/widget?txId=123');
+      });
+    });
+
+    it('returns widget URL from buyWidget.url for native providers', async () => {
+      await withController(({ controller }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          url: null,
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyWidget: {
+              url: 'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+              browser: 'APP_BROWSER',
+            },
+          },
+        };
+
+        const widgetUrl = controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBe(
+          'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+        );
       });
     });
 

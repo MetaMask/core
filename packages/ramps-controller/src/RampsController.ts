@@ -1621,6 +1621,11 @@ export class RampsController extends BaseController<
    * @returns The widget URL string, or null if not available.
    */
   getWidgetUrl(quote: Quote): string | null {
-    return quote.url ?? null;
+    // Check top-level url first (for aggregator providers)
+    if (quote.url) {
+      return quote.url;
+    }
+    // Check nested buyWidget.url (for native/whitelabel providers)
+    return quote.quote?.buyWidget?.url ?? null;
   }
 }

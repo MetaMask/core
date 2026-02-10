@@ -42,6 +42,7 @@ export type {
   GetQuotesParams,
   RampsToken,
   TokensResponse,
+  BuyWidget,
 } from './RampsService';
 export {
   RampsService,
