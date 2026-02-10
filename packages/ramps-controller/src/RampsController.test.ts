@@ -3681,12 +3681,14 @@ describe('RampsController', () => {
       success: [
         {
           provider: '/providers/moonpay',
-          url: 'https://buy.moonpay.com/widget?txId=123',
           quote: {
             amountIn: 100,
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
+            buyWidget: {
+              url: 'https://buy.moonpay.com/widget?txId=123',
+            },
           },
           metadata: {
             reliability: 95,
@@ -5651,29 +5653,10 @@ describe('RampsController', () => {
   });
 
   describe('getWidgetUrl', () => {
-    it('returns widget URL from top-level url field for aggregator providers', async () => {
-      await withController(({ controller }) => {
-        const quote: Quote = {
-          provider: '/providers/moonpay',
-          url: 'https://buy.moonpay.com/widget?txId=123',
-          quote: {
-            amountIn: 100,
-            amountOut: '0.05',
-            paymentMethod: '/payments/debit-credit-card',
-          },
-        };
-
-        const widgetUrl = controller.getWidgetUrl(quote);
-
-        expect(widgetUrl).toBe('https://buy.moonpay.com/widget?txId=123');
-      });
-    });
-
-    it('returns widget URL from buyWidget.url for native providers', async () => {
+    it('returns widget URL from buyWidget.url when present', async () => {
       await withController(({ controller }) => {
         const quote: Quote = {
           provider: '/providers/transak-staging',
-          url: null,
           quote: {
             amountIn: 100,
             amountOut: '0.05',
