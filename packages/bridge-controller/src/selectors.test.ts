@@ -383,7 +383,14 @@ describe('Bridge Selectors', () => {
       ({
         quotes: [
           mockQuote,
-          { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
+          {
+            ...mockQuote,
+            quote: {
+              ...mockQuote.quote,
+              requestId: '456',
+              destTokenAmount: '2100000000000000000',
+            },
+          },
         ],
         quoteRequest: {
           srcChainId: '1',
@@ -442,17 +449,78 @@ describe('Bridge Selectors', () => {
     };
 
     it('should return sorted quotes with metadata', () => {
-      const result = selectBridgeQuotes(mockState, mockClientParams);
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            assetExchangeRates: {
+              [formatAddressToAssetId(
+                mockQuote.quote.srcAsset.address,
+                mockQuote.quote.srcChainId,
+              ) ?? '']: {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              [formatAddressToAssetId(
+                mockQuote.quote.destAsset.address,
+                mockQuote.quote.destChainId,
+              ) ?? '']: {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          mockClientParams,
+        );
 
-      expect(result.sortedQuotes).toHaveLength(2);
-      expect(result.sortedQuotes[0].quote.requestId).toMatchInlineSnapshot(
-        `"123"`,
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result).toMatchSnapshot();
+      expect(result.sortedQuotes[0].cost.valueInCurrency).toBe('-419.985546');
+    });
+
+    it('should use destTokenAmount to sort quotes if exchange rate is not available', () => {
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          { ...mockState, assetExchangeRates: {}, marketData: {} },
+          mockClientParams,
+        );
+
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result).toMatchSnapshot();
+      expect(result.sortedQuotes[0].cost.valueInCurrency).toBeNull();
+      expect(result.recommendedQuote?.quote.destTokenAmount).toBe(
+        '2100000000000000000',
       );
-      expect(result.recommendedQuote).toBeDefined();
-      expect(result.activeQuote).toBeDefined();
-      expect(result.isLoading).toBe(false);
-      expect(result.quoteFetchError).toBeNull();
-      expect(result.isQuoteGoingToRefresh).toBe(true);
+    });
+
+    it('should use priceImpact to sort quotes if exchange rate is not available', () => {
+      const quotesWithPriceImpact = [
+        {
+          ...mockQuote,
+          quote: { ...mockQuote.quote, priceData: { priceImpact: '0.01' } },
+        },
+        {
+          ...mockQuote,
+          quote: { ...mockQuote.quote, priceData: { priceImpact: '-0.02' } },
+        },
+      ];
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            assetExchangeRates: {},
+            marketData: {},
+            quotes: quotesWithPriceImpact as unknown as QuoteResponse[],
+          },
+          mockClientParams,
+        );
+
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result).toMatchSnapshot();
+      expect(result.sortedQuotes[0].cost.valueInCurrency).toBeNull();
+      expect(result.recommendedQuote?.quote.priceData?.priceImpact).toBe(
+        '-0.02',
+      );
     });
 
     describe('returns swap metadata', () => {
@@ -1132,8 +1200,20 @@ describe('Bridge Selectors', () => {
         sortOrder: SortOrder.ETA_ASC,
       });
 
-      expect(resultCostAsc.sortedQuotes).toBeDefined();
-      expect(resultEtaAsc.sortedQuotes).toBeDefined();
+      expect(resultCostAsc.sortedQuotes.map((quote) => quote.quote.requestId))
+        .toMatchInlineSnapshot(`
+        Array [
+          "456",
+          "123",
+        ]
+      `);
+      expect(resultEtaAsc.sortedQuotes.map((quote) => quote.quote.requestId))
+        .toMatchInlineSnapshot(`
+        Array [
+          "123",
+          "456",
+        ]
+      `);
     });
 
     it('should handle selected quote', () => {

@@ -418,7 +418,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
         }
         return orderBy(
           quotesWithMetadata,
-          ({ quote }) => Number(quote.destTokenAmount) * -1,
+          ({ quote }) => Number(quote.destTokenAmount),
           'desc',
         );
     }
