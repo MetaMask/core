@@ -499,9 +499,9 @@ describe('MultichainAccountWallet', () => {
         accounts: [[]],
       });
 
-      await expect(
-        wallet.createMultichainAccountGroups(-1),
-      ).rejects.toThrow('maxGroupIndex must be >= 0');
+      await expect(wallet.createMultichainAccountGroups(-1)).rejects.toThrow(
+        'maxGroupIndex must be >= 0',
+      );
     });
 
     it('captures an error with batch mode message when EVM provider fails', async () => {
@@ -515,12 +515,14 @@ describe('MultichainAccountWallet', () => {
 
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
 
-      await expect(
-        wallet.createMultichainAccountGroups(2),
-      ).rejects.toThrow('EVM provider failed');
+      await expect(wallet.createMultichainAccountGroups(2)).rejects.toThrow(
+        'EVM provider failed',
+      );
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to create batch accounts with provider "Mocked Provider 0"'),
+        new Error(
+          'Unable to create batch accounts with provider "Mocked Provider 0"',
+        ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
