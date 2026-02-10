@@ -1,22 +1,22 @@
 import { Messenger } from '@metamask/messenger';
 
-import { uiStateControllerSelectors } from './selectors';
 import type {
-  UiStateControllerActions,
-  UiStateControllerEvents,
-  UiStateControllerMessenger,
-} from './UiStateController';
+  ClientControllerActions,
+  ClientControllerEvents,
+  ClientControllerMessenger,
+} from './ClientController';
 import {
-  UiStateController,
+  ClientController,
   controllerName,
-  getDefaultUiStateControllerState,
-} from './UiStateController';
+  getDefaultClientControllerState,
+} from './ClientController';
+import { clientControllerSelectors } from './selectors';
 
-describe('UiStateController', () => {
+describe('ClientController', () => {
   type RootMessenger = Messenger<
     'Root',
-    UiStateControllerActions,
-    UiStateControllerEvents
+    ClientControllerActions,
+    ClientControllerEvents
   >;
 
   /**
@@ -27,24 +27,24 @@ describe('UiStateController', () => {
   function getRootMessenger(): RootMessenger {
     return new Messenger<
       'Root',
-      UiStateControllerActions,
-      UiStateControllerEvents
+      ClientControllerActions,
+      ClientControllerEvents
     >({ namespace: 'Root' });
   }
 
   /**
-   * Constructs the messenger for the UiStateController.
+   * Constructs the messenger for the ClientController.
    *
    * @param rootMessenger - The root messenger.
    * @returns The controller-specific messenger.
    */
   function getMessenger(
     rootMessenger: RootMessenger,
-  ): UiStateControllerMessenger {
+  ): ClientControllerMessenger {
     return new Messenger<
       typeof controllerName,
-      UiStateControllerActions,
-      UiStateControllerEvents,
+      ClientControllerActions,
+      ClientControllerEvents,
       RootMessenger
     >({
       namespace: controllerName,
@@ -53,13 +53,13 @@ describe('UiStateController', () => {
   }
 
   type WithControllerCallback<ReturnValue> = (payload: {
-    controller: UiStateController;
+    controller: ClientController;
     rootMessenger: RootMessenger;
-    messenger: UiStateControllerMessenger;
+    messenger: ClientControllerMessenger;
   }) => Promise<ReturnValue> | ReturnValue;
 
   type WithControllerOptions = {
-    options: Partial<ConstructorParameters<typeof UiStateController>[0]>;
+    options: Partial<ConstructorParameters<typeof ClientController>[0]>;
   };
 
   /**
@@ -81,7 +81,7 @@ describe('UiStateController', () => {
       args.length === 2 ? args : [{}, args[0]];
     const rootMessenger = getRootMessenger();
     const messenger = getMessenger(rootMessenger);
-    const controller = new UiStateController({
+    const controller = new ClientController({
       messenger,
       ...options,
     });
@@ -159,9 +159,9 @@ describe('UiStateController', () => {
     });
   });
 
-  describe('getDefaultUiStateControllerState', () => {
+  describe('getDefaultClientControllerState', () => {
     it('returns default state with client closed', () => {
-      const defaultState = getDefaultUiStateControllerState();
+      const defaultState = getDefaultClientControllerState();
 
       expect(defaultState.isUiOpen).toBe(false);
     });
@@ -171,7 +171,7 @@ describe('UiStateController', () => {
     describe('selectIsUiOpen', () => {
       it('returns true when client is open', () => {
         expect(
-          uiStateControllerSelectors.selectIsUiOpen({
+          clientControllerSelectors.selectIsUiOpen({
             isUiOpen: true,
           }),
         ).toBe(true);
@@ -179,7 +179,7 @@ describe('UiStateController', () => {
 
       it('returns false when client is closed', () => {
         expect(
-          uiStateControllerSelectors.selectIsUiOpen({
+          clientControllerSelectors.selectIsUiOpen({
             isUiOpen: false,
           }),
         ).toBe(false);

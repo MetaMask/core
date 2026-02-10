@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { UiStateController } from './UiStateController';
+import type { ClientController } from './ClientController';
 
 /**
  * Updates state with whether the MetaMask UI is open.
@@ -14,12 +14,12 @@ import type { UiStateController } from './UiStateController';
  *
  * @param open - Whether the MetaMask UI is open.
  */
-export type UiStateControllerSetUiOpenAction = {
-  type: `UiStateController:setUiOpen`;
-  handler: UiStateController['setUiOpen'];
+export type ClientControllerSetUiOpenAction = {
+  type: `ClientController:setUiOpen`;
+  handler: ClientController['setUiOpen'];
 };
 
 /**
- * Union of all UiStateController action types.
+ * Union of all ClientController action types.
  */
-export type UiStateControllerMethodActions = UiStateControllerSetUiOpenAction;
+export type ClientControllerMethodActions = ClientControllerSetUiOpenAction;
