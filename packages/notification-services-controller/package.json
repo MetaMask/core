@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "21.0.0",
+  "version": "22.0.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -35,16 +35,6 @@
       "require": {
         "types": "./dist/NotificationServicesController/index.d.cts",
         "default": "./dist/NotificationServicesController/index.cjs"
-      }
-    },
-    "./notification-services/ui": {
-      "import": {
-        "types": "./dist/NotificationServicesController/ui/index.d.mts",
-        "default": "./dist/NotificationServicesController/ui/index.mjs"
-      },
-      "require": {
-        "types": "./dist/NotificationServicesController/ui/index.d.cts",
-        "default": "./dist/NotificationServicesController/ui/index.cjs"
       }
     },
     "./notification-services/mocks": {
