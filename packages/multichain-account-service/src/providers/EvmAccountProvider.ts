@@ -81,6 +81,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     scopes: [EthScope.Eoa],
     bip44: {
       deriveIndex: true,
+      deriveIndexRange: true,
     },
   };
 
@@ -191,9 +192,38 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   ): Promise<Bip44Account<KeyringAccount>[]> {
     assertCreateAccountOptionIsSupported(options, [
       `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
     ]);
 
-    const { entropySource, groupIndex } = options;
+    const { entropySource } = options;
+
+    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+      const { range } = options;
+      const accounts: InternalAccount[] = [];
+
+      for (let groupIndex = range.from; groupIndex <= range.to; groupIndex++) {
+        const [address] = await this.#createAccount({
+          entropySource,
+          groupIndex,
+          throwOnGap: true,
+        });
+
+        const accountId = this.#getAccountId(address);
+        const account = this.messenger.call(
+          'AccountsController:getAccount',
+          accountId,
+        );
+        assertInternalAccountExists(account);
+        this.accounts.add(account.id);
+        accounts.push(account);
+      }
+
+      assertAreBip44Accounts(accounts);
+      return accounts;
+    }
+
+    // Handle Bip44DeriveIndex (single account creation)
+    const { groupIndex } = options;
 
     const [address] = await this.#createAccount({
       entropySource,

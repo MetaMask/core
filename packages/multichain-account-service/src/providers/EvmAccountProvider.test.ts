@@ -1,4 +1,5 @@
 import { publicToAddress } from '@ethereumjs/util';
+import { isBip44Account } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { AccountCreationType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
@@ -299,6 +300,130 @@ describe('EvmAccountProvider', () => {
     });
     expect(newAccounts).toHaveLength(1);
     expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
+  });
+
+  it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
+    const accounts = [MOCK_HD_ACCOUNT_1];
+    const { provider, keyring } = setup({
+      accounts,
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 1,
+        to: 3,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(3);
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(3);
+
+    // Verify each account has the correct group index
+    expect(
+      isBip44Account(newAccounts[0]) &&
+        newAccounts[0].options.entropy.groupIndex,
+    ).toBe(1);
+    expect(
+      isBip44Account(newAccounts[1]) &&
+        newAccounts[1].options.entropy.groupIndex,
+    ).toBe(2);
+    expect(
+      isBip44Account(newAccounts[2]) &&
+        newAccounts[2].options.entropy.groupIndex,
+    ).toBe(3);
+  });
+
+  it('creates accounts with range starting from 0', async () => {
+    const { provider, keyring } = setup({
+      accounts: [],
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 0,
+        to: 2,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(3);
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(3);
+  });
+
+  it('creates a single account when range from equals to', async () => {
+    const { provider, keyring } = setup({
+      accounts: [],
+    });
+
+    // First create accounts 0-4 to avoid gaps
+    await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 0,
+        to: 4,
+      },
+    });
+
+    // Now create a single account at index 5 where from equals to
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 5,
+        to: 5,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(1);
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(6); // 5 from setup + 1 from the test
+    expect(
+      isBip44Account(newAccounts[0]) &&
+        newAccounts[0].options.entropy.groupIndex,
+    ).toBe(5);
+  });
+
+  it('throws when trying to create gaps with range', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    await expect(
+      provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: {
+          from: 5,
+          to: 10,
+        },
+      }),
+    ).rejects.toThrow('Trying to create too many accounts');
+  });
+
+  it('returns existing accounts when range includes already created accounts', async () => {
+    const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
+    const { provider, keyring } = setup({
+      accounts,
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 0,
+        to: 3,
+      },
+    });
+
+    // Should return 4 accounts: 2 existing (indices 0,1) + 2 new (indices 2,3)
+    expect(newAccounts).toHaveLength(4);
+    expect(newAccounts[0]).toStrictEqual(MOCK_HD_ACCOUNT_1);
+    expect(newAccounts[1]).toStrictEqual(MOCK_HD_ACCOUNT_2);
+    // Only 2 new accounts should be created (indices 2 and 3)
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(2);
   });
 
   it('throws if the created account is not BIP-44 compatible', async () => {
