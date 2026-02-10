@@ -28,6 +28,7 @@ export {
   getDefaultSubscriptionControllerState,
 } from './SubscriptionController';
 export type {
+  SubscriptionApiError,
   Subscription,
   AuthUtils,
   CancelSubscriptionRequest,
@@ -86,6 +87,10 @@ export {
   MODAL_TYPE,
 } from './types';
 export { SubscriptionServiceError } from './errors';
-export { Env, SubscriptionControllerErrorMessage } from './constants';
+export {
+  Env,
+  SubscriptionControllerErrorMessage,
+  SubscriptionServiceErrorMessage,
+} from './constants';
 export type { SubscriptionServiceConfig } from './SubscriptionService';
 export { SubscriptionService } from './SubscriptionService';

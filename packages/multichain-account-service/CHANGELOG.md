@@ -7,16 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
-  - Add logic in the `createMultichainAccountWallet` method in `MultichainAccountService` so that it can handle all entry points: importing an SRP, recovering a vault and creating a new vault.
-  - Add a `getAccountIds` method which returns all the account ids pertaining to a group.
-  - Add an `addAccounts` method on the `BaseBip44AccountProvider` class which keeps track of all the account IDs that pertain to it.
+- **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.12.0` to `^1.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- **BREAKING:** Bump `@metamask/eth-snap-keyring` from `^18.0.0` to `^19.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+  - Required to invoke `createAccounts` on any account management Snaps.
+- **BREAKING:** Use new `AccountProvider.createAccounts` method with `CreateAccountOptions` ([#7857](https://github.com/MetaMask/core/pull/7857))
+  - All account providers now accept `CreateAccountOptions` with `type` field.
+  - Added `capabilities` property to all account providers defining supported account creation types.
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-internal-api` from `^9.0.0` to `^10.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-snap-client` from `^8.0.0` to `^8.2.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+
+## [6.0.0]
 
 ### Changed
 
+- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
+  - The `MultichainAccountService` is refactored to construct a top level service state for its `init` function, this state is passed down to the `MultichainAccountWallet` and `MultichainAccountGroup` classes in slices for them to construct their internal states.
+  - Additional state is generated at the entry points where it needs to be updated i.e. `createMultichainAccountGroup`, `discoverAccounts` and `alignAccounts`.
+  - We no longer prevent group creation if some providers' `createAccounts` calls fail during group creation, only if they all fail.
+  - The `getAccounts` method in the `BaseBip44AccountProvider` class no longer relies on fetching the entire list of internal accounts from the `AccountsController`, instead it gets the specific accounts that it stores in its internal accounts list.
+  - The `EvmAccountProvider` no longer fetches from the `AccountController` to get an account for its ID, we deterministically get the associated account ID through `getUUIDFromAddressOfNormalAccount`.
+  - The `EvmAccountProvider` now uses the `getAccount` method from the `AccountsController` when fetching an account after account creation as it is more efficient.
+  - Add logic in the `createMultichainAccountWallet` method in `MultichainAccountService` so that it can handle all entry points: importing an SRP, recovering a vault and creating a new vault.
+  - Add a `getAccountIds` method which returns all the account ids pertaining to a group.
+  - Add an `addAccounts` method on the `BaseBip44AccountProvider` class which keeps track of all the account IDs that pertain to it.
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
+
+### Removed
+
+- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
+  - Remove `#handleOnAccountAdded` and `#handleOnAccountRemoved` methods in `MultichainAccountService` due to internal state being updated within the service.
+  - Remove `getAccountContext` (and associated map) in the `MultichainAccountService` as the service no longer uses that method.
+  - Remove the `sync` method in favor of the sole `init` method for both `MultichainAccountWallet` and `MultichainAccountGroup`.
 
 ## [5.1.0]
 
@@ -130,21 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
-  - The `MultichainAccountService` is refactored to construct a top level service state for its `init` function, this state is passed down to the `MultichainAccountWallet` and `MultichainAccountGroup` classes in slices for them to construct their internal states.
-  - Additional state is generated at the entry points where it needs to be updated i.e. `createMultichainAccountGroup`, `discoverAccounts` and `alignAccounts`.
-  - We no longer prevent group creation if some providers' `createAccounts` calls fail during group creation, only if they all fail.
-  - The `getAccounts` method in the `BaseBip44AccountProvider` class no longer relies on fetching the entire list of internal accounts from the `AccountsController`, instead it gets the specific accounts that it stores in its internal accounts list.
-  - The `EvmAccountProvider` no longer fetches from the `AccountController` to get an account for its ID, we deterministically get the associated account ID through `getUUIDFromAddressOfNormalAccount`.
-  - The `EvmAccountProvider` now uses the `getAccount` method from the `AccountsController` when fetching an account after account creation as it is more efficient.
 - Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
-
-### Removed
-
-- **BREAKING** A performance refactor was made around all the classes in this package ([#6654](https://github.com/MetaMask/core/pull/6654))
-  - Remove `#handleOnAccountAdded` and `#handleOnAccountRemoved` methods in `MultichainAccountService` due to internal state being updated within the service.
-  - Remove `getAccountContext` (and associated map) in the `MultichainAccountService` as the service no longer uses that method.
-  - Remove the `sync` method in favor of the sole `init` method for both `MultichainAccountWallet` and `MultichainAccountGroup`.
 
 ## [1.6.1]
 
@@ -366,7 +376,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...@metamask/multichain-account-service@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.0.0...@metamask/multichain-account-service@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.1.0...@metamask/multichain-account-service@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@4.0.1...@metamask/multichain-account-service@4.1.0

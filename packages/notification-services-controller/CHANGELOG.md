@@ -19,9 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
 - Modified background push utilities to handle more edgecases and not throw errors ([#7275](https://github.com/MetaMask/core/pull/7275))
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Move notifications networks metadata to backend ([#7840](https://github.com/MetaMask/core/pull/7840))
+
+### Removed
+
+- **BREAKING:** Removed the `"./notification-services/ui"` subpath export from `package.json` ([#7840](https://github.com/MetaMask/core/pull/7840))
+  - Consumers that import from `@metamask/notification-services-controller/notification-services/ui` must switch to network config provided by the backend.
 
 ### Fixed
 
+- Remove non-actionable internal `log.error` calls for expected silent-failure notification paths, while preserving thrown errors where propagation is required ([#7885](https://github.com/MetaMask/core/pull/7885))
 - Fix `createOnChainTriggers` to preserve user preferences on notification re-subscriptions ([#7423](https://github.com/MetaMask/core/pull/7423))
   - Previously, `isFeatureAnnouncementsEnabled` was unconditionally set to `true` on every re-subscription, overriding user preferences
   - Now, existing preferences are preserved when `isNotificationServicesEnabled` is already `true`

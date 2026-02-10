@@ -803,8 +803,7 @@ export class RampsController extends BaseController<
       for (const key of keys) {
         const entry = requests[key];
         if (
-          entry &&
-          entry.status === RequestStatus.SUCCESS &&
+          entry?.status === RequestStatus.SUCCESS &&
           isCacheExpired(entry, ttl)
         ) {
           delete requests[key];
@@ -1146,7 +1145,6 @@ export class RampsController extends BaseController<
     this.#fireAndForget(
       this.getPaymentMethods(regionCode, { assetId: token.assetId }).then(
         () => {
-          // Restart quote polling after payment methods are fetched
           this.#restartPollingIfActive();
           return undefined;
         },
@@ -1530,9 +1528,7 @@ export class RampsController extends BaseController<
     }
 
     if (!paymentMethod) {
-      throw new Error(
-        'Payment method is required. Cannot start quote polling without a selected payment method.',
-      );
+      return;
     }
 
     // Stop any existing polling first

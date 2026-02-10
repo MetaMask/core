@@ -7,20 +7,20 @@ import type {
   AccountActivityMessage,
   BalanceUpdate,
 } from '@metamask/core-backend';
-import type { Messenger } from '@metamask/messenger';
+import type { ApiPlatformClient } from '@metamask/core-backend';
 
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
   Caip19AssetId,
   AssetMetadata,
   AssetBalance,
-  DataRequest,
   DataResponse,
 } from '../types';
 
@@ -37,75 +37,13 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // MESSENGER TYPES
 // ============================================================================
 
-// Action types that BackendWebsocketDataSource exposes
-export type BackendWebsocketDataSourceGetActiveChainsAction = {
-  type: 'BackendWebsocketDataSource:getActiveChains';
-  handler: () => Promise<ChainId[]>;
-};
-
-export type BackendWebsocketDataSourceSubscribeAction = {
-  type: 'BackendWebsocketDataSource:subscribe';
-  handler: (request: SubscriptionRequest) => Promise<void>;
-};
-
-export type BackendWebsocketDataSourceUnsubscribeAction = {
-  type: 'BackendWebsocketDataSource:unsubscribe';
-  handler: (subscriptionId: string) => Promise<void>;
-};
-
-export type BackendWebsocketDataSourceActions =
-  | BackendWebsocketDataSourceGetActiveChainsAction
-  | BackendWebsocketDataSourceSubscribeAction
-  | BackendWebsocketDataSourceUnsubscribeAction;
-
-// Event types that BackendWebsocketDataSource publishes
-export type BackendWebsocketDataSourceActiveChainsChangedEvent = {
-  type: 'BackendWebsocketDataSource:activeChainsUpdated';
-  payload: [ChainId[]];
-};
-
-export type BackendWebsocketDataSourceAssetsUpdatedEvent = {
-  type: 'BackendWebsocketDataSource:assetsUpdated';
-  payload: [DataResponse, string | undefined];
-};
-
-export type BackendWebsocketDataSourceEvents =
-  | BackendWebsocketDataSourceActiveChainsChangedEvent
-  | BackendWebsocketDataSourceAssetsUpdatedEvent;
-
-// Actions to report to AssetsController
-type AssetsControllerActiveChainsUpdateAction = {
-  type: 'AssetsController:activeChainsUpdate';
-  handler: (dataSourceId: string, activeChains: ChainId[]) => void;
-};
-
-type AssetsControllerAssetsUpdateAction = {
-  type: 'AssetsController:assetsUpdate';
-  handler: (response: DataResponse, sourceId: string) => Promise<void>;
-};
-
 // Allowed actions that BackendWebsocketDataSource can call
 export type BackendWebsocketDataSourceAllowedActions =
-  | BackendWebSocketServiceActions
-  | AssetsControllerActiveChainsUpdateAction
-  | AssetsControllerAssetsUpdateAction;
-
-// Event type from AccountsApiDataSource that we subscribe to
-export type AccountsApiDataSourceActiveChainsChangedEvent = {
-  type: 'AccountsApiDataSource:activeChainsUpdated';
-  payload: [ChainId[]];
-};
+  BackendWebSocketServiceActions;
 
 // Allowed events that BackendWebsocketDataSource can subscribe to
 export type BackendWebsocketDataSourceAllowedEvents =
-  | BackendWebSocketServiceEvents
-  | AccountsApiDataSourceActiveChainsChangedEvent;
-
-export type BackendWebsocketDataSourceMessenger = Messenger<
-  typeof CONTROLLER_NAME,
-  BackendWebsocketDataSourceActions | BackendWebsocketDataSourceAllowedActions,
-  BackendWebsocketDataSourceEvents | BackendWebsocketDataSourceAllowedEvents
->;
+  BackendWebSocketServiceEvents;
 
 // ============================================================================
 // STATE
@@ -122,7 +60,16 @@ const defaultState: BackendWebsocketDataSourceState = {
 // ============================================================================
 
 export type BackendWebsocketDataSourceOptions = {
-  messenger: BackendWebsocketDataSourceMessenger;
+  /** The AssetsController messenger (shared by all data sources). */
+  messenger: AssetsControllerMessenger;
+  /** ApiPlatformClient for fetching supported networks at init (same as AccountsApiDataSource). */
+  queryApiClient: ApiPlatformClient;
+  /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
   state?: Partial<BackendWebsocketDataSourceState>;
 };
 
@@ -142,14 +89,19 @@ function extractNamespace(chainId: ChainId): string {
   return namespace;
 }
 
+/** Namespaces we always subscribe to for account activity (EVM + Solana). */
+const ACCOUNT_ACTIVITY_NAMESPACES = ['eip155', 'solana'] as const;
+
 /**
- * Get unique namespaces from chain IDs.
+ * Get unique namespaces for account-activity subscriptions.
+ * Always includes eip155 and solana so we subscribe to both EVM and Solana account activity,
+ * plus any additional namespaces from the requested chain IDs.
  *
- * @param chainIds - Array of CAIP-2 chain IDs.
- * @returns Array of unique namespaces.
+ * @param chainIds - Array of CAIP-2 chain IDs (from the subscription request).
+ * @returns Array of unique namespaces (at least eip155 and solana).
  */
-function getUniqueNamespaces(chainIds: ChainId[]): string[] {
-  const namespaces = new Set<string>();
+function getNamespacesForAccountActivity(chainIds: ChainId[]): string[] {
+  const namespaces = new Set<string>(ACCOUNT_ACTIVITY_NAMESPACES);
   for (const chainId of chainIds) {
     namespaces.add(extractNamespace(chainId));
   }
@@ -157,20 +109,64 @@ function getUniqueNamespaces(chainIds: ChainId[]): string[] {
 }
 
 /**
+ * Returns the address to use for account-activity subscription in the given namespace.
+ * EIP-155 accounts use hex (0x...) address; Solana accounts use base58.
+ * Returns null if this account type does not have an address in that namespace.
+ *
+ * @param account - Internal account (type + address).
+ * @param account.type - Account type (e.g. "eip155:eoa", "solana:data-account").
+ * @param account.address - Account address (hex for eip155, base58 for solana).
+ * @param namespace - The chain namespace (e.g., "eip155", "solana").
+ * @returns The address for that namespace, or null if the account does not support the namespace.
+ */
+function getAddressForAccountActivity(
+  account: { type: string; address: string },
+  namespace: string,
+): string | null {
+  if (namespace === 'eip155') {
+    return account.type.startsWith('eip155') ? account.address : null;
+  }
+  if (namespace === 'solana') {
+    return account.type.startsWith('solana') ? account.address : null;
+  }
+  // Other namespaces (e.g. from chainIds): use address if account type matches namespace
+  const typePrefix = `${namespace}:`;
+  return account.type.startsWith(typePrefix) ? account.address : null;
+}
+
+/**
  * Build WebSocket channel name for account activity using CAIP-10 wildcard format.
  * Uses 0 as the chain reference to subscribe to all chains in the namespace.
- * Format: account-activity.v1.eip155:0:0x1234... (all EVM chains)
- * Format: account-activity.v1.solana:0:ABC123... (all Solana chains)
+ * EIP-155 addresses are lowercased (hex); Solana addresses are left as-is (base58).
  *
  * @param namespace - The chain namespace (e.g., "eip155", "solana").
- * @param address - The account address.
+ * @param address - The account address (hex for eip155, base58 for solana).
  * @returns The WebSocket channel name.
  */
 function buildAccountActivityChannel(
   namespace: string,
   address: string,
 ): string {
-  return `${CHANNEL_TYPE}.${namespace}:0:${address.toLowerCase()}`;
+  const formatted = namespace === 'eip155' ? address.toLowerCase() : address;
+  return `${CHANNEL_TYPE}.${namespace}:0:${formatted}`;
+}
+
+/**
+ * Normalize API chain identifier to CAIP-2 ChainId.
+ * Passes through strings already in namespace:reference form (e.g. eip155:1, solana:5eykt...).
+ * Converts bare decimals to eip155:decimal.
+ *
+ * @param chainIdOrDecimal - Chain ID string (CAIP-2 or decimal) or decimal number.
+ * @returns CAIP-2 ChainId.
+ */
+function toChainId(chainIdOrDecimal: number | string): ChainId {
+  if (typeof chainIdOrDecimal === 'string') {
+    if (chainIdOrDecimal.includes(':')) {
+      return chainIdOrDecimal as ChainId;
+    }
+    return `eip155:${chainIdOrDecimal}` as ChainId;
+  }
+  return `eip155:${chainIdOrDecimal}` as ChainId;
 }
 
 // Note: AccountActivityMessage and BalanceUpdate types are imported from @metamask/core-backend
@@ -205,11 +201,24 @@ function buildAccountActivityChannel(
  * - BackendWebSocketService:getConnectionInfo
  * - BackendWebSocketService:findSubscriptionsByChannelPrefix
  */
+const DEFAULT_CHAINS_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
+
 export class BackendWebsocketDataSource extends AbstractDataSource<
   typeof CONTROLLER_NAME,
   BackendWebsocketDataSourceState
 > {
-  readonly #messenger: BackendWebsocketDataSourceMessenger;
+  readonly #messenger: AssetsControllerMessenger;
+
+  readonly #apiClient: ApiPlatformClient;
+
+  readonly #onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
+
+  /** Chains refresh timer */
+  #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   /** WebSocket subscriptions by our internal subscription ID */
   readonly #wsSubscriptions: Map<string, WebSocketSubscription> = new Map();
@@ -227,74 +236,93 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     });
 
     this.#messenger = options.messenger;
+    this.#apiClient = options.queryApiClient;
+    this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
 
-    this.#registerActionHandlers();
     this.#subscribeToEvents();
+    this.#initializeActiveChains().catch(console.error);
   }
 
   // ============================================================================
   // INITIALIZATION
   // ============================================================================
 
-  #registerActionHandlers(): void {
-    const getActiveChainsHandler: BackendWebsocketDataSourceGetActiveChainsAction['handler'] =
-      async () => this.getActiveChains();
+  async #initializeActiveChains(): Promise<void> {
+    try {
+      const chains = await this.#fetchActiveChains();
+      const previous = [...this.state.activeChains];
+      this.updateActiveChains(chains, (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
 
-    const subscribeHandler: BackendWebsocketDataSourceSubscribeAction['handler'] =
-      async (request) => this.subscribe(request);
+      this.#chainsRefreshTimer = setInterval(() => {
+        this.#refreshActiveChains().catch(console.error);
+      }, DEFAULT_CHAINS_REFRESH_INTERVAL_MS);
+    } catch (error) {
+      log('Failed to fetch active chains', error);
+    }
+  }
 
-    const unsubscribeHandler: BackendWebsocketDataSourceUnsubscribeAction['handler'] =
-      async (subscriptionId) => this.unsubscribe(subscriptionId);
+  async #refreshActiveChains(): Promise<void> {
+    try {
+      const chains = await this.#fetchActiveChains();
+      const previousChains = new Set(this.state.activeChains);
+      const newChains = new Set(chains);
 
-    this.#messenger.registerActionHandler(
-      'BackendWebsocketDataSource:getActiveChains',
-      getActiveChainsHandler,
-    );
+      const added = chains.filter((chain) => !previousChains.has(chain));
+      const removed = Array.from(previousChains).filter(
+        (chain) => !newChains.has(chain),
+      );
 
-    this.#messenger.registerActionHandler(
-      'BackendWebsocketDataSource:subscribe',
-      subscribeHandler,
-    );
+      if (added.length > 0 || removed.length > 0) {
+        const previous = [...this.state.activeChains];
+        this.updateActiveChains(chains, (updatedChains) =>
+          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+        );
+      }
+    } catch (error) {
+      log('Failed to refresh active chains', error);
+    }
+  }
 
-    this.#messenger.registerActionHandler(
-      'BackendWebsocketDataSource:unsubscribe',
-      unsubscribeHandler,
-    );
+  async #fetchActiveChains(): Promise<ChainId[]> {
+    const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
+    return response.fullSupport.map(toChainId);
   }
 
   #subscribeToEvents(): void {
-    // Listen for WebSocket connection state changes
-    this.#messenger.subscribe(
+    type ConnectionStatePayload = {
+      state: WebSocketState;
+      [key: string]: unknown;
+    };
+    // Listen for WebSocket connection state changes (event not in AssetsControllerEvents).
+    (
+      this.#messenger as unknown as {
+        subscribe: (e: string, h: (p: ConnectionStatePayload) => void) => void;
+      }
+    ).subscribe(
       'BackendWebSocketService:connectionStateChanged',
-      (connectionInfo) => {
+      (connectionInfo: ConnectionStatePayload) => {
         if (connectionInfo.state === ('connected' as WebSocketState)) {
-          // WebSocket connected - process any pending subscriptions
           this.#processPendingSubscriptions().catch(console.error);
         } else if (
           connectionInfo.state === ('disconnected' as WebSocketState)
         ) {
-          // When disconnected, all subscriptions are cleared server-side
-          // Move active subscriptions to pending for re-subscription on reconnect
           this.#handleDisconnect();
         }
       },
     );
+  }
 
-    // Listen for AccountsApiDataSource active chains changes
-    // This keeps BackendWebsocketDataSource in sync with the supported chains
-    // since both use the same backend infrastructure
-    this.#messenger.subscribe(
-      'AccountsApiDataSource:activeChainsUpdated',
-      (chains: ChainId[]) => {
-        this.updateActiveChains(chains, (updatedChains) =>
-          this.#messenger.call(
-            'AssetsController:activeChainsUpdate',
-            CONTROLLER_NAME,
-            updatedChains,
-          ),
-        );
-      },
-    );
+  /**
+   * Sync active chains from AccountsApiDataSource.
+   * Called by AssetsController.handleActiveChainsUpdate when the callback is
+   * invoked for BackendWebsocketDataSource (no messenger call; controller already updated).
+   *
+   * @param chains - Updated active chain IDs from AccountsApiDataSource.
+   */
+  setActiveChainsFromAccountsApi(chains: ChainId[]): void {
+    this.updateActiveChains(chains, () => undefined);
   }
 
   /**
@@ -361,12 +389,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
    * @param chains - Array of supported chain IDs.
    */
   updateSupportedChains(chains: ChainId[]): void {
+    const previous = [...this.state.activeChains];
     this.updateActiveChains(chains, (updatedChains) =>
-      this.#messenger.call(
-        'AssetsController:activeChainsUpdate',
-        CONTROLLER_NAME,
-        updatedChains,
-      ),
+      this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
     );
   }
 
@@ -382,9 +407,11 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       this.state.activeChains.includes(chainId),
     );
 
-    const addresses = request.accounts.map((a) => a.address);
+    const addresses = request.accountsWithSupportedChains.map(
+      (a) => a.account.address,
+    );
 
-    if (chainsToSubscribe.length === 0) {
+    if (addresses.length === 0) {
       return;
     }
 
@@ -429,14 +456,17 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     // Clean up existing subscription if any
     await this.unsubscribe(subscriptionId);
 
-    // Extract unique namespaces from chains (e.g., eip155, solana)
-    const namespaces = getUniqueNamespaces(chainsToSubscribe);
+    // Always subscribe to eip155 and solana account activity, plus any namespaces from requested chains
+    const namespaces = getNamespacesForAccountActivity(chainsToSubscribe);
 
-    // Build channel names using CAIP-10 wildcard format
+    // Build channel names: use namespace-appropriate address per account (eip155 = hex, solana = base58)
     const channels: string[] = [];
     for (const namespace of namespaces) {
-      for (const address of addresses) {
-        channels.push(buildAccountActivityChannel(namespace, address));
+      for (const { account } of request.accountsWithSupportedChains) {
+        const address = getAddressForAccountActivity(account, namespace);
+        if (address) {
+          channels.push(buildAccountActivityChannel(namespace, address));
+        }
       }
     }
 
@@ -448,7 +478,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
           channels,
           channelType: CHANNEL_TYPE,
           callback: (notification: ServerNotificationMessage) => {
-            this.#handleNotification(notification, request);
+            this.#handleNotification(notification, subscriptionId);
           },
         },
       );
@@ -461,7 +491,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         cleanup: () => {
           const wsSub = this.#wsSubscriptions.get(subscriptionId);
           if (wsSub) {
-            wsSub.unsubscribe().catch((unsubErr) => {
+            wsSub.unsubscribe().catch((unsubErr: unknown) => {
               log('Error unsubscribing', { subscriptionId, error: unsubErr });
             });
             this.#wsSubscriptions.delete(subscriptionId);
@@ -471,6 +501,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         },
         chains: chainsToSubscribe,
         addresses,
+        onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
       });
 
       // Store original request for reconnection
@@ -490,9 +521,15 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   #handleNotification(
     notification: ServerNotificationMessage,
-    request: DataRequest,
+    subscriptionId: string,
   ): void {
     try {
+      const subscription = this.activeSubscriptions.get(subscriptionId);
+      const request = this.#subscriptionRequests.get(subscriptionId)?.request;
+      if (!request) {
+        return;
+      }
+
       const activityMessage =
         notification.data as unknown as AccountActivityMessage;
       const { address, tx, updates } = activityMessage;
@@ -504,10 +541,14 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       // Extract chain ID from transaction (CAIP-2 format, e.g., "eip155:8453")
       const chainId = tx.chain as ChainId;
 
-      // Find matching account in request
-      const account = request.accounts.find(
-        (a) => a.address.toLowerCase() === address.toLowerCase(),
-      );
+      // Find matching account in request (eip155: case-insensitive hex; solana: exact base58)
+      const account = request.accountsWithSupportedChains
+        .map((entry) => entry.account)
+        .find((a) =>
+          a.address.startsWith('0x')
+            ? a.address.toLowerCase() === address.toLowerCase()
+            : a.address === address,
+        );
       if (!account) {
         return;
       }
@@ -516,11 +557,10 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       // Process all balance updates from the activity message
       const response = this.#processBalanceUpdates(updates, chainId, accountId);
 
-      if (Object.keys(response).length > 0) {
-        // Report update to AssetsController
-        this.#messenger
-          .call('AssetsController:assetsUpdate', response, CONTROLLER_NAME)
-          .catch(console.error);
+      if (Object.keys(response).length > 0 && subscription) {
+        Promise.resolve(subscription.onAssetsUpdate(response)).catch(
+          console.error,
+        );
       }
     } catch (error) {
       log('Error handling notification', error);
@@ -592,6 +632,11 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   // ============================================================================
 
   destroy(): void {
+    if (this.#chainsRefreshTimer) {
+      clearInterval(this.#chainsRefreshTimer);
+      this.#chainsRefreshTimer = null;
+    }
+
     // Clean up WebSocket subscriptions
     // Convert to array first to avoid modifying map during iteration
     const subscriptions = [...this.#wsSubscriptions.values()];
