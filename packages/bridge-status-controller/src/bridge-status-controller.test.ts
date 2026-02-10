@@ -3961,6 +3961,9 @@ describe('BridgeStatusController', () => {
         expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
 
         // Now advance timer again - polling should work since attempts are reset
+        // Advance in steps to allow recursive setTimeout to be set up properly with Jest 28
+        jest.advanceTimersByTime(0);
+        await flushPromises();
         jest.advanceTimersByTime(10000);
         await flushPromises();
 
@@ -4092,6 +4095,7 @@ describe('BridgeStatusController', () => {
     let consoleFnSpy: jest.SpyInstance;
 
     beforeEach(() => {
+      jest.useFakeTimers();
       jest.clearAllTimers();
       jest.clearAllMocks();
       // eslint-disable-next-line no-empty-function
@@ -4195,6 +4199,7 @@ describe('BridgeStatusController', () => {
     afterEach(() => {
       bridgeStatusController.stopAllPolling();
       console.warn = consoleFn;
+      jest.useRealTimers();
     });
 
     describe('TransactionController:transactionFailed', () => {
@@ -4474,7 +4479,6 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for bridge tx if status response is invalid', async () => {
-        jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
@@ -4497,8 +4501,8 @@ describe('BridgeStatusController', () => {
         });
 
         jest.advanceTimersByTime(500);
-        bridgeStatusController.stopAllPolling();
         await flushPromises();
+        bridgeStatusController.stopAllPolling();
 
         expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
         expect(mockFetchFn).toHaveBeenCalledTimes(3);
@@ -4522,7 +4526,6 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for completed bridge tx with featureId', async () => {
-        jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
@@ -4540,8 +4543,8 @@ describe('BridgeStatusController', () => {
         });
 
         jest.advanceTimersByTime(30500);
-        bridgeStatusController.stopAllPolling();
         await flushPromises();
+        bridgeStatusController.stopAllPolling();
 
         expect(messengerCallSpy).not.toHaveBeenCalled();
         expect(mockFetchFn).toHaveBeenCalledWith(
@@ -4559,7 +4562,6 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for failed bridge tx with featureId', async () => {
-        jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
@@ -4577,8 +4579,8 @@ describe('BridgeStatusController', () => {
         });
 
         jest.advanceTimersByTime(40500);
-        bridgeStatusController.stopAllPolling();
         await flushPromises();
+        bridgeStatusController.stopAllPolling();
 
         expect(messengerCallSpy).not.toHaveBeenCalled();
         expect(mockFetchFn).toHaveBeenCalledWith(
