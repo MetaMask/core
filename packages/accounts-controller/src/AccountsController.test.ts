@@ -1070,7 +1070,8 @@ describe('AccountsController', () => {
               },
               accountIdByAddress: {
                 [mockAccount.address]: mockAccount.id,
-                [mockAccount2WithCustomName.address]: mockAccount2WithCustomName.id,
+                [mockAccount2WithCustomName.address]:
+                  mockAccount2WithCustomName.id,
               },
               selectedAccount: mockAccount.id,
             },
