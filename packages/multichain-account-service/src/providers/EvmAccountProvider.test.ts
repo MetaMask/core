@@ -358,7 +358,7 @@ describe('EvmAccountProvider', () => {
       accounts: [],
     });
 
-    // First create accounts 0-4 to avoid gaps
+    // First create accounts 0-4 to avoid gaps.
     await provider.createAccounts({
       type: AccountCreationType.Bip44DeriveIndexRange,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -368,7 +368,7 @@ describe('EvmAccountProvider', () => {
       },
     });
 
-    // Now create a single account at index 5 where from equals to
+    // Now create a single account at index 5 where from equals to.
     const newAccounts = await provider.createAccounts({
       type: AccountCreationType.Bip44DeriveIndexRange,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -379,7 +379,7 @@ describe('EvmAccountProvider', () => {
     });
 
     expect(newAccounts).toHaveLength(1);
-    expect(keyring.addAccounts).toHaveBeenCalledTimes(6); // 5 from setup + 1 from the test
+    expect(keyring.addAccounts).toHaveBeenCalledTimes(6); // 5 from setup + 1 from the test.
     expect(
       isBip44Account(newAccounts[0]) &&
         newAccounts[0].options.entropy.groupIndex,

@@ -591,7 +591,7 @@ describe('MultichainAccountService', () => {
 
   describe('createMultichainAccountGroups', () => {
     it('creates multiple multichain account groups up to maxGroupIndex', async () => {
-      // Start with group 0 existing to initialize the wallet
+      // Start with group 0 existing to initialize the wallet.
       const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
@@ -605,7 +605,7 @@ describe('MultichainAccountService', () => {
         accounts: [mockEvmAccount0, mockSolAccount0],
       });
 
-      // Mock accounts that will be returned when creating groups 1, 2
+      // Mock accounts that will be returned when creating groups 1, 2.
       const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(1)
@@ -624,13 +624,13 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(2)
         .get();
 
-      // Mock EVM provider to return new accounts for range 1-2
+      // Mock EVM provider to return new accounts for range 1-2.
       mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
         mockEvmAccount1,
         mockEvmAccount2,
       ]);
 
-      // Mock SOL provider for new groups
+      // Mock SOL provider for new groups.
       mocks.SolAccountProvider.createAccounts.mockResolvedValueOnce([
         mockSolAccount1,
       ]);
@@ -644,11 +644,11 @@ describe('MultichainAccountService', () => {
       });
 
       expect(groups).toHaveLength(3);
-      expect(groups[0].groupIndex).toBe(0); // Existing group
-      expect(groups[1].groupIndex).toBe(1); // New group
-      expect(groups[2].groupIndex).toBe(2); // New group
+      expect(groups[0].groupIndex).toBe(0); // Existing group.
+      expect(groups[1].groupIndex).toBe(1); // New group.
+      expect(groups[2].groupIndex).toBe(2); // New group.
 
-      // Verify EVM provider was called with range for new groups
+      // Verify EVM provider was called with range for new groups.
       expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
         type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -687,7 +687,7 @@ describe('MultichainAccountService', () => {
     });
 
     it('publishes multichainAccountGroupCreated events for each new group', async () => {
-      // Start with group 0 existing to initialize the wallet
+      // Start with group 0 existing to initialize the wallet.
       const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
@@ -710,12 +710,12 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(1)
         .get();
 
-      // Mock EVM provider to return account for group 1
+      // Mock EVM provider to return account for group 1.
       mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
         mockEvmAccount1,
       ]);
 
-      // Mock SOL provider for group 1
+      // Mock SOL provider for group 1.
       mocks.SolAccountProvider.createAccounts.mockResolvedValueOnce([
         mockSolAccount1,
       ]);
@@ -727,8 +727,8 @@ describe('MultichainAccountService', () => {
         maxGroupIndex: 1,
       });
 
-      // Should publish event for the new group (group 1)
-      // Group 0 already existed, so it shouldn't publish an event for it
+      // Should publish event for the new group (group 1).
+      // Group 0 already existed, so it shouldn't publish an event for it.
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainAccountService:multichainAccountGroupCreated',
         expect.objectContaining({ groupIndex: 1 }),

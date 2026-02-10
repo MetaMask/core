@@ -330,7 +330,7 @@ export class MultichainAccountWallet<
     const nextGroupIndex = this.getNextGroupIndex();
     const createdGroups: MultichainAccountGroup<Account>[] = [];
 
-    // Get existing groups (startGroupIndex to nextGroupIndex-1)
+    // Get existing groups (startGroupIndex to nextGroupIndex-1).
     for (
       let i = startGroupIndex;
       i < Math.min(nextGroupIndex, endGroupIndex + 1);
@@ -342,7 +342,7 @@ export class MultichainAccountWallet<
       }
     }
 
-    // Create new groups (max(nextGroupIndex, startGroupIndex) to endGroupIndex)
+    // Create new groups (max(nextGroupIndex, startGroupIndex) to endGroupIndex).
     const firstNewGroupIndex = Math.max(nextGroupIndex, startGroupIndex);
 
     if (firstNewGroupIndex <= endGroupIndex) {
@@ -356,7 +356,7 @@ export class MultichainAccountWallet<
         'EVM account provider must be first',
       );
 
-      // Create EVM accounts for all new groups using range
+      // Create EVM accounts for all new groups using range.
       const evmAccounts = await evmProvider
         .createAccounts({
           type: AccountCreationType.Bip44DeriveIndexRange,
@@ -392,14 +392,14 @@ export class MultichainAccountWallet<
           throw error;
         });
 
-      // Map EVM accounts to group indices
+      // Map EVM accounts to group indices.
       const accountsByGroupIndex = new Map<number, string[]>();
       evmAccounts.forEach((account, offset) => {
         const groupIndex = firstNewGroupIndex + offset;
         accountsByGroupIndex.set(groupIndex, [account.id]);
       });
 
-      // Create MultichainAccountGroup instances for each new group
+      // Create MultichainAccountGroup instances for each new group.
       for (
         let groupIndex = firstNewGroupIndex;
         groupIndex <= endGroupIndex;
@@ -416,7 +416,7 @@ export class MultichainAccountWallet<
 
         group.init({ [evmProvider.getName()]: evmAccountIds });
 
-        // Create non-EVM accounts
+        // Create non-EVM accounts.
         if (options.waitForAllProvidersToFinishCreatingAccounts) {
           await this.#createNonEvmAccounts({
             groupIndex,
@@ -548,14 +548,14 @@ export class MultichainAccountWallet<
     return await this.#withLock('in-progress:create-accounts', async () => {
       const nextGroupIndex = this.getNextGroupIndex();
 
-      // Validate that we can only create the next available group or an existing one
+      // Validate that we can only create the next available group or an existing one.
       if (groupIndex > nextGroupIndex) {
         throw new Error(
           `You cannot use a group index that is higher than the next available one: expected <=${nextGroupIndex}, got ${groupIndex}`,
         );
       }
 
-      // If the group already exists, return it
+      // If the group already exists, return it.
       const existingGroup = this.getMultichainAccountGroup(groupIndex);
       if (existingGroup) {
         this.#log(
@@ -564,12 +564,12 @@ export class MultichainAccountWallet<
         return existingGroup;
       }
 
-      // Create the group using the private range method
+      // Create the group using the private range method.
       const groups = await this.#createMultichainAccountGroupsRange(
         groupIndex,
         groupIndex,
         options,
-        false, // Not batch mode
+        false, // Not batch mode.
       );
 
       const group = groups[0];
@@ -601,12 +601,12 @@ export class MultichainAccountWallet<
         throw new Error('maxGroupIndex must be >= 0');
       }
 
-      // Create groups from 0 to maxGroupIndex using the private range method
+      // Create groups from 0 to maxGroupIndex using the private range method.
       return this.#createMultichainAccountGroupsRange(
         0,
         maxGroupIndex,
         options,
-        true, // Batch mode
+        true, // Batch mode.
       );
     });
   }
