@@ -71,7 +71,6 @@
 /packages/eip-5792-middleware              @MetaMask/wallet-integrations
 
 ## Core Platform Team
-/packages/ui-state-controller          @MetaMask/core-platform
 /packages/base-controller              @MetaMask/core-platform
 /packages/build-utils                  @MetaMask/core-platform
 /packages/composable-controller        @MetaMask/core-platform
@@ -109,6 +108,7 @@
 /packages/permission-log-controller             @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/storage-service                       @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/client-controller                     @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -205,3 +205,5 @@
 /packages/claims-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
 /packages/ai-controllers/package.json @MetaMask/social-ai @MetaMask/core-platform
 /packages/ai-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
+/packages/client-controller/package.json @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/client-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform

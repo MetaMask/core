@@ -59,7 +59,7 @@
       "path": "./packages/claims-controller/tsconfig.build.json"
     },
     {
-      "path": "./packages/ui-state-controller/tsconfig.build.json"
+      "path": "./packages/client-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/composable-controller/tsconfig.build.json"

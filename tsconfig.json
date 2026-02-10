@@ -60,7 +60,7 @@
       "path": "./packages/claims-controller"
     },
     {
-      "path": "./packages/ui-state-controller"
+      "path": "./packages/client-controller"
     },
     {
       "path": "./packages/composable-controller"

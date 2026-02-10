@@ -6,21 +6,21 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { UiStateControllerMethodActions } from './UiStateController-method-action-types';
+import type { ClientControllerMethodActions } from './ClientController-method-action-types';
 
 // === GENERAL ===
 
 /**
- * The name of the {@link UiStateController}.
+ * The name of the {@link ClientController}.
  */
-export const controllerName = 'UiStateController';
+export const controllerName = 'ClientController';
 
 // === STATE ===
 
 /**
- * Describes the shape of the state object for {@link UiStateController}.
+ * Describes the shape of the state object for {@link ClientController}.
  */
-export type UiStateControllerState = {
+export type ClientControllerState = {
   /**
    * Whether the user has opened at least one window or screen
    * containing the MetaMask UI. These windows or screens may or
@@ -30,18 +30,18 @@ export type UiStateControllerState = {
 };
 
 /**
- * Constructs the default {@link UiStateController} state.
+ * Constructs the default {@link ClientController} state.
  *
- * @returns The default {@link UiStateController} state.
+ * @returns The default {@link ClientController} state.
  */
-export function getDefaultUiStateControllerState(): UiStateControllerState {
+export function getDefaultClientControllerState(): ClientControllerState {
   return {
     isUiOpen: false,
   };
 }
 
 /**
- * The metadata for each property in {@link UiStateControllerState}.
+ * The metadata for each property in {@link ClientControllerState}.
  */
 const controllerMetadata = {
   isUiOpen: {
@@ -50,77 +50,77 @@ const controllerMetadata = {
     persist: false,
     usedInUi: false,
   },
-} satisfies StateMetadata<UiStateControllerState>;
+} satisfies StateMetadata<ClientControllerState>;
 
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = ['setUiOpen'] as const;
 
 /**
- * Retrieves the state of the {@link UiStateController}.
+ * Retrieves the state of the {@link ClientController}.
  */
-export type UiStateControllerGetStateAction = ControllerGetStateAction<
+export type ClientControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
-  UiStateControllerState
+  ClientControllerState
 >;
 
 /**
- * Actions that {@link UiStateController} exposes.
+ * Actions that {@link ClientController} exposes.
  */
-export type UiStateControllerActions =
-  | UiStateControllerGetStateAction
-  | UiStateControllerMethodActions;
+export type ClientControllerActions =
+  | ClientControllerGetStateAction
+  | ClientControllerMethodActions;
 
 /**
- * Actions from other messengers that {@link UiStateController} calls.
+ * Actions from other messengers that {@link ClientController} calls.
  */
 type AllowedActions = never;
 
 /**
- * Published when the state of {@link UiStateController} changes.
+ * Published when the state of {@link ClientController} changes.
  */
-export type UiStateControllerStateChangeEvent = ControllerStateChangeEvent<
+export type ClientControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
-  UiStateControllerState
+  ClientControllerState
 >;
 
 /**
- * Events that {@link UiStateController} exposes.
+ * Events that {@link ClientController} exposes.
  */
-export type UiStateControllerEvents = UiStateControllerStateChangeEvent;
+export type ClientControllerEvents = ClientControllerStateChangeEvent;
 
 /**
- * Events from other messengers that {@link UiStateController} subscribes to.
+ * Events from other messengers that {@link ClientController} subscribes to.
  */
 type AllowedEvents = never;
 
 /**
- * The messenger for {@link UiStateController}.
+ * The messenger for {@link ClientController}.
  */
-export type UiStateControllerMessenger = Messenger<
+export type ClientControllerMessenger = Messenger<
   typeof controllerName,
-  UiStateControllerActions | AllowedActions,
-  UiStateControllerEvents | AllowedEvents
+  ClientControllerActions | AllowedActions,
+  ClientControllerEvents | AllowedEvents
 >;
 
 // === CONTROLLER DEFINITION ===
 
 /**
- * The options for constructing a {@link UiStateController}.
+ * The options for constructing a {@link ClientController}.
  */
-export type UiStateControllerOptions = {
+export type ClientControllerOptions = {
   /**
    * The messenger suited for this controller.
    */
-  messenger: UiStateControllerMessenger;
+  messenger: ClientControllerMessenger;
   /**
    * The initial state to set on this controller.
    */
-  state?: Partial<UiStateControllerState>;
+  state?: Partial<ClientControllerState>;
 };
 
 /**
- * `UiStateController` manages the application lifecycle state.
+ * `ClientController` manages the application lifecycle state.
  *
  * This controller tracks whether the MetaMask UI is open and publishes state
  * change events that other controllers can subscribe to for adjusting their behavior.
@@ -131,19 +131,19 @@ export type UiStateControllerOptions = {
  * - Real-time subscriptions can pause when not visible
  *
  * **Platform Integration:**
- * Platform code should call `UiStateController:setUiOpen` via messenger.
+ * Platform code should call `ClientController:setUiOpen` via messenger.
  *
  * @example
  * ```typescript
  * // In MetamaskController or platform code
  * onUiOpened() {
  *   // ...
- *   this.controllerMessenger.call('UiStateController:setUiOpen', true);
+ *   this.controllerMessenger.call('ClientController:setUiOpen', true);
  * }
  *
  * onUiClosed() {
  *   // ...
- *   this.controllerMessenger.call('UiStateController:setUiOpen', false);
+ *   this.controllerMessenger.call('ClientController:setUiOpen', false);
  * }
  *
  * // Consumer controller subscribing to state changes
@@ -152,7 +152,7 @@ export type UiStateControllerOptions = {
  *     super({ messenger, ... });
  *
  *     messenger.subscribe(
- *       'UiStateController:stateChange',
+ *       'ClientController:stateChange',
  *       (isClientOpen) => {
  *         if (isClientOpen) {
  *           this.resumePolling();
@@ -160,31 +160,31 @@ export type UiStateControllerOptions = {
  *           this.pausePolling();
  *         }
  *       },
- *       uiStateControllerSelectors.selectIsUiOpen,
+ *       clientControllerSelectors.selectIsUiOpen,
  *     );
  *   }
  * }
  * ```
  */
-export class UiStateController extends BaseController<
+export class ClientController extends BaseController<
   typeof controllerName,
-  UiStateControllerState,
-  UiStateControllerMessenger
+  ClientControllerState,
+  ClientControllerMessenger
 > {
   /**
-   * Constructs a new {@link UiStateController}.
+   * Constructs a new {@link ClientController}.
    *
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this controller.
    * @param options.state - The initial state to set on this controller.
    */
-  constructor({ messenger, state = {} }: UiStateControllerOptions) {
+  constructor({ messenger, state = {} }: ClientControllerOptions) {
     super({
       messenger,
       metadata: controllerMetadata,
       name: controllerName,
       state: {
-        ...getDefaultUiStateControllerState(),
+        ...getDefaultClientControllerState(),
         ...state,
       },
     });
