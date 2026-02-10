@@ -64,5 +64,10 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@metamask/messenger": "workspace:^",
+    "@metamask/utils": "^11.9.0",
+    "@tanstack/query-core": "^4.43.0"
   }
 }
