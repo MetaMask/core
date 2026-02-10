@@ -52,7 +52,7 @@
     "@metamask/controller-utils": "^11.18.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/polling-controller": "^16.0.2",
-    "@metamask/profile-sync-controller": "^27.0.0",
+    "@metamask/profile-sync-controller": "^27.1.0",
     "@metamask/remote-feature-flag-controller": "^4.0.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.9.0",
