@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
+- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
+- Release 690.0.0 ([#7215](https://github.com/MetaMask/core/pull/7215))
+
 ### Added
 
 - Add support for Monad network (`0x8f`) in token scanning ([#7237](https://github.com/MetaMask/core/pull/7237))
