@@ -1,6 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
 import {
+  DEFAULT_ACROSS_API_BASE,
   DEFAULT_GAS_BUFFER,
   DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
   DEFAULT_RELAY_FALLBACK_GAS_MAX,
@@ -9,9 +10,12 @@ import {
   getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
+  getPayStrategiesConfig,
   getSlippage,
+  getStrategyOrder,
 } from './feature-flags';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
@@ -383,6 +387,72 @@ describe('Feature Flags Utils', () => {
       const supportedChains = getEIP7702SupportedChains(messenger);
 
       expect(supportedChains).toStrictEqual([]);
+    });
+  });
+
+  describe('getPayStrategiesConfig', () => {
+    it('returns defaults when pay strategies config is missing', () => {
+      const config = getPayStrategiesConfig(messenger);
+
+      expect(config.across).toStrictEqual(
+        expect.objectContaining({
+          allowSameChain: false,
+          apiBase: DEFAULT_ACROSS_API_BASE,
+          enabled: true,
+        }),
+      );
+      expect(config.relay).toStrictEqual(
+        expect.objectContaining({
+          enabled: true,
+          relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
+        }),
+      );
+    });
+
+    it('returns feature-flag values when provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: {
+                allowSameChain: true,
+                apiBase: 'https://across.test',
+                enabled: false,
+              },
+              relay: {
+                enabled: false,
+                relayQuoteUrl: 'https://relay.test',
+              },
+            },
+          },
+        },
+      });
+
+      const config = getPayStrategiesConfig(messenger);
+
+      expect(config.across).toStrictEqual(
+        expect.objectContaining({
+          allowSameChain: true,
+          apiBase: 'https://across.test',
+          enabled: false,
+        }),
+      );
+      expect(config.relay).toStrictEqual(
+        expect.objectContaining({
+          enabled: false,
+          relayQuoteUrl: 'https://relay.test',
+        }),
+      );
+    });
+  });
+
+  describe('getStrategyOrder', () => {
+    it('returns default strategy order', () => {
+      expect(getStrategyOrder(messenger)).toStrictEqual([
+        TransactionPayStrategy.Relay,
+        TransactionPayStrategy.Across,
+      ]);
     });
   });
 });
