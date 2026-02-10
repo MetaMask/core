@@ -55,6 +55,7 @@ export type {
   RampsServiceGetCountriesAction,
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,
