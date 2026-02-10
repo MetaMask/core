@@ -49,8 +49,9 @@ export async function getSubscriptionErrorFromResponse(
         : 'Unknown error';
     const networkError = `error: ${error}, statusCode: ${statusCode}`;
     return new Error(networkError);
-  } catch {
-    return new Error(`HTTP ${statusCode} error`);
+  } catch (error) {
+    const errMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Error(`HTTP ${statusCode} error: ${errMessage}`);
   }
 }
 

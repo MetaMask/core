@@ -12,6 +12,7 @@ type MockResponseOptions = {
   textData?: string;
   jsonThrows?: boolean;
   data?: string;
+  jsonThrowsWithString?: boolean;
 };
 
 function createMockResponse({
@@ -20,17 +21,22 @@ function createMockResponse({
   jsonData = {},
   textData = 'plain error',
   jsonThrows = false,
+  jsonThrowsWithString = false,
   data,
 }: MockResponseOptions): Response {
+  let json = jest.fn().mockResolvedValue(jsonData);
+  if (jsonThrows) {
+    json = jest.fn().mockRejectedValue(new Error('bad json'));
+  } else if (jsonThrowsWithString) {
+    json = jest.fn().mockRejectedValue('string error');
+  }
   return {
     status,
     headers: {
       get: (key: string) =>
         key.toLowerCase() === 'content-type' ? contentType : null,
     },
-    json: jsonThrows
-      ? jest.fn().mockRejectedValue(new Error('bad json'))
-      : jest.fn().mockResolvedValue(jsonData),
+    json,
     text: jest.fn().mockResolvedValue(textData),
     data,
   } as unknown as Response;
@@ -168,7 +174,19 @@ describe('errors', () => {
 
       const error = await getSubscriptionErrorFromResponse(response);
 
-      expect(error.message).toBe('HTTP 502 error');
+      expect(error.message).toBe('HTTP 502 error: bad json');
+    });
+
+    it('returns generic HTTP error when parsing fails for string error', async () => {
+      const response = createMockResponse({
+        contentType: 'application/json',
+        status: 502,
+        jsonThrowsWithString: true,
+      });
+
+      const error = await getSubscriptionErrorFromResponse(response);
+
+      expect(error.message).toBe('HTTP 502 error: Unknown error');
     });
   });
 
