@@ -5,7 +5,7 @@ import {
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import { EthScope, SolScope } from '@metamask/keyring-api';
+import { AccountCreationType, EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { GroupState } from './MultichainAccountGroup';
@@ -195,10 +195,12 @@ describe('MultichainAccount', () => {
       await group.alignAccounts();
 
       expect(providers[0].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });
@@ -225,6 +227,7 @@ describe('MultichainAccount', () => {
       await group.alignAccounts();
 
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });
@@ -252,10 +255,12 @@ describe('MultichainAccount', () => {
       await group.alignAccounts();
 
       expect(providers[1].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });
       expect(providers[2].createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: wallet.entropySource,
         groupIndex,
       });
