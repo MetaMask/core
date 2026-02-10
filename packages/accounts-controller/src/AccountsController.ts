@@ -58,9 +58,9 @@ export type AccountId = string;
 export type AccountsControllerState = {
   internalAccounts: {
     accounts: Record<AccountId, InternalAccount>;
-    accountIdByAddress: Record<string, AccountId>;
     selectedAccount: string; // id of the selected account
   };
+  accountIdByAddress: Record<string, AccountId>;
 };
 
 export type AccountsControllerGetStateAction = ControllerGetStateAction<
@@ -224,14 +224,20 @@ const accountsControllerMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  accountIdByAddress: {
+    includeInStateLogs: false,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const defaultState: AccountsControllerState = {
   internalAccounts: {
     accounts: {},
-    accountIdByAddress: {},
     selectedAccount: '',
   },
+  accountIdByAddress: {},
 };
 
 export const EMPTY_ACCOUNT = {
@@ -439,8 +445,7 @@ export class AccountsController extends BaseController<
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    const accountId =
-      this.state.internalAccounts.accountIdByAddress[address.toLowerCase()];
+    const accountId = this.state.accountIdByAddress[address.toLowerCase()];
     return accountId ? this.getAccount(accountId) : undefined;
   }
 
@@ -573,7 +578,7 @@ export class AccountsController extends BaseController<
     const existingInternalAccounts = this.state.internalAccounts.accounts;
     const internalAccounts: AccountsControllerState['internalAccounts']['accounts'] =
       {};
-    const accountIdByAddress: AccountsControllerState['internalAccounts']['accountIdByAddress'] =
+    const accountIdByAddress: AccountsControllerState['accountIdByAddress'] =
       {};
 
     const { keyrings } = this.messenger.call('KeyringController:getState');
@@ -624,7 +629,7 @@ export class AccountsController extends BaseController<
 
     this.#update((state) => {
       state.internalAccounts.accounts = internalAccounts;
-      state.internalAccounts.accountIdByAddress = accountIdByAddress;
+      state.accountIdByAddress = accountIdByAddress;
     });
   }
 
@@ -860,14 +865,12 @@ export class AccountsController extends BaseController<
 
     this.#update(
       (state) => {
-        const { internalAccounts } = state;
+        const { internalAccounts, accountIdByAddress } = state;
 
         for (const patch of [patches.snap, patches.normal]) {
           for (const account of patch.removed) {
             delete internalAccounts.accounts[account.id];
-            delete internalAccounts.accountIdByAddress[
-              account.address.toLowerCase()
-            ];
+            delete accountIdByAddress[account.address.toLowerCase()];
 
             diff.removed.push(account.id);
           }
@@ -896,9 +899,7 @@ export class AccountsController extends BaseController<
                 },
               };
 
-              internalAccounts.accountIdByAddress[
-                account.address.toLowerCase()
-              ] = account.id;
+              accountIdByAddress[account.address.toLowerCase()] = account.id;
 
               diff.added.push(internalAccounts.accounts[account.id]);
             }

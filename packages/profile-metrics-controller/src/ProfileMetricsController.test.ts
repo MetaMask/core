@@ -150,11 +150,11 @@ describe('ProfileMetricsController', () => {
                           [account1.id]: account1,
                           [account2.id]: account2,
                         },
-                        accountIdByAddress: {
-                          [account1.address]: account1.id,
-                          [account2.address]: account2.id,
-                        },
                         selectedAccount: account1.id,
+                      },
+                      accountIdByAddress: {
+                        [account1.address]: account1.id,
+                        [account2.address]: account2.id,
                       },
                     };
                   },

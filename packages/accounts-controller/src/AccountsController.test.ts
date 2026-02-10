@@ -65,9 +65,9 @@ const actualUUID = jest.requireActual('uuid').v4; // We also use uuid.v4 in our 
 const defaultState: AccountsControllerState = {
   internalAccounts: {
     accounts: {},
-    accountIdByAddress: {},
     selectedAccount: '',
   },
+  accountIdByAddress: {},
 };
 
 const mockGetKeyringByType = jest.fn();
@@ -379,10 +379,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockSnapAccount.id]: mockSnapAccount,
             },
-            accountIdByAddress: {
-              [mockSnapAccount.address]: mockSnapAccount.id,
-            },
             selectedAccount: mockSnapAccount.id,
+          },
+          accountIdByAddress: {
+            [mockSnapAccount.address]: mockSnapAccount.id,
           },
         },
         messenger,
@@ -426,10 +426,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockSnapAccount.id]: mockSnapAccount,
             },
-            accountIdByAddress: {
-              [mockSnapAccount.address]: mockSnapAccount.id,
-            },
             selectedAccount: mockSnapAccount.id,
+          },
+          accountIdByAddress: {
+            [mockSnapAccount.address]: mockSnapAccount.id,
           },
         },
         messenger,
@@ -473,10 +473,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockSnapAccount.id]: mockSnapAccount,
             },
-            accountIdByAddress: {
-              [mockSnapAccount.address]: mockSnapAccount.id,
-            },
             selectedAccount: mockSnapAccount.id,
+          },
+          accountIdByAddress: {
+            [mockSnapAccount.address]: mockSnapAccount.id,
           },
         },
         messenger,
@@ -521,10 +521,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockSnapAccount.id]: mockSnapAccount,
             },
-            accountIdByAddress: {
-              [mockSnapAccount.address]: mockSnapAccount.id,
-            },
             selectedAccount: mockSnapAccount.id,
+          },
+          accountIdByAddress: {
+            [mockSnapAccount.address]: mockSnapAccount.id,
           },
         },
         messenger,
@@ -571,10 +571,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockSnapAccount.id]: mockSnapAccount,
             },
-            accountIdByAddress: {
-              [mockSnapAccount.address]: mockSnapAccount.id,
-            },
             selectedAccount: mockSnapAccount.id,
+          },
+          accountIdByAddress: {
+            [mockSnapAccount.address]: mockSnapAccount.id,
           },
         },
         messenger,
@@ -603,9 +603,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -644,9 +644,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -683,9 +683,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -727,11 +727,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount3.id]: mockAccount3,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount3.address]: mockAccount3.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount3.address]: mockAccount3.id,
             },
           },
           messenger,
@@ -800,11 +800,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount4.id]: mockAccount4,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount4.address]: mockAccount4.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount4.address]: mockAccount4.id,
             },
           },
           messenger,
@@ -879,11 +879,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount4.id]: mockAccount4,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount4.address]: mockAccount4.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount4.address]: mockAccount4.id,
             },
           },
           messenger,
@@ -944,10 +944,10 @@ describe('AccountsController', () => {
               accounts: {
                 [mockAccount.id]: mockAccount,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
             },
           },
           messenger,
@@ -995,11 +995,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount2.id]: mockAccount2,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount2.address]: mockAccount2.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
             },
           },
           messenger,
@@ -1068,12 +1068,12 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount2WithCustomName.id]: mockAccount2WithCustomName,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount2WithCustomName.address]:
-                  mockAccount2WithCustomName.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2WithCustomName.address]:
+                mockAccount2WithCustomName.id,
             },
           },
           messenger,
@@ -1144,9 +1144,9 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: {},
-              accountIdByAddress: {},
               selectedAccount: 'missing',
             },
+            accountIdByAddress: {},
           },
           messenger,
         });
@@ -1187,11 +1187,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount3.id]: mockAccount3,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount3.address]: mockAccount3.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount3.address]: mockAccount3.id,
             },
           },
           messenger,
@@ -1226,10 +1226,10 @@ describe('AccountsController', () => {
               accounts: {
                 [mockAccount.id]: mockAccount,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
             },
           },
           messenger,
@@ -1296,11 +1296,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount2.id]: mockAccount2,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount2.address]: mockAccount2.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
             },
           },
           messenger,
@@ -1356,11 +1356,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount2.id]: mockAccount2,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount2.address]: mockAccount2.id,
-              },
               selectedAccount: 'missing-account',
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
             },
           },
           messenger,
@@ -1424,11 +1424,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount2.id]: mockAccount2WithoutLastSelected,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount2.address]: mockAccount2.id,
-              },
               selectedAccount: 'missing-account',
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
             },
           },
           messenger,
@@ -1500,11 +1500,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccountWithoutLastSelected,
                 [mockAccount2.id]: mockAccount2WithoutLastSelected,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount2.address]: mockAccount2.id,
-              },
               selectedAccount: 'missing-account',
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
             },
           },
           messenger,
@@ -1547,11 +1547,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount3.id]: mockAccount3,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount3.address]: mockAccount3.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount3.address]: mockAccount3.id,
             },
           },
           messenger,
@@ -1628,10 +1628,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockInitialAccount.id]: mockInitialAccount,
             },
-            accountIdByAddress: {
-              [mockInitialAccount.address]: mockInitialAccount.id,
-            },
             selectedAccount: mockInitialAccount.id,
+          },
+          accountIdByAddress: {
+            [mockInitialAccount.address]: mockInitialAccount.id,
           },
         },
         messenger,
@@ -1709,11 +1709,11 @@ describe('AccountsController', () => {
                 [mockExistingAccount1.id]: mockExistingAccount1,
                 [mockExistingAccount2.id]: mockExistingAccount2,
               },
-              accountIdByAddress: {
-                [mockExistingAccount1.address]: mockExistingAccount1.id,
-                [mockExistingAccount2.address]: mockExistingAccount2.id,
-              },
               selectedAccount: 'unknown',
+            },
+            accountIdByAddress: {
+              [mockExistingAccount1.address]: mockExistingAccount1.id,
+              [mockExistingAccount2.address]: mockExistingAccount2.id,
             },
           },
           messenger,
@@ -1755,9 +1755,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -1830,10 +1830,10 @@ describe('AccountsController', () => {
             accounts: {
               [account.id]: account,
             },
-            accountIdByAddress: {
-              [account.address]: account.id,
-            },
             selectedAccount: account.id,
+          },
+          accountIdByAddress: {
+            [account.address]: account.id,
           },
         },
         messenger,
@@ -1940,12 +1940,12 @@ describe('AccountsController', () => {
                 [mockNewerEvmAccount.id]: mockNewerEvmAccount,
                 [mockBtcAccount.id]: mockBtcAccount,
               },
-              accountIdByAddress: {
-                [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
-                [mockNewerEvmAccount.address]: mockNewerEvmAccount.id,
-                [mockBtcAccount.address]: mockBtcAccount.id,
-              },
               selectedAccount: mockNewerEvmAccount.id,
+            },
+            accountIdByAddress: {
+              [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
+              [mockNewerEvmAccount.address]: mockNewerEvmAccount.id,
+              [mockBtcAccount.address]: mockBtcAccount.id,
             },
           },
           messenger,
@@ -1970,11 +1970,11 @@ describe('AccountsController', () => {
                 [mockOlderEvmAccount.id]: mockOlderEvmAccount,
                 [mockBtcAccount.id]: mockBtcAccount,
               },
-              accountIdByAddress: {
-                [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
-                [mockBtcAccount.address]: mockBtcAccount.id,
-              },
               selectedAccount: mockBtcAccount.id,
+            },
+            accountIdByAddress: {
+              [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
+              [mockBtcAccount.address]: mockBtcAccount.id,
             },
           },
           messenger,
@@ -1999,10 +1999,10 @@ describe('AccountsController', () => {
               accounts: {
                 [mockOlderEvmAccount.id]: mockOlderEvmAccount,
               },
-              accountIdByAddress: {
-                [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
-              },
               selectedAccount: mockOlderEvmAccount.id,
+            },
+            accountIdByAddress: {
+              [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
             },
           },
           messenger,
@@ -2101,9 +2101,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -2167,9 +2167,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -2221,9 +2221,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -2273,10 +2273,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockAccount.id]: mockAccount,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
         messenger,
@@ -2346,9 +2346,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -2419,9 +2419,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -2492,9 +2492,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -2543,9 +2543,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
         messenger,
       });
@@ -2643,11 +2643,11 @@ describe('AccountsController', () => {
                 [mockExistingAccount1.id]: mockExistingAccount1,
                 [mockExistingAccount2.id]: mockExistingAccount2,
               },
-              accountIdByAddress: {
-                [mockExistingAccount1.address]: mockExistingAccount1.id,
-                [mockExistingAccount2.address]: mockExistingAccount2.id,
-              },
               selectedAccount: 'unknown',
+            },
+            accountIdByAddress: {
+              [mockExistingAccount1.address]: mockExistingAccount1.id,
+              [mockExistingAccount2.address]: mockExistingAccount2.id,
             },
           },
           messenger,
@@ -2729,10 +2729,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockHdAccount.id]: mockHdAccount,
             },
-            accountIdByAddress: {
-              [mockHdAccount.address]: mockHdAccount.id,
-            },
             selectedAccount: mockHdAccount.id,
+          },
+          accountIdByAddress: {
+            [mockHdAccount.address]: mockHdAccount.id,
           },
         },
         messenger,
@@ -2819,10 +2819,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockHdAccount.id]: mockHdAccount,
             },
-            accountIdByAddress: {
-              [mockHdAccount.address]: mockHdAccount.id,
-            },
             selectedAccount: mockHdAccount.id,
+          },
+          accountIdByAddress: {
+            [mockHdAccount.address]: mockHdAccount.id,
           },
         },
         messenger,
@@ -2849,9 +2849,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
       });
 
@@ -2860,11 +2860,9 @@ describe('AccountsController', () => {
           accounts: {
             [mockAccount.id]: mockAccount,
           },
-          accountIdByAddress: {
-            [mockAccount.address]: mockAccount.id,
-          },
           selectedAccount: mockAccount.id,
         },
+        accountIdByAddress: {},
       });
 
       expect(accountsController.state).toStrictEqual({
@@ -2872,11 +2870,9 @@ describe('AccountsController', () => {
           accounts: {
             [mockAccount.id]: mockAccount,
           },
-          accountIdByAddress: {
-            [mockAccount.address]: mockAccount.id,
-          },
           selectedAccount: mockAccount.id,
         },
+        accountIdByAddress: {},
       });
     });
 
@@ -2885,10 +2881,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -2901,10 +2897,10 @@ describe('AccountsController', () => {
           accounts: {
             [mockAccount.id]: mockAccount,
           },
-          accountIdByAddress: {
-            [mockAccount.address]: mockAccount.id,
-          },
           selectedAccount: mockAccount.id,
+        },
+        accountIdByAddress: {
+          [mockAccount.address]: mockAccount.id,
         },
       });
     });
@@ -2916,10 +2912,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -2933,10 +2929,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -2957,12 +2953,12 @@ describe('AccountsController', () => {
               [mockAccount2.id]: mockAccount2,
               [mockAccount3.id]: mockAccount3,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-              [mockAccount2.address]: mockAccount2.id,
-              [mockAccount3.address]: mockAccount3.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccount2.address]: mockAccount2.id,
+            [mockAccount3.address]: mockAccount3.id,
           },
         },
       });
@@ -3001,12 +2997,12 @@ describe('AccountsController', () => {
                 [mockNewerEvmAccount.id]: mockNewerEvmAccount,
                 [mockBtcAccount.id]: mockBtcAccount,
               },
-              accountIdByAddress: {
-                [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
-                [mockNewerEvmAccount.address]: mockNewerEvmAccount.id,
-                [mockBtcAccount.address]: mockBtcAccount.id,
-              },
               selectedAccount: lastSelectedAccount.id,
+            },
+            accountIdByAddress: {
+              [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
+              [mockNewerEvmAccount.address]: mockNewerEvmAccount.id,
+              [mockBtcAccount.address]: mockBtcAccount.id,
             },
           },
         });
@@ -3022,10 +3018,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockBtcAccount.id]: mockBtcAccount,
             },
-            accountIdByAddress: {
-              [mockBtcAccount.address]: mockBtcAccount.id,
-            },
             selectedAccount: mockBtcAccount.id,
+          },
+          accountIdByAddress: {
+            [mockBtcAccount.address]: mockBtcAccount.id,
           },
         },
       });
@@ -3040,9 +3036,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
       });
 
@@ -3085,12 +3081,12 @@ describe('AccountsController', () => {
                 [mockNewerEvmAccount.id]: mockNewerEvmAccount,
                 [mockBtcAccount.id]: mockBtcAccount,
               },
-              accountIdByAddress: {
-                [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
-                [mockNewerEvmAccount.address]: mockNewerEvmAccount.id,
-                [mockBtcAccount.address]: mockBtcAccount.id,
-              },
               selectedAccount: selectedAccount.id,
+            },
+            accountIdByAddress: {
+              [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
+              [mockNewerEvmAccount.address]: mockNewerEvmAccount.id,
+              [mockBtcAccount.address]: mockBtcAccount.id,
             },
           },
         });
@@ -3115,12 +3111,12 @@ describe('AccountsController', () => {
                 [mockNewerEvmAccount.id]: mockNewerEvmAccount,
                 [mockBtcAccount.id]: mockBtcAccount,
               },
-              accountIdByAddress: {
-                [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
-                [mockNewerEvmAccount.address]: mockNewerEvmAccount.id,
-                [mockBtcAccount.address]: mockBtcAccount.id,
-              },
               selectedAccount: mockBtcAccount.id,
+            },
+            accountIdByAddress: {
+              [mockOlderEvmAccount.address]: mockOlderEvmAccount.id,
+              [mockNewerEvmAccount.address]: mockNewerEvmAccount.id,
+              [mockBtcAccount.address]: mockBtcAccount.id,
             },
           },
         });
@@ -3138,9 +3134,9 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: {},
-            accountIdByAddress: {},
             selectedAccount: '',
           },
+          accountIdByAddress: {},
         },
       });
 
@@ -3167,12 +3163,12 @@ describe('AccountsController', () => {
               [mockAccount2.id]: mockAccount2,
               [mockNonEvmAccount.id]: mockNonEvmAccount,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-              [mockAccount2.address]: mockAccount2.id,
-              [mockNonEvmAccount.address]: mockNonEvmAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccount2.address]: mockAccount2.id,
+            [mockNonEvmAccount.address]: mockNonEvmAccount.id,
           },
         },
       });
@@ -3268,16 +3264,16 @@ describe('AccountsController', () => {
               [mockBtcMainnetAccount2.id]: mockBtcMainnetAccount2,
               [mockBtcTestnetAccount.id]: mockBtcTestnetAccount,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-              [mockAccount2.address]: mockAccount2.id,
-              [mockErc4337MainnetAccount.address]: mockErc4337MainnetAccount.id,
-              [mockErc4337TestnetAccount.address]: mockErc4337TestnetAccount.id,
-              [mockBtcMainnetAccount.address]: mockBtcMainnetAccount.id,
-              [mockBtcMainnetAccount2.address]: mockBtcMainnetAccount2.id,
-              [mockBtcTestnetAccount.address]: mockBtcTestnetAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccount2.address]: mockAccount2.id,
+            [mockErc4337MainnetAccount.address]: mockErc4337MainnetAccount.id,
+            [mockErc4337TestnetAccount.address]: mockErc4337TestnetAccount.id,
+            [mockBtcMainnetAccount.address]: mockBtcMainnetAccount.id,
+            [mockBtcMainnetAccount2.address]: mockBtcMainnetAccount2.id,
+            [mockBtcTestnetAccount.address]: mockBtcTestnetAccount.id,
           },
         },
       });
@@ -3294,11 +3290,11 @@ describe('AccountsController', () => {
               [mockAccount.id]: mockAccount,
               [mockAccount2.id]: mockAccount2,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-              [mockAccount2.address]: mockAccount2.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccount2.address]: mockAccount2.id,
           },
         },
       });
@@ -3318,10 +3314,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -3336,10 +3332,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -3359,11 +3355,11 @@ describe('AccountsController', () => {
               [mockAccount.id]: mockAccount,
               [mockAccount2.id]: mockAccount2,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-              [mockAccount2.address]: mockAccount2.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccount2.address]: mockAccount2.id,
           },
         },
       });
@@ -3396,11 +3392,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockNonEvmAccount.id]: mockNonEvmAccount,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockNonEvmAccount.address]: mockNonEvmAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockNonEvmAccount.address]: mockNonEvmAccount.id,
             },
           },
         });
@@ -3433,10 +3429,10 @@ describe('AccountsController', () => {
       initialState: {
         internalAccounts: {
           accounts: { [mockAccount.id]: mockAccount },
-          accountIdByAddress: {
-            [mockAccount.address]: mockAccount.id,
-          },
           selectedAccount: mockAccount.id,
+        },
+        accountIdByAddress: {
+          [mockAccount.address]: mockAccount.id,
         },
       },
     };
@@ -3465,11 +3461,11 @@ describe('AccountsController', () => {
               [mockAccount.id]: mockAccount,
               [mockAccount2.id]: mockAccount2,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-              [mockAccount2.address]: mockAccount2.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccount2.address]: mockAccount2.id,
           },
         },
       });
@@ -3529,10 +3525,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -3552,10 +3548,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -3574,10 +3570,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
             },
           },
         });
@@ -3608,11 +3604,11 @@ describe('AccountsController', () => {
               [mockAccount.id]: mockAccount,
               [mockAccountWithName.id]: mockAccountWithName,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-              [mockAccountWithName.address]: mockAccountWithName.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockAccountWithName.address]: mockAccountWithName.id,
           },
         },
       });
@@ -3629,10 +3625,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -3710,10 +3706,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockAccount.id]: mockAccount,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
         messenger,
@@ -3752,10 +3748,10 @@ describe('AccountsController', () => {
             accounts: {
               [mockAccount.id]: mockAccount,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
         messenger,
@@ -3803,10 +3799,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -3823,10 +3819,10 @@ describe('AccountsController', () => {
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
           },
         },
       });
@@ -3851,11 +3847,11 @@ describe('AccountsController', () => {
               [mockAccount.id]: mockAccount,
               [mockNonEvmAccount.id]: mockNonEvmAccount,
             },
-            accountIdByAddress: {
-              [mockAccount.address]: mockAccount.id,
-              [mockNonEvmAccount.address]: mockNonEvmAccount.id,
-            },
             selectedAccount: mockAccount.id,
+          },
+          accountIdByAddress: {
+            [mockAccount.address]: mockAccount.id,
+            [mockNonEvmAccount.address]: mockNonEvmAccount.id,
           },
         },
       });
@@ -3891,10 +3887,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
             },
           },
           messenger,
@@ -3924,11 +3920,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockNonEvmAccount.id]: mockNonEvmAccount,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockNonEvmAccount.address]: mockNonEvmAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockNonEvmAccount.address]: mockNonEvmAccount.id,
             },
           },
           messenger,
@@ -3957,11 +3953,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockNonEvmAccount.id]: mockNonEvmAccount,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockNonEvmAccount.address]: mockNonEvmAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockNonEvmAccount.address]: mockNonEvmAccount.id,
             },
           },
           messenger,
@@ -3984,10 +3980,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
             },
           },
           messenger,
@@ -4015,11 +4011,11 @@ describe('AccountsController', () => {
                 [mockAccount.id]: mockAccount,
                 [mockAccount2.id]: mockAccount2,
               },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-                [mockAccount2.address]: mockAccount2.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount2.address]: mockAccount2.id,
             },
           },
           messenger,
@@ -4056,10 +4052,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
             },
           },
           messenger,
@@ -4078,10 +4074,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
             },
           },
           messenger,
@@ -4106,10 +4102,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
             },
           },
           messenger,
@@ -4129,10 +4125,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
-              accountIdByAddress: {
-                [mockAccount.address]: mockAccount.id,
-              },
               selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
             },
           },
           messenger,
@@ -4175,7 +4171,6 @@ describe('AccountsController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "internalAccounts": Object {
-            "accountIdByAddress": Object {},
             "accounts": Object {},
             "selectedAccount": "",
           },
@@ -4195,7 +4190,6 @@ describe('AccountsController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "internalAccounts": Object {
-            "accountIdByAddress": Object {},
             "accounts": Object {},
             "selectedAccount": "",
           },
@@ -4214,8 +4208,8 @@ describe('AccountsController', () => {
         ),
       ).toMatchInlineSnapshot(`
         Object {
+          "accountIdByAddress": Object {},
           "internalAccounts": Object {
-            "accountIdByAddress": Object {},
             "accounts": Object {},
             "selectedAccount": "",
           },

@@ -31,6 +31,6 @@ export type AccountsControllerStrictState = IsAccountControllerState<{
   internalAccounts: {
     accounts: Record<InternalAccount['id'], StrictInternalAccount>;
     selectedAccount: InternalAccount['id'];
-    accountIdByAddress: Record<string, InternalAccount['id']>;
   };
+  accountIdByAddress: Record<string, InternalAccount['id']>;
 }>;
