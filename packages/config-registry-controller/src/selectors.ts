@@ -2,7 +2,7 @@ import { createSelector } from 'reselect';
 
 import { filterNetworks } from './config-registry-api-service';
 import type { RegistryNetworkConfig } from './config-registry-api-service';
-import type { ConfigRegistryState } from './ConfigRegistryController';
+import type { ConfigRegistryControllerState } from './ConfigRegistryController';
 
 /**
  * Base selector to get all networks from the controller state.
@@ -11,7 +11,7 @@ import type { ConfigRegistryState } from './ConfigRegistryController';
  * @returns All network configurations keyed by chain ID
  */
 export const selectNetworks = (
-  state: ConfigRegistryState,
+  state: ConfigRegistryControllerState,
 ): Record<string, RegistryNetworkConfig> => state.configs.networks;
 
 /**

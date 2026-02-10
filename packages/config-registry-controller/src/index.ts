@@ -1,5 +1,5 @@
 export type {
-  ConfigRegistryState,
+  ConfigRegistryControllerState,
   ConfigRegistryControllerOptions,
   ConfigRegistryControllerActions,
   ConfigRegistryControllerGetStateAction,

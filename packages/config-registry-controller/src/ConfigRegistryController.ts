@@ -29,7 +29,7 @@ export const DEFAULT_POLLING_INTERVAL = inMilliseconds(1, Duration.Day);
  * Tracks network configurations fetched from the config registry API,
  * along with metadata about the fetch status and caching.
  */
-export type ConfigRegistryState = {
+export type ConfigRegistryControllerState = {
   /**
    * Network configurations organized by chain ID.
    * Stores the full API response including isFeatured, isTestnet, etc.
@@ -86,7 +86,7 @@ const stateMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: false,
   },
-} satisfies StateMetadata<ConfigRegistryState>;
+} satisfies StateMetadata<ConfigRegistryControllerState>;
 
 /**
  * Default fallback configuration when no configs are available.
@@ -97,14 +97,17 @@ const DEFAULT_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {};
  * Published when the state of {@link ConfigRegistryController} changes.
  */
 export type ConfigRegistryControllerStateChangeEvent =
-  ControllerStateChangeEvent<typeof controllerName, ConfigRegistryState>;
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    ConfigRegistryControllerState
+  >;
 
 /**
  * Retrieves the state of the {@link ConfigRegistryController}.
  */
 export type ConfigRegistryControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
-  ConfigRegistryState
+  ConfigRegistryControllerState
 >;
 
 export type ConfigRegistryControllerStartPollingAction = {
@@ -146,7 +149,7 @@ export type ConfigRegistryMessenger = Messenger<
 
 export type ConfigRegistryControllerOptions = {
   messenger: ConfigRegistryMessenger;
-  state?: Partial<ConfigRegistryState>;
+  state?: Partial<ConfigRegistryControllerState>;
   pollingInterval?: number;
   fallbackConfig?: Record<string, RegistryNetworkConfig>;
   isConfigRegistryApiEnabled?: (messenger: ConfigRegistryMessenger) => boolean;
@@ -154,7 +157,7 @@ export type ConfigRegistryControllerOptions = {
 
 export class ConfigRegistryController extends StaticIntervalPollingController<null>()<
   typeof controllerName,
-  ConfigRegistryState,
+  ConfigRegistryControllerState,
   ConfigRegistryMessenger
 > {
   readonly #isConfigRegistryApiEnabled: (
