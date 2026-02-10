@@ -7,11 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: upgrade Jest-related packages to latest 27.x versions ([#7792](https://github.com/MetaMask/core/pull/7792))
-- chore: Update ESLint config packages to v15 ([#7305](https://github.com/MetaMask/core/pull/7305))
-- Release 690.0.0 ([#7215](https://github.com/MetaMask/core/pull/7215))
+## [16.2.0]
 
 ### Added
 
@@ -518,7 +514,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.2.0...HEAD
+[16.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.1.0...@metamask/phishing-controller@16.2.0
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.0.0...@metamask/phishing-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.1...@metamask/phishing-controller@16.0.0
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.0...@metamask/phishing-controller@15.0.1
