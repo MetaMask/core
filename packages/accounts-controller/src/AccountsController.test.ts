@@ -2862,7 +2862,9 @@ describe('AccountsController', () => {
           },
           selectedAccount: mockAccount.id,
         },
-        accountIdByAddress: {},
+        accountIdByAddress: {
+          [mockAccount.address]: mockAccount.id,
+        },
       });
 
       expect(accountsController.state).toStrictEqual({
@@ -2872,7 +2874,9 @@ describe('AccountsController', () => {
           },
           selectedAccount: mockAccount.id,
         },
-        accountIdByAddress: {},
+        accountIdByAddress: {
+          [mockAccount.address]: mockAccount.id,
+        },
       });
     });
 

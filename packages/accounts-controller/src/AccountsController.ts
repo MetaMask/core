@@ -640,9 +640,18 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
+      const accountIdByAddress = Object.values(
+        backup.internalAccounts.accounts,
+      ).reduce<AccountsControllerState['accountIdByAddress']>((acc, account) => {
+          acc[account.address.toLowerCase()] = account.id;
+          return acc;
+        },
+        {},
+      );
       this.update(
         (currentState: WritableDraft<AccountsControllerStrictState>) => {
           currentState.internalAccounts = backup.internalAccounts;
+          currentState.accountIdByAddress = accountIdByAddress;
         },
       );
     }
