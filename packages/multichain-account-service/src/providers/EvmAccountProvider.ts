@@ -20,6 +20,7 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { AccountId } from '@metamask/keyring-utils';
 import type { Provider } from '@metamask/network-controller';
 import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -34,7 +35,6 @@ import { traceFallback } from '../analytics';
 import { TraceName } from '../constants/traces';
 import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
-import { AccountId } from '@metamask/keyring-utils';
 
 const ETH_MAINNET_CHAIN_ID = '0x1';
 
