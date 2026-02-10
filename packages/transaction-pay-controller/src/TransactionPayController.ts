@@ -15,6 +15,7 @@ import type {
   TransactionPayControllerState,
   UpdatePaymentTokenRequest,
 } from './types';
+import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
@@ -186,6 +187,8 @@ export class TransactionPayController extends BaseController<
       strategies = this.#getStrategies(transaction);
     } else if (this.#getStrategy) {
       strategies = [this.#getStrategy(transaction)];
+    } else {
+      strategies = getStrategyOrder(this.messenger);
     }
 
     return strategies.length ? strategies : [TransactionPayStrategy.Relay];

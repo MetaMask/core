@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add ordered strategy fallback mechanism for quote retrieval and publish-time execution ([#7868](https://github.com/MetaMask/core/pull/7868))
+- Add Across strategy support for MetaMask Pay, including Across quote retrieval/normalization and Across submission flow with approval + deposit execution paths ([#7886](https://github.com/MetaMask/core/pull/7886))
 
 ### Changed
 

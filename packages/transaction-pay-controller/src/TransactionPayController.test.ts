@@ -146,7 +146,7 @@ describe('TransactionPayController', () => {
   });
 
   describe('getStrategies Action', () => {
-    it('returns relay by default', async () => {
+    it('returns default ordered strategies', async () => {
       createController();
 
       expect(
@@ -154,7 +154,10 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategies',
           TRANSACTION_META_MOCK,
         ),
-      ).toStrictEqual([TransactionPayStrategy.Relay]);
+      ).toStrictEqual([
+        TransactionPayStrategy.Relay,
+        TransactionPayStrategy.Across,
+      ]);
     });
 
     it('returns callback list if provided', async () => {
