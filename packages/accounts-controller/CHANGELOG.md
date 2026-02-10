@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `accountIdByAddress` mapping to state and update `getAccountByAddress` function ([#7893](https://github.com/MetaMask/core/pull/7893))
+  - This state was added to improve lookup times for an account by address from O(n) to O(1).
+
 ### Changed
 
 - Bump `@metamask/eth-snap-keyring` from `^18.0.0` to `^19.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
