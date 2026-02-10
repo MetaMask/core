@@ -855,9 +855,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
           // Build a Set of balance keys for O(1) lookups, avoiding repeated checksum calls
           const balanceKeys = new Set(
-            result.balances.map(
-              (b) => `${b.chainId}-${checksum(b.account)}-${checksum(b.token)}`,
-            ),
+            Object.entries(aggregated)
+              .filter(
+                ([, balance]) =>
+                  balance.success && balance.value && !balance.value.isZero(),
+              )
+              .map(
+                ([, b]) =>
+                  `${b.chainId}-${checksum(b.account)}-${checksum(b.token)}`,
+              ),
           );
 
           const chainsWithMissingTokens = new Set<ChainIdHex>();
