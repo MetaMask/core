@@ -336,9 +336,24 @@ export const IntentSchema = type({
 
   /**
    * Optional EIP-712 typed data payload for signing.
-   * Must be JSON-serializable to satisfy controller state constraints.
+   * Must be JSON-serializable and include required EIP-712 fields.
    */
-  typedData: optional(JsonStruct),
+  typedData: optional(
+    type({
+      types: record(
+        string(),
+        array(
+          type({
+            name: string(),
+            type: string(),
+          }),
+        ),
+      ),
+      primaryType: string(),
+      domain: JsonStruct,
+      message: JsonStruct,
+    }),
+  ),
 });
 
 export const QuoteSchema = type({
