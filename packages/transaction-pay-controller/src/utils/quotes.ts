@@ -53,18 +53,24 @@ export async function updateQuotes(
     return false;
   }
 
+  const isFiatSelected = Boolean(transactionData.fiatPayment);
+
   log('Updating quotes', { transactionId });
 
   const { isMaxAmount, paymentToken, sourceAmounts, tokens } = transactionData;
 
-  const requests = buildQuoteRequests({
-    from: transaction.txParams.from as Hex,
-    isMaxAmount: isMaxAmount ?? false,
-    paymentToken,
-    sourceAmounts,
-    tokens,
-    transactionId,
-  });
+  const requests = isFiatSelected
+    ? buildFiatQuoteRequests({
+        tokens,
+      })
+    : buildQuoteRequests({
+        from: transaction.txParams.from as Hex,
+        isMaxAmount: isMaxAmount ?? false,
+        paymentToken,
+        sourceAmounts,
+        tokens,
+        transactionId,
+      });
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
@@ -77,13 +83,15 @@ export async function updateQuotes(
       messenger,
     );
 
-    const totals = calculateTotals({
-      isMaxAmount,
-      messenger,
-      quotes: quotes as TransactionPayQuote<unknown>[],
-      tokens,
-      transaction,
-    });
+    const totals = isFiatSelected
+      ? (undefined as unknown as TransactionPayTotals)
+      : calculateTotals({
+          isMaxAmount,
+          messenger,
+          quotes: quotes as TransactionPayQuote<unknown>[],
+          tokens,
+          transaction,
+        });
 
     log('Calculated totals', { transactionId, totals });
 
@@ -261,6 +269,29 @@ function buildQuoteRequests({
   }
 
   return requests;
+}
+
+function buildFiatQuoteRequests({
+  tokens,
+}: {
+  tokens: TransactionPayRequiredToken[];
+  // TODO: fix type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): any[] {
+  const primary = tokens[0];
+  if (!primary) {
+    return [];
+  }
+
+  return [
+    {
+      sourceChainId: primary.chainId,
+      sourceTokenAddress: primary.address,
+      targetAmountMinimum: primary.allowUnderMinimum ? '0' : primary.amountRaw,
+      targetChainId: primary.chainId,
+      targetTokenAddress: primary.address,
+    },
+  ];
 }
 
 /**

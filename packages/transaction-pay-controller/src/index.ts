@@ -1,4 +1,7 @@
 export type {
+  FiatPaymentData,
+  FiatPaymentQuote,
+  TransactionData,
   TransactionPayControllerActions,
   TransactionPayControllerEvents,
   TransactionPayControllerGetDelegationTransactionAction,
@@ -6,6 +9,7 @@ export type {
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
+  TransactionPayControllerSetFiatPaymentAction,
   TransactionPayControllerSetIsMaxAmountAction,
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
