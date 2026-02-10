@@ -32,112 +32,6 @@ const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
-type SubmitContext = {
-  from: Hex;
-  gasFeeToken: Hex | undefined;
-  gasLimits: number[];
-  networkClientId: string;
-  normalizedParams: TransactionParams[];
-  sourceChainId: Hex;
-  sourceTokenAddress: Hex;
-};
-
-/**
- * Extract and validate relay params from a quote.
- *
- * @param quote - Relay quote.
- * @param messenger - Controller messenger.
- * @returns Submit context with normalized params and metadata.
- */
-function getSubmitContext(
-  quote: TransactionPayQuote<RelayQuote>,
-  messenger: TransactionPayControllerMessenger,
-): SubmitContext {
-  const { steps } = quote.original;
-  const params = steps.flatMap((step) => step.items).map((item) => item.data);
-  const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
-
-  if (invalidKind) {
-    throw new Error(`Unsupported step kind: ${invalidKind}`);
-  }
-
-  const normalizedParams = params.map((singleParams) =>
-    normalizeParams(singleParams, messenger),
-  );
-
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
-  const { gasLimits } = quote.original.metamask;
-
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    sourceChainId,
-  );
-
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
-
-  return {
-    from,
-    gasFeeToken,
-    gasLimits,
-    networkClientId,
-    normalizedParams,
-    sourceChainId,
-    sourceTokenAddress,
-  };
-}
-
-/**
- * Setup transaction ID collection with parent transaction updates.
- *
- * @param options - Options object.
- * @param options.sourceChainId - Source chain ID.
- * @param options.from - From address.
- * @param options.messenger - Controller messenger.
- * @param options.parentTransactionId - Parent transaction ID to update.
- * @param options.note - Note for the transaction update.
- * @returns Object with transactionIds array and end function.
- */
-function setupTransactionCollection({
-  sourceChainId,
-  from,
-  messenger,
-  parentTransactionId,
-  note,
-}: {
-  sourceChainId: Hex;
-  from: Hex;
-  messenger: TransactionPayControllerMessenger;
-  parentTransactionId: string;
-  note: string;
-}): { transactionIds: string[]; end: () => void } {
-  const transactionIds: string[] = [];
-
-  const { end } = collectTransactionIds(
-    sourceChainId,
-    from,
-    messenger,
-    (transactionId) => {
-      transactionIds.push(transactionId);
-
-      updateTransaction(
-        {
-          transactionId: parentTransactionId,
-          messenger,
-          note,
-        },
-        (tx) => {
-          tx.requiredTransactionIds ??= [];
-          tx.requiredTransactionIds.push(transactionId);
-        },
-      );
-    },
-  );
-
-  return { transactionIds, end };
-}
-
 /**
  * Determine the transaction type for a given index in the batch.
  *
@@ -153,16 +47,15 @@ function getTransactionType(
   originalType: TransactionMeta['type'],
   relayParamCount: number,
 ): TransactionMeta['type'] {
+  // Post-quote index 0 is the original transaction
   if (isPostQuote && index === 0) {
     return originalType;
   }
 
-  // When isPostQuote, the original transaction is prepended at index 0,
-  // so relay params start at index 1. Adjust to get the relay-relative index.
+  // Adjust index for post-quote flows where original tx is prepended
   const relayIndex = isPostQuote ? index - 1 : index;
 
-  // Single relay step is always a deposit (no approval needed).
-  // Multiple relay steps: first is approval, rest are deposits.
+  // Single relay step is always a deposit (no approval needed)
   if (relayParamCount === 1) {
     return TransactionType.relayDeposit;
   }
@@ -213,8 +106,6 @@ async function executeSingleQuote(
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
-  const { isPostQuote } = quote.request;
-
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -226,7 +117,7 @@ async function executeSingleQuote(
     },
   );
 
-  await submitTransactions(quote, transaction, messenger, isPostQuote);
+  await submitTransactions(quote, transaction, messenger);
 
   const targetHash = await waitForRelayCompletion(quote.original);
 
@@ -317,63 +208,84 @@ function normalizeParams(
  * @param quote - Relay quote.
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
- * @param isPostQuote - Whether this is a post-quote flow.
  * @returns Hash of the last submitted transaction.
  */
 async function submitTransactions(
   quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-  isPostQuote?: boolean,
 ): Promise<Hex> {
-  const {
-    from,
-    gasFeeToken,
-    gasLimits,
-    networkClientId,
-    normalizedParams,
-    sourceChainId,
-  } = getSubmitContext(quote, messenger);
+  const { steps } = quote.original;
+  const params = steps.flatMap((step) => step.items).map((item) => item.data);
+  const invalidKind = steps.find((step) => step.kind !== 'transaction')?.kind;
 
-  // For post-quote flows, prepend the original transaction params
-  // so it gets included in the batch alongside the relay deposit(s)
-  if (isPostQuote && !transaction.txParams.to) {
-    throw new Error(
-      'Post-quote flow requires a recipient address on the original transaction',
-    );
+  if (invalidKind) {
+    throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
 
-  const allParams = isPostQuote
-    ? [
-        {
-          ...transaction.txParams,
-          data: transaction.txParams.data as Hex | undefined,
-          to: transaction.txParams.to as Hex,
-          value: transaction.txParams.value as Hex | undefined,
-        } satisfies TransactionParams,
-        ...normalizedParams,
-      ]
-    : normalizedParams;
+  const normalizedParams = params.map((singleParams) =>
+    normalizeParams(singleParams, messenger),
+  );
 
-  const allGasLimits = isPostQuote ? [undefined, ...gasLimits] : gasLimits;
+  // For post-quote flows, prepend the original transaction so it gets
+  // included in the batch alongside the relay deposit(s).
+  // This always results in multiple params, so it takes the batch path.
+  const { isPostQuote } = quote.request;
+
+  const allParams =
+    isPostQuote && transaction.txParams.to
+      ? [
+          {
+            data: transaction.txParams.data as Hex | undefined,
+            from: transaction.txParams.from,
+            to: transaction.txParams.to,
+            value: transaction.txParams.value as Hex | undefined,
+          } as TransactionParams,
+          ...normalizedParams,
+        ]
+      : normalizedParams;
+
+  const transactionIds: string[] = [];
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    sourceChainId,
+  );
 
   log('Adding transactions', {
     normalizedParams: allParams,
     sourceChainId,
     from,
     networkClientId,
-    isPostQuote,
   });
 
-  const { transactionIds, end } = setupTransactionCollection({
+  const { end } = collectTransactionIds(
     sourceChainId,
     from,
     messenger,
-    parentTransactionId: transaction.id,
-    note: 'Add required transaction ID from Relay submission',
-  });
+    (transactionId) => {
+      transactionIds.push(transactionId);
+
+      updateTransaction(
+        {
+          transactionId: transaction.id,
+          messenger,
+          note: 'Add required transaction ID from Relay submission',
+        },
+        (tx) => {
+          tx.requiredTransactionIds ??= [];
+          tx.requiredTransactionIds.push(transactionId);
+        },
+      );
+    },
+  );
 
   let result: { result: Promise<string> } | undefined;
+
+  const gasFeeToken = quote.fees.isSourceGasFeeToken
+    ? sourceTokenAddress
+    : undefined;
 
   const isSameChain =
     quote.original.details.currencyIn.currency.chainId ===
@@ -387,12 +299,13 @@ async function submitTransactions(
         }))
       : undefined;
 
+  const { gasLimits } = quote.original.metamask;
+
   if (allParams.length === 1) {
-    const gasLimit = allGasLimits[0];
     const transactionParams = {
       ...allParams[0],
       authorizationList,
-      gas: gasLimit === undefined ? undefined : toHex(gasLimit),
+      gas: toHex(gasLimits[0]),
     };
 
     result = await messenger.call(
@@ -408,12 +321,15 @@ async function submitTransactions(
     );
   } else {
     const gasLimit7702 =
-      allGasLimits.length === 1 && allGasLimits[0] !== undefined
-        ? toHex(allGasLimits[0])
-        : undefined;
+      gasLimits.length === 1 ? toHex(gasLimits[0]) : undefined;
+
+    // gasLimits only covers relay params; for post-quote the original tx
+    // is prepended at index 0 with no gasLimit (chain will estimate).
+    const gasLimitOffset = isPostQuote ? 1 : 0;
 
     const transactions = allParams.map((singleParams, index) => {
-      const gasLimit = allGasLimits[index];
+      const gasLimitIndex = index - gasLimitOffset;
+      const gasLimit = gasLimits[gasLimitIndex];
       const gas =
         gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
 
@@ -426,12 +342,7 @@ async function submitTransactions(
           to: singleParams.to as Hex,
           value: singleParams.value as Hex,
         },
-        type: getTransactionType(
-          isPostQuote,
-          index,
-          transaction.type,
-          normalizedParams.length,
-        ),
+        type: getTransactionType(isPostQuote, index, transaction.type, normalizedParams.length),
       };
     });
 
