@@ -55,11 +55,13 @@ export async function updateQuotes(
 
   log('Updating quotes', { transactionId });
 
-  const { isMaxAmount, paymentToken, sourceAmounts, tokens } = transactionData;
+  const { isMaxAmount, isPostQuote, paymentToken, sourceAmounts, tokens } =
+    transactionData;
 
   const requests = buildQuoteRequests({
     from: transaction.txParams.from as Hex,
     isMaxAmount: isMaxAmount ?? false,
+    isPostQuote,
     paymentToken,
     sourceAmounts,
     tokens,
@@ -89,6 +91,7 @@ export async function updateQuotes(
 
     syncTransaction({
       batchTransactions,
+      isPostQuote,
       messenger: messenger as never,
       paymentToken,
       totals,
@@ -114,19 +117,22 @@ export async function updateQuotes(
  *
  * @param request - Request object.
  * @param request.batchTransactions - Batch transactions to sync.
+ * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.messenger - Messenger instance.
- * @param request.paymentToken - Payment token used.
+ * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.totals - Calculated totals.
  * @param request.transactionId - ID of the transaction to sync.
  */
 function syncTransaction({
   batchTransactions,
+  isPostQuote,
   messenger,
   paymentToken,
   totals,
   transactionId,
 }: {
   batchTransactions: BatchTransaction[];
+  isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
   totals: TransactionPayTotals;
@@ -149,6 +155,7 @@ function syncTransaction({
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,
+        isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         targetFiat: totals.targetAmount.usd,
         tokenAddress: paymentToken.address,
@@ -213,7 +220,8 @@ export async function refreshQuotes(
  * @param request - Request parameters.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
- * @param request.paymentToken - Payment token used for the transaction.
+ * @param request.isPostQuote - Whether this is a post-quote flow.
+ * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
  * @param request.transactionId - ID of the transaction.
@@ -222,6 +230,7 @@ export async function refreshQuotes(
 function buildQuoteRequests({
   from,
   isMaxAmount,
+  isPostQuote,
   paymentToken,
   sourceAmounts,
   tokens,
@@ -229,6 +238,7 @@ function buildQuoteRequests({
 }: {
   from: Hex;
   isMaxAmount: boolean;
+  isPostQuote?: boolean;
   paymentToken: TransactionPaymentToken | undefined;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
@@ -238,6 +248,19 @@ function buildQuoteRequests({
     return [];
   }
 
+  if (isPostQuote) {
+    // Post-quote flow: source = transaction's required token, target = paymentToken (destination)
+    // The user wants to receive the transaction output in paymentToken
+    return buildPostQuoteRequests({
+      from,
+      isMaxAmount,
+      destinationToken: paymentToken,
+      sourceAmounts,
+      transactionId,
+    });
+  }
+
+  // Standard flow: source = paymentToken, target = required tokens
   const requests = (sourceAmounts ?? []).map((sourceAmount) => {
     const token = tokens.find(
       (singleToken) => singleToken.address === sourceAmount.targetTokenAddress,
@@ -261,6 +284,73 @@ function buildQuoteRequests({
   }
 
   return requests;
+}
+
+/**
+ * Build quote requests for post-quote flows.
+ * In this flow, the source is the transaction's required token,
+ * and the target is the user's selected destination token (paymentToken).
+ *
+ * @param request - Request parameters.
+ * @param request.from - Address from which the transaction is sent.
+ * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
+ * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
+ * @param request.transactionId - ID of the transaction.
+ * @returns Array of quote requests for post-quote flow.
+ */
+function buildPostQuoteRequests({
+  from,
+  isMaxAmount,
+  destinationToken,
+  sourceAmounts,
+  transactionId,
+}: {
+  from: Hex;
+  isMaxAmount: boolean;
+  destinationToken: TransactionPaymentToken;
+  sourceAmounts: TransactionPaySourceAmount[] | undefined;
+  transactionId: string;
+}): QuoteRequest[] {
+  // Find the source amount where targetTokenAddress matches the destination token
+  const sourceAmount = sourceAmounts?.find(
+    (amount) =>
+      amount.targetTokenAddress.toLowerCase() ===
+      destinationToken.address.toLowerCase(),
+  );
+
+  // Same-token-same-chain cases are already filtered in source-amounts.ts
+  if (
+    !sourceAmount?.sourceBalanceRaw ||
+    !sourceAmount.sourceChainId ||
+    !sourceAmount.sourceTokenAddress
+  ) {
+    log('No valid source amount found for post-quote request', {
+      transactionId,
+    });
+    return [];
+  }
+
+  const request: QuoteRequest = {
+    from,
+    isMaxAmount,
+    isPostQuote: true,
+    sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
+    sourceTokenAmount: sourceAmount.sourceAmountRaw,
+    sourceChainId: sourceAmount.sourceChainId,
+    sourceTokenAddress: sourceAmount.sourceTokenAddress,
+    // For post-quote flows, use EXACT_INPUT - user specifies how much to send,
+    // and we show them how much they'll receive after fees
+    targetAmountMinimum: '0',
+    targetChainId: destinationToken.chainId,
+    targetTokenAddress: destinationToken.address,
+  };
+
+  log('Post-quote request built', { transactionId, request });
+
+  // Currently only single token post-quote flows are supported.
+  // Multiple token support would require multiple quotes for each required token.
+  return [request];
 }
 
 /**

@@ -575,11 +575,11 @@ describe('ProfileMetricsController', () => {
               'includeInDebugSnapshot',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
             }
-         `);
+          `);
         },
       );
     });
@@ -595,12 +595,12 @@ describe('ProfileMetricsController', () => {
               'includeInStateLogs',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
-              "syncQueue": Object {},
+              "syncQueue": {},
             }
-         `);
+          `);
         },
       );
     });
@@ -616,12 +616,12 @@ describe('ProfileMetricsController', () => {
               'persist',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
-              "syncQueue": Object {},
+              "syncQueue": {},
             }
-        `);
+          `);
         },
       );
     });
@@ -634,7 +634,7 @@ describe('ProfileMetricsController', () => {
             controller.metadata,
             'usedInUi',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
   });

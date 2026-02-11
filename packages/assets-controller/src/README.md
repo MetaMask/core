@@ -184,7 +184,7 @@ DataSource calls: messenger.call('AssetsController:assetsUpdate', response, sour
     │
     │   Response contains any combination of:
     │   ├── assetsBalance   - Balance updates
-    │   ├── assetsMetadata  - Metadata updates
+    │   ├── assetsInfo  - Metadata updates
     │   └── assetsPrice     - Price updates
     │
     ├── executeMiddlewares(Event Stack, request, response)
@@ -195,7 +195,7 @@ DataSource calls: messenger.call('AssetsController:assetsUpdate', response, sour
     └── updateState(enrichedResponse)
         ├── Normalize asset IDs (checksum EVM addresses)
         ├── Merge into persisted state
-        │   ├── assetsMetadata[assetId] = metadata
+        │   ├── assetsInfo[assetId] = metadata
         │   └── assetsBalance[accountId][assetId] = balance
         ├── Update in-memory price cache (assetsPrice)
         │
@@ -289,7 +289,7 @@ destroy()
 ```typescript
 {
   // Shared metadata (stored once per asset)
-  assetsMetadata: {
+  assetsInfo: {
     "eip155:1/slip44:60": { type: "native", symbol: "ETH", ... },
     "eip155:1/erc20:0xA0b8...": { type: "erc20", symbol: "USDC", ... },
   },
@@ -330,7 +330,7 @@ const state = messenger.call('AssetsController:getState');
 
 ```typescript
 interface AssetsControllerState {
-  assetsMetadata: { [assetId: string]: AssetMetadata };
+  assetsInfo: { [assetId: string]: AssetMetadata };
   assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
 }
 ```
@@ -562,7 +562,7 @@ messenger.subscribe('AssetsController:stateChange', (state) => {
 
 ```typescript
 {
-  assetsMetadata: { [assetId: string]: AssetMetadata };
+  assetsInfo: { [assetId: string]: AssetMetadata };
   assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
 }
 ```
@@ -713,13 +713,13 @@ class MyController {
 ```typescript
 // Selector for getting assets from Redux state
 export const selectAssetsForAccount = (state, accountId) => {
-  const { assetsMetadata, assetsBalance } = state.AssetsController;
+  const { assetsInfo, assetsBalance } = state.AssetsController;
   const { assetsPrice } = state; // In-memory prices from a separate slice
 
   const accountBalances = assetsBalance[accountId] || {};
 
   return Object.entries(accountBalances).map(([assetId, balance]) => {
-    const metadata = assetsMetadata[assetId];
+    const metadata = assetsInfo[assetId];
     const price = assetsPrice[assetId] || { price: 0 };
 
     // balance.amount is already in human-readable format (e.g., "1.5" for 1.5 ETH)
