@@ -4,7 +4,6 @@ import { AddressZero } from '@ethersproject/constants';
 import {
   convertHexToDecimal,
   toChecksumHexAddress,
-  toHex,
 } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
@@ -15,6 +14,7 @@ import {
   isCaipReference,
   isCaipAssetType,
   CaipAssetTypeStruct,
+  numberToHex,
 } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
@@ -52,7 +52,7 @@ export const formatChainIdToCaip = (
   if (isTronChainId(chainId)) {
     return TrxScope.Mainnet;
   }
-  return toEvmCaipChainId(toHex(chainId));
+  return toEvmCaipChainId(numberToHex(Number(chainId)));
 };
 
 /**
@@ -99,12 +99,12 @@ export const formatChainIdToHex = (
     return chainId;
   }
   if (typeof chainId === 'number' || parseInt(chainId, 10)) {
-    return toHex(chainId);
+    return numberToHex(Number(chainId));
   }
   if (isCaipChainId(chainId)) {
     const { reference } = parseCaipChainId(chainId);
     if (isCaipReference(reference) && !isNaN(Number(reference))) {
-      return toHex(reference);
+      return numberToHex(Number(reference));
     }
   }
   // Throw an error if a non-evm chainId is passed to this function
@@ -144,7 +144,7 @@ export const formatAddressToCaipReference = (address: string) => {
  * @returns The CaipAssetType
  */
 export const formatAddressToAssetId = (
-  addressOrAssetId?: Hex | CaipAssetType | string,
+  addressOrAssetId: Hex | CaipAssetType | string,
   chainId?: GenericQuoteRequest['srcChainId'],
 ): CaipAssetType | undefined => {
   if (isCaipAssetType(addressOrAssetId)) {
