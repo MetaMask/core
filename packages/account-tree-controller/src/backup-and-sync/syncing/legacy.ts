@@ -1,7 +1,7 @@
 import { toMultichainAccountWalletId } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
-import { createMultichainAccountGroup } from './group';
+import { createMultichainAccountGroupsBatch } from './group';
 import { backupAndSyncLogger } from '../../logger';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
@@ -51,16 +51,14 @@ export const performLegacyAccountSyncing = async (
   if (numberOfAccountGroupsToCreate > 0) {
     // Creating multichain account group is idempotent, so we can safely
     // re-create every groups starting from 0.
-    for (let i = 0; i < numberOfAccountGroupsToCreate; i++) {
-      backupAndSyncLogger(`Creating account group ${i} for legacy account`);
-      await createMultichainAccountGroup(
-        context,
-        entropySourceId,
-        i,
-        profileId,
-        BackupAndSyncAnalyticsEvent.LegacyGroupAddedFromAccount,
-      );
-    }
+    // Use batch creation for better performance.
+    await createMultichainAccountGroupsBatch(
+      context,
+      entropySourceId,
+      numberOfAccountGroupsToCreate - 1, // maxGroupIndex is inclusive, so subtract 1
+      profileId,
+      BackupAndSyncAnalyticsEvent.LegacyGroupAddedFromAccount,
+    );
   }
 
   // 3. Rename account groups if needed
