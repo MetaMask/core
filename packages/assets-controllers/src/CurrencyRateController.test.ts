@@ -2111,9 +2111,9 @@ describe('CurrencyRateController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "currencyRates": Object {
-            "ETH": Object {
+        {
+          "currencyRates": {
+            "ETH": {
               "conversionDate": 0,
               "conversionRate": 0,
               "usdConversionRate": null,
@@ -2138,9 +2138,9 @@ describe('CurrencyRateController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "currencyRates": Object {
-            "ETH": Object {
+        {
+          "currencyRates": {
+            "ETH": {
               "conversionDate": 0,
               "conversionRate": 0,
               "usdConversionRate": null,
@@ -2165,9 +2165,9 @@ describe('CurrencyRateController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "currencyRates": Object {
-            "ETH": Object {
+        {
+          "currencyRates": {
+            "ETH": {
               "conversionDate": 0,
               "conversionRate": 0,
               "usdConversionRate": null,
@@ -2191,9 +2191,9 @@ describe('CurrencyRateController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "currencyRates": Object {
-            "ETH": Object {
+        {
+          "currencyRates": {
+            "ETH": {
               "conversionDate": 0,
               "conversionRate": 0,
               "usdConversionRate": null,

@@ -25,6 +25,7 @@ export type {
   Provider,
   ProviderLink,
   ProviderLogos,
+  ProviderBrowserType,
   RampAction,
   PaymentMethod,
   PaymentMethodsResponse,
@@ -38,6 +39,7 @@ export type {
   GetQuotesParams,
   RampsToken,
   TokensResponse,
+  BuyWidget,
 } from './RampsService';
 export {
   RampsService,
@@ -50,6 +52,7 @@ export type {
   RampsServiceGetCountriesAction,
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,

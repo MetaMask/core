@@ -395,13 +395,9 @@ export function getAggregatedBalanceForAccount(
   internalAccountsOrAccountIds?: InternalAccount[] | AccountId[],
   accountsById?: AccountsById,
 ): AggregatedBalanceForAccount {
-  const { assetsBalance, assetsMetadata, assetPreferences, assetsPrice } =
-    state;
+  const { assetsBalance, assetsInfo, assetPreferences, assetsPrice } = state;
 
-  const metadata = (assetsMetadata ?? {}) as Record<
-    Caip19AssetId,
-    AssetMetadata
-  >;
+  const metadata = (assetsInfo ?? {}) as Record<Caip19AssetId, AssetMetadata>;
 
   const hasPrices =
     Boolean(assetsPrice) &&

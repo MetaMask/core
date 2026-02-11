@@ -102,7 +102,7 @@ type TokenListControllerGetStateAction = {
 type AssetsControllerGetStateAction = {
   type: 'AssetsController:getState';
   handler: () => {
-    assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
+    assetsInfo: Record<Caip19AssetId, AssetMetadata>;
     assetsBalance: Record<string, Record<string, { amount: string }>>;
   };
 };
@@ -352,7 +352,7 @@ export class RpcDataSource extends AbstractDataSource<
     balances: { assetId: Caip19AssetId }[],
     chainId: ChainId,
   ): Record<Caip19AssetId, AssetMetadata> {
-    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+    const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const existingMetadata = this.#getExistingAssetsMetadata();
 
     for (const balance of balances) {
@@ -361,7 +361,7 @@ export class RpcDataSource extends AbstractDataSource<
         const chainStatus = this.#chainStatuses[chainId];
 
         if (chainStatus) {
-          assetsMetadata[balance.assetId] = {
+          assetsInfo[balance.assetId] = {
             type: 'native',
             symbol: chainStatus.nativeCurrency,
             name: chainStatus.nativeCurrency,
@@ -373,19 +373,19 @@ export class RpcDataSource extends AbstractDataSource<
         const existingMeta = existingMetadata[balance.assetId];
 
         if (existingMeta) {
-          assetsMetadata[balance.assetId] = existingMeta;
+          assetsInfo[balance.assetId] = existingMeta;
         } else {
           // Fallback to token list if not in state
           const tokenListMeta = this.#getTokenMetadataFromTokenList(
             balance.assetId,
           );
           if (tokenListMeta) {
-            assetsMetadata[balance.assetId] = tokenListMeta;
+            assetsInfo[balance.assetId] = tokenListMeta;
           } else {
             // Default metadata for unknown ERC20 tokens.
             // Use 18 decimals (the standard for most ERC20 tokens)
             // to ensure consistent human-readable balance format.
-            assetsMetadata[balance.assetId] = {
+            assetsInfo[balance.assetId] = {
               type: 'erc20',
               symbol: '',
               name: '',
@@ -396,7 +396,7 @@ export class RpcDataSource extends AbstractDataSource<
       }
     }
 
-    return assetsMetadata;
+    return assetsInfo;
   }
 
   /**
@@ -412,14 +412,14 @@ export class RpcDataSource extends AbstractDataSource<
     const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
 
     // Collect metadata for all balances
-    const assetsMetadata = this.#collectMetadataForBalances(
+    const assetsInfo = this.#collectMetadataForBalances(
       result.balances,
       caipChainId,
     );
 
     // Convert balances to human-readable format using metadata
     for (const balance of result.balances) {
-      const metadata = assetsMetadata[balance.assetId];
+      const metadata = assetsInfo[balance.assetId];
       // Default to 18 decimals (ERC20 standard) for consistent human-readable format
       const decimals = metadata?.decimals ?? 18;
       const humanReadableAmount = this.#convertToHumanReadable(
@@ -438,7 +438,7 @@ export class RpcDataSource extends AbstractDataSource<
       assetsBalance: {
         [result.accountId]: newBalances,
       },
-      assetsMetadata,
+      assetsInfo,
     };
 
     log('Balance update response', {
@@ -507,7 +507,7 @@ export class RpcDataSource extends AbstractDataSource<
       detectedAssets: {
         [result.accountId]: result.detectedAssets.map((asset) => asset.assetId),
       },
-      assetsMetadata: newMetadata,
+      assetsInfo: newMetadata,
       assetsBalance: {
         [result.accountId]: newBalances,
       },
@@ -759,7 +759,7 @@ export class RpcDataSource extends AbstractDataSource<
       string,
       Record<Caip19AssetId, AssetBalance>
     > = {};
-    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+    const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const failedChains: ChainId[] = [];
 
     // Fetch balances for each account and its supported chains (pre-computed in request)
@@ -798,11 +798,11 @@ export class RpcDataSource extends AbstractDataSource<
             result.balances,
             chainId,
           );
-          Object.assign(assetsMetadata, balanceMetadata);
+          Object.assign(assetsInfo, balanceMetadata);
 
           // Convert balances to human-readable format
           for (const balance of result.balances) {
-            const metadata = assetsMetadata[balance.assetId];
+            const metadata = assetsInfo[balance.assetId];
             // Default to 18 decimals (ERC20 standard) for consistent human-readable format
             const decimals = metadata?.decimals ?? 18;
             const humanReadableAmount = this.#convertToHumanReadable(
@@ -826,7 +826,7 @@ export class RpcDataSource extends AbstractDataSource<
           // Even on error, include native token metadata
           const chainStatus = this.#chainStatuses[chainId];
           if (chainStatus) {
-            assetsMetadata[nativeAssetId] = {
+            assetsInfo[nativeAssetId] = {
               type: 'native',
               symbol: chainStatus.nativeCurrency,
               name: chainStatus.nativeCurrency,
@@ -863,8 +863,8 @@ export class RpcDataSource extends AbstractDataSource<
     response.assetsBalance = assetsBalance;
 
     // Include metadata for native tokens if we have any
-    if (Object.keys(assetsMetadata).length > 0) {
-      response.assetsMetadata = assetsMetadata;
+    if (Object.keys(assetsInfo).length > 0) {
+      response.assetsInfo = assetsInfo;
     }
 
     return response;
@@ -910,12 +910,12 @@ export class RpcDataSource extends AbstractDataSource<
 
       // Convert detected assets to DataResponse format
       const balances: Record<Caip19AssetId, AssetBalance> = {};
-      const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+      const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
 
       // Build metadata from detected assets
       for (const asset of result.detectedAssets) {
         if (asset.symbol && asset.decimals !== undefined) {
-          assetsMetadata[asset.assetId] = {
+          assetsInfo[asset.assetId] = {
             type: 'erc20',
             symbol: asset.symbol,
             name: asset.name ?? asset.symbol,
@@ -952,8 +952,8 @@ export class RpcDataSource extends AbstractDataSource<
       };
 
       // Include metadata if we have any
-      if (Object.keys(assetsMetadata).length > 0) {
-        response.assetsMetadata = assetsMetadata;
+      if (Object.keys(assetsInfo).length > 0) {
+        response.assetsInfo = assetsInfo;
       }
 
       return response;
@@ -1000,11 +1000,11 @@ export class RpcDataSource extends AbstractDataSource<
         }
       }
 
-      if (response.assetsMetadata) {
-        context.response.assetsMetadata ??= {};
-        context.response.assetsMetadata = {
-          ...context.response.assetsMetadata,
-          ...response.assetsMetadata,
+      if (response.assetsInfo) {
+        context.response.assetsInfo ??= {};
+        context.response.assetsInfo = {
+          ...context.response.assetsInfo,
+          ...response.assetsInfo,
         };
       }
 
@@ -1182,9 +1182,9 @@ export class RpcDataSource extends AbstractDataSource<
   #getExistingAssetsMetadata(): Record<Caip19AssetId, AssetMetadata> {
     try {
       const state = this.#messenger.call('AssetsController:getState') as {
-        assetsMetadata?: Record<Caip19AssetId, AssetMetadata>;
+        assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
       };
-      return (state.assetsMetadata ?? {}) as unknown as Record<
+      return (state.assetsInfo ?? {}) as unknown as Record<
         Caip19AssetId,
         AssetMetadata
       >;
