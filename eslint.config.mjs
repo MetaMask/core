@@ -58,12 +58,16 @@ const config = createConfig([
     extends: [typescript],
     languageOptions: {
       parserOptions: {
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },
     rules: {
       // TODO: Disable in `eslint-config-typescript`, tracked here: https://github.com/MetaMask/eslint-config/issues/413
       '@typescript-eslint/no-unnecessary-type-arguments': 'off',
+
+      // We are using `moduleResolution: Node16` in `tsconfig.base.json`, so TypeScript checks extensions.
+      'import-x/extensions': 'off',
 
       // This rule does not detect multiple imports of the same file where types
       // are being imported in one case and runtime values are being imported in
