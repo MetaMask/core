@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Make `getWidgetUrl()` async to fetch the actual provider widget URL from the `buyURL` endpoint ([#7881](https://github.com/MetaMask/core/pull/7881))
+
 ## [7.1.0]
 
 ### Fixed

@@ -35,6 +35,7 @@ import type {
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
 import { RequestStatus } from './RequestCache';
 
@@ -3686,7 +3687,6 @@ describe('RampsController', () => {
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
           },
           metadata: {
             reliability: 95,
@@ -5651,26 +5651,36 @@ describe('RampsController', () => {
   });
 
   describe('getWidgetUrl', () => {
-    it('returns widget URL when present in quote', async () => {
-      await withController(({ controller }) => {
+    it('fetches and returns widget URL via RampsService messenger', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
         const quote: Quote = {
-          provider: '/providers/moonpay',
+          provider: '/providers/transak-staging',
           quote: {
             amountIn: 100,
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: 'https://global.transak.com/?apiKey=test',
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
 
-        expect(widgetUrl).toBe('https://buy.moonpay.com/widget?txId=123');
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBe('https://global.transak.com/?apiKey=test');
       });
     });
 
-    it('returns null when widget URL is not present', async () => {
-      await withController(({ controller }) => {
+    it('returns null when buyURL is not present', async () => {
+      await withController(async ({ controller }) => {
         const quote: Quote = {
           provider: '/providers/transak',
           quote: {
@@ -5680,19 +5690,73 @@ describe('RampsController', () => {
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });
     });
 
     it('returns null when quote object is malformed', async () => {
-      await withController(({ controller }) => {
+      await withController(async ({ controller }) => {
         const quote = {
           provider: '/providers/moonpay',
         } as unknown as Quote;
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns null when service call throws an error', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns null when service returns BuyWidget with null url', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: null as unknown as string,
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });
@@ -5820,7 +5884,8 @@ type RootMessenger = Messenger<
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
-  | RampsServiceGetQuotesAction,
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
