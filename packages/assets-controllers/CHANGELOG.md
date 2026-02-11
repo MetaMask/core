@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add CHZ (0x15b38) mapping to eip155:88888/erc20:0x677f7e16c7dd57be1d4c8ad1244883214953dc47 ([#7794](https://github.com/MetaMask/core/pull/7794))
+- `CodefiTokenPricesServiceV2` now supports fetching prices of CHZ on Chiliz Mainnet (chain `0xdef1`) ([#7794](https://github.com/MetaMask/core/pull/7794))
 
 ### Changed
 
