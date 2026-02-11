@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
 - Bump `@metamask/gator-permissions-controller` from `^1.0.0` to `^1.1.2` ([#7682](https://github.com/MetaMask/core/pull/7682), [#7739](https://github.com/MetaMask/core/pull/7739), [#7767](https://github.com/MetaMask/core/pull/7767))
 

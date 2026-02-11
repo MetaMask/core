@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
 - **BREAKING:** Bump peer dependency `@metamask/account-api` from `^0.12.0` to `^1.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
 - **BREAKING:** Bump `@metamask/eth-snap-keyring` from `^18.0.0` to `^19.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
   - Required to invoke `createAccounts` on any account management Snaps.
