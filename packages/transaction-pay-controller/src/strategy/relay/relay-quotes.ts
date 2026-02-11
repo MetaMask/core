@@ -262,6 +262,7 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
   };
 
   const isHyperliquidDeposit =
+    !request.isPostQuote &&
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===
       ARBITRUM_USDC_ADDRESS.toLowerCase();

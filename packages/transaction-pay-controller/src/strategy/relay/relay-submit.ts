@@ -342,7 +342,12 @@ async function submitTransactions(
           to: singleParams.to as Hex,
           value: singleParams.value as Hex,
         },
-        type: getTransactionType(isPostQuote, index, transaction.type, normalizedParams.length),
+        type: getTransactionType(
+          isPostQuote,
+          index,
+          transaction.type,
+          normalizedParams.length,
+        ),
       };
     });
 

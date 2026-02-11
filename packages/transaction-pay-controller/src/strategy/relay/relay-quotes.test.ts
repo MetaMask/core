@@ -1176,6 +1176,33 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('does not convert to Hyperliquid deposit for post-quote requests targeting Arbitrum USDC', async () => {
+      const postQuoteRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        isPostQuote: true,
+        targetAmountMinimum: '0',
+        targetChainId: CHAIN_ID_ARBITRUM,
+        targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [postQuoteRequest],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.destinationChainId).toBe(Number(CHAIN_ID_ARBITRUM));
+      expect(body.destinationCurrency).toBe(ARBITRUM_USDC_ADDRESS);
+    });
+
     it('updates request if source is polygon native', async () => {
       getNativeTokenMock.mockReturnValue(
         '0x0000000000000000000000000000000000001010',
