@@ -1,0 +1,453 @@
+<!DOCTYPE html><html class="default" lang="en"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>@metamask/core-backend</title><meta name="description" content="Documentation for @metamask/core-backend"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><div class="table-cell" id="tsd-search" data-base="."><div class="field"><label for="tsd-search-field" class="tsd-widget tsd-toolbar-icon search no-caption"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><use href="assets/icons.svg#icon-search"></use></svg></label><input type="text" id="tsd-search-field" aria-label="Search"/></div><div class="field"><div id="tsd-toolbar-links"></div></div><ul class="results"><li class="state loading">Preparing search index...</li><li class="state failure">The search index is not available</li></ul><a href="index.html" class="title">@metamask/core-backend</a></div><div class="table-cell" id="tsd-widgets"><a href="#" class="tsd-widget tsd-toolbar-icon menu no-caption" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h2>@metamask/core-backend</h2></div><div class="tsd-panel tsd-typography"><a id="md:metamaskcore-backend" class="tsd-anchor"></a><h1><a href="#md:metamaskcore-backend"><code>@metamask/core-backend</code></a></h1><p>Core backend services for MetaMask, serving as the data layer between Backend services (REST APIs, WebSocket services) and Frontend applications (Extension, Mobile). Provides authenticated real-time data delivery including account activity monitoring, price updates, and WebSocket connection management with type-safe controller integration.</p>
+<a id="md:table-of-contents" class="tsd-anchor"></a><h2><a href="#md:table-of-contents">Table of Contents</a></h2><ul>
+<li><a href="#md:metamaskcore-backend"><code>@metamask/core-backend</code></a><ul>
+<li><a href="#md:table-of-contents">Table of Contents</a></li>
+<li><a href="#md:installation">Installation</a></li>
+<li><a href="#md:quick-start">Quick Start</a><ul>
+<li><a href="#md:basic-usage">Basic Usage</a></li>
+<li><a href="#md:integration-with-controllers">Integration with Controllers</a></li>
+</ul>
+</li>
+<li><a href="#md:architecture--design">Architecture &amp; Design</a><ul>
+<li><a href="#md:layered-architecture">Layered Architecture</a></li>
+<li><a href="#md:dependencies-structure">Dependencies Structure</a></li>
+<li><a href="#md:data-flow">Data Flow</a><ul>
+<li><a href="#md:sequence-diagram-real-time-account-activity-flow">Sequence Diagram: Real-time Account Activity Flow</a></li>
+<li><a href="#md:key-flow-characteristics">Key Flow Characteristics</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#md:websocket-connection-management">WebSocket Connection Management</a><ul>
+<li><a href="#md:connection-requirements">Connection Requirements</a></li>
+<li><a href="#md:connection-behavior">Connection Behavior</a></li>
+</ul>
+</li>
+<li><a href="#md:http-api">HTTP API</a><ul>
+<li><a href="#md:overview">Overview</a></li>
+<li><a href="#md:features">Features</a></li>
+<li><a href="#md:quick-start-1">Quick Start</a></li>
+<li><a href="#md:api-clients">API Clients</a><ul>
+<li><a href="#md:accountsapiclient">AccountsApiClient</a></li>
+<li><a href="#md:pricesapiclient">PricesApiClient</a></li>
+<li><a href="#md:tokenapiclient">TokenApiClient</a></li>
+<li><a href="#md:tokensapiclient">TokensApiClient</a></li>
+</ul>
+</li>
+<li><a href="#md:configuration">Configuration</a></li>
+<li><a href="#md:cache-management">Cache Management</a></li>
+</ul>
+</li>
+<li><a href="#md:api-reference">API Reference</a><ul>
+<li><a href="#md:backendwebsocketservice">BackendWebSocketService</a><ul>
+<li><a href="#md:constructor-options">Constructor Options</a></li>
+<li><a href="#md:methods">Methods</a></li>
+</ul>
+</li>
+<li><a href="#md:accountactivityservice">AccountActivityService</a><ul>
+<li><a href="#md:constructor-options-1">Constructor Options</a></li>
+<li><a href="#md:methods-1">Methods</a></li>
+<li><a href="#md:events-published">Events Published</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<a id="md:installation" class="tsd-anchor"></a><h2><a href="#md:installation">Installation</a></h2><pre><code class="language-bash"><span class="hl-0">yarn</span><span class="hl-1"> </span><span class="hl-2">add</span><span class="hl-1"> </span><span class="hl-2">@metamask/core-backend</span>
+</code><button>Copy</button></pre>
+<p>or</p>
+<pre><code class="language-bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">@metamask/core-backend</span>
+</code><button>Copy</button></pre>
+<a id="md:quick-start" class="tsd-anchor"></a><h2><a href="#md:quick-start">Quick Start</a></h2><a id="md:basic-usage" class="tsd-anchor"></a><h3><a href="#md:basic-usage">Basic Usage</a></h3><p><strong>WebSocket for Real-time Updates:</strong></p>
+<pre><code class="language-typescript"><span class="hl-3">import</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">BackendWebSocketService</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">AccountActivityService</span><span class="hl-1">,</span><br/><span class="hl-1">} </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@metamask/core-backend&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">// Initialize Backend WebSocket service</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">backendWebSocketService</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">BackendWebSocketService</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">messenger:</span><span class="hl-1"> </span><span class="hl-4">backendWebSocketServiceMessenger</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">url:</span><span class="hl-1"> </span><span class="hl-2">&#39;wss://api.metamask.io/ws&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">timeout:</span><span class="hl-1"> </span><span class="hl-8">15000</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">requestTimeout:</span><span class="hl-1"> </span><span class="hl-8">20000</span><span class="hl-1">,</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-5">// Initialize Account Activity service</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">accountActivityService</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">AccountActivityService</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">messenger:</span><span class="hl-1"> </span><span class="hl-4">accountActivityMessenger</span><span class="hl-1">,</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-5">// Connect and subscribe to account activity</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">backendWebSocketService</span><span class="hl-1">.</span><span class="hl-0">connect</span><span class="hl-1">();</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">accountActivityService</span><span class="hl-1">.</span><span class="hl-0">subscribe</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">address:</span><span class="hl-1"> </span><span class="hl-2">&#39;eip155:0:0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-5">// Listen for real-time updates</span><br/><span class="hl-4">messenger</span><span class="hl-1">.</span><span class="hl-0">subscribe</span><span class="hl-1">(</span><span class="hl-2">&#39;AccountActivityService:transactionUpdated&#39;</span><span class="hl-1">, (</span><span class="hl-4">tx</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">&#39;New transaction:&#39;</span><span class="hl-1">, </span><span class="hl-4">tx</span><span class="hl-1">);</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-4">messenger</span><span class="hl-1">.</span><span class="hl-0">subscribe</span><span class="hl-1">(</span><br/><span class="hl-1">  </span><span class="hl-2">&#39;AccountActivityService:balanceUpdated&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  ({ </span><span class="hl-4">address</span><span class="hl-1">, </span><span class="hl-4">updates</span><span class="hl-1"> }) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">`Balance updated for </span><span class="hl-6">${</span><span class="hl-4">address</span><span class="hl-6">}</span><span class="hl-2">:`</span><span class="hl-1">, </span><span class="hl-4">updates</span><span class="hl-1">);</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">);</span>
+</code><button>Copy</button></pre>
+<p><strong>HTTP API for REST Requests:</strong></p>
+<pre><code class="language-typescript"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">ApiPlatformClient</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@metamask/core-backend&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">// Create API client</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">apiClient</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">ApiPlatformClient</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">clientProduct:</span><span class="hl-1"> </span><span class="hl-2">&#39;metamask-extension&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">getBearerToken</span><span class="hl-4">:</span><span class="hl-1"> </span><span class="hl-6">async</span><span class="hl-1"> () </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-4">authController</span><span class="hl-1">.</span><span class="hl-0">getBearerToken</span><span class="hl-1">(),</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-5">// Fetch data with automatic caching and deduplication</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">balances</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">apiClient</span><span class="hl-1">.</span><span class="hl-4">accounts</span><span class="hl-1">.</span><span class="hl-0">fetchV5MultiAccountBalances</span><span class="hl-1">([</span><br/><span class="hl-1">  </span><span class="hl-2">&#39;eip155:1:0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">]);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">prices</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">apiClient</span><span class="hl-1">.</span><span class="hl-4">prices</span><span class="hl-1">.</span><span class="hl-0">fetchV3SpotPrices</span><span class="hl-1">([</span><br/><span class="hl-1">  </span><span class="hl-2">&#39;eip155:1/slip44:60&#39;</span><span class="hl-1">, </span><span class="hl-5">// ETH</span><br/><span class="hl-1">  </span><span class="hl-2">&#39;eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48&#39;</span><span class="hl-1">, </span><span class="hl-5">// USDC</span><br/><span class="hl-1">]);</span>
+</code><button>Copy</button></pre>
+<a id="md:integration-with-controllers" class="tsd-anchor"></a><h3><a href="#md:integration-with-controllers">Integration with Controllers</a></h3><pre><code class="language-typescript"><span class="hl-5">// Coordinate with TokenBalancesController for fallback polling</span><br/><span class="hl-4">messenger</span><span class="hl-1">.</span><span class="hl-0">subscribe</span><span class="hl-1">(</span><br/><span class="hl-1">  </span><span class="hl-2">&#39;BackendWebSocketService:connectionStateChanged&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  (</span><span class="hl-4">info</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-3">if</span><span class="hl-1"> (</span><span class="hl-4">info</span><span class="hl-1">.</span><span class="hl-4">state</span><span class="hl-1"> === </span><span class="hl-2">&#39;CONNECTED&#39;</span><span class="hl-1">) {</span><br/><span class="hl-1">      </span><span class="hl-5">// Reduce polling when WebSocket is active</span><br/><span class="hl-1">      </span><span class="hl-4">messenger</span><span class="hl-1">.</span><span class="hl-0">call</span><span class="hl-1">(</span><br/><span class="hl-1">        </span><span class="hl-2">&#39;TokenBalancesController:updateChainPollingConfigs&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">        { </span><span class="hl-2">&#39;0x1&#39;</span><span class="hl-4">:</span><span class="hl-1"> { </span><span class="hl-4">interval:</span><span class="hl-1"> </span><span class="hl-8">600000</span><span class="hl-1"> } }, </span><span class="hl-5">// 10 min backup polling</span><br/><span class="hl-1">        { </span><span class="hl-4">immediateUpdate:</span><span class="hl-1"> </span><span class="hl-6">false</span><span class="hl-1"> },</span><br/><span class="hl-1">      );</span><br/><span class="hl-1">    } </span><span class="hl-3">else</span><span class="hl-1"> {</span><br/><span class="hl-1">      </span><span class="hl-5">// Increase polling when WebSocket is down</span><br/><span class="hl-1">      </span><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">defaultInterval</span><span class="hl-1"> = </span><span class="hl-4">messenger</span><span class="hl-1">.</span><span class="hl-0">call</span><span class="hl-1">(</span><br/><span class="hl-1">        </span><span class="hl-2">&#39;TokenBalancesController:getDefaultPollingInterval&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">      );</span><br/><span class="hl-1">      </span><span class="hl-4">messenger</span><span class="hl-1">.</span><span class="hl-0">call</span><span class="hl-1">(</span><br/><span class="hl-1">        </span><span class="hl-2">&#39;TokenBalancesController:updateChainPollingConfigs&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">        { </span><span class="hl-2">&#39;0x1&#39;</span><span class="hl-4">:</span><span class="hl-1"> { </span><span class="hl-4">interval:</span><span class="hl-1"> </span><span class="hl-4">defaultInterval</span><span class="hl-1"> } },</span><br/><span class="hl-1">        { </span><span class="hl-4">immediateUpdate:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1"> },</span><br/><span class="hl-1">      );</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">);</span><br/><br/><span class="hl-5">// Listen for account changes and manage subscriptions</span><br/><span class="hl-4">messenger</span><span class="hl-1">.</span><span class="hl-0">subscribe</span><span class="hl-1">(</span><br/><span class="hl-1">  </span><span class="hl-2">&#39;AccountsController:selectedAccountChange&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-6">async</span><span class="hl-1"> (</span><span class="hl-4">selectedAccount</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-3">if</span><span class="hl-1"> (</span><span class="hl-4">selectedAccount</span><span class="hl-1">) {</span><br/><span class="hl-1">      </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">accountActivityService</span><span class="hl-1">.</span><span class="hl-0">subscribe</span><span class="hl-1">({</span><br/><span class="hl-1">        </span><span class="hl-4">address:</span><span class="hl-1"> </span><span class="hl-4">selectedAccount</span><span class="hl-1">.</span><span class="hl-4">address</span><span class="hl-1">,</span><br/><span class="hl-1">      });</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">);</span>
+</code><button>Copy</button></pre>
+<a id="md:architecture-amp-design" class="tsd-anchor"></a><h2><a href="#md:architecture-amp-design">Architecture &amp; Design</a></h2><a id="md:layered-architecture" class="tsd-anchor"></a><h3><a href="#md:layered-architecture">Layered Architecture</a></h3><pre><code class="language-mermaid"><span class="hl-3">graph</span><span class="hl-1"> </span><span class="hl-0">TD</span><br/><span class="hl-1">    </span><span class="hl-4">subgraph </span><span class="hl-1">&quot;</span><span class="hl-4">FRONTEND</span><span class="hl-1">&quot;</span><br/><span class="hl-1">        </span><span class="hl-4">subgraph </span><span class="hl-1">&quot;</span><span class="hl-4">Presentation Layer</span><span class="hl-1">&quot;</span><br/><span class="hl-1">            </span><span class="hl-4">FE</span><span class="hl-3">[</span><span class="hl-2">Frontend Applications&lt;br/&gt;MetaMask Extension, Mobile, etc.</span><span class="hl-3">]</span><br/><span class="hl-1">        </span><span class="hl-3">end</span><br/><br/><span class="hl-1">        </span><span class="hl-4">subgraph </span><span class="hl-1">&quot;</span><span class="hl-4">Integration Layer</span><span class="hl-1">&quot;</span><br/><span class="hl-1">            </span><span class="hl-4">IL</span><span class="hl-3">[</span><span class="hl-2">Controllers, State Management, UI</span><span class="hl-3">]</span><br/><span class="hl-1">        </span><span class="hl-3">end</span><br/><br/><span class="hl-1">        </span><span class="hl-4">subgraph </span><span class="hl-1">&quot;</span><span class="hl-4">Data layer </span><span class="hl-3">(</span><span class="hl-2">core</span><span class="hl-1">-</span><span class="hl-2">backend</span><span class="hl-3">)</span><span class="hl-1">&quot;</span><br/><span class="hl-1">            </span><span class="hl-4">subgraph </span><span class="hl-1">&quot;</span><span class="hl-4">Domain Services</span><span class="hl-1">&quot;</span><br/><span class="hl-1">                </span><span class="hl-4">AAS</span><span class="hl-3">[</span><span class="hl-2">AccountActivityService</span><span class="hl-3">]</span><br/><span class="hl-1">                </span><span class="hl-4">PUS</span><span class="hl-3">[</span><span class="hl-2">PriceUpdateService&lt;br/&gt;future</span><span class="hl-3">]</span><br/><span class="hl-1">                </span><span class="hl-4">CS</span><span class="hl-3">[</span><span class="hl-2">Custom Services...</span><span class="hl-3">]</span><br/><span class="hl-1">            </span><span class="hl-3">end</span><br/><br/><span class="hl-1">            </span><span class="hl-4">subgraph </span><span class="hl-1">&quot;</span><span class="hl-4">Transport Layer</span><span class="hl-1">&quot;</span><br/><span class="hl-1">                </span><span class="hl-4">WSS</span><span class="hl-3">[</span><span class="hl-2">WebSocketService&lt;br/&gt;</span><span class="hl-1">• </span><span class="hl-2">Connection management&lt;br/&gt;</span><span class="hl-1">• </span><span class="hl-2">Automatic reconnection&lt;br/&gt;</span><span class="hl-1">• </span><span class="hl-2">Message routing&lt;br/&gt;</span><span class="hl-1">• </span><span class="hl-2">Subscription management</span><span class="hl-3">]</span><br/><span class="hl-1">                </span><span class="hl-4">HTTP</span><span class="hl-3">[</span><span class="hl-2">HTTP API Clients&lt;br/&gt;</span><span class="hl-1">• </span><span class="hl-2">REST API calls&lt;br/&gt;</span><span class="hl-1">• </span><span class="hl-2">Automatic caching&lt;br/&gt;</span><span class="hl-1">• </span><span class="hl-2">Request deduplication&lt;br/&gt;</span><span class="hl-1">• </span><span class="hl-2">Retry with backoff</span><span class="hl-3">]</span><br/><span class="hl-1">            </span><span class="hl-3">end</span><br/><span class="hl-1">        </span><span class="hl-3">end</span><br/><span class="hl-1">    </span><span class="hl-3">end</span><br/><br/><span class="hl-1">    </span><span class="hl-4">subgraph </span><span class="hl-1">&quot;</span><span class="hl-4">BACKEND</span><span class="hl-1">&quot;</span><br/><span class="hl-1">        </span><span class="hl-4">BS</span><span class="hl-3">[</span><span class="hl-2">Backend Services&lt;br/&gt;REST APIs, WebSocket Services, etc.</span><span class="hl-3">]</span><br/><span class="hl-1">    </span><span class="hl-3">end</span><br/><br/><span class="hl-1">    </span><span class="hl-5">%% Flow connections</span><br/><span class="hl-1">    </span><span class="hl-4">FE </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">IL</span><br/><span class="hl-1">    </span><span class="hl-4">IL </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">AAS</span><br/><span class="hl-1">    </span><span class="hl-4">IL </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">PUS</span><br/><span class="hl-1">    </span><span class="hl-4">IL </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">CS</span><br/><span class="hl-1">    </span><span class="hl-4">AAS </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">WSS</span><br/><span class="hl-1">    </span><span class="hl-4">AAS </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">HTTP</span><br/><span class="hl-1">    </span><span class="hl-4">PUS </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">WSS</span><br/><span class="hl-1">    </span><span class="hl-4">PUS </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">HTTP</span><br/><span class="hl-1">    </span><span class="hl-4">CS </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">WSS</span><br/><span class="hl-1">    </span><span class="hl-4">CS </span><span class="hl-3">--&gt;</span><span class="hl-1"> </span><span class="hl-4">HTTP</span><br/><span class="hl-1">    </span><span class="hl-4">WSS </span><span class="hl-3">&lt;--&gt;</span><span class="hl-1"> </span><span class="hl-4">BS</span><br/><span class="hl-1">    </span><span class="hl-4">HTTP </span><span class="hl-3">&lt;--&gt;</span><span class="hl-1"> </span><span class="hl-4">BS</span><br/><br/><span class="hl-1">    </span><span class="hl-5">%% Styling</span><br/><span class="hl-1">    </span><span class="hl-3">classDef</span><span class="hl-1"> </span><span class="hl-4">frontend</span><span class="hl-1"> </span><span class="hl-2">fill:#e1f5fe</span><br/><span class="hl-1">    </span><span class="hl-3">classDef</span><span class="hl-1"> </span><span class="hl-4">backend</span><span class="hl-1"> </span><span class="hl-2">fill:#f3e5f5</span><br/><span class="hl-1">    </span><span class="hl-3">classDef</span><span class="hl-1"> </span><span class="hl-4">service</span><span class="hl-1"> </span><span class="hl-2">fill:#e8f5e8</span><br/><span class="hl-1">    </span><span class="hl-3">classDef</span><span class="hl-1"> </span><span class="hl-4">transport</span><span class="hl-1"> </span><span class="hl-2">fill:#fff3e0</span><br/><br/><span class="hl-1">    </span><span class="hl-3">class</span><span class="hl-1"> </span><span class="hl-4">FE,IL</span><span class="hl-1"> </span><span class="hl-2">frontend</span><br/><span class="hl-1">    </span><span class="hl-3">class</span><span class="hl-1"> </span><span class="hl-4">BS</span><span class="hl-1"> </span><span class="hl-2">backend</span><br/><span class="hl-1">    </span><span class="hl-3">class</span><span class="hl-1"> </span><span class="hl-4">AAS,PUS,CS</span><span class="hl-1"> </span><span class="hl-2">service</span><br/><span class="hl-1">    </span><span class="hl-3">class</span><span class="hl-1"> </span><span class="hl-4">WSS,HTTP</span><span class="hl-1"> </span><span class="hl-2">transport</span>
+</code><button>Copy</button></pre>
+<a id="md:dependencies-structure" class="tsd-anchor"></a><h3><a href="#md:dependencies-structure">Dependencies Structure</a></h3><pre><code class="language-mermaid"><span class="hl-3">graph</span><span class="hl-1"> </span><span class="hl-0">BT</span><br/><span class="hl-1">    </span><span class="hl-5">%% External Controllers</span><br/><span class="hl-1">    </span><span class="hl-4">AC</span><span class="hl-3">[</span><span class="hl-2">&quot;AccountsController&lt;br/&gt;(Auto-generated types)&quot;</span><span class="hl-3">]</span><br/><span class="hl-1">    </span><span class="hl-4">AuthC</span><span class="hl-3">[</span><span class="hl-2">&quot;AuthenticationController&lt;br/&gt;(Auto-generated types)&quot;</span><span class="hl-3">]</span><br/><span class="hl-1">    </span><span class="hl-4">TBC</span><span class="hl-3">[</span><span class="hl-2">&quot;TokenBalancesController&lt;br/&gt;(External Integration)&quot;</span><span class="hl-3">]</span><br/><br/><span class="hl-1">    </span><span class="hl-5">%% Core Services</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">[</span><span class="hl-2">&quot;AccountActivityService&quot;</span><span class="hl-3">]</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">[</span><span class="hl-2">&quot;BackendWebSocketService&quot;</span><span class="hl-3">]</span><br/><br/><span class="hl-1">    </span><span class="hl-5">%% Dependencies &amp; Type Imports</span><br/><span class="hl-1">    </span><span class="hl-4">AC </span><span class="hl-3">-.-&gt;</span><span class="hl-1">|&quot;</span><span class="hl-4">Import types</span><span class="hl-1">&lt;</span><span class="hl-4">br</span><span class="hl-1">/&gt;(</span><span class="hl-4">DRY</span><span class="hl-1">)&quot; | </span><span class="hl-4">AA</span><br/><span class="hl-1">    </span><span class="hl-4">AuthC </span><span class="hl-3">-.-&gt;</span><span class="hl-1">|&quot;</span><span class="hl-4">Import types</span><span class="hl-1">&lt;</span><span class="hl-4">br</span><span class="hl-1">/&gt;(</span><span class="hl-4">DRY</span><span class="hl-1">)&quot; | </span><span class="hl-4">WS</span><br/><span class="hl-1">    </span><span class="hl-4">WS </span><span class="hl-3">--&gt;|</span><span class="hl-2">&quot;Messenger calls&quot;</span><span class="hl-3">|</span><span class="hl-1"> </span><span class="hl-4">AA</span><br/><span class="hl-1">    </span><span class="hl-4">AA </span><span class="hl-3">-.-&gt;</span><span class="hl-1">|&quot;</span><span class="hl-4">Event publishing</span><span class="hl-1">&quot;| </span><span class="hl-4">TBC</span><br/><br/><span class="hl-1">    </span><span class="hl-5">%% Styling</span><br/><span class="hl-1">    </span><span class="hl-3">classDef</span><span class="hl-1"> </span><span class="hl-4">core</span><span class="hl-1"> </span><span class="hl-2">fill:#f3e5f5</span><br/><span class="hl-1">    </span><span class="hl-3">classDef</span><span class="hl-1"> </span><span class="hl-4">integration</span><span class="hl-1"> </span><span class="hl-2">fill:#fff3e0</span><br/><span class="hl-1">    </span><span class="hl-3">classDef</span><span class="hl-1"> </span><span class="hl-4">controller</span><span class="hl-1"> </span><span class="hl-2">fill:#e8f5e8</span><br/><br/><span class="hl-1">    </span><span class="hl-3">class</span><span class="hl-1"> </span><span class="hl-4">WS,AA</span><span class="hl-1"> </span><span class="hl-2">core</span><br/><span class="hl-1">    </span><span class="hl-3">class</span><span class="hl-1"> </span><span class="hl-4">TBC</span><span class="hl-1"> </span><span class="hl-2">integration</span><br/><span class="hl-1">    </span><span class="hl-3">class</span><span class="hl-1"> </span><span class="hl-4">AC,AuthC</span><span class="hl-1"> </span><span class="hl-2">controller</span>
+</code><button>Copy</button></pre>
+<a id="md:data-flow" class="tsd-anchor"></a><h3><a href="#md:data-flow">Data Flow</a></h3><a id="md:sequence-diagram-real-time-account-activity-flow" class="tsd-anchor"></a><h4><a href="#md:sequence-diagram-real-time-account-activity-flow">Sequence Diagram: Real-time Account Activity Flow</a></h4><pre><code class="language-mermaid"><span class="hl-3">sequenceDiagram</span><br/><span class="hl-1">    </span><span class="hl-3">participant</span><span class="hl-1"> </span><span class="hl-4">TBC</span><span class="hl-1"> </span><span class="hl-3">as</span><span class="hl-1"> </span><span class="hl-2">TokenBalancesController</span><br/><span class="hl-1">    </span><span class="hl-3">participant</span><span class="hl-1"> </span><span class="hl-4">AA</span><span class="hl-1"> </span><span class="hl-3">as</span><span class="hl-1"> </span><span class="hl-2">AccountActivityService</span><br/><span class="hl-1">    </span><span class="hl-3">participant</span><span class="hl-1"> </span><span class="hl-4">WS</span><span class="hl-1"> </span><span class="hl-3">as</span><span class="hl-1"> </span><span class="hl-2">BackendWebSocketService</span><br/><span class="hl-1">    </span><span class="hl-3">participant</span><span class="hl-1"> </span><span class="hl-4">HTTP</span><span class="hl-1"> </span><span class="hl-3">as</span><span class="hl-1"> </span><span class="hl-2">HTTP Services&lt;br/&gt;(APIs &amp; RPC)</span><br/><span class="hl-1">    </span><span class="hl-3">participant</span><span class="hl-1"> </span><span class="hl-4">Backend</span><span class="hl-1"> </span><span class="hl-3">as</span><span class="hl-1"> </span><span class="hl-2">WebSocket Endpoint&lt;br/&gt;(Backend)</span><br/><br/><span class="hl-1">    </span><span class="hl-3">Note</span><span class="hl-1"> </span><span class="hl-0">over</span><span class="hl-1"> </span><span class="hl-4">TBC</span><span class="hl-3">,</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Initial Setup</span><br/><span class="hl-1">    </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">HTTP</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Initial balance fetch via HTTP&lt;br/&gt;(first request for current state)</span><br/><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">WebSocket connection request</span><br/><span class="hl-1">    </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Connection established</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">WebSocket connection status notification&lt;br/&gt;(BackendWebSocketService:connectionStateChanged)&lt;br/&gt;{state: &#39;CONNECTED&#39;}</span><br/><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">call(&#39;AccountsController:getSelectedAccount&#39;)</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">subscribe({channels, callback})</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;subscribe&#39;, channels: [&#39;account-activity.v1.eip155:0:0x123...&#39;]}</span><br/><span class="hl-1">    </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;subscribe-response&#39;, subscriptionId: &#39;sub-456&#39;}</span><br/><br/><span class="hl-1">    </span><span class="hl-3">Note</span><span class="hl-1"> </span><span class="hl-0">over</span><span class="hl-1"> </span><span class="hl-4">WS</span><span class="hl-3">,</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">System notification sent automatically upon subscription</span><br/><span class="hl-1">    </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;system-notification&#39;, data: {chainIds: [&#39;eip155:1&#39;, &#39;eip155:137&#39;, ...], status: &#39;up&#39;}}</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">System notification received</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Track chains as &#39;up&#39; internally</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Chain availability notification&lt;br/&gt;(AccountActivityService:statusChanged)&lt;br/&gt;{chainIds: [&#39;0x1&#39;, &#39;0x89&#39;, ...], status: &#39;up&#39;}</span><br/><span class="hl-1">    </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Increase polling interval from 20s to 10min&lt;br/&gt;(.updateChainPollingConfigs({0x89: 600000}))</span><br/><br/><span class="hl-1">    </span><span class="hl-3">Note</span><span class="hl-1"> </span><span class="hl-0">over</span><span class="hl-1"> </span><span class="hl-4">TBC</span><span class="hl-3">,</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">User Account Change</span><br/><br/><span class="hl-1">    </span><span class="hl-3">par</span><span class="hl-1"> </span><span class="hl-2">StatusChanged Event</span><br/><span class="hl-1">      </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">HTTP</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Fetch balances for new account&lt;br/&gt;(fill transition gap)</span><br/><span class="hl-1">    </span><span class="hl-3">and</span><span class="hl-1"> </span><span class="hl-2">Account Subscription</span><br/><span class="hl-1">      </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">User switched to different account&lt;br/&gt;(AccountsController:selectedAccountChange)</span><br/><span class="hl-1">      </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">subscribe (new account)</span><br/><span class="hl-1">      </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;subscribe&#39;, channels: [&#39;account-activity.v1.eip155:0:0x456...&#39;]}</span><br/><span class="hl-1">      </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;subscribe-response&#39;, subscriptionId: &#39;sub-789&#39;}</span><br/><span class="hl-1">      </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">unsubscribe (previous account)</span><br/><span class="hl-1">      </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;unsubscribe&#39;, subscriptionId: &#39;sub-456&#39;}</span><br/><span class="hl-1">      </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;unsubscribe-response&#39;}</span><br/><span class="hl-1">    </span><span class="hl-3">end</span><br/><br/><br/><span class="hl-1">    </span><span class="hl-3">Note</span><span class="hl-1"> </span><span class="hl-0">over</span><span class="hl-1"> </span><span class="hl-4">TBC</span><span class="hl-3">,</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Real-time Data Flow</span><br/><br/><span class="hl-1">    </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;notification&#39;, channel: &#39;account-activity.v1.eip155:0:0x123...&#39;,&lt;br/&gt;data: {address, tx, updates}}</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Direct callback routing</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Validate &amp; process AccountActivityMessage</span><br/><br/><span class="hl-1">    </span><span class="hl-3">par</span><span class="hl-1"> </span><span class="hl-2">Balance Update</span><br/><span class="hl-1">        </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Real-time balance change notification&lt;br/&gt;(AccountActivityService:balanceUpdated)&lt;br/&gt;{address, chain, updates}</span><br/><span class="hl-1">        </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Update balance state directly&lt;br/&gt;(or fallback poll if error)</span><br/><span class="hl-1">    </span><span class="hl-3">and</span><span class="hl-1"> </span><span class="hl-2">Transaction and Activity Update (Not yet implemented)</span><br/><span class="hl-1">        </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Process transaction data&lt;br/&gt;(AccountActivityService:transactionUpdated)&lt;br/&gt;{tx: Transaction}</span><br/><span class="hl-1">        </span><span class="hl-3">Note</span><span class="hl-1"> </span><span class="hl-0">right of</span><span class="hl-1"> </span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Future: Forward to TransactionController&lt;br/&gt;for transaction state management&lt;br/&gt;(pending → confirmed → finalized)</span><br/><span class="hl-1">    </span><span class="hl-3">end</span><br/><br/><span class="hl-1">    </span><span class="hl-3">Note</span><span class="hl-1"> </span><span class="hl-0">over</span><span class="hl-1"> </span><span class="hl-4">TBC</span><span class="hl-3">,</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">System Notifications</span><br/><br/><span class="hl-1">    </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;system-notification&#39;, data: {chainIds: [&#39;eip155:137&#39;], status: &#39;down&#39;}}</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">System notification received</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Process chain status change</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Chain status notification&lt;br/&gt;(AccountActivityService:statusChanged)&lt;br/&gt;{chainIds: [&#39;eip155:137&#39;], status: &#39;down&#39;}</span><br/><span class="hl-1">    </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Decrease polling interval from 10min to 20s&lt;br/&gt;(.updateChainPollingConfigs({0x89: 20000}))</span><br/><span class="hl-1">    </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">HTTP</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Fetch balances immediately</span><br/><br/><span class="hl-1">    </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;system-notification&#39;, data: {chainIds: [&#39;eip155:137&#39;], status: &#39;up&#39;}}</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">System notification received</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Process chain status change</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Chain status notification&lt;br/&gt;(AccountActivityService:statusChanged)&lt;br/&gt;{chainIds: [&#39;eip155:137&#39;], status: &#39;up&#39;}</span><br/><span class="hl-1">    </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Increase polling interval from 20s to 10min&lt;br/&gt;(.updateChainPollingConfigs({0x89: 600000}))</span><br/><br/><span class="hl-1">    </span><span class="hl-3">Note</span><span class="hl-1"> </span><span class="hl-0">over</span><span class="hl-1"> </span><span class="hl-4">TBC</span><span class="hl-3">,</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Connection Health Management</span><br/><br/><span class="hl-1">    </span><span class="hl-4">Backend</span><span class="hl-3">--&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Connection lost</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">WebSocket connection status notification&lt;br/&gt;(BackendWebSocketService:connectionStateChanged)&lt;br/&gt;{state: &#39;DISCONNECTED&#39;}</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Mark all tracked chains as &#39;down&#39;&lt;br/&gt;(flush internal tracking set)</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Chain status notification for all tracked chains&lt;br/&gt;(AccountActivityService:statusChanged)&lt;br/&gt;{chainIds: [&#39;0x1&#39;, &#39;0x89&#39;, ...], status: &#39;down&#39;}</span><br/><span class="hl-1">    </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Decrease polling interval from 10min to 20s&lt;br/&gt;(.updateChainPollingConfigs({0x89: 20000}))</span><br/><span class="hl-1">    </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">HTTP</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Fetch balances immediately</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Automatic reconnection&lt;br/&gt;with exponential backoff</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Reconnection successful</span><br/><br/><span class="hl-1">    </span><span class="hl-3">Note</span><span class="hl-1"> </span><span class="hl-0">over</span><span class="hl-1"> </span><span class="hl-4">AA</span><span class="hl-3">,</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Restart initial setup - resubscribe and get fresh chain status</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">subscribe (same account, new subscription)</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">Backend</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;subscribe&#39;, channels: [&#39;account-activity.v1.eip155:0:0x123...&#39;]}</span><br/><span class="hl-1">    </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;subscribe-response&#39;, subscriptionId: &#39;sub-999&#39;}</span><br/><span class="hl-1">    </span><span class="hl-4">Backend</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">WS</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">{event: &#39;system-notification&#39;, data: {chainIds: [...], status: &#39;up&#39;}}</span><br/><span class="hl-1">    </span><span class="hl-4">WS</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">System notification received</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">AA</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Track chains as &#39;up&#39; again</span><br/><span class="hl-1">    </span><span class="hl-4">AA</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Chain availability notification&lt;br/&gt;(AccountActivityService:statusChanged)&lt;br/&gt;{chainIds: [...], status: &#39;up&#39;}</span><br/><span class="hl-1">    </span><span class="hl-4">TBC</span><span class="hl-3">-&gt;&gt;</span><span class="hl-4">TBC</span><span class="hl-3">:</span><span class="hl-1"> </span><span class="hl-2">Increase polling interval back to 10min</span>
+</code><button>Copy</button></pre>
+<a id="md:key-flow-characteristics" class="tsd-anchor"></a><h4><a href="#md:key-flow-characteristics">Key Flow Characteristics</a></h4><ol>
+<li><strong>Initial Setup</strong>: BackendWebSocketService establishes connection, then AccountActivityService subscribes to selected account. Backend automatically sends a system notification with all chains that are currently up. AccountActivityService tracks these chains internally and notifies TokenBalancesController, which increases polling interval to 5 min</li>
+<li><strong>Chain Status Tracking</strong>: AccountActivityService maintains an internal set of chains that are &#39;up&#39; based on system notifications. On disconnect, it marks all tracked chains as &#39;down&#39; before clearing the set</li>
+<li><strong>System Notifications</strong>: Backend automatically sends chain status updates (up/down) upon subscription and when status changes. AccountActivityService forwards these to TokenBalancesController, which adjusts polling intervals (up: 5min, down: 30s + immediate fetch)</li>
+<li><strong>User Account Changes</strong>: When users switch accounts, AccountActivityService unsubscribes from old account and subscribes to new account. Backend sends fresh system notification with current chain status for the new account</li>
+<li><strong>Connection Resilience</strong>: On reconnection, AccountActivityService resubscribes to selected account and receives fresh chain status via system notification. Automatic reconnection with exponential backoff</li>
+<li><strong>Real-time Updates</strong>: Backend pushes data through: Backend → BackendWebSocketService → AccountActivityService → TokenBalancesController (+ future TransactionController integration)</li>
+<li><strong>Parallel Processing</strong>: Transaction and balance updates processed simultaneously - AccountActivityService publishes both transactionUpdated (future) and balanceUpdated events in parallel</li>
+<li><strong>Direct Balance Processing</strong>: Real-time balance updates bypass HTTP polling and update TokenBalancesController state directly</li>
+</ol>
+<a id="md:websocket-connection-management" class="tsd-anchor"></a><h2><a href="#md:websocket-connection-management">WebSocket Connection Management</a></h2><a id="md:connection-requirements" class="tsd-anchor"></a><h3><a href="#md:connection-requirements">Connection Requirements</a></h3><p>The WebSocket connects when <strong>ALL 3 conditions are true</strong>:</p>
+<ol>
+<li>✅ <strong>Feature enabled</strong> - <code>isEnabled()</code> callback returns <code>true</code> (feature flag)</li>
+<li>✅ <strong>User signed in</strong> - <code>AuthenticationController.isSignedIn = true</code></li>
+<li>✅ <strong>Wallet unlocked</strong> - <code>KeyringController.isUnlocked = true</code></li>
+</ol>
+<p><strong>Plus:</strong> Platform code must call <code>connect()</code> when app opens/foregrounds and <code>disconnect()</code> when app closes/backgrounds.</p>
+<a id="md:connection-behavior" class="tsd-anchor"></a><h3><a href="#md:connection-behavior">Connection Behavior</a></h3><p><strong>Idempotent <code>connect()</code>:</strong></p>
+<ul>
+<li>Safe to call multiple times - validates conditions and returns early if already connected</li>
+<li>Multiple rapid calls reuse the same connection promise (no duplicate connections)</li>
+<li>No debouncing needed - handled automatically</li>
+</ul>
+<p><strong>Auto-Reconnect:</strong></p>
+<ul>
+<li>✅ <strong>Unexpected disconnects</strong> (network issues, server restart) → Auto-reconnect</li>
+<li>❌ <strong>Manual disconnects</strong> (app backgrounds, wallet locks, user signs out) → Stay disconnected</li>
+</ul>
+<a id="md:http-api" class="tsd-anchor"></a><h2><a href="#md:http-api">HTTP API</a></h2><a id="md:overview" class="tsd-anchor"></a><h3><a href="#md:overview">Overview</a></h3><p>The HTTP API provides type-safe clients for accessing MetaMask backend REST APIs. It uses <code>@tanstack/query-core</code> for intelligent caching, request deduplication, and automatic retries.</p>
+<p><strong>Available APIs:</strong></p>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>Base URL</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Accounts</strong></td>
+<td><code>accounts.api.cx.metamask.io</code></td>
+<td>Balances, transactions, NFTs, token discovery</td>
+</tr>
+<tr>
+<td><strong>Prices</strong></td>
+<td><code>price.api.cx.metamask.io</code></td>
+<td>Spot prices, exchange rates, historical prices</td>
+</tr>
+<tr>
+<td><strong>Token</strong></td>
+<td><code>token.api.cx.metamask.io</code></td>
+<td>Token metadata, trending, top gainers</td>
+</tr>
+<tr>
+<td><strong>Tokens</strong></td>
+<td><code>tokens.api.cx.metamask.io</code></td>
+<td>Bulk asset operations, supported networks</td>
+</tr>
+</tbody></table>
+<a id="md:features" class="tsd-anchor"></a><h3><a href="#md:features">Features</a></h3><ul>
+<li>✅ <strong>Automatic request deduplication</strong> - Identical concurrent requests share a single network call</li>
+<li>✅ <strong>Intelligent caching</strong> - Configurable stale times per data type (prices: 30s, balances: 1min, networks: 30min)</li>
+<li>✅ <strong>Automatic retries</strong> - Exponential backoff with jitter, skips 4xx errors (except 429, 408)</li>
+<li>✅ <strong>Type safety</strong> - Full TypeScript support with response types</li>
+<li>✅ <strong>Bearer token caching</strong> - Auth tokens cached for 5 minutes</li>
+<li>✅ <strong>Unified client</strong> - Single entry point or individual API clients</li>
+</ul>
+<a id="md:quick-start-1" class="tsd-anchor"></a><h3><a href="#md:quick-start-1">Quick Start</a></h3><pre><code class="language-typescript"><span class="hl-3">import</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">ApiPlatformClient</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">createApiPlatformClient</span><span class="hl-1">,</span><br/><span class="hl-1">} </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@metamask/core-backend&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">// Create unified client</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">client</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">ApiPlatformClient</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">clientProduct:</span><span class="hl-1"> </span><span class="hl-2">&#39;metamask-extension&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">clientVersion:</span><span class="hl-1"> </span><span class="hl-2">&#39;12.0.0&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">getBearerToken</span><span class="hl-4">:</span><span class="hl-1"> </span><span class="hl-6">async</span><span class="hl-1"> () </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-4">authController</span><span class="hl-1">.</span><span class="hl-0">getBearerToken</span><span class="hl-1">(),</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-5">// Access API methods through sub-clients</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">networks</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">accounts</span><span class="hl-1">.</span><span class="hl-0">fetchV2SupportedNetworks</span><span class="hl-1">();</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">balances</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">accounts</span><span class="hl-1">.</span><span class="hl-0">fetchV5MultiAccountBalances</span><span class="hl-1">([</span><br/><span class="hl-1">  </span><span class="hl-2">&#39;eip155:1:0x742d35cc6634c0532925a3b8d40c4e0e2c6e4e6&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">]);</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">prices</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">prices</span><span class="hl-1">.</span><span class="hl-0">fetchV3SpotPrices</span><span class="hl-1">([</span><br/><span class="hl-1">  </span><span class="hl-2">&#39;eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">]);</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">tokenList</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">token</span><span class="hl-1">.</span><span class="hl-0">fetchTokenList</span><span class="hl-1">(</span><span class="hl-8">1</span><span class="hl-1">);</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">assets</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">tokens</span><span class="hl-1">.</span><span class="hl-0">fetchV3Assets</span><span class="hl-1">([</span><br/><span class="hl-1">  </span><span class="hl-2">&#39;eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">]);</span>
+</code><button>Copy</button></pre>
+<p>Or use individual clients:</p>
+<pre><code class="language-typescript"><span class="hl-3">import</span><span class="hl-1"> { </span><span class="hl-4">AccountsApiClient</span><span class="hl-1">, </span><span class="hl-4">PricesApiClient</span><span class="hl-1"> } </span><span class="hl-3">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@metamask/core-backend&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">accountsClient</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">AccountsApiClient</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">clientProduct:</span><span class="hl-1"> </span><span class="hl-2">&#39;metamask-extension&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">pricesClient</span><span class="hl-1"> = </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">PricesApiClient</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">clientProduct:</span><span class="hl-1"> </span><span class="hl-2">&#39;metamask-extension&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">getBearerToken</span><span class="hl-4">:</span><span class="hl-1"> </span><span class="hl-6">async</span><span class="hl-1"> () </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-4">token</span><span class="hl-1">,</span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+<a id="md:api-clients" class="tsd-anchor"></a><h3><a href="#md:api-clients">API Clients</a></h3><a id="md:accountsapiclient" class="tsd-anchor"></a><h4><a href="#md:accountsapiclient">AccountsApiClient</a></h4><p>Handles account-related operations including balances, transactions, NFTs, and token discovery.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>fetchV1SupportedNetworks()</code></td>
+<td>Get supported networks (v1)</td>
+</tr>
+<tr>
+<td><code>fetchV2SupportedNetworks()</code></td>
+<td>Get supported networks (v2)</td>
+</tr>
+<tr>
+<td><code>fetchV2ActiveNetworks(accountIds, options?)</code></td>
+<td>Get active networks by CAIP-10 account IDs</td>
+</tr>
+<tr>
+<td><code>fetchV2Balances(address, options?)</code></td>
+<td>Get balances for single address</td>
+</tr>
+<tr>
+<td><code>fetchV2BalancesWithOptions(address, options?)</code></td>
+<td>Get balances with filters</td>
+</tr>
+<tr>
+<td><code>fetchV4MultiAccountBalances(addresses, options?)</code></td>
+<td>Get balances for multiple addresses</td>
+</tr>
+<tr>
+<td><code>fetchV5MultiAccountBalances(accountIds, options?)</code></td>
+<td>Get balances using CAIP-10 IDs</td>
+</tr>
+<tr>
+<td><code>fetchV1TransactionByHash(chainId, txHash, options?)</code></td>
+<td>Get transaction by hash</td>
+</tr>
+<tr>
+<td><code>fetchV1AccountTransactions(address, options?)</code></td>
+<td>Get account transactions</td>
+</tr>
+<tr>
+<td><code>fetchV4MultiAccountTransactions(accountIds, options?)</code></td>
+<td>Get multi-account transactions</td>
+</tr>
+<tr>
+<td><code>fetchV1AccountRelationship(chainId, from, to)</code></td>
+<td>Get address relationship</td>
+</tr>
+<tr>
+<td><code>fetchV2AccountNfts(address, options?)</code></td>
+<td>Get account NFTs</td>
+</tr>
+<tr>
+<td><code>fetchV2AccountTokens(address, options?)</code></td>
+<td>Get detected ERC20 tokens</td>
+</tr>
+<tr>
+<td><code>invalidateBalances()</code></td>
+<td>Invalidate all balance cache</td>
+</tr>
+<tr>
+<td><code>invalidateAccounts()</code></td>
+<td>Invalidate all account cache</td>
+</tr>
+</tbody></table>
+<a id="md:pricesapiclient" class="tsd-anchor"></a><h4><a href="#md:pricesapiclient">PricesApiClient</a></h4><p>Handles price-related operations including spot prices, exchange rates, and historical data.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>fetchPriceV1SupportedNetworks()</code></td>
+<td>Get price-supported networks (v1)</td>
+</tr>
+<tr>
+<td><code>fetchPriceV2SupportedNetworks()</code></td>
+<td>Get price-supported networks in CAIP format (v2)</td>
+</tr>
+<tr>
+<td><code>fetchV1ExchangeRates(baseCurrency)</code></td>
+<td>Get exchange rates for base currency</td>
+</tr>
+<tr>
+<td><code>fetchV1FiatExchangeRates()</code></td>
+<td>Get fiat exchange rates</td>
+</tr>
+<tr>
+<td><code>fetchV1CryptoExchangeRates()</code></td>
+<td>Get crypto exchange rates</td>
+</tr>
+<tr>
+<td><code>fetchV1SpotPricesByCoinIds(coinIds)</code></td>
+<td>Get spot prices by CoinGecko IDs</td>
+</tr>
+<tr>
+<td><code>fetchV1SpotPriceByCoinId(coinId, currency?)</code></td>
+<td>Get single coin spot price</td>
+</tr>
+<tr>
+<td><code>fetchV1TokenPrices(chainId, addresses, options?)</code></td>
+<td>Get token prices on chain</td>
+</tr>
+<tr>
+<td><code>fetchV1TokenPrice(chainId, address, currency?)</code></td>
+<td>Get single token price</td>
+</tr>
+<tr>
+<td><code>fetchV2SpotPrices(chainId, addresses, options?)</code></td>
+<td>Get spot prices with market data</td>
+</tr>
+<tr>
+<td><code>fetchV3SpotPrices(assetIds, options?)</code></td>
+<td>Get spot prices by CAIP-19 asset IDs</td>
+</tr>
+<tr>
+<td><code>fetchV1HistoricalPricesByCoinId(coinId, options?)</code></td>
+<td>Get historical prices by CoinGecko ID</td>
+</tr>
+<tr>
+<td><code>fetchV1HistoricalPricesByTokenAddresses(chainId, addresses, options?)</code></td>
+<td>Get historical prices for tokens</td>
+</tr>
+<tr>
+<td><code>fetchV1HistoricalPrices(chainId, address, options?)</code></td>
+<td>Get historical prices for single token</td>
+</tr>
+<tr>
+<td><code>fetchV3HistoricalPrices(chainId, assetType, options?)</code></td>
+<td>Get historical prices by CAIP-19</td>
+</tr>
+<tr>
+<td><code>fetchV1HistoricalPriceGraphByCoinId(coinId, options?)</code></td>
+<td>Get price graph by CoinGecko ID</td>
+</tr>
+<tr>
+<td><code>fetchV1HistoricalPriceGraphByTokenAddress(chainId, address, options?)</code></td>
+<td>Get price graph by token address</td>
+</tr>
+<tr>
+<td><code>invalidatePrices()</code></td>
+<td>Invalidate all price cache</td>
+</tr>
+</tbody></table>
+<a id="md:tokenapiclient" class="tsd-anchor"></a><h4><a href="#md:tokenapiclient">TokenApiClient</a></h4><p>Handles token metadata, lists, and trending/popular token discovery.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>fetchNetworks()</code></td>
+<td>Get all networks</td>
+</tr>
+<tr>
+<td><code>fetchNetworkByChainId(chainId)</code></td>
+<td>Get network by chain ID</td>
+</tr>
+<tr>
+<td><code>fetchTokenList(chainId, options?)</code></td>
+<td>Get token list for chain</td>
+</tr>
+<tr>
+<td><code>fetchV1TokenMetadata(chainId, address, options?)</code></td>
+<td>Get token metadata</td>
+</tr>
+<tr>
+<td><code>fetchTokenDescription(chainId, address)</code></td>
+<td>Get token description</td>
+</tr>
+<tr>
+<td><code>fetchV3TrendingTokens(chainIds, options?)</code></td>
+<td>Get trending tokens</td>
+</tr>
+<tr>
+<td><code>fetchV3TopGainers(chainIds, options?)</code></td>
+<td>Get top gainers/losers</td>
+</tr>
+<tr>
+<td><code>fetchV3PopularTokens(chainIds, options?)</code></td>
+<td>Get popular tokens</td>
+</tr>
+<tr>
+<td><code>fetchTopAssets(chainId)</code></td>
+<td>Get top assets for chain</td>
+</tr>
+<tr>
+<td><code>fetchV1SuggestedOccurrenceFloors()</code></td>
+<td>Get suggested occurrence floors</td>
+</tr>
+</tbody></table>
+<a id="md:tokensapiclient" class="tsd-anchor"></a><h4><a href="#md:tokensapiclient">TokensApiClient</a></h4><p>Handles bulk token operations and supported network queries.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>fetchTokenV1SupportedNetworks()</code></td>
+<td>Get token-supported networks (v1)</td>
+</tr>
+<tr>
+<td><code>fetchTokenV2SupportedNetworks()</code></td>
+<td>Get token-supported networks with full/partial support (v2)</td>
+</tr>
+<tr>
+<td><code>fetchV3Assets(assetIds)</code></td>
+<td>Fetch assets by CAIP-19 IDs</td>
+</tr>
+<tr>
+<td><code>invalidateTokens()</code></td>
+<td>Invalidate all token cache</td>
+</tr>
+</tbody></table>
+<a id="md:configuration" class="tsd-anchor"></a><h3><a href="#md:configuration">Configuration</a></h3><pre><code class="language-typescript"><span class="hl-6">type</span><span class="hl-1"> </span><span class="hl-9">ApiPlatformClientOptions</span><span class="hl-1"> = {</span><br/><span class="hl-1">  </span><span class="hl-5">/** Client product identifier (e.g., &#39;metamask-extension&#39;, &#39;metamask-mobile&#39;) */</span><br/><span class="hl-1">  </span><span class="hl-4">clientProduct</span><span class="hl-1">: </span><span class="hl-9">string</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-5">/** Optional client version (default: &#39;1.0.0&#39;) */</span><br/><span class="hl-1">  </span><span class="hl-4">clientVersion</span><span class="hl-1">?: </span><span class="hl-9">string</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-5">/** Function to get bearer token for authenticated requests */</span><br/><span class="hl-1">  </span><span class="hl-0">getBearerToken</span><span class="hl-1">?: () </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-9">Promise</span><span class="hl-1">&lt;</span><span class="hl-9">string</span><span class="hl-1"> | </span><span class="hl-9">undefined</span><span class="hl-1">&gt;;</span><br/><span class="hl-1">  </span><span class="hl-5">/** Optional custom QueryClient instance for shared caching */</span><br/><span class="hl-1">  </span><span class="hl-4">queryClient</span><span class="hl-1">?: </span><span class="hl-9">QueryClient</span><span class="hl-1">;</span><br/><span class="hl-1">};</span>
+</code><button>Copy</button></pre>
+<p><strong>Default Stale Times:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Data Type</th>
+<th>Stale Time</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Prices</td>
+<td>30 seconds</td>
+</tr>
+<tr>
+<td>Balances</td>
+<td>1 minute</td>
+</tr>
+<tr>
+<td>Transactions</td>
+<td>30 seconds</td>
+</tr>
+<tr>
+<td>Networks</td>
+<td>10 minutes</td>
+</tr>
+<tr>
+<td>Supported Networks</td>
+<td>30 minutes</td>
+</tr>
+<tr>
+<td>Token Metadata</td>
+<td>5 minutes</td>
+</tr>
+<tr>
+<td>Token List</td>
+<td>10 minutes</td>
+</tr>
+<tr>
+<td>Exchange Rates</td>
+<td>5 minutes</td>
+</tr>
+<tr>
+<td>Trending</td>
+<td>2 minutes</td>
+</tr>
+<tr>
+<td>Auth Token</td>
+<td>5 minutes</td>
+</tr>
+</tbody></table>
+<p><strong>Override Stale Time:</strong></p>
+<pre><code class="language-typescript"><span class="hl-5">// Use custom stale time for specific request</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">balances</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">accounts</span><span class="hl-1">.</span><span class="hl-0">fetchV5MultiAccountBalances</span><span class="hl-1">(</span><br/><span class="hl-1">  </span><span class="hl-4">accountIds</span><span class="hl-1">,</span><br/><span class="hl-1">  { </span><span class="hl-4">networks:</span><span class="hl-1"> [</span><span class="hl-2">&#39;eip155:1&#39;</span><span class="hl-1">] },</span><br/><span class="hl-1">  { </span><span class="hl-4">staleTime:</span><span class="hl-1"> </span><span class="hl-8">10000</span><span class="hl-1"> }, </span><span class="hl-5">// 10 seconds</span><br/><span class="hl-1">);</span>
+</code><button>Copy</button></pre>
+<a id="md:cache-management" class="tsd-anchor"></a><h3><a href="#md:cache-management">Cache Management</a></h3><pre><code class="language-typescript"><span class="hl-5">// Invalidate all caches</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-0">invalidateAll</span><span class="hl-1">();</span><br/><br/><span class="hl-5">// Invalidate auth token (on logout)</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-0">invalidateAuthToken</span><span class="hl-1">();</span><br/><br/><span class="hl-5">// Domain-specific invalidation</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">accounts</span><span class="hl-1">.</span><span class="hl-0">invalidateBalances</span><span class="hl-1">();</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">prices</span><span class="hl-1">.</span><span class="hl-0">invalidatePrices</span><span class="hl-1">();</span><br/><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">tokens</span><span class="hl-1">.</span><span class="hl-0">invalidateTokens</span><span class="hl-1">();</span><br/><br/><span class="hl-5">// Clear all cached data</span><br/><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-0">clear</span><span class="hl-1">();</span><br/><br/><span class="hl-5">// Check if query is fetching</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">isFetching</span><span class="hl-1"> = </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-0">isFetching</span><span class="hl-1">([</span><span class="hl-2">&#39;accounts&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;balances&#39;</span><span class="hl-1">]);</span><br/><br/><span class="hl-5">// Access cached data directly</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">cached</span><span class="hl-1"> = </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-0">getCachedData</span><span class="hl-1">([</span><span class="hl-2">&#39;accounts&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;balances&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;v5&#39;</span><span class="hl-1">, { ... }]);</span><br/><br/><span class="hl-5">// Set cached data</span><br/><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-0">setCachedData</span><span class="hl-1">(</span><span class="hl-4">queryKey</span><span class="hl-1">, </span><span class="hl-4">data</span><span class="hl-1">);</span><br/><br/><span class="hl-5">// Access underlying QueryClient for advanced usage</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">queryClient</span><span class="hl-1"> = </span><span class="hl-4">client</span><span class="hl-1">.</span><span class="hl-4">queryClient</span><span class="hl-1">;</span>
+</code><button>Copy</button></pre>
+<a id="md:api-reference" class="tsd-anchor"></a><h2><a href="#md:api-reference">API Reference</a></h2><a id="md:backendwebsocketservice" class="tsd-anchor"></a><h3><a href="#md:backendwebsocketservice">BackendWebSocketService</a></h3><p>The core WebSocket client providing connection management, authentication, and message routing.</p>
+<a id="md:constructor-options" class="tsd-anchor"></a><h4><a href="#md:constructor-options">Constructor Options</a></h4><pre><code class="language-typescript"><span class="hl-6">interface</span><span class="hl-1"> </span><span class="hl-9">BackendWebSocketServiceOptions</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">messenger</span><span class="hl-1">: </span><span class="hl-9">BackendWebSocketServiceMessenger</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-4">url</span><span class="hl-1">: </span><span class="hl-9">string</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-4">timeout</span><span class="hl-1">?: </span><span class="hl-9">number</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-4">reconnectDelay</span><span class="hl-1">?: </span><span class="hl-9">number</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-4">maxReconnectDelay</span><span class="hl-1">?: </span><span class="hl-9">number</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-4">requestTimeout</span><span class="hl-1">?: </span><span class="hl-9">number</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-4">enableAuthentication</span><span class="hl-1">?: </span><span class="hl-9">boolean</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-0">enabledCallback</span><span class="hl-1">?: () </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-9">boolean</span><span class="hl-1">;</span><br/><span class="hl-1">}</span>
+</code><button>Copy</button></pre>
+<a id="md:methods" class="tsd-anchor"></a><h4><a href="#md:methods">Methods</a></h4><ul>
+<li><code>connect(): Promise&lt;void&gt;</code> - Establish authenticated WebSocket connection</li>
+<li><code>disconnect(): Promise&lt;void&gt;</code> - Close WebSocket connection</li>
+<li><code>subscribe(options: SubscriptionOptions): Promise&lt;SubscriptionResult&gt;</code> - Subscribe to channels</li>
+<li><code>sendRequest(message: ClientRequestMessage): Promise&lt;ServerResponseMessage&gt;</code> - Send request/response messages</li>
+<li><code>channelHasSubscription(channel: string): boolean</code> - Check subscription status</li>
+<li><code>findSubscriptionsByChannelPrefix(prefix: string): SubscriptionInfo[]</code> - Find subscriptions by prefix</li>
+<li><code>getConnectionInfo(): WebSocketConnectionInfo</code> - Get detailed connection state</li>
+</ul>
+<a id="md:accountactivityservice" class="tsd-anchor"></a><h3><a href="#md:accountactivityservice">AccountActivityService</a></h3><p>High-level service for monitoring account activity using WebSocket data.</p>
+<a id="md:constructor-options-1" class="tsd-anchor"></a><h4><a href="#md:constructor-options-1">Constructor Options</a></h4><pre><code class="language-typescript"><span class="hl-6">interface</span><span class="hl-1"> </span><span class="hl-9">AccountActivityServiceOptions</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-4">messenger</span><span class="hl-1">: </span><span class="hl-9">AccountActivityServiceMessenger</span><span class="hl-1">;</span><br/><span class="hl-1">  </span><span class="hl-4">subscriptionNamespace</span><span class="hl-1">?: </span><span class="hl-9">string</span><span class="hl-1">;</span><br/><span class="hl-1">}</span>
+</code><button>Copy</button></pre>
+<a id="md:methods-1" class="tsd-anchor"></a><h4><a href="#md:methods-1">Methods</a></h4><ul>
+<li><code>subscribe(subscription: SubscriptionOptions): Promise&lt;void&gt;</code> - Subscribe to account activity</li>
+<li><code>unsubscribe(subscription: SubscriptionOptions): Promise&lt;void&gt;</code> - Unsubscribe from account activity</li>
+</ul>
+<a id="md:events-published" class="tsd-anchor"></a><h4><a href="#md:events-published">Events Published</a></h4><ul>
+<li><code>AccountActivityService:balanceUpdated</code> - Real-time balance changes</li>
+<li><code>AccountActivityService:transactionUpdated</code> - Transaction status updates</li>
+<li><code>AccountActivityService:statusChanged</code> - Chain/service status changes</li>
+</ul>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-index-accordion"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><h4 class="uppercase">Member Visibility</h4><form><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></form></div><div class="tsd-theme-toggle"><h4 class="uppercase">Theme</h4><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-index-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#md:metamaskcore-backend"><span>@metamask/core-<wbr/>backend</span></a><ul><li><a href="#md:table-of-contents"><span>Table of <wbr/>Contents</span></a></li><li><a href="#md:installation"><span>Installation</span></a></li><li><a href="#md:quick-start"><span>Quick <wbr/>Start</span></a></li><li><ul><li><a href="#md:basic-usage"><span>Basic <wbr/>Usage</span></a></li><li><a href="#md:integration-with-controllers"><span>Integration with <wbr/>Controllers</span></a></li></ul></li><li><a href="#md:architecture-amp-design"><span>Architecture &amp; <wbr/>Design</span></a></li><li><ul><li><a href="#md:layered-architecture"><span>Layered <wbr/>Architecture</span></a></li><li><a href="#md:dependencies-structure"><span>Dependencies <wbr/>Structure</span></a></li><li><a href="#md:data-flow"><span>Data <wbr/>Flow</span></a></li><li><ul><li><a href="#md:sequence-diagram-real-time-account-activity-flow"><span>Sequence <wbr/>Diagram: <wbr/>Real-<wbr/>time <wbr/>Account <wbr/>Activity <wbr/>Flow</span></a></li><li><a href="#md:key-flow-characteristics"><span>Key <wbr/>Flow <wbr/>Characteristics</span></a></li></ul></li></ul></li><li><a href="#md:websocket-connection-management"><span>Web<wbr/>Socket <wbr/>Connection <wbr/>Management</span></a></li><li><ul><li><a href="#md:connection-requirements"><span>Connection <wbr/>Requirements</span></a></li><li><a href="#md:connection-behavior"><span>Connection <wbr/>Behavior</span></a></li></ul></li><li><a href="#md:http-api"><span>HTTP API</span></a></li><li><ul><li><a href="#md:overview"><span>Overview</span></a></li><li><a href="#md:features"><span>Features</span></a></li><li><a href="#md:quick-start-1"><span>Quick <wbr/>Start</span></a></li><li><a href="#md:api-clients"><span>API <wbr/>Clients</span></a></li><li><ul><li><a href="#md:accountsapiclient"><span>Accounts<wbr/>Api<wbr/>Client</span></a></li><li><a href="#md:pricesapiclient"><span>Prices<wbr/>Api<wbr/>Client</span></a></li><li><a href="#md:tokenapiclient"><span>Token<wbr/>Api<wbr/>Client</span></a></li><li><a href="#md:tokensapiclient"><span>Tokens<wbr/>Api<wbr/>Client</span></a></li></ul></li><li><a href="#md:configuration"><span>Configuration</span></a></li><li><a href="#md:cache-management"><span>Cache <wbr/>Management</span></a></li></ul></li><li><a href="#md:api-reference"><span>API <wbr/>Reference</span></a></li><li><ul><li><a href="#md:backendwebsocketservice"><span>Backend<wbr/>Web<wbr/>Socket<wbr/>Service</span></a></li><li><ul><li><a href="#md:constructor-options"><span>Constructor <wbr/>Options</span></a></li><li><a href="#md:methods"><span>Methods</span></a></li></ul></li><li><a href="#md:accountactivityservice"><span>Account<wbr/>Activity<wbr/>Service</span></a></li><li><ul><li><a href="#md:constructor-options-1"><span>Constructor <wbr/>Options</span></a></li><li><a href="#md:methods-1"><span>Methods</span></a></li><li><a href="#md:events-published"><span>Events <wbr/>Published</span></a></li></ul></li></ul></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html" class="current"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="assets/icons.svg#icon-1"></use></svg><span>@metamask/core-backend</span></a><ul class="tsd-small-nested-navigation" id="tsd-nav-container" data-base="."><li>Loading...</li></ul></nav></div></div></div><footer></footer><div class="overlay"></div></body></html>
