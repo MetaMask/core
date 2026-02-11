@@ -4211,7 +4211,7 @@ describe('AccountsController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "accountIdByAddress": {},
           "internalAccounts": {
             "accounts": {},
