@@ -260,7 +260,7 @@ export class MultichainAccountWallet<
   #createOrUpdateMultichainAccountGroup(
     groupIndex: number,
     groupState: GroupState,
-  ): MultichainAccountGroup<Account> {
+  ): [MultichainAccountGroup<Account>, boolean] {
     let group = this.#accountGroups.get(groupIndex);
     if (group) {
       group.update(groupState);
@@ -273,28 +273,30 @@ export class MultichainAccountWallet<
           group,
         );
       }
-    } else {
-      group = new MultichainAccountGroup({
-        wallet: this,
-        providers: this.#providers,
-        groupIndex,
-        messenger: this.#messenger,
-      });
-      group.init(groupState);
 
-      this.#accountGroups.set(groupIndex, group);
-
-      this.#log(`New group created: [${group.id}]`);
-
-      if (this.#initialized) {
-        this.#messenger.publish(
-          'MultichainAccountService:multichainAccountGroupCreated',
-          group,
-        );
-      }
+      return [group, false];
     }
 
-    return group;
+    group = new MultichainAccountGroup({
+      wallet: this,
+      providers: this.#providers,
+      groupIndex,
+      messenger: this.#messenger,
+    });
+    group.init(groupState);
+
+    this.#accountGroups.set(groupIndex, group);
+
+    this.#log(`New group created: [${group.id}]`);
+
+    if (this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        group,
+      );
+    }
+
+    return [group, true];
   }
 
   /**
@@ -403,12 +405,14 @@ export class MultichainAccountWallet<
           const groupState = allGroupStateByGroupIndex.get(groupIndex);
 
           if (groupState) {
-            groups.push(
-              this.#createOrUpdateMultichainAccountGroup(
-                groupIndex,
-                groupState,
-              ),
+            const [group, created] = this.#createOrUpdateMultichainAccountGroup(
+              groupIndex,
+              groupState,
             );
+
+            if (created) {
+              groups.push(group);
+            }
           } else {
             this.#log(
               `${WARNING_PREFIX} Failed to create new group for group index: ${groupIndex} because no accounts were created for it`,
