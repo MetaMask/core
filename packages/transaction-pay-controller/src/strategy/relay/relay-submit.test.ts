@@ -556,8 +556,8 @@ describe('Relay Submit Utils', () => {
 
         expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
 
-        const { transactions } =
-          addTransactionBatchMock.mock.calls[0][0] as unknown as Record<string, unknown[]>;
+        const { transactions } = addTransactionBatchMock.mock
+          .calls[0][0] as unknown as Record<string, unknown[]>;
 
         expect(transactions).toHaveLength(3);
         expect(transactions[0]).toEqual(
