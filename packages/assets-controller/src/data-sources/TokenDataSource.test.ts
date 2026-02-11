@@ -97,7 +97,7 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
     request: createDataRequest(),
     response: {},
     getAssetsState: jest.fn().mockReturnValue({
-      assetsMetadata: {},
+      assetsInfo: {},
     }),
     ...overrides,
   };
@@ -200,7 +200,7 @@ describe('TokenDataSource', () => {
         includeRwaData: true,
       },
     );
-    expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]).toStrictEqual({
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toStrictEqual({
       type: 'erc20',
       name: 'Test Token',
       symbol: 'TEST',
@@ -231,7 +231,7 @@ describe('TokenDataSource', () => {
         detectedAssets: {
           'mock-account-id': [MOCK_TOKEN_ASSET],
         },
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_TOKEN_ASSET]: {
             type: 'erc20',
             name: 'Existing',
@@ -262,7 +262,7 @@ describe('TokenDataSource', () => {
         },
       },
       getAssetsState: jest.fn().mockReturnValue({
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_TOKEN_ASSET]: {
             type: 'erc20',
             name: 'State Token',
@@ -292,7 +292,7 @@ describe('TokenDataSource', () => {
         detectedAssets: {
           'mock-account-id': [MOCK_TOKEN_ASSET],
         },
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_TOKEN_ASSET]: {
             type: 'erc20',
             name: 'Existing',
@@ -439,7 +439,7 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(context.response.assetsMetadata?.[MOCK_NATIVE_ASSET]?.type).toBe(
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]?.type).toBe(
       'native',
     );
   });
@@ -467,7 +467,7 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(context.response.assetsMetadata?.[MOCK_SPL_ASSET]?.type).toBe('spl');
+    expect(context.response.assetsInfo?.[MOCK_SPL_ASSET]?.type).toBe('spl');
   });
 
   it('middleware merges metadata into existing response', async () => {
@@ -482,7 +482,7 @@ describe('TokenDataSource', () => {
     const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
-        assetsMetadata: {
+        assetsInfo: {
           [anotherAsset]: {
             type: 'erc20',
             name: 'DAI',
@@ -499,8 +499,8 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(context.response.assetsMetadata?.[anotherAsset]).toBeDefined();
-    expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[anotherAsset]).toBeDefined();
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
   });
 
   it('middleware handles multiple detected assets from multiple accounts', async () => {
@@ -540,8 +540,8 @@ describe('TokenDataSource', () => {
         includeRwaData: true,
       },
     );
-    expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]).toBeDefined();
-    expect(context.response.assetsMetadata?.[secondAsset]).toBeDefined();
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[secondAsset]).toBeDefined();
   });
 
   it('middleware deduplicates assets across accounts', async () => {

@@ -103,7 +103,7 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({ assetsMetadata: {} }),
+    getAssetsState: jest.fn().mockReturnValue({ assetsInfo: {} }),
     ...overrides,
   };
 }
@@ -434,7 +434,7 @@ describe('SnapDataSource', () => {
 
     expect(response).toStrictEqual({
       assetsBalance: {},
-      assetsMetadata: {},
+      assetsInfo: {},
     });
 
     cleanup();
@@ -468,7 +468,7 @@ describe('SnapDataSource', () => {
     // No accounts to fetch, so empty balances
     expect(response).toStrictEqual({
       assetsBalance: {},
-      assetsMetadata: {},
+      assetsInfo: {},
     });
 
     cleanup();

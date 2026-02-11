@@ -621,7 +621,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     const response: DataResponse = {};
     if (Object.keys(assetsBalance[accountId]).length > 0) {
       response.assetsBalance = assetsBalance;
-      response.assetsMetadata = assetsMetadata;
+      response.assetsInfo = assetsMetadata;
     }
 
     return response;

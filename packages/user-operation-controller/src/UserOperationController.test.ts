@@ -1457,7 +1457,7 @@ describe('UserOperationController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -1470,8 +1470,8 @@ describe('UserOperationController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "userOperations": Object {},
+        {
+          "userOperations": {},
         }
       `);
     });
@@ -1486,8 +1486,8 @@ describe('UserOperationController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "userOperations": Object {},
+        {
+          "userOperations": {},
         }
       `);
     });
@@ -1502,8 +1502,8 @@ describe('UserOperationController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "userOperations": Object {},
+        {
+          "userOperations": {},
         }
       `);
     });

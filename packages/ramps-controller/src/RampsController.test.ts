@@ -35,6 +35,7 @@ import type {
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
 import { RequestStatus } from './RequestCache';
 
@@ -65,33 +66,33 @@ describe('RampsController', () => {
     it('uses default state when no state is provided', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -122,33 +123,33 @@ describe('RampsController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -482,33 +483,33 @@ describe('RampsController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -529,26 +530,26 @@ describe('RampsController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "tokens": Object {
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -569,20 +570,20 @@ describe('RampsController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "tokens": Object {
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -603,33 +604,33 @@ describe('RampsController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -1107,34 +1108,34 @@ describe('RampsController', () => {
         const countries = await controller.getCountries();
 
         expect(countries).toMatchInlineSnapshot(`
-          Array [
-            Object {
+          [
+            {
               "currency": "USD",
               "flag": "🇺🇸",
               "isoCode": "US",
               "name": "United States of America",
-              "phone": Object {
+              "phone": {
                 "placeholder": "(555) 123-4567",
                 "prefix": "+1",
                 "template": "(XXX) XXX-XXXX",
               },
               "recommended": true,
-              "supported": Object {
+              "supported": {
                 "buy": true,
                 "sell": true,
               },
             },
-            Object {
+            {
               "currency": "EUR",
               "flag": "🇦🇹",
               "isoCode": "AT",
               "name": "Austria",
-              "phone": Object {
+              "phone": {
                 "placeholder": "660 1234567",
                 "prefix": "+43",
                 "template": "XXX XXXXXXX",
               },
-              "supported": Object {
+              "supported": {
                 "buy": true,
                 "sell": false,
               },
@@ -2454,9 +2455,9 @@ describe('RampsController', () => {
         const tokens = await controller.getTokens('us-ca', 'buy');
 
         expect(tokens).toMatchInlineSnapshot(`
-          Object {
-            "allTokens": Array [
-              Object {
+          {
+            "allTokens": [
+              {
                 "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -2465,7 +2466,7 @@ describe('RampsController', () => {
                 "symbol": "USDC",
                 "tokenSupported": true,
               },
-              Object {
+              {
                 "assetId": "eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -2475,8 +2476,8 @@ describe('RampsController', () => {
                 "tokenSupported": true,
               },
             ],
-            "topTokens": Array [
-              Object {
+            "topTokens": [
+              {
                 "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -3686,7 +3687,6 @@ describe('RampsController', () => {
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
           },
           metadata: {
             reliability: 95,
@@ -3747,6 +3747,58 @@ describe('RampsController', () => {
           expect(controller.state.quotes.data).toStrictEqual(
             mockQuotesResponse,
           );
+        },
+      );
+    });
+
+    it('uses selected token assetId from state when assetId option is not provided', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              expect(params.assetId).toBe('eip155:1/slip44:60');
+              return mockQuotesResponse;
+            },
+          );
+
+          const result = await controller.getQuotes({
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          });
+
+          expect(result.success).toHaveLength(1);
         },
       );
     });
@@ -3949,6 +4001,38 @@ describe('RampsController', () => {
       );
     });
 
+    it('throws when assetId is not provided and no token is selected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getQuotes({
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            }),
+          ).rejects.toThrow('assetId is required');
+        },
+      );
+    });
+
     it('throws when walletAddress is empty', async () => {
       await withController(
         {
@@ -4097,6 +4181,130 @@ describe('RampsController', () => {
             amount: 100,
             walletAddress: '  0x1234567890abcdef1234567890abcdef12345678  ',
           });
+        },
+      );
+    });
+
+    it('passes providers parameter to getQuotes', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedProviders = params.providers;
+              return mockQuotesResponse;
+            },
+          );
+
+          await controller.getQuotes({
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            paymentMethods: ['/payments/debit-credit-card'],
+            providers: ['/providers/moonpay', '/providers/transak'],
+          });
+
+          expect(capturedProviders).toStrictEqual([
+            '/providers/moonpay',
+            '/providers/transak',
+          ]);
+        },
+      );
+    });
+
+    it('uses state providers when providers option is not provided', async () => {
+      const stateProviders = [
+        {
+          id: '/providers/moonpay',
+          name: 'MoonPay',
+          environmentType: 'PRODUCTION' as const,
+          description: 'MoonPay',
+          hqAddress: '',
+          links: [],
+          logos: {
+            light: '',
+            dark: '',
+            height: 24,
+            width: 77,
+          },
+        },
+        {
+          id: '/providers/transak',
+          name: 'Transak',
+          environmentType: 'PRODUCTION' as const,
+          description: 'Transak',
+          hqAddress: '',
+          links: [],
+          logos: {
+            light: '',
+            dark: '',
+            height: 24,
+            width: 77,
+          },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+              providers: createResourceState(stateProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedProviders = params.providers;
+              return mockQuotesResponse;
+            },
+          );
+
+          await controller.getQuotes({
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            paymentMethods: ['/payments/debit-credit-card'],
+          });
+
+          expect(capturedProviders).toStrictEqual([
+            '/providers/moonpay',
+            '/providers/transak',
+          ]);
         },
       );
     });
@@ -4255,7 +4463,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when payment method is not selected', async () => {
+    it('returns early without throwing when payment method is not selected', async () => {
       await withController(
         {
           options: {
@@ -4296,9 +4504,7 @@ describe('RampsController', () => {
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
               amount: 100,
             }),
-          ).toThrow(
-            'Payment method is required. Cannot start quote polling without a selected payment method.',
-          );
+          ).not.toThrow();
         },
       );
     });
@@ -5653,26 +5859,36 @@ describe('RampsController', () => {
   });
 
   describe('getWidgetUrl', () => {
-    it('returns widget URL when present in quote', async () => {
-      await withController(({ controller }) => {
+    it('fetches and returns widget URL via RampsService messenger', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
         const quote: Quote = {
-          provider: '/providers/moonpay',
+          provider: '/providers/transak-staging',
           quote: {
             amountIn: 100,
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: 'https://global.transak.com/?apiKey=test',
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
 
-        expect(widgetUrl).toBe('https://buy.moonpay.com/widget?txId=123');
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBe('https://global.transak.com/?apiKey=test');
       });
     });
 
-    it('returns null when widget URL is not present', async () => {
-      await withController(({ controller }) => {
+    it('returns null when buyURL is not present', async () => {
+      await withController(async ({ controller }) => {
         const quote: Quote = {
           provider: '/providers/transak',
           quote: {
@@ -5682,19 +5898,73 @@ describe('RampsController', () => {
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });
     });
 
     it('returns null when quote object is malformed', async () => {
-      await withController(({ controller }) => {
+      await withController(async ({ controller }) => {
         const quote = {
           provider: '/providers/moonpay',
         } as unknown as Quote;
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns null when service call throws an error', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns null when service returns BuyWidget with null url', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: null as unknown as string,
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });
@@ -5822,7 +6092,8 @@ type RootMessenger = Messenger<
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
-  | RampsServiceGetQuotesAction,
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 

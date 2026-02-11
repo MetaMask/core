@@ -564,7 +564,7 @@ describe('metadata', () => {
         'includeInDebugSnapshot',
       ),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isSignedIn": true,
       }
     `);
@@ -586,27 +586,27 @@ describe('metadata', () => {
       );
 
       expect(derivedState).toMatchInlineSnapshot(`
-        Object {
+        {
           "isSignedIn": true,
-          "srpSessionData": Object {
-            "MOCK_ENTROPY_SOURCE_ID": Object {
-              "profile": Object {
+          "srpSessionData": {
+            "MOCK_ENTROPY_SOURCE_ID": {
+              "profile": {
                 "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
                 "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
                 "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
               },
-              "token": Object {
+              "token": {
                 "expiresIn": 1000,
                 "obtainedAt": 0,
               },
             },
-            "MOCK_ENTROPY_SOURCE_ID2": Object {
-              "profile": Object {
+            "MOCK_ENTROPY_SOURCE_ID2": {
+              "profile": {
                 "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
                 "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
                 "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
               },
-              "token": Object {
+              "token": {
                 "expiresIn": 1000,
                 "obtainedAt": 0,
               },
@@ -629,7 +629,7 @@ describe('metadata', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isSignedIn": false,
         }
       `);
@@ -647,28 +647,28 @@ describe('metadata', () => {
     expect(
       deriveStateFromMetadata(controller.state, controller.metadata, 'persist'),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isSignedIn": true,
-        "srpSessionData": Object {
-          "MOCK_ENTROPY_SOURCE_ID": Object {
-            "profile": Object {
+        "srpSessionData": {
+          "MOCK_ENTROPY_SOURCE_ID": {
+            "profile": {
               "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
               "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
               "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
             },
-            "token": Object {
+            "token": {
               "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
               "expiresIn": 1000,
               "obtainedAt": 0,
             },
           },
-          "MOCK_ENTROPY_SOURCE_ID2": Object {
-            "profile": Object {
+          "MOCK_ENTROPY_SOURCE_ID2": {
+            "profile": {
               "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
               "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
               "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
             },
-            "token": Object {
+            "token": {
               "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
               "expiresIn": 1000,
               "obtainedAt": 0,
@@ -694,28 +694,28 @@ describe('metadata', () => {
         'usedInUi',
       ),
     ).toMatchInlineSnapshot(`
-      Object {
+      {
         "isSignedIn": true,
-        "srpSessionData": Object {
-          "MOCK_ENTROPY_SOURCE_ID": Object {
-            "profile": Object {
+        "srpSessionData": {
+          "MOCK_ENTROPY_SOURCE_ID": {
+            "profile": {
               "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
               "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
               "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
             },
-            "token": Object {
+            "token": {
               "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
               "expiresIn": 1000,
               "obtainedAt": 0,
             },
           },
-          "MOCK_ENTROPY_SOURCE_ID2": Object {
-            "profile": Object {
+          "MOCK_ENTROPY_SOURCE_ID2": {
+            "profile": {
               "identifierId": "da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb",
               "metaMetricsId": "561ec651-a844-4b36-a451-04d6eac35740",
               "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
             },
-            "token": Object {
+            "token": {
               "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
               "expiresIn": 1000,
               "obtainedAt": 0,
