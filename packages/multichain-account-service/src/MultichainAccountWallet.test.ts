@@ -102,6 +102,15 @@ function setup({
   return { wallet, providers: providersList, messenger: serviceMessenger };
 }
 
+async function waitForProvidersToFinishCreatingAccounts(
+  providers: MockAccountProvider[],
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  for (const _ of providers) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
 describe('MultichainAccountWallet', () => {
   afterEach(() => {
     jest.clearAllTimers();
@@ -201,9 +210,12 @@ describe('MultichainAccountWallet', () => {
         await wallet.createMultichainAccountGroup(groupIndex);
       expect(specificGroup.groupIndex).toBe(groupIndex);
 
+      await waitForProvidersToFinishCreatingAccounts(providers);
+
       const internalAccounts = specificGroup.getAccounts();
-      expect(internalAccounts).toHaveLength(1);
+      expect(internalAccounts).toHaveLength(2);
       expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
+      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
     });
 
     it('returns the same reference when re-creating using the same index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
