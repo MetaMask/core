@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Return 0-prefixed hex string from `formatChainIdToHex` utility
+
 ## [66.1.0]
 
 ### Added
