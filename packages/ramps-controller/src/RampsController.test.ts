@@ -469,7 +469,7 @@ describe('RampsController', () => {
     it('throws error when region is not provided and userRegion is not set', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.getProviders()).rejects.toThrow(
-          'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
     });
@@ -1461,7 +1461,7 @@ describe('RampsController', () => {
     it('throws error when userRegion is not set', async () => {
       await withController(async ({ controller }) => {
         expect(() => controller.hydrateState()).toThrow(
-          'Region code is required. Cannot hydrate state without valid region information.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
     });
@@ -2776,7 +2776,7 @@ describe('RampsController', () => {
     it('throws error when region is not provided and userRegion is not set', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.getTokens(undefined, 'buy')).rejects.toThrow(
-          'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
     });
@@ -3470,7 +3470,7 @@ describe('RampsController', () => {
             provider: '/providers/stripe',
           }),
         ).rejects.toThrow(
-          'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
     });

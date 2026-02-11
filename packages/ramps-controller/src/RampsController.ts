@@ -1034,12 +1034,7 @@ export class RampsController extends BaseController<
   }
 
   hydrateState(options?: ExecuteRequestOptions): void {
-    const regionCode = this.state.userRegion?.regionCode;
-    if (!regionCode) {
-      throw new Error(
-        'Region code is required. Cannot hydrate state without valid region information.',
-      );
-    }
+    const regionCode = this.#requireRegion();
 
     this.#fireAndForget(this.getTokens(regionCode, 'buy', options));
     this.#fireAndForget(this.getProviders(regionCode, options));
@@ -1088,13 +1083,7 @@ export class RampsController extends BaseController<
       provider?: string | string[];
     },
   ): Promise<TokensResponse> {
-    const regionToUse = region ?? this.state.userRegion?.regionCode;
-
-    if (!regionToUse) {
-      throw new Error(
-        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
-      );
-    }
+    const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getTokens', [
@@ -1206,13 +1195,7 @@ export class RampsController extends BaseController<
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
-    const regionToUse = region ?? this.state.userRegion?.regionCode;
-
-    if (!regionToUse) {
-      throw new Error(
-        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
-      );
-    }
+    const regionToUse = region ?? this.#requireRegion();
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getProviders', [
@@ -1274,19 +1257,13 @@ export class RampsController extends BaseController<
       provider?: string;
     },
   ): Promise<PaymentMethodsResponse> {
-    const regionCode = region ?? this.state.userRegion?.regionCode ?? null;
+    const regionCode = region ?? this.#requireRegion();
     const fiatToUse =
       options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
     const assetIdToUse =
       options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
     const providerToUse =
       options?.provider ?? this.state.providers.selected?.id ?? '';
-
-    if (!regionCode) {
-      throw new Error(
-        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
-      );
-    }
 
     if (!fiatToUse) {
       throw new Error(
@@ -1421,7 +1398,7 @@ export class RampsController extends BaseController<
     forceRefresh?: boolean;
     ttl?: number;
   }): Promise<QuotesResponse> {
-    const regionToUse = options.region ?? this.state.userRegion?.regionCode;
+    const regionToUse = options.region ?? this.#requireRegion();
     const fiatToUse = options.fiat ?? this.state.userRegion?.country?.currency;
     const paymentMethodsToUse =
       options.paymentMethods ??
@@ -1431,12 +1408,6 @@ export class RampsController extends BaseController<
       this.state.providers.data.map((provider: Provider) => provider.id);
     const action = options.action ?? 'buy';
     const assetIdToUse = options.assetId ?? this.state.tokens.selected?.assetId;
-
-    if (!regionToUse) {
-      throw new Error(
-        'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
-      );
-    }
 
     if (!fiatToUse) {
       throw new Error(
