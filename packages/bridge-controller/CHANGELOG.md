@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Return 0-prefixed hex string from `formatChainIdToHex` utility
+- Return 0-prefixed hex string from `formatChainIdToHex` utility ([#7909](https://github.com/MetaMask/core/pull/7909))
 
-## [66.1.0]
+## [66.1.0] [DEPRECATED]
 
 ### Added
 
