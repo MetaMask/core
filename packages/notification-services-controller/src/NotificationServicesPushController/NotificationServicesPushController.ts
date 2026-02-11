@@ -230,9 +230,6 @@ export default class NotificationServicesPushController extends BaseController<
       'AuthenticationController:getBearerToken',
     );
     if (!bearerToken) {
-      log.error(
-        'Failed to enable push notifications: BearerToken token is missing.',
-      );
       throw new Error('BearerToken token is missing');
     }
 

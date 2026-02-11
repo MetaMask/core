@@ -18,6 +18,7 @@ import {
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
 import { isNativeAddress } from './utils/bridge';
+import { formatChainIdToHex } from './utils/caip-formatters';
 
 describe('Bridge Selectors', () => {
   describe('selectExchangeRateByChainIdAndAddress', () => {
@@ -206,15 +207,19 @@ describe('Bridge Selectors', () => {
       marketData: {},
       conversionRates: {},
       participateInMetaMetrics: true,
-      gasFeeEstimates: {
-        estimatedBaseFee: '50',
-        medium: {
-          suggestedMaxPriorityFeePerGas: '75',
-          suggestedMaxFeePerGas: '77',
-        },
-        high: {
-          suggestedMaxPriorityFeePerGas: '100',
-          suggestedMaxFeePerGas: '102',
+      gasFeeEstimatesByChainId: {
+        '0x1': {
+          gasFeeEstimates: {
+            estimatedBaseFee: '50',
+            medium: {
+              suggestedMaxPriorityFeePerGas: '75',
+              suggestedMaxFeePerGas: '77',
+            },
+            high: {
+              suggestedMaxPriorityFeePerGas: '100',
+              suggestedMaxFeePerGas: '102',
+            },
+          },
         },
       },
     } as unknown as BridgeAppState;
@@ -355,55 +360,62 @@ describe('Bridge Selectors', () => {
       },
     };
 
-    const mockState = {
-      quotes: [
-        mockQuote,
-        { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
-      ],
-      quoteRequest: {
-        srcChainId: '1',
-        destChainId: '137',
-        srcTokenAddress: '0x0000000000000000000000000000000000000000',
-        destTokenAddress: '0x0000000000000000000000000000000000000000',
-        insufficientBal: false,
-      },
-      quotesLastFetched: Date.now(),
-      quotesLoadingStatus: RequestStatus.FETCHED,
-      quoteFetchError: null,
-      quotesRefreshCount: 0,
-      quotesInitialLoadTime: Date.now(),
-      remoteFeatureFlags: {
-        bridgeConfig: {
-          minimumVersion: '0.0.0',
-          maxRefreshCount: 5,
-          refreshRate: 30000,
-          chainRanking: [],
-          chains: {},
-          support: true,
+    const getMockState = (chainId: string): BridgeAppState =>
+      ({
+        quotes: [
+          mockQuote,
+          { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
+        ],
+        quoteRequest: {
+          srcChainId: '1',
+          destChainId: '137',
+          srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          destTokenAddress: '0x0000000000000000000000000000000000000000',
+          insufficientBal: false,
         },
-      },
-      assetExchangeRates: {},
-      currencyRates: {
-        ETH: {
-          conversionRate: 1800,
-          usdConversionRate: 1800,
+        quotesLastFetched: Date.now(),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteFetchError: null,
+        quotesRefreshCount: 0,
+        quotesInitialLoadTime: Date.now(),
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            minimumVersion: '0.0.0',
+            maxRefreshCount: 5,
+            refreshRate: 30000,
+            chainRanking: [],
+            chains: {},
+            support: true,
+          },
         },
-      },
-      marketData: {},
-      conversionRates: {},
-      participateInMetaMetrics: true,
-      gasFeeEstimates: {
-        estimatedBaseFee: '0',
-        medium: {
-          suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.1',
+        assetExchangeRates: {},
+        currencyRates: {
+          ETH: {
+            conversionRate: 1800,
+            usdConversionRate: 1800,
+          },
         },
-        high: {
-          suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.2',
+        marketData: {},
+        conversionRates: {},
+        participateInMetaMetrics: true,
+        gasFeeEstimatesByChainId: {
+          [formatChainIdToHex(chainId)]: {
+            gasFeeEstimates: {
+              estimatedBaseFee: '0',
+              medium: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.1',
+              },
+              high: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.2',
+              },
+            },
+          },
         },
-      },
-    } as unknown as BridgeAppState;
+      }) as unknown as BridgeAppState;
+
+    const mockState = getMockState(mockQuote.quote.srcChainId);
 
     const mockClientParams = {
       sortOrder: SortOrder.COST_ASC,
@@ -433,6 +445,7 @@ describe('Bridge Selectors', () => {
           asset: Pick<BridgeAsset, 'address' | 'decimals' | 'assetId'>;
         },
         gasIncluded7702?: boolean,
+        gasEstimatesChainId?: number,
       ): BridgeAppState => {
         const chainId = 56;
         const currencyRates = {
@@ -464,7 +477,9 @@ describe('Bridge Selectors', () => {
           .multipliedBy(10 ** srcAsset.decimals)
           .toFixed(0);
         return {
-          ...mockState,
+          ...getMockState(
+            gasEstimatesChainId?.toString() ?? chainId.toString(),
+          ),
           quotes: [
             {
               quote: {
@@ -507,7 +522,7 @@ describe('Bridge Selectors', () => {
                 value: isNativeAddress(srcAsset.address)
                   ? toHex(
                       new BigNumber(srcTokenAmount)
-                        .plus(txFee?.amount || '0')
+                        .plus(txFee?.amount ?? '0')
                         .toString(),
                     )
                   : '0x0',
@@ -554,55 +569,55 @@ describe('Bridge Selectors', () => {
         expect(quote.gasIncluded).toBe(false);
         expect(isNativeAddress(quote.srcAsset.address)).toBe(true);
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.513424894341876155230359150867612640256",
               "valueInCurrency": "8.995536137740000000254299423511757231474",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.173955083193541475489640849132387359744",
               "valueInCurrency": "1.004463862259999726625700576488242768526",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
             "includedTxFees": null,
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "9.994389353314869106",
               "usd": "9.992709880792782347418849595400950831104",
               "valueInCurrency": "8.550000000000000000198810453356610924716",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "0.018116598427479256",
               "usd": "11.68737997753541763072",
               "valueInCurrency": "9.99999999999999972688",
             },
             "swapRate": "580.70558265713069471891",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "10.520409845594599059",
               "usd": "10.518641979781876155230359150867612640256",
               "valueInCurrency": "9.000000000000000000254299423511757231474",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",
@@ -637,58 +652,144 @@ describe('Bridge Selectors', () => {
           ...quoteMetadata
         } = sortedQuotes[0];
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.51342489434187625472",
               "valueInCurrency": "8.99553613774000008538",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.173955083193541695202677292586583974912",
               "valueInCurrency": "1.004463862259999914617394921816007289298",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
             "includedTxFees": null,
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "0.015489691655494764",
               "usd": "9.99270988079278215168",
               "valueInCurrency": "8.54999999999999983272",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
               "valueInCurrency": "9.999999999999999999997394921816007289298",
             },
             "swapRate": "0.00139485485277012214",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "0.016304938584731331",
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",
+            },
+          }
+        `);
+      });
+
+      it('erc20 -> native but gas estimates are not available', () => {
+        const newState = getMockSwapState(
+          {
+            address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+            decimals: 18,
+            assetId:
+              'eip155:1/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+          },
+          {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            assetId:
+              'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+          },
+          undefined,
+          undefined,
+          1,
+        );
+
+        const { sortedQuotes } = selectBridgeQuotes(newState, mockClientParams);
+
+        const {
+          quote,
+          trade,
+          approval,
+          estimatedProcessingTimeInSeconds,
+          ...quoteMetadata
+        } = sortedQuotes[0];
+        expect(quoteMetadata).toMatchInlineSnapshot(`
+          {
+            "adjustedReturn": {
+              "usd": "10.51864197978187625472",
+              "valueInCurrency": "9.00000000000000008538",
+            },
+            "cost": {
+              "usd": "1.168737997753541695202677292586583974912",
+              "valueInCurrency": "0.999999999999999914617394921816007289298",
+            },
+            "gasFee": {
+              "effective": {
+                "amount": "0",
+                "usd": "0",
+                "valueInCurrency": "0",
+              },
+              "max": {
+                "amount": "0",
+                "usd": "0",
+                "valueInCurrency": "0",
+              },
+              "total": {
+                "amount": "0",
+                "usd": "0",
+                "valueInCurrency": "0",
+              },
+            },
+            "includedTxFees": null,
+            "minToTokenAmount": {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
+            },
+            "sentAmount": {
+              "amount": "11.689344272882887843",
+              "usd": "11.687379977535417949922677292586583974912",
+              "valueInCurrency": "9.999999999999999999997394921816007289298",
+            },
+            "swapRate": "0.00139485485277012214",
+            "toTokenAmount": {
+              "amount": "0.016304938584731331",
+              "usd": "10.51864197978187625472",
+              "valueInCurrency": "9.00000000000000008538",
+            },
+            "totalMaxNetworkFee": {
+              "amount": "0",
+              "usd": "0",
+              "valueInCurrency": "0",
+            },
+            "totalNetworkFee": {
+              "amount": "0",
+              "usd": "0",
+              "valueInCurrency": "0",
             },
           }
         `);
@@ -729,59 +830,59 @@ describe('Bridge Selectors', () => {
           ...quoteMetadata
         } = sortedQuotes[0];
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.168737997753541695202677292586583974912",
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
-            "includedTxFees": Object {
+            "includedTxFees": {
               "amount": "0.001",
               "usd": "0.64512",
               "valueInCurrency": "0.55198",
             },
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "0.015489691655494764",
               "usd": "9.99270988079278215168",
               "valueInCurrency": "8.54999999999999983272",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
               "valueInCurrency": "9.999999999999999999997394921816007289298",
             },
             "swapRate": "0.00139485485277012214",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "0.016304938584731331",
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",
@@ -825,59 +926,59 @@ describe('Bridge Selectors', () => {
           ...quoteMetadata
         } = sortedQuotes[0];
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.168737997753541695202677292586583974912",
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
-            "includedTxFees": Object {
+            "includedTxFees": {
               "amount": "3",
               "usd": "1935.36",
               "valueInCurrency": "1655.94",
             },
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "0.015489691655494764",
               "usd": "9.99270988079278215168",
               "valueInCurrency": "8.54999999999999983272",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
               "valueInCurrency": "9.999999999999999999997394921816007289298",
             },
             "swapRate": "0.00139485485277012214",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "0.016304938584731331",
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",
@@ -923,59 +1024,59 @@ describe('Bridge Selectors', () => {
           ...quoteMetadata
         } = sortedQuotes[0];
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.518641979781876096240273601395823616",
               "valueInCurrency": "8.999999999999999949780980627632791914",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.168737997753541853682403691190760358912",
               "valueInCurrency": "1.000000000000000050216414294183215375298",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
-            "includedTxFees": Object {
+            "includedTxFees": {
               "amount": "1",
               "usd": "999.831958465623542784",
               "valueInCurrency": "855.479979591168903686",
             },
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "0.009994389353314869",
               "usd": "9.992709880792782241436661998044855296",
               "valueInCurrency": "8.549999999999999909517932616692707134",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
               "valueInCurrency": "9.999999999999999999997394921816007289298",
             },
             "swapRate": "0.00089999999999999999",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "0.010520409845594599",
               "usd": "10.518641979781876096240273601395823616",
               "valueInCurrency": "8.999999999999999949780980627632791914",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",

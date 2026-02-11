@@ -35,6 +35,7 @@ import type {
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
 import { RequestStatus } from './RequestCache';
 
@@ -65,33 +66,33 @@ describe('RampsController', () => {
     it('uses default state when no state is provided', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -122,33 +123,33 @@ describe('RampsController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -482,33 +483,33 @@ describe('RampsController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -529,26 +530,26 @@ describe('RampsController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "tokens": Object {
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -569,20 +570,20 @@ describe('RampsController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "tokens": Object {
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -603,33 +604,33 @@ describe('RampsController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -1107,34 +1108,34 @@ describe('RampsController', () => {
         const countries = await controller.getCountries();
 
         expect(countries).toMatchInlineSnapshot(`
-          Array [
-            Object {
+          [
+            {
               "currency": "USD",
               "flag": "🇺🇸",
               "isoCode": "US",
               "name": "United States of America",
-              "phone": Object {
+              "phone": {
                 "placeholder": "(555) 123-4567",
                 "prefix": "+1",
                 "template": "(XXX) XXX-XXXX",
               },
               "recommended": true,
-              "supported": Object {
+              "supported": {
                 "buy": true,
                 "sell": true,
               },
             },
-            Object {
+            {
               "currency": "EUR",
               "flag": "🇦🇹",
               "isoCode": "AT",
               "name": "Austria",
-              "phone": Object {
+              "phone": {
                 "placeholder": "660 1234567",
                 "prefix": "+43",
                 "template": "XXX XXXXXXX",
               },
-              "supported": Object {
+              "supported": {
                 "buy": true,
                 "sell": false,
               },
@@ -2454,9 +2455,9 @@ describe('RampsController', () => {
         const tokens = await controller.getTokens('us-ca', 'buy');
 
         expect(tokens).toMatchInlineSnapshot(`
-          Object {
-            "allTokens": Array [
-              Object {
+          {
+            "allTokens": [
+              {
                 "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -2465,7 +2466,7 @@ describe('RampsController', () => {
                 "symbol": "USDC",
                 "tokenSupported": true,
               },
-              Object {
+              {
                 "assetId": "eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -2475,8 +2476,8 @@ describe('RampsController', () => {
                 "tokenSupported": true,
               },
             ],
-            "topTokens": Array [
-              Object {
+            "topTokens": [
+              {
                 "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -3686,7 +3687,6 @@ describe('RampsController', () => {
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
           },
           metadata: {
             reliability: 95,
@@ -3747,6 +3747,58 @@ describe('RampsController', () => {
           expect(controller.state.quotes.data).toStrictEqual(
             mockQuotesResponse,
           );
+        },
+      );
+    });
+
+    it('uses selected token assetId from state when assetId option is not provided', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              expect(params.assetId).toBe('eip155:1/slip44:60');
+              return mockQuotesResponse;
+            },
+          );
+
+          const result = await controller.getQuotes({
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          });
+
+          expect(result.success).toHaveLength(1);
         },
       );
     });
@@ -3949,6 +4001,38 @@ describe('RampsController', () => {
       );
     });
 
+    it('throws when assetId is not provided and no token is selected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getQuotes({
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            }),
+          ).rejects.toThrow('assetId is required');
+        },
+      );
+    });
+
     it('throws when walletAddress is empty', async () => {
       await withController(
         {
@@ -4101,6 +4185,130 @@ describe('RampsController', () => {
       );
     });
 
+    it('passes providers parameter to getQuotes', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedProviders = params.providers;
+              return mockQuotesResponse;
+            },
+          );
+
+          await controller.getQuotes({
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            paymentMethods: ['/payments/debit-credit-card'],
+            providers: ['/providers/moonpay', '/providers/transak'],
+          });
+
+          expect(capturedProviders).toStrictEqual([
+            '/providers/moonpay',
+            '/providers/transak',
+          ]);
+        },
+      );
+    });
+
+    it('uses state providers when providers option is not provided', async () => {
+      const stateProviders = [
+        {
+          id: '/providers/moonpay',
+          name: 'MoonPay',
+          environmentType: 'PRODUCTION' as const,
+          description: 'MoonPay',
+          hqAddress: '',
+          links: [],
+          logos: {
+            light: '',
+            dark: '',
+            height: 24,
+            width: 77,
+          },
+        },
+        {
+          id: '/providers/transak',
+          name: 'Transak',
+          environmentType: 'PRODUCTION' as const,
+          description: 'Transak',
+          hqAddress: '',
+          links: [],
+          logos: {
+            light: '',
+            dark: '',
+            height: 24,
+            width: 77,
+          },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+              providers: createResourceState(stateProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedProviders = params.providers;
+              return mockQuotesResponse;
+            },
+          );
+
+          await controller.getQuotes({
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            paymentMethods: ['/payments/debit-credit-card'],
+          });
+
+          expect(capturedProviders).toStrictEqual([
+            '/providers/moonpay',
+            '/providers/transak',
+          ]);
+        },
+      );
+    });
+
     it('does not update state when region changes during request', async () => {
       await withController(
         {
@@ -4177,8 +4385,1198 @@ describe('RampsController', () => {
     });
   });
 
-  describe('getWidgetUrl', () => {
-    it('returns widget URL when present in quote', async () => {
+  describe('startQuotePolling', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('throws error when region is not set', async () => {
+      await withController(({ controller }) => {
+        expect(() =>
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          }),
+        ).toThrow(
+          'Region is required. Cannot start quote polling without valid region information.',
+        );
+      });
+    });
+
+    it('throws error when token is not selected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(() =>
+            controller.startQuotePolling({
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+              amount: 100,
+            }),
+          ).toThrow(
+            'Token is required. Cannot start quote polling without a selected token.',
+          );
+        },
+      );
+    });
+
+    it('throws error when provider is not selected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(() =>
+            controller.startQuotePolling({
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+              amount: 100,
+            }),
+          ).toThrow(
+            'Provider is required. Cannot start quote polling without a selected provider.',
+          );
+        },
+      );
+    });
+
+    it('returns early without throwing when payment method is not selected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(() =>
+            controller.startQuotePolling({
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+              amount: 100,
+            }),
+          ).not.toThrow();
+        },
+      );
+    });
+
+    it('fetches quotes immediately and sets up 15-second polling', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => {
+              callCount += 1;
+              return mockQuotesResponse;
+            },
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          // Give promises time to resolve (getQuotes + .then callback)
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(callCount).toBe(1);
+          expect(controller.state.quotes.selected).toStrictEqual(
+            mockQuotesResponse.success[0],
+          );
+
+          // Advance 15 seconds
+          jest.advanceTimersByTime(15000);
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(callCount).toBe(2);
+
+          // Advance another 15 seconds
+          jest.advanceTimersByTime(15000);
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(callCount).toBe(3);
+
+          controller.stopQuotePolling();
+        },
+      );
+    });
+
+    it('auto-selects quote when response contains exactly one quote', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => mockQuotesResponse,
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          // Need multiple Promise.resolve() to flush microtask queue
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(controller.state.quotes.selected).toStrictEqual(
+            mockQuotesResponse.success[0],
+          );
+
+          controller.stopQuotePolling();
+        },
+      );
+    });
+
+    it('passes selected payment method to getQuotes', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/bank-transfer',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                  {
+                    id: '/payments/bank-transfer',
+                    paymentType: 'bank-transfer',
+                    name: 'Bank Transfer',
+                    score: 80,
+                    icon: 'bank',
+                  },
+                ],
+                {
+                  id: '/payments/bank-transfer',
+                  paymentType: 'bank-transfer',
+                  name: 'Bank Transfer',
+                  score: 80,
+                  icon: 'bank',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedPaymentMethods: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedPaymentMethods = params.paymentMethods;
+              return mockQuotesResponse;
+            },
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          // Need multiple Promise.resolve() to flush microtask queue
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          // Verify only the selected payment method is passed, not all available
+          expect(capturedPaymentMethods).toStrictEqual([
+            '/payments/bank-transfer',
+          ]);
+
+          controller.stopQuotePolling();
+        },
+      );
+    });
+
+    it('preserves existing selection when response contains multiple quotes and selection is still valid', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+          {
+            provider: '/providers/transak',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.048',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+              quotes: createResourceState(mockQuotesResponse, {
+                provider: '/providers/moonpay',
+                quote: {
+                  amountIn: 100,
+                  amountOut: '0.05',
+                  paymentMethod: '/payments/debit-credit-card',
+                },
+              }),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => mockQuotesResponse,
+          );
+
+          const initialSelection = controller.state.quotes.selected;
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          await Promise.resolve();
+          await Promise.resolve();
+
+          expect(controller.state.quotes.selected).toStrictEqual(
+            initialSelection,
+          );
+
+          controller.stopQuotePolling();
+        },
+      );
+    });
+
+    it('updates selected quote with fresh data when still valid', async () => {
+      const initialQuote = {
+        provider: '/providers/moonpay',
+        quote: {
+          amountIn: 100,
+          amountOut: '0.05',
+          paymentMethod: '/payments/debit-credit-card',
+        },
+      };
+
+      // Fresh response has updated amountOut
+      const freshQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.052', // Updated value
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+          {
+            provider: '/providers/transak',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.048',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+              quotes: createResourceState(null, initialQuote),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => freshQuotesResponse,
+          );
+
+          expect(controller.state.quotes.selected?.quote.amountOut).toBe(
+            '0.05',
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          // Selection should be updated with fresh data
+          expect(controller.state.quotes.selected?.provider).toBe(
+            '/providers/moonpay',
+          );
+          expect(controller.state.quotes.selected?.quote.amountOut).toBe(
+            '0.052',
+          );
+
+          controller.stopQuotePolling();
+        },
+      );
+    });
+
+    it('clears selection when response contains multiple quotes and selection is no longer valid', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/transak',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.048',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+          {
+            provider: '/providers/ramp',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.047',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+              quotes: createResourceState(null, {
+                provider: '/providers/moonpay',
+                quote: {
+                  amountIn: 100,
+                  amountOut: '0.05',
+                  paymentMethod: '/payments/debit-credit-card',
+                },
+              }),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => mockQuotesResponse,
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(controller.state.quotes.selected).toBeNull();
+
+          controller.stopQuotePolling();
+        },
+      );
+    });
+  });
+
+  describe('stopQuotePolling', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('stops polling and clears interval', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => {
+              callCount += 1;
+              return mockQuotesResponse;
+            },
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          await Promise.resolve();
+          await Promise.resolve();
+
+          expect(callCount).toBe(1);
+
+          controller.stopQuotePolling();
+
+          // Advance 15 seconds - should not trigger another call
+          jest.advanceTimersByTime(15000);
+          await Promise.resolve();
+          await Promise.resolve();
+
+          expect(callCount).toBe(1);
+        },
+      );
+    });
+
+    it('does not clear quotes data or selection', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => mockQuotesResponse,
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          await Promise.resolve();
+          await Promise.resolve();
+
+          const quotesData = controller.state.quotes.data;
+          const selectedQuote = controller.state.quotes.selected;
+
+          controller.stopQuotePolling();
+
+          expect(controller.state.quotes.data).toStrictEqual(quotesData);
+          expect(controller.state.quotes.selected).toStrictEqual(selectedQuote);
+        },
+      );
+    });
+
+    it('stops polling when setSelectedProvider(null) is called', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => {
+              callCount += 1;
+              return mockQuotesResponse;
+            },
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(callCount).toBe(1);
+
+          // Clear provider - should stop polling
+          controller.setSelectedProvider(null);
+
+          // Advance 15 seconds - should not trigger another call
+          jest.advanceTimersByTime(15000);
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(callCount).toBe(1);
+        },
+      );
+    });
+
+    it('stops polling when setSelectedToken(undefined) is called', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => {
+              callCount += 1;
+              return mockQuotesResponse;
+            },
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(callCount).toBe(1);
+
+          // Clear token - should stop polling
+          controller.setSelectedToken(undefined);
+
+          // Advance 15 seconds - should not trigger another call
+          jest.advanceTimersByTime(15000);
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(callCount).toBe(1);
+        },
+      );
+    });
+  });
+
+  describe('setSelectedQuote', () => {
+    it('sets the selected quote', async () => {
       await withController(({ controller }) => {
         const quote: Quote = {
           provider: '/providers/moonpay',
@@ -4186,18 +5584,311 @@ describe('RampsController', () => {
             amountIn: 100,
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        controller.setSelectedQuote(quote);
 
-        expect(widgetUrl).toBe('https://buy.moonpay.com/widget?txId=123');
+        expect(controller.state.quotes.selected).toStrictEqual(quote);
       });
     });
 
-    it('returns null when widget URL is not present', async () => {
-      await withController(({ controller }) => {
+    it('clears the selected quote when passed null', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              quotes: createResourceState(null, {
+                provider: '/providers/moonpay',
+                quote: {
+                  amountIn: 100,
+                  amountOut: '0.05',
+                  paymentMethod: '/payments/debit-credit-card',
+                },
+              }),
+            },
+          },
+        },
+        ({ controller }) => {
+          controller.setSelectedQuote(null);
+
+          expect(controller.state.quotes.selected).toBeNull();
+        },
+      );
+    });
+  });
+
+  describe('polling restart on dependency changes', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('restarts polling when payment method changes', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                  {
+                    id: '/payments/bank-transfer',
+                    paymentType: 'bank-transfer',
+                    name: 'Bank Transfer',
+                    score: 85,
+                    icon: 'bank',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const callTimes: number[] = [];
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => {
+              callTimes.push(Date.now());
+              return mockQuotesResponse;
+            },
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          const initialCallCount = callTimes.length;
+          expect(initialCallCount).toBeGreaterThan(0);
+
+          // Change payment method - this should restart polling
+          controller.setSelectedPaymentMethod('/payments/bank-transfer');
+
+          // Advance time to trigger the next poll
+          jest.advanceTimersByTime(16000);
+          for (let i = 0; i < 20; i++) {
+            await Promise.resolve();
+          }
+
+          // Polling should still be active (call count increased)
+          expect(callTimes.length).toBeGreaterThan(initialCallCount);
+
+          controller.stopQuotePolling();
+        },
+      );
+    });
+  });
+
+  describe('destroy', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('stops quote polling when called', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+            },
+          },
+        ],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              providers: createResourceState([], {
+                id: '/providers/moonpay',
+                name: 'MoonPay',
+                environmentType: 'PRODUCTION',
+                description: 'MoonPay provider',
+                hqAddress: '123 Test St',
+                links: [],
+                logos: {
+                  light: '/assets/providers/moonpay_light.png',
+                  dark: '/assets/providers/moonpay_dark.png',
+                  height: 24,
+                  width: 77,
+                },
+              }),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                {
+                  id: '/payments/debit-credit-card',
+                  paymentType: 'debit-credit-card',
+                  name: 'Debit or Credit',
+                  score: 90,
+                  icon: 'card',
+                },
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let callCount = 0;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => {
+              callCount += 1;
+              return mockQuotesResponse;
+            },
+          );
+
+          controller.startQuotePolling({
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            amount: 100,
+          });
+
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          expect(callCount).toBe(1);
+
+          // Call destroy
+          controller.destroy();
+
+          // Advance time - polling should not fire
+          jest.advanceTimersByTime(30000);
+          for (let i = 0; i < 10; i++) {
+            await Promise.resolve();
+          }
+
+          // Call count should still be 1
+          expect(callCount).toBe(1);
+        },
+      );
+    });
+  });
+
+  describe('getWidgetUrl', () => {
+    it('fetches and returns widget URL via RampsService messenger', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: 'https://global.transak.com/?apiKey=test',
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBe('https://global.transak.com/?apiKey=test');
+      });
+    });
+
+    it('returns null when buyURL is not present', async () => {
+      await withController(async ({ controller }) => {
         const quote: Quote = {
           provider: '/providers/transak',
           quote: {
@@ -4207,19 +5898,73 @@ describe('RampsController', () => {
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });
     });
 
     it('returns null when quote object is malformed', async () => {
-      await withController(({ controller }) => {
+      await withController(async ({ controller }) => {
         const quote = {
           provider: '/providers/moonpay',
         } as unknown as Quote;
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns null when service call throws an error', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns null when service returns BuyWidget with null url', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: null as unknown as string,
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });
@@ -4347,7 +6092,8 @@ type RootMessenger = Messenger<
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
-  | RampsServiceGetQuotesAction,
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 

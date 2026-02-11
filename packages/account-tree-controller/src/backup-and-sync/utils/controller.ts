@@ -41,7 +41,7 @@ export const getLocalGroupForEntropyWallet = (
   const walletId = toMultichainAccountWalletId(entropySourceId);
   const wallet = context.controller.state.accountTree.wallets[walletId];
 
-  if (!wallet || wallet.type !== AccountWalletType.Entropy) {
+  if (wallet?.type !== AccountWalletType.Entropy) {
     backupAndSyncLogger(
       `Wallet ${walletId} not found or is not an entropy wallet`,
     );
@@ -65,7 +65,7 @@ export function getLocalGroupsForEntropyWallet(
   walletId: AccountWalletId,
 ): AccountGroupMultichainAccountObject[] {
   const wallet = context.controller.state.accountTree.wallets[walletId];
-  if (!wallet || wallet.type !== AccountWalletType.Entropy) {
+  if (wallet?.type !== AccountWalletType.Entropy) {
     backupAndSyncLogger(
       `Wallet ${walletId} not found or is not an entropy wallet`,
     );

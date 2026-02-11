@@ -1,4 +1,5 @@
 /* eslint-disable jest/unbound-method */
+import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -16,6 +17,10 @@ import type {
   AssetsControllerState,
 } from './AssetsController';
 import type { Caip19AssetId, AccountId } from './types';
+
+function createMockQueryApiClient(): ApiPlatformClient {
+  return { fetch: jest.fn() } as unknown as ApiPlatformClient;
+}
 
 type AllActions = MessengerActions<AssetsControllerMessenger>;
 type AllEvents = MessengerEvents<AssetsControllerMessenger>;
@@ -74,43 +79,9 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ state = {} }, fn] = args.length === 2 ? args : [{}, args[0]];
 
+  // Use root messenger (MOCK_ANY_NAMESPACE) so data sources can register their actions.
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
-  });
-
-  const assetsControllerMessenger = new Messenger<
-    'AssetsController',
-    MessengerActions<AssetsControllerMessenger>,
-    MessengerEvents<AssetsControllerMessenger>,
-    RootMessenger
-  >({
-    namespace: 'AssetsController',
-    parent: messenger,
-  });
-
-  messenger.delegate({
-    messenger: assetsControllerMessenger,
-    actions: [
-      'AccountTreeController:getAccountsFromSelectedAccountGroup',
-      'NetworkEnablementController:getState',
-      'AccountsApiDataSource:getAssetsMiddleware',
-      'SnapDataSource:getAssetsMiddleware',
-      'RpcDataSource:getAssetsMiddleware',
-      'TokenDataSource:getAssetsMiddleware',
-      'PriceDataSource:getAssetsMiddleware',
-      'PriceDataSource:fetch',
-      'PriceDataSource:subscribe',
-      'PriceDataSource:unsubscribe',
-      'DetectionMiddleware:getAssetsMiddleware',
-    ],
-    events: [
-      'AccountTreeController:selectedAccountGroupChange',
-      'NetworkEnablementController:stateChange',
-      'AppStateController:appOpened',
-      'AppStateController:appClosed',
-      'KeyringController:lock',
-      'KeyringController:unlock',
-    ],
   });
 
   // Mock AccountTreeController
@@ -132,60 +103,33 @@ async function withController<ReturnValue>(
     }),
   );
 
-  // Mock data source middlewares - each returns a passthrough middleware
-  const mockMiddleware = jest
-    .fn()
-    .mockImplementation(async (ctx, next) => next(ctx));
-
-  messenger.registerActionHandler(
-    'AccountsApiDataSource:getAssetsMiddleware',
-    () => mockMiddleware,
-  );
-
-  messenger.registerActionHandler(
-    'SnapDataSource:getAssetsMiddleware',
-    () => mockMiddleware,
-  );
-
-  messenger.registerActionHandler(
-    'RpcDataSource:getAssetsMiddleware',
-    () => mockMiddleware,
-  );
-
-  messenger.registerActionHandler(
-    'TokenDataSource:getAssetsMiddleware',
-    () => mockMiddleware,
-  );
-
-  messenger.registerActionHandler(
-    'PriceDataSource:getAssetsMiddleware',
-    () => mockMiddleware,
-  );
-
-  messenger.registerActionHandler(
-    'DetectionMiddleware:getAssetsMiddleware',
-    () => mockMiddleware,
-  );
-
-  messenger.registerActionHandler(
-    'PriceDataSource:fetch',
-    jest.fn().mockResolvedValue({}),
-  );
-
-  messenger.registerActionHandler(
-    'PriceDataSource:subscribe',
-    jest.fn().mockResolvedValue(undefined),
-  );
-
-  messenger.registerActionHandler(
-    'PriceDataSource:unsubscribe',
-    jest.fn().mockResolvedValue(undefined),
-  );
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('NetworkController:getState', () => ({
+    networkConfigurationsByChainId: {},
+    networksMetadata: {},
+  }));
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+    provider: {},
+  }));
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: () => unknown) => void;
+    }
+  ).registerActionHandler('TokenListController:getState', () => ({
+    tokensChainsCache: {},
+  }));
 
   const controller = new AssetsController({
-    messenger:
-      assetsControllerMessenger as unknown as AssetsControllerMessenger,
+    messenger: messenger as unknown as AssetsControllerMessenger,
     state,
+    queryApiClient: createMockQueryApiClient(),
   });
 
   return fn({ controller, messenger });
@@ -201,6 +145,7 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
+        assetPreferences: {},
       });
     });
   });
@@ -213,6 +158,7 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
+          assetPreferences: {},
         });
       });
     });
@@ -238,6 +184,80 @@ describe('AssetsController', () => {
           name: 'USD Coin',
           decimals: 6,
         });
+      });
+    });
+
+    it('skips initialization when isEnabled returns false', () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getState', () => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+        provider: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('TokenListController:getState', () => ({
+        tokensChainsCache: {},
+      }));
+
+      const controller = new AssetsController({
+        messenger: messenger as unknown as AssetsControllerMessenger,
+        isEnabled: (): boolean => false,
+        queryApiClient: createMockQueryApiClient(),
+      });
+
+      // Controller should still have default state (from super() call)
+      expect(controller.state).toStrictEqual({
+        assetPreferences: {},
+        assetsMetadata: {},
+        assetsBalance: {},
+        assetsPrice: {},
+        customAssets: {},
+      });
+
+      // Action handlers should NOT be registered when disabled
+      expect(() => {
+        (messenger.call as CallableFunction)('AssetsController:getAssets', [
+          createMockInternalAccount(),
+        ]);
+      }).toThrow(
+        'A handler for AssetsController:getAssets has not been registered',
+      );
+    });
+
+    it('initializes normally when isEnabled returns true', async () => {
+      await withController(({ controller, messenger }) => {
+        // Controller should have default state
+        expect(controller.state).toStrictEqual({
+          assetPreferences: {},
+          assetsMetadata: {},
+          assetsBalance: {},
+          assetsPrice: {},
+          customAssets: {},
+        });
+
+        // Action handlers should be registered
+        expect(() => {
+          (messenger.call as CallableFunction)(
+            'AssetsController:getCustomAssets',
+            MOCK_ACCOUNT_ID,
+          );
+        }).not.toThrow();
       });
     });
   });
@@ -364,17 +384,6 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('registerDataSources', () => {
-    it('registers data sources in constructor', async () => {
-      await withController(({ controller }) => {
-        // The controller registers these data sources in the constructor:
-        // 'BackendWebsocketDataSource', 'AccountsApiDataSource', 'SnapDataSource', 'RpcDataSource'
-        // We verify initialization completed without error
-        expect(controller.state).toBeDefined();
-      });
-    });
-  });
-
   describe('getAssetMetadata', () => {
     it('returns metadata for existing asset', async () => {
       const initialState: Partial<AssetsControllerState> = {
@@ -419,25 +428,15 @@ describe('AssetsController', () => {
       });
     });
 
-    it('calls middlewares with forceUpdate option', async () => {
-      const middlewareMock = jest
-        .fn()
-        .mockImplementation(async (ctx, next) => next(ctx));
-
-      await withController(async ({ controller, messenger }) => {
-        // Replace the middleware mock
-        messenger.unregisterActionHandler(
-          'AccountsApiDataSource:getAssetsMiddleware',
-        );
-        messenger.registerActionHandler(
-          'AccountsApiDataSource:getAssetsMiddleware',
-          () => middlewareMock,
-        );
-
+    it('runs fetch pipeline with forceUpdate option', async () => {
+      await withController(async ({ controller }) => {
         const accounts = [createMockInternalAccount()];
-        await controller.getAssets(accounts, { forceUpdate: true });
+        const assets = await controller.getAssets(accounts, {
+          forceUpdate: true,
+        });
 
-        expect(middlewareMock).toHaveBeenCalled();
+        expect(assets).toBeDefined();
+        // When queryApiClient is not provided, no data sources run; result is from state
       });
     });
 
@@ -479,7 +478,7 @@ describe('AssetsController', () => {
   describe('handleActiveChainsUpdate', () => {
     it('updates data source chains', async () => {
       await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1']);
+        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
 
         // Should not throw
         expect(controller.state).toBeDefined();
@@ -488,7 +487,7 @@ describe('AssetsController', () => {
 
     it('handles empty chains array', async () => {
       await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', []);
+        controller.handleActiveChainsUpdate('TestDataSource', [], []);
 
         expect(controller.state).toBeDefined();
       });
@@ -497,10 +496,10 @@ describe('AssetsController', () => {
     it('triggers fetch when chains are added', async () => {
       await withController(async ({ controller }) => {
         // First set no chains
-        controller.handleActiveChainsUpdate('TestDataSource', []);
+        controller.handleActiveChainsUpdate('TestDataSource', [], []);
 
         // Then add chains - this should trigger fetch for added chains
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1']);
+        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
 
         // Allow async operations to complete
         await new Promise(process.nextTick);
@@ -671,34 +670,7 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('app lifecycle', () => {
-    it('starts tracking on appOpened event', async () => {
-      await withController(async ({ messenger }) => {
-        // Publish appOpened event
-        messenger.publish('AppStateController:appOpened');
-
-        // Allow async operations to complete
-        await new Promise(process.nextTick);
-
-        // Should not throw
-        expect(true).toBe(true);
-      });
-    });
-
-    it('stops tracking on appClosed event', async () => {
-      await withController(async ({ messenger }) => {
-        // First open
-        messenger.publish('AppStateController:appOpened');
-        await new Promise(process.nextTick);
-
-        // Then close
-        messenger.publish('AppStateController:appClosed');
-        await new Promise(process.nextTick);
-
-        expect(true).toBe(true);
-      });
-    });
-
+  describe('keyring lifecycle', () => {
     it('starts tracking on keyring unlock', async () => {
       await withController(async ({ messenger }) => {
         messenger.publish('KeyringController:unlock');
@@ -722,43 +694,24 @@ describe('AssetsController', () => {
   });
 
   describe('subscribeAssetsPrice', () => {
-    it('creates price subscription', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const subscribeMock = jest.fn().mockResolvedValue(undefined);
-        messenger.unregisterActionHandler('PriceDataSource:subscribe');
-        messenger.registerActionHandler(
-          'PriceDataSource:subscribe',
-          subscribeMock,
-        );
-
+    it('completes without error when data sources are not initialized', async () => {
+      await withController(async ({ controller }) => {
         const accounts = [createMockInternalAccount()];
-        controller.subscribeAssetsPrice(accounts, ['eip155:1']);
-
-        await new Promise(process.nextTick);
-
-        expect(subscribeMock).toHaveBeenCalled();
+        expect(() => {
+          controller.subscribeAssetsPrice(accounts, ['eip155:1']);
+        }).not.toThrow();
       });
     });
   });
 
   describe('unsubscribeAssetsPrice', () => {
-    it('removes price subscription', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const unsubscribeMock = jest.fn().mockResolvedValue(undefined);
-        messenger.unregisterActionHandler('PriceDataSource:unsubscribe');
-        messenger.registerActionHandler(
-          'PriceDataSource:unsubscribe',
-          unsubscribeMock,
+    it('completes without error when no subscription exists', async () => {
+      await withController(async ({ controller }) => {
+        controller.subscribeAssetsPrice(
+          [createMockInternalAccount()],
+          ['eip155:1'],
         );
-
-        const accounts = [createMockInternalAccount()];
-        controller.subscribeAssetsPrice(accounts, ['eip155:1']);
-        await new Promise(process.nextTick);
-
-        controller.unsubscribeAssetsPrice();
-        await new Promise(process.nextTick);
-
-        expect(unsubscribeMock).toHaveBeenCalled();
+        expect(() => controller.unsubscribeAssetsPrice()).not.toThrow();
       });
     });
 

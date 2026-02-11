@@ -17,7 +17,6 @@ import {
   isEvmAccountType,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
   KeyringControllerGetKeyringsByTypeAction,
@@ -48,7 +47,6 @@ import {
   getUUIDFromAddressOfNormalAccount,
   isHdKeyringType,
   isHdSnapKeyringAccount,
-  isSimpleKeyringType,
   isSnapKeyringType,
   keyringTypeToName,
 } from './utils';
@@ -114,11 +112,6 @@ export type AccountsControllerGetAccountByAddressAction = {
   handler: AccountsController['getAccountByAddress'];
 };
 
-export type AccountsControllerGetNextAvailableAccountNameAction = {
-  type: `${typeof controllerName}:getNextAvailableAccountName`;
-  handler: AccountsController['getNextAvailableAccountName'];
-};
-
 export type AccountsControllerGetAccountAction = {
   type: `${typeof controllerName}:getAccount`;
   handler: AccountsController['getAccount'];
@@ -148,7 +141,6 @@ export type AccountsControllerActions =
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountsAction
   | AccountsControllerGetSelectedMultichainAccountAction
@@ -876,17 +868,9 @@ export class AccountsController extends BaseController<
             );
 
             if (account) {
-              // Re-compute the list of accounts everytime, so we can make sure new names
-              // are also considered.
               const accounts = Object.values(
                 internalAccounts.accounts,
               ) as InternalAccount[];
-
-              // Get next account name available for this given keyring.
-              const name = this.getNextAvailableAccountName(
-                account.metadata.keyring.type,
-                accounts,
-              );
 
               // If it's the first account, we need to select it.
               const lastSelected =
@@ -896,7 +880,6 @@ export class AccountsController extends BaseController<
                 ...account,
                 metadata: {
                   ...account.metadata,
-                  name,
                   importTime: Date.now(),
                   lastSelected,
                 },
@@ -1032,33 +1015,6 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the list of accounts for a given keyring type.
-   *
-   * @param keyringType - The type of keyring.
-   * @param accounts - Accounts to filter by keyring type.
-   * @returns The list of accounts associcated with this keyring type.
-   */
-  #getAccountsByKeyringType(
-    keyringType: string,
-    accounts?: InternalAccount[],
-  ): InternalAccount[] {
-    return (accounts ?? this.listMultichainAccounts()).filter(
-      (internalAccount) => {
-        // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
-        // to group those accounts together!
-        if (isHdKeyringType(keyringType) || isSimpleKeyringType(keyringType)) {
-          return (
-            isHdKeyringType(internalAccount.metadata.keyring.type) ||
-            isSimpleKeyringType(internalAccount.metadata.keyring.type)
-          );
-        }
-
-        return internalAccount.metadata.keyring.type === keyringType;
-      },
-    );
-  }
-
-  /**
    * Returns the last selected account from the given array of accounts.
    *
    * @param accounts - An array of InternalAccount objects.
@@ -1076,52 +1032,6 @@ export class AccountsController extends BaseController<
     });
 
     return accountToSelect;
-  }
-
-  /**
-   * Returns the next account number for a given keyring type.
-   *
-   * @param keyringType - The type of keyring.
-   * @param accounts - Existing accounts to check for the next available account number.
-   * @returns An object containing the account prefix and index to use.
-   */
-  getNextAvailableAccountName(
-    keyringType: string = KeyringTypes.hd,
-    accounts?: InternalAccount[],
-  ): string {
-    const keyringName = keyringTypeToName(keyringType);
-    const keyringAccounts = this.#getAccountsByKeyringType(
-      keyringType,
-      accounts,
-    );
-    const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
-      (maxInternalAccountIndex, internalAccount) => {
-        // We **DO NOT USE** `\d+` here to only consider valid "human"
-        // number (rounded decimal number)
-        const match = new RegExp(`${keyringName} ([0-9]+)$`, 'u').exec(
-          internalAccount.metadata.name,
-        );
-
-        if (match) {
-          // Quoting `RegExp.exec` documentation:
-          // > The returned array has the matched text as the first item, and then one item for
-          // > each capturing group of the matched text.
-          // So use `match[1]` to get the captured value
-          const internalAccountIndex = parseInt(match[1], 10);
-          return Math.max(maxInternalAccountIndex, internalAccountIndex);
-        }
-
-        return maxInternalAccountIndex;
-      },
-      0,
-    );
-
-    const index = Math.max(
-      keyringAccounts.length + 1,
-      lastDefaultIndexUsedForKeyringType + 1,
-    );
-
-    return `${keyringName} ${index}`;
   }
 
   /**
@@ -1316,11 +1226,6 @@ export class AccountsController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:getAccountByAddress`,
       this.getAccountByAddress.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getNextAvailableAccountName`,
-      this.getNextAvailableAccountName.bind(this),
     );
 
     this.messenger.registerActionHandler(

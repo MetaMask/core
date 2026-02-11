@@ -107,13 +107,6 @@ export type BridgeHistoryItem = {
   batchId?: string;
   quote: Quote;
   status: StatusResponse;
-  /**
-   * For intent-based orders (e.g., CoW) that can be partially filled across
-   * multiple on-chain settlements, we keep all discovered source tx hashes here.
-   * The canonical status.srcChain.txHash continues to hold the latest known hash
-   * for backward compatibility with consumers expecting a single hash.
-   */
-  srcTxHashes?: string[];
   startTime?: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
