@@ -460,7 +460,7 @@ export class MultichainAccountWallet<
           if (failures.length) {
             // We warn there's failures on some providers and thus misalignment, but we still create the group
             const errorMessage = failures.reduce(
-              (message, failure) => `\n${message}- ${failure.reason.message}`,
+              (message, failure) => `${message}\n- ${failure.reason.message}`,
               `Unable to create some accounts in the background. Providers threw the following errors:\n`,
             );
 
