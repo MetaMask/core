@@ -63,7 +63,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-filters": "^9.0.0",
-    "@metamask/multichain-transactions-controller": "^7.0.0",
+    "@metamask/multichain-transactions-controller": "^7.0.1",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",

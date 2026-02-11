@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-backend",
-  "version": "5.1.0",
+  "version": "5.1.1",
   "description": "Core backend services for MetaMask",
   "keywords": [
     "MetaMask",
@@ -48,7 +48,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^35.0.2",
+    "@metamask/accounts-controller": "^36.0.0",
     "@metamask/controller-utils": "^11.18.0",
     "@metamask/keyring-controller": "^25.1.0",
     "@metamask/messenger": "^0.3.0",

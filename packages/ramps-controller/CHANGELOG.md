@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-
 - Refactor: Consolidate reset logic with a shared resetResource helper and fix abort handling for dependent resources ([#7818](https://github.com/MetaMask/core/pull/7818))
+
+## [8.0.0]
 
 ### Changed
 
@@ -142,7 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.1.0...@metamask/ramps-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.0.0...@metamask/ramps-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@6.0.0...@metamask/ramps-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.1.0...@metamask/ramps-controller@6.0.0
