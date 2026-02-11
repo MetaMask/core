@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add INK (0xdef1) mapping to eip155:57073/slip44:60 ([#7688](https://github.com/MetaMask/core/pull/7688))
+- `CodefiTokenPricesServiceV2` now supports fetching prices of ETH on Ink Mainnet (chain `0xdef1`) ([#7688](https://github.com/MetaMask/core/pull/7688))
 
 ### Changed
 
