@@ -11,7 +11,6 @@ import {
   WithRequired,
   dehydrate,
   hashQueryKey,
-  infiniteQueryBehavior,
 } from '@tanstack/query-core';
 import {
   Messenger,
@@ -131,6 +130,12 @@ export class BaseDataService<
       (queryKey: QueryKey, callback: SubscriptionCallback) => {
         return this.#handleUnsubscribe(queryKey, callback);
       },
+    );
+
+    this.#messenger.registerActionHandler(
+      // @ts-expect-error TODO.
+      `${this.name}:invalidateQueries`,
+      this.invalidateQueries.bind(this),
     );
   }
 
