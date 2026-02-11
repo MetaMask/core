@@ -2,7 +2,6 @@ import type {
   CurrencyRateControllerActions,
   TokenBalancesControllerGetStateAction,
 } from '@metamask/assets-controllers';
-import type { TokenListControllerActions } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
@@ -47,7 +46,6 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
-  | TokenListControllerActions
   | TokenRatesControllerGetStateAction
   | TokensControllerGetStateAction
   | TransactionControllerAddTransactionAction
@@ -85,11 +83,27 @@ export type TransactionPayControllerUpdatePaymentTokenAction = {
   handler: (request: UpdatePaymentTokenRequest) => void;
 };
 
-/** Action to set the max amount flag for a transaction. */
-export type TransactionPayControllerSetIsMaxAmountAction = {
-  type: `${typeof CONTROLLER_NAME}:setIsMaxAmount`;
-  handler: (transactionId: string, isMaxAmount: boolean) => void;
+/** Action to update transaction configuration using a callback. */
+export type TransactionPayControllerSetTransactionConfigAction = {
+  type: `${typeof CONTROLLER_NAME}:setTransactionConfig`;
+  handler: (transactionId: string, callback: TransactionConfigCallback) => void;
 };
+
+/** Configurable properties of a transaction. */
+export type TransactionConfig = {
+  /** Whether the user has selected the maximum amount. */
+  isMaxAmount?: boolean;
+
+  /**
+   * Whether this is a post-quote transaction.
+   * When true, the paymentToken represents the destination token,
+   * and the quote source is derived from the transaction's output token.
+   */
+  isPostQuote?: boolean;
+};
+
+/** Callback to update transaction config. */
+export type TransactionConfigCallback = (config: TransactionConfig) => void;
 
 export type TransactionPayControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -101,7 +115,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
-  | TransactionPayControllerSetIsMaxAmountAction
+  | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =
@@ -142,7 +156,20 @@ export type TransactionData = {
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
-  /** Source token selected for the transaction. */
+  /**
+   * Whether this is a post-quote transaction.
+   * When true, the paymentToken represents the destination token,
+   * and the quote source is derived from the transaction's output token.
+   * Used when funds need to be moved after a transaction completes
+   * (e.g., bridging output to a different token/chain).
+   */
+  isPostQuote?: boolean;
+
+  /**
+   * Token selected for the transaction.
+   * - For standard flows (isPostQuote=false): This is the SOURCE/payment token
+   * - For post-quote flows (isPostQuote=true): This is the DESTINATION token
+   */
   paymentToken?: TransactionPaymentToken;
 
   /** Quotes retrieved for the transaction. */
@@ -214,7 +241,16 @@ export type TransactionPaySourceAmount = {
   /** Amount of payment token required in atomic format without factoring token decimals. */
   sourceAmountRaw: string;
 
-  /** Address of the required token. */
+  /** Balance of the source token in atomic format (for post-quote flows). */
+  sourceBalanceRaw?: string;
+
+  /** Chain ID of the source token (for post-quote flows). */
+  sourceChainId?: Hex;
+
+  /** Address of the source token (for post-quote flows). */
+  sourceTokenAddress?: Hex;
+
+  /** Address of the target token. */
   targetTokenAddress: Hex;
 };
 
@@ -270,6 +306,9 @@ export type QuoteRequest = {
   /** Whether the transaction is a maximum amount transaction. */
   isMaxAmount?: boolean;
 
+  /** Whether this is a post-quote flow. */
+  isPostQuote?: boolean;
+
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
 
@@ -311,6 +350,14 @@ export type TransactionPayFees = {
 
   /** Network fee for transactions on the target network. */
   targetNetwork: FiatValue;
+
+  /**
+   * Gas cost of the original user transaction on its native network.
+   * Always calculated from the transaction's own gas params via
+   * `calculateTransactionGasCost`, independent of any bridge quote fees.
+   * Only populated on totals, not on individual quotes.
+   */
+  transactionGas?: FiatValue;
 };
 
 /** Quote returned to retrieve a required token using the payment token. */
