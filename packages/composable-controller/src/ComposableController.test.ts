@@ -551,8 +551,8 @@ describe('ComposableController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "FooController": Object {
+        {
+          "FooController": {
             "foo": "foo",
           },
         }
@@ -612,7 +612,7 @@ describe('ComposableController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -669,8 +669,8 @@ describe('ComposableController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "FooController": Object {
+        {
+          "FooController": {
             "foo": "foo",
           },
         }
@@ -730,7 +730,7 @@ describe('ComposableController', () => {
           controller.metadata,
           'usedInUi',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
   });
 });

@@ -66,33 +66,33 @@ describe('RampsController', () => {
     it('uses default state when no state is provided', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -123,33 +123,33 @@ describe('RampsController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -483,33 +483,33 @@ describe('RampsController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -530,26 +530,26 @@ describe('RampsController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "tokens": Object {
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -570,20 +570,20 @@ describe('RampsController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "tokens": Object {
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -604,33 +604,33 @@ describe('RampsController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -1108,34 +1108,34 @@ describe('RampsController', () => {
         const countries = await controller.getCountries();
 
         expect(countries).toMatchInlineSnapshot(`
-          Array [
-            Object {
+          [
+            {
               "currency": "USD",
               "flag": "🇺🇸",
               "isoCode": "US",
               "name": "United States of America",
-              "phone": Object {
+              "phone": {
                 "placeholder": "(555) 123-4567",
                 "prefix": "+1",
                 "template": "(XXX) XXX-XXXX",
               },
               "recommended": true,
-              "supported": Object {
+              "supported": {
                 "buy": true,
                 "sell": true,
               },
             },
-            Object {
+            {
               "currency": "EUR",
               "flag": "🇦🇹",
               "isoCode": "AT",
               "name": "Austria",
-              "phone": Object {
+              "phone": {
                 "placeholder": "660 1234567",
                 "prefix": "+43",
                 "template": "XXX XXXXXXX",
               },
-              "supported": Object {
+              "supported": {
                 "buy": true,
                 "sell": false,
               },
@@ -2455,9 +2455,9 @@ describe('RampsController', () => {
         const tokens = await controller.getTokens('us-ca', 'buy');
 
         expect(tokens).toMatchInlineSnapshot(`
-          Object {
-            "allTokens": Array [
-              Object {
+          {
+            "allTokens": [
+              {
                 "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -2466,7 +2466,7 @@ describe('RampsController', () => {
                 "symbol": "USDC",
                 "tokenSupported": true,
               },
-              Object {
+              {
                 "assetId": "eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -2476,8 +2476,8 @@ describe('RampsController', () => {
                 "tokenSupported": true,
               },
             ],
-            "topTokens": Array [
-              Object {
+            "topTokens": [
+              {
                 "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                 "chainId": "eip155:1",
                 "decimals": 6,

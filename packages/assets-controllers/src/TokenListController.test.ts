@@ -1233,8 +1233,8 @@ describe('TokenListController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "tokensChainsCache": Object {},
+        {
+          "tokensChainsCache": {},
         }
       `);
     });
@@ -1251,7 +1251,7 @@ describe('TokenListController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -1266,7 +1266,7 @@ describe('TokenListController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
@@ -1282,8 +1282,8 @@ describe('TokenListController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "tokensChainsCache": Object {},
+        {
+          "tokensChainsCache": {},
         }
       `);
     });

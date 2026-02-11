@@ -18,12 +18,14 @@ ignores:
   - 'typedoc'
   # Ignore plugins for tools
   - '@typescript-eslint/*'
-  - 'babel-jest'
   - 'eslint-config-*'
   - 'eslint-plugin-*'
   - 'jest-silent-reporter'
   - 'prettier-plugin-packagejson'
   - 'typescript-eslint'
+  # Jest environment referenced in `jest.config.scripts.js`
+  - 'jest-environment-node'
+  - 'jest-environment-jsdom'
   # Ignore dependencies imported implicitly by tools
   - 'eslint-import-resolver-typescript'
   # Ignore dependencies which plug into the NPM lifecycle

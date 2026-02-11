@@ -49,7 +49,7 @@ describe('utils', () => {
     it('stringifies a JSON object', () => {
       expect(stringify({ foo: 'bar' })).toMatchInlineSnapshot(`
         "{
-          \\"foo\\": \\"bar\\"
+          "foo": "bar"
         }"
       `);
     });
