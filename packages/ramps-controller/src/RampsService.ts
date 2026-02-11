@@ -76,6 +76,11 @@ export type ProviderLogos = {
 };
 
 /**
+ * Browser type for provider buy features.
+ */
+export type ProviderBrowserType = 'APP_BROWSER' | 'IN_APP_OS_BROWSER' | null;
+
+/**
  * Represents a ramp provider.
  */
 export type Provider = {
@@ -120,9 +125,9 @@ export type PaymentMethod = {
    */
   disclaimer?: string;
   /**
-   * Human-readable delay description (e.g., "5 to 10 minutes.").
+   * Delay in minutes (e.g., [5, 10]).
    */
-  delay?: string;
+  delay?: number[];
   /**
    * Localized pending order description (optional).
    */
@@ -172,6 +177,24 @@ export type QuoteCryptoTranslation = {
 };
 
 /**
+ * Widget information for executing a buy order.
+ */
+export type BuyWidget = {
+  /**
+   * The widget URL to open for the user to complete the purchase.
+   */
+  url: string;
+  /**
+   * The browser type to use for opening the widget.
+   */
+  browser?: ProviderBrowserType;
+  /**
+   * Order ID if already created.
+   */
+  orderId?: string | null;
+};
+
+/**
  * Represents an individual quote from a provider.
  */
 export type Quote = {
@@ -200,10 +223,6 @@ export type Quote = {
      */
     amountOutInFiat?: number;
     /**
-     * The widget URL for redirect providers.
-     */
-    widgetUrl?: string;
-    /**
      * Crypto translation info for display.
      */
     cryptoTranslation?: QuoteCryptoTranslation;
@@ -219,6 +238,11 @@ export type Quote = {
      * Provider fees.
      */
     providerFee?: number | string;
+    /**
+     * Buy URL endpoint that returns the actual provider widget URL.
+     * This is a MetaMask-hosted endpoint that, when fetched, returns JSON with the provider's widget URL.
+     */
+    buyURL?: string;
   };
   /**
    * Metadata about the quote.
@@ -350,9 +374,9 @@ export type GetQuotesParams = {
    */
   redirectUrl?: string;
   /**
-   * Optional provider ID to filter quotes.
+   * Optional provider IDs to filter quotes.
    */
-  provider?: string;
+  providers?: string[];
   /**
    * The ramp action type. Defaults to 'buy'.
    */
@@ -504,6 +528,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getProviders',
   'getPaymentMethods',
   'getQuotes',
+  'getBuyWidgetUrl',
 ] as const;
 
 /**
@@ -1072,7 +1097,7 @@ export class RampsService {
    * @param params.amount - The amount (in fiat for buy, crypto for sell).
    * @param params.walletAddress - The destination wallet address.
    * @param params.redirectUrl - Optional redirect URL after order completion.
-   * @param params.provider - Optional provider ID to filter quotes.
+   * @param params.providers - Optional provider IDs to filter quotes.
    * @param params.action - The ramp action type. Defaults to 'buy'.
    * @returns The quotes response containing success, sorted, error, and customActions.
    */
@@ -1082,7 +1107,7 @@ export class RampsService {
     const action = params.action ?? 'buy';
 
     const url = new URL(
-      getApiPath('orders/all/quotes'),
+      getApiPath('quotes'),
       getBaseUrl(this.#environment, RampsApiService.Orders),
     );
     this.#addCommonParams(url, action);
@@ -1100,9 +1125,9 @@ export class RampsService {
     });
 
     // Add provider filter if specified
-    if (params.provider) {
-      url.searchParams.append('providers', params.provider);
-    }
+    params.providers?.forEach((provider) => {
+      url.searchParams.append('providers', provider);
+    });
 
     // Add redirect URL if specified
     if (params.redirectUrl) {
@@ -1131,6 +1156,36 @@ export class RampsService {
       !Array.isArray(response.customActions)
     ) {
       throw new Error('Malformed response received from quotes API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Fetches the buy widget data from a buy URL endpoint.
+   * Makes a request to the buyURL (as provided in a quote) to get the actual
+   * provider widget URL, browser type, and order ID.
+   *
+   * @param buyUrl - The full buy URL endpoint to fetch from.
+   * @returns The buy widget data containing the provider widget URL.
+   */
+  async getBuyWidgetUrl(buyUrl: string): Promise<BuyWidget> {
+    const url = new URL(buyUrl);
+    this.#addCommonParams(url);
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<BuyWidget>;
+    });
+
+    if (!response || typeof response !== 'object' || !response.url) {
+      throw new Error('Malformed response received from buy widget URL API');
     }
 
     return response;

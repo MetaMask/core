@@ -1,7 +1,5 @@
 import type { V5BalanceItem } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { Messenger } from '@metamask/messenger';
 
 import type {
   DataSourceState,
@@ -32,76 +30,9 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // MESSENGER TYPES
 // ============================================================================
 
-// Action types that AccountsApiDataSource exposes
-export type AccountsApiDataSourceGetAssetsMiddlewareAction = {
-  type: 'AccountsApiDataSource:getAssetsMiddleware';
-  handler: () => Middleware;
-};
-
-export type AccountsApiDataSourceGetActiveChainsAction = {
-  type: 'AccountsApiDataSource:getActiveChains';
-  handler: () => Promise<ChainId[]>;
-};
-
-export type AccountsApiDataSourceFetchAction = {
-  type: 'AccountsApiDataSource:fetch';
-  handler: (request: DataRequest) => Promise<DataResponse>;
-};
-
-export type AccountsApiDataSourceSubscribeAction = {
-  type: 'AccountsApiDataSource:subscribe';
-  handler: (request: SubscriptionRequest) => Promise<void>;
-};
-
-export type AccountsApiDataSourceUnsubscribeAction = {
-  type: 'AccountsApiDataSource:unsubscribe';
-  handler: (subscriptionId: string) => Promise<void>;
-};
-
-export type AccountsApiDataSourceActions =
-  | AccountsApiDataSourceGetAssetsMiddlewareAction
-  | AccountsApiDataSourceGetActiveChainsAction
-  | AccountsApiDataSourceFetchAction
-  | AccountsApiDataSourceSubscribeAction
-  | AccountsApiDataSourceUnsubscribeAction;
-
-// Event types that AccountsApiDataSource publishes
-export type AccountsApiDataSourceActiveChainsChangedEvent = {
-  type: 'AccountsApiDataSource:activeChainsUpdated';
-  payload: [ChainId[]];
-};
-
-export type AccountsApiDataSourceAssetsUpdatedEvent = {
-  type: 'AccountsApiDataSource:assetsUpdated';
-  payload: [DataResponse, string | undefined];
-};
-
-export type AccountsApiDataSourceEvents =
-  | AccountsApiDataSourceActiveChainsChangedEvent
-  | AccountsApiDataSourceAssetsUpdatedEvent;
-
-// Actions to report to AssetsController
-type AssetsControllerActiveChainsUpdateAction = {
-  type: 'AssetsController:activeChainsUpdate';
-  handler: (dataSourceId: string, activeChains: ChainId[]) => void;
-};
-
-type AssetsControllerAssetsUpdateAction = {
-  type: 'AssetsController:assetsUpdate';
-  handler: (response: DataResponse, sourceId: string) => Promise<void>;
-};
-
-// Allowed actions that AccountsApiDataSource can call
+// Allowed actions that AccountsApiDataSource can call (none - uses callbacks).
 // Note: Uses ApiPlatformClient directly, so no BackendApiClient actions needed
-export type AccountsApiDataSourceAllowedActions =
-  | AssetsControllerActiveChainsUpdateAction
-  | AssetsControllerAssetsUpdateAction;
-
-export type AccountsApiDataSourceMessenger = Messenger<
-  typeof CONTROLLER_NAME,
-  AccountsApiDataSourceActions | AccountsApiDataSourceAllowedActions,
-  AccountsApiDataSourceEvents
->;
+export type AccountsApiDataSourceAllowedActions = never;
 
 // ============================================================================
 // STATE
@@ -118,9 +49,14 @@ const defaultState: AccountsApiDataSourceState = {
 // ============================================================================
 
 export type AccountsApiDataSourceOptions = {
-  messenger: AccountsApiDataSourceMessenger;
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
+  /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
   pollInterval?: number;
   state?: Partial<AccountsApiDataSourceState>;
 };
@@ -165,30 +101,18 @@ function caipChainIdToChainId(chainIdStr: string): ChainId {
 /**
  * Data source for fetching balances from the MetaMask Accounts API.
  *
- * Uses Messenger pattern for all interactions:
- * - Calls BackendApiClient methods via messenger actions
- * - Exposes its own actions for AssetsController to call
- * - Publishes events for AssetsController to subscribe to
- *
- * Actions exposed:
- * - AccountsApiDataSource:getActiveChains
- * - AccountsApiDataSource:fetch
- * - AccountsApiDataSource:subscribe
- * - AccountsApiDataSource:unsubscribe
- *
- * Events published:
- * - AccountsApiDataSource:activeChainsUpdated
- * - AccountsApiDataSource:assetsUpdated
- *
- * Actions called (from BackendApiClient):
- * - BackendApiClient:Accounts:getV2SupportedNetworks
- * - BackendApiClient:Accounts:getV5MultiAccountBalances
+ * Uses ApiPlatformClient (queryApiClient) for all API calls. Does not use the
+ * messenger. Reports active chains via onActiveChainsUpdated callback.
  */
 export class AccountsApiDataSource extends AbstractDataSource<
   typeof CONTROLLER_NAME,
   AccountsApiDataSourceState
 > {
-  readonly #messenger: AccountsApiDataSourceMessenger;
+  readonly #onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
 
   readonly #pollInterval: number;
 
@@ -204,11 +128,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
       ...options.state,
     });
 
-    this.#messenger = options.messenger;
+    this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
 
-    this.#registerActionHandlers();
     this.#initializeActiveChains().catch(console.error);
   }
 
@@ -216,66 +139,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // INITIALIZATION
   // ============================================================================
 
-  #registerActionHandlers(): void {
-    // Define strongly-typed handlers
-    const getAssetsMiddlewareHandler: AccountsApiDataSourceGetAssetsMiddlewareAction['handler'] =
-      () => this.assetsMiddleware;
-
-    const getActiveChainsHandler: AccountsApiDataSourceGetActiveChainsAction['handler'] =
-      async () => this.getActiveChains();
-
-    const fetchHandler: AccountsApiDataSourceFetchAction['handler'] = async (
-      request,
-    ) => this.fetch(request);
-
-    const subscribeHandler: AccountsApiDataSourceSubscribeAction['handler'] =
-      async (request) => this.subscribe(request);
-
-    const unsubscribeHandler: AccountsApiDataSourceUnsubscribeAction['handler'] =
-      async (subscriptionId) => this.unsubscribe(subscriptionId);
-
-    // Register handlers
-    this.#messenger.registerActionHandler(
-      'AccountsApiDataSource:getAssetsMiddleware',
-      getAssetsMiddlewareHandler,
-    );
-
-    this.#messenger.registerActionHandler(
-      'AccountsApiDataSource:getActiveChains',
-      getActiveChainsHandler,
-    );
-
-    this.#messenger.registerActionHandler(
-      'AccountsApiDataSource:fetch',
-      fetchHandler,
-    );
-
-    this.#messenger.registerActionHandler(
-      'AccountsApiDataSource:subscribe',
-      subscribeHandler,
-    );
-
-    this.#messenger.registerActionHandler(
-      'AccountsApiDataSource:unsubscribe',
-      unsubscribeHandler,
-    );
-  }
-
   async #initializeActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
-      this.updateActiveChains(chains, (updatedChains) => {
-        this.#messenger.call(
-          'AssetsController:activeChainsUpdate',
-          CONTROLLER_NAME,
-          updatedChains,
-        );
-        // Also publish event for BackendWebsocketDataSource to sync
-        this.#messenger.publish(
-          'AccountsApiDataSource:activeChainsUpdated',
-          updatedChains,
-        );
-      });
+      const previous = [...this.state.activeChains];
+      this.updateActiveChains(chains, (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
 
       // Periodically refresh active chains (every 20 minutes)
       this.#chainsRefreshTimer = setInterval(
@@ -302,18 +172,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
       );
 
       if (added.length > 0 || removed.length > 0) {
-        this.updateActiveChains(chains, (updatedChains) => {
-          this.#messenger.call(
-            'AssetsController:activeChainsUpdate',
-            CONTROLLER_NAME,
-            updatedChains,
-          );
-          // Also publish event for BackendWebsocketDataSource to sync
-          this.#messenger.publish(
-            'AccountsApiDataSource:activeChainsUpdated',
-            updatedChains,
-          );
-        });
+        const previous = [...this.state.activeChains];
+        this.updateActiveChains(chains, (updatedChains) =>
+          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+        );
       }
     } catch (error) {
       log('Failed to refresh active chains', error);
@@ -330,54 +192,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
   // ACCOUNT SCOPE HELPERS
   // ============================================================================
-
-  /**
-   * Check if an account supports a specific chain based on its scopes.
-   * AccountsApiDataSource only handles EVM chains, so we check for EIP155 scopes.
-   *
-   * @param account - The account to check
-   * @param chainId - The chain ID to check (e.g., "eip155:1")
-   * @returns True if the account supports the chain
-   */
-  #accountSupportsChain(account: InternalAccount, chainId: ChainId): boolean {
-    const scopes = account.scopes ?? [];
-
-    // If no scopes defined, assume it supports the chain (backward compatibility)
-    if (scopes.length === 0) {
-      return true;
-    }
-
-    // Extract namespace and reference from chainId (e.g., "eip155:1" -> ["eip155", "1"])
-    const [chainNamespace, chainReference] = chainId.split(':');
-
-    for (const scope of scopes) {
-      const [scopeNamespace, scopeReference] = (scope as string).split(':');
-
-      // Check if namespaces match
-      if (scopeNamespace !== chainNamespace) {
-        continue;
-      }
-
-      // Wildcard scope (e.g., "eip155:0" means all chains in that namespace)
-      if (scopeReference === '0') {
-        return true;
-      }
-
-      // Exact match check - normalize hex to decimal for EIP155
-      if (chainNamespace === 'eip155') {
-        const normalizedScopeRef = scopeReference?.startsWith('0x')
-          ? parseInt(scopeReference, 16).toString()
-          : scopeReference;
-        if (normalizedScopeRef === chainReference) {
-          return true;
-        }
-      } else if (scopeReference === chainReference) {
-        return true;
-      }
-    }
-
-    return false;
-  }
 
   // ============================================================================
   // FETCH
@@ -405,12 +219,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     try {
       // Build CAIP-10 account IDs (e.g., "eip155:1:0x1234...")
-      // Only include account-chain combinations where the account's scopes
-      // overlap with the chains being fetched
-      const accountIds = request.accounts.flatMap((account) =>
-        chainsToFetch
-          .filter((chainId) => this.#accountSupportsChain(account, chainId))
-          .map((chainId) => `${chainId}:${account.address}`),
+      // Use pre-computed supportedChains per account from the request
+      const accountIds = request.accountsWithSupportedChains.flatMap(
+        ({ account, supportedChains: accountChains }) =>
+          chainsToFetch
+            .filter((chainId) => accountChains.includes(chainId))
+            .map((chainId) => `${chainId}:${account.address}`),
       );
 
       // Skip API call if no valid account-chain combinations
@@ -482,7 +296,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     // Build a map of lowercase addresses to account IDs for efficient lookup
     const addressToAccountId = new Map<string, string>();
-    for (const account of request.accounts) {
+    for (const { account } of request.accountsWithSupportedChains) {
       if (account.address) {
         addressToAccountId.set(account.address.toLowerCase(), account.id);
       }
@@ -634,12 +448,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
           chainIds: subscription.chains,
         });
 
-        // Report update to AssetsController
-        await this.#messenger.call(
-          'AssetsController:assetsUpdate',
-          fetchResponse,
-          CONTROLLER_NAME,
-        );
+        // Report update to AssetsController via callback
+        await subscription.onAssetsUpdate(fetchResponse);
       } catch (error) {
         log('Subscription poll failed', { subscriptionId, error });
       }
@@ -657,6 +467,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       },
       chains: chainsToSubscribe,
       request,
+      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
     // Initial fetch
@@ -676,20 +487,4 @@ export class AccountsApiDataSource extends AbstractDataSource<
     // Clean up subscriptions
     super.destroy();
   }
-}
-
-// ============================================================================
-// FACTORY FUNCTION
-// ============================================================================
-
-/**
- * Creates an AccountsApiDataSource instance.
- *
- * @param options - Configuration options for the data source.
- * @returns A new AccountsApiDataSource instance.
- */
-export function createAccountsApiDataSource(
-  options: AccountsApiDataSourceOptions,
-): AccountsApiDataSource {
-  return new AccountsApiDataSource(options);
 }

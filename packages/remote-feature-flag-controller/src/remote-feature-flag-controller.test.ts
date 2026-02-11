@@ -18,6 +18,7 @@ import type {
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
+import { flushPromises } from '../../../tests/helpers';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
@@ -932,6 +933,7 @@ describe('RemoteFeatureFlagController', () => {
 
   describe('threshold cache cleanup', () => {
     it('removes stale threshold cache entries when flags are removed from server', async () => {
+      jest.useRealTimers();
       // Arrange
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: {
@@ -983,6 +985,7 @@ describe('RemoteFeatureFlagController', () => {
 
       // Second update: flagA removed from server
       await controller.updateRemoteFeatureFlags();
+      await flushPromises();
 
       // Assert - flagA cache entry removed
       const cacheAfterSecond = controller.state.thresholdCache ?? {};
@@ -1283,11 +1286,11 @@ describe('RemoteFeatureFlagController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "localOverrides": Object {},
-          "rawRemoteFeatureFlags": Object {},
-          "remoteFeatureFlags": Object {},
+          "localOverrides": {},
+          "rawRemoteFeatureFlags": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -1302,11 +1305,11 @@ describe('RemoteFeatureFlagController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "localOverrides": Object {},
-          "rawRemoteFeatureFlags": Object {},
-          "remoteFeatureFlags": Object {},
+          "localOverrides": {},
+          "rawRemoteFeatureFlags": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -1321,11 +1324,11 @@ describe('RemoteFeatureFlagController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "localOverrides": Object {},
-          "rawRemoteFeatureFlags": Object {},
-          "remoteFeatureFlags": Object {},
+          "localOverrides": {},
+          "rawRemoteFeatureFlags": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -1340,9 +1343,9 @@ describe('RemoteFeatureFlagController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "localOverrides": Object {},
-          "remoteFeatureFlags": Object {},
+        {
+          "localOverrides": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });

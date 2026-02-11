@@ -13,7 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/core-backend` from `^5.0.0` to `^5.1.0` ([#7817](https://github.com/MetaMask/core/pull/7817))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.0` ([#7869](https://github.com/MetaMask/core/pull/7869))
+- Bump `@metamask/multichain-account-service` from `^5.1.0` to `^6.0.0` ([#7869](https://github.com/MetaMask/core/pull/7869))
+- Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.16.0` ([#7872](https://github.com/MetaMask/core/pull/7872))
+- Bump `@metamask/phishing-controller` from `^16.1.0` to `^16.2.0` ([#7883](https://github.com/MetaMask/core/pull/7883))
+- Optimize Price API performance by deduplicating concurrent API calls ([#7811](https://github.com/MetaMask/core/pull/7811))
+  - Add in-flight promise caching for `fetchSupportedNetworks()` to prevent duplicate concurrent requests
+  - Update `fetchTokenPrices()` and `fetchExchangeRates()` to only refresh supported networks/currencies when no cached value exists
+
+## [99.3.1]
+
+### Fixed
+
+- Remove `Tempo Testnet` multicall address ([#7858](https://github.com/MetaMask/core/pull/7858)).
+
+## [99.3.0]
+
+### Added
+
+- Add optional `rwaData` support when adding tokens in `TokensController` ([#7804](https://github.com/MetaMask/core/pull/7804)).
+
+### Changed
+
+- Lock `@metamask/core-backend` to `5.0.0` ([#7852](https://github.com/MetaMask/core/pull/7852))
+- Bump `@metamask/profile-sync-controller` from `^27.0.0` to `^27.1.0` ([#7849](https://github.com/MetaMask/core/pull/7849))
+- Fix trending tokens showing incorrect market cap values by adding `usePriceApiData` parameter (defaults to `true`) to use price API data for accurate market data ([#7829](https://github.com/MetaMask/core/pull/7829))
+- Bump `@metamask/transaction-controller` from `^62.13.0` to `^62.15.0` ([#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854))
+
+### Fixed
+
+- Ensure TokenBalancesController zeroes out ERC tokens that are not returned from Accounts API ([#7861](https://github.com/MetaMask/core/pull/7861))
+  - The Accounts API does not return tokens that are empty/have zero balance, but we need to make sure that the API service can return zero balance, so we can correctly update the TokenBalancesController state and prevent stale values (e.g. when a user swaps/sends all their balance for a given ERC-20 token - we need to update the state for that token to zero and not show the old value)
 
 ## [99.2.0]
 
@@ -2638,7 +2669,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.1...HEAD
+[99.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.0...@metamask/assets-controllers@99.3.1
+[99.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...@metamask/assets-controllers@99.3.0
 [99.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.1.0...@metamask/assets-controllers@99.2.0
 [99.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.0.0...@metamask/assets-controllers@99.1.0
 [99.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@98.0.0...@metamask/assets-controllers@99.0.0

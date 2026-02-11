@@ -542,6 +542,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     const originalFetcher = new AccountsApiBalanceFetcher(
       this.#platform,
       this.#getProvider,
+      () => this.state.tokenBalances, // list of existing user tokens
     );
 
     return {
@@ -1025,8 +1026,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       const stakingContractAddress =
         STAKING_CONTRACT_ADDRESS_BY_CHAINID[balance.chainId];
       return (
-        stakingContractAddress &&
-        stakingContractAddress.toLowerCase() === balance.token.toLowerCase()
+        stakingContractAddress?.toLowerCase() === balance.token.toLowerCase()
       );
     });
 
