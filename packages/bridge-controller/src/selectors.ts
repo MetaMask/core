@@ -153,19 +153,23 @@ const getExchangeRateByChainIdAndAddress = (
   if (isNonEvmChainId(chainId)) {
     const multichainAssetExchangeRate = conversionRates?.[assetId];
     if (multichainAssetExchangeRate) {
-      // The rate is denominated in the user's selected currency.
-      // Derive the USD rate using the currency-to-USD ratio from any EVM native currency rate.
+      // The multichain rate is denominated in the user's selected currency.
+      // To get a USD rate, find the user's-currency-to-USD conversion factor from any EVM native currency rate.
       const nativeCurrencyRate = Object.values(currencyRates ?? {}).find(
         (rate) => rate?.conversionRate && rate?.usdConversionRate,
       );
-      const usdExchangeRate =
+      const usersCurrencyToUsdRate =
         nativeCurrencyRate?.conversionRate &&
         nativeCurrencyRate?.usdConversionRate
-          ? new BigNumber(multichainAssetExchangeRate.rate)
-              .times(nativeCurrencyRate.usdConversionRate)
-              .div(nativeCurrencyRate.conversionRate)
-              .toString()
+          ? new BigNumber(nativeCurrencyRate.usdConversionRate).div(
+              nativeCurrencyRate.conversionRate,
+            )
           : undefined;
+      const usdExchangeRate = usersCurrencyToUsdRate
+        ? new BigNumber(multichainAssetExchangeRate.rate)
+            .times(usersCurrencyToUsdRate)
+            .toString()
+        : undefined;
       return {
         exchangeRate: multichainAssetExchangeRate.rate,
         usdExchangeRate,
