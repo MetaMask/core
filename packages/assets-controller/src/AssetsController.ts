@@ -206,6 +206,14 @@ export type AssetsControllerOptions = {
   /** Function to determine if the controller is enabled. Defaults to true. */
   isEnabled?: () => boolean;
   /**
+   * Getter for basic functionality. When it returns true, only balance fetch and balance subscribe
+   * use RPC; token and price APIs are not used (no metadata/price fetch, no price subscription).
+   * No value is stored; the getter is invoked when needed. When the consumer changes the toggle,
+   * call {@link AssetsController.handleBasicFunctionalityChange} to refresh subscriptions.
+   * Defaults to () => false when not provided.
+   */
+  isBasicFunctionality?: () => boolean;
+  /**
    * API client for balance/price/metadata. The controller instantiates data sources
    * and uses them directly when this is provided.
    */
@@ -357,6 +365,9 @@ export class AssetsController extends BaseController<
   /** Whether the controller is enabled */
   readonly #isEnabled: boolean;
 
+  /** Getter for basic functionality (only balance fetch/subscribe use RPC; token/price API not used). No attribute stored. */
+  readonly #isBasicFunctionality: () => boolean;
+
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
@@ -395,11 +406,12 @@ export class AssetsController extends BaseController<
   readonly #rpcDataSource: RpcDataSource;
 
   /**
-   * Subscription balance data sources in assignment priority order (first that supports a chain gets it).
+   * All balance data sources (used for unsubscription in #stop so we can clean up
+   * regardless of current isBasicFunctionality mode).
    *
    * @returns The four balance data source instances in priority order.
    */
-  get #subscriptionBalanceDataSources(): [
+  get #allBalanceDataSources(): [
     BackendWebsocketDataSource,
     AccountsApiDataSource,
     SnapDataSource,
@@ -424,6 +436,7 @@ export class AssetsController extends BaseController<
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
     isEnabled = (): boolean => true,
+    isBasicFunctionality,
     queryApiClient,
     rpcDataSourceConfig,
   }: AssetsControllerOptions) {
@@ -438,6 +451,7 @@ export class AssetsController extends BaseController<
     });
 
     this.#isEnabled = isEnabled();
+    this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => false);
     this.#defaultUpdateInterval = defaultUpdateInterval;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
@@ -718,17 +732,20 @@ export class AssetsController extends BaseController<
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
       });
-      const response = await this.#executeMiddlewares(
-        [
-          this.#accountsApiDataSource.assetsMiddleware,
-          this.#snapDataSource.assetsMiddleware,
-          this.#rpcDataSource.assetsMiddleware,
-          this.#detectionMiddleware.assetsMiddleware,
-          this.#tokenDataSource.assetsMiddleware,
-          this.#priceDataSource.assetsMiddleware,
-        ],
-        request,
-      );
+      const middlewares = this.#isBasicFunctionality()
+        ? [
+            this.#rpcDataSource.assetsMiddleware,
+            this.#detectionMiddleware.assetsMiddleware,
+          ]
+        : [
+            this.#accountsApiDataSource.assetsMiddleware,
+            this.#snapDataSource.assetsMiddleware,
+            this.#rpcDataSource.assetsMiddleware,
+            this.#detectionMiddleware.assetsMiddleware,
+            this.#tokenDataSource.assetsMiddleware,
+            this.#priceDataSource.assetsMiddleware,
+          ];
+      const response = await this.#executeMiddlewares(middlewares, request);
       await this.#updateState(response);
     }
 
@@ -947,6 +964,9 @@ export class AssetsController extends BaseController<
     chainIds: ChainId[],
     options: { updateInterval?: number } = {},
   ): void {
+    if (this.#isBasicFunctionality()) {
+      return;
+    }
     const { updateInterval = this.#defaultUpdateInterval } = options;
     const subscriptionKey = 'ds:PriceDataSource';
 
@@ -1301,13 +1321,14 @@ export class AssetsController extends BaseController<
     this.unsubscribeAssetsPrice();
 
     // Stop balance subscriptions by properly notifying data sources via messenger
-    // This ensures data sources stop their polling timers
-    // Convert to array first to avoid modifying map during iteration
+    // This ensures data sources stop their polling timers.
+    // Use #allBalanceDataSources so we unsubscribe from every source that may have
+    // been subscribed (e.g. when switching from full to basic functionality).
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
       if (subscriptionKey.startsWith('ds:')) {
         const sourceId = subscriptionKey.slice(3);
-        const source = this.#subscriptionBalanceDataSources.find(
+        const source = this.#allBalanceDataSources.find(
           (ds) => ds.getName() === sourceId,
         );
         if (source) {
@@ -1316,6 +1337,18 @@ export class AssetsController extends BaseController<
       }
     }
     this.#activeSubscriptions.clear();
+  }
+
+  /**
+   * Handle basic functionality toggle change. Call this from the consumer (extension or mobile)
+   * when the user changes the basic functionality setting. Refreshes subscriptions so the
+   * current {@link AssetsControllerOptions.isBasicFunctionality} getter is used for balance sources.
+   *
+   * @param _isBasic - The new value (for call-site clarity; the getter is the source of truth).
+   */
+  handleBasicFunctionalityChange(_isBasic: boolean): void {
+    this.#stop();
+    this.#subscribeAssets();
   }
 
   /**
@@ -1359,7 +1392,12 @@ export class AssetsController extends BaseController<
     );
     const remainingChains = new Set(chainToAccounts.keys());
 
-    for (const source of this.#subscriptionBalanceDataSources) {
+    // Basic functionality: only RPC for balance; otherwise all balance data sources in priority order.
+    const balanceDataSources = this.#isBasicFunctionality()
+      ? [this.#rpcDataSource]
+      : this.#allBalanceDataSources;
+
+    for (const source of balanceDataSources) {
       const availableChains = new Set(source.getActiveChainsSync());
       const assignedChains: ChainId[] = [];
 
@@ -1672,7 +1710,7 @@ export class AssetsController extends BaseController<
 
   destroy(): void {
     log('Destroying AssetsController', {
-      dataSourceCount: this.#subscriptionBalanceDataSources.length,
+      dataSourceCount: this.#allBalanceDataSources.length,
       subscriptionCount: this.#activeSubscriptions.size,
     });
 

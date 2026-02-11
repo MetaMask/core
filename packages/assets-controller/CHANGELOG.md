@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add basic functionality toggle: `isBasicFunctionality` (getter `() => boolean`); no value is stored in the controller. When the getter returns true, only balance fetch and subscribe use RPC; token and price APIs are not used (no metadata/price fetch, no price subscription). Call `handleBasicFunctionalityChange(isBasic)` when the toggle changes to refresh subscriptions ([#7904](https://github.com/MetaMask/core/pull/7904))
+
 ### Changed
 
 - **BREAKING:** Rename state and `DataResponse` property from `assetsMetadata` to `assetsInfo`. Update consumers that read `state.assetsMetadata` or set `response.assetsMetadata` to use `assetsInfo` instead ([#7902](https://github.com/MetaMask/core/pull/7902))
