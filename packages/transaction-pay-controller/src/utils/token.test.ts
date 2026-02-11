@@ -9,6 +9,7 @@ import {
   getTokenFiatRate,
   getAllTokenBalances,
   getNativeToken,
+  isSameToken,
 } from './token';
 import {
   CHAIN_ID_POLYGON,
@@ -469,6 +470,49 @@ describe('Token Utils', () => {
         { chainId: '0x2', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '80' },
         { chainId: '0x3', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '96' },
       ]);
+    });
+  });
+
+  describe('isSameToken', () => {
+    it('returns true for same address and chain', () => {
+      const token1 = { address: TOKEN_ADDRESS_MOCK, chainId: CHAIN_ID_MOCK };
+      const token2 = { address: TOKEN_ADDRESS_MOCK, chainId: CHAIN_ID_MOCK };
+
+      expect(isSameToken(token1, token2)).toBe(true);
+    });
+
+    it('returns true for same address with different case', () => {
+      const token1 = {
+        address: TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        chainId: CHAIN_ID_MOCK,
+      };
+      const token2 = {
+        address: TOKEN_ADDRESS_MOCK.toUpperCase() as Hex,
+        chainId: CHAIN_ID_MOCK,
+      };
+
+      expect(isSameToken(token1, token2)).toBe(true);
+    });
+
+    it('returns false for different addresses', () => {
+      const token1 = { address: TOKEN_ADDRESS_MOCK, chainId: CHAIN_ID_MOCK };
+      const token2 = { address: TOKEN_ADDRESS_2_MOCK, chainId: CHAIN_ID_MOCK };
+
+      expect(isSameToken(token1, token2)).toBe(false);
+    });
+
+    it('returns false for different chains', () => {
+      const token1 = { address: TOKEN_ADDRESS_MOCK, chainId: CHAIN_ID_MOCK };
+      const token2 = { address: TOKEN_ADDRESS_MOCK, chainId: '0x89' as Hex };
+
+      expect(isSameToken(token1, token2)).toBe(false);
+    });
+
+    it('returns false for different address and chain', () => {
+      const token1 = { address: TOKEN_ADDRESS_MOCK, chainId: CHAIN_ID_MOCK };
+      const token2 = { address: TOKEN_ADDRESS_2_MOCK, chainId: '0x89' as Hex };
+
+      expect(isSameToken(token1, token2)).toBe(false);
     });
   });
 });

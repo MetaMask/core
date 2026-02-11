@@ -9,6 +9,7 @@ import { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import type {
   GetDelegationTransactionCallback,
+  TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
@@ -74,9 +75,20 @@ export class TransactionPayController extends BaseController<
     });
   }
 
-  setIsMaxAmount(transactionId: string, isMaxAmount: boolean): void {
+  setTransactionConfig(
+    transactionId: string,
+    callback: TransactionConfigCallback,
+  ): void {
     this.#updateTransactionData(transactionId, (transactionData) => {
-      transactionData.isMaxAmount = isMaxAmount;
+      const config = {
+        isMaxAmount: transactionData.isMaxAmount,
+        isPostQuote: transactionData.isPostQuote,
+      };
+
+      callback(config);
+
+      transactionData.isMaxAmount = config.isMaxAmount;
+      transactionData.isPostQuote = config.isPostQuote;
     });
   }
 
@@ -105,6 +117,7 @@ export class TransactionPayController extends BaseController<
       const originalPaymentToken = current?.paymentToken;
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
+      const originalIsPostQuote = current?.isPostQuote;
 
       if (!current) {
         transactionData[transactionId] = {
@@ -122,8 +135,14 @@ export class TransactionPayController extends BaseController<
 
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
+      const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
 
-      if (isPaymentTokenUpdated || isIsMaxUpdated || isTokensUpdated) {
+      if (
+        isPaymentTokenUpdated ||
+        isIsMaxUpdated ||
+        isTokensUpdated ||
+        isPostQuoteUpdated
+      ) {
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
         shouldUpdateQuotes = true;
@@ -153,8 +172,8 @@ export class TransactionPayController extends BaseController<
     );
 
     this.messenger.registerActionHandler(
-      'TransactionPayController:setIsMaxAmount',
-      this.setIsMaxAmount.bind(this),
+      'TransactionPayController:setTransactionConfig',
+      this.setTransactionConfig.bind(this),
     );
 
     this.messenger.registerActionHandler(
