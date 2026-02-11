@@ -8174,7 +8174,7 @@ describe('TransactionController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -8187,12 +8187,12 @@ describe('TransactionController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "lastFetchedBlockNumbers": Object {},
-          "methodData": Object {},
-          "submitHistory": Array [],
-          "transactionBatches": Array [],
-          "transactions": Array [],
+        {
+          "lastFetchedBlockNumbers": {},
+          "methodData": {},
+          "submitHistory": [],
+          "transactionBatches": [],
+          "transactions": [],
         }
       `);
     });
@@ -8207,12 +8207,12 @@ describe('TransactionController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "lastFetchedBlockNumbers": Object {},
-          "methodData": Object {},
-          "submitHistory": Array [],
-          "transactionBatches": Array [],
-          "transactions": Array [],
+        {
+          "lastFetchedBlockNumbers": {},
+          "methodData": {},
+          "submitHistory": [],
+          "transactionBatches": [],
+          "transactions": [],
         }
       `);
     });
@@ -8227,10 +8227,10 @@ describe('TransactionController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "methodData": Object {},
-          "transactionBatches": Array [],
-          "transactions": Array [],
+        {
+          "methodData": {},
+          "transactionBatches": [],
+          "transactions": [],
         }
       `);
     });

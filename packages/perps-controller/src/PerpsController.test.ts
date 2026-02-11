@@ -24,7 +24,7 @@ describe('PerpsController', () => {
 
     it('fills in missing initial state with defaults', async () => {
       await withController(({ controller }) => {
-        expect(controller.state).toMatchInlineSnapshot(`Object {}`);
+        expect(controller.state).toMatchInlineSnapshot(`{}`);
       });
     });
   });
@@ -38,7 +38,7 @@ describe('PerpsController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -50,7 +50,7 @@ describe('PerpsController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -62,7 +62,7 @@ describe('PerpsController', () => {
             controller.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -74,7 +74,7 @@ describe('PerpsController', () => {
             controller.metadata,
             'usedInUi',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
   });

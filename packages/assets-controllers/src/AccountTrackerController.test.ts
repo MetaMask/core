@@ -1844,7 +1844,7 @@ describe('AccountTrackerController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -1856,7 +1856,7 @@ describe('AccountTrackerController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -1869,9 +1869,9 @@ describe('AccountTrackerController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "accountsByChainId": Object {
-              "0x1": Object {},
+          {
+            "accountsByChainId": {
+              "0x1": {},
             },
           }
         `);
@@ -1887,9 +1887,9 @@ describe('AccountTrackerController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "accountsByChainId": Object {
-              "0x1": Object {},
+          {
+            "accountsByChainId": {
+              "0x1": {},
             },
           }
         `);

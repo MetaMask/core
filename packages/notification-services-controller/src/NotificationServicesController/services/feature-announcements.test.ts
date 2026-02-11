@@ -1,4 +1,5 @@
 import {
+  ContentfulResult,
   getFeatureAnnouncementNotifications,
   getFeatureAnnouncementUrl,
 } from './feature-announcements';
@@ -72,6 +73,47 @@ describe('Feature Announcement Notifications', () => {
     );
     mockEndpoint.done();
     expect(notifications).toStrictEqual([]);
+  });
+
+  describe('max age filter (exclude announcements older than 3 months)', () => {
+    const mockResultWithAge = (monthsAgo: number): ContentfulResult => {
+      const limitDate = new Date();
+      limitDate.setMonth(limitDate.getMonth() - monthsAgo);
+
+      const apiResult = createMockFeatureAnnouncementAPIResult();
+      Object.assign(apiResult.items?.[0]?.sys ?? {}, {
+        updatedAt: limitDate.toISOString(),
+      });
+      return apiResult;
+    };
+
+    it('filters out announcements older than 3 months', async () => {
+      const mockEndpoint = mockFetchFeatureAnnouncementNotifications({
+        status: 200,
+        body: mockResultWithAge(4),
+      });
+
+      const notifications = await getFeatureAnnouncementNotifications(
+        featureAnnouncementsEnv,
+      );
+
+      mockEndpoint.done();
+      expect(notifications).toHaveLength(0);
+    });
+
+    it('includes announcements within the last 3 months', async () => {
+      const mockEndpoint = mockFetchFeatureAnnouncementNotifications({
+        status: 200,
+        body: mockResultWithAge(1),
+      });
+
+      const notifications = await getFeatureAnnouncementNotifications(
+        featureAnnouncementsEnv,
+      );
+
+      mockEndpoint.done();
+      expect(notifications).toHaveLength(1);
+    });
   });
 
   it('should fetch entries from Contentful and return formatted notifications', async () => {

@@ -103,7 +103,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
  */
 export type AssetsControllerState = {
   /** Shared metadata for all assets (stored once per asset) */
-  assetsMetadata: { [assetId: string]: AssetMetadata };
+  assetsInfo: { [assetId: string]: AssetMetadata };
   /** Per-account balance data */
   assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
   /** Price data for assets */
@@ -121,7 +121,7 @@ export type AssetsControllerState = {
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
-    assetsMetadata: {},
+    assetsInfo: {},
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
@@ -219,7 +219,7 @@ export type AssetsControllerOptions = {
 // ============================================================================
 
 const stateMetadata: StateMetadata<AssetsControllerState> = {
-  assetsMetadata: {
+  assetsInfo: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -271,11 +271,11 @@ function extractChainId(assetId: Caip19AssetId): ChainId {
 function normalizeResponse(response: DataResponse): DataResponse {
   const normalized: DataResponse = {};
 
-  if (response.assetsMetadata) {
-    normalized.assetsMetadata = {};
-    for (const [assetId, metadata] of Object.entries(response.assetsMetadata)) {
+  if (response.assetsInfo) {
+    normalized.assetsInfo = {};
+    for (const [assetId, metadata] of Object.entries(response.assetsInfo)) {
       const normalizedId = normalizeAssetId(assetId as Caip19AssetId);
-      normalized.assetsMetadata[normalizedId] = metadata;
+      normalized.assetsInfo[normalizedId] = metadata;
     }
   }
 
@@ -766,7 +766,7 @@ export class AssetsController extends BaseController<
   }
 
   getAssetMetadata(assetId: Caip19AssetId): AssetMetadata | undefined {
-    return this.state.assetsMetadata[assetId] as AssetMetadata | undefined;
+    return this.state.assetsInfo[assetId] as AssetMetadata | undefined;
   }
 
   async getAssetsPrice(
@@ -1023,22 +1023,19 @@ export class AssetsController extends BaseController<
 
       this.update((state) => {
         // Use type assertions to avoid deep type instantiation issues with Immer Draft types
-        const metadata = state.assetsMetadata as Record<string, AssetMetadata>;
+        const metadata = state.assetsInfo as Record<string, AssetMetadata>;
         const balances = state.assetsBalance as Record<
           string,
           Record<string, AssetBalance>
         >;
         const prices = state.assetsPrice as Record<string, AssetPrice>;
 
-        if (normalizedResponse.assetsMetadata) {
+        if (normalizedResponse.assetsInfo) {
           for (const [key, value] of Object.entries(
-            normalizedResponse.assetsMetadata,
+            normalizedResponse.assetsInfo,
           )) {
             if (
-              !isEqual(
-                previousState.assetsMetadata[key as Caip19AssetId],
-                value,
-              )
+              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
             ) {
               changedMetadata.push(key);
             }
@@ -1184,7 +1181,7 @@ export class AssetsController extends BaseController<
       for (const [assetId, balance] of Object.entries(accountBalances)) {
         const typedAssetId = assetId as Caip19AssetId;
 
-        const metadataRaw = this.state.assetsMetadata[typedAssetId];
+        const metadataRaw = this.state.assetsInfo[typedAssetId];
 
         // Skip assets without metadata
         if (!metadataRaw) {

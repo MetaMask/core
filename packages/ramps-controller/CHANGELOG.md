@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
 - Refactor: Consolidate reset logic with a shared resetResource helper and fix abort handling for dependent resources ([#7818](https://github.com/MetaMask/core/pull/7818))
+
+### Changed
+
+- **BREAKING:** Quote filter param renamed from `provider` to `providers` array in `getQuotes()` and `RampsService.getQuotes()` ([#7892](https://github.com/MetaMask/core/pull/7892))
+- **BREAKING:** Make `getWidgetUrl()` async to fetch the actual provider widget URL from the `buyURL` endpoint ([#7881](https://github.com/MetaMask/core/pull/7881))
+
+## [7.1.0]
+
+### Fixed
+
+- Fixes quote race condition bug with missing payment method ([#7863](https://github.com/MetaMask/core/pull/7863))
 
 ## [7.0.0]
 
@@ -130,7 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.0.0...@metamask/ramps-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@6.0.0...@metamask/ramps-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.1.0...@metamask/ramps-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@5.0.0...@metamask/ramps-controller@5.1.0

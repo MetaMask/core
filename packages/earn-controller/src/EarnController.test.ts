@@ -2677,7 +2677,7 @@ describe('EarnController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "lastUpdated": 0,
         }
       `);
@@ -2717,51 +2717,51 @@ describe('EarnController', () => {
       });
       expect(derivedTronStaking).toBeNull();
       expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
-        Object {
+        {
           "lastUpdated": 0,
-          "lending": Object {
+          "lending": {
             "isEligible": true,
-            "markets": Array [
-              Object {
+            "markets": [
+              {
                 "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                 "chainId": 42161,
                 "id": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                 "name": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                 "netSupplyRate": 1.52269127978874,
-                "outputToken": Object {
+                "outputToken": {
                   "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                   "chainId": 42161,
                 },
                 "protocol": "aave",
-                "rewards": Array [],
+                "rewards": [],
                 "totalSupplyRate": 1.52269127978874,
                 "tvlUnderlying": "132942564710249273623333",
-                "underlying": Object {
+                "underlying": {
                   "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
                   "chainId": 42161,
                 },
               },
             ],
-            "positions": Array [
-              Object {
+            "positions": [
+              {
                 "assets": "112",
                 "chainId": 42161,
                 "id": "0xe6a7d2b7de29167ae4c3864ac0873e6dcd9cb47b-0x078f358208685046a11c85e8ad32895ded33a249-COLLATERAL-0",
-                "market": Object {
+                "market": {
                   "address": "0x078f358208685046a11c85e8ad32895ded33a249",
                   "chainId": 42161,
                   "id": "0x078f358208685046a11c85e8ad32895ded33a249",
                   "name": "0x078f358208685046a11c85e8ad32895ded33a249",
                   "netSupplyRate": 0.0062858302613958,
-                  "outputToken": Object {
+                  "outputToken": {
                     "address": "0x078f358208685046a11c85e8ad32895ded33a249",
                     "chainId": 42161,
                   },
                   "protocol": "aave",
-                  "rewards": Array [],
+                  "rewards": [],
                   "totalSupplyRate": 0.0062858302613958,
                   "tvlUnderlying": "315871357755",
-                  "underlying": Object {
+                  "underlying": {
                     "address": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
                     "chainId": 42161,
                   },
@@ -2810,50 +2810,50 @@ describe('EarnController', () => {
       });
       expect(derivedTronStaking).toBeNull();
       expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
-        Object {
-          "lending": Object {
+        {
+          "lending": {
             "isEligible": true,
-            "markets": Array [
-              Object {
+            "markets": [
+              {
                 "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                 "chainId": 42161,
                 "id": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                 "name": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                 "netSupplyRate": 1.52269127978874,
-                "outputToken": Object {
+                "outputToken": {
                   "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                   "chainId": 42161,
                 },
                 "protocol": "aave",
-                "rewards": Array [],
+                "rewards": [],
                 "totalSupplyRate": 1.52269127978874,
                 "tvlUnderlying": "132942564710249273623333",
-                "underlying": Object {
+                "underlying": {
                   "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
                   "chainId": 42161,
                 },
               },
             ],
-            "positions": Array [
-              Object {
+            "positions": [
+              {
                 "assets": "112",
                 "chainId": 42161,
                 "id": "0xe6a7d2b7de29167ae4c3864ac0873e6dcd9cb47b-0x078f358208685046a11c85e8ad32895ded33a249-COLLATERAL-0",
-                "market": Object {
+                "market": {
                   "address": "0x078f358208685046a11c85e8ad32895ded33a249",
                   "chainId": 42161,
                   "id": "0x078f358208685046a11c85e8ad32895ded33a249",
                   "name": "0x078f358208685046a11c85e8ad32895ded33a249",
                   "netSupplyRate": 0.0062858302613958,
-                  "outputToken": Object {
+                  "outputToken": {
                     "address": "0x078f358208685046a11c85e8ad32895ded33a249",
                     "chainId": 42161,
                   },
                   "protocol": "aave",
-                  "rewards": Array [],
+                  "rewards": [],
                   "totalSupplyRate": 0.0062858302613958,
                   "tvlUnderlying": "315871357755",
-                  "underlying": Object {
+                  "underlying": {
                     "address": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
                     "chainId": 42161,
                   },
@@ -2902,50 +2902,50 @@ describe('EarnController', () => {
       });
       expect(derivedTronStaking).toBeNull();
       expect(derivedStateWithoutPooledStaking).toMatchInlineSnapshot(`
-        Object {
-          "lending": Object {
+        {
+          "lending": {
             "isEligible": true,
-            "markets": Array [
-              Object {
+            "markets": [
+              {
                 "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                 "chainId": 42161,
                 "id": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                 "name": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                 "netSupplyRate": 1.52269127978874,
-                "outputToken": Object {
+                "outputToken": {
                   "address": "0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8",
                   "chainId": 42161,
                 },
                 "protocol": "aave",
-                "rewards": Array [],
+                "rewards": [],
                 "totalSupplyRate": 1.52269127978874,
                 "tvlUnderlying": "132942564710249273623333",
-                "underlying": Object {
+                "underlying": {
                   "address": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
                   "chainId": 42161,
                 },
               },
             ],
-            "positions": Array [
-              Object {
+            "positions": [
+              {
                 "assets": "112",
                 "chainId": 42161,
                 "id": "0xe6a7d2b7de29167ae4c3864ac0873e6dcd9cb47b-0x078f358208685046a11c85e8ad32895ded33a249-COLLATERAL-0",
-                "market": Object {
+                "market": {
                   "address": "0x078f358208685046a11c85e8ad32895ded33a249",
                   "chainId": 42161,
                   "id": "0x078f358208685046a11c85e8ad32895ded33a249",
                   "name": "0x078f358208685046a11c85e8ad32895ded33a249",
                   "netSupplyRate": 0.0062858302613958,
-                  "outputToken": Object {
+                  "outputToken": {
                     "address": "0x078f358208685046a11c85e8ad32895ded33a249",
                     "chainId": 42161,
                   },
                   "protocol": "aave",
-                  "rewards": Array [],
+                  "rewards": [],
                   "totalSupplyRate": 0.0062858302613958,
                   "tvlUnderlying": "315871357755",
-                  "underlying": Object {
+                  "underlying": {
                     "address": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
                     "chainId": 42161,
                   },
