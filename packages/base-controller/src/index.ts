@@ -1,8 +1,5 @@
 export type {
   BaseControllerInstance,
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  Draft,
   StateChangeListener,
   StateConstraint,
   StateDeriver,
@@ -11,5 +8,7 @@ export type {
   StateMetadataConstraint,
   StatePropertyMetadata,
   StatePropertyMetadataConstraint,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from './BaseController';
 export { BaseController, deriveStateFromMetadata } from './BaseController';

@@ -9,8 +9,6 @@ import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
-export type { Draft };
-
 enablePatches();
 
 /**

@@ -1,12 +1,12 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  Draft,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
+import type { Draft } from 'immer';
 
 import type {
   Country,
@@ -779,13 +779,13 @@ export class RampsController extends BaseController<
   }
 
   #isTokenCurrent(normalizedAssetId: string): boolean {
-    const current = this.state.tokens.selected?.assetId;
-    return current === undefined || current === normalizedAssetId;
+    const current = this.state.tokens.selected?.assetId ?? '';
+    return current === normalizedAssetId;
   }
 
   #isProviderCurrent(normalizedProviderId: string): boolean {
-    const current = this.state.providers.selected?.id;
-    return current === undefined || current === normalizedProviderId;
+    const current = this.state.providers.selected?.id ?? '';
+    return current === normalizedProviderId;
   }
 
   /**
