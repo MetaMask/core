@@ -669,7 +669,7 @@ export class RampsController extends BaseController<
         }
 
         // Clear resource-level loading state only when no requests for this resource remain
-        if (resourceType) {
+        if (resourceType && !abortController.signal.aborted) {
           const count = this.#pendingResourceCount.get(resourceType) ?? 0;
           const next = Math.max(0, count - 1);
           if (next === 0) {
