@@ -1422,8 +1422,8 @@ describe('SubscriptionController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "trialedProducts": Array [],
+          {
+            "trialedProducts": [],
           }
         `);
       });
@@ -1438,10 +1438,10 @@ describe('SubscriptionController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-        Object {
-          "trialedProducts": Array [],
-        }
-      `);
+          {
+            "trialedProducts": [],
+          }
+        `);
       });
     });
 
@@ -1454,11 +1454,11 @@ describe('SubscriptionController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-        Object {
-          "subscriptions": Array [],
-          "trialedProducts": Array [],
-        }
-      `);
+          {
+            "subscriptions": [],
+            "trialedProducts": [],
+          }
+        `);
       });
     });
 
@@ -1471,11 +1471,11 @@ describe('SubscriptionController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-        Object {
-          "subscriptions": Array [],
-          "trialedProducts": Array [],
-        }
-      `);
+          {
+            "subscriptions": [],
+            "trialedProducts": [],
+          }
+        `);
       });
     });
   });

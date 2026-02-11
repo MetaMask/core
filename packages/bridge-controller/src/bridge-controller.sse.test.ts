@@ -639,8 +639,8 @@ describe('BridgeController SSE', function () {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     ).toBeGreaterThan(t2!);
     expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
-      Array [
-        Array [
+      [
+        [
           "Failed to stream bridge quotes",
           "Network error",
         ],
@@ -956,9 +956,9 @@ describe('BridgeController SSE', function () {
       t6!,
     );
     expect(consoleWarnSpy.mock.calls[0]).toMatchInlineSnapshot(`
-      Array [
+      [
         "Quote validation failed",
-        Array [
+        [
           "lifi|trade",
           "lifi|trade.chainId",
           "lifi|trade.to",
@@ -986,21 +986,21 @@ describe('BridgeController SSE', function () {
     );
     expect(consoleWarnSpy.mock.calls).toHaveLength(3);
     expect(consoleWarnSpy.mock.calls[1]).toMatchInlineSnapshot(`
-      Array [
+      [
         "Quote validation failed",
-        Array [
+        [
           "unknown|unknown",
         ],
       ]
     `);
     expect(consoleWarnSpy.mock.calls[2]).toMatchInlineSnapshot(`
-              Array [
-                "Quote validation failed",
-                Array [
-                  "unknown|quote",
-                ],
-              ]
-          `);
+      [
+        "Quote validation failed",
+        [
+          "unknown|quote",
+        ],
+      ]
+    `);
 
     expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(5);
@@ -1085,7 +1085,7 @@ describe('BridgeController SSE', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy.mock.calls[0]).toMatchInlineSnapshot(`
-      Array [
+      [
         "Failed to stream bridge quotes",
         [Error: Bridge-api error: timeout from server],
       ]

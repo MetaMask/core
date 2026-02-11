@@ -141,7 +141,7 @@ describe('AssetsController', () => {
       const defaultState = getDefaultAssetsControllerState();
 
       expect(defaultState).toStrictEqual({
-        assetsMetadata: {},
+        assetsInfo: {},
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -154,7 +154,7 @@ describe('AssetsController', () => {
     it('initializes with default state', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
-          assetsMetadata: {},
+          assetsInfo: {},
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
@@ -165,7 +165,7 @@ describe('AssetsController', () => {
 
     it('initializes with provided state', async () => {
       const initialState: Partial<AssetsControllerState> = {
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_ASSET_ID]: {
             type: 'erc20',
             symbol: 'USDC',
@@ -178,7 +178,7 @@ describe('AssetsController', () => {
       };
 
       await withController({ state: initialState }, ({ controller }) => {
-        expect(controller.state.assetsMetadata[MOCK_ASSET_ID]).toStrictEqual({
+        expect(controller.state.assetsInfo[MOCK_ASSET_ID]).toStrictEqual({
           type: 'erc20',
           symbol: 'USDC',
           name: 'USD Coin',
@@ -224,7 +224,7 @@ describe('AssetsController', () => {
       // Controller should still have default state (from super() call)
       expect(controller.state).toStrictEqual({
         assetPreferences: {},
-        assetsMetadata: {},
+        assetsInfo: {},
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -245,7 +245,7 @@ describe('AssetsController', () => {
         // Controller should have default state
         expect(controller.state).toStrictEqual({
           assetPreferences: {},
-          assetsMetadata: {},
+          assetsInfo: {},
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
@@ -387,7 +387,7 @@ describe('AssetsController', () => {
   describe('getAssetMetadata', () => {
     it('returns metadata for existing asset', async () => {
       const initialState: Partial<AssetsControllerState> = {
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_ASSET_ID]: {
             type: 'erc20',
             symbol: 'USDC',
@@ -533,7 +533,7 @@ describe('AssetsController', () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
-            assetsMetadata: {
+            assetsInfo: {
               [MOCK_ASSET_ID]: {
                 type: 'erc20',
                 symbol: 'USDC',
@@ -545,7 +545,7 @@ describe('AssetsController', () => {
           'TestSource',
         );
 
-        expect(controller.state.assetsMetadata[MOCK_ASSET_ID]).toStrictEqual({
+        expect(controller.state.assetsInfo[MOCK_ASSET_ID]).toStrictEqual({
           type: 'erc20',
           symbol: 'USDC',
           name: 'USD Coin',

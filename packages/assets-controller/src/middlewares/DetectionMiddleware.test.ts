@@ -57,12 +57,12 @@ function createDataRequest(
 function createAssetsState(
   metadataAssets: Caip19AssetId[] = [],
 ): AssetsControllerStateInternal {
-  const assetsMetadata: Record<Caip19AssetId, { name: string }> = {};
+  const assetsInfo: Record<Caip19AssetId, { name: string }> = {};
   for (const assetId of metadataAssets) {
-    assetsMetadata[assetId] = { name: `Asset ${assetId}` };
+    assetsInfo[assetId] = { name: `Asset ${assetId}` };
   }
   return {
-    assetsMetadata,
+    assetsInfo,
     assetsBalance: {},
     customAssets: {},
   } as AssetsControllerStateInternal;
