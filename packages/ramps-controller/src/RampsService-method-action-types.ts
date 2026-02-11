@@ -97,6 +97,19 @@ export type RampsServiceGetQuotesAction = {
 };
 
 /**
+ * Fetches the buy widget data from a buy URL endpoint.
+ * Makes a request to the buyURL (as provided in a quote) to get the actual
+ * provider widget URL, browser type, and order ID.
+ *
+ * @param buyUrl - The full buy URL endpoint to fetch from.
+ * @returns The buy widget data containing the provider widget URL.
+ */
+export type RampsServiceGetBuyWidgetUrlAction = {
+  type: `RampsService:getBuyWidgetUrl`;
+  handler: RampsService['getBuyWidgetUrl'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
@@ -105,4 +118,5 @@ export type RampsServiceMethodActions =
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
-  | RampsServiceGetQuotesAction;
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction;

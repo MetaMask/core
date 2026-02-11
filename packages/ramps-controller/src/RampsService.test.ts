@@ -1710,7 +1710,6 @@ describe('RampsService', () => {
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
           },
           metadata: {
             reliability: 95,
@@ -2283,6 +2282,90 @@ describe('RampsService', () => {
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
+    });
+  });
+
+  describe('RampsService:getBuyWidgetUrl', () => {
+    it('returns buy widget data from the buy URL endpoint', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/providers/transak-staging/buy-widget')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
+      const { rootMessenger } = getService();
+
+      const buyWidgetPromise = rootMessenger.call(
+        'RampsService:getBuyWidgetUrl',
+        'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      const buyWidget = await buyWidgetPromise;
+
+      expect(buyWidget).toStrictEqual({
+        url: 'https://global.transak.com/?apiKey=test',
+        browser: 'APP_BROWSER',
+        orderId: null,
+      });
+    });
+
+    it('throws when the response is not ok', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/providers/transak-staging/buy-widget')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .times(4)
+        .reply(500, 'Internal Server Error');
+      const { service } = getService();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
+      });
+
+      const buyWidgetPromise = service.getBuyWidgetUrl(
+        'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(buyWidgetPromise).rejects.toThrow(
+        `Fetching 'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
+      );
+    });
+
+    it('throws when the response does not contain url field', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/providers/transak-staging/buy-widget')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, {
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
+      const { rootMessenger } = getService();
+
+      const buyWidgetPromise = rootMessenger.call(
+        'RampsService:getBuyWidgetUrl',
+        'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(buyWidgetPromise).rejects.toThrow(
+        'Malformed response received from buy widget URL API',
+      );
     });
   });
 });

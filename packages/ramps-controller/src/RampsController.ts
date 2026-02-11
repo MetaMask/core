@@ -27,6 +27,7 @@ import type {
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -68,6 +69,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly RampsServiceAct
     'RampsService:getProviders',
     'RampsService:getPaymentMethods',
     'RampsService:getQuotes',
+    'RampsService:getBuyWidgetUrl',
   ];
 
 /**
@@ -321,7 +323,8 @@ type AllowedActions =
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
-  | RampsServiceGetQuotesAction;
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -1618,13 +1621,28 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Extracts the widget URL from a quote for redirect providers.
-   * Returns the widget URL if available, or null if the quote doesn't have one.
+   * Fetches the widget URL from a quote for redirect providers.
+   * Makes a request to the buyURL endpoint via the RampsService to get the
+   * actual provider widget URL, using the injected fetch and retry policy.
    *
-   * @param quote - The quote to extract the widget URL from.
-   * @returns The widget URL string, or null if not available.
+   * @param quote - The quote to fetch the widget URL from.
+   * @returns Promise resolving to the widget URL string, or null if not available.
    */
-  getWidgetUrl(quote: Quote): string | null {
-    return quote.quote?.widgetUrl ?? null;
+  async getWidgetUrl(quote: Quote): Promise<string | null> {
+    const buyUrl = quote.quote?.buyURL;
+    if (!buyUrl) {
+      return null;
+    }
+
+    try {
+      const buyWidget = await this.messenger.call(
+        'RampsService:getBuyWidgetUrl',
+        buyUrl,
+      );
+      return buyWidget.url ?? null;
+    } catch (error) {
+      console.error('Error fetching widget URL:', error);
+      return null;
+    }
   }
 }
