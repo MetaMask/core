@@ -17,7 +17,6 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
-  GetQuotesParams,
   RampsToken,
   RampsServiceActions,
 } from './RampsService';
@@ -28,6 +27,7 @@ import type {
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -69,6 +69,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly RampsServiceAct
     'RampsService:getProviders',
     'RampsService:getPaymentMethods',
     'RampsService:getQuotes',
+    'RampsService:getBuyWidgetUrl',
   ];
 
 /**
@@ -322,7 +323,8 @@ type AllowedActions =
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
-  | RampsServiceGetQuotesAction;
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -1374,7 +1376,7 @@ export class RampsController extends BaseController<
    * @param options.amount - The amount (in fiat for buy, crypto for sell).
    * @param options.walletAddress - The destination wallet address.
    * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
-   * @param options.provider - Optional provider ID to filter quotes.
+   * @param options.providers - Optional provider IDs to filter quotes.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1384,11 +1386,11 @@ export class RampsController extends BaseController<
   async getQuotes(options: {
     region?: string;
     fiat?: string;
-    assetId: string;
+    assetId?: string;
     amount: number;
     walletAddress: string;
     paymentMethods?: string[];
-    provider?: string;
+    providers?: string[];
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
@@ -1399,7 +1401,11 @@ export class RampsController extends BaseController<
     const paymentMethodsToUse =
       options.paymentMethods ??
       this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
+    const providersToUse =
+      options.providers ??
+      this.state.providers.data.map((provider: Provider) => provider.id);
     const action = options.action ?? 'buy';
+    const assetIdToUse = options.assetId ?? this.state.tokens.selected?.assetId;
 
     if (!regionToUse) {
       throw new Error(
@@ -1413,7 +1419,16 @@ export class RampsController extends BaseController<
       );
     }
 
-    if (!paymentMethodsToUse || paymentMethodsToUse.length === 0) {
+    const normalizedAssetIdForValidation = (assetIdToUse ?? '').trim();
+    if (normalizedAssetIdForValidation === '') {
+      throw new Error('assetId is required.');
+    }
+
+    if (
+      !paymentMethodsToUse ||
+      paymentMethodsToUse.length === 0 ||
+      paymentMethodsToUse.some((pm) => pm.trim() === '')
+    ) {
       throw new Error(
         'Payment methods are required. Either provide paymentMethods parameter or ensure paymentMethods are set in controller state.',
       );
@@ -1423,17 +1438,13 @@ export class RampsController extends BaseController<
       throw new Error('Amount must be a positive finite number.');
     }
 
-    if (!options.assetId || options.assetId.trim() === '') {
-      throw new Error('assetId is required.');
-    }
-
     if (!options.walletAddress || options.walletAddress.trim() === '') {
       throw new Error('walletAddress is required.');
     }
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
     const normalizedFiat = fiatToUse.toLowerCase().trim();
-    const normalizedAssetId = options.assetId.trim();
+    const normalizedAssetId = normalizedAssetIdForValidation;
     const normalizedWalletAddress = options.walletAddress.trim();
 
     const cacheKey = createCacheKey('getQuotes', [
@@ -1443,19 +1454,19 @@ export class RampsController extends BaseController<
       options.amount,
       normalizedWalletAddress,
       [...paymentMethodsToUse].sort().join(','),
-      options.provider,
+      [...providersToUse].sort().join(','),
       options.redirectUrl,
       action,
     ]);
 
-    const params: GetQuotesParams = {
+    const params = {
       region: normalizedRegion,
       fiat: normalizedFiat,
       assetId: normalizedAssetId,
       amount: options.amount,
       walletAddress: normalizedWalletAddress,
       paymentMethods: paymentMethodsToUse,
-      provider: options.provider,
+      providers: providersToUse,
       redirectUrl: options.redirectUrl,
       action,
     };
@@ -1546,7 +1557,7 @@ export class RampsController extends BaseController<
           walletAddress: options.walletAddress,
           redirectUrl: options.redirectUrl,
           paymentMethods: [paymentMethod.id],
-          provider: provider.id,
+          providers: [provider.id],
           forceRefresh: true,
         }).then((response) => {
           // Auto-select logic: only when exactly one quote is returned
@@ -1614,13 +1625,28 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Extracts the widget URL from a quote for redirect providers.
-   * Returns the widget URL if available, or null if the quote doesn't have one.
+   * Fetches the widget URL from a quote for redirect providers.
+   * Makes a request to the buyURL endpoint via the RampsService to get the
+   * actual provider widget URL, using the injected fetch and retry policy.
    *
-   * @param quote - The quote to extract the widget URL from.
-   * @returns The widget URL string, or null if not available.
+   * @param quote - The quote to fetch the widget URL from.
+   * @returns Promise resolving to the widget URL string, or null if not available.
    */
-  getWidgetUrl(quote: Quote): string | null {
-    return quote.quote?.widgetUrl ?? null;
+  async getWidgetUrl(quote: Quote): Promise<string | null> {
+    const buyUrl = quote.quote?.buyURL;
+    if (!buyUrl) {
+      return null;
+    }
+
+    try {
+      const buyWidget = await this.messenger.call(
+        'RampsService:getBuyWidgetUrl',
+        buyUrl,
+      );
+      return buyWidget.url ?? null;
+    } catch (error) {
+      console.error('Error fetching widget URL:', error);
+      return null;
+    }
   }
 }

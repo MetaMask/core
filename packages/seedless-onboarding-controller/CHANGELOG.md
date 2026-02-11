@@ -7,12 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING** The `encryptor` constructor param requires `encryptWithKey` method. ([#7800](https://github.com/MetaMask/core/pull/7800))
+  - The method is to encrypt the vault with cached encryption key while the wallet is unlocked.
+- Added new public method, `getAccessToken`. ([#7800](https://github.com/MetaMask/core/pull/7800))
+  - Clients can use this method to get `accessToken` from the controller, instead of directly accessing from the state.
+  - This method also adds refresh token mechanism when `accessToken` is expired, hence preventing expired token usage in the clients.
+
 ### Changed
 
 - Update StateMetadata's `includeInStateLogs` property. ([#7750](https://github.com/MetaMask/core/pull/7750))
   - Exclude All the tokens values from the state log explicitly.
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+### Fixed
+
+- Fixed new `accessToken` not being persisted in the vault after the token refresh. ([#7800](https://github.com/MetaMask/core/pull/7800))
 
 ## [7.1.0]
 

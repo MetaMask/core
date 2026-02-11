@@ -598,15 +598,15 @@ describe('PreferencesController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "dismissSmartAccountSuggestionEnabled": false,
           "displayNftMedia": false,
-          "featureFlags": Object {},
+          "featureFlags": {},
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
           "privacyMode": false,
           "securityAlertsEnabled": false,
-          "showIncomingTransactions": Object {
+          "showIncomingTransactions": {
             "0x1": true,
             "0x13881": true,
             "0x38": true,
@@ -634,8 +634,8 @@ describe('PreferencesController', () => {
           "showMultiRpcModal": false,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
-          "smartAccountOptInForAccounts": Array [],
-          "tokenSortConfig": Object {
+          "smartAccountOptInForAccounts": [],
+          "tokenSortConfig": {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
@@ -658,19 +658,19 @@ describe('PreferencesController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "dismissSmartAccountSuggestionEnabled": false,
           "displayNftMedia": false,
-          "featureFlags": Object {},
-          "identities": Object {},
+          "featureFlags": {},
+          "identities": {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
-          "lostIdentities": Object {},
+          "lostIdentities": {},
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
-          "showIncomingTransactions": Object {
+          "showIncomingTransactions": {
             "0x1": true,
             "0x13881": true,
             "0x38": true,
@@ -698,10 +698,10 @@ describe('PreferencesController', () => {
           "showMultiRpcModal": false,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
-          "smartAccountOptInForAccounts": Array [],
+          "smartAccountOptInForAccounts": [],
           "smartTransactionsOptInStatus": true,
-          "tokenNetworkFilter": Object {},
-          "tokenSortConfig": Object {
+          "tokenNetworkFilter": {},
+          "tokenSortConfig": {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
@@ -724,19 +724,19 @@ describe('PreferencesController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "dismissSmartAccountSuggestionEnabled": false,
           "displayNftMedia": false,
-          "featureFlags": Object {},
-          "identities": Object {},
+          "featureFlags": {},
+          "identities": {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
-          "lostIdentities": Object {},
+          "lostIdentities": {},
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
-          "showIncomingTransactions": Object {
+          "showIncomingTransactions": {
             "0x1": true,
             "0x13881": true,
             "0x38": true,
@@ -764,10 +764,10 @@ describe('PreferencesController', () => {
           "showMultiRpcModal": false,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
-          "smartAccountOptInForAccounts": Array [],
+          "smartAccountOptInForAccounts": [],
           "smartTransactionsOptInStatus": true,
-          "tokenNetworkFilter": Object {},
-          "tokenSortConfig": Object {
+          "tokenNetworkFilter": {},
+          "tokenSortConfig": {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",
@@ -790,18 +790,18 @@ describe('PreferencesController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "dismissSmartAccountSuggestionEnabled": false,
           "displayNftMedia": false,
-          "featureFlags": Object {},
-          "identities": Object {},
+          "featureFlags": {},
+          "identities": {},
           "ipfsGateway": "https://ipfs.io/ipfs/",
           "isIpfsGatewayEnabled": true,
           "isMultiAccountBalancesEnabled": true,
           "privacyMode": false,
           "securityAlertsEnabled": false,
           "selectedAddress": "",
-          "showIncomingTransactions": Object {
+          "showIncomingTransactions": {
             "0x1": true,
             "0x13881": true,
             "0x38": true,
@@ -829,10 +829,10 @@ describe('PreferencesController', () => {
           "showMultiRpcModal": false,
           "showTestNetworks": false,
           "smartAccountOptIn": true,
-          "smartAccountOptInForAccounts": Array [],
+          "smartAccountOptInForAccounts": [],
           "smartTransactionsOptInStatus": true,
-          "tokenNetworkFilter": Object {},
-          "tokenSortConfig": Object {
+          "tokenNetworkFilter": {},
+          "tokenSortConfig": {
             "key": "tokenFiatAmount",
             "order": "dsc",
             "sortCallback": "stringNumeric",

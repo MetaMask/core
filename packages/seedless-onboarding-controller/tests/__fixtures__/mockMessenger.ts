@@ -10,7 +10,7 @@ import type {
 } from '@metamask/messenger';
 
 import { controllerName } from '../../src/constants';
-import type { SeedlessOnboardingControllerMessenger } from '../../src/types';
+import type { SeedlessOnboardingControllerMessenger } from '../../src/SeedlessOnboardingController';
 
 export type AllSeedlessOnboardingControllerActions =
   MessengerActions<SeedlessOnboardingControllerMessenger>;
