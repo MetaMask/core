@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { getAddress } from '@ethersproject/address';
 import { AddressZero } from '@ethersproject/constants';
-import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
+import {
+  convertHexToDecimal,
+  toChecksumHexAddress,
+  toHex,
+} from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import {
@@ -133,31 +137,47 @@ export const formatAddressToCaipReference = (address: string) => {
 };
 
 /**
- * Converts an address or assetId to a CaipAssetType
+ * Converts an address or assetId to a checksummed CaipAssetType
  *
  * @param addressOrAssetId - The address or assetId to convert
  * @param chainId - The chainId of the asset
  * @returns The CaipAssetType
  */
 export const formatAddressToAssetId = (
-  addressOrAssetId: Hex | CaipAssetType | string,
-  chainId: GenericQuoteRequest['srcChainId'],
+  addressOrAssetId?: Hex | CaipAssetType | string,
+  chainId?: GenericQuoteRequest['srcChainId'],
 ): CaipAssetType | undefined => {
   if (isCaipAssetType(addressOrAssetId)) {
     return addressOrAssetId;
   }
-  if (isNativeAddress(addressOrAssetId)) {
-    return getNativeAssetForChainId(chainId).assetId;
+  if (!chainId) {
+    return undefined;
   }
-  if (chainId === SolScope.Mainnet) {
-    return CaipAssetTypeStruct.create(`${chainId}/token:${addressOrAssetId}`);
+
+  const chainIdCaip = formatChainIdToCaip(chainId);
+  if (isNativeAddress(addressOrAssetId)) {
+    return getNativeAssetForChainId(chainIdCaip).assetId;
+  }
+  if (chainIdCaip === SolScope.Mainnet) {
+    return CaipAssetTypeStruct.create(
+      `${chainIdCaip}/token:${addressOrAssetId}`,
+    );
+  }
+
+  if (chainIdCaip === TrxScope.Mainnet) {
+    return CaipAssetTypeStruct.create(
+      `${chainIdCaip}/trc20:${addressOrAssetId}`,
+    );
   }
 
   // EVM assets
   if (!isStrictHexString(addressOrAssetId)) {
     return undefined;
   }
+
+  // EVM assets
+  const checksummedAddress = toChecksumHexAddress(addressOrAssetId);
   return CaipAssetTypeStruct.create(
-    `${formatChainIdToCaip(chainId)}/erc20:${addressOrAssetId}`,
+    `${chainIdCaip}/erc20:${checksummedAddress}`,
   );
 };
