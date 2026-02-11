@@ -428,12 +428,12 @@ export class SnapDataSource extends AbstractDataSource<
       return {};
     }
     if (!request?.accountsWithSupportedChains?.length) {
-      return { assetsBalance: {}, assetsMetadata: {} };
+      return { assetsBalance: {}, assetsInfo: {} };
     }
 
     const results: DataResponse = {
       assetsBalance: {},
-      assetsMetadata: {},
+      assetsInfo: {},
     };
 
     // Fetch balances for each account using its snap ID from metadata
@@ -541,10 +541,10 @@ export class SnapDataSource extends AbstractDataSource<
             };
           }
         }
-        if (response.assetsMetadata) {
-          context.response.assetsMetadata = {
-            ...context.response.assetsMetadata,
-            ...response.assetsMetadata,
+        if (response.assetsInfo) {
+          context.response.assetsInfo = {
+            ...context.response.assetsInfo,
+            ...response.assetsInfo,
           };
         }
         if (response.assetsPrice) {

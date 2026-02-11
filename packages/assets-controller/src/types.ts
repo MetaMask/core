@@ -351,7 +351,7 @@ export type DataRequest = {
  */
 export type DataResponse = {
   /** Metadata for assets (shared across accounts) */
-  assetsMetadata?: Record<Caip19AssetId, AssetMetadata>;
+  assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
   /** Price data for assets (shared across accounts) */
   assetsPrice?: Record<Caip19AssetId, AssetPrice>;
   /** Balance data per account */
@@ -419,7 +419,7 @@ export type MiddlewareDataSource = {
  * Internal state structure for AssetsController following normalized design.
  *
  * Keys use CAIP identifiers:
- * - assetsMetadata keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
+ * - assetsInfo keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
  * - assetsBalance outer keys: Account IDs (InternalAccount.id UUIDs)
  * - assetsBalance inner keys: CAIP-19 asset IDs
  * - assetsPrice keys: CAIP-19 asset IDs
@@ -429,7 +429,7 @@ export type MiddlewareDataSource = {
  */
 export type AssetsControllerStateInternal = {
   /** Shared metadata for all assets (stored once per asset) */
-  assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
+  assetsInfo: Record<Caip19AssetId, AssetMetadata>;
   /** Per-account balance data */
   assetsBalance: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
   /** Price data for assets */

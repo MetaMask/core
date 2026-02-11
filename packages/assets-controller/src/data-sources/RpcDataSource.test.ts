@@ -194,7 +194,7 @@ async function withController<ReturnValue>(
 
   // Mock AssetsController:getState
   messenger.registerActionHandler('AssetsController:getState', () => ({
-    assetsMetadata: {},
+    assetsInfo: {},
     assetsBalance: {},
   }));
 
