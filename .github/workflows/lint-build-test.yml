@@ -28,8 +28,6 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    env:
-      NODE_OPTIONS: --max-old-space-size=6144
     needs: prepare
     strategy:
       matrix:
