@@ -4213,8 +4213,8 @@ describe('AccountsController', () => {
       ).toMatchInlineSnapshot(`
         Object {
           "accountIdByAddress": {},
-          "internalAccounts": Object {
-            "accounts": Object {},
+          "internalAccounts": {
+            "accounts": {},
             "selectedAccount": "",
           },
         }
