@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [66.0.1]
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
@@ -1110,7 +1112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.0.1...HEAD
+[66.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.0.0...@metamask/bridge-controller@66.0.1
 [66.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.3.0...@metamask/bridge-controller@66.0.0
 [65.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.2.0...@metamask/bridge-controller@65.3.0
 [65.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.1.0...@metamask/bridge-controller@65.2.0

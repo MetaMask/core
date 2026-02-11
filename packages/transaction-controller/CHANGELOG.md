@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [62.16.1]
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
@@ -2158,7 +2160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.16.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.16.1...HEAD
+[62.16.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.16.0...@metamask/transaction-controller@62.16.1
 [62.16.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.15.0...@metamask/transaction-controller@62.16.0
 [62.15.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.14.0...@metamask/transaction-controller@62.15.0
 [62.14.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.13.0...@metamask/transaction-controller@62.14.0

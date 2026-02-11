@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "39.0.1",
+  "version": "39.0.2",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
