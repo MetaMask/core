@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/multichain-account-service` from `^6.0.0` to `^7.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
 
 ## [4.1.0]
 

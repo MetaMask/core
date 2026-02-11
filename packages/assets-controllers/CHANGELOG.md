@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optimize Price API performance by deduplicating concurrent API calls ([#7811](https://github.com/MetaMask/core/pull/7811))
   - Add in-flight promise caching for `fetchSupportedNetworks()` to prevent duplicate concurrent requests
   - Update `fetchTokenPrices()` and `fetchExchangeRates()` to only refresh supported networks/currencies when no cached value exists
+- Bump `@metamask/account-tree-controller` from `^4.1.0` to `^4.1.1` ([#7897](https://github.com/MetaMask/core/pull/7897))
 
 ## [99.3.1]
 
