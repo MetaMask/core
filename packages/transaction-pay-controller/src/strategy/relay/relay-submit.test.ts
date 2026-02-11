@@ -560,17 +560,17 @@ describe('Relay Submit Utils', () => {
           .calls[0][0] as unknown as Record<string, unknown[]>;
 
         expect(transactions).toHaveLength(3);
-        expect(transactions[0]).toEqual(
+        expect(transactions[0]).toStrictEqual(
           expect.objectContaining({
             type: TransactionType.simpleSend,
           }),
         );
-        expect(transactions[1]).toEqual(
+        expect(transactions[1]).toStrictEqual(
           expect.objectContaining({
             type: TransactionType.tokenMethodApprove,
           }),
         );
-        expect(transactions[2]).toEqual(
+        expect(transactions[2]).toStrictEqual(
           expect.objectContaining({
             type: TransactionType.relayDeposit,
           }),
