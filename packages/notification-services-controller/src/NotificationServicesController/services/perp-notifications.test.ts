@@ -15,7 +15,7 @@ describe('Perps Service - createPerpOrderNotification', () => {
   });
 
   const arrangeMocks = (): {
-    consoleErrorSpy: jest.SpyInstance<void, Parameters<typeof console.error>>;
+    consoleErrorSpy: jest.SpiedFunction<void, Parameters<typeof console.error>>;
   } => {
     const consoleErrorSpy = jest
       .spyOn(console, 'error')

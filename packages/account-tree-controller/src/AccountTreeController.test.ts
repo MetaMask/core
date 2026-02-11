@@ -294,7 +294,7 @@ function setup({
     typeof getAccountTreeControllerMessenger
   >;
   spies: {
-    consoleWarn: jest.SpyInstance;
+    consoleWarn: jest.SpiedFunction;
   };
   mocks: {
     KeyringController: {

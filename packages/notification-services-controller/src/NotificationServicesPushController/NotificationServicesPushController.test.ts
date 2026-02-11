@@ -16,15 +16,15 @@ const MOCK_FCM_TOKEN = 'mockFcmToken';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = (): jest.SpyInstance =>
+const mockErrorLog = (): jest.SpiedFunction =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 describe('NotificationServicesPushController', () => {
   const arrangeServicesMocks = (
     token?: string,
   ): {
-    activatePushNotificationsMock: jest.SpyInstance;
-    deactivatePushNotificationsMock: jest.SpyInstance;
+    activatePushNotificationsMock: jest.SpiedFunction;
+    deactivatePushNotificationsMock: jest.SpiedFunction;
   } => {
     const activatePushNotificationsMock = jest
       .spyOn(services, 'activatePushNotifications')

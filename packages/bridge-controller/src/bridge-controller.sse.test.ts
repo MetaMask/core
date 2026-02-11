@@ -62,12 +62,12 @@ const assetExchangeRates = {
 
 describe('BridgeController SSE', function () {
   let bridgeController: BridgeController,
-    fetchAssetPricesSpy: jest.SpyInstance,
-    stopAllPollingSpy: jest.SpyInstance,
-    startPollingSpy: jest.SpyInstance,
-    hasSufficientBalanceSpy: jest.SpyInstance,
-    fetchBridgeQuotesSpy: jest.SpyInstance,
-    consoleLogSpy: jest.SpyInstance;
+    fetchAssetPricesSpy: jest.SpiedFunction,
+    stopAllPollingSpy: jest.SpiedFunction,
+    startPollingSpy: jest.SpiedFunction,
+    hasSufficientBalanceSpy: jest.SpiedFunction,
+    fetchBridgeQuotesSpy: jest.SpiedFunction,
+    consoleLogSpy: jest.SpiedFunction;
 
   const messengerMock = {
     call: jest.fn(),

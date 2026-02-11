@@ -155,7 +155,7 @@ function setupController({
     ReturnType<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>,
     Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
   >;
-  publishSpy: jest.SpyInstance<
+  publishSpy: jest.SpiedFunction<
     ReturnType<MultichainNetworkControllerMessenger['publish']>,
     Parameters<MultichainNetworkControllerMessenger['publish']>
   >;

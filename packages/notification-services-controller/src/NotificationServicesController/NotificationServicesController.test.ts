@@ -61,9 +61,9 @@ const featureAnnouncementsEnv = {
 };
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = (): jest.SpyInstance =>
+const mockErrorLog = (): jest.SpiedFunction =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
-const mockWarnLog = (): jest.SpyInstance =>
+const mockWarnLog = (): jest.SpiedFunction =>
   jest.spyOn(log, 'warn').mockImplementation(jest.fn());
 
 // Removing caches to avoid interference
@@ -122,8 +122,8 @@ describe('NotificationServicesController', () => {
       controllerState?: Partial<NotificationServicesControllerState>,
     ): Promise<{
       act: (addresses: string[], assertion: () => void) => Promise<void>;
-      mockEnable: jest.SpyInstance;
-      mockDisable: jest.SpyInstance;
+      mockEnable: jest.SpiedFunction;
+      mockDisable: jest.SpiedFunction;
     }> => {
       const mocks = arrangeMocks();
       const { messenger, globalMessenger, mockKeyringControllerGetState } =
