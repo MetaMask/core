@@ -1,6 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
 import {
+  DEFAULT_ACROSS_API_BASE,
   DEFAULT_GAS_BUFFER,
   DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
   DEFAULT_RELAY_FALLBACK_GAS_MAX,
@@ -9,6 +10,7 @@ import {
   getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
+  getPayStrategiesConfig,
   getSlippage,
 } from './feature-flags';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
@@ -81,6 +83,24 @@ describe('Feature Flags Utils', () => {
         },
         relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
         slippage: SLIPPAGE_MOCK,
+      });
+    });
+
+    it('returns defaults when feature flag controller throws', () => {
+      getRemoteFeatureFlagControllerStateMock.mockImplementation(() => {
+        throw new Error('boom');
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags).toStrictEqual({
+        relayDisabledGasStationChains: [],
+        relayFallbackGas: {
+          estimate: DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
+          max: DEFAULT_RELAY_FALLBACK_GAS_MAX,
+        },
+        relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
+        slippage: DEFAULT_SLIPPAGE,
       });
     });
   });
@@ -383,6 +403,36 @@ describe('Feature Flags Utils', () => {
       const supportedChains = getEIP7702SupportedChains(messenger);
 
       expect(supportedChains).toStrictEqual([]);
+    });
+
+    it('returns empty array when feature flag controller throws', () => {
+      getRemoteFeatureFlagControllerStateMock.mockImplementation(() => {
+        throw new Error('Boom');
+      });
+
+      const supportedChains = getEIP7702SupportedChains(messenger);
+
+      expect(supportedChains).toStrictEqual([]);
+    });
+  });
+
+  describe('getPayStrategiesConfig', () => {
+    it('returns defaults when pay strategies config is missing', () => {
+      const config = getPayStrategiesConfig(messenger);
+
+      expect(config.across).toStrictEqual(
+        expect.objectContaining({
+          allowSameChain: false,
+          apiBase: DEFAULT_ACROSS_API_BASE,
+          enabled: true,
+        }),
+      );
+      expect(config.relay).toStrictEqual(
+        expect.objectContaining({
+          enabled: true,
+          relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
+        }),
+      );
     });
   });
 });

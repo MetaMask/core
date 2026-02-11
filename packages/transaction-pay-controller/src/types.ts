@@ -79,6 +79,12 @@ export type TransactionPayControllerGetStrategyAction = {
   handler: (transaction: TransactionMeta) => TransactionPayStrategy;
 };
 
+/** Action to get the ordered pay strategies for a transaction. */
+export type TransactionPayControllerGetStrategiesAction = {
+  type: `${typeof CONTROLLER_NAME}:getStrategies`;
+  handler: (transaction: TransactionMeta) => TransactionPayStrategy[];
+};
+
 /** Action to update the payment token for a transaction. */
 export type TransactionPayControllerUpdatePaymentTokenAction = {
   type: `${typeof CONTROLLER_NAME}:updatePaymentToken`;
@@ -101,6 +107,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
+  | TransactionPayControllerGetStrategiesAction
   | TransactionPayControllerSetIsMaxAmountAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
@@ -120,6 +127,9 @@ export type TransactionPayControllerOptions = {
 
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
+
+  /** Callback to select ordered PayStrategies for a transaction. */
+  getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
@@ -300,6 +310,16 @@ export type TransactionPayFees = {
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
 
+  /**
+   * Estimated impact of the quote compared to the expected output amount.
+   */
+  impact?: FiatValue;
+
+  /**
+   * Impact normalized against expected output (decimal string, e.g. "0.05").
+   */
+  impactRatio?: string;
+
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
@@ -360,6 +380,9 @@ export type PayStrategyExecuteRequest<OriginalRequest> = {
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
+  /** Callback invoked after transactions are submitted to record latency. */
+  onSubmitted?: (latencyMs: number) => void;
+
   /** Quotes to be submitted. */
   quotes: TransactionPayQuote<OriginalRequest>[];
 
@@ -387,6 +410,12 @@ export type PayStrategyGetRefreshIntervalRequest = {
 
 /** Strategy used to obtain required tokens for a transaction. */
 export type PayStrategy<OriginalQuote> = {
+  /**
+   * Check if the strategy supports the given request.
+   * Defaults to true if not implemented.
+   */
+  supports?: (request: PayStrategyGetQuotesRequest) => boolean;
+
   /** Retrieve quotes for required tokens. */
   getQuotes: (
     request: PayStrategyGetQuotesRequest,
@@ -450,6 +479,31 @@ export type UpdatePaymentTokenRequest = {
   chainId: Hex;
 };
 
+/** Action data to be included with a transaction pay quote. */
+export type TransactionPayAction = {
+  /** Target contract for the action call. */
+  target: Hex;
+
+  /** Function signature describing the action call. */
+  functionSignature: string;
+
+  /** Arguments for the action call. */
+  args: {
+    value: string | string[] | string[][];
+    populateDynamically: boolean;
+    balanceSourceToken?: string;
+  }[];
+
+  /** Value to send with the action call. */
+  value: string;
+
+  /** Whether the action is a native token transfer. */
+  isNativeTransfer: boolean;
+
+  /** Whether to populate the call value dynamically. */
+  populateCallValueDynamically?: boolean;
+};
+
 /** Callback to convert a transaction to a redeem delegation. */
 export type GetDelegationTransactionCallback = ({
   transaction,
@@ -457,6 +511,7 @@ export type GetDelegationTransactionCallback = ({
   transaction: TransactionMeta;
 }) => Promise<{
   authorizationList?: AuthorizationList;
+  action?: TransactionPayAction;
   data: Hex;
   to: Hex;
   value: Hex;

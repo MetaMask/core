@@ -112,6 +112,54 @@ describe('TransactionPayController', () => {
         ),
       ).toBe(TransactionPayStrategy.Test);
     });
+
+    it('returns relay if getStrategies callback returns empty', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategies: (): TransactionPayStrategy[] => [],
+        messenger,
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Relay);
+    });
+  });
+
+  describe('getStrategies Action', () => {
+    it('returns relay by default', async () => {
+      createController();
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategies',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toStrictEqual([
+        TransactionPayStrategy.Relay,
+        TransactionPayStrategy.Across,
+      ]);
+    });
+
+    it('returns callback list if provided', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategies: (): TransactionPayStrategy[] => [
+          TransactionPayStrategy.Test,
+        ],
+        messenger,
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategies',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toStrictEqual([TransactionPayStrategy.Test]);
+    });
   });
 
   describe('transaction data update', () => {

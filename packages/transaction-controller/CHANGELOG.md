@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Lock `@metamask/core-backend` to `5.0.0` ([#7852](https://github.com/MetaMask/core/pull/7852))
+- Add `perpsAcrossDeposit` and `predictAcrossDeposit` transaction types ([#7806](https://github.com/MetaMask/core/pull/7806))
 
 ## [62.14.0]
 
@@ -65,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for `transactionHistoryLimit` feature flag to configure the maximum number of transactions stored in state ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Defaults to 40 if not provided.
 - Add optional `callTraceErrors` to `simulationData` ([#7641](https://github.com/MetaMask/core/pull/7641))
+- Add `acrossDeposit` transaction type and `MetamaskPayMetadata.executionLatencyMs` for MetaMask Pay tracking ([#7806](https://github.com/MetaMask/core/pull/7806))
 
 ### Changed
 

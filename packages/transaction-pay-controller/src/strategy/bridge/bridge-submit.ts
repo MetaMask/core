@@ -23,10 +23,16 @@ import {
 
 const log = createModuleLogger(projectLogger, 'bridge-strategy');
 
+const getNow = (): number =>
+  typeof globalThis.performance?.now === 'function'
+    ? globalThis.performance.now()
+    : Date.now();
+
 export type SubmitBridgeQuotesRequest = {
   from: Hex;
   isSmartTransaction: (chainId: Hex) => boolean;
   messenger: TransactionPayControllerMessenger;
+  onSubmitted?: (latencyMs: number) => void;
   quotes: TransactionPayQuote<TransactionPayBridgeQuote>[];
   transaction: TransactionMeta;
 };
@@ -61,6 +67,15 @@ export async function submitBridgeQuotes(
   }
 
   let index = 0;
+  let hasReportedLatency = false;
+  const onSubmitted = (latencyMs: number): void => {
+    if (hasReportedLatency) {
+      return;
+    }
+
+    hasReportedLatency = true;
+    request.onSubmitted?.(latencyMs);
+  };
 
   for (const quote of quotes) {
     log('Submitting bridge', index, quote);
@@ -75,7 +90,13 @@ export async function submitBridgeQuotes(
       }
     }
 
-    await submitBridgeTransaction(request, finalQuote);
+    await submitBridgeTransaction(
+      {
+        ...request,
+        onSubmitted,
+      },
+      finalQuote,
+    );
 
     index += 1;
   }
@@ -138,12 +159,15 @@ async function submitBridgeTransaction(
     cost: tokenAmountValues,
   };
 
+  const submitStart = getNow();
   const result = await messenger.call(
     'BridgeStatusController:submitTx',
     from,
     { ...quote, ...metadata },
     isSTX,
   );
+  // Guard against negative duration when clocks or mocks move backward.
+  request.onSubmitted?.(Math.max(getNow() - submitStart, 0));
 
   bridgeTransactionIdCollector.end();
 
