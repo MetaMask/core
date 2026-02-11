@@ -194,14 +194,16 @@ describe('MultichainAccountWallet', () => {
       solProvider.getAccounts.mockReturnValueOnce([MOCK_SOL_ACCOUNT_1]);
       solProvider.getAccount.mockReturnValueOnce(MOCK_SOL_ACCOUNT_1);
 
+      // By default, we are not waiting for all providers to finish creating accounts, so the group should be created
+      // BUT we only have the guarantee to have EVM accounts in the group, as the SOL provider might still be creating
+      // the account asynchronously.
       const specificGroup =
         await wallet.createMultichainAccountGroup(groupIndex);
       expect(specificGroup.groupIndex).toBe(groupIndex);
 
       const internalAccounts = specificGroup.getAccounts();
-      expect(internalAccounts).toHaveLength(2);
+      expect(internalAccounts).toHaveLength(1);
       expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
-      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
     });
 
     it('returns the same reference when re-creating using the same index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
@@ -228,7 +230,7 @@ describe('MultichainAccountWallet', () => {
       );
     });
 
-    it('creates an account group if only some of the providers fail to create its account (waitForAllProvidersToFinishCreatingAccounts = true)', async () => {
+    it('does not create an account group if only some of the providers fail to create its account (waitForAllProvidersToFinishCreatingAccounts = true)', async () => {
       const groupIndex = 1;
 
       // Baseline accounts at index 0 for two providers
@@ -264,19 +266,11 @@ describe('MultichainAccountWallet', () => {
       succeedingProvider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
       succeedingProvider.getAccount.mockReturnValueOnce(mockNextEvmAccount);
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const group = await wallet.createMultichainAccountGroup(groupIndex, {
-        waitForAllProvidersToFinishCreatingAccounts: true,
-      });
-
-      // Should warn about partial failure but still create the group
-      expect(consoleSpy).toHaveBeenCalledWith(
-        `Unable to create some accounts for group index: ${groupIndex}. Providers threw the following errors:\n- Mocked Provider 1: Unable to create accounts`,
-      );
-      expect(group.groupIndex).toBe(groupIndex);
-      const internalAccounts = group.getAccounts();
-      expect(internalAccounts).toHaveLength(1);
-      expect(internalAccounts[0]).toStrictEqual(mockNextEvmAccount);
+      await expect(
+        wallet.createMultichainAccountGroup(groupIndex, {
+          waitForAllProvidersToFinishCreatingAccounts: true,
+        }),
+      ).rejects.toThrow('Unable to create accounts');
     });
 
     it('captures an error when a provider fails to create its account', async () => {
@@ -292,7 +286,9 @@ describe('MultichainAccountWallet', () => {
         wallet.createMultichainAccountGroup(groupIndex),
       ).rejects.toThrow('Unable to create accounts');
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to create account with provider "Mocked Provider 0"'),
+        new Error(
+          'Unable to create some accounts with provider "Mocked Provider 0"',
+        ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
@@ -319,7 +315,7 @@ describe('MultichainAccountWallet', () => {
       await wallet.createMultichainAccountGroup(0);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        'Unable to create some accounts for group index: 0 with provider "Mocked Provider 1". Error: Unable to create accounts',
+        'Unable to create some accounts for group index 0 with provider "Mocked Provider 1". Error: Unable to create accounts',
       );
     });
   });
@@ -521,7 +517,7 @@ describe('MultichainAccountWallet', () => {
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
-          'Unable to create batch accounts with provider "Mocked Provider 0"',
+          'Unable to create some accounts (batch) with provider "Mocked Provider 0"',
         ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(

@@ -214,10 +214,12 @@ export class MultichainAccountWallet<
         },
       });
     } catch (error) {
-      const modeDescription = isBatching ? 'batch accounts' : 'account';
+      const modeDescription = isBatching
+        ? 'some accounts (batch)'
+        : 'some accounts';
       const rangeDescription = isBatching
-        ? `from index ${from} to ${to}`
-        : `at index ${to}`;
+        ? `from group index ${from} to ${to}`
+        : `for group index ${to}`;
 
       const errorMessage = `Unable to create ${modeDescription} ${rangeDescription} with provider "${provider.getName()}". Error: ${(error as Error).message}`;
       console.warn(errorMessage);
