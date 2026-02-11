@@ -263,16 +263,10 @@ export class MultichainAccountWallet<
   ): [MultichainAccountGroup<Account>, boolean] {
     let group = this.#accountGroups.get(groupIndex);
     if (group) {
+      // NOTE: This will publish an update event automatically.
       group.update(groupState);
 
       this.#log(`Group updated: [${group.id}]`);
-
-      if (this.#initialized) {
-        this.#messenger.publish(
-          'MultichainAccountService:multichainAccountGroupUpdated',
-          group,
-        );
-      }
 
       return [group, false];
     }
