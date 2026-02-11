@@ -6,7 +6,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { CHAIN_ID_HYPERCORE, TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
 import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
 import type {
@@ -16,8 +16,10 @@ import type {
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
+  CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  STABLECOINS,
 } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
@@ -337,11 +339,28 @@ async function normalizeQuote(
     ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
   };
 
-  const targetAmount: Amount = {
-    human: currencyOut.amountFormatted,
-    raw: currencyOut.amount,
-    ...getFiatValueFromUsd(new BigNumber(currencyOut.amountUsd), usdToFiatRate),
-  };
+  const subsidizedFee = quote.fees?.subsidized;
+
+  const additionalTargetAmountUsd =
+    quote.request.tradeType === 'EXACT_INPUT' && subsidizedFee
+      ? new BigNumber(subsidizedFee.amountUsd)
+      : new BigNumber(0);
+
+  if (additionalTargetAmountUsd.gt(0)) {
+    log('Including subsidized fee in target amount', subsidizedFee?.amountUsd);
+  }
+
+  const isTargetStablecoin = STABLECOINS[request.targetChainId]?.includes(
+    request.targetTokenAddress.toLowerCase() as Hex,
+  );
+
+  const baseTargetAmountUsd = isTargetStablecoin
+    ? new BigNumber(currencyOut.amountFormatted)
+    : new BigNumber(currencyOut.amountUsd);
+
+  const targetAmountUsd = baseTargetAmountUsd.plus(additionalTargetAmountUsd);
+
+  const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
 
   const metamask = {
     gasLimits,

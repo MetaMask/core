@@ -3,19 +3,8 @@ import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
-import {
-  ARBITRUM_USDC_ADDRESS,
-  CHAIN_ID_ARBITRUM,
-  CHAIN_ID_POLYGON,
-  NATIVE_TOKEN_ADDRESS,
-  POLYGON_USDCE_ADDRESS,
-} from '../constants';
+import { NATIVE_TOKEN_ADDRESS, STABLECOINS } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
-
-const STABLECOINS: Record<Hex, Hex[]> = {
-  [CHAIN_ID_ARBITRUM]: [ARBITRUM_USDC_ADDRESS.toLowerCase() as Hex],
-  [CHAIN_ID_POLYGON]: [POLYGON_USDCE_ADDRESS.toLowerCase() as Hex],
-};
 
 /**
  * Check if two tokens are the same (same address and chain).

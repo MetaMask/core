@@ -54,9 +54,7 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
   },
   strategy: TransactionPayStrategy.Test,
   targetAmount: {
-    human: '9.99',
     fiat: '9.99',
-    raw: '999000000000000',
     usd: '10.10',
   },
 };
@@ -112,9 +110,7 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
   },
   strategy: TransactionPayStrategy.Test,
   targetAmount: {
-    human: '15.15',
     fiat: '15.15',
-    raw: '1515000000000000',
     usd: '16.16',
   },
 };
@@ -267,8 +263,8 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.fees.transactionGas.fiat).toBe('1.23');
-      expect(result.fees.transactionGas.usd).toBe('2.34');
+      expect(result.fees.transactionGas?.fiat).toBe('1.23');
+      expect(result.fees.transactionGas?.usd).toBe('2.34');
     });
 
     it('returns transaction gas fee even when no quotes', () => {
@@ -279,8 +275,8 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.fees.transactionGas.fiat).toBe('1.23');
-      expect(result.fees.transactionGas.usd).toBe('2.34');
+      expect(result.fees.transactionGas?.fiat).toBe('1.23');
+      expect(result.fees.transactionGas?.usd).toBe('2.34');
     });
   });
 });

@@ -6,13 +6,13 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { CHAIN_ID_HYPERCORE } from './constants';
 import { getRelayQuotes } from './relay-quotes';
 import type { RelayQuote } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
+  CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
 } from '../../constants';
@@ -1111,8 +1111,104 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(result[0].targetAmount).toStrictEqual({
-        human: QUOTE_MOCK.details.currencyOut.amountFormatted,
-        raw: QUOTE_MOCK.details.currencyOut.amount,
+        usd: '1.23',
+        fiat: '2.46',
+      });
+    });
+
+    it('adds subsidized fee to target amount fiat values when trade type is EXACT_INPUT', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.fees.subsidized = {
+        amount: '500000000000000',
+        amountFormatted: '0.0005',
+        amountUsd: '0.50',
+        currency: {
+          chainId: 1,
+          decimals: 18,
+        },
+        minimumAmount: '500000000000000',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
+        usd: '1.73',
+        fiat: '3.46',
+      });
+    });
+
+    it('does not add subsidized fee to target amount when trade type is not EXACT_INPUT', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.fees.subsidized = {
+        amount: '500000000000000',
+        amountFormatted: '0.0005',
+        amountUsd: '0.50',
+        currency: {
+          chainId: 1,
+          decimals: 18,
+        },
+        minimumAmount: '500000000000000',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
+        usd: '1.23',
+        fiat: '2.46',
+      });
+    });
+
+    it('uses amountFormatted as usd for target amount when target is a stablecoin', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
+        usd: '1',
+        fiat: '2',
+      });
+    });
+
+    it('uses amountUsd for target amount when target is not a stablecoin', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
         usd: '1.23',
         fiat: '2.46',
       });
