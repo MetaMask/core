@@ -511,7 +511,10 @@ export class RampsController extends BaseController<
 
   #abortDependentRequests(): void {
     for (const [cacheKey, pending] of this.#pendingRequests.entries()) {
-      if (pending.resourceType && DEPENDENT_RESOURCE_KEYS_SET.has(pending.resourceType)) {
+      if (
+        pending.resourceType &&
+        DEPENDENT_RESOURCE_KEYS_SET.has(pending.resourceType)
+      ) {
         pending.abortController.abort();
         this.#pendingRequests.delete(cacheKey);
         this.#removeRequestState(cacheKey);
@@ -707,6 +710,8 @@ export class RampsController extends BaseController<
 
   /**
    * Mutates state.requests inside update(); cast is centralized here.
+   *
+   * @param fn - Callback that mutates the requests record.
    */
   #mutateRequests(
     fn: (requests: Record<string, RequestState | undefined>) => void,
@@ -1532,7 +1537,7 @@ export class RampsController extends BaseController<
     amount: number;
     redirectUrl?: string;
   }): void {
-    const regionCode = this.#requireRegion();
+    this.#requireRegion();
     const token = this.state.tokens.selected;
     const provider = this.state.providers.selected;
     const paymentMethod = this.state.paymentMethods.selected;
