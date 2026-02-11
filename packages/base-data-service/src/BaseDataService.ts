@@ -3,18 +3,22 @@ import {
   FetchInfiniteQueryOptions,
   FetchQueryOptions,
   InfiniteData,
+  InvalidateOptions,
+  InvalidateQueryFilters,
   QueryClient,
+  QueryFunctionContext,
   QueryKey,
   WithRequired,
   dehydrate,
   hashQueryKey,
+  infiniteQueryBehavior,
 } from '@tanstack/query-core';
 import {
   Messenger,
   ActionConstraint,
   EventConstraint,
 } from '@metamask/messenger';
-import { Json } from '@metamask/utils';
+import { assert, Json } from '@metamask/utils';
 
 type SubscriptionCallback = (payload: Json) => void;
 
@@ -60,10 +64,10 @@ export class BaseDataService<
   >(
     options: WithRequired<
       FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
-      'queryKey'
+      'queryKey' | 'queryFn'
     >,
   ): Promise<TData> {
-    return this.#client.ensureQueryData(options);
+    return this.#client.fetchQuery(options);
   }
 
   protected async fetchInfiniteQuery<
@@ -72,10 +76,46 @@ export class BaseDataService<
     TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
   >(
-    options: FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+    options: WithRequired<
+      FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+      'queryKey' | 'queryFn'
+    >,
+    context: QueryFunctionContext<TQueryKey>,
   ): Promise<InfiniteData<TData>> {
-    // @ts-expect-error TODO.
-    return this.#client.ensureQueryData(options);
+    assert(context, 'Context must be passed when using fetchInfiniteQuery.');
+
+    const queryData = await this.#client.ensureQueryData(options);
+
+    if (context.pageParam) {
+      const query = this.#client
+        .getQueryCache()
+        .find({ queryKey: options.queryKey })!;
+
+      return query.fetch({
+        ...options,
+        behavior: {
+          onFetch: (fetchContext) => {
+            // Combine fetchContext with passed context, that may come from UI.
+            fetchContext.fetchFn = () =>
+              fetchContext.options.queryFn({
+                queryKey: fetchContext.queryKey,
+                signal: fetchContext.signal,
+                meta: context.meta,
+                pageParam: context.pageParam,
+              });
+          },
+        },
+      });
+    }
+
+    return queryData;
+  }
+
+  protected async invalidateQueries<TPageData = unknown>(
+    filters?: InvalidateQueryFilters<TPageData>,
+    options?: InvalidateOptions,
+  ): Promise<void> {
+    return this.#client.invalidateQueries(filters, options);
   }
 
   #registerMessageHandlers() {
