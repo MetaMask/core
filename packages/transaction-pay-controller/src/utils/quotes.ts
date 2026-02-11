@@ -4,9 +4,10 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { getStrategies, getStrategyByName } from './strategy';
+import { getStrategyByName } from './strategy';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
+import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type {
   QuoteRequest,
@@ -25,6 +26,7 @@ const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 const log = createModuleLogger(projectLogger, 'quotes');
 
 export type UpdateQuotesRequest = {
+  getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
   messenger: TransactionPayControllerMessenger;
   transactionData: TransactionData | undefined;
   transactionId: string;
@@ -40,8 +42,13 @@ export type UpdateQuotesRequest = {
 export async function updateQuotes(
   request: UpdateQuotesRequest,
 ): Promise<boolean> {
-  const { messenger, transactionData, transactionId, updateTransactionData } =
-    request;
+  const {
+    getStrategies,
+    messenger,
+    transactionData,
+    transactionId,
+    updateTransactionData,
+  } = request;
 
   const transaction = getTransaction(transactionId, messenger);
 
@@ -76,6 +83,7 @@ export async function updateQuotes(
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
       requests,
+      getStrategies,
       messenger,
     );
 
@@ -170,10 +178,12 @@ function syncTransaction({
  *
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
+ * @param getStrategies - Callback to get ordered strategy names for a transaction.
  */
 export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
+  getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
 ): Promise<void> {
   const state = messenger.call('TransactionPayController:getState');
   const transactionIds = Object.keys(state.transactionData);
@@ -202,6 +212,7 @@ export async function refreshQuotes(
     }
 
     const isUpdated = await updateQuotes({
+      getStrategies,
       messenger,
       transactionData,
       transactionId,
@@ -227,7 +238,7 @@ export async function refreshQuotes(
  * @param request.transactionId - ID of the transaction.
  * @returns Array of quote requests.
  */
-export function buildQuoteRequests({
+function buildQuoteRequests({
   from,
   isMaxAmount,
   isPostQuote,
@@ -358,19 +369,39 @@ function buildPostQuoteRequests({
  *
  * @param transaction - Transaction metadata.
  * @param requests - Quote requests.
+ * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
   transaction: TransactionMeta,
   requests: QuoteRequest[],
+  getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
 }> {
   const { id: transactionId } = transaction;
-  const strategies = getStrategies(messenger as never, transaction);
+  const strategies = getStrategies(transaction)
+    .map((strategyName) => {
+      try {
+        return {
+          name: strategyName,
+          strategy: getStrategyByName(strategyName),
+        };
+      } catch {
+        log('Skipping unknown strategy', {
+          strategy: strategyName,
+          transactionId,
+        });
+        return undefined;
+      }
+    })
+    .filter(Boolean) as {
+    name: TransactionPayStrategy;
+    strategy: ReturnType<typeof getStrategyByName>;
+  }[];
 
   if (!requests?.length) {
     return {
@@ -385,9 +416,13 @@ async function getQuotes(
     transaction,
   };
 
-  for (const strategy of strategies) {
+  for (const { name, strategy } of strategies) {
     try {
       if (strategy.supports && !strategy.supports(request)) {
+        log('Strategy does not support request', {
+          strategy: name,
+          transactionId,
+        });
         continue;
       }
 
@@ -396,6 +431,7 @@ async function getQuotes(
       )) as TransactionPayQuote<Json>[];
 
       if (!quotes.length) {
+        log('Strategy returned no quotes', { strategy: name, transactionId });
         continue;
       }
 
@@ -415,7 +451,11 @@ async function getQuotes(
         quotes,
       };
     } catch (error) {
-      log('Error evaluating strategy fallback step', { error, transactionId });
+      log('Strategy failed, trying next', {
+        error,
+        strategy: name,
+        transactionId,
+      });
       continue;
     }
   }

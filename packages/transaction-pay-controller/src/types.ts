@@ -77,12 +77,6 @@ export type TransactionPayControllerGetStrategyAction = {
   handler: (transaction: TransactionMeta) => TransactionPayStrategy;
 };
 
-/** Action to get the ordered pay strategies for a transaction. */
-export type TransactionPayControllerGetStrategiesAction = {
-  type: `${typeof CONTROLLER_NAME}:getStrategies`;
-  handler: (transaction: TransactionMeta) => TransactionPayStrategy[];
-};
-
 /** Action to update the payment token for a transaction. */
 export type TransactionPayControllerUpdatePaymentTokenAction = {
   type: `${typeof CONTROLLER_NAME}:updatePaymentToken`;
@@ -122,7 +116,6 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerSetTransactionConfigAction
-  | TransactionPayControllerGetStrategiesAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =

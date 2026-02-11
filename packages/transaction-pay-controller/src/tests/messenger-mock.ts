@@ -26,7 +26,6 @@ import type { TransactionPayControllerMessenger } from '..';
 import type { BridgeStatusControllerSubmitTxAction } from '../../../bridge-status-controller/src/types';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
-  TransactionPayControllerGetStrategiesAction,
   TransactionPayControllerGetStrategyAction,
 } from '../types';
 import type { TransactionPayControllerGetStateAction } from '../types';
@@ -52,10 +51,6 @@ export function getMessengerMock({
 
   const getStrategyMock: jest.MockedFn<
     TransactionPayControllerGetStrategyAction['handler']
-  > = jest.fn();
-
-  const getStrategiesMock: jest.MockedFn<
-    TransactionPayControllerGetStrategiesAction['handler']
   > = jest.fn();
 
   const getTransactionControllerStateMock: jest.MockedFn<
@@ -145,11 +140,6 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
       getStrategyMock,
-    );
-
-    messenger.registerActionHandler(
-      'TransactionPayController:getStrategies',
-      getStrategiesMock,
     );
 
     messenger.registerActionHandler(
@@ -272,7 +262,6 @@ export function getMessengerMock({
     getNetworkClientByIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,
-    getStrategiesMock,
     getTokenBalanceControllerStateMock,
     getTokenRatesControllerStateMock,
     getTokensControllerStateMock,

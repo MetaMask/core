@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add ordered strategy fallback mechanism for quote retrieval ([#7868](https://github.com/MetaMask/core/pull/7868))
+
 ## [14.0.0]
 
 ### Changed
@@ -28,7 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support reversed source/destination in Relay quotes for post-quote flows
   - Add same-token-same-chain skip logic for post-quote transactions
   - Add source amount fields (`sourceBalanceRaw`, `sourceChainId`, `sourceTokenAddress`) to `TransactionPaySourceAmount`
-- Add ordered strategy fallback mechanism for quote retrieval and publish-time execution ([#7868](https://github.com/MetaMask/core/pull/7868))
 
 ### Changed
 
