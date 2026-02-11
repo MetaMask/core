@@ -1,11 +1,13 @@
+import { StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
+import { getClientIdHeader } from './bridge-status';
 import {
   IntentOrder,
   IntentOrderStatus,
   validateIntentOrderResponse,
 } from './validators';
-import type { FetchFunction } from '../types';
+import type { FetchFunction, StatusResponse } from '../types';
 
 export type IntentSubmissionParams = {
   srcChainId: string;
@@ -15,12 +17,6 @@ export type IntentSubmissionParams = {
   userAddress: string;
   aggregatorId: string;
 };
-
-export const getClientIdHeader = (
-  clientId: string,
-): { 'X-Client-Id': string } => ({
-  'X-Client-Id': clientId,
-});
 
 export type IntentApi = {
   submitIntent(
@@ -96,6 +92,56 @@ export class IntentApiImpl implements IntentApi {
   }
 }
 
+export type IntentStatusTranslation = {
+  status: StatusResponse;
+  txHash?: string;
+  transactionStatus: TransactionStatus;
+};
+
+export const translateIntentOrderToBridgeStatus = (
+  intentOrder: IntentOrder,
+  srcChainId: number,
+  fallbackTxHash?: string,
+): IntentStatusTranslation => {
+  let statusType: StatusTypes;
+  switch (intentOrder.status) {
+    case IntentOrderStatus.CONFIRMED:
+    case IntentOrderStatus.COMPLETED:
+      statusType = StatusTypes.COMPLETE;
+      break;
+    case IntentOrderStatus.FAILED:
+    case IntentOrderStatus.EXPIRED:
+    case IntentOrderStatus.CANCELLED:
+      statusType = StatusTypes.FAILED;
+      break;
+    case IntentOrderStatus.PENDING:
+      statusType = StatusTypes.PENDING;
+      break;
+    case IntentOrderStatus.SUBMITTED:
+      statusType = StatusTypes.SUBMITTED;
+      break;
+    default:
+      statusType = StatusTypes.UNKNOWN;
+  }
+
+  const txHash = intentOrder.txHash ?? fallbackTxHash ?? '';
+  const status: StatusResponse = {
+    status: statusType,
+    srcChain: {
+      chainId: srcChainId,
+      txHash,
+    },
+  };
+
+  return {
+    status,
+    txHash: intentOrder.txHash,
+    transactionStatus: mapIntentOrderStatusToTransactionStatus(
+      intentOrder.status,
+    ),
+  };
+};
+
 export function mapIntentOrderStatusToTransactionStatus(
   intentStatus: IntentOrderStatus,
 ): TransactionStatus {
@@ -108,6 +154,7 @@ export function mapIntentOrderStatusToTransactionStatus(
       return TransactionStatus.confirmed;
     case IntentOrderStatus.FAILED:
     case IntentOrderStatus.EXPIRED:
+    case IntentOrderStatus.CANCELLED:
       return TransactionStatus.failed;
     default:
       return TransactionStatus.submitted;

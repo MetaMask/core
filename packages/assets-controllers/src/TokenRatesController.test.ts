@@ -1142,7 +1142,7 @@ describe('TokenRatesController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -1154,7 +1154,7 @@ describe('TokenRatesController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -1167,8 +1167,8 @@ describe('TokenRatesController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {},
+          {
+            "marketData": {},
           }
         `);
       });
@@ -1183,8 +1183,8 @@ describe('TokenRatesController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "marketData": Object {},
+          {
+            "marketData": {},
           }
         `);
       });
@@ -1343,8 +1343,11 @@ async function fetchTokenPricesWithIncreasingPriceForEachToken<
   return assets.map(({ tokenAddress, chainId }, i) => ({
     tokenAddress,
     chainId,
-    assetId:
-      `${KnownCaipNamespace.Eip155}:1/${tokenAddress === ZERO_ADDRESS ? 'slip44:60' : `erc20:${tokenAddress.toLowerCase()}`}` as CaipAssetType,
+    assetId: `${KnownCaipNamespace.Eip155}:1/${
+      tokenAddress === ZERO_ADDRESS
+        ? 'slip44:60'
+        : `erc20:${tokenAddress.toLowerCase()}`
+    }` as CaipAssetType,
     currency,
     pricePercentChange1d: 0,
     priceChange1d: 0,

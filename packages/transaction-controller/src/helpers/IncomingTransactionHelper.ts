@@ -8,6 +8,7 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
+import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import type { TransactionControllerMessenger } from '..';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
@@ -15,6 +16,12 @@ import {
   getIncomingTransactionsPollingInterval,
   isIncomingTransactionsUseWebsocketsEnabled,
 } from '../utils/feature-flags';
+import { caip2ToHex } from '../utils/utils';
+
+export enum WebSocketState {
+  CONNECTED = 'connected',
+  DISCONNECTED = 'disconnected',
+}
 
 export type IncomingTransactionOptions = {
   /** Name of the client to include in requests. */
@@ -34,11 +41,6 @@ export type IncomingTransactionOptions = {
 };
 
 const TAG_POLLING = 'automatic-polling';
-
-enum WebSocketState {
-  CONNECTED = 'connected',
-  DISCONNECTED = 'disconnected',
-}
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;
@@ -73,6 +75,9 @@ export class IncomingTransactionHelper {
 
   readonly #useWebsockets: boolean;
 
+  // Chains that need polling (start with all supported, remove as they come up)
+  readonly #chainsToPoll: Hex[] = [...SUPPORTED_CHAIN_IDS];
+
   readonly #connectionStateChangedHandler = (
     connectionInfo: WebSocketConnectionInfo,
   ): void => {
@@ -87,6 +92,16 @@ export class IncomingTransactionHelper {
 
   readonly #selectedAccountChangedHandler = (): void => {
     this.#onSelectedAccountChanged();
+  };
+
+  readonly #statusChangedHandler = ({
+    chainIds,
+    status,
+  }: {
+    chainIds: string[];
+    status: 'up' | 'down';
+  }): void => {
+    this.#onNetworkStatusChanged(chainIds, status);
   };
 
   constructor({
@@ -132,11 +147,25 @@ export class IncomingTransactionHelper {
         'BackendWebSocketService:connectionStateChanged',
         this.#connectionStateChangedHandler,
       );
+
+      this.#messenger.subscribe(
+        'AccountActivityService:statusChanged',
+        this.#statusChangedHandler,
+      );
     }
   }
 
   start(): void {
-    if (this.#isRunning || this.#useWebsockets) {
+    // When websockets are disabled, allow normal polling (legacy mode)
+    if (this.#useWebsockets) {
+      return;
+    }
+
+    this.#startPolling(true);
+  }
+
+  #startPolling(initialPolling = false): void {
+    if (this.#isRunning) {
       return;
     }
 
@@ -146,7 +175,9 @@ export class IncomingTransactionHelper {
 
     const interval = this.#getInterval();
 
-    log('Started polling', { interval });
+    log('Started polling', {
+      interval,
+    });
 
     this.#isRunning = true;
 
@@ -155,7 +186,7 @@ export class IncomingTransactionHelper {
     }
 
     this.#onInterval().catch((error) => {
-      log('Initial polling failed', error);
+      log(initialPolling ? 'Initial polling failed' : 'Polling failed', error);
     });
   }
 
@@ -242,7 +273,9 @@ export class IncomingTransactionHelper {
     this.#isUpdating = true;
 
     try {
-      await this.update({ isInterval: true });
+      // When websockets enabled, only poll chains that are not confirmed up
+      const chainIds = this.#useWebsockets ? this.#chainsToPoll : undefined;
+      await this.update({ chainIds, isInterval: true });
     } catch (error) {
       console.error('Error while checking incoming transactions', error);
     }
@@ -263,9 +296,14 @@ export class IncomingTransactionHelper {
   }
 
   async update({
+    chainIds,
     isInterval,
     tags,
-  }: { isInterval?: boolean; tags?: string[] } = {}): Promise<void> {
+  }: {
+    chainIds?: Hex[];
+    isInterval?: boolean;
+    tags?: string[];
+  } = {}): Promise<void> {
     const finalTags = this.#getTags(tags, isInterval);
 
     log('Checking for incoming transactions', {
@@ -287,6 +325,7 @@ export class IncomingTransactionHelper {
       remoteTransactions =
         await this.#remoteTransactionSource.fetchTransactions({
           address: account.address as Hex,
+          chainIds,
           includeTokenTransfers,
           tags: finalTags,
           updateTransactions,
@@ -382,5 +421,62 @@ export class IncomingTransactionHelper {
     }
 
     return tags?.length ? tags : undefined;
+  }
+
+  #onNetworkStatusChanged(chainIds: string[], status: 'up' | 'down'): void {
+    if (!this.#useWebsockets) {
+      return;
+    }
+
+    let hasChanges = false;
+
+    for (const caip2ChainId of chainIds) {
+      const hexChainId = caip2ToHex(caip2ChainId);
+
+      if (!hexChainId || !SUPPORTED_CHAIN_IDS.includes(hexChainId)) {
+        log('Chain ID not recognized or not supported', {
+          caip2ChainId,
+          hexChainId,
+        });
+        continue;
+      }
+
+      if (status === 'up') {
+        const index = this.#chainsToPoll.indexOf(hexChainId);
+        if (index !== -1) {
+          this.#chainsToPoll.splice(index, 1);
+          hasChanges = true;
+          log('Supported network came up, removed from polling list', {
+            chainId: hexChainId,
+          });
+        }
+      } else if (
+        status === 'down' &&
+        !this.#chainsToPoll.includes(hexChainId)
+      ) {
+        this.#chainsToPoll.push(hexChainId);
+        hasChanges = true;
+        log('Supported network went down, added to polling list', {
+          chainId: hexChainId,
+        });
+      }
+    }
+
+    if (!hasChanges) {
+      log('No changes to polling list', {
+        chainsToPoll: this.#chainsToPoll,
+      });
+      return;
+    }
+
+    if (this.#chainsToPoll.length === 0) {
+      log('Stopping fallback polling - all networks up');
+      this.stop();
+    } else {
+      log('Starting fallback polling - some networks need polling', {
+        chainsToPoll: this.#chainsToPoll,
+      });
+      this.#startPolling();
+    }
   }
 }

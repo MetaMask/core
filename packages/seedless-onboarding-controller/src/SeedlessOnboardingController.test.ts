@@ -6135,12 +6135,12 @@ describe('SeedlessOnboardingController', () => {
               'includeInDebugSnapshot',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "authConnection": "google",
               "authConnectionId": "authConnectionId",
               "groupedAuthConnectionId": "groupedAuthConnectionId",
               "isSeedlessOnboardingUserAuthenticated": false,
-              "passwordOutdatedCache": Object {
+              "passwordOutdatedCache": {
                 "isExpiredPwd": false,
                 "timestamp": 1234567890,
               },
@@ -6189,14 +6189,14 @@ describe('SeedlessOnboardingController', () => {
               'includeInStateLogs',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "authConnection": "google",
               "authConnectionId": "authConnectionId",
               "authPubKey": "authPubKey",
               "groupedAuthConnectionId": "groupedAuthConnectionId",
               "isSeedlessOnboardingUserAuthenticated": false,
               "nodeAuthTokens": true,
-              "passwordOutdatedCache": Object {
+              "passwordOutdatedCache": {
                 "isExpiredPwd": false,
                 "timestamp": 1234567890,
               },
@@ -6246,7 +6246,7 @@ describe('SeedlessOnboardingController', () => {
               'persist',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "authConnection": "google",
               "authConnectionId": "authConnectionId",
               "authPubKey": "authPubKey",
@@ -6255,19 +6255,19 @@ describe('SeedlessOnboardingController', () => {
               "groupedAuthConnectionId": "groupedAuthConnectionId",
               "isSeedlessOnboardingUserAuthenticated": false,
               "metadataAccessToken": "metadataAccessToken",
-              "nodeAuthTokens": Array [],
-              "passwordOutdatedCache": Object {
+              "nodeAuthTokens": [],
+              "passwordOutdatedCache": {
                 "isExpiredPwd": false,
                 "timestamp": 1234567890,
               },
-              "pendingToBeRevokedTokens": Array [
-                Object {
+              "pendingToBeRevokedTokens": [
+                {
                   "refreshToken": "refreshToken",
                   "revokeToken": "revokeToken",
                 },
               ],
               "refreshToken": "refreshToken",
-              "socialBackupsMetadata": Array [],
+              "socialBackupsMetadata": [],
               "socialLoginEmail": "socialLoginEmail",
               "userId": "userId",
               "vault": "vault",
@@ -6316,11 +6316,11 @@ describe('SeedlessOnboardingController', () => {
               'usedInUi',
             ),
           ).toMatchInlineSnapshot(`
-          Object {
-            "authConnection": "google",
-            "socialLoginEmail": "socialLoginEmail",
-          }
-        `);
+            {
+              "authConnection": "google",
+              "socialLoginEmail": "socialLoginEmail",
+            }
+          `);
         },
       );
     });

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-controller",
-  "version": "12.0.2",
+  "version": "12.2.0",
   "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
   "keywords": [
     "MetaMask",
@@ -51,17 +51,17 @@
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
-    "@metamask/assets-controllers": "^99.1.0",
+    "@metamask/assets-controllers": "^99.3.1",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/bridge-controller": "^65.1.0",
-    "@metamask/bridge-status-controller": "^65.0.1",
+    "@metamask/bridge-controller": "^66.0.0",
+    "@metamask/bridge-status-controller": "^66.0.0",
     "@metamask/controller-utils": "^11.18.0",
     "@metamask/gas-fee-controller": "^26.0.2",
     "@metamask/messenger": "^0.3.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^29.0.0",
     "@metamask/remote-feature-flag-controller": "^4.0.0",
-    "@metamask/transaction-controller": "^62.12.0",
+    "@metamask/transaction-controller": "^62.16.0",
     "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
@@ -71,10 +71,10 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.5.2",
+    "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
-    "ts-jest": "^27.1.5",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

@@ -1640,6 +1640,35 @@ describe('TransactionController', () => {
       expect(updateFirstTimeInteractionMock).toHaveBeenCalledTimes(1);
     });
 
+    it('persists requiredAssets on transaction meta', async () => {
+      const { controller } = setupController();
+
+      const requiredAssets = [
+        {
+          address: '0x1234567890123456789012345678901234567890' as Hex,
+          amount: '0x1' as Hex,
+          standard: 'erc20',
+        },
+      ];
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          requiredAssets,
+        },
+      );
+
+      await flushPromises();
+
+      const transactionMeta = controller.state.transactions[0];
+
+      expect(transactionMeta.requiredAssets).toStrictEqual(requiredAssets);
+    });
+
     it.each([
       [TransactionEnvelopeType.legacy],
       [
@@ -8145,7 +8174,7 @@ describe('TransactionController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -8158,12 +8187,12 @@ describe('TransactionController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "lastFetchedBlockNumbers": Object {},
-          "methodData": Object {},
-          "submitHistory": Array [],
-          "transactionBatches": Array [],
-          "transactions": Array [],
+        {
+          "lastFetchedBlockNumbers": {},
+          "methodData": {},
+          "submitHistory": [],
+          "transactionBatches": [],
+          "transactions": [],
         }
       `);
     });
@@ -8178,12 +8207,12 @@ describe('TransactionController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "lastFetchedBlockNumbers": Object {},
-          "methodData": Object {},
-          "submitHistory": Array [],
-          "transactionBatches": Array [],
-          "transactions": Array [],
+        {
+          "lastFetchedBlockNumbers": {},
+          "methodData": {},
+          "submitHistory": [],
+          "transactionBatches": [],
+          "transactions": [],
         }
       `);
     });
@@ -8198,10 +8227,10 @@ describe('TransactionController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "methodData": Object {},
-          "transactionBatches": Array [],
-          "transactions": Array [],
+        {
+          "methodData": {},
+          "transactionBatches": [],
+          "transactions": [],
         }
       `);
     });
