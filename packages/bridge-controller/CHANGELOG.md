@@ -7,10 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Tron assets in the `formatAddressToAssetId` utility ([#7896](https://github.com/MetaMask/core/pull/7896))
+
 ### Changed
 
+- Refresh asset exchange rates each time quotes are fetched ([#7896](https://github.com/MetaMask/core/pull/7896))
+- Return checksummed EVM assetIds from the `formatAddressToAssetId` utility ([#7896](https://github.com/MetaMask/core/pull/7896))
 - Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
 - Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.16.0` ([#7872](https://github.com/MetaMask/core/pull/7872))
+
+### Fixed
+
+- Fall back to the quoted `priceImpact` or `destTokenAmount` to sort quotes if the `cost` is not available ([#7896](https://github.com/MetaMask/core/pull/7896))
 
 ## [66.0.0]
 
