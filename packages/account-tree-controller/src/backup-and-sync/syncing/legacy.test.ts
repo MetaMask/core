@@ -1,7 +1,7 @@
 import { AccountGroupType } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
-import { createMultichainAccountGroup } from './group';
+import { createMultichainAccountGroupsBatch } from './group';
 import { performLegacyAccountSyncing } from './legacy';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
@@ -28,9 +28,9 @@ const mockGetLocalGroupsForEntropyWallet =
   getLocalGroupsForEntropyWallet as jest.MockedFunction<
     typeof getLocalGroupsForEntropyWallet
   >;
-const mockCreateMultichainAccountGroup =
-  createMultichainAccountGroup as jest.MockedFunction<
-    typeof createMultichainAccountGroup
+const mockCreateMultichainAccountGroupsBatch =
+  createMultichainAccountGroupsBatch as jest.MockedFunction<
+    typeof createMultichainAccountGroupsBatch
   >;
 
 describe('BackupAndSync - Syncing - Legacy', () => {
@@ -79,33 +79,10 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         { n: 'Account 2', a: '0x456' },
         { n: 'Account 3', a: '0x789' },
       ];
-      const mockLocalGroups = [
-        {
-          id: 'entropy:test-entropy/0' as const,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-1'],
-          metadata: { entropy: { groupIndex: 0 } },
-        },
-      ] as unknown as AccountGroupMultichainAccountObject[]; // Only 1 existing group
 
       mockGetAllLegacyUserStorageAccounts.mockResolvedValue(mockLegacyAccounts);
-      mockGetLocalGroupsForEntropyWallet.mockReturnValueOnce(mockLocalGroups);
-      mockGetLocalGroupsForEntropyWallet.mockReturnValueOnce([
-        ...mockLocalGroups,
-        {
-          id: 'entropy:test-entropy/1' as const,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-2'],
-          metadata: { entropy: { groupIndex: 1 } },
-        },
-        {
-          id: 'entropy:test-entropy/2' as const,
-          type: AccountGroupType.MultichainAccount,
-          accounts: ['account-3'],
-          metadata: { entropy: { groupIndex: 2 } },
-        },
-      ] as unknown as AccountGroupMultichainAccountObject[]);
-      mockCreateMultichainAccountGroup.mockResolvedValue();
+      mockGetLocalGroupsForEntropyWallet.mockReturnValue([]);
+      mockCreateMultichainAccountGroupsBatch.mockResolvedValue([]);
 
       await performLegacyAccountSyncing(
         mockContext,
@@ -113,19 +90,12 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         testProfileId,
       );
 
-      // Should create 3 groups
-      expect(mockCreateMultichainAccountGroup).toHaveBeenCalledTimes(3);
-      expect(mockCreateMultichainAccountGroup).toHaveBeenCalledWith(
+      // Should create 3 groups in one batch call
+      expect(mockCreateMultichainAccountGroupsBatch).toHaveBeenCalledTimes(1);
+      expect(mockCreateMultichainAccountGroupsBatch).toHaveBeenCalledWith(
         mockContext,
         testEntropySourceId,
-        0,
-        testProfileId,
-        BackupAndSyncAnalyticsEvent.LegacyGroupAddedFromAccount,
-      );
-      expect(mockCreateMultichainAccountGroup).toHaveBeenCalledWith(
-        mockContext,
-        testEntropySourceId,
-        1,
+        3,
         testProfileId,
         BackupAndSyncAnalyticsEvent.LegacyGroupAddedFromAccount,
       );
@@ -282,10 +252,10 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       ] as unknown as AccountGroupMultichainAccountObject[];
 
       mockGetAllLegacyUserStorageAccounts.mockResolvedValue(mockLegacyAccounts);
-      mockGetLocalGroupsForEntropyWallet.mockReturnValueOnce(
+      mockGetLocalGroupsForEntropyWallet.mockReturnValue(
         mockRefreshedLocalGroups,
-      ); // For renaming logic
-      mockCreateMultichainAccountGroup.mockResolvedValue();
+      );
+      mockCreateMultichainAccountGroupsBatch.mockResolvedValue([]);
       mockGetUUIDFromAddressOfNormalAccount
         .mockReturnValueOnce(mockAccountId1)
         .mockReturnValueOnce(mockAccountId2)
@@ -297,8 +267,8 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         testProfileId,
       );
 
-      // Should create 3 groups
-      expect(mockCreateMultichainAccountGroup).toHaveBeenCalledTimes(3);
+      // Should create 3 groups in one batch call
+      expect(mockCreateMultichainAccountGroupsBatch).toHaveBeenCalledTimes(1);
 
       // Should rename all 3 groups
       expect(mockContext.controller.setAccountGroupName).toHaveBeenCalledWith(

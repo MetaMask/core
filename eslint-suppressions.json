@@ -42,14 +42,6 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/backup-and-sync/syncing/group.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/backup-and-sync/syncing/legacy.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
