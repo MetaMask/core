@@ -570,6 +570,48 @@ describe('MultichainAccountWallet', () => {
       expect(evmProvider.createAccounts).toHaveBeenCalled();
       expect(solProvider.createAccounts).toHaveBeenCalled();
     });
+
+    it('captures unexpected errors in background group creation', async () => {
+      const { wallet, providers, messenger } = setup({
+        accounts: [[], []],
+      });
+
+      const [evmProvider, solProvider] = providers;
+
+      // Mock EVM provider.
+      const evmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      evmProvider.createAccounts.mockResolvedValueOnce([evmAccount]);
+
+      // Mock SOL provider to fail during background account creation.
+      // This will cause the .then() handler to have failures to process.
+      solProvider.createAccounts.mockRejectedValueOnce(
+        new Error('Provider failure'),
+      );
+
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      // Spy on console.warn and make it throw during background processing.
+      // This simulates an unexpected error in the .then() handler, which should
+      // be caught by the catch block at lines 475-486.
+      jest.spyOn(console, 'warn').mockImplementation(() => {
+        throw new Error('Unexpected error in background processing');
+      });
+
+      // Create groups without waiting (triggers background processing).
+      await wallet.createMultichainAccountGroups(0);
+
+      // Wait for background processing to complete.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Unexpected error while creating groups in the background: Unexpected error in background processing',
+      );
+      expect(captureExceptionSpy).toHaveBeenCalled();
+    });
   });
 
   describe('alignAccounts', () => {
