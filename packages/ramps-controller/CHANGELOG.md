@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Quote filter param renamed from `provider` to `providers` array in `getQuotes()` and `RampsService.getQuotes()` ([#7892](https://github.com/MetaMask/core/pull/7892))
 - **BREAKING:** Make `getWidgetUrl()` async to fetch the actual provider widget URL from the `buyURL` endpoint ([#7881](https://github.com/MetaMask/core/pull/7881))
 
 ## [7.1.0]
