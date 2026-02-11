@@ -54,8 +54,11 @@ jest.mock('fs/promises', () => {
 
 jest.mock('fs');
 jest.mock('yaml');
-jest.mock('os', () => ({
-  homedir: jest.fn().mockReturnValue('/home/user'),
+jest.mock('node:os', () => ({
+  ...jest.requireActual('node:os'),
+  homedir: jest.fn(),
+  platform: jest.fn(),
+  arch: jest.fn(),
 }));
 
 jest.mock('./options', () => ({
@@ -166,6 +169,14 @@ const mockDownloadAndInstallFoundryBinaries = async (): Promise<
 };
 
 describe('foundryup', () => {
+  beforeEach(() => {
+    // Re-establish os mock values after Jest's resetMocks clears them
+    const os = jest.requireMock<typeof import('node:os')>('node:os');
+    (os.homedir as jest.Mock).mockReturnValue('/home/user');
+    (os.platform as jest.Mock).mockReturnValue('linux');
+    (os.arch as jest.Mock).mockReturnValue('x64');
+  });
+
   describe('getCacheDirectory', () => {
     it('uses global cache when enabled in .yarnrc.yml', () => {
       (parseYaml as jest.Mock).mockReturnValue({ enableGlobalCache: true });

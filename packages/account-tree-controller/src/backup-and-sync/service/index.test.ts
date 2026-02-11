@@ -364,7 +364,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const secondSyncPromise = backupAndSyncService.performFullSync();
 
       // Both promises should be the same reference
-      expect(firstSyncPromise).toStrictEqual(secondSyncPromise);
+      expect(firstSyncPromise).toBe(secondSyncPromise);
 
       // Resolve the trace to complete the sync
       resolveTrace?.();
@@ -406,8 +406,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       ];
 
       // All promises should be the same reference (promise caching)
-      expect(promises[0]).toStrictEqual(promises[1]);
-      expect(promises[1]).toStrictEqual(promises[2]);
+      expect(promises[0]).toBe(promises[1]);
+      expect(promises[1]).toBe(promises[2]);
 
       // Wait for all to complete
       await Promise.all(promises);
@@ -491,8 +491,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const atLeastOncePromise =
         backupAndSyncService.performFullSyncAtLeastOnce();
 
-      // Both should resolve to the same promise (first sync sets the first ever promise)
-      expect(firstSyncPromise).toStrictEqual(atLeastOncePromise);
+      // Both promises should be the same reference (first sync sets the first ever promise)
+      expect(firstSyncPromise).toBe(atLeastOncePromise);
 
       await Promise.all([firstSyncPromise, atLeastOncePromise]);
 
@@ -574,8 +574,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       ];
 
       // All promises should be the same reference (promise caching)
-      expect(promises[0]).toStrictEqual(promises[1]);
-      expect(promises[1]).toStrictEqual(promises[2]);
+      expect(promises[0]).toBe(promises[1]);
+      expect(promises[1]).toBe(promises[2]);
 
       // Wait for all to complete
       await Promise.all(promises);
@@ -618,7 +618,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         backupAndSyncService.performFullSyncAtLeastOnce();
 
       // Should return the same promise (cached first sync promise)
-      expect(firstSyncPromise).toStrictEqual(secondSyncPromise);
+      expect(firstSyncPromise).toBe(secondSyncPromise);
 
       // Wait for second promise (should resolve immediately since it's already complete)
       await secondSyncPromise;
@@ -686,7 +686,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const fullSyncPromise = backupAndSyncService.performFullSync();
 
       // They should return the same promise (both use the first sync promise)
-      expect(atLeastOncePromise).toStrictEqual(fullSyncPromise);
+      expect(atLeastOncePromise).toBe(fullSyncPromise);
 
       await Promise.all([atLeastOncePromise, fullSyncPromise]);
 
@@ -707,7 +707,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       // But performFullSyncAtLeastOnce should still return the original promise
       const laterAtLeastOncePromise =
         backupAndSyncService.performFullSyncAtLeastOnce();
-      expect(laterAtLeastOncePromise).toStrictEqual(atLeastOncePromise);
+      expect(laterAtLeastOncePromise).toBe(atLeastOncePromise);
 
       // And should not trigger another sync
       await laterAtLeastOncePromise;
