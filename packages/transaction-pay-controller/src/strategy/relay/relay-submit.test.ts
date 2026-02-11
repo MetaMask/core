@@ -595,6 +595,38 @@ describe('Relay Submit Utils', () => {
           }),
         );
       });
+
+      it('does not activate 7702 mode with single relay step', async () => {
+        // Production scenario: 1 relay step = 1 gasLimit entry.
+        // Post-quote prepends the original tx so allParams has 2 entries,
+        // but gasLimit7702 should NOT be set because there's only 1 relay param.
+        request.quotes[0].original.metamask.gasLimits = [21000];
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            disable7702: true,
+            disableHook: false,
+            disableSequential: false,
+            gasLimit7702: undefined,
+            transactions: [
+              expect.objectContaining({
+                params: expect.objectContaining({
+                  gas: undefined,
+                }),
+                type: TransactionType.simpleSend,
+              }),
+              expect.objectContaining({
+                params: expect.objectContaining({
+                  gas: expect.any(String),
+                }),
+                type: TransactionType.relayDeposit,
+              }),
+            ],
+          }),
+        );
+      });
     });
 
     it('adds transaction batch with single gasLimit7702', async () => {

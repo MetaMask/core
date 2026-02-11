@@ -321,7 +321,9 @@ async function submitTransactions(
     );
   } else {
     const gasLimit7702 =
-      gasLimits.length === 1 ? toHex(gasLimits[0]) : undefined;
+      gasLimits.length === 1 && normalizedParams.length > 1
+        ? toHex(gasLimits[0])
+        : undefined;
 
     // gasLimits only covers relay params; for post-quote the original tx
     // is prepended at index 0 with no gasLimit (chain will estimate).
