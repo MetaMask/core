@@ -197,6 +197,14 @@ export class MultichainAccountWallet<
     }
   }
 
+  /**
+   * Create accounts for a given provider and group index range.
+   *
+   * @param provider - The provider to create accounts for.
+   * @param from - The starting group index (inclusive).
+   * @param to - The ending group index (inclusive).
+   * @returns The created accounts.
+   */
   async #createAccountsRangeForProvider(
     provider: Bip44AccountProvider<Account>,
     from: number,
@@ -242,6 +250,13 @@ export class MultichainAccountWallet<
     }
   }
 
+  /**
+   * Create or update a multichain account group state for a given group index and group state.
+   *
+   * @param groupIndex The group's index.
+   * @param groupState The group's state to create or update the group with.
+   * @returns The created or updated multichain account group.
+   */
   #createOrUpdateMultichainAccountGroup(
     groupIndex: number,
     groupState: GroupState,
@@ -381,7 +396,7 @@ export class MultichainAccountWallet<
 
       // Finalize group states with accounts from other providers, then create groups
       // and update states with the associated accounts.
-      const finalize = async (
+      const createOrUpdateMultichainAccountGroupsFrom = async (
         allGroupStateByGroupIndex: Map<number, GroupState>,
       ): Promise<void> => {
         for (let groupIndex = from; groupIndex <= to; groupIndex++) {
@@ -414,11 +429,13 @@ export class MultichainAccountWallet<
         );
 
         // We can finalize the group creation and updates now that we have all accounts from all providers.
-        await finalize(groupStateByGroupIndex);
+        await createOrUpdateMultichainAccountGroupsFrom(groupStateByGroupIndex);
       } else {
         // We can finalize with the EVM accounts for now, since the non-EVM accounts are going to get
         // created in the background.
-        await finalize(evmGroupStateByGroupIndex);
+        await createOrUpdateMultichainAccountGroupsFrom(
+          evmGroupStateByGroupIndex,
+        );
 
         // We can use a new mapping now, since EVM should have been created by now.
         const groupStateByGroupIndex = new Map<number, GroupState>();
@@ -450,7 +467,9 @@ export class MultichainAccountWallet<
           // If some providers succeeded, we still want to update the groups accordingly.
           if (results.length !== failures.length) {
             // We re-finalize everything to update the groups with the accounts from the non-EVM providers as they come in.
-            return await finalize(groupStateByGroupIndex);
+            return await createOrUpdateMultichainAccountGroupsFrom(
+              groupStateByGroupIndex,
+            );
           }
           return undefined;
         });
