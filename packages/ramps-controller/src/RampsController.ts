@@ -1424,7 +1424,11 @@ export class RampsController extends BaseController<
       throw new Error('assetId is required.');
     }
 
-    if (!paymentMethodsToUse || paymentMethodsToUse.length === 0 || paymentMethodsToUse.some((pm) => pm.trim() === '')) {
+    if (
+      !paymentMethodsToUse ||
+      paymentMethodsToUse.length === 0 ||
+      paymentMethodsToUse.some((pm) => pm.trim() === '')
+    ) {
       throw new Error(
         'Payment methods are required. Either provide paymentMethods parameter or ensure paymentMethods are set in controller state.',
       );
