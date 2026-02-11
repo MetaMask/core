@@ -153,9 +153,22 @@ const getExchangeRateByChainIdAndAddress = (
   if (isNonEvmChainId(chainId)) {
     const multichainAssetExchangeRate = conversionRates?.[assetId];
     if (multichainAssetExchangeRate) {
+      // The rate is denominated in the user's selected currency.
+      // Derive the USD rate using the currency-to-USD ratio from any EVM native currency rate.
+      const nativeCurrencyRate = Object.values(currencyRates ?? {}).find(
+        (rate) => rate?.conversionRate && rate?.usdConversionRate,
+      );
+      const usdExchangeRate =
+        nativeCurrencyRate?.conversionRate &&
+        nativeCurrencyRate?.usdConversionRate
+          ? new BigNumber(multichainAssetExchangeRate.rate)
+              .times(nativeCurrencyRate.usdConversionRate)
+              .div(nativeCurrencyRate.conversionRate)
+              .toString()
+          : undefined;
       return {
         exchangeRate: multichainAssetExchangeRate.rate,
-        usdExchangeRate: undefined,
+        usdExchangeRate,
       };
     }
     return {};
