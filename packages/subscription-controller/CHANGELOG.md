@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Added two new params, `captureException` and `fetchFunction` to `SubscriptionService` constructor args. ([#7835](https://github.com/MetaMask/core/pull/7835))
   - `fetchFunction` is to use the client provided `Fetch` API.
   - `captureException` is to capture the error thrown and report to Sentry.
+- Bump `@metamask/transaction-controller` from `62.16.0` to `62.16.1` ([#7897](https://github.com/MetaMask/core/pull/7897))
 
 ### Changed
 
