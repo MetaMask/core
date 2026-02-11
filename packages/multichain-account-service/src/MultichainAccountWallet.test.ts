@@ -419,6 +419,11 @@ describe('MultichainAccountWallet', () => {
       }
 
       const groups = await wallet.createMultichainAccountGroups(2);
+      let debug = '';
+      for (const group of groups) {
+        debug += `- Group ${group.groupIndex}: ${group.getAccountIds().join(', ')}\n`;
+      }
+      expect(debug).toBe('something');
 
       expect(groups).toHaveLength(3);
       expect(groups[0].groupIndex).toBe(0);
