@@ -350,6 +350,14 @@ export type TransactionPayFees = {
 
   /** Network fee for transactions on the target network. */
   targetNetwork: FiatValue;
+
+  /**
+   * Gas cost of the original user transaction on its native network.
+   * Always calculated from the transaction's own gas params via
+   * `calculateTransactionGasCost`, independent of any bridge quote fees.
+   * Only populated on totals, not on individual quotes.
+   */
+  transactionGas?: FiatValue;
 };
 
 /** Quote returned to retrieve a required token using the payment token. */

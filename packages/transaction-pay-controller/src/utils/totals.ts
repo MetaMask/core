@@ -103,6 +103,10 @@ export function calculateTotals({
         max: sourceNetworkFeeMax,
       },
       targetNetwork: targetNetworkFee,
+      transactionGas: {
+        fiat: transactionNetworkFee.fiat,
+        usd: transactionNetworkFee.usd,
+      },
     },
     sourceAmount,
     targetAmount,
