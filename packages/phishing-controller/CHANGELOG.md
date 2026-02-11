@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `62.16.0` to `62.16.1` ([#7897](https://github.com/MetaMask/core/pull/7897))
+
 ## [16.2.0]
 
 ### Added
 
 - Add support for Monad network (`0x8f`) in token scanning ([#7237](https://github.com/MetaMask/core/pull/7237))
 - Add support for HyperEVM network (`0x3e7`) in token scanning ([#7873](https://github.com/MetaMask/core/pull/7873))
-- Bump `@metamask/transaction-controller` from `62.16.0` to `62.16.1` ([#7897](https://github.com/MetaMask/core/pull/7897))
 
 ### Changed
 
