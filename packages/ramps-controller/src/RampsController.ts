@@ -1,6 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  Draft,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -275,8 +276,10 @@ const DEPENDENT_RESOURCE_KEYS = [
 
 type DependentResourceKey = (typeof DEPENDENT_RESOURCE_KEYS)[number];
 
+const DEPENDENT_RESOURCE_KEYS_SET = new Set<string>(DEPENDENT_RESOURCE_KEYS);
+
 function resetResource(
-  state: RampsControllerState,
+  state: Draft<RampsControllerState>,
   resourceType: DependentResourceKey,
   defaultResource?: RampsControllerState[DependentResourceKey],
 ): void {
@@ -297,7 +300,7 @@ function resetResource(
  * @param options.clearUserRegionData - When true, sets userRegion to null (e.g. for full cleanup).
  */
 function resetDependentResources(
-  state: RampsControllerState,
+  state: Draft<RampsControllerState>,
   options?: { clearUserRegionData?: boolean },
 ): void {
   if (options?.clearUserRegionData) {
@@ -501,14 +504,18 @@ export class RampsController extends BaseController<
   }
 
   #clearPendingResourceCountForDependentResources(): void {
-    const types: ResourceType[] = [
-      'providers',
-      'tokens',
-      'paymentMethods',
-      'quotes',
-    ];
-    for (const resourceType of types) {
+    for (const resourceType of DEPENDENT_RESOURCE_KEYS) {
       this.#pendingResourceCount.delete(resourceType);
+    }
+  }
+
+  #abortDependentRequests(): void {
+    for (const [cacheKey, pending] of this.#pendingRequests.entries()) {
+      if (pending.resourceType && DEPENDENT_RESOURCE_KEYS_SET.has(pending.resourceType)) {
+        pending.abortController.abort();
+        this.#pendingRequests.delete(cacheKey);
+        this.#removeRequestState(cacheKey);
+      }
     }
   }
 
@@ -699,27 +706,32 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Removes a request state from the cache.
-   *
-   * @param cacheKey - The cache key to remove.
+   * Mutates state.requests inside update(); cast is centralized here.
    */
-  #removeRequestState(cacheKey: string): void {
+  #mutateRequests(
+    fn: (requests: Record<string, RequestState | undefined>) => void,
+  ): void {
     this.update((state) => {
       const requests = state.requests as unknown as Record<
         string,
         RequestState | undefined
       >;
+      fn(requests);
+    });
+  }
+
+  #removeRequestState(cacheKey: string): void {
+    this.#mutateRequests((requests) => {
       delete requests[cacheKey];
     });
   }
 
   #cleanupState(): void {
     this.stopQuotePolling();
+    this.#abortDependentRequests();
     this.#clearPendingResourceCountForDependentResources();
     this.update((state) =>
-      resetDependentResources(state as unknown as RampsControllerState, {
-        clearUserRegionData: true,
-      }),
+      resetDependentResources(state, { clearUserRegionData: true }),
     );
   }
 
@@ -749,6 +761,31 @@ export class RampsController extends BaseController<
         // when dependencies are available
       }
     }
+  }
+
+  #requireRegion(): string {
+    const regionCode = this.state.userRegion?.regionCode;
+    if (!regionCode) {
+      throw new Error(
+        'Region is required. Cannot proceed without valid region information.',
+      );
+    }
+    return regionCode;
+  }
+
+  #isRegionCurrent(normalizedRegion: string): boolean {
+    const current = this.state.userRegion?.regionCode;
+    return current === undefined || current === normalizedRegion;
+  }
+
+  #isTokenCurrent(normalizedAssetId: string): boolean {
+    const current = this.state.tokens.selected?.assetId;
+    return current === undefined || current === normalizedAssetId;
+  }
+
+  #isProviderCurrent(normalizedProviderId: string): boolean {
+    const current = this.state.providers.selected?.id;
+    return current === undefined || current === normalizedProviderId;
   }
 
   /**
@@ -812,16 +849,8 @@ export class RampsController extends BaseController<
   #updateRequestState(cacheKey: string, requestState: RequestState): void {
     const maxSize = this.#requestCacheMaxSize;
     const ttl = this.#requestCacheTTL;
-
-    this.update((state) => {
-      const requests = state.requests as unknown as Record<
-        string,
-        RequestState | undefined
-      >;
+    this.#mutateRequests((requests) => {
       requests[cacheKey] = requestState;
-
-      // Evict expired entries based on TTL
-      // Only evict SUCCESS states that have exceeded their TTL
       const keys = Object.keys(requests);
       for (const key of keys) {
         const entry = requests[key];
@@ -832,18 +861,13 @@ export class RampsController extends BaseController<
           delete requests[key];
         }
       }
-
-      // Evict oldest entries if cache still exceeds max size
       const remainingKeys = Object.keys(requests);
       if (remainingKeys.length > maxSize) {
-        // Sort by timestamp (oldest first)
         const sortedKeys = remainingKeys.sort((a, b) => {
           const aTime = requests[a]?.timestamp ?? 0;
           const bTime = requests[b]?.timestamp ?? 0;
           return aTime - bTime;
         });
-
-        // Remove oldest entries until we're under the limit
         const entriesToRemove = remainingKeys.length - maxSize;
         for (let i = 0; i < entriesToRemove; i++) {
           const keyToRemove = sortedKeys[i];
@@ -896,14 +920,13 @@ export class RampsController extends BaseController<
         this.state.providers.data.length === 0;
 
       if (regionChanged) {
+        this.#abortDependentRequests();
         this.#clearPendingResourceCountForDependentResources();
-      }
-      if (regionChanged) {
         this.stopQuotePolling();
       }
       this.update((state) => {
         if (regionChanged) {
-          resetDependentResources(state as unknown as RampsControllerState);
+          resetDependentResources(state);
         }
         state.userRegion = userRegion;
       });
@@ -945,21 +968,12 @@ export class RampsController extends BaseController<
       this.stopQuotePolling();
       this.update((state) => {
         state.providers.selected = null;
-        resetResource(
-          state as unknown as RampsControllerState,
-          'paymentMethods',
-        );
+        resetResource(state, 'paymentMethods');
       });
       return;
     }
 
-    const regionCode = this.state.userRegion?.regionCode;
-    if (!regionCode) {
-      throw new Error(
-        'Region is required. Cannot set selected provider without valid region information.',
-      );
-    }
-
+    const regionCode = this.#requireRegion();
     const providers = this.state.providers.data;
     if (!providers || providers.length === 0) {
       throw new Error(
@@ -976,7 +990,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.providers.selected = provider;
-      resetResource(state as unknown as RampsControllerState, 'paymentMethods');
+      resetResource(state, 'paymentMethods');
       state.quotes.selected = null;
     });
 
@@ -1099,9 +1113,7 @@ export class RampsController extends BaseController<
       {
         ...options,
         resourceType: 'tokens',
-        isResultCurrent: () =>
-          this.state.userRegion?.regionCode === undefined ||
-          this.state.userRegion?.regionCode === normalizedRegion,
+        isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
 
@@ -1129,21 +1141,12 @@ export class RampsController extends BaseController<
       this.stopQuotePolling();
       this.update((state) => {
         state.tokens.selected = null;
-        resetResource(
-          state as unknown as RampsControllerState,
-          'paymentMethods',
-        );
+        resetResource(state, 'paymentMethods');
       });
       return;
     }
 
-    const regionCode = this.state.userRegion?.regionCode;
-    if (!regionCode) {
-      throw new Error(
-        'Region is required. Cannot set selected token without valid region information.',
-      );
-    }
-
+    const regionCode = this.#requireRegion();
     const tokens = this.state.tokens.data;
     if (!tokens) {
       throw new Error(
@@ -1163,7 +1166,7 @@ export class RampsController extends BaseController<
 
     this.update((state) => {
       state.tokens.selected = token;
-      resetResource(state as unknown as RampsControllerState, 'paymentMethods');
+      resetResource(state, 'paymentMethods');
       state.quotes.selected = null;
     });
 
@@ -1232,9 +1235,7 @@ export class RampsController extends BaseController<
       {
         ...options,
         resourceType: 'providers',
-        isResultCurrent: () =>
-          this.state.userRegion?.regionCode === undefined ||
-          this.state.userRegion?.regionCode === normalizedRegion,
+        isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
 
@@ -1311,13 +1312,9 @@ export class RampsController extends BaseController<
         ...options,
         resourceType: 'paymentMethods',
         isResultCurrent: () => {
-          const regionMatch =
-            this.state.userRegion?.regionCode === undefined ||
-            this.state.userRegion?.regionCode === normalizedRegion;
-          const tokenMatch =
-            (this.state.tokens.selected?.assetId ?? '') === assetIdToUse;
-          const providerMatch =
-            (this.state.providers.selected?.id ?? '') === providerToUse;
+          const regionMatch = this.#isRegionCurrent(normalizedRegion);
+          const tokenMatch = this.#isTokenCurrent(assetIdToUse);
+          const providerMatch = this.#isProviderCurrent(providerToUse);
           return regionMatch && tokenMatch && providerMatch;
         },
       },
@@ -1503,9 +1500,7 @@ export class RampsController extends BaseController<
         forceRefresh: options.forceRefresh,
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
         resourceType: 'quotes',
-        isResultCurrent: () =>
-          this.state.userRegion?.regionCode === undefined ||
-          this.state.userRegion?.regionCode === normalizedRegion,
+        isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
 
@@ -1537,17 +1532,10 @@ export class RampsController extends BaseController<
     amount: number;
     redirectUrl?: string;
   }): void {
-    // Validate required dependencies
-    const regionCode = this.state.userRegion?.regionCode;
+    const regionCode = this.#requireRegion();
     const token = this.state.tokens.selected;
     const provider = this.state.providers.selected;
     const paymentMethod = this.state.paymentMethods.selected;
-
-    if (!regionCode) {
-      throw new Error(
-        'Region is required. Cannot start quote polling without valid region information.',
-      );
-    }
 
     if (!token) {
       throw new Error(

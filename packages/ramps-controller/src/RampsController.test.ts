@@ -2228,7 +2228,7 @@ describe('RampsController', () => {
           expect(() => {
             controller.setSelectedProvider(mockProvider.id);
           }).toThrow(
-            'Region is required. Cannot set selected provider without valid region information.',
+            'Region is required. Cannot proceed without valid region information.',
           );
         },
       );
@@ -2422,7 +2422,7 @@ describe('RampsController', () => {
         },
         async ({ controller }) => {
           expect(() => controller.setSelectedToken(mockToken.assetId)).toThrow(
-            'Region is required. Cannot set selected token without valid region information.',
+            'Region is required. Cannot proceed without valid region information.',
           );
         },
       );
@@ -4567,16 +4567,14 @@ describe('RampsController', () => {
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
           });
 
-          // Change region while request is in flight
+          // Change region while request is in flight (aborts dependent requests)
           await controller.setUserRegion('fr');
 
-          // Resolve the quotes request
           if (regionChangeResolve) {
             regionChangeResolve();
           }
-          await quotesPromise;
+          await expect(quotesPromise).rejects.toThrow('Request was aborted');
 
-          // Quotes should not be updated because region changed
           expect(controller.state.quotes.data).toBeNull();
         },
       );
@@ -4600,7 +4598,7 @@ describe('RampsController', () => {
             amount: 100,
           }),
         ).toThrow(
-          'Region is required. Cannot start quote polling without valid region information.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
     });
