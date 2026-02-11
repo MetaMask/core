@@ -30,18 +30,63 @@ import {
   Env,
   JwtBearerAuth,
 } from '../../sdk';
+import { authorizeOIDC } from '../../sdk/authentication-jwt-bearer/services';
+import type {
+  InitiateOtpResponse,
+  VerifyOtpOptions,
+} from '../../sdk/authentication-jwt-bearer/services-otp';
+import {
+  initiateEmailLogin,
+  initiatePhoneLogin,
+  verifyEmailLogin,
+  verifyPhoneLogin,
+} from '../../sdk/authentication-jwt-bearer/services-otp';
 import type { MetaMetricsAuth } from '../../shared/types/services';
 
 const controllerName = 'AuthenticationController';
+
+// OTP session storage keys
+export const OTP_SESSION_KEY_EMAIL = 'otp:email' as const;
+export const OTP_SESSION_KEY_PHONE = 'otp:phone' as const;
+export type OtpSessionKey =
+  | typeof OTP_SESSION_KEY_EMAIL
+  | typeof OTP_SESSION_KEY_PHONE;
+
+export type OtpIdentifierType = 'email' | 'phone';
+
+function otpSessionKeyFromType(type: OtpIdentifierType): OtpSessionKey {
+  return type === 'email' ? OTP_SESSION_KEY_EMAIL : OTP_SESSION_KEY_PHONE;
+}
 
 // State
 export type AuthenticationControllerState = {
   isSignedIn: boolean;
   srpSessionData?: Record<string, LoginResponse>;
+  otpSessionData?: Record<string, LoginResponse>;
 };
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
 };
+
+const sanitizeSessionDataForLogs = (
+  sessionData: Record<string, LoginResponse> | null | undefined,
+): Record<string, Json> | null => {
+  if (sessionData === null || sessionData === undefined) {
+    return null;
+  }
+  return Object.entries(sessionData).reduce<Record<string, Json>>(
+    (sanitized, [key, value]) => {
+      const { accessToken: _unused, ...tokenWithoutAccessToken } = value.token;
+      sanitized[key] = {
+        ...value,
+        token: tokenWithoutAccessToken,
+      };
+      return sanitized;
+    },
+    {},
+  );
+};
+
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
     includeInStateLogs: true,
@@ -50,29 +95,13 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
     usedInUi: true,
   },
   srpSessionData: {
-    // Remove access token from state logs
-    includeInStateLogs: (srpSessionData) => {
-      // Unreachable branch, included just to fix a type error for the case where this property is
-      // unset. The type gets collapsed to include `| undefined` even though `undefined` is never
-      // set here, because we don't yet use `exactOptionalPropertyTypes`.
-      // TODO: Remove branch after enabling `exactOptionalPropertyTypes`
-      // ref: https://github.com/MetaMask/core/issues/6565
-      if (srpSessionData === null || srpSessionData === undefined) {
-        return null;
-      }
-      return Object.entries(srpSessionData).reduce<Record<string, Json>>(
-        (sanitizedSrpSessionData, [key, value]) => {
-          const { accessToken: _unused, ...tokenWithoutAccessToken } =
-            value.token;
-          sanitizedSrpSessionData[key] = {
-            ...value,
-            token: tokenWithoutAccessToken,
-          };
-          return sanitizedSrpSessionData;
-        },
-        {},
-      );
-    },
+    includeInStateLogs: sanitizeSessionDataForLogs,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  otpSessionData: {
+    includeInStateLogs: sanitizeSessionDataForLogs,
     persist: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
@@ -97,6 +126,11 @@ type ActionsObj = CreateActionsObj<
   | 'getSessionProfile'
   | 'getUserProfileLineage'
   | 'isSignedIn'
+  | 'initiateOtpLogin'
+  | 'verifyOtpLogin'
+  | 'getOtpBearerToken'
+  | 'getOtpSessionProfile'
+  | 'performOtpSignOut'
 >;
 export type Actions =
   | ActionsObj[keyof ActionsObj]
@@ -156,7 +190,7 @@ export default class AuthenticationController extends BaseController<
   #isUnlocked = false;
 
   readonly #keyringController = {
-    setupLockedStateSubscriptions: () => {
+    setupLockedStateSubscriptions: (): void => {
       const { isUnlocked } = this.messenger.call('KeyringController:getState');
       this.#isUnlocked = isUnlocked;
 
@@ -260,6 +294,31 @@ export default class AuthenticationController extends BaseController<
       'AuthenticationController:getUserProfileLineage',
       this.getUserProfileLineage.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      'AuthenticationController:initiateOtpLogin',
+      this.initiateOtpLogin.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'AuthenticationController:verifyOtpLogin',
+      this.verifyOtpLogin.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'AuthenticationController:getOtpBearerToken',
+      this.getOtpBearerToken.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'AuthenticationController:getOtpSessionProfile',
+      this.getOtpSessionProfile.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'AuthenticationController:performOtpSignOut',
+      this.performOtpSignOut.bind(this),
+    );
   }
 
   async #getLoginResponseFromState(
@@ -273,7 +332,7 @@ export default class AuthenticationController extends BaseController<
     }
 
     const primarySrpLoginResponse = Object.values(
-      this.state.srpSessionData || {},
+      this.state.srpSessionData ?? {},
     )?.[0];
 
     if (!primarySrpLoginResponse) {
@@ -286,14 +345,12 @@ export default class AuthenticationController extends BaseController<
   async #setLoginResponseToState(
     loginResponse: LoginResponse,
     entropySourceId?: string,
-  ) {
+  ): Promise<void> {
     const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
       if (entropySourceId) {
         state.isSignedIn = true;
-        if (!state.srpSessionData) {
-          state.srpSessionData = {};
-        }
+        state.srpSessionData ??= {};
         state.srpSessionData[entropySourceId] = {
           ...loginResponse,
           profile: {
@@ -309,6 +366,35 @@ export default class AuthenticationController extends BaseController<
     if (!this.#isUnlocked) {
       throw new Error(`${methodName} - unable to proceed, wallet is locked`);
     }
+  }
+
+  async #setOtpLoginResponseToState(
+    loginResponse: LoginResponse,
+    sessionKey: OtpSessionKey,
+  ): Promise<void> {
+    const metaMetricsId = await this.#metametrics.getMetaMetricsId();
+    this.update((state) => {
+      state.otpSessionData ??= {};
+      state.otpSessionData[sessionKey] = {
+        ...loginResponse,
+        profile: {
+          ...loginResponse.profile,
+          metaMetricsId,
+        },
+      };
+    });
+  }
+
+  async #getOtpLoginResponseFromState(
+    sessionKey: OtpSessionKey,
+  ): Promise<LoginResponse | null> {
+    const session = this.state.otpSessionData?.[sessionKey];
+    if (!session) {
+      return null;
+    }
+    const sessionAge = Date.now() - session.token.obtainedAt;
+    const refreshThreshold = session.token.expiresIn * 1000 * 0.9;
+    return sessionAge < refreshThreshold ? session : null;
   }
 
   public async performSignIn(): Promise<string[]> {
@@ -368,6 +454,117 @@ export default class AuthenticationController extends BaseController<
 
   public isSignedIn(): boolean {
     return this.state.isSignedIn;
+  }
+
+  /**
+   * Initiates OTP login by sending a code to the given email or phone.
+   *
+   * @param identifier - Email address or phone number
+   * @param identifierType - 'email' or 'phone'
+   * @returns Flow ID, type, and expiration for the verify step
+   */
+  public async initiateOtpLogin(
+    identifier: string,
+    identifierType: OtpIdentifierType,
+  ): Promise<InitiateOtpResponse> {
+    if (identifierType === 'email') {
+      return await initiateEmailLogin(identifier, this.#config.env);
+    }
+    return await initiatePhoneLogin(identifier, this.#config.env);
+  }
+
+  /**
+   * Verifies OTP code and stores the session in otpSessionData.
+   *
+   * @param options - Flow ID, flow type, OTP code, optional metametrics/accounts, and identifier type
+   * @returns The access token for the new OTP session
+   */
+  public async verifyOtpLogin(
+    options: VerifyOtpOptions & { identifierType: OtpIdentifierType },
+  ): Promise<string> {
+    const { identifierType, ...verifyOptions } = options;
+
+    const verifyOptionsWithMetametrics: VerifyOtpOptions = {
+      ...verifyOptions,
+      metametrics: verifyOptions.metametrics ?? {
+        metametricsId: await this.#metametrics.getMetaMetricsId(),
+        agent: this.#metametrics.agent,
+      },
+    };
+
+    const authResponse =
+      identifierType === 'email'
+        ? await verifyEmailLogin(verifyOptionsWithMetametrics, this.#config.env)
+        : await verifyPhoneLogin(
+            verifyOptionsWithMetametrics,
+            this.#config.env,
+          );
+
+    const tokenResponse = await authorizeOIDC(
+      authResponse.token,
+      this.#config.env,
+      this.#metametrics.agent,
+    );
+
+    const result: LoginResponse = {
+      profile: authResponse.profile,
+      token: tokenResponse,
+    };
+
+    const sessionKey = otpSessionKeyFromType(identifierType);
+    await this.#setOtpLoginResponseToState(result, sessionKey);
+
+    return result.token.accessToken;
+  }
+
+  /**
+   * Returns the bearer token for an OTP session.
+   * Throws if no valid session exists for the given key.
+   *
+   * @param sessionKey - 'otp:email' or 'otp:phone'
+   * @returns The access token
+   */
+  public async getOtpBearerToken(sessionKey: OtpSessionKey): Promise<string> {
+    const session = await this.#getOtpLoginResponseFromState(sessionKey);
+    if (!session) {
+      throw new Error(`getOtpBearerToken - no session for: ${sessionKey}.`);
+    }
+    return session.token.accessToken;
+  }
+
+  /**
+   * Returns the session profile for an OTP session.
+   * Throws if no valid session exists for the given key.
+   *
+   * @param sessionKey - 'otp:email' or 'otp:phone'
+   * @returns The user profile
+   */
+  public async getOtpSessionProfile(
+    sessionKey: OtpSessionKey,
+  ): Promise<UserProfile> {
+    const session = await this.#getOtpLoginResponseFromState(sessionKey);
+    if (!session) {
+      throw new Error(`getOtpSessionProfile - no session for: ${sessionKey}.`);
+    }
+    return session.profile;
+  }
+
+  /**
+   * Clears OTP session(s).
+   *
+   * @param identifierType - If provided, clears only that session ('email' or 'phone'); otherwise clears all OTP sessions.
+   */
+  public performOtpSignOut(identifierType?: OtpIdentifierType): void {
+    this.update((state) => {
+      if (!state.otpSessionData) {
+        return;
+      }
+      if (identifierType) {
+        delete state.otpSessionData[otpSessionKeyFromType(identifierType)];
+      } else {
+        state.otpSessionData = undefined;
+      }
+    });
   }
 
   /**
