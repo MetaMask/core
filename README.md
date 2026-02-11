@@ -38,6 +38,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
+- [`@metamask/config-registry-controller`](packages/config-registry-controller)
 - [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
@@ -116,6 +117,7 @@ linkStyle default opacity:0.5
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
   claims_controller(["@metamask/claims-controller"]);
   composable_controller(["@metamask/composable-controller"]);
+  config_registry_controller(["@metamask/config-registry-controller"]);
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);

@@ -33,7 +33,8 @@ scripts/coverage
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-
+.yalc
+yalc.lock
 # typescript
 packages/*/*.tsbuildinfo
 
