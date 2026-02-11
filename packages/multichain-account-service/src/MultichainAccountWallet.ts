@@ -309,8 +309,8 @@ export class MultichainAccountWallet<
    *
    * IMPORTANT: This method assumes the caller has already acquired the wallet lock.
    *
-   * @param startGroupIndex - The starting group index (inclusive).
-   * @param endGroupIndex - The ending group index (inclusive).
+   * @param fromGroupIndex - The starting group index (inclusive).
+   * @param toGroupIndex - The ending group index (inclusive).
    * @param options - Options to configure the account creation.
    * @param options.waitForAllProvidersToFinishCreatingAccounts - Whether to wait for all
    * account providers to finish creating their accounts before returning. If `false`, only
@@ -320,8 +320,8 @@ export class MultichainAccountWallet<
    * @returns Array of created multichain account groups.
    */
   async #createMultichainAccountGroupsRange(
-    startGroupIndex: number,
-    endGroupIndex: number,
+    fromGroupIndex: number,
+    toGroupIndex: number,
     options: {
       waitForAllProvidersToFinishCreatingAccounts?: boolean;
     },
@@ -330,10 +330,10 @@ export class MultichainAccountWallet<
     const nextGroupIndex = this.getNextGroupIndex();
     const createdGroups: MultichainAccountGroup<Account>[] = [];
 
-    // Get existing groups (startGroupIndex to nextGroupIndex-1).
+    // Get existing groups (fromGroupIndex to nextGroupIndex-1).
     for (
-      let i = startGroupIndex;
-      i < Math.min(nextGroupIndex, endGroupIndex + 1);
+      let i = fromGroupIndex;
+      i < Math.min(nextGroupIndex, toGroupIndex + 1);
       i++
     ) {
       const group = this.getMultichainAccountGroup(i);
@@ -342,13 +342,11 @@ export class MultichainAccountWallet<
       }
     }
 
-    // Create new groups (max(nextGroupIndex, startGroupIndex) to endGroupIndex).
-    const firstNewGroupIndex = Math.max(nextGroupIndex, startGroupIndex);
-
-    if (firstNewGroupIndex <= endGroupIndex) {
-      this.#log(
-        `Creating groups from index ${firstNewGroupIndex} to ${endGroupIndex}...`,
-      );
+    // Create new groups (max(nextGroupIndex, fromGroupIndex) to toGroupIndex).
+    const from = Math.max(nextGroupIndex, fromGroupIndex);
+    const to = toGroupIndex;
+    if (from <= to) {
+      this.#log(`Creating groups from index ${from} to ${to}...`);
 
       const [evmProvider, ...otherProviders] = this.#providers;
       assert(
@@ -362,15 +360,15 @@ export class MultichainAccountWallet<
           type: AccountCreationType.Bip44DeriveIndexRange,
           entropySource: this.#entropySource,
           range: {
-            from: firstNewGroupIndex,
-            to: endGroupIndex,
+            from,
+            to,
           },
         })
         .catch((error) => {
           const modeDescription = isBatchMode ? 'batch accounts' : 'account';
           const rangeDescription = isBatchMode
-            ? `from index ${firstNewGroupIndex} to ${endGroupIndex}`
-            : `at index ${endGroupIndex}`;
+            ? `from index ${from} to ${to}`
+            : `at index ${to}`;
 
           const errorMessage = `Unable to create ${modeDescription} ${rangeDescription} with provider "${evmProvider.getName()}". Error: ${(error as Error).message}`;
           console.warn(errorMessage);
@@ -381,8 +379,8 @@ export class MultichainAccountWallet<
             error as Error,
             {
               range: {
-                from: firstNewGroupIndex,
-                to: endGroupIndex,
+                from,
+                to,
               },
               provider: evmProvider.getName(),
               isBatchMode,
@@ -395,16 +393,12 @@ export class MultichainAccountWallet<
       // Map EVM accounts to group indices.
       const accountsByGroupIndex = new Map<number, string[]>();
       evmAccounts.forEach((account, offset) => {
-        const groupIndex = firstNewGroupIndex + offset;
+        const groupIndex = from + offset;
         accountsByGroupIndex.set(groupIndex, [account.id]);
       });
 
       // Create MultichainAccountGroup instances for each new group.
-      for (
-        let groupIndex = firstNewGroupIndex;
-        groupIndex <= endGroupIndex;
-        groupIndex++
-      ) {
+      for (let groupIndex = from; groupIndex <= to; groupIndex++) {
         const evmAccountIds = accountsByGroupIndex.get(groupIndex) ?? [];
 
         const group = new MultichainAccountGroup({
