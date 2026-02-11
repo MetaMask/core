@@ -822,8 +822,8 @@ describe('BridgeStatusController', () => {
 
       bridgeStatusController.stopAllPolling();
       expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
+        [
+          [
             "Failed to fetch bridge tx status",
             [Error: Network error],
           ],
@@ -879,32 +879,32 @@ describe('BridgeStatusController', () => {
       );
       bridgeStatusController.stopAllPolling();
       expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
+        [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
-          Array [
+          [
             "Failed to fetch bridge tx status",
             [Error: Persistent error],
           ],
@@ -3457,7 +3457,7 @@ describe('BridgeStatusController', () => {
 
       const { txParams, ...resultsToCheck } = result;
       expect(resultsToCheck).toMatchInlineSnapshot(`
-        Object {
+        {
           "batchId": "batchId1",
           "chainId": "0xa4b1",
           "hash": "0xevmTxHash",
@@ -3961,6 +3961,9 @@ describe('BridgeStatusController', () => {
         expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
 
         // Now advance timer again - polling should work since attempts are reset
+        // Advance in steps to allow recursive setTimeout to be set up properly with Jest 28
+        jest.advanceTimersByTime(0);
+        await flushPromises();
         jest.advanceTimersByTime(10000);
         await flushPromises();
 
@@ -4092,6 +4095,7 @@ describe('BridgeStatusController', () => {
     let consoleFnSpy: jest.SpyInstance;
 
     beforeEach(() => {
+      jest.useFakeTimers();
       jest.clearAllTimers();
       jest.clearAllMocks();
       // eslint-disable-next-line no-empty-function
@@ -4195,6 +4199,7 @@ describe('BridgeStatusController', () => {
     afterEach(() => {
       bridgeStatusController.stopAllPolling();
       console.warn = consoleFn;
+      jest.useRealTimers();
     });
 
     describe('TransactionController:transactionFailed', () => {
@@ -4474,7 +4479,6 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for bridge tx if status response is invalid', async () => {
-        jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
@@ -4522,7 +4526,6 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for completed bridge tx with featureId', async () => {
-        jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
@@ -4559,7 +4562,6 @@ describe('BridgeStatusController', () => {
       });
 
       it('should start polling for failed bridge tx with featureId', async () => {
-        jest.useFakeTimers();
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
 
         mockFetchFn.mockClear();
@@ -4667,7 +4669,7 @@ describe('BridgeStatusController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -4680,8 +4682,8 @@ describe('BridgeStatusController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
+        {
+          "txHistory": {},
         }
       `);
     });
@@ -4696,8 +4698,8 @@ describe('BridgeStatusController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
+        {
+          "txHistory": {},
         }
       `);
     });
@@ -4712,8 +4714,8 @@ describe('BridgeStatusController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "txHistory": Object {},
+        {
+          "txHistory": {},
         }
       `);
     });

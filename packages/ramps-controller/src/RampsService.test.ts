@@ -336,34 +336,34 @@ describe('RampsService', () => {
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
-        Array [
-          Object {
+        [
+          {
             "currency": "USD",
             "flag": "🇺🇸",
             "isoCode": "US",
             "name": "United States of America",
-            "phone": Object {
+            "phone": {
               "placeholder": "(555) 123-4567",
               "prefix": "+1",
               "template": "(XXX) XXX-XXXX",
             },
             "recommended": true,
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": true,
             },
           },
-          Object {
+          {
             "currency": "EUR",
             "flag": "🇦🇹",
             "isoCode": "AT",
             "name": "Austria",
-            "phone": Object {
+            "phone": {
               "placeholder": "660 1234567",
               "prefix": "+43",
               "template": "XXX XXXXXXX",
             },
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": false,
             },
@@ -391,34 +391,34 @@ describe('RampsService', () => {
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
-        Array [
-          Object {
+        [
+          {
             "currency": "USD",
             "flag": "🇺🇸",
             "isoCode": "US",
             "name": "United States of America",
-            "phone": Object {
+            "phone": {
               "placeholder": "(555) 123-4567",
               "prefix": "+1",
               "template": "(XXX) XXX-XXXX",
             },
             "recommended": true,
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": true,
             },
           },
-          Object {
+          {
             "currency": "EUR",
             "flag": "🇦🇹",
             "isoCode": "AT",
             "name": "Austria",
-            "phone": Object {
+            "phone": {
               "placeholder": "660 1234567",
               "prefix": "+43",
               "template": "XXX XXXXXXX",
             },
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": false,
             },
@@ -446,34 +446,34 @@ describe('RampsService', () => {
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
-        Array [
-          Object {
+        [
+          {
             "currency": "USD",
             "flag": "🇺🇸",
             "isoCode": "US",
             "name": "United States of America",
-            "phone": Object {
+            "phone": {
               "placeholder": "(555) 123-4567",
               "prefix": "+1",
               "template": "(XXX) XXX-XXXX",
             },
             "recommended": true,
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": true,
             },
           },
-          Object {
+          {
             "currency": "EUR",
             "flag": "🇦🇹",
             "isoCode": "AT",
             "name": "Austria",
-            "phone": Object {
+            "phone": {
               "placeholder": "660 1234567",
               "prefix": "+43",
               "template": "XXX XXXXXXX",
             },
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": false,
             },
@@ -665,18 +665,18 @@ describe('RampsService', () => {
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
-        Array [
-          Object {
+        [
+          {
             "currency": "USD",
             "flag": "🇺🇸",
             "isoCode": "US",
             "name": "United States",
-            "phone": Object {
+            "phone": {
               "placeholder": "",
               "prefix": "+1",
               "template": "",
             },
-            "supported": Object {
+            "supported": {
               "buy": true,
               "sell": true,
             },
@@ -884,9 +884,9 @@ describe('RampsService', () => {
       const tokensResponse = await tokensPromise;
 
       expect(tokensResponse).toMatchInlineSnapshot(`
-        Object {
-          "allTokens": Array [
-            Object {
+        {
+          "allTokens": [
+            {
               "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
               "chainId": "eip155:1",
               "decimals": 6,
@@ -896,8 +896,8 @@ describe('RampsService', () => {
               "tokenSupported": true,
             },
           ],
-          "topTokens": Array [
-            Object {
+          "topTokens": [
+            {
               "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
               "chainId": "eip155:1",
               "decimals": 6,
@@ -1710,7 +1710,6 @@ describe('RampsService', () => {
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
           },
           metadata: {
             reliability: 95,
@@ -2248,6 +2247,90 @@ describe('RampsService', () => {
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
+    });
+  });
+
+  describe('RampsService:getBuyWidgetUrl', () => {
+    it('returns buy widget data from the buy URL endpoint', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/providers/transak-staging/buy-widget')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
+      const { rootMessenger } = getService();
+
+      const buyWidgetPromise = rootMessenger.call(
+        'RampsService:getBuyWidgetUrl',
+        'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+      const buyWidget = await buyWidgetPromise;
+
+      expect(buyWidget).toStrictEqual({
+        url: 'https://global.transak.com/?apiKey=test',
+        browser: 'APP_BROWSER',
+        orderId: null,
+      });
+    });
+
+    it('throws when the response is not ok', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/providers/transak-staging/buy-widget')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .times(4)
+        .reply(500, 'Internal Server Error');
+      const { service } = getService();
+      service.onRetry(() => {
+        clock.nextAsync().catch(() => undefined);
+      });
+
+      const buyWidgetPromise = service.getBuyWidgetUrl(
+        'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(buyWidgetPromise).rejects.toThrow(
+        `Fetching 'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
+      );
+    });
+
+    it('throws when the response does not contain url field', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/providers/transak-staging/buy-widget')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, {
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
+      const { rootMessenger } = getService();
+
+      const buyWidgetPromise = rootMessenger.call(
+        'RampsService:getBuyWidgetUrl',
+        'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(buyWidgetPromise).rejects.toThrow(
+        'Malformed response received from buy widget URL API',
+      );
     });
   });
 });

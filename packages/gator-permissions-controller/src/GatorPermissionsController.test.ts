@@ -490,7 +490,7 @@ describe('GatorPermissionsController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -506,11 +506,11 @@ describe('GatorPermissionsController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "grantedPermissions": Array [],
+        {
+          "grantedPermissions": [],
           "isFetchingGatorPermissions": false,
           "lastSyncedTimestamp": -1,
-          "pendingRevocations": Array [],
+          "pendingRevocations": [],
         }
       `);
     });
@@ -528,8 +528,8 @@ describe('GatorPermissionsController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "grantedPermissions": Array [],
+        {
+          "grantedPermissions": [],
           "lastSyncedTimestamp": -1,
         }
       `);
@@ -548,10 +548,10 @@ describe('GatorPermissionsController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "grantedPermissions": Array [],
+        {
+          "grantedPermissions": [],
           "isFetchingGatorPermissions": false,
-          "pendingRevocations": Array [],
+          "pendingRevocations": [],
         }
       `);
     });
