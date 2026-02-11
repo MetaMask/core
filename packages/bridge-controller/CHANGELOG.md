@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AssetPickerOpened` and `AssetSelected` unified swap bridge metrics events. ([#7575](https://github.com/MetaMask/core/pull/7575))
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
