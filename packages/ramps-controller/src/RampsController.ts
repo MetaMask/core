@@ -513,13 +513,6 @@ export class RampsController extends BaseController<
   #quotePollingInterval: ReturnType<typeof setInterval> | null = null;
 
   /**
-   * Monotonically increasing nonce used to detect stale in-flight
-   * `#syncWidgetUrl` responses. Incremented every time the widget URL
-   * is about to change (sync, reset, or provider/token change).
-   */
-  #widgetUrlNonce = 0;
-
-  /**
    * Options used for quote polling (walletAddress, amount, redirectUrl).
    * Stored so polling can be restarted when dependencies change.
    */
@@ -1031,7 +1024,6 @@ export class RampsController extends BaseController<
       );
     }
 
-    this.#widgetUrlNonce += 1;
     this.update((state) => {
       state.providers.selected = provider;
       resetResource(state, 'paymentMethods');
@@ -1198,7 +1190,6 @@ export class RampsController extends BaseController<
       );
     }
 
-    this.#widgetUrlNonce += 1;
     this.update((state) => {
       state.tokens.selected = token;
       resetResource(state, 'paymentMethods');
@@ -1668,9 +1659,6 @@ export class RampsController extends BaseController<
    * @param quote - The quote to fetch the widget URL for, or null to clear.
    */
   #syncWidgetUrl(quote: Quote | null): void {
-    this.#widgetUrlNonce += 1;
-    const nonce = this.#widgetUrlNonce;
-
     const buyUrl = quote?.quote?.buyURL;
     if (!buyUrl) {
       this.update((state) => {
@@ -1689,9 +1677,6 @@ export class RampsController extends BaseController<
       this.messenger
         .call('RampsService:getBuyWidgetUrl', buyUrl)
         .then((buyWidget) => {
-          if (this.#widgetUrlNonce !== nonce) {
-            return;
-          }
           this.update((state) => {
             state.widgetUrl.data = buyWidget;
             state.widgetUrl.isLoading = false;
@@ -1699,9 +1684,6 @@ export class RampsController extends BaseController<
           });
         })
         .catch((error: unknown) => {
-          if (this.#widgetUrlNonce !== nonce) {
-            return;
-          }
           this.update((state) => {
             state.widgetUrl.data = null;
             state.widgetUrl.isLoading = false;

@@ -6269,6 +6269,116 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('does not overwrite reset widgetUrl when a stale fetch resolves after setUserRegion', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              countries: createResourceState(createMockCountries()),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const staleResponse = {
+            url: 'https://stale.example.com',
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          };
+
+          let staleResolve: ((value: unknown) => void) | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getBuyWidgetUrl',
+            () =>
+              new Promise((resolve) => {
+                staleResolve = () => resolve(staleResponse);
+              }),
+          );
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({ providers: [] }),
+          );
+
+          const quote: Quote = {
+            provider: '/providers/transak-staging',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+              buyURL: 'https://example.com/widget',
+            },
+          };
+
+          controller.setSelectedQuote(quote);
+          await controller.setUserRegion('FR');
+
+          staleResolve?.(undefined);
+          await flushPromises();
+
+          expect(controller.state.widgetUrl.data).toBeNull();
+          expect(controller.state.widgetUrl.isLoading).toBe(false);
+          expect(controller.state.widgetUrl.error).toBeNull();
+        },
+      );
+    });
+
+    it('does not overwrite reset widgetUrl when a stale fetch resolves after cleanupState via setUserRegion error', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              countries: createResourceState([]),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const staleResponse = {
+            url: 'https://stale.example.com',
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          };
+
+          let staleResolve: ((value: unknown) => void) | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getBuyWidgetUrl',
+            () =>
+              new Promise((resolve) => {
+                staleResolve = () => resolve(staleResponse);
+              }),
+          );
+
+          const quote: Quote = {
+            provider: '/providers/transak-staging',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+              buyURL: 'https://example.com/widget',
+            },
+          };
+
+          controller.setSelectedQuote(quote);
+
+          await expect(controller.setUserRegion('US-CA')).rejects.toThrow(
+            'No countries found',
+          );
+
+          staleResolve?.(undefined);
+          await flushPromises();
+
+          expect(controller.state.widgetUrl.data).toBeNull();
+          expect(controller.state.widgetUrl.isLoading).toBe(false);
+          expect(controller.state.widgetUrl.error).toBeNull();
+        },
+      );
+    });
   });
 
   describe('polling restart on dependency changes', () => {
