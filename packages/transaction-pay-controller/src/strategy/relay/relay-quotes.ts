@@ -6,7 +6,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { CHAIN_ID_HYPERCORE, TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
 import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
 import type {
@@ -16,8 +16,10 @@ import type {
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
+  CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  STABLECOINS,
 } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
@@ -315,10 +317,11 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
-  const provider = getFiatValueFromUsd(
-    calculateProviderFee(quote),
-    usdToFiatRate,
-  );
+  const subsidizedFeeUsd = getSubsidizedFeeAmountUsd(quote);
+
+  const provider = subsidizedFeeUsd.gt(0)
+    ? { usd: '0', fiat: '0' }
+    : getFiatValueFromUsd(calculateProviderFee(quote), usdToFiatRate);
 
   const {
     gasLimits,
@@ -337,11 +340,30 @@ async function normalizeQuote(
     ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
   };
 
-  const targetAmount: Amount = {
-    human: currencyOut.amountFormatted,
-    raw: currencyOut.amount,
-    ...getFiatValueFromUsd(new BigNumber(currencyOut.amountUsd), usdToFiatRate),
-  };
+  const isTargetStablecoin = isStablecoin(
+    request.targetChainId,
+    request.targetTokenAddress,
+  );
+
+  const additionalTargetAmountUsd =
+    quote.request.tradeType === 'EXACT_INPUT'
+      ? subsidizedFeeUsd
+      : new BigNumber(0);
+
+  if (additionalTargetAmountUsd.gt(0)) {
+    log(
+      'Including subsidized fee in target amount',
+      additionalTargetAmountUsd.toString(10),
+    );
+  }
+
+  const baseTargetAmountUsd = isTargetStablecoin
+    ? new BigNumber(currencyOut.amountFormatted)
+    : new BigNumber(currencyOut.amountUsd);
+
+  const targetAmountUsd = baseTargetAmountUsd.plus(additionalTargetAmountUsd);
+
+  const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
 
   const metamask = {
     gasLimits,
@@ -851,4 +873,27 @@ async function calculateSourceNetworkGasLimitBatch(
     totalGasLimit,
     gasLimits,
   };
+}
+
+function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
+  const subsidizedFee = quote.fees?.subsidized;
+  const amountUsd = new BigNumber(subsidizedFee?.amountUsd ?? '0');
+  const amountFormatted = new BigNumber(subsidizedFee?.amountFormatted ?? '0');
+
+  if (!subsidizedFee || amountUsd.isZero()) {
+    return new BigNumber(0);
+  }
+
+  const isSubsidizedStablecoin = isStablecoin(
+    toHex(subsidizedFee.currency.chainId),
+    subsidizedFee.currency.address,
+  );
+
+  return isSubsidizedStablecoin ? amountFormatted : amountUsd;
+}
+
+function isStablecoin(chainId: string, tokenAddress: string): boolean {
+  return Boolean(
+    STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
+  );
 }

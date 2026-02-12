@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Add subsidized fee to Relay quote target amount if `isMaxAmount` ([#7911](https://github.com/MetaMask/core/pull/7911))
+  - Remove `human` and `raw` from `targetAmount` on `TransactionPayQuote` and `TransactionPayTotals`
+  - Use `amountFormatted` as USD value for Relay quote target amount and subsidized fee when token is a stablecoin
+  - Set provider fee to zero when subsidized fee is present
+  - Add MUSD, USDC, USDT, and Hypercore USDC to stablecoins
+
 ## [13.0.0]
 
 ### Added
