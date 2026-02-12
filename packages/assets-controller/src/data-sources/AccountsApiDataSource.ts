@@ -14,6 +14,7 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
+  AssetsControllerStateInternal,
 } from '../types';
 import { normalizeAssetId } from '../utils';
 
@@ -48,7 +49,19 @@ const defaultState: AccountsApiDataSourceState = {
 // OPTIONS
 // ============================================================================
 
-export type AccountsApiDataSourceOptions = {
+/** Optional configuration for AccountsApiDataSource. */
+export type AccountsApiDataSourceConfig = {
+  /** Polling interval in ms (default: 30000) */
+  pollInterval?: number;
+  /**
+   * Whether token detection is enabled (default: true).
+   * When false, balances are only returned for tokens already in state.
+   * New tokens from the API are filtered out.
+   */
+  tokenDetectionEnabled?: boolean;
+};
+
+export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
   /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
@@ -57,7 +70,6 @@ export type AccountsApiDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
-  pollInterval?: number;
   state?: Partial<AccountsApiDataSourceState>;
 };
 
@@ -116,11 +128,16 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   readonly #pollInterval: number;
 
+  readonly #tokenDetectionEnabled: boolean;
+
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** State accessor from subscriptions (for filtering when tokenDetectionEnabled is false) */
+  #getAssetsState?: () => AssetsControllerStateInternal;
 
   constructor(options: AccountsApiDataSourceOptions) {
     super(CONTROLLER_NAME, {
@@ -130,6 +147,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    this.#tokenDetectionEnabled = options.tokenDetectionEnabled ?? true;
     this.#apiClient = options.queryApiClient;
 
     this.#initializeActiveChains().catch(console.error);
@@ -360,7 +378,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
       let successfullyHandledChains: ChainId[] = [];
 
       try {
-        const response = await this.fetch(request);
+        let response = await this.fetch(request);
+
+        // When token detection is disabled, filter out tokens not already in state
+        if (!this.#tokenDetectionEnabled && this.#getAssetsState) {
+          response = this.#filterToKnownAssets(response);
+        }
 
         // Merge response into context
         if (response.assetsBalance) {
@@ -412,6 +435,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     const { request, subscriptionId, isUpdate } = subscriptionRequest;
 
+    // Store state accessor for filtering when tokenDetectionEnabled is false
+    if (subscriptionRequest.getAssetsState) {
+      this.#getAssetsState = subscriptionRequest.getAssetsState;
+    }
+
     // Try all requested chains - API will handle unsupported ones via unprocessedNetworks
     const chainsToSubscribe = request.chainIds;
 
@@ -443,10 +471,15 @@ export class AccountsApiDataSource extends AbstractDataSource<
         }
 
         // Use stored request (which gets updated on account changes)
-        const fetchResponse = await this.fetch({
+        let fetchResponse = await this.fetch({
           ...subscription.request,
           chainIds: subscription.chains,
         });
+
+        // When token detection is disabled, filter out tokens not already in state
+        if (!this.#tokenDetectionEnabled && this.#getAssetsState) {
+          fetchResponse = this.#filterToKnownAssets(fetchResponse);
+        }
 
         // Report update to AssetsController via callback
         await subscription.onAssetsUpdate(fetchResponse);
@@ -472,6 +505,57 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     // Initial fetch
     await pollFn();
+  }
+
+  // ============================================================================
+  // TOKEN DETECTION FILTER
+  // ============================================================================
+
+  /**
+   * Filter a response to only include balances for assets already in state.
+   * Used when tokenDetectionEnabled is false to prevent adding new tokens.
+   *
+   * @param response - The fetch response to filter.
+   * @returns A new response with only known asset balances.
+   */
+  #filterToKnownAssets(response: DataResponse): DataResponse {
+    if (!response.assetsBalance || !this.#getAssetsState) {
+      return response;
+    }
+
+    const currentState = this.#getAssetsState();
+    const filteredBalance: Record<
+      string,
+      Record<Caip19AssetId, AssetBalance>
+    > = {};
+
+    for (const [accountId, accountBalances] of Object.entries(
+      response.assetsBalance,
+    )) {
+      const existingBalances = currentState.assetsBalance[accountId];
+      if (!existingBalances) {
+        // Account has no balances in state yet — skip all its tokens
+        continue;
+      }
+
+      const filtered: Record<Caip19AssetId, AssetBalance> = {};
+      for (const [assetId, balance] of Object.entries(accountBalances)) {
+        // Only include assets already tracked in state
+        if (assetId in existingBalances) {
+          filtered[assetId as Caip19AssetId] = balance;
+        }
+      }
+
+      if (Object.keys(filtered).length > 0) {
+        filteredBalance[accountId] = filtered;
+      }
+    }
+
+    return {
+      ...response,
+      assetsBalance:
+        Object.keys(filteredBalance).length > 0 ? filteredBalance : undefined,
+    };
   }
 
   // ============================================================================

@@ -30,13 +30,17 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // OPTIONS
 // ============================================================================
 
-export type PriceDataSourceOptions = {
+/** Optional configuration for PriceDataSource. */
+export type PriceDataSourceConfig = {
+  /** Polling interval in ms (default: 60000) */
+  pollInterval?: number;
+};
+
+export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
   /** Currency to fetch prices in (default: 'usd') */
   currency?: SupportedCurrency;
-  /** Polling interval in ms (default: 60000) */
-  pollInterval?: number;
 };
 
 // ============================================================================

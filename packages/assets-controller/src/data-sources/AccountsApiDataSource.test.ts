@@ -434,4 +434,265 @@ describe('AccountsApiDataSource', () => {
 
     controller.destroy();
   });
+
+  describe('tokenDetectionEnabled', () => {
+    async function setupControllerWithDetection(
+      options: {
+        supportedChains?: number[];
+        balances?: V5BalanceItem[];
+        unprocessedNetworks?: string[];
+        tokenDetectionEnabled?: boolean;
+      } = {},
+    ): Promise<SetupResult> {
+      const {
+        supportedChains = [1, 137],
+        balances = [],
+        unprocessedNetworks = [],
+        tokenDetectionEnabled,
+      } = options;
+
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        AllActions,
+        AllEvents
+      >({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      const controllerMessenger = new Messenger<
+        'AccountsApiDataSource',
+        AllActions,
+        AllEvents,
+        RootMessenger
+      >({
+        namespace: 'AccountsApiDataSource',
+        parent: rootMessenger,
+      });
+
+      rootMessenger.delegate({
+        messenger: controllerMessenger,
+        actions: [],
+        events: [],
+      });
+
+      const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
+      const activeChainsUpdateHandler = jest.fn();
+
+      const apiClient = createMockApiClient(
+        supportedChains,
+        balances,
+        unprocessedNetworks,
+      );
+
+      const controllerOptions: AccountsApiDataSourceOptions = {
+        queryApiClient:
+          apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
+        onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
+          activeChainsUpdateHandler(dataSourceName, chains, previousChains),
+      };
+
+      if (tokenDetectionEnabled !== undefined) {
+        controllerOptions.tokenDetectionEnabled = tokenDetectionEnabled;
+      }
+
+      const controller = new AccountsApiDataSource(controllerOptions);
+
+      // Wait for async initialization
+      await new Promise(process.nextTick);
+
+      return {
+        controller,
+        messenger: rootMessenger,
+        apiClient,
+        assetsUpdateHandler,
+        activeChainsUpdateHandler,
+      };
+    }
+
+    const KNOWN_ASSET =
+      'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+    const UNKNOWN_ASSET =
+      'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7';
+    const ACCOUNT_ID = 'mock-account-id';
+
+    it('includes all tokens when tokenDetectionEnabled is true (default)', async () => {
+      const { controller, assetsUpdateHandler } =
+        await setupControllerWithDetection({
+          balances: [
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              KNOWN_ASSET,
+              '1000',
+            ),
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              UNKNOWN_ASSET,
+              '2000',
+            ),
+          ],
+        });
+
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {
+            [ACCOUNT_ID]: {
+              [KNOWN_ASSET]: { amount: '500' },
+            },
+          },
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+      const response = assetsUpdateHandler.mock.calls[0][0];
+      // Both tokens should be included
+      expect(
+        Object.keys(response.assetsBalance?.[ACCOUNT_ID] ?? {}),
+      ).toHaveLength(2);
+
+      controller.destroy();
+    });
+
+    it('filters out unknown tokens when tokenDetectionEnabled is false', async () => {
+      const { controller, assetsUpdateHandler } =
+        await setupControllerWithDetection({
+          tokenDetectionEnabled: false,
+          balances: [
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              KNOWN_ASSET,
+              '1000',
+            ),
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              UNKNOWN_ASSET,
+              '2000',
+            ),
+          ],
+        });
+
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {
+            [ACCOUNT_ID]: {
+              [KNOWN_ASSET]: { amount: '500' },
+            },
+          },
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+      const response = assetsUpdateHandler.mock.calls[0][0];
+      // Only the known token should be included
+      const accountBalances = response.assetsBalance?.[ACCOUNT_ID] ?? {};
+      expect(Object.keys(accountBalances)).toHaveLength(1);
+      expect(accountBalances[KNOWN_ASSET]).toStrictEqual({ amount: '1000' });
+      expect(accountBalances[UNKNOWN_ASSET]).toBeUndefined();
+
+      controller.destroy();
+    });
+
+    it('returns empty balance when no tokens are known and tokenDetectionEnabled is false', async () => {
+      const { controller, assetsUpdateHandler } =
+        await setupControllerWithDetection({
+          tokenDetectionEnabled: false,
+          balances: [
+            createMockBalanceItem(
+              `eip155:1:${MOCK_ADDRESS}`,
+              UNKNOWN_ASSET,
+              '2000',
+            ),
+          ],
+        });
+
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {},
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+      const response = assetsUpdateHandler.mock.calls[0][0];
+      // No balances should be returned
+      expect(response.assetsBalance).toBeUndefined();
+
+      controller.destroy();
+    });
+
+    it('filters unknown tokens in middleware when tokenDetectionEnabled is false', async () => {
+      const { controller } = await setupControllerWithDetection({
+        tokenDetectionEnabled: false,
+        balances: [
+          createMockBalanceItem(
+            `eip155:1:${MOCK_ADDRESS}`,
+            KNOWN_ASSET,
+            '1000',
+          ),
+          createMockBalanceItem(
+            `eip155:1:${MOCK_ADDRESS}`,
+            UNKNOWN_ASSET,
+            '2000',
+          ),
+        ],
+      });
+
+      // Set up state accessor via subscribe (middleware uses the stored getAssetsState)
+      await controller.subscribe({
+        subscriptionId: 'sub-setup',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: jest.fn(),
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {
+            [ACCOUNT_ID]: {
+              [KNOWN_ASSET]: { amount: '500' },
+            },
+          },
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      const middleware = controller.assetsMiddleware;
+      const context = createMiddlewareContext();
+      const nextFn = jest.fn();
+
+      await middleware(context, nextFn);
+
+      // Verify only known asset is in the response
+      const accountBalances =
+        context.response.assetsBalance?.[ACCOUNT_ID] ?? {};
+      expect(accountBalances[KNOWN_ASSET as never]).toStrictEqual({
+        amount: '1000',
+      });
+      expect(accountBalances[UNKNOWN_ASSET as never]).toBeUndefined();
+
+      controller.destroy();
+    });
+  });
 });

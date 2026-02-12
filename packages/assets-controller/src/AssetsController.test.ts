@@ -272,6 +272,95 @@ describe('AssetsController', () => {
       });
     });
 
+    it('accepts accountsApiDataSourceConfig option', () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getState', () => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+        provider: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('TokenListController:getState', () => ({
+        tokensChainsCache: {},
+      }));
+
+      expect(
+        () =>
+          new AssetsController({
+            messenger: messenger as unknown as AssetsControllerMessenger,
+            isEnabled: (): boolean => false,
+            queryApiClient: createMockQueryApiClient(),
+            subscribeToBasicFunctionalityChange: (): void => {
+              /* no-op */
+            },
+            accountsApiDataSourceConfig: {
+              pollInterval: 15_000,
+              tokenDetectionEnabled: false,
+            },
+          }),
+      ).not.toThrow();
+    });
+
+    it('accepts priceDataSourceConfig option', () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getState', () => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+        provider: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('TokenListController:getState', () => ({
+        tokensChainsCache: {},
+      }));
+
+      expect(
+        () =>
+          new AssetsController({
+            messenger: messenger as unknown as AssetsControllerMessenger,
+            isEnabled: (): boolean => false,
+            queryApiClient: createMockQueryApiClient(),
+            subscribeToBasicFunctionalityChange: (): void => {
+              /* no-op */
+            },
+            priceDataSourceConfig: {
+              pollInterval: 120_000,
+            },
+          }),
+      ).not.toThrow();
+    });
+
     it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {
       await withController(async ({ controller }) => {
         expect(controller.handleBasicFunctionalityChange).toBeDefined();
