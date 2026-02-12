@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.10.0]
+
+### Added
+
+- Add ensureError utility for converting unknown values to error ([#275](https://github.com/MetaMask/utils/pull/275))
+
 ## [11.9.0]
 
 ### Added
@@ -480,7 +486,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v11.9.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v11.10.0...HEAD
+[11.10.0]: https://github.com/MetaMask/utils/compare/v11.9.0...v11.10.0
 [11.9.0]: https://github.com/MetaMask/utils/compare/v11.8.1...v11.9.0
 [11.8.1]: https://github.com/MetaMask/utils/compare/v11.8.0...v11.8.1
 [11.8.0]: https://github.com/MetaMask/utils/compare/v11.7.0...v11.8.0
