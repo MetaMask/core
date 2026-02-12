@@ -16,6 +16,7 @@ import {
   assert,
   pattern,
   intersection,
+  any,
 } from '@metamask/superstruct';
 import {
   CaipAssetTypeStruct,
@@ -332,6 +333,27 @@ export const IntentSchema = type({
    * Optional relayer address responsible for order submission.
    */
   relayer: optional(HexAddressSchema),
+
+  /**
+   * Optional EIP-712 typed data payload for signing.
+   * Must be JSON-serializable and include required EIP-712 fields.
+   */
+  typedData: optional(
+    type({
+      types: record(
+        string(),
+        array(
+          type({
+            name: string(),
+            type: string(),
+          }),
+        ),
+      ),
+      primaryType: string(),
+      domain: any(),
+      message: any(),
+    }),
+  ),
 });
 
 export const QuoteSchema = type({
