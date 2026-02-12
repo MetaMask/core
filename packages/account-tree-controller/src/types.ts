@@ -94,6 +94,11 @@ export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
   handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
 };
 
+export type AccountTreeControllerGetAccountContextAction = {
+  type: `${typeof controllerName}:getAccountContext`;
+  handler: AccountTreeController['getAccountContext'];
+};
+
 export type AccountTreeControllerSetAccountWalletNameAction = {
   type: `${typeof controllerName}:setAccountWalletName`;
   handler: AccountTreeController['setAccountWalletName'];
@@ -134,6 +139,7 @@ export type AccountTreeControllerActions =
   | AccountTreeControllerSetSelectedAccountGroupAction
   | AccountTreeControllerGetSelectedAccountGroupAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | AccountTreeControllerGetAccountContextAction
   | AccountTreeControllerSetAccountWalletNameAction
   | AccountTreeControllerSetAccountGroupNameAction
   | AccountTreeControllerSetAccountGroupPinnedAction

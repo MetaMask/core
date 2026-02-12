@@ -17,7 +17,13 @@
       "path": "./packages/address-book-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/ai-controllers/tsconfig.build.json"
+    },
+    {
       "path": "./packages/analytics-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/analytics-data-regulation-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/announcement-controller/tsconfig.build.json"
@@ -152,6 +158,9 @@
       "path": "./packages/permission-log-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/perps-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/phishing-controller/tsconfig.build.json"
     },
     {
@@ -195,9 +204,6 @@
     },
     {
       "path": "./packages/subscription-controller/tsconfig.build.json"
-    },
-    {
-      "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/transaction-controller/tsconfig.build.json"

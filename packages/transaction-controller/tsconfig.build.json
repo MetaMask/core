@@ -10,6 +10,7 @@
     { "path": "../approval-controller/tsconfig.build.json" },
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },
+    { "path": "../core-backend/tsconfig.build.json" },
     { "path": "../gas-fee-controller/tsconfig.build.json" },
     { "path": "../network-controller/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" },

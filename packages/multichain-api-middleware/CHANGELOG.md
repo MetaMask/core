@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
+- Bump `@metamask/multichain-transactions-controller` from `7.0.0` to `7.0.1` ([#7897](https://github.com/MetaMask/core/pull/7897))
+
 ## [1.2.6]
 
 ### Changed

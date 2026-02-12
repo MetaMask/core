@@ -1094,32 +1094,31 @@ export class KeyringController<
    */
   async getKeyringForAccount(account: string): Promise<unknown> {
     this.#assertIsUnlocked();
-    const address = normalize(account);
-
-    const candidates = await Promise.all(
-      this.#keyrings.map(async ({ keyring }) => {
-        return [keyring, await keyring.getAccounts()] as const;
-      }),
-    );
-
-    const winners = candidates.filter((candidate) => {
-      const accounts = candidate[1].map(normalize);
-      return accounts.includes(address);
-    });
-
-    if (winners.length && winners[0]?.length) {
-      return winners[0][0];
+    const keyringIndex = await this.#findKeyringIndexForAccount(account);
+    if (keyringIndex > -1) {
+      return this.#keyrings[keyringIndex].keyring;
     }
 
     // Adding more info to the error
     let errorInfo = '';
-    if (!candidates.length) {
+    if (this.#keyrings.length === 0) {
       errorInfo = 'There are no keyrings';
-    } else if (!winners.length) {
+    } else {
       errorInfo = 'There are keyrings, but none match the address';
     }
     throw new KeyringControllerError(
       `${KeyringControllerErrorMessage.NoKeyring}. Error info: ${errorInfo}`,
+    );
+  }
+
+  async #findKeyringIndexForAccount(account: string): Promise<number> {
+    this.#assertIsUnlocked();
+    const address = account.toLowerCase();
+    const accountsPerKeyring = await Promise.all(
+      this.#keyrings.map(({ keyring }) => keyring.getAccounts()),
+    );
+    return accountsPerKeyring.findIndex((accounts) =>
+      accounts.map((a) => a.toLowerCase()).includes(address),
     );
   }
 
@@ -1237,11 +1236,15 @@ export class KeyringController<
     this.#assertIsUnlocked();
 
     await this.#persistOrRollback(async () => {
-      const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
+      const keyringIndex = await this.#findKeyringIndexForAccount(address);
 
-      const keyringIndex = this.state.keyrings.findIndex((kr) =>
-        kr.accounts.includes(address),
-      );
+      if (keyringIndex === -1) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.NoKeyring,
+        );
+      }
+
+      const { keyring } = this.#keyrings[keyringIndex];
 
       const isPrimaryKeyring = keyringIndex === 0;
       const shouldRemoveKeyring = (await keyring.getAccounts()).length === 1;
@@ -1260,15 +1263,18 @@ export class KeyringController<
         );
       }
 
-      // The `removeAccount` method of snaps keyring is async. We have to update
-      // the interface of the other keyrings to be async as well.
-      // FIXME: We do cast to `Hex` to makes the type checker happy here, and
-      // because `Keyring<State>.removeAccount` requires address to be `Hex`. Those
-      // type would need to be updated for a full non-EVM support.
-      keyring.removeAccount(address as Hex);
+      // FIXME #1: We do cast to `Hex` to make the type checker happy here, and
+      // because `Keyring<State>.removeAccount` requires address to be `Hex`.
+      // Those types would need to be updated for a full non-EVM support.
+      //
+      // FIXME #2: The `removeAccount` method of snaps keyring is async. We have
+      // to update the interface of the other keyrings to be async as well.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
+      await keyring.removeAccount(address as Hex);
 
       if (shouldRemoveKeyring) {
-        await this.#removeEmptyKeyrings();
+        this.#keyrings.splice(keyringIndex, 1);
+        await this.#destroyKeyring(keyring);
       }
     });
 
@@ -2574,34 +2580,6 @@ export class KeyringController<
    */
   async #destroyKeyring(keyring: EthKeyring): Promise<void> {
     await keyring.destroy?.();
-  }
-
-  /**
-   * Remove empty keyrings.
-   *
-   * Loops through the keyrings and removes the ones with empty accounts
-   * (usually after removing the last / only account) from a keyring.
-   */
-  async #removeEmptyKeyrings(): Promise<void> {
-    this.#assertControllerMutexIsLocked();
-    const validKeyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[] =
-      [];
-
-    // Since getAccounts returns a Promise
-    // We need to wait to hear back form each keyring
-    // in order to decide which ones are now valid (accounts.length > 0)
-
-    await Promise.all(
-      this.#keyrings.map(async ({ keyring, metadata }) => {
-        const accounts = await keyring.getAccounts();
-        if (accounts.length > 0) {
-          validKeyrings.push({ keyring, metadata });
-        } else {
-          await this.#destroyKeyring(keyring);
-        }
-      }),
-    );
-    this.#keyrings = validKeyrings;
   }
 
   /**

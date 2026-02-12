@@ -88,7 +88,9 @@ describe('createPermissionRulesForChainId', () => {
     const rules = createPermissionRulesForChainId(contracts);
     expect(rules).toHaveLength(permissionTypeCount);
 
-    const byType = Object.fromEntries(rules.map((r) => [r.permissionType, r]));
+    const byType = Object.fromEntries(
+      rules.map((rule) => [rule.permissionType, rule]),
+    );
 
     // native-token-stream
     expect(byType['native-token-stream']).toBeDefined();

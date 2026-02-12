@@ -45,7 +45,7 @@ import mockBridgeQuotesSolErc20 from '../tests/mock-quotes-sol-erc20.json';
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
 jest.mock('uuid', () => ({
-  v4: () => 'test-uuid-1234',
+  v4: (): string => 'test-uuid-1234',
 }));
 
 const messengerMock = {
@@ -72,6 +72,7 @@ const bridgeConfig = {
   maxRefreshCount: 3,
   refreshRate: 3,
   support: true,
+  chainRanking: [],
   chains: {
     '10': { isActiveSrc: true, isActiveDest: false },
     '534352': { isActiveSrc: true, isActiveDest: false },
@@ -365,7 +366,7 @@ describe('BridgeController', function () {
       },
       context: metricsContext,
     });
-    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -380,6 +381,7 @@ describe('BridgeController', function () {
     await flushPromises();
     expect(fetchBridgeQuotesSpy).not.toHaveBeenCalled();
     expect(fetchQuotesStreamSpy).toHaveBeenCalledTimes(1);
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
   });
 
   it('updateBridgeQuoteRequestParams should trigger quote polling if request is valid', async function () {
@@ -485,7 +487,7 @@ describe('BridgeController', function () {
       },
       context: metricsContext,
     });
-    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -500,6 +502,7 @@ describe('BridgeController', function () {
     jest.advanceTimersByTime(1000);
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
       {
         ...quoteRequest,
@@ -659,7 +662,7 @@ describe('BridgeController', function () {
       .spyOn(console, 'warn')
       .mockImplementation(jest.fn());
 
-    const setupMessengerMock = (shouldMinBalanceFail = false) => {
+    const setupMessengerMock = (shouldMinBalanceFail = false): void => {
       messengerMock.call.mockImplementation(
         (
           ...args: Parameters<BridgeControllerMessenger['call']>
@@ -957,7 +960,7 @@ describe('BridgeController', function () {
         action.includes('SnapController'),
       ),
     ).toMatchSnapshot();
-    expect(consoleWarnSpy).toHaveBeenCalledTimes(5);
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(4);
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       'Failed to fetch asset exchange rates',
       new Error('Currency rate error'),
@@ -1862,7 +1865,7 @@ describe('BridgeController', function () {
                       asset: {
                         unit: 'SOL',
                         type: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:11111111111111111111111111111111',
-                        amount: expectedFees || '0',
+                        amount: expectedFees ?? '0',
                         fungible: true,
                       },
                     },
@@ -2703,6 +2706,7 @@ describe('BridgeController', function () {
         enabled: true,
         minimumVersion: '13.8.0',
       },
+      chainRanking: [{ chainId: 'eip155:1' as const, name: 'Ethereum' }],
     };
 
     const quotesByDecreasingProcessingTime = [...mockBridgeQuotesSolErc20];
@@ -2772,14 +2776,14 @@ describe('BridgeController', function () {
 
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
-            Object {
-              "aggIds": Array [
+        [
+          [
+            {
+              "aggIds": [
                 "debridge",
                 "socket",
               ],
-              "bridgeIds": Array [
+              "bridgeIds": [
                 "bridge1",
                 "bridge2",
               ],
@@ -2868,14 +2872,14 @@ describe('BridgeController', function () {
 
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
-            Object {
-              "aggIds": Array [
+        [
+          [
+            {
+              "aggIds": [
                 "debridge",
                 "socket",
               ],
-              "bridgeIds": Array [
+              "bridgeIds": [
                 "bridge1",
                 "bridge2",
               ],
@@ -2930,9 +2934,9 @@ describe('BridgeController', function () {
 
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-        Array [
-          Array [
-            Object {
+        [
+          [
+            {
               "destChainId": "1",
               "destTokenAddress": "0x1234",
               "gasIncluded": false,
@@ -2993,7 +2997,7 @@ describe('BridgeController', function () {
           bridgeController.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -3004,14 +3008,14 @@ describe('BridgeController', function () {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "assetExchangeRates": Object {},
+        {
+          "assetExchangeRates": {},
           "minimumBalanceForRentExemptionInLamports": "0",
           "quoteFetchError": null,
-          "quoteRequest": Object {
+          "quoteRequest": {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",
           },
-          "quotes": Array [],
+          "quotes": [],
           "quotesInitialLoadTime": null,
           "quotesLastFetched": null,
           "quotesLoadingStatus": null,
@@ -3027,7 +3031,7 @@ describe('BridgeController', function () {
           bridgeController.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
@@ -3038,14 +3042,14 @@ describe('BridgeController', function () {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "assetExchangeRates": Object {},
+        {
+          "assetExchangeRates": {},
           "minimumBalanceForRentExemptionInLamports": "0",
           "quoteFetchError": null,
-          "quoteRequest": Object {
+          "quoteRequest": {
             "srcTokenAddress": "0x0000000000000000000000000000000000000000",
           },
-          "quotes": Array [],
+          "quotes": [],
           "quotesInitialLoadTime": null,
           "quotesLastFetched": null,
           "quotesLoadingStatus": null,

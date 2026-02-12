@@ -1572,6 +1572,21 @@ describe('KeyringController', () => {
         });
       });
 
+      it('should not remove primary keyring when address is not normalized', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const account = initialState.keyrings[0].accounts[0] as Hex;
+          // Convert to checksummed/uppercase address (non-normalized), keeping 0x prefix lowercase
+          const nonNormalizedAccount = `0x${account.slice(2).toUpperCase()}`;
+          await expect(
+            controller.removeAccount(nonNormalizedAccount),
+          ).rejects.toThrow(
+            KeyringControllerErrorMessage.LastAccountInPrimaryKeyring,
+          );
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(1);
+        });
+      });
+
       it('should not remove primary keyring if it has no accounts even if it has more than one HD keyring', async () => {
         await withController(async ({ controller }) => {
           await controller.addNewKeyring(KeyringTypes.hd);
@@ -1623,15 +1638,11 @@ describe('KeyringController', () => {
             controller.removeAccount(
               '0x0000000000000000000000000000000000000000',
             ),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow('KeyringController - No keyring found');
 
           await expect(
             controller.removeAccount('0xDUMMY_INPUT'),
-          ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
-          );
+          ).rejects.toThrow('KeyringController - No keyring found');
         });
       });
 
@@ -1644,6 +1655,88 @@ describe('KeyringController', () => {
           );
           expect(controller.state.keyrings).toHaveLength(1);
         });
+      });
+
+      it('should not remove other empty keyrings when removing an account', async () => {
+        await withController(async ({ controller }) => {
+          // Import an account, creating a Simple keyring with 1 account
+          const importedAccount = await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+
+          // Add an empty Simple keyring (no accounts)
+          await controller.addNewKeyring(KeyringTypes.simple);
+
+          // We now have: 1 HD keyring + 1 Simple keyring (with account) + 1 empty Simple keyring = 3 keyrings
+          expect(controller.state.keyrings).toHaveLength(3);
+          expect(controller.state.keyrings[1].accounts).toStrictEqual([
+            importedAccount,
+          ]);
+          expect(controller.state.keyrings[2].accounts).toStrictEqual([]);
+
+          // Remove the imported account (empties the first Simple keyring)
+          await controller.removeAccount(importedAccount);
+
+          // Only the targeted keyring should be removed, the other empty Simple keyring should remain
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+          expect(controller.state.keyrings[1].type).toBe(KeyringTypes.simple);
+          expect(controller.state.keyrings[1].accounts).toStrictEqual([]);
+        });
+      });
+
+      it('should await an async removeAccount method before removing the keyring', async () => {
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
+
+        // Track async operation state
+        let removeAccountCompleted = false;
+        let keyringCountDuringRemove: number | undefined;
+
+        // Create a mock keyring class with an async removeAccount
+        class AsyncRemoveAccountKeyring extends MockKeyring {
+          static override type = 'Async Remove Account Keyring';
+
+          override type = 'Async Remove Account Keyring';
+
+          removeAccount = jest.fn(async () => {
+            // Simulate async operation with a delay
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            removeAccountCompleted = true;
+          });
+        }
+
+        stubKeyringClassWithAccount(AsyncRemoveAccountKeyring, address);
+
+        await withController(
+          {
+            keyringBuilders: [keyringBuilderFactory(AsyncRemoveAccountKeyring)],
+          },
+          async ({ controller, messenger }) => {
+            await controller.addNewKeyring(AsyncRemoveAccountKeyring.type);
+            expect(controller.state.keyrings).toHaveLength(2);
+
+            // Subscribe to state changes to capture timing
+            messenger.subscribe('KeyringController:stateChange', () => {
+              // Record keyring count when state changes and removeAccount hasn't completed yet
+              if (
+                !removeAccountCompleted &&
+                keyringCountDuringRemove === undefined
+              ) {
+                keyringCountDuringRemove = controller.state.keyrings.length;
+              }
+            });
+
+            await controller.removeAccount(address);
+
+            // Verify removeAccount completed before the keyring was removed
+            expect(removeAccountCompleted).toBe(true);
+            // The keyring should only be removed after removeAccount completes,
+            // so the first state change should still have 2 keyrings (or be undefined if no change occurred before completion)
+            // After completion, keyring count should be 1
+            expect(controller.state.keyrings).toHaveLength(1);
+          },
+        );
       });
     });
 
@@ -4293,7 +4386,7 @@ describe('KeyringController', () => {
               'includeInDebugSnapshot',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "isUnlocked": false,
             }
           `);
@@ -4313,9 +4406,9 @@ describe('KeyringController', () => {
               'includeInStateLogs',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "isUnlocked": false,
-              "keyrings": Array [],
+              "keyrings": [],
             }
           `);
         },
@@ -4334,8 +4427,8 @@ describe('KeyringController', () => {
               'persist',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
-              "vault": "{\\"data\\":\\"{\\\\\\"tag\\\\\\":{\\\\\\"key\\\\\\":{\\\\\\"password\\\\\\":\\\\\\"password123\\\\\\",\\\\\\"salt\\\\\\":\\\\\\"salt\\\\\\"},\\\\\\"iv\\\\\\":\\\\\\"iv\\\\\\"},\\\\\\"value\\\\\\":[{\\\\\\"type\\\\\\":\\\\\\"HD Key Tree\\\\\\",\\\\\\"data\\\\\\":{\\\\\\"mnemonic\\\\\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\\\\\"numberOfAccounts\\\\\\":1,\\\\\\"hdPath\\\\\\":\\\\\\"m/44'/60'/0'/0\\\\\\"},\\\\\\"metadata\\\\\\":{\\\\\\"id\\\\\\":\\\\\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\\\\\",\\\\\\"name\\\\\\":\\\\\\"\\\\\\"}}]}\\",\\"iv\\":\\"iv\\",\\"salt\\":\\"salt\\"}",
+            {
+              "vault": "{"data":"{\\"tag\\":{\\"key\\":{\\"password\\":\\"password123\\",\\"salt\\":\\"salt\\"},\\"iv\\":\\"iv\\"},\\"value\\":[{\\"type\\":\\"HD Key Tree\\",\\"data\\":{\\"mnemonic\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\"numberOfAccounts\\":1,\\"hdPath\\":\\"m/44'/60'/0'/0\\"},\\"metadata\\":{\\"id\\":\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\",\\"name\\":\\"\\"}}]}","iv":"iv","salt":"salt"}",
             }
           `);
         },
@@ -4354,9 +4447,9 @@ describe('KeyringController', () => {
               'usedInUi',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "isUnlocked": false,
-              "keyrings": Array [],
+              "keyrings": [],
             }
           `);
         },

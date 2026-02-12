@@ -7,9 +7,9 @@ import {
 describe('KnownRpcMethods', () => {
   it('should match the snapshot', () => {
     expect(KnownRpcMethods).toMatchInlineSnapshot(`
-      Object {
-        "bip122": Array [],
-        "eip155": Array [
+      {
+        "bip122": [],
+        "eip155": [
           "personal_sign",
           "eth_signTypedData_v4",
           "wallet_watchAsset",
@@ -53,8 +53,8 @@ describe('KnownRpcMethods', () => {
           "eth_syncing",
           "eth_uninstallFilter",
         ],
-        "solana": Array [],
-        "tron": Array [],
+        "solana": [],
+        "tron": [],
       }
     `);
   });
@@ -63,7 +63,7 @@ describe('KnownRpcMethods', () => {
 describe('KnownSessionProperties', () => {
   it('should match the snapshot', () => {
     expect(KnownSessionProperties).toMatchInlineSnapshot(`
-      Object {
+      {
         "Bip122AccountChangedNotifications": "bip122_accountChanged_notifications",
         "SolanaAccountChangedNotifications": "solana_accountChanged_notifications",
         "TronAccountChangedNotifications": "tron_accountChanged_notifications",

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-internal-api` from `^9.0.0` to `^10.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+
 ## [3.0.2]
 
 ### Changed
@@ -217,7 +225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Handle both EVM and non-EVM network and account switching for the associated network.
   - Act as a proxy for the `NetworkController` (for EVM network changes).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.3...HEAD
+[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.2...@metamask/multichain-network-controller@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.1...@metamask/multichain-network-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.0...@metamask/multichain-network-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@2.0.0...@metamask/multichain-network-controller@3.0.0

@@ -1,7 +1,12 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import { AccountCreationType } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -159,37 +164,46 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   ): Promise<void> {
     await this.withSnap(async ({ keyring }) => {
       const localSnapAccounts = accounts.filter(
-        (account) =>
-          account.metadata.snap && account.metadata.snap.id === this.snapId,
+        (account) => account.metadata.snap?.id === this.snapId,
       );
       const snapAccounts = new Set(
         (await this.#client.listAccounts()).map((account) => account.id),
       );
 
-      // NOTE: This should never happen, but we want to report that kind of errors still
-      // in case states are de-sync.
+      // NOTE: This should never happen, but if it does, we recover by deleting the
+      // extra accounts from the Snap to bring it back in sync with MetaMask.
       if (localSnapAccounts.length < snapAccounts.size) {
-        this.messenger.captureException?.(
-          new Error(
-            `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask!`,
-          ),
+        // Build a set of local account IDs for quick lookup
+        const localAccountIds = new Set(
+          localSnapAccounts.map((account) => account.id),
         );
 
-        // We don't recover from this case yet.
-        return;
+        // Find and delete accounts that exist in Snap but not in MetaMask
+        await Promise.all(
+          [...snapAccounts].map(async (snapAccountId) => {
+            try {
+              if (!localAccountIds.has(snapAccountId)) {
+                // This account exists in the Snap but not in MetaMask, delete it from
+                // the Snap.
+                await this.#client.deleteAccount(snapAccountId);
+                // Update the local Set so subsequent checks use the correct size
+                snapAccounts.delete(snapAccountId);
+              }
+            } catch (error) {
+              const sentryError = createSentryError(
+                `Unable to delete de-synced Snap account: ${this.snapId}`,
+                error as Error,
+                { provider: this.getName(), snapAccountId },
+              );
+              this.messenger.captureException?.(sentryError);
+            }
+          }),
+        );
       }
 
       // We want this part to be fast, so we only check for sizes, but we might need
       // to make a real "diff" between the 2 states to not miss any de-sync.
       if (localSnapAccounts.length > snapAccounts.size) {
-        // Accounts should never really be de-synced, so we want to log this to see how often this
-        // happens, cause that means that something else is buggy elsewhere...
-        this.messenger.captureException?.(
-          new Error(
-            `Snap "${this.snapId}" has de-synced accounts, we'll attempt to re-sync them...`,
-          ),
-        );
-
         // We always use the MetaMask list as the main reference here.
         await Promise.all(
           localSnapAccounts.map(async (account) => {
@@ -203,6 +217,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 await keyring.removeAccount(account.address);
                 // The Snap has no account in its state for this one, we re-create it.
                 await this.createAccounts({
+                  type: AccountCreationType.Bip44DeriveIndex,
                   entropySource,
                   groupIndex,
                 });
@@ -257,10 +272,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
 
-  abstract createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]>;
+  abstract createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]>;
 
   abstract discoverAccounts(options: {
     entropySource: EntropySourceId;

@@ -17,7 +17,11 @@ import {
   pattern,
   intersection,
 } from '@metamask/superstruct';
-import { CaipAssetTypeStruct, isStrictHexString } from '@metamask/utils';
+import {
+  CaipAssetTypeStruct,
+  CaipChainIdStruct,
+  isStrictHexString,
+} from '@metamask/utils';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
@@ -101,6 +105,19 @@ const DefaultPairSchema = type({
   other: record(string(), string()),
 });
 
+export const ChainRankingItemSchema = type({
+  /**
+   * The CAIP-2 chain identifier (e.g., "eip155:1" for Ethereum mainnet)
+   */
+  chainId: CaipChainIdStruct,
+  /**
+   * The display name of the chain (e.g., "Ethereum")
+   */
+  name: string(),
+});
+
+export const ChainRankingSchema = optional(array(ChainRankingItemSchema));
+
 export const ChainConfigurationSchema = type({
   isActiveSrc: boolean(),
   isActiveDest: boolean(),
@@ -154,6 +171,10 @@ export const PlatformConfigSchema = type({
       minimumVersion: VersionStringSchema,
     }),
   ),
+  /**
+   * Array of chain objects ordered by preference/ranking
+   */
+  chainRanking: ChainRankingSchema,
 });
 
 export const validateFeatureFlagsResponse = (

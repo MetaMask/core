@@ -18,9 +18,9 @@ export type RampsServiceGetGeolocationAction = {
 
 /**
  * Makes a request to the cached API to retrieve the list of supported countries.
+ * The API returns countries with support information for both buy and sell actions.
  * Filters countries based on aggregator support (preserves OnRampSDK logic).
  *
- * @param action - The ramp action type ('buy' or 'sell').
  * @returns An array of countries filtered by aggregator support.
  */
 export type RampsServiceGetCountriesAction = {
@@ -30,9 +30,12 @@ export type RampsServiceGetCountriesAction = {
 
 /**
  * Fetches the list of available tokens for a given region and action.
+ * Supports optional provider filter.
  *
  * @param region - The region code (e.g., "us", "fr", "us-ny").
  * @param action - The ramp action type ('buy' or 'sell').
+ * @param options - Optional query parameters for filtering tokens.
+ * @param options.provider - Provider ID(s) to filter by.
  * @returns The tokens response containing topTokens and allTokens.
  */
 export type RampsServiceGetTokensAction = {
@@ -58,10 +61,62 @@ export type RampsServiceGetProvidersAction = {
 };
 
 /**
+ * Fetches the list of payment methods for a given region, asset, and provider.
+ *
+ * @param options - Query parameters for filtering payment methods.
+ * @param options.region - User's region code (e.g., "us-al").
+ * @param options.fiat - Fiat currency code (e.g., "usd").
+ * @param options.assetId - CAIP-19 cryptocurrency identifier.
+ * @param options.provider - Provider ID path.
+ * @returns The payment methods response containing payments array.
+ */
+export type RampsServiceGetPaymentMethodsAction = {
+  type: `RampsService:getPaymentMethods`;
+  handler: RampsService['getPaymentMethods'];
+};
+
+/**
+ * Fetches quotes from all providers for a given set of parameters.
+ * Uses the V2 orders API to get quotes for multiple payment methods at once.
+ *
+ * @param params - The parameters for fetching quotes.
+ * @param params.region - User's region code (e.g., "us", "us-ca").
+ * @param params.paymentMethods - Array of payment method IDs.
+ * @param params.assetId - CAIP-19 cryptocurrency identifier.
+ * @param params.fiat - Fiat currency code (e.g., "usd").
+ * @param params.amount - The amount (in fiat for buy, crypto for sell).
+ * @param params.walletAddress - The destination wallet address.
+ * @param params.redirectUrl - Optional redirect URL after order completion.
+ * @param params.providers - Optional provider IDs to filter quotes.
+ * @param params.action - The ramp action type. Defaults to 'buy'.
+ * @returns The quotes response containing success, sorted, error, and customActions.
+ */
+export type RampsServiceGetQuotesAction = {
+  type: `RampsService:getQuotes`;
+  handler: RampsService['getQuotes'];
+};
+
+/**
+ * Fetches the buy widget data from a buy URL endpoint.
+ * Makes a request to the buyURL (as provided in a quote) to get the actual
+ * provider widget URL, browser type, and order ID.
+ *
+ * @param buyUrl - The full buy URL endpoint to fetch from.
+ * @returns The buy widget data containing the provider widget URL.
+ */
+export type RampsServiceGetBuyWidgetUrlAction = {
+  type: `RampsService:getBuyWidgetUrl`;
+  handler: RampsService['getBuyWidgetUrl'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
-  | RampsServiceGetProvidersAction;
+  | RampsServiceGetProvidersAction
+  | RampsServiceGetPaymentMethodsAction
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction;

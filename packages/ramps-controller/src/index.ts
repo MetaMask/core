@@ -7,10 +7,12 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOptions,
   UserRegion,
+  ResourceState,
 } from './RampsController';
 export {
   RampsController,
   getDefaultRampsControllerState,
+  RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 export type {
   RampsServiceActions,
@@ -18,10 +20,26 @@ export type {
   RampsServiceMessenger,
   Country,
   State,
+  SupportedActions,
   CountryPhone,
   Provider,
   ProviderLink,
   ProviderLogos,
+  ProviderBrowserType,
+  RampAction,
+  PaymentMethod,
+  PaymentMethodsResponse,
+  Quote,
+  QuoteError,
+  QuoteSortBy,
+  QuoteSortOrder,
+  QuoteCryptoTranslation,
+  QuoteCustomAction,
+  QuotesResponse,
+  GetQuotesParams,
+  RampsToken,
+  TokensResponse,
+  BuyWidget,
 } from './RampsService';
 export {
   RampsService,
@@ -32,12 +50,16 @@ export {
 export type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
+  RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
+  ResourceType,
 } from './RequestCache';
 export {
   RequestStatus,

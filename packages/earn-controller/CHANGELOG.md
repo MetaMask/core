@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.1` ([#7869](https://github.com/MetaMask/core/pull/7869)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+
 ## [11.1.0]
 
 ### Added

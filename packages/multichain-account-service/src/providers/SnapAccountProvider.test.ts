@@ -1,8 +1,20 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
-import { KeyringRpcMethod } from '@metamask/keyring-api';
-import type { GetAccountRequest } from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
+  BtcScope,
+  KeyringRpcMethod,
+  SolScope,
+  TrxScope,
+} from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  DeleteAccountRequest,
+  GetAccountRequest,
+  KeyringCapabilities,
+} from '@metamask/keyring-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
@@ -47,6 +59,18 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     maxActiveCount: number;
   };
 
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [
+      SolScope.Devnet,
+      SolScope.Testnet,
+      BtcScope.Testnet,
+      TrxScope.Shasta,
+    ],
+    bip44: {
+      deriveIndex: true,
+    },
+  };
+
   constructor(
     snapId: SnapId,
     messenger: MultichainAccountServiceMessenger,
@@ -77,10 +101,13 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     return [];
   }
 
-  async createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+    ]);
+
     const { tracker } = this;
 
     return this.withMaxConcurrency(async () => {
@@ -129,6 +156,7 @@ const setup = ({
       handleKeyringRequest: {
         getAccount: jest.fn(),
         listAccounts: jest.fn(),
+        deleteAccount: jest.fn(),
       },
       handleRequest: jest.fn(),
     },
@@ -164,6 +192,10 @@ const setup = ({
         );
       } else if (request.method === String(KeyringRpcMethod.ListAccounts)) {
         return await mocks.SnapController.handleKeyringRequest.listAccounts();
+      } else if (request.method === String(KeyringRpcMethod.DeleteAccount)) {
+        return await mocks.SnapController.handleKeyringRequest.deleteAccount(
+          (request as DeleteAccountRequest).params.id,
+        );
       }
       throw new Error(`Unhandled method: ${request.method}`);
     },
@@ -174,6 +206,9 @@ const setup = ({
   );
   mocks.SnapController.handleKeyringRequest.listAccounts.mockImplementation(
     async () => accounts.map(asKeyringAccount),
+  );
+  mocks.SnapController.handleKeyringRequest.deleteAccount.mockResolvedValue(
+    null,
   );
 
   const keyring = {
@@ -571,6 +606,7 @@ describe('SnapAccountProvider', () => {
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -595,6 +631,7 @@ describe('SnapAccountProvider', () => {
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -615,6 +652,7 @@ describe('SnapAccountProvider', () => {
       // Start 3 concurrent calls
       const promises = [0, 1, 2].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -635,6 +673,7 @@ describe('SnapAccountProvider', () => {
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -648,6 +687,21 @@ describe('SnapAccountProvider', () => {
       // Without maxConcurrency specified, should default to Infinity (no throttling)
       // So all 4 should have been able to run concurrently
       expect(tracker.maxActiveCount).toBe(4);
+    });
+
+    it('throws an error when type is not "bip44:derive-index"', async () => {
+      const { provider } = setup();
+
+      await expect(
+        provider.createAccounts({
+          // @ts-expect-error Testing invalid type handling.
+          type: 'unsupported-type',
+          entropySource: TEST_ENTROPY_SOURCE,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow(
+        'Unsupported create account option type: unsupported-type',
+      );
     });
   });
 
@@ -674,40 +728,119 @@ describe('SnapAccountProvider', () => {
     });
 
     it('creates new accounts if de-synced', async () => {
-      const { provider, messenger } = setup({
+      const { provider } = setup({
         accounts: [mockAccounts[0]],
       });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
-
-      expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error(
-          `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
-        ),
-      );
 
       const desyncedAccount = mockAccounts[1];
       expect(createAccountsSpy).toHaveBeenCalledWith({
         entropySource: desyncedAccount.options.entropy.id,
         groupIndex: desyncedAccount.options.entropy.groupIndex,
+        type: AccountCreationType.Bip44DeriveIndex,
       });
     });
 
-    it('reports an error if a Snap has more accounts than MetaMask', async () => {
-      const { provider, messenger } = setup({ accounts: mockAccounts });
+    it('deletes extra Snap accounts when Snap has more accounts than MetaMask', async () => {
+      const { provider, mocks } = setup({ accounts: mockAccounts });
+
+      // Snap has both accounts, but MetaMask only has the first one
+      await provider.resyncAccounts([mockAccounts[0]]);
+
+      // deleteAccount should be called for the extra account in the Snap
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledWith(mockAccounts[1].id);
+    });
+
+    it('handles deleteAccount errors gracefully when recovering de-synced accounts', async () => {
+      const { provider, messenger, mocks } = setup({ accounts: mockAccounts });
 
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-
-      await provider.resyncAccounts([mockAccounts[0]]); // Less accounts than the Snap
-
-      expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error(
-          `Snap "${TEST_SNAP_ID}" has de-synced accounts, Snap has more accounts than MetaMask!`,
-        ),
+      const deleteError = new Error('Failed to delete account');
+      mocks.SnapController.handleKeyringRequest.deleteAccount.mockRejectedValue(
+        deleteError,
       );
+
+      // Snap has both accounts, but MetaMask only has the first one
+      await provider.resyncAccounts([mockAccounts[0]]);
+
+      // Should have attempted to delete the extra account
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledWith(mockAccounts[1].id);
+
+      // Should capture the deletion error but not throw
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: `Unable to delete de-synced Snap account: ${TEST_SNAP_ID}`,
+          cause: deleteError,
+        }),
+      );
+    });
+
+    it('does not delete accounts that exist in both Snap and MetaMask', async () => {
+      const { provider, mocks } = setup({ accounts: mockAccounts });
+
+      // Both accounts exist in both Snap and MetaMask
+      await provider.resyncAccounts(mockAccounts);
+
+      // deleteAccount should not be called since accounts are in sync
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('handles bidirectional de-sync by deleting extra Snap accounts and recreating missing ones', async () => {
+      // Create extra accounts that only exist in the Snap
+      const extraSnapAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withUuid()
+        .withSnapId(TEST_SNAP_ID)
+        .get();
+      const extraSnapAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_2)
+        .withUuid()
+        .withSnapId(TEST_SNAP_ID)
+        .get();
+
+      // Snap has: [mockAccounts[0], extraSnapAccount1, extraSnapAccount2] (3 accounts)
+      // MetaMask has: [mockAccounts[0], mockAccounts[1]] (2 accounts)
+      // First condition (2 < 3): delete extraSnapAccount1 and extraSnapAccount2 from Snap
+      // After deletion: snapAccounts.size = 1, so second condition (2 > 1) triggers
+      // Second condition: recreate mockAccounts[1] in Snap
+      const { provider, mocks, keyring } = setup({
+        accounts: [mockAccounts[0], extraSnapAccount1, extraSnapAccount2],
+      });
+
+      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+
+      await provider.resyncAccounts(mockAccounts);
+
+      // Should delete the extra Snap accounts
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledTimes(2);
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledWith(extraSnapAccount1.id);
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledWith(extraSnapAccount2.id);
+
+      // Should remove from keyring and recreate the missing account
+      expect(keyring.removeAccount).toHaveBeenCalledWith(
+        mockAccounts[1].address,
+      );
+      expect(createAccountsSpy).toHaveBeenCalledWith({
+        entropySource: mockAccounts[1].options.entropy.id,
+        groupIndex: mockAccounts[1].options.entropy.groupIndex,
+        type: AccountCreationType.Bip44DeriveIndex,
+      });
     });
 
     it('does not throw errors if any provider is not able to re-sync', async () => {
@@ -723,14 +856,7 @@ describe('SnapAccountProvider', () => {
 
       expect(createAccountsSpy).toHaveBeenCalled();
 
-      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
-        1,
-        new Error(
-          `Snap "${TEST_SNAP_ID}" has de-synced accounts, we'll attempt to re-sync them...`,
-        ),
-      );
-      expect(captureExceptionSpy).toHaveBeenNthCalledWith(
-        2,
+      expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error('Unable to re-sync account: 0'),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(

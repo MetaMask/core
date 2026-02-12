@@ -7,18 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [62.17.0]
+
 ### Added
 
+- Add optional `isPostQuote` to `MetamaskPayMetadata` for post-quote withdrawal flows ([#7783](https://github.com/MetaMask/core/pull/7783))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+
+## [62.16.0]
+
+### Added
+
+- Add event-driven transaction polling via `AccountActivityService:transactionUpdated` ([#7822](https://github.com/MetaMask/core/pull/7822))
+
+## [62.15.0]
+
+### Added
+
+- Add optional `requiredAssets` to `TransactionMeta` ([#7820](https://github.com/MetaMask/core/pull/7820))
+  - Provided by new options in `addTransaction` and `addTransactionBatch`.
+
+### Changed
+
+- Lock `@metamask/core-backend` to `5.0.0` ([#7852](https://github.com/MetaMask/core/pull/7852))
+
+## [62.14.0]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^5.0.0` to `^5.1.0` ([#7817](https://github.com/MetaMask/core/pull/7817))
+
+## [62.13.0]
+
+### Added
+
+- Add `HYPEREVM` network support ([#7770](https://github.com/MetaMask/core/pull/7770))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+- Add network fallback mechanism to `IncomingTransactionHelper` for WebSocket-based transaction retrieval ([#7759](https://github.com/MetaMask/core/pull/7759))
+
+## [62.12.0]
+
+### Added
+
+- Add `musdClaim` transaction type ([#7723](https://github.com/MetaMask/core/pull/7723))
+
+## [62.11.0]
+
+### Added
+
+- Add `perpsDepositAndOrder` to `TransactionType` ([#7755](https://github.com/MetaMask/core/pull/7755))
+
+### Changed
+
+- fix: issue in releasing transaction controller due to core-backend dependency ([#7748](https://github.com/MetaMask/core/pull/7748))
+
+## [62.10.0]
+
+### Added
+
+- Add support for enhanced transaction history retrieval via WebSocket events ([#7689](https://github.com/MetaMask/core/pull/7689))
 - Add support for `submitHistoryLimit` feature flag to configure the maximum number of entries in the submit history ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Defaults to 100 if not provided.
 - Add support for `transactionHistoryLimit` feature flag to configure the maximum number of transactions stored in state ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Defaults to 40 if not provided.
+- Add optional `callTraceErrors` to `simulationData` ([#7641](https://github.com/MetaMask/core/pull/7641))
 
 ### Changed
 
 - **DEPRECATED**: The `transactionHistoryLimit` constructor option is now deprecated ([#7648](https://github.com/MetaMask/core/pull/7648))
   - Use the `transactionHistoryLimit` feature flag in `RemoteFeatureFlagController` instead.
   - This option will be removed in a future version.
+
+### Fixed
+
+- Ensure provided `batchId` is used in `addTransactionBatch` when going through the publish batch hook route ([#7705](https://github.com/MetaMask/core/pull/7705))
 
 ## [62.9.2]
 
@@ -2098,7 +2164,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.17.0...HEAD
+[62.17.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.16.0...@metamask/transaction-controller@62.17.0
+[62.16.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.15.0...@metamask/transaction-controller@62.16.0
+[62.15.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.14.0...@metamask/transaction-controller@62.15.0
+[62.14.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.13.0...@metamask/transaction-controller@62.14.0
+[62.13.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.12.0...@metamask/transaction-controller@62.13.0
+[62.12.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.11.0...@metamask/transaction-controller@62.12.0
+[62.11.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.10.0...@metamask/transaction-controller@62.11.0
+[62.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.2...@metamask/transaction-controller@62.10.0
 [62.9.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.1...@metamask/transaction-controller@62.9.2
 [62.9.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.9.0...@metamask/transaction-controller@62.9.1
 [62.9.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.8.0...@metamask/transaction-controller@62.9.0

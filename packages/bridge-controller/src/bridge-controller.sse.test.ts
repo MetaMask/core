@@ -118,6 +118,7 @@ describe('BridgeController SSE', function () {
           isActiveDest: true,
         },
       },
+      chainRanking: [{ chainId: 'eip155:1' as const, name: 'Ethereum' }],
     });
 
     bridgeController = new BridgeController({
@@ -160,11 +161,10 @@ describe('BridgeController SSE', function () {
       },
       context: metricsContext,
     });
-    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quoteRequest,
-      assetExchangeRates,
       quotesLoadingStatus: RequestStatus.LOADING,
     };
     expect(bridgeController.state).toStrictEqual(expectedState);
@@ -197,6 +197,7 @@ describe('BridgeController SSE', function () {
     // After first fetch
     jest.advanceTimersByTime(5000);
     await flushPromises();
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
       quotesInitialLoadTime: 6000,
@@ -213,6 +214,7 @@ describe('BridgeController SSE', function () {
       quotesRefreshCount: 1,
       quotesLoadingStatus: 1,
       quotesLastFetched: t1,
+      assetExchangeRates,
     });
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledTimes(0);
@@ -300,7 +302,6 @@ describe('BridgeController SSE', function () {
       const expectedState = {
         ...DEFAULT_BRIDGE_CONTROLLER_STATE,
         quoteRequest: usdtQuoteRequest,
-        assetExchangeRates,
         quotesLoadingStatus: RequestStatus.LOADING,
       };
       expect(bridgeController.state).toStrictEqual(expectedState);
@@ -356,6 +357,7 @@ describe('BridgeController SSE', function () {
         quotesRefreshCount: 1,
         quotesLoadingStatus: 1,
         quotesLastFetched: t1,
+        assetExchangeRates,
       });
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(consoleLogSpy).toHaveBeenCalledTimes(0);
@@ -423,7 +425,6 @@ describe('BridgeController SSE', function () {
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quoteRequest: usdtQuoteRequest,
-      assetExchangeRates,
       quotesLoadingStatus: RequestStatus.LOADING,
     };
     expect(bridgeController.state).toStrictEqual(expectedState);
@@ -477,6 +478,7 @@ describe('BridgeController SSE', function () {
       quotesRefreshCount: 1,
       quotesLoadingStatus: 1,
       quotesLastFetched: t1,
+      assetExchangeRates,
     });
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledTimes(0);
@@ -637,8 +639,8 @@ describe('BridgeController SSE', function () {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     ).toBeGreaterThan(t2!);
     expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
-      Array [
-        Array [
+      [
+        [
           "Failed to stream bridge quotes",
           "Network error",
         ],
@@ -714,7 +716,7 @@ describe('BridgeController SSE', function () {
         ...quoteRequest,
         srcTokenAmount: '10',
       },
-      assetExchangeRates,
+      assetExchangeRates: {},
     };
     // Start new quote request
     await bridgeController.updateBridgeQuoteRequestParams(
@@ -763,6 +765,7 @@ describe('BridgeController SSE', function () {
         resetApproval: false,
       },
       quotesLastFetched: t1,
+      assetExchangeRates,
     };
     expect(bridgeController.state.quotes).toHaveLength(1);
     expect(bridgeController.state).toStrictEqual({
@@ -787,6 +790,7 @@ describe('BridgeController SSE', function () {
         l1GasFeesInHexWei: '0x1',
         resetApproval: undefined,
       })),
+      assetExchangeRates,
     });
     expect(
       bridgeController.state.quotesLastFetched,
@@ -952,9 +956,9 @@ describe('BridgeController SSE', function () {
       t6!,
     );
     expect(consoleWarnSpy.mock.calls[0]).toMatchInlineSnapshot(`
-      Array [
+      [
         "Quote validation failed",
-        Array [
+        [
           "lifi|trade",
           "lifi|trade.chainId",
           "lifi|trade.to",
@@ -982,21 +986,21 @@ describe('BridgeController SSE', function () {
     );
     expect(consoleWarnSpy.mock.calls).toHaveLength(3);
     expect(consoleWarnSpy.mock.calls[1]).toMatchInlineSnapshot(`
-      Array [
+      [
         "Quote validation failed",
-        Array [
+        [
           "unknown|unknown",
         ],
       ]
     `);
     expect(consoleWarnSpy.mock.calls[2]).toMatchInlineSnapshot(`
-              Array [
-                "Quote validation failed",
-                Array [
-                  "unknown|quote",
-                ],
-              ]
-          `);
+      [
+        "Quote validation failed",
+        [
+          "unknown|quote",
+        ],
+      ]
+    `);
 
     expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(5);
@@ -1028,11 +1032,10 @@ describe('BridgeController SSE', function () {
       },
       context: metricsContext,
     });
-    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quoteRequest,
-      assetExchangeRates,
+      assetExchangeRates: {},
       quotesLoadingStatus: RequestStatus.LOADING,
     };
     expect(bridgeController.state).toStrictEqual(expectedState);
@@ -1056,6 +1059,7 @@ describe('BridgeController SSE', function () {
       },
       '13.8.0',
     );
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
     const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
       bridgeController.state;
     // eslint-disable-next-line jest/no-restricted-matchers
@@ -1067,6 +1071,7 @@ describe('BridgeController SSE', function () {
     await flushPromises();
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
+      assetExchangeRates,
       quoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
@@ -1080,7 +1085,7 @@ describe('BridgeController SSE', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy.mock.calls[0]).toMatchInlineSnapshot(`
-      Array [
+      [
         "Failed to stream bridge quotes",
         [Error: Bridge-api error: timeout from server],
       ]

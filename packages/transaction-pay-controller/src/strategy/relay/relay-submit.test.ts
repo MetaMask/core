@@ -62,6 +62,7 @@ const ORIGINAL_QUOTE_MOCK = {
   request: {},
   steps: [
     {
+      id: 'swap',
       kind: 'transaction',
       requestId: REQUEST_ID_MOCK,
       items: [
@@ -396,6 +397,26 @@ describe('Relay Submit Utils', () => {
       expect(successfulFetchMock).toHaveBeenCalledTimes(0);
     });
 
+    it('waits for relay status if same chain with single deposit step', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.steps = [
+        {
+          ...request.quotes[0].original.steps[0],
+          id: 'deposit',
+        },
+      ];
+
+      await submitRelayQuotes(request);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      expect(successfulFetchMock).toHaveBeenCalledWith(
+        `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
+        {
+          method: 'GET',
+        },
+      );
+    });
+
     it('throws if transaction fails to confirm', async () => {
       waitForTransactionConfirmedMock.mockRejectedValue(
         new Error('Transaction failed'),
@@ -469,6 +490,143 @@ describe('Relay Submit Utils', () => {
       expect(txDraft.requiredTransactionIds).toStrictEqual([
         TRANSACTION_META_MOCK.id,
       ]);
+    });
+
+    describe('post-quote flow', () => {
+      beforeEach(() => {
+        request.quotes[0].request.isPostQuote = true;
+        request.transaction = {
+          id: ORIGINAL_TRANSACTION_ID_MOCK,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0xrecipient' as Hex,
+            data: '0xorigdata' as Hex,
+            value: '0x100' as Hex,
+          },
+          type: TransactionType.simpleSend,
+        } as TransactionMeta;
+      });
+
+      it('adds transaction batch with original transaction prepended', async () => {
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            from: FROM_MOCK,
+            gasFeeToken: undefined,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            origin: ORIGIN_METAMASK,
+            overwriteUpgrade: true,
+            requireApproval: false,
+            transactions: [
+              {
+                params: expect.objectContaining({
+                  data: '0xorigdata',
+                  to: '0xrecipient',
+                  value: '0x100',
+                }),
+                type: TransactionType.simpleSend,
+              },
+              {
+                params: expect.objectContaining({
+                  data: '0x1234',
+                  to: '0xfedcb',
+                  value: '0x4d2',
+                }),
+                type: TransactionType.relayDeposit,
+              },
+            ],
+          }),
+        );
+      });
+
+      it('assigns correct transaction types with multi-step relay (approve + deposit)', async () => {
+        // Add a second item to simulate approve + deposit from the relay
+        request.quotes[0].original.steps[0].items.push({
+          ...request.quotes[0].original.steps[0].items[0],
+          data: {
+            ...request.quotes[0].original.steps[0].items[0].data,
+            data: '0xapprove' as Hex,
+            to: '0xapproveTarget' as Hex,
+          },
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+
+        const { transactions } = addTransactionBatchMock.mock
+          .calls[0][0] as unknown as Record<string, unknown[]>;
+
+        expect(transactions).toHaveLength(3);
+        expect(transactions[0]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.simpleSend,
+          }),
+        );
+        expect(transactions[1]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.tokenMethodApprove,
+          }),
+        );
+        expect(transactions[2]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.relayDeposit,
+          }),
+        );
+      });
+
+      it('sets gas to undefined when gasLimits entry is missing', async () => {
+        request.quotes[0].original.metamask.gasLimits = [];
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactions: expect.arrayContaining([
+              expect.objectContaining({
+                params: expect.objectContaining({
+                  gas: undefined,
+                }),
+                type: TransactionType.relayDeposit,
+              }),
+            ]),
+          }),
+        );
+      });
+
+      it('does not activate 7702 mode with single relay step', async () => {
+        // Production scenario: 1 relay step = 1 gasLimit entry.
+        // Post-quote prepends the original tx so allParams has 2 entries,
+        // but gasLimit7702 should NOT be set because there's only 1 relay param.
+        request.quotes[0].original.metamask.gasLimits = [21000];
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            disable7702: true,
+            disableHook: false,
+            disableSequential: false,
+            gasLimit7702: undefined,
+            transactions: [
+              expect.objectContaining({
+                params: expect.objectContaining({
+                  gas: undefined,
+                }),
+                type: TransactionType.simpleSend,
+              }),
+              expect.objectContaining({
+                params: expect.objectContaining({
+                  gas: expect.any(String),
+                }),
+                type: TransactionType.relayDeposit,
+              }),
+            ],
+          }),
+        );
+      });
     });
 
     it('adds transaction batch with single gasLimit7702', async () => {

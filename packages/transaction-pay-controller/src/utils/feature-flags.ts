@@ -31,6 +31,7 @@ type FeatureFlagsRaw = {
   };
   relayQuoteUrl?: string;
   slippage?: number;
+  slippageTokens?: Record<Hex, Record<Hex, number>>;
 };
 
 export type FeatureFlags = {
@@ -101,6 +102,80 @@ export function getGasBuffer(
     featureFlags.gasBuffer?.default ??
     DEFAULT_GAS_BUFFER
   );
+}
+
+/**
+ * Get the slippage value for a specific chain ID and token address.
+ * Falls back to the general slippage feature flag, then the static default.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to get slippage for.
+ * @param tokenAddress - Token address to get slippage for.
+ * @returns Slippage value as a decimal (e.g., 0.005 for 0.5%).
+ */
+export function getSlippage(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+  tokenAddress: Hex,
+): number {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  const { slippageTokens } = featureFlags;
+
+  const tokenMap = getCaseInsensitive(slippageTokens, chainId);
+  const tokenSlippage = getCaseInsensitive(tokenMap, tokenAddress);
+
+  if (tokenSlippage !== undefined) {
+    log('Using token-specific slippage', {
+      chainId,
+      tokenAddress,
+      slippage: tokenSlippage,
+    });
+    return tokenSlippage;
+  }
+
+  const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
+  log('Using default slippage', { chainId, tokenAddress, slippage });
+  return slippage;
+}
+
+/**
+ * Get a value from a record using a case-insensitive key lookup.
+ *
+ * @param record - The record to search.
+ * @param key - The key to look up (case-insensitive).
+ * @returns The value if found, undefined otherwise.
+ */
+function getCaseInsensitive<Value>(
+  record: Record<string, Value> | undefined,
+  key: string,
+): Value | undefined {
+  if (!record) {
+    return undefined;
+  }
+
+  const normalizedKey = key.toLowerCase();
+  const entry = Object.entries(record).find(
+    ([k]) => k.toLowerCase() === normalizedKey,
+  );
+
+  return entry?.[1];
+}
+
+/**
+ * Retrieves the supported EIP-7702 chains from feature flags.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Array of chain IDs that support EIP-7702.
+ */
+export function getEIP7702SupportedChains(
+  messenger: TransactionPayControllerMessenger,
+): Hex[] {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
+    | { supportedChains?: Hex[] }
+    | undefined;
+
+  return eip7702Flags?.supportedChains ?? [];
 }
 
 /**

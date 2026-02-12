@@ -23,7 +23,9 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/account-tree-controller`](packages/account-tree-controller)
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
+- [`@metamask/ai-controllers`](packages/ai-controllers)
 - [`@metamask/analytics-controller`](packages/analytics-controller)
+- [`@metamask/analytics-data-regulation-controller`](packages/analytics-data-regulation-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
@@ -68,6 +70,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
+- [`@metamask/perps-controller`](packages/perps-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
@@ -83,7 +86,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
-- [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
@@ -99,7 +101,9 @@ linkStyle default opacity:0.5
   account_tree_controller(["@metamask/account-tree-controller"]);
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
+  ai_controllers(["@metamask/ai-controllers"]);
   analytics_controller(["@metamask/analytics-controller"]);
+  analytics_data_regulation_controller(["@metamask/analytics-data-regulation-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
@@ -144,6 +148,7 @@ linkStyle default opacity:0.5
   notification_services_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
+  perps_controller(["@metamask/perps-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
@@ -159,7 +164,6 @@ linkStyle default opacity:0.5
   signature_controller(["@metamask/signature-controller"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
-  token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
@@ -341,6 +345,9 @@ linkStyle default opacity:0.5
   permission_log_controller --> base_controller;
   permission_log_controller --> json_rpc_engine;
   permission_log_controller --> messenger;
+  perps_controller --> base_controller;
+  perps_controller --> controller_utils;
+  perps_controller --> messenger;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;

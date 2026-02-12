@@ -29,7 +29,12 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { getFeatureFlags, getGasBuffer } from '../../utils/feature-flags';
+import {
+  getEIP7702SupportedChains,
+  getFeatureFlags,
+  getGasBuffer,
+  getSlippage,
+} from '../../utils/feature-flags';
 import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
@@ -54,8 +59,13 @@ export async function getRelayQuotes(
 
   try {
     const normalizedRequests = requests
-      // Ignore gas fee token requests
-      .filter((singleRequest) => singleRequest.targetAmountMinimum !== '0')
+      // Ignore gas fee token requests (which have both target=0 and source=0)
+      // but keep post-quote requests (identified by isPostQuote flag)
+      .filter(
+        (singleRequest) =>
+          singleRequest.targetAmountMinimum !== '0' ||
+          singleRequest.isPostQuote,
+      )
       .map((singleRequest) => normalizeRequest(singleRequest));
 
     log('Normalized requests', normalizedRequests);
@@ -83,11 +93,6 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger, transaction } = fullRequest;
-  const { slippage: slippageDecimal } = getFeatureFlags(messenger);
-
-  const slippageTolerance = new BigNumber(slippageDecimal * 100 * 100).toFixed(
-    0,
-  );
 
   const {
     from,
@@ -100,20 +105,40 @@ async function getSingleQuote(
     targetTokenAddress,
   } = request;
 
+  const slippageDecimal = getSlippage(
+    messenger,
+    sourceChainId,
+    sourceTokenAddress,
+  );
+
+  const slippageTolerance = new BigNumber(slippageDecimal * 100 * 100).toFixed(
+    0,
+  );
+
   try {
+    // For post-quote or max amount flows, use EXACT_INPUT - user specifies how much to send,
+    // and we show them how much they'll receive after fees.
+    // For regular flows with a target amount, use EXPECTED_OUTPUT.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    const useExactInput = isMaxAmount || request.isPostQuote;
+
     const body: RelayQuoteRequest = {
-      amount: isMaxAmount ? sourceTokenAmount : targetAmountMinimum,
+      amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
       originCurrency: sourceTokenAddress,
       recipient: from,
       slippageTolerance,
-      tradeType: isMaxAmount ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
+      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,
     };
 
-    await processTransactions(transaction, request, body, messenger);
+    // Skip transaction processing for post-quote flows - the original transaction
+    // will be included in the batch separately, not as part of the quote
+    if (!request.isPostQuote) {
+      await processTransactions(transaction, request, body, messenger);
+    }
 
     const url = getFeatureFlags(messenger).relayQuoteUrl;
 
@@ -130,7 +155,7 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    return normalizeQuote(quote, request, fullRequest);
+    return await normalizeQuote(quote, request, fullRequest);
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -237,6 +262,7 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
   };
 
   const isHyperliquidDeposit =
+    !request.isPostQuote &&
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===
       ARBITRUM_USDC_ADDRESS.toLowerCase();
@@ -492,6 +518,20 @@ async function calculateSourceNetworkCost(
     log('Skipping gas station as disabled chain', {
       sourceChainId,
       disabledChainIds: relayDisabledGasStationChains,
+    });
+
+    return result;
+  }
+
+  const supportedChains = getEIP7702SupportedChains(messenger);
+  const chainSupportsGasStation = supportedChains.some(
+    (supportedChainId) =>
+      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
+  );
+
+  if (!chainSupportsGasStation) {
+    log('Skipping gas station as chain does not support EIP-7702', {
+      sourceChainId,
     });
 
     return result;

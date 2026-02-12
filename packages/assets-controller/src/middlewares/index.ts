@@ -1,0 +1,1 @@
+export { DetectionMiddleware } from './DetectionMiddleware';

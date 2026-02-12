@@ -7,9 +7,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 
 import {
+  getDefaultShieldControllerState,
   ShieldController,
   ShieldControllerMessenger,
 } from './ShieldController';
+import type { ShieldControllerState } from './ShieldController';
 import type { NormalizeSignatureRequestFn, ShieldBackend } from './types';
 import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data';
 import { createMockBackend, MOCK_COVERAGE_ID } from '../tests/mocks/backend';
@@ -27,16 +29,19 @@ import {
  * @param options.coverageHistoryLimit - The coverage history limit.
  * @param options.transactionHistoryLimit - The transaction history limit.
  * @param options.normalizeSignatureRequest - The function to normalize the signature request.
+ * @param options.state - The initial state for the controller.
  * @returns Objects that have been created for testing.
  */
 function setup({
   coverageHistoryLimit,
   transactionHistoryLimit,
   normalizeSignatureRequest,
+  state,
 }: {
   coverageHistoryLimit?: number;
   transactionHistoryLimit?: number;
   normalizeSignatureRequest?: NormalizeSignatureRequestFn;
+  state?: Partial<ShieldControllerState>;
 } = {}): {
   controller: ShieldController;
   messenger: ShieldControllerMessenger;
@@ -52,6 +57,7 @@ function setup({
     transactionHistoryLimit,
     messenger,
     normalizeSignatureRequest,
+    state,
   });
   controller.start();
   return {
@@ -534,7 +540,7 @@ describe('ShieldController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', async () => {
@@ -547,11 +553,11 @@ describe('ShieldController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "coverageResults": Object {},
-          "orderedTransactionHistory": Array [],
+        {
+          "coverageResults": {},
+          "orderedTransactionHistory": [],
         }
-        `);
+      `);
     });
 
     it('persists expected state', async () => {
@@ -564,11 +570,11 @@ describe('ShieldController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "coverageResults": Object {},
-          "orderedTransactionHistory": Array [],
+        {
+          "coverageResults": {},
+          "orderedTransactionHistory": [],
         }
-        `);
+      `);
     });
 
     it('exposes expected state to UI', async () => {
@@ -581,10 +587,36 @@ describe('ShieldController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-          Object {
-            "coverageResults": Object {},
-          }
-        `);
+        {
+          "coverageResults": {},
+        }
+      `);
+    });
+  });
+
+  describe('clearState', () => {
+    it('should reset state to default values', () => {
+      const txMeta = generateMockTxMeta();
+      const { controller } = setup({
+        state: {
+          // @ts-expect-error - testing mock
+          coverageResults: {
+            [txMeta.id]: {
+              results: [{ status: 'covered', coverageId: MOCK_COVERAGE_ID }],
+            },
+          },
+          orderedTransactionHistory: [txMeta.id],
+        },
+      });
+
+      expect(Object.keys(controller.state.coverageResults)).toHaveLength(1);
+      expect(controller.state.orderedTransactionHistory).toHaveLength(1);
+
+      controller.clearState();
+
+      expect(controller.state).toStrictEqual(getDefaultShieldControllerState());
+      expect(Object.keys(controller.state.coverageResults)).toHaveLength(0);
+      expect(controller.state.orderedTransactionHistory).toHaveLength(0);
     });
   });
 });
