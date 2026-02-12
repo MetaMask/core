@@ -5936,6 +5936,319 @@ describe('RampsController', () => {
         expect(controller.state.widgetUrl.error).toBe('Network error');
       });
     });
+
+    it('sets fallback widget URL error when service throws a non-Error', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            throw 'unexpected failure';
+          },
+        );
+
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        controller.setSelectedQuote(quote);
+
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.data).toBeNull();
+        expect(controller.state.widgetUrl.error).toBe(
+          'Failed to fetch widget URL',
+        );
+      });
+    });
+
+    it('discards stale widget URL response when a newer quote is selected before the first resolves', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const staleResponse = {
+          url: 'https://stale.example.com',
+          browser: 'APP_BROWSER' as const,
+          orderId: null,
+        };
+        const freshResponse = {
+          url: 'https://fresh.example.com',
+          browser: 'APP_BROWSER' as const,
+          orderId: null,
+        };
+
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            callCount += 1;
+            if (callCount === 1) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              return staleResponse;
+            }
+            return freshResponse;
+          },
+        );
+
+        const staleQuote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 50,
+            amountOut: '0.02',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL: 'https://example.com/stale-widget',
+          },
+        };
+
+        const freshQuote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL: 'https://example.com/fresh-widget',
+          },
+        };
+
+        controller.setSelectedQuote(staleQuote);
+        controller.setSelectedQuote(freshQuote);
+
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.data).toStrictEqual(freshResponse);
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.error).toBeNull();
+      });
+    });
+
+    it('discards stale widget URL error when a newer quote is selected before the first rejects', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const freshResponse = {
+          url: 'https://fresh.example.com',
+          browser: 'APP_BROWSER' as const,
+          orderId: null,
+        };
+
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            callCount += 1;
+            if (callCount === 1) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              throw new Error('Stale error');
+            }
+            return freshResponse;
+          },
+        );
+
+        const staleQuote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 50,
+            amountOut: '0.02',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL: 'https://example.com/stale-widget',
+          },
+        };
+
+        const freshQuote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL: 'https://example.com/fresh-widget',
+          },
+        };
+
+        controller.setSelectedQuote(staleQuote);
+        controller.setSelectedQuote(freshQuote);
+
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.data).toStrictEqual(freshResponse);
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.error).toBeNull();
+      });
+    });
+
+    it('does not overwrite reset widgetUrl when a stale fetch resolves after setSelectedQuote(null)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const staleResponse = {
+          url: 'https://stale.example.com',
+          browser: 'APP_BROWSER' as const,
+          orderId: null,
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            return staleResponse;
+          },
+        );
+
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL: 'https://example.com/widget',
+          },
+        };
+
+        controller.setSelectedQuote(quote);
+        controller.setSelectedQuote(null);
+
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.data).toBeNull();
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.error).toBeNull();
+      });
+    });
+
+    it('does not overwrite reset widgetUrl when a stale fetch resolves after setSelectedProvider', async () => {
+      const mockProvider: Provider = {
+        id: '/providers/paypal-staging',
+        name: 'PayPal (Staging)',
+        environmentType: 'STAGING',
+        description: 'Test provider description',
+        hqAddress: '2211 N 1st St, San Jose, CA 95131',
+        links: [],
+        logos: {
+          light: '/assets/providers/paypal_light.png',
+          dark: '/assets/providers/paypal_dark.png',
+          height: 24,
+          width: 77,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([mockProvider], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const staleResponse = {
+            url: 'https://stale.example.com',
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          };
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getBuyWidgetUrl',
+            async () => {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              return staleResponse;
+            },
+          );
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          const quote: Quote = {
+            provider: '/providers/transak-staging',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+              buyURL: 'https://example.com/widget',
+            },
+          };
+
+          controller.setSelectedQuote(quote);
+          controller.setSelectedProvider(mockProvider.id);
+
+          await flushPromises();
+
+          expect(controller.state.widgetUrl.data).toBeNull();
+          expect(controller.state.widgetUrl.isLoading).toBe(false);
+          expect(controller.state.widgetUrl.error).toBeNull();
+        },
+      );
+    });
+
+    it('does not overwrite reset widgetUrl when a stale fetch resolves after setSelectedToken', async () => {
+      const mockToken: RampsToken = {
+        assetId:
+          'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        chainId: 'eip155:1',
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        iconUrl: 'https://example.com/usdc.png',
+        tokenSupported: true,
+      };
+
+      const mockTokensResponse: TokensResponse = {
+        topTokens: [mockToken],
+        allTokens: [mockToken],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokensResponse, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const staleResponse = {
+            url: 'https://stale.example.com',
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          };
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getBuyWidgetUrl',
+            async () => {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              return staleResponse;
+            },
+          );
+
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          const quote: Quote = {
+            provider: '/providers/transak-staging',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+              buyURL: 'https://example.com/widget',
+            },
+          };
+
+          controller.setSelectedQuote(quote);
+          controller.setSelectedToken(mockToken.assetId);
+
+          await flushPromises();
+
+          expect(controller.state.widgetUrl.data).toBeNull();
+          expect(controller.state.widgetUrl.isLoading).toBe(false);
+          expect(controller.state.widgetUrl.error).toBeNull();
+        },
+      );
+    });
   });
 
   describe('polling restart on dependency changes', () => {

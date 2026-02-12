@@ -306,6 +306,20 @@ function resetResource(
 }
 
 /**
+ * Resets the widgetUrl resource to its default state.
+ * Mutates state in place; use from within controller update() for atomic updates.
+ *
+ * @param state - The state object to mutate.
+ */
+function resetWidgetUrl(state: Draft<RampsControllerState>): void {
+  const def = getDefaultRampsControllerState().widgetUrl;
+  state.widgetUrl.data = def.data;
+  state.widgetUrl.selected = def.selected;
+  state.widgetUrl.isLoading = def.isLoading;
+  state.widgetUrl.error = def.error;
+}
+
+/**
  * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods, quotes).
  * Mutates state in place; use from within controller update() for atomic updates.
  *
@@ -324,9 +338,7 @@ function resetDependentResources(
   for (const key of DEPENDENT_RESOURCE_KEYS) {
     resetResource(state, key, defaultState[key]);
   }
-  state.widgetUrl.data = null;
-  state.widgetUrl.isLoading = false;
-  state.widgetUrl.error = null;
+  resetWidgetUrl(state);
 }
 
 // === MESSENGER ===
@@ -499,6 +511,13 @@ export class RampsController extends BaseController<
    * Set when startQuotePolling() is called, cleared when stopQuotePolling() is called.
    */
   #quotePollingInterval: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * Monotonically increasing nonce used to detect stale in-flight
+   * `#syncWidgetUrl` responses. Incremented every time the widget URL
+   * is about to change (sync, reset, or provider/token change).
+   */
+  #widgetUrlNonce = 0;
 
   /**
    * Options used for quote polling (walletAddress, amount, redirectUrl).
@@ -1012,13 +1031,12 @@ export class RampsController extends BaseController<
       );
     }
 
+    this.#widgetUrlNonce += 1;
     this.update((state) => {
       state.providers.selected = provider;
       resetResource(state, 'paymentMethods');
       state.quotes.selected = null;
-      state.widgetUrl.data = null;
-      state.widgetUrl.isLoading = false;
-      state.widgetUrl.error = null;
+      resetWidgetUrl(state);
     });
 
     this.#fireAndForget(
@@ -1180,13 +1198,12 @@ export class RampsController extends BaseController<
       );
     }
 
+    this.#widgetUrlNonce += 1;
     this.update((state) => {
       state.tokens.selected = token;
       resetResource(state, 'paymentMethods');
       state.quotes.selected = null;
-      state.widgetUrl.data = null;
-      state.widgetUrl.isLoading = false;
-      state.widgetUrl.error = null;
+      resetWidgetUrl(state);
     });
 
     this.#fireAndForget(
@@ -1651,12 +1668,13 @@ export class RampsController extends BaseController<
    * @param quote - The quote to fetch the widget URL for, or null to clear.
    */
   #syncWidgetUrl(quote: Quote | null): void {
+    this.#widgetUrlNonce += 1;
+    const nonce = this.#widgetUrlNonce;
+
     const buyUrl = quote?.quote?.buyURL;
     if (!buyUrl) {
       this.update((state) => {
-        state.widgetUrl.data = null;
-        state.widgetUrl.isLoading = false;
-        state.widgetUrl.error = null;
+        resetWidgetUrl(state);
       });
       return;
     }
@@ -1668,8 +1686,12 @@ export class RampsController extends BaseController<
     });
 
     this.#fireAndForget(
-      this.messenger.call('RampsService:getBuyWidgetUrl', buyUrl)
+      this.messenger
+        .call('RampsService:getBuyWidgetUrl', buyUrl)
         .then((buyWidget) => {
+          if (this.#widgetUrlNonce !== nonce) {
+            return;
+          }
           this.update((state) => {
             state.widgetUrl.data = buyWidget;
             state.widgetUrl.isLoading = false;
@@ -1677,6 +1699,9 @@ export class RampsController extends BaseController<
           });
         })
         .catch((error: unknown) => {
+          if (this.#widgetUrlNonce !== nonce) {
+            return;
+          }
           this.update((state) => {
             state.widgetUrl.data = null;
             state.widgetUrl.isLoading = false;
