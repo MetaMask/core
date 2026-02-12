@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: Update changelog ([#7913](https://github.com/MetaMask/core/pull/7913))
+- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
+- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
+
 ### Added
 
 - Add post-quote transaction support for withdrawal flows ([#7783](https://github.com/MetaMask/core/pull/7783))
