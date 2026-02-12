@@ -89,7 +89,7 @@
     "node-fetch": "^2.7.0",
     "sinon": "^9.2.4",
     "ts-jest": "^29.2.5",
-    "typedoc": "^0.24.8",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },

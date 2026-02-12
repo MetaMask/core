@@ -600,7 +600,7 @@ describe('BackendWebsocketDataSource', () => {
             'eip155:8453/slip44:60': { amount: '10000000000000000000' },
           }),
         }),
-        assetsMetadata: expect.objectContaining({
+        assetsInfo: expect.objectContaining({
           'eip155:8453/slip44:60': expect.objectContaining({
             type: 'native',
             symbol: 'ETH',
@@ -668,7 +668,7 @@ describe('BackendWebsocketDataSource', () => {
             },
           }),
         }),
-        assetsMetadata: expect.objectContaining({
+        assetsInfo: expect.objectContaining({
           'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48':
             expect.objectContaining({
               type: 'erc20',
