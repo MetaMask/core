@@ -7,12 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [66.1.1]
+
+### Fixed
+
+- Return 0-prefixed hex string from `formatChainIdToHex` utility ([#7909](https://github.com/MetaMask/core/pull/7909))
+
+## [66.1.0] [DEPRECATED]
+
+### Added
+
+- Add support for Tron assets in the `formatAddressToAssetId` utility ([#7896](https://github.com/MetaMask/core/pull/7896))
+
+### Changed
+
+- Refresh asset exchange rates each time quotes are fetched ([#7896](https://github.com/MetaMask/core/pull/7896))
+- Return checksummed EVM assetIds from the `formatAddressToAssetId` utility ([#7896](https://github.com/MetaMask/core/pull/7896))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.17.0` ([#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/multichain-network-controller` from `^3.0.2` to `^3.0.3` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/assets-controllers` from `^99.3.1` to `^99.3.2` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+
+### Fixed
+
+- Fall back to the quoted `priceImpact` or `destTokenAmount` to sort quotes if the `cost` is not available ([#7896](https://github.com/MetaMask/core/pull/7896))
+
+## [66.0.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.14.0` to `^62.15.0` ([#7854](https://github.com/MetaMask/core/pull/7854))
+- Bump `@metamask/assets-controllers` from `^99.2.0` to `^99.3.1` ([#7855](https://github.com/MetaMask/core/pull/7855), [#7860](https://github.com/MetaMask/core/pull/7860))
+
+## [65.3.0] [DEPRECATED]
+
+### Added
+
+- Add `MEGAETH` network support ([#7823](https://github.com/MetaMask/core/pull/7823))
+  - Add `MEGAETH` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `DEFAULT_CHAIN_RANKING`, `CHAIN_IDS`, `CURRENCY_SYMBOLS` and `SWAPS_CHAINID_DEFAULT_TOKEN_MAP`
+- Export `isTronChainId` from the package entrypoint ([#7697](https://github.com/MetaMask/core/pull/7697))
+
+### Changed
+
+- **BREAKING** Use `gasEstimatesByChainId` instead of `gasEstimates` to remove reference to the global selected network. Clients need to replace gasEstimates with the `gasEstimatesByChainId` state from the GasFeeController when using the `selectBridgeQuotes` selector ([#7826](https://github.com/MetaMask/core/pull/7826))
+- Bump `@metamask/transaction-controller` from `^62.13.0` to `^62.14.0` ([#7832](https://github.com/MetaMask/core/pull/7832))
+
 ## [65.2.0]
 
 ### Added
 
 - Add `HYPEREVM` network support ([#7787](https://github.com/MetaMask/core/pull/7787))
   - Add `HYPEREVM` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+- Add `PollingStatusUpdated` to `UnifiedSwapBridgeEventName` enum and `PollingStatus` enum with `MaxPollingReached` and `ManuallyRestarted` values ([#7825](https://github.com/MetaMask/core/pull/7825))
 
 ### Changed
 
@@ -1083,7 +1130,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.1.1...HEAD
+[66.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.1.0...@metamask/bridge-controller@66.1.1
+[66.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.0.0...@metamask/bridge-controller@66.1.0
+[66.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.3.0...@metamask/bridge-controller@66.0.0
+[65.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.2.0...@metamask/bridge-controller@65.3.0
 [65.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.1.0...@metamask/bridge-controller@65.2.0
 [65.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.0.1...@metamask/bridge-controller@65.1.0
 [65.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.0.0...@metamask/bridge-controller@65.0.1

@@ -1,5 +1,6 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
+import { AccountCreationType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -8,7 +9,7 @@ import type {
 import { SnapControllerState } from '@metamask/snaps-controllers';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import {
   SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   SOL_ACCOUNT_PROVIDER_NAME,
@@ -121,6 +122,11 @@ function setup({
   const keyring = new MockSolanaKeyring(accounts);
 
   messenger.registerActionHandler(
+    'AccountsController:getAccounts',
+    () => accounts,
+  );
+
+  messenger.registerActionHandler(
     'SnapController:getState',
     () => ({ isReady: true }) as SnapControllerState,
   );
@@ -128,6 +134,14 @@ function setup({
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     () => accounts,
+  );
+
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find((account) => account.id === id);
+  });
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
   );
 
   const mockHandleRequest = jest
@@ -161,10 +175,14 @@ function setup({
   );
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const provider = new AccountProviderWrapper(
+  const solProvider = new MockSolAccountProvider(
     multichainMessenger,
-    new MockSolAccountProvider(multichainMessenger, config, mockTrace),
+    config,
+    mockTrace,
   );
+  const accountIds = accounts.map((account) => account.id);
+  solProvider.init(accountIds);
+  const provider = new AccountProviderWrapper(multichainMessenger, solProvider);
 
   return {
     provider,
@@ -216,6 +234,22 @@ describe('SolAccountProvider', () => {
     );
   });
 
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_SOL_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(false);
+  });
+
   it('creates accounts', async () => {
     const accounts = [MOCK_SOL_ACCOUNT_1];
     const { provider, keyring } = setup({
@@ -224,6 +258,7 @@ describe('SolAccountProvider', () => {
 
     const newGroupIndex = accounts.length; // Group-index are 0-based.
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: newGroupIndex,
     });
@@ -240,6 +275,7 @@ describe('SolAccountProvider', () => {
     const newAccounts = await provider.createAccounts({
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
+      type: AccountCreationType.Bip44DeriveIndex,
     });
     expect(newAccounts).toHaveLength(1);
     expect(newAccounts[0]).toStrictEqual(MOCK_SOL_ACCOUNT_1);
@@ -260,6 +296,7 @@ describe('SolAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
@@ -283,10 +320,26 @@ describe('SolAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
     ).rejects.toThrow('Created account is not BIP-44 compatible');
+  });
+
+  it('throws an error when type is not "bip44:derive-index"', async () => {
+    const { provider } = setup();
+
+    await expect(
+      provider.createAccounts({
+        // @ts-expect-error Testing invalid type handling.
+        type: 'unsupported-type',
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow(
+      'Unsupported create account option type: unsupported-type',
+    );
   });
 
   it('discover accounts at a new group index creates an account', async () => {

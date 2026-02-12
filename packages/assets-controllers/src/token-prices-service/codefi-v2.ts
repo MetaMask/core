@@ -369,6 +369,12 @@ type SupportedNetworksResponse = {
 let lastFetchedSupportedNetworks: SupportedNetworksResponse | null = null;
 
 /**
+ * In-flight promise to prevent concurrent requests to the supported networks endpoint.
+ */
+let runningSupportedNetworksRequest: Promise<SupportedNetworksResponse> | null =
+  null;
+
+/**
  * Converts a CAIP-2 chain ID (e.g., 'eip155:1') to a hex chain ID (e.g., '0x1').
  *
  * @param caipChainId - The CAIP-2 chain ID string.
@@ -383,12 +389,13 @@ function caipChainIdToHex(caipChainId: string): Hex | null {
 }
 
 /**
- * Fetches the list of supported networks from the API.
- * Falls back to the hardcoded list if the fetch fails.
+ * Executes the actual fetch to the supported networks endpoint.
+ * Handles errors internally by falling back to the hardcoded list,
+ * and clears the in-flight promise when done.
  *
  * @returns The supported networks response.
  */
-export async function fetchSupportedNetworks(): Promise<SupportedNetworksResponse> {
+async function executeSupportedNetworksFetch(): Promise<SupportedNetworksResponse> {
   try {
     const url = `${BASE_URL_V2}/supportedNetworks`;
     const response = await handleFetch(url, {
@@ -410,7 +417,29 @@ export async function fetchSupportedNetworks(): Promise<SupportedNetworksRespons
   } catch {
     // On any error, fall back to the hardcoded list
     return getSupportedNetworksFallback();
+  } finally {
+    // Clear the in-flight promise once the request completes
+    runningSupportedNetworksRequest = null;
   }
+}
+
+/**
+ * Fetches the list of supported networks from the API.
+ * Falls back to the hardcoded list if the fetch fails.
+ * Deduplicates concurrent requests by returning the same promise if a fetch is already in progress.
+ *
+ * @returns The supported networks response.
+ */
+export async function fetchSupportedNetworks(): Promise<SupportedNetworksResponse> {
+  // If a fetch is already in progress, return the same promise
+  if (runningSupportedNetworksRequest) {
+    return runningSupportedNetworksRequest;
+  }
+
+  // Start a new fetch and cache the promise
+  runningSupportedNetworksRequest = executeSupportedNetworksFetch();
+
+  return runningSupportedNetworksRequest;
 }
 
 /**
@@ -454,6 +483,7 @@ function getSupportedNetworksFallback(): SupportedNetworksResponse {
  */
 export function resetSupportedNetworksCache(): void {
   lastFetchedSupportedNetworks = null;
+  runningSupportedNetworksRequest = null;
 }
 
 /**
@@ -688,8 +718,10 @@ export class CodefiTokenPricesServiceV2
     // Refresh supported networks in background (non-blocking)
     // This ensures the list stays fresh during normal polling
     // Note: fetchSupportedNetworks handles errors internally and always resolves
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetchSupportedNetworks();
+    if (!lastFetchedSupportedNetworks) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      fetchSupportedNetworks();
+    }
 
     // Get dynamically fetched supported chain IDs for V3
     const supportedChainIdsV3 = getSupportedChainIdsV3AsHex();
@@ -792,8 +824,10 @@ export class CodefiTokenPricesServiceV2
     // Refresh supported currencies in background (non-blocking)
     // This ensures the list stays fresh during normal polling
     // Note: fetchSupportedCurrencies handles errors internally and always resolves
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetchSupportedCurrencies();
+    if (!lastFetchedCurrencies) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      fetchSupportedCurrencies();
+    }
 
     const url = new URL(`${BASE_URL_V1}/exchange-rates`);
     url.searchParams.append('baseCurrency', baseCurrency);

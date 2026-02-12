@@ -1,6 +1,5 @@
 import type { V3AssetResponse } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
-import type { Messenger } from '@metamask/messenger';
 import { parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
@@ -26,36 +25,16 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // ============================================================================
 
 /**
- * Action to get the TokenDataSource middleware.
- */
-export type TokenDataSourceGetAssetsMiddlewareAction = {
-  type: `${typeof CONTROLLER_NAME}:getAssetsMiddleware`;
-  handler: () => Middleware;
-};
-
-/**
- * All actions exposed by TokenDataSource.
- */
-export type TokenDataSourceActions = TokenDataSourceGetAssetsMiddlewareAction;
-
-/**
- * TokenDataSource no longer needs external BackendApiClient actions.
+ * TokenDataSource does not call external messenger actions.
  * It uses ApiPlatformClient directly.
  */
 export type TokenDataSourceAllowedActions = never;
-
-export type TokenDataSourceMessenger = Messenger<
-  typeof CONTROLLER_NAME,
-  TokenDataSourceActions,
-  never
->;
 
 // ============================================================================
 // OPTIONS
 // ============================================================================
 
 export type TokenDataSourceOptions = {
-  messenger: TokenDataSourceMessenger;
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
 };
@@ -125,27 +104,16 @@ function transformV3AssetResponseToMetadata(
  * - Fetches metadata from Tokens API v3 for assets needing enrichment
  * - Merges fetched metadata into the response
  *
- * Usage:
- * ```typescript
- * // Create and initialize (registers messenger actions)
- * const tokenDataSource = new TokenDataSource({ messenger, queryApiClient });
- *
- * // Later, get middleware via messenger
- * const middleware = messenger.call('TokenDataSource:getAssetsMiddleware');
- * ```
+ * Usage: Create with queryApiClient and use assetsMiddleware; no messenger required.
  */
 export class TokenDataSource {
   readonly name = CONTROLLER_NAME;
-
-  readonly #messenger: TokenDataSourceMessenger;
 
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
   constructor(options: TokenDataSourceOptions) {
-    this.#messenger = options.messenger;
     this.#apiClient = options.queryApiClient;
-    this.#registerActionHandlers();
   }
 
   /**
@@ -196,14 +164,6 @@ export class TokenDataSource {
     });
   }
 
-  #registerActionHandlers(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (this.#messenger as any).registerActionHandler(
-      'TokenDataSource:getAssetsMiddleware',
-      () => this.assetsMiddleware,
-    );
-  }
-
   /**
    * Get the middleware for enriching responses with token metadata.
    *
@@ -225,13 +185,13 @@ export class TokenDataSource {
         return next(ctx);
       }
 
-      const { assetsMetadata: stateMetadata } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
 
       for (const detectedIds of Object.values(response.detectedAssets)) {
         for (const assetId of detectedIds) {
           // Skip if response already has metadata with image
-          const responseMetadata = response.assetsMetadata?.[assetId];
+          const responseMetadata = response.assetsInfo?.[assetId];
           if (responseMetadata?.image) {
             continue;
           }
@@ -275,12 +235,14 @@ export class TokenDataSource {
           },
         );
 
-        response.assetsMetadata ??= {};
+        response.assetsInfo ??= {};
 
         for (const assetData of metadataResponse) {
           const caipAssetId = assetData.assetId as Caip19AssetId;
-          response.assetsMetadata[caipAssetId] =
-            transformV3AssetResponseToMetadata(assetData.assetId, assetData);
+          response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
+            assetData.assetId,
+            assetData,
+          );
         }
       } catch (error) {
         log('Failed to fetch metadata', { error });

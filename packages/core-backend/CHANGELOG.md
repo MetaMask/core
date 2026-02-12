@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/profile-sync-controller` from `^27.0.0` to `^27.1.0` ([#7849](https://github.com/MetaMask/core/pull/7849))
+
 ## [5.1.0]
 
 ### Added
@@ -186,7 +193,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.1...HEAD
+[5.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.0...@metamask/core-backend@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.0.0...@metamask/core-backend@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.1.0...@metamask/core-backend@5.0.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.0.0...@metamask/core-backend@4.1.0

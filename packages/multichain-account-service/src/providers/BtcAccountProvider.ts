@@ -1,8 +1,18 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+  KeyringCapabilities,
+} from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
+  BtcAccountType,
+  BtcScope,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
@@ -37,6 +47,13 @@ export class BtcAccountProvider extends SnapAccountProvider {
   static NAME = BTC_ACCOUNT_PROVIDER_NAME;
 
   static BTC_SNAP_ID = 'npm:@metamask/bitcoin-wallet-snap' as SnapId;
+
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [BtcScope.Mainnet, BtcScope.Testnet],
+    bip44: {
+      deriveIndex: true,
+    },
+  };
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
@@ -78,17 +95,20 @@ export class BtcAccountProvider extends SnapAccountProvider {
       );
 
       assertIsBip44Account(account);
+      this.accounts.add(account.id);
       return [account];
     });
   }
 
-  async createAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+    ]);
+
+    const { entropySource, groupIndex } = options;
+
     return this.withSnap(async ({ keyring }) => {
       return this.#createAccounts({ keyring, entropySource, groupIndex });
     });

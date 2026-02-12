@@ -7,13 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `62.16.0` to `62.17.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+
+## [16.2.0]
+
 ### Added
 
 - Add support for Monad network (`0x8f`) in token scanning ([#7237](https://github.com/MetaMask/core/pull/7237))
+- Add support for HyperEVM network (`0x3e7`) in token scanning ([#7873](https://github.com/MetaMask/core/pull/7873))
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.1.0` to `^62.13.0` ([#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494), [#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802))
+- Bump `@metamask/transaction-controller` from `^62.1.0` to `^62.16.0` ([#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494), [#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872))
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
 
 ## [16.1.0]
@@ -511,7 +518,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.2.0...HEAD
+[16.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.1.0...@metamask/phishing-controller@16.2.0
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@16.0.0...@metamask/phishing-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.1...@metamask/phishing-controller@16.0.0
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@15.0.0...@metamask/phishing-controller@15.0.1

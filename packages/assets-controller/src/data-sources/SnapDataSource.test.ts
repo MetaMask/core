@@ -1,20 +1,17 @@
 /* eslint-disable jest/unbound-method */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type {
-  MockAnyNamespace,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 import type {
   PermissionConstraint,
   SubjectPermissions,
 } from '@metamask/permission-controller';
 
 import type {
-  SnapDataSourceMessenger,
   SnapDataSourceOptions,
   AccountBalancesUpdatedEventPayload,
+  SnapDataSourceAllowedActions,
+  SnapDataSourceAllowedEvents,
 } from './SnapDataSource';
 import {
   SnapDataSource,
@@ -24,6 +21,7 @@ import {
   KEYRING_PERMISSION,
   ASSETS_PERMISSION,
 } from './SnapDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import type { ChainId, DataRequest, Context, Caip19AssetId } from '../types';
 
 // Test chain IDs
@@ -35,8 +33,8 @@ const TRON_MAINNET = 'tron:728126428' as ChainId;
 const SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap';
 const BITCOIN_SNAP_ID = 'npm:@metamask/bitcoin-wallet-snap';
 
-type AllActions = MessengerActions<SnapDataSourceMessenger>;
-type AllEvents = MessengerEvents<SnapDataSourceMessenger>;
+type AllActions = SnapDataSourceAllowedActions;
+type AllEvents = SnapDataSourceAllowedEvents;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
@@ -84,12 +82,20 @@ function createMockAccount(
   } as InternalAccount;
 }
 
-function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
+function createDataRequest(
+  overrides?: Partial<DataRequest> & { accounts?: InternalAccount[] },
+): DataRequest {
+  const chainIds = overrides?.chainIds ?? [SOLANA_MAINNET];
+  const accounts = overrides?.accounts ?? [createMockAccount()];
+  const { accounts: _a, ...rest } = overrides ?? {};
   return {
-    chainIds: [SOLANA_MAINNET],
-    accounts: [createMockAccount()],
+    chainIds,
+    accountsWithSupportedChains: accounts.map((a) => ({
+      account: a,
+      supportedChains: chainIds,
+    })),
     dataTypes: ['balance'],
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -97,7 +103,7 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({ assetsMetadata: {} }),
+    getAssetsState: jest.fn().mockReturnValue({ assetsInfo: {} }),
     ...overrides,
   };
 }
@@ -179,8 +185,8 @@ function setupController(
 
   const controllerMessenger = new Messenger<
     'SnapDataSource',
-    MessengerActions<SnapDataSourceMessenger>,
-    MessengerEvents<SnapDataSourceMessenger>,
+    AllActions,
+    AllEvents,
     RootMessenger
   >({
     namespace: 'SnapDataSource',
@@ -190,8 +196,6 @@ function setupController(
   rootMessenger.delegate({
     messenger: controllerMessenger,
     actions: [
-      'AssetsController:assetsUpdate',
-      'AssetsController:activeChainsUpdate',
       'SnapController:getRunnableSnaps',
       'SnapController:handleRequest',
       'PermissionController:getPermissions',
@@ -201,15 +205,6 @@ function setupController(
 
   const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
   const activeChainsUpdateHandler = jest.fn();
-
-  rootMessenger.registerActionHandler(
-    'AssetsController:assetsUpdate',
-    assetsUpdateHandler,
-  );
-  rootMessenger.registerActionHandler(
-    'AssetsController:activeChainsUpdate',
-    activeChainsUpdateHandler,
-  );
 
   // Build snaps array for SnapController:getRunnableSnaps
   // getRunnableSnaps returns only enabled, non-blocked snaps
@@ -252,10 +247,28 @@ function setupController(
   );
 
   const controllerOptions: SnapDataSourceOptions = {
-    messenger: controllerMessenger,
+    messenger: controllerMessenger as unknown as AssetsControllerMessenger,
+    onActiveChainsUpdated: activeChainsUpdateHandler,
   };
 
   const controller = new SnapDataSource(controllerOptions);
+
+  // Subscribe so that balance updates are reported via onAssetsUpdate
+  const chainIdsFromSnaps = Object.values(installedSnaps).flatMap(
+    (snap) => snap.chainIds ?? [],
+  );
+  if (chainIdsFromSnaps.length > 0) {
+    controller
+      .subscribe({
+        request: createDataRequest({
+          chainIds: [...new Set(chainIdsFromSnaps)],
+        }),
+        subscriptionId: 'test-sub',
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+      })
+      .catch(() => undefined);
+  }
 
   const triggerBalancesUpdated = (
     payload: AccountBalancesUpdatedEventPayload,
@@ -370,11 +383,11 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
-  it('registers action handlers', async () => {
-    const { messenger, cleanup } = setupController();
+  it('exposes assetsMiddleware on instance', async () => {
+    const { controller, cleanup } = setupController();
     await new Promise(process.nextTick);
 
-    const middleware = messenger.call('SnapDataSource:getAssetsMiddleware');
+    const middleware = controller.assetsMiddleware;
     expect(middleware).toBeDefined();
     expect(typeof middleware).toBe('function');
 
@@ -421,7 +434,7 @@ describe('SnapDataSource', () => {
 
     expect(response).toStrictEqual({
       assetsBalance: {},
-      assetsMetadata: {},
+      assetsInfo: {},
     });
 
     cleanup();
@@ -455,7 +468,7 @@ describe('SnapDataSource', () => {
     // No accounts to fetch, so empty balances
     expect(response).toStrictEqual({
       assetsBalance: {},
-      assetsMetadata: {},
+      assetsInfo: {},
     });
 
     cleanup();
@@ -580,7 +593,6 @@ describe('SnapDataSource', () => {
           },
         },
       }),
-      'SnapDataSource',
     );
 
     cleanup();
@@ -616,7 +628,6 @@ describe('SnapDataSource', () => {
           },
         },
       }),
-      'SnapDataSource',
     );
 
     cleanup();
@@ -665,6 +676,7 @@ describe('SnapDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalled();
@@ -680,6 +692,7 @@ describe('SnapDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
@@ -703,6 +716,7 @@ describe('SnapDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     assetsUpdateHandler.mockClear();
@@ -713,6 +727,7 @@ describe('SnapDataSource', () => {
         chainIds: [SOLANA_MAINNET, BITCOIN_MAINNET],
       }),
       isUpdate: true,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     await new Promise(process.nextTick);
@@ -837,6 +852,7 @@ describe('SnapDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     cleanup();
@@ -856,8 +872,8 @@ describe('SnapDataSource', () => {
 
     const controllerMessenger = new Messenger<
       'SnapDataSource',
-      MessengerActions<SnapDataSourceMessenger>,
-      MessengerEvents<SnapDataSourceMessenger>,
+      AllActions,
+      AllEvents,
       RootMessenger
     >({
       namespace: 'SnapDataSource',
@@ -867,23 +883,12 @@ describe('SnapDataSource', () => {
     rootMessenger.delegate({
       messenger: controllerMessenger,
       actions: [
-        'AssetsController:assetsUpdate',
-        'AssetsController:activeChainsUpdate',
         'SnapController:getRunnableSnaps',
         'SnapController:handleRequest',
         'PermissionController:getPermissions',
       ],
       events: ['AccountsController:accountBalancesUpdated'],
     });
-
-    rootMessenger.registerActionHandler(
-      'AssetsController:assetsUpdate',
-      jest.fn(),
-    );
-    rootMessenger.registerActionHandler(
-      'AssetsController:activeChainsUpdate',
-      jest.fn(),
-    );
     rootMessenger.registerActionHandler(
       'SnapController:getRunnableSnaps',
       jest.fn().mockReturnValue([]),
@@ -898,7 +903,8 @@ describe('SnapDataSource', () => {
     );
 
     const instance = createSnapDataSource({
-      messenger: controllerMessenger,
+      messenger: controllerMessenger as unknown as AssetsControllerMessenger,
+      onActiveChainsUpdated: jest.fn(),
     });
 
     await new Promise(process.nextTick);

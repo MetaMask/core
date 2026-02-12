@@ -73,10 +73,8 @@ get selectedAccounts(): InternalAccount[]
 | -------------------------------------------------- | -------------------------------- | --------------------- |
 | `AccountTreeController:selectedAccountGroupChange` | `handleAccountGroupChanged()`    | Track active accounts |
 | `NetworkEnablementController:stateChange`          | `handleEnabledNetworksChanged()` | Track enabled chains  |
-| `AppStateController:appOpened`                     | `start()`                        | Start subscriptions   |
-| `AppStateController:appClosed`                     | `stop()`                         | Stop subscriptions    |
-| `KeyringController:unlock`                         | `start()`                        | Resume on unlock      |
-| `KeyringController:lock`                           | `stop()`                         | Pause on lock         |
+| `KeyringController:unlock`                         | `start()`                        | Start subscriptions   |
+| `KeyringController:lock`                           | `stop()`                         | Stop subscriptions    |
 
 #### 1.4 Register Action Handlers
 
@@ -90,24 +88,9 @@ registerActionHandlers()
 └── AssetsController:assetsUpdate         // Data sources push asset updates
 ```
 
-#### 1.5 Register Data Sources
+#### 1.5 Balance data source priority
 
-```typescript
-registerDataSources([
-  'BackendWebsocketDataSource', // Real-time push updates (highest priority)
-  'AccountsApiDataSource', // HTTP polling fallback
-  'SnapDataSource', // Solana/Bitcoin/Tron snaps
-  'RpcDataSource', // Direct blockchain queries (lowest priority)
-]);
-```
-
-**Registration order determines subscription priority**:
-
-- Data sources are processed in registration order
-- Earlier sources get first pick for chain assignment
-- Later sources act as fallbacks for remaining chains
-
-Data sources report their active chains by calling `AssetsController:activeChainsUpdate` action.
+Built-in balance data sources are fixed and processed in priority order: BackendWebsocketDataSource, AccountsApiDataSource, SnapDataSource, RpcDataSource. Earlier sources get first pick for chain assignment; later sources act as fallbacks. Data sources report active chains via the `onActiveChainsUpdated` callback passed at construction.
 
 #### 1.6 Middleware Chains
 
@@ -126,7 +109,7 @@ executeMiddlewares([
 ])
 ```
 
-**Event Stack** (used in `handleSubscriptionUpdate` for async updates):
+**Event Stack** (used in `handleAssetsUpdate` for async updates):
 
 ```typescript
 executeMiddlewares([
@@ -140,22 +123,22 @@ executeMiddlewares([
 
 ---
 
-### 2. Start (App Opened)
+### 2. Start (Keyring Unlock)
 
-When the app opens or the keyring unlocks:
+When the keyring unlocks:
 
 ```
-start()  // Called by AppStateController:appOpened or KeyringController:unlock
+start()  // Called by KeyringController:unlock
 │
-├── subscribeToDataSources()
+├── subscribeAssets()
 │   │
-│   ├── subscribeAssetsBalance()
+│   ├── subscribeAssetsBalance(selectedAccounts, enabledChains)
 │   │   │
 │   │   ├── Build chain → accounts mapping based on account scopes
 │   │   ├── assignChainsToDataSources(enabledChains)  // Order-based assignment
 │   │   │
 │   │   └── For each dataSource (in registration order):
-│   │       └── subscribeToDataSource(sourceId, accounts, chains)
+│   │       └── subscribeDataSource(sourceId, accounts, chains)
 │   │           └── Call {sourceId}:subscribe via Messenger
 │   │
 │   └── subscribeAssetsPrice(selectedAccounts, enabledChains)
@@ -199,29 +182,26 @@ DataSource calls: messenger.call('AssetsController:assetsUpdate', response, sour
 │
 └── handleAssetsUpdate(response, sourceId)
     │
-    └── handleSubscriptionUpdate(response)
+    │   Response contains any combination of:
+    │   ├── assetsBalance   - Balance updates
+    │   ├── assetsInfo  - Metadata updates
+    │   └── assetsPrice     - Price updates
+    │
+    ├── executeMiddlewares(Event Stack, request, response)
+    │   ├── DetectionMiddleware - Marks assets without metadata
+    │   ├── TokenDataSource - Fetches missing metadata
+    │   └── PriceDataSource - Fetches prices for detected assets
+    │
+    └── updateState(enrichedResponse)
+        ├── Normalize asset IDs (checksum EVM addresses)
+        ├── Merge into persisted state
+        │   ├── assetsInfo[assetId] = metadata
+        │   └── assetsBalance[accountId][assetId] = balance
+        ├── Update in-memory price cache (assetsPrice)
         │
-        │   Response contains any combination of:
-        │   ├── assetsBalance   - Balance updates
-        │   ├── assetsMetadata  - Metadata updates
-        │   └── assetsPrice     - Price updates
-        │
-        ├── executeMiddlewares(Event Stack, request, response)
-        │   ├── DetectionMiddleware - Marks assets without metadata
-        │   ├── TokenDataSource - Fetches missing metadata
-        │   └── PriceDataSource - Fetches prices for detected assets
-        │
-        └── updateState(enrichedResponse)
-            │
-            ├── Normalize asset IDs (checksum EVM addresses)
-            ├── Merge into persisted state
-            │   ├── assetsMetadata[assetId] = metadata
-            │   └── assetsBalance[accountId][assetId] = balance
-            ├── Update in-memory price cache (assetsPrice)
-            │
-            └── Publish events:
-                ├── AssetsController:stateChange
-                └── AssetsController:assetsDetected (if assets without metadata)
+        └── Publish events:
+            ├── AssetsController:stateChange
+            └── AssetsController:assetsDetected (if assets without metadata)
 ```
 
 #### 3.3 Chain Assignment Algorithm
@@ -258,12 +238,12 @@ Result: Earlier registered sources get first pick; later sources act as fallback
 
 ---
 
-### 4. Stop (App Closed / Lock)
+### 4. Stop (Keyring Lock)
 
-When the app closes or the keyring locks:
+When the keyring locks:
 
 ```
-stop()  // Called by AppStateController:appClosed or KeyringController:lock
+stop()  // Called by KeyringController:lock
 │
 ├── For each activeSubscription:
 │   └── subscription.unsubscribe()
@@ -309,7 +289,7 @@ destroy()
 ```typescript
 {
   // Shared metadata (stored once per asset)
-  assetsMetadata: {
+  assetsInfo: {
     "eip155:1/slip44:60": { type: "native", symbol: "ETH", ... },
     "eip155:1/erc20:0xA0b8...": { type: "erc20", symbol: "USDC", ... },
   },
@@ -350,7 +330,7 @@ const state = messenger.call('AssetsController:getState');
 
 ```typescript
 interface AssetsControllerState {
-  assetsMetadata: { [assetId: string]: AssetMetadata };
+  assetsInfo: { [assetId: string]: AssetMetadata };
   assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
 }
 ```
@@ -582,7 +562,7 @@ messenger.subscribe('AssetsController:stateChange', (state) => {
 
 ```typescript
 {
-  assetsMetadata: { [assetId: string]: AssetMetadata };
+  assetsInfo: { [assetId: string]: AssetMetadata };
   assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
 }
 ```
@@ -733,13 +713,13 @@ class MyController {
 ```typescript
 // Selector for getting assets from Redux state
 export const selectAssetsForAccount = (state, accountId) => {
-  const { assetsMetadata, assetsBalance } = state.AssetsController;
+  const { assetsInfo, assetsBalance } = state.AssetsController;
   const { assetsPrice } = state; // In-memory prices from a separate slice
 
   const accountBalances = assetsBalance[accountId] || {};
 
   return Object.entries(accountBalances).map(([assetId, balance]) => {
-    const metadata = assetsMetadata[assetId];
+    const metadata = assetsInfo[assetId];
     const price = assetsPrice[assetId] || { price: 0 };
 
     // balance.amount is already in human-readable format (e.g., "1.5" for 1.5 ETH)
@@ -846,24 +826,12 @@ All middlewares are part of the unified `subscribeAssets` flow—there are no se
 flowchart TB
     subgraph Extension["MetaMask Extension"]
         MI[MetaMask Controller Init]
-        DSI[DataSourceInit]
         ACI[AssetsController Init]
     end
 
-    subgraph DataSourcesInit["Data Sources Initialization"]
-        IM[initMessengers]
-        IDS[initDataSources]
-        SP[createSnapProvider]
-    end
-
-    subgraph Messengers["Child Messengers"]
-        RPCm[RpcDataSource Messenger]
-        WSm[BackendWebsocket Messenger]
-        APIm[AccountsApi Messenger]
-        SNAPm[SnapDataSource Messenger]
-        TOKm[TokenDataSource Messenger]
-        PRICEm[PriceDataSource Messenger]
-        DETm[DetectionMiddleware Messenger]
+    subgraph AssetsControllerInit["AssetsController (with queryApiClient)"]
+        AC[AssetsController]
+        AC --> WS & API & SNAP & RPC & TOK & PRICE & DET
     end
 
     subgraph DataSources["Data Source Instances - Order 1-4"]
@@ -881,34 +849,25 @@ flowchart TB
         ATC[AccountTreeController]
         NEC[NetworkEnablementController]
         KC[KeyringController]
-        ASC[AppStateController]
         BWSS[BackendWebSocketService]
-        BAC[BackendApiClient]
+        BAC[BackendApiClient / ApiPlatformClient]
         SC[SnapController]
     end
 
-    MI --> DSI
-    DSI --> IM
-    DSI --> SP
-    IM --> RPCm & WSm & APIm & SNAPm & TOKm & PRICEm & DETm
-    SP --> SNAPm
+    MI --> ACI
+    ACI --> AC
 
-    IM --> IDS
-    IDS --> RPC & WS & API & SNAP & TOK & PRICE & DET
+    RPC -.-> NC
+    WS -.-> BWSS
+    API -.-> BAC
+    SNAP -.-> SC
+    TOK -.-> BAC
+    PRICE -.-> BAC
 
-    DSI --> ACI
-
-    RPCm -.-> NC
-    WSm -.-> BWSS
-    APIm -.-> BAC
-    SNAPm -.-> SC
-    TOKm -.-> BAC
-    PRICEm -.-> BAC
-
-    ACI -.-> ATC
-    ACI -.-> NEC
-    ACI -.-> KC
-    ACI -.-> ASC
+    AC -.-> ATC
+    AC -.-> NEC
+    AC -.-> KC
+    AC -.-> ASC
 ```
 
 ### Runtime Data Flow
@@ -925,7 +884,7 @@ flowchart LR
     end
 
     subgraph Subscribe["Subscription Flow"]
-        S1[subscribeToDataSources]
+        S1[subscribeAssets]
         S2[assignChainsToDataSources]
         S3[Call DataSource:subscribe]
         S4[DataSource calls AssetsController:assetsUpdate]
