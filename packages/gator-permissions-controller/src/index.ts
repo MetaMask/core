@@ -1,16 +1,11 @@
 export { default as GatorPermissionsController } from './GatorPermissionsController';
-export {
-  serializeGatorPermissionsMap,
-  deserializeGatorPermissionsMap,
-} from './utils';
 export type {
   GatorPermissionsControllerState,
+  GatorPermissionsControllerConfig,
   GatorPermissionsControllerMessenger,
   GatorPermissionsControllerGetStateAction,
   GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
   GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
-  GatorPermissionsControllerEnableGatorPermissionsAction,
-  GatorPermissionsControllerDisableGatorPermissionsAction,
   GatorPermissionsControllerSubmitRevocationAction,
   GatorPermissionsControllerAddPendingRevocationAction,
   GatorPermissionsControllerSubmitDirectRevocationAction,
@@ -24,20 +19,15 @@ export { DELEGATION_FRAMEWORK_VERSION } from './constants';
 export type {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,
-  CustomPermission,
-  PermissionTypesWithCustom,
   PermissionRequest,
   PermissionResponse,
-  PermissionResponseSanitized,
+  PermissionInfo,
   StoredGatorPermission,
-  StoredGatorPermissionSanitized,
-  GatorPermissionsMap,
-  SupportedGatorPermissionType,
-  GatorPermissionsMapByPermissionType,
-  GatorPermissionsListByPermissionTypeAndChainId,
+  PermissionInfoWithMetadata,
   DelegationDetails,
   RevocationParams,
   RevocationMetadata,
+  SupportedPermissionType,
 } from './types';
 
 export type {
