@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import * as ControllerUtils from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
   CaipAssetType,
@@ -33,7 +34,17 @@ import type {
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerState,
 } from './MultichainAssetsController';
+import { BlockaidResultType } from './MultichainAssetsController';
 import { advanceTime } from '../../../../tests/helpers';
+
+jest.mock('@metamask/controller-utils', () => {
+  const actual = jest.requireActual('@metamask/controller-utils');
+  return { ...actual, handleFetch: jest.fn() };
+});
+
+const mockHandleFetch = ControllerUtils.handleFetch as jest.MockedFunction<
+  typeof ControllerUtils.handleFetch
+>;
 
 const mockSolanaAccount: InternalAccount = {
   type: 'solana:data-account',
@@ -328,10 +339,13 @@ describe('MultichainAssetsController', () => {
 
   beforeEach(() => {
     clock = useFakeTimers();
+    // Default: Blockaid scan returns empty results (all tokens pass through)
+    mockHandleFetch.mockResolvedValue({ results: {} });
   });
 
   afterEach(() => {
     clock.restore();
+    mockHandleFetch.mockReset();
   });
   it('initialize with default state', () => {
     const { controller } = setupController({});
@@ -1374,6 +1388,328 @@ describe('MultichainAssetsController', () => {
       expect(
         controller.state.allIgnoredAssets[mockSolanaAccount.id],
       ).toBeUndefined();
+    });
+  });
+
+  describe('Blockaid token filtering', () => {
+    it('filters out spam tokens when account is added', async () => {
+      const benignToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+      const spamToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SpamTokenAddress';
+      const nativeToken = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+
+      mockHandleFetch.mockResolvedValue({
+        results: {
+          Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr: {
+            result_type: BlockaidResultType.Benign,
+          },
+          SpamTokenAddress: {
+            result_type: BlockaidResultType.Spam,
+          },
+        },
+      });
+
+      const {
+        controller,
+        messenger,
+        mockSnapHandleRequest,
+        mockGetPermissions,
+      } = setupController({
+        mocks: {
+          handleRequestReturnValue: [nativeToken, benignToken, spamToken],
+        },
+      });
+
+      mockSnapHandleRequest
+        .mockReturnValueOnce([nativeToken, benignToken, spamToken])
+        .mockReturnValueOnce(mockGetMetadataReturnValue);
+
+      mockGetPermissions
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[0])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[1])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[2])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[3])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[4])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
+
+      messenger.publish(
+        'AccountsController:accountAdded',
+        mockSolanaAccount as unknown as InternalAccount,
+      );
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Native token (slip44) should pass through unfiltered
+      // Benign token should be kept
+      // Spam token should be filtered out
+      expect(
+        controller.state.accountsAssets[mockSolanaAccount.id],
+      ).toStrictEqual([nativeToken, benignToken]);
+
+      // Verify handleFetch was called with correct parameters
+      expect(mockHandleFetch).toHaveBeenCalledWith(
+        'https://security-alerts.api.cx.metamask.io/token/scan-bulk',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            chain: 'solana',
+            tokens: [
+              'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+              'SpamTokenAddress',
+            ],
+          }),
+        }),
+      );
+    });
+
+    it('filters out malicious tokens in accountAssetListUpdated', async () => {
+      const mockAccountId = 'account1';
+      const maliciousToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:MaliciousAddr';
+      const benignToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:BenignAddr';
+
+      mockHandleFetch.mockResolvedValue({
+        results: {
+          MaliciousAddr: { result_type: BlockaidResultType.Malicious },
+          BenignAddr: { result_type: BlockaidResultType.Benign },
+        },
+      });
+
+      const {
+        controller,
+        messenger,
+        mockSnapHandleRequest,
+        mockGetPermissions,
+      } = setupController({
+        state: {
+          accountsAssets: {
+            [mockAccountId]: [],
+          },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      mockSnapHandleRequest.mockReturnValue({
+        assets: {
+          [benignToken]: {
+            name: 'Benign Token',
+            symbol: 'BEN',
+            fungible: true,
+            iconUrl: 'url',
+            units: [{ name: 'Benign', symbol: 'BEN', decimals: 9 }],
+          },
+        },
+      });
+
+      mockGetPermissions
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[0])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[1])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[2])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[3])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[4])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
+
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [mockAccountId]: {
+            added: [maliciousToken, benignToken],
+            removed: [],
+          },
+        },
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Malicious token should be filtered out
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
+        benignToken,
+      ]);
+    });
+
+    it('keeps all tokens when Blockaid API fails (fail open)', async () => {
+      const mockAccountId = 'account1';
+      const token = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SomeAddr';
+
+      mockHandleFetch.mockRejectedValue(new Error('Network error'));
+
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: { [mockAccountId]: [] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [mockAccountId]: { added: [token], removed: [] },
+        },
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Token should be kept when API fails
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
+        token,
+      ]);
+    });
+
+    it('keeps all tokens when Blockaid API returns non-200 status', async () => {
+      const mockAccountId = 'account1';
+      const token = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SomeAddr';
+
+      mockHandleFetch.mockRejectedValue(
+        new Error("Fetch failed with status '500'"),
+      );
+
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: { [mockAccountId]: [] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [mockAccountId]: { added: [token], removed: [] },
+        },
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Token should be kept when API returns error
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
+        token,
+      ]);
+    });
+
+    it('does not scan native (slip44) assets', async () => {
+      const mockAccountId = 'account1';
+      const nativeToken = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501';
+
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: { [mockAccountId]: [] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [mockAccountId]: { added: [nativeToken], removed: [] },
+        },
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Native token should pass through without API call
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
+        nativeToken,
+      ]);
+      expect(mockHandleFetch).not.toHaveBeenCalled();
+    });
+
+    it('keeps tokens with no result in the scan response (fail open)', async () => {
+      const mockAccountId = 'account1';
+      const knownToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:KnownAddr';
+      const unknownToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:UnknownAddr';
+
+      // Only return result for knownToken, not unknownToken
+      mockHandleFetch.mockResolvedValue({
+        results: {
+          KnownAddr: { result_type: BlockaidResultType.Benign },
+        },
+      });
+
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: { [mockAccountId]: [] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [mockAccountId]: { added: [knownToken, unknownToken], removed: [] },
+        },
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Both tokens should be kept (unknown token has no result, fail open)
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
+        knownToken,
+        unknownToken,
+      ]);
+    });
+
+    it('filters out Warning tokens via accountAssetListUpdated', async () => {
+      const mockAccountId = 'account1';
+      const warningToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:WarningAddr';
+
+      mockHandleFetch.mockResolvedValue({
+        results: {
+          WarningAddr: { result_type: BlockaidResultType.Warning },
+        },
+      });
+
+      const { controller, messenger } = setupController({
+        state: {
+          accountsAssets: { [mockAccountId]: [] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [mockAccountId]: { added: [warningToken], removed: [] },
+        },
+      });
+
+      await advanceTime({ clock, duration: 1 });
+
+      // Warning token should be filtered out; account has no assets added
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([]);
+    });
+
+    it('does not filter tokens in addAssets (curated list)', async () => {
+      const spamToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SpamAddr';
+
+      mockHandleFetch.mockResolvedValue({
+        results: {
+          SpamAddr: { result_type: BlockaidResultType.Spam },
+        },
+      });
+
+      const { controller } = setupController({
+        state: {
+          accountsAssets: { [mockSolanaAccount.id]: [] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      const result = await controller.addAssets(
+        [spamToken],
+        mockSolanaAccount.id,
+      );
+
+      // addAssets comes from extension curated list — no Blockaid filtering
+      expect(result).toStrictEqual([spamToken]);
+      expect(mockHandleFetch).not.toHaveBeenCalled();
     });
   });
 

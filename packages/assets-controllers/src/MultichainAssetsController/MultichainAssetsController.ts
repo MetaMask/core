@@ -10,6 +10,7 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
+import { handleFetch } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   AccountAssetListUpdatedEventPayload,
@@ -39,6 +40,38 @@ import { Mutex } from 'async-mutex';
 import { getChainIdsCaveat } from './utils';
 
 const controllerName = 'MultichainAssetsController';
+
+// Blockaid token security scanning constants
+const SECURITY_ALERTS_BASE_URL = 'https://security-alerts.api.cx.metamask.io';
+const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
+
+/**
+ * Result type from Blockaid token security scan.
+ */
+export enum BlockaidResultType {
+  Benign = 'Benign',
+  Spam = 'Spam',
+  Warning = 'Warning',
+  Malicious = 'Malicious',
+}
+
+/**
+ * Response shape from the Blockaid token bulk scanning endpoint.
+ */
+type BlockaidTokenScanResponse = {
+  results: Record<
+    string,
+    {
+      /* eslint-disable @typescript-eslint/naming-convention */
+      result_type: BlockaidResultType;
+      malicious_score: string;
+      attack_types: Record<string, unknown>;
+      /* eslint-enable @typescript-eslint/naming-convention */
+      chain: string;
+      address: string;
+    }
+  >;
+};
 
 export type MultichainAssetsControllerState = {
   assetsMetadata: {
@@ -412,11 +445,16 @@ export class MultichainAssetsController extends BaseController<
 
         // In case accountsAndAssetsToUpdate event is fired with "added" assets that already exist, we don't want to add them again
         // Also filter out ignored assets
-        const filteredToBeAddedAssets = added.filter(
+        const preFilteredToBeAddedAssets = added.filter(
           (asset) =>
             !existing.includes(asset) &&
             isCaipAssetType(asset) &&
             !this.#isAssetIgnored(asset, accountId),
+        );
+
+        // Filter out tokens flagged by Blockaid as non-benign
+        const filteredToBeAddedAssets = await this.#filterBlockaidSpamTokens(
+          preFilteredToBeAddedAssets,
         );
 
         // In case accountsAndAssetsToUpdate event is fired with "removed" assets that don't exist, we don't want to remove them
@@ -498,10 +536,11 @@ export class MultichainAssetsController extends BaseController<
 
     // Get assets list
     if (account.metadata.snap) {
-      const assets = await this.#getAssetsList(
+      const allAssets = await this.#getAssetsList(
         account.id,
         account.metadata.snap.id,
       );
+      const assets = await this.#filterBlockaidSpamTokens(allAssets);
       await this.#refreshAssetsMetadata(assets);
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
@@ -700,6 +739,100 @@ export class MultichainAssetsController extends BaseController<
       console.error(error);
       return undefined;
     }
+  }
+
+  /**
+   * Calls the Blockaid token bulk scanning endpoint for a given chain and
+   * set of token addresses.
+   *
+   * @param chain - The chain name for the Blockaid API (e.g. "solana").
+   * @param tokens - The token addresses to scan.
+   * @returns The scan response, or null if the request fails or times out.
+   */
+  async #scanBlockaidTokens(
+    chain: string,
+    tokens: string[],
+  ): Promise<BlockaidTokenScanResponse | null> {
+    try {
+      return await handleFetch(
+        `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ chain, tokens }),
+        },
+      );
+    } catch (error) {
+      console.error('Blockaid token scan failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Filters out tokens flagged as non-benign by Blockaid. Only tokens with
+   * an `assetNamespace` of "token" are scanned (native assets like slip44 are
+   * passed through unfiltered). If the API call fails, all tokens are kept.
+   *
+   * @param assets - The CAIP asset type list to filter.
+   * @returns The filtered list with malicious/spam/warning tokens removed.
+   */
+  async #filterBlockaidSpamTokens(
+    assets: CaipAssetType[],
+  ): Promise<CaipAssetType[]> {
+    // Group scannable token assets by chain namespace
+    const tokensByChain: Record<
+      string,
+      { asset: CaipAssetType; address: string }[]
+    > = {};
+
+    for (const asset of assets) {
+      const { assetNamespace, assetReference, chain } =
+        parseCaipAssetType(asset);
+
+      // Only scan fungible token assets (e.g. SPL tokens), skip native (slip44)
+      if (assetNamespace === 'token') {
+        const chainName = chain.namespace;
+        if (!tokensByChain[chainName]) {
+          tokensByChain[chainName] = [];
+        }
+        tokensByChain[chainName].push({ asset, address: assetReference });
+      }
+    }
+
+    // If there are no token assets to scan, return as-is
+    if (Object.keys(tokensByChain).length === 0) {
+      return assets;
+    }
+
+    // Build a set of assets to reject (non-benign tokens)
+    const rejectedAssets = new Set<CaipAssetType>();
+
+    for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {
+      const addresses = tokenEntries.map((entry) => entry.address);
+      const scanResponse = await this.#scanBlockaidTokens(chainName, addresses);
+
+      if (!scanResponse?.results) {
+        // If the scan fails, keep all tokens (fail open)
+        continue;
+      }
+
+      for (const entry of tokenEntries) {
+        const result = scanResponse.results[entry.address];
+        // Reject the token only if we have a definitive non-benign result
+        if (
+          result?.result_type &&
+          result.result_type !== BlockaidResultType.Benign
+        ) {
+          rejectedAssets.add(entry.asset);
+        }
+      }
+    }
+
+    // Filter while preserving original order
+    return assets.filter((asset) => !rejectedAssets.has(asset));
   }
 
   /**
