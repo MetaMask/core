@@ -25,4 +25,4 @@ export {
   SecretType,
 } from './constants';
 export { SecretMetadata } from './SecretMetadata';
-export { RecoveryError } from './errors';
+export { RecoveryError, SeedlessOnboardingError } from './errors';
