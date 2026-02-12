@@ -1682,6 +1682,7 @@ export class RampsController extends BaseController<
             state.widgetUrl.isLoading = false;
             state.widgetUrl.error = null;
           });
+          return undefined;
         })
         .catch((error: unknown) => {
           this.update((state) => {
