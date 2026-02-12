@@ -16,7 +16,10 @@ import type {
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { MultichainAccountServiceCreateMultichainAccountGroupAction } from '@metamask/multichain-account-service';
+import type {
+  MultichainAccountServiceCreateMultichainAccountGroupAction,
+  MultichainAccountServiceCreateMultichainAccountGroupsAction,
+} from '@metamask/multichain-account-service';
 import type {
   AuthenticationController,
   UserStorageController,
@@ -132,7 +135,8 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformSetStorage
   | UserStorageController.UserStorageControllerPerformBatchSetStorage
   | AuthenticationController.AuthenticationControllerGetSessionProfile
-  | MultichainAccountServiceCreateMultichainAccountGroupAction;
+  | MultichainAccountServiceCreateMultichainAccountGroupAction
+  | MultichainAccountServiceCreateMultichainAccountGroupsAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
