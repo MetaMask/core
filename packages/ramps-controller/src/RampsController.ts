@@ -20,6 +20,7 @@ import type {
   Quote,
   RampsToken,
   RampsServiceActions,
+  BuyWidget,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -160,6 +161,12 @@ export type RampsControllerState = {
    */
   quotes: ResourceState<QuotesResponse | null, Quote | null>;
   /**
+   * Widget URL resource state with data, loading, and error.
+   * Contains the buy widget data (URL, browser type, order ID) for the currently selected quote.
+   * Automatically fetched whenever a selected quote changes.
+   */
+  widgetUrl: ResourceState<BuyWidget | null>;
+  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
@@ -201,6 +208,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   quotes: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  widgetUrl: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: false,
@@ -263,6 +276,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
       null,
       null,
     ),
+    widgetUrl: createDefaultResourceState<BuyWidget | null>(null),
     requests: {},
   };
 }
@@ -310,6 +324,9 @@ function resetDependentResources(
   for (const key of DEPENDENT_RESOURCE_KEYS) {
     resetResource(state, key, defaultState[key]);
   }
+  state.widgetUrl.data = null;
+  state.widgetUrl.isLoading = false;
+  state.widgetUrl.error = null;
 }
 
 // === MESSENGER ===
@@ -999,6 +1016,9 @@ export class RampsController extends BaseController<
       state.providers.selected = provider;
       resetResource(state, 'paymentMethods');
       state.quotes.selected = null;
+      state.widgetUrl.data = null;
+      state.widgetUrl.isLoading = false;
+      state.widgetUrl.error = null;
     });
 
     this.#fireAndForget(
@@ -1164,6 +1184,9 @@ export class RampsController extends BaseController<
       state.tokens.selected = token;
       resetResource(state, 'paymentMethods');
       state.quotes.selected = null;
+      state.widgetUrl.data = null;
+      state.widgetUrl.isLoading = false;
+      state.widgetUrl.error = null;
     });
 
     this.#fireAndForget(
@@ -1549,10 +1572,13 @@ export class RampsController extends BaseController<
           providers: [provider.id],
           forceRefresh: true,
         }).then((response) => {
+          let newSelectedQuote: Quote | null = null;
+
           // Auto-select logic: only when exactly one quote is returned
           this.update((state) => {
             if (response.success.length === 1) {
-              state.quotes.selected = response.success[0];
+              newSelectedQuote = response.success[0];
+              state.quotes.selected = newSelectedQuote;
             } else {
               // Keep existing selection if still valid, but update with fresh data
               const currentSelection = state.quotes.selected;
@@ -1563,11 +1589,13 @@ export class RampsController extends BaseController<
                     quote.quote.paymentMethod ===
                       currentSelection.quote.paymentMethod,
                 );
-                // Update with fresh quote data, or clear if no longer valid
-                state.quotes.selected = freshQuote ?? null;
+                newSelectedQuote = freshQuote ?? null;
+                state.quotes.selected = newSelectedQuote;
               }
             }
           });
+
+          this.#syncWidgetUrl(newSelectedQuote);
           return undefined;
         }),
       );
@@ -1594,6 +1622,7 @@ export class RampsController extends BaseController<
 
   /**
    * Manually sets the selected quote.
+   * Automatically triggers a widget URL fetch for the new quote.
    *
    * @param quote - The quote to select, or null to clear the selection.
    */
@@ -1601,6 +1630,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.quotes.selected = quote;
     });
+    this.#syncWidgetUrl(quote);
   }
 
   /**
@@ -1614,28 +1644,48 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Fetches the widget URL from a quote for redirect providers.
-   * Makes a request to the buyURL endpoint via the RampsService to get the
-   * actual provider widget URL, using the injected fetch and retry policy.
+   * Syncs the widget URL state with the given quote.
+   * If the quote has a buyURL, fetches the widget URL and stores the result in state.
+   * If the quote is null or has no buyURL, resets the widget URL state.
    *
-   * @param quote - The quote to fetch the widget URL from.
-   * @returns Promise resolving to the widget URL string, or null if not available.
+   * @param quote - The quote to fetch the widget URL for, or null to clear.
    */
-  async getWidgetUrl(quote: Quote): Promise<string | null> {
-    const buyUrl = quote.quote?.buyURL;
+  #syncWidgetUrl(quote: Quote | null): void {
+    const buyUrl = quote?.quote?.buyURL;
     if (!buyUrl) {
-      return null;
+      this.update((state) => {
+        state.widgetUrl.data = null;
+        state.widgetUrl.isLoading = false;
+        state.widgetUrl.error = null;
+      });
+      return;
     }
 
-    try {
-      const buyWidget = await this.messenger.call(
-        'RampsService:getBuyWidgetUrl',
-        buyUrl,
-      );
-      return buyWidget.url ?? null;
-    } catch (error) {
-      console.error('Error fetching widget URL:', error);
-      return null;
-    }
+    this.update((state) => {
+      state.widgetUrl.data = null;
+      state.widgetUrl.isLoading = true;
+      state.widgetUrl.error = null;
+    });
+
+    this.#fireAndForget(
+      this.messenger.call('RampsService:getBuyWidgetUrl', buyUrl)
+        .then((buyWidget) => {
+          this.update((state) => {
+            state.widgetUrl.data = buyWidget;
+            state.widgetUrl.isLoading = false;
+            state.widgetUrl.error = null;
+          });
+        })
+        .catch((error: unknown) => {
+          this.update((state) => {
+            state.widgetUrl.data = null;
+            state.widgetUrl.isLoading = false;
+            state.widgetUrl.error =
+              error instanceof Error
+                ? error.message
+                : 'Failed to fetch widget URL';
+          });
+        }),
+    );
   }
 }
