@@ -55,6 +55,7 @@ function createMockInternalAccount(
 
 type WithControllerOptions = {
   state?: Partial<AssetsControllerState>;
+  isBasicFunctionality?: () => boolean;
 };
 
 type WithControllerCallback<ReturnValue> = ({
@@ -77,7 +78,10 @@ async function withController<ReturnValue>(
     | [WithControllerOptions, WithControllerCallback<ReturnValue>]
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
-  const [{ state = {} }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const [{ state = {}, isBasicFunctionality = (): boolean => true }, fn]: [
+    WithControllerOptions,
+    WithControllerCallback<ReturnValue>,
+  ] = args.length === 2 ? args : [{}, args[0]];
 
   // Use root messenger (MOCK_ANY_NAMESPACE) so data sources can register their actions.
   const messenger: RootMessenger = new Messenger({
@@ -130,6 +134,10 @@ async function withController<ReturnValue>(
     messenger: messenger as unknown as AssetsControllerMessenger,
     state,
     queryApiClient: createMockQueryApiClient(),
+    isBasicFunctionality,
+    subscribeToBasicFunctionalityChange: (): void => {
+      /* no-op for tests */
+    },
   });
 
   return fn({ controller, messenger });
@@ -219,6 +227,9 @@ describe('AssetsController', () => {
         messenger: messenger as unknown as AssetsControllerMessenger,
         isEnabled: (): boolean => false,
         queryApiClient: createMockQueryApiClient(),
+        subscribeToBasicFunctionalityChange: (): void => {
+          /* no-op for tests */
+        },
       });
 
       // Controller should still have default state (from super() call)
@@ -259,6 +270,32 @@ describe('AssetsController', () => {
           );
         }).not.toThrow();
       });
+    });
+
+    it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {
+      await withController(async ({ controller }) => {
+        expect(controller.handleBasicFunctionalityChange).toBeDefined();
+        expect(() =>
+          controller.handleBasicFunctionalityChange(true),
+        ).not.toThrow();
+      });
+    });
+
+    it('works with isBasicFunctionality false (RPC-only mode)', async () => {
+      await withController(
+        { state: {}, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            forceUpdate: true,
+          });
+          expect(assets).toBeDefined();
+          expect(assets[MOCK_ACCOUNT_ID]).toBeDefined();
+          expect(() =>
+            controller.handleBasicFunctionalityChange(false),
+          ).not.toThrow();
+        },
+      );
     });
   });
 
