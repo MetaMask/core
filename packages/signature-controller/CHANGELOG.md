@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Allow redelegation signing for internal accounts from external requests ([#7917](https://github.com/MetaMask/core/issues/7917))
+  - Previously, `validateDelegation` blocked all delegation signing from external origins for internal accounts. Now it only blocks root delegations (where `authority` equals `ROOT_AUTHORITY`), allowing redelegations which are safe since the signer is not the root delegator.
+
 ## [39.0.2]
 
 ### Changed

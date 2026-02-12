@@ -5,6 +5,7 @@ import type { Hex } from '@metamask/utils';
 
 import {
   PRIMARY_TYPE_DELEGATION,
+  ROOT_AUTHORITY,
   validatePersonalSignatureRequest,
   validateTypedSignatureRequest,
 } from './validation';
@@ -409,12 +410,13 @@ describe('Validation Utils', () => {
         });
 
         describe('delegation', () => {
-          it('throws if external origin in request and delegation from internal account', () => {
+          it('throws if external origin in request and root delegation from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
             data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+            data.message.authority = ROOT_AUTHORITY;
 
             expect(() =>
               validateTypedSignatureRequest({
@@ -428,16 +430,17 @@ describe('Validation Utils', () => {
                 version,
               }),
             ).toThrow(
-              'External signature requests cannot sign delegations for internal accounts.',
+              'External signature requests cannot sign root delegations for internal accounts.',
             );
           });
 
-          it('throws if external origin in message params and delegation from internal account', () => {
+          it('throws if external origin in message params and root delegation from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
             data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+            data.message.authority = ROOT_AUTHORITY;
 
             expect(() =>
               validateTypedSignatureRequest({
@@ -452,16 +455,17 @@ describe('Validation Utils', () => {
                 version,
               }),
             ).toThrow(
-              'External signature requests cannot sign delegations for internal accounts.',
+              'External signature requests cannot sign root delegations for internal accounts.',
             );
           });
 
-          it('throws if external origin and delegation from internal account with different case', () => {
+          it('throws if external origin and root delegation from internal account with different case', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
             data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+            data.message.authority = ROOT_AUTHORITY;
 
             expect(() =>
               validateTypedSignatureRequest({
@@ -478,16 +482,17 @@ describe('Validation Utils', () => {
                 version,
               }),
             ).toThrow(
-              'External signature requests cannot sign delegations for internal accounts.',
+              'External signature requests cannot sign root delegations for internal accounts.',
             );
           });
 
-          it('does not throw if internal origin and delegation from internal account', () => {
+          it('does not throw if internal origin and root delegation from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
             data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+            data.message.authority = ROOT_AUTHORITY;
 
             expect(() =>
               validateTypedSignatureRequest({
@@ -503,12 +508,13 @@ describe('Validation Utils', () => {
             ).not.toThrow();
           });
 
-          it('does not throw if no origin and delegation from internal account', () => {
+          it('does not throw if no origin and root delegation from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
             data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+            data.message.authority = ROOT_AUTHORITY;
 
             expect(() =>
               validateTypedSignatureRequest({
@@ -519,6 +525,54 @@ describe('Validation Utils', () => {
                   from: '0x3244e191f1b4903970224322180f1fbbc415696b',
                 },
                 request: REQUEST_MOCK,
+                version,
+              }),
+            ).not.toThrow();
+          });
+
+          it('does not throw if external origin and redelegation (non-root authority) from internal account', () => {
+            const data = JSON.parse(DATA_TYPED_MOCK);
+            const NON_ROOT_AUTHORITY =
+              '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+
+            data.primaryType = PRIMARY_TYPE_DELEGATION;
+            data.types.Delegation = [{ name: 'delegator', type: 'address' }];
+            data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+            data.message.authority = NON_ROOT_AUTHORITY;
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: {
+                  data,
+                  from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+                },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).not.toThrow();
+          });
+
+          it('does not throw if external origin and redelegation from internal account with different case authority', () => {
+            const data = JSON.parse(DATA_TYPED_MOCK);
+            const NON_ROOT_AUTHORITY =
+              '0xABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890';
+
+            data.primaryType = PRIMARY_TYPE_DELEGATION;
+            data.types.Delegation = [{ name: 'delegator', type: 'address' }];
+            data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+            data.message.authority = NON_ROOT_AUTHORITY;
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: {
+                  data,
+                  from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+                },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
                 version,
               }),
             ).not.toThrow();
