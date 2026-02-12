@@ -339,20 +339,30 @@ async function normalizeQuote(
     ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
   };
 
+  const isTargetStablecoin = STABLECOINS[request.targetChainId]?.includes(
+    request.targetTokenAddress.toLowerCase() as Hex,
+  );
+
   const subsidizedFee = quote.fees?.subsidized;
+
+  const isSubsidizedFeeStablecoin =
+    subsidizedFee &&
+    STABLECOINS[toHex(subsidizedFee.currency.chainId)]?.includes(
+      subsidizedFee.currency.address.toLowerCase() as Hex,
+    );
 
   const additionalTargetAmountUsd =
     quote.request.tradeType === 'EXACT_INPUT' && subsidizedFee
-      ? new BigNumber(subsidizedFee.amountUsd)
+      ? new BigNumber(
+          isSubsidizedFeeStablecoin
+            ? subsidizedFee.amountFormatted
+            : subsidizedFee.amountUsd,
+        )
       : new BigNumber(0);
 
   if (additionalTargetAmountUsd.gt(0)) {
     log('Including subsidized fee in target amount', subsidizedFee?.amountUsd);
   }
-
-  const isTargetStablecoin = STABLECOINS[request.targetChainId]?.includes(
-    request.targetTokenAddress.toLowerCase() as Hex,
-  );
 
   const baseTargetAmountUsd = isTargetStablecoin
     ? new BigNumber(currencyOut.amountFormatted)

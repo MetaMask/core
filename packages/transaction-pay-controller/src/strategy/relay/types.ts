@@ -61,6 +61,7 @@ export type RelayQuote = {
       amountFormatted: string;
       amountUsd: string;
       currency: {
+        address: Hex;
         chainId: number;
         decimals: number;
       };

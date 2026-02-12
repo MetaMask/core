@@ -1123,6 +1123,7 @@ describe('Relay Quotes Utils', () => {
         amountFormatted: '0.0005',
         amountUsd: '0.50',
         currency: {
+          address: '0xdef' as Hex,
           chainId: 1,
           decimals: 18,
         },
@@ -1152,6 +1153,7 @@ describe('Relay Quotes Utils', () => {
         amountFormatted: '0.0005',
         amountUsd: '0.50',
         currency: {
+          address: '0xdef' as Hex,
           chainId: 1,
           decimals: 18,
         },
