@@ -1656,6 +1656,9 @@ export class RampsController extends BaseController<
    * If the quote has a buyURL, fetches the widget URL and stores the result in state.
    * If the quote is null or has no buyURL, resets the widget URL state.
    *
+   * When data already exists, skips the loading-state reset so that polling
+   * cycles don't cause visible flicker (stale-while-revalidate).
+   *
    * @param quote - The quote to fetch the widget URL for, or null to clear.
    */
   #syncWidgetUrl(quote: Quote | null): void {
@@ -1667,11 +1670,12 @@ export class RampsController extends BaseController<
       return;
     }
 
-    this.update((state) => {
-      state.widgetUrl.data = null;
-      state.widgetUrl.isLoading = true;
-      state.widgetUrl.error = null;
-    });
+    if (this.state.widgetUrl.data === null) {
+      this.update((state) => {
+        state.widgetUrl.isLoading = true;
+        state.widgetUrl.error = null;
+      });
+    }
 
     this.#fireAndForget(
       this.messenger
