@@ -5942,6 +5942,7 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getBuyWidgetUrl',
           async () => {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw 'unexpected failure';
           },
         );
