@@ -717,6 +717,36 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
+    it('sets provider fee to zero when subsidized fee is present', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.fees.subsidized = {
+        amount: '500000',
+        amountFormatted: '0.50',
+        amountUsd: '0.50',
+        currency: {
+          address: '0xdef' as Hex,
+          chainId: 1,
+          decimals: 6,
+        },
+        minimumAmount: '500000',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        usd: '0',
+        fiat: '0',
+      });
+    });
+
     it('includes dust in quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,

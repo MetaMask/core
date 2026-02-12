@@ -317,10 +317,9 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
-  const provider = getFiatValueFromUsd(
-    calculateProviderFee(quote),
-    usdToFiatRate,
-  );
+  const provider = quote.fees?.subsidized
+    ? { usd: '0', fiat: '0' }
+    : getFiatValueFromUsd(calculateProviderFee(quote), usdToFiatRate);
 
   const {
     gasLimits,
