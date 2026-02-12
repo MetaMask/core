@@ -4,7 +4,7 @@ import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { BigNumber } from 'bignumber.js';
 
-import { DEFAULT_CHAIN_RANKING } from './constants/bridge';
+import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge';
 import type { BridgeAppState } from './selectors';
 import {
   selectExchangeRateByChainIdAndAddress,
@@ -18,13 +18,20 @@ import {
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
 import { isNativeAddress } from './utils/bridge';
-import { formatChainIdToHex } from './utils/caip-formatters';
+import {
+  formatAddressToAssetId,
+  formatChainIdToHex,
+} from './utils/caip-formatters';
+
+const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
 
 describe('Bridge Selectors', () => {
   describe('selectExchangeRateByChainIdAndAddress', () => {
     const mockExchangeRateSources = {
       assetExchangeRates: {
-        'eip155:1/erc20:0x123': {
+        [formatAddressToAssetId(MOCK_USDC_ADDRESS, '1')?.toLowerCase() ??
+        MOCK_USDC_ADDRESS]: {
           exchangeRate: '2.5',
           usdExchangeRate: '1.5',
         },
@@ -40,7 +47,7 @@ describe('Bridge Selectors', () => {
       },
       marketData: {
         '0x1': {
-          '0xabc': {
+          [MOCK_MUSD_ADDRESS]: {
             price: 50 / 2468.12,
             currency: 'ETH',
           },
@@ -53,7 +60,7 @@ describe('Bridge Selectors', () => {
       },
     } as unknown as BridgeAppState;
 
-    it('should return empty object if chainId or address is missing', () => {
+    it('should return empty object if chainId is missing', () => {
       expect(
         selectExchangeRateByChainIdAndAddress(
           mockExchangeRateSources,
@@ -63,12 +70,15 @@ describe('Bridge Selectors', () => {
       ).toStrictEqual({});
       expect(
         selectExchangeRateByChainIdAndAddress(mockExchangeRateSources, '1'),
-      ).toStrictEqual({});
+      ).toStrictEqual({
+        exchangeRate: '2468.12',
+        usdExchangeRate: '1800',
+      });
       expect(
         selectExchangeRateByChainIdAndAddress(
           mockExchangeRateSources,
           undefined,
-          '0x123',
+          MOCK_USDC_ADDRESS,
         ),
       ).toStrictEqual({});
     });
@@ -77,7 +87,7 @@ describe('Bridge Selectors', () => {
       const result = selectExchangeRateByChainIdAndAddress(
         mockExchangeRateSources,
         '1',
-        '0x123',
+        MOCK_USDC_ADDRESS,
       );
       expect(result).toStrictEqual({
         exchangeRate: '2.5',
@@ -113,7 +123,7 @@ describe('Bridge Selectors', () => {
       const result = selectExchangeRateByChainIdAndAddress(
         mockExchangeRateSources,
         '1',
-        '0xabc',
+        MOCK_MUSD_ADDRESS.toLowerCase(),
       );
       expect(result).toStrictEqual({
         exchangeRate: '50.00000000000000162804',
@@ -123,9 +133,11 @@ describe('Bridge Selectors', () => {
   });
 
   describe('selectIsAssetExchangeRateInState', () => {
+    const assetId =
+      formatAddressToAssetId(MOCK_USDC_ADDRESS, '1')?.toLowerCase() ?? '';
     const mockExchangeRateSources = {
       assetExchangeRates: {
-        'eip155:1/erc20:0x123': {
+        [assetId]: {
           exchangeRate: '2.5',
         },
       },
@@ -141,29 +153,36 @@ describe('Bridge Selectors', () => {
             ...mockExchangeRateSources,
             assetExchangeRates: {
               ...mockExchangeRateSources.assetExchangeRates,
-              'eip155:1/erc20:0x123': {
-                ...mockExchangeRateSources.assetExchangeRates[
-                  'eip155:1/erc20:0x123'
-                ],
+              [assetId]: {
+                // @ts-expect-error - ignore type error
+                ...mockExchangeRateSources.assetExchangeRates[assetId],
                 usdExchangeRate: '1.5',
               },
             },
           },
           '1',
-          '0x123',
+          MOCK_USDC_ADDRESS,
         ),
       ).toBe(true);
     });
 
     it('should return false if USD exchange rate does not exist', () => {
       expect(
-        selectIsAssetExchangeRateInState(mockExchangeRateSources, '1', '0x123'),
+        selectIsAssetExchangeRateInState(
+          mockExchangeRateSources,
+          '1',
+          MOCK_USDC_ADDRESS,
+        ),
       ).toBe(false);
     });
 
     it('should return false if exchange rate does not exist', () => {
       expect(
-        selectIsAssetExchangeRateInState(mockExchangeRateSources, '1', '0x456'),
+        selectIsAssetExchangeRateInState(
+          mockExchangeRateSources,
+          '1',
+          ETH_USDT_ADDRESS,
+        ),
       ).toBe(false);
     });
 
@@ -364,7 +383,14 @@ describe('Bridge Selectors', () => {
       ({
         quotes: [
           mockQuote,
-          { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
+          {
+            ...mockQuote,
+            quote: {
+              ...mockQuote.quote,
+              requestId: '456',
+              destTokenAmount: '2100000000000000000',
+            },
+          },
         ],
         quoteRequest: {
           srcChainId: '1',
@@ -423,17 +449,78 @@ describe('Bridge Selectors', () => {
     };
 
     it('should return sorted quotes with metadata', () => {
-      const result = selectBridgeQuotes(mockState, mockClientParams);
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            assetExchangeRates: {
+              [formatAddressToAssetId(
+                mockQuote.quote.srcAsset.address,
+                mockQuote.quote.srcChainId,
+              ) ?? '']: {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              [formatAddressToAssetId(
+                mockQuote.quote.destAsset.address,
+                mockQuote.quote.destChainId,
+              ) ?? '']: {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          mockClientParams,
+        );
 
-      expect(result.sortedQuotes).toHaveLength(2);
-      expect(result.sortedQuotes[0].quote.requestId).toMatchInlineSnapshot(
-        `"123"`,
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result).toMatchSnapshot();
+      expect(result.sortedQuotes[0].cost.valueInCurrency).toBe('-419.985546');
+    });
+
+    it('should use destTokenAmount to sort quotes if exchange rate is not available', () => {
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          { ...mockState, assetExchangeRates: {}, marketData: {} },
+          mockClientParams,
+        );
+
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result).toMatchSnapshot();
+      expect(result.sortedQuotes[0].cost.valueInCurrency).toBeNull();
+      expect(result.recommendedQuote?.quote.destTokenAmount).toBe(
+        '2100000000000000000',
       );
-      expect(result.recommendedQuote).toBeDefined();
-      expect(result.activeQuote).toBeDefined();
-      expect(result.isLoading).toBe(false);
-      expect(result.quoteFetchError).toBeNull();
-      expect(result.isQuoteGoingToRefresh).toBe(true);
+    });
+
+    it('should use priceImpact to sort quotes if exchange rate is not available', () => {
+      const quotesWithPriceImpact = [
+        {
+          ...mockQuote,
+          quote: { ...mockQuote.quote, priceData: { priceImpact: '0.01' } },
+        },
+        {
+          ...mockQuote,
+          quote: { ...mockQuote.quote, priceData: { priceImpact: '-0.02' } },
+        },
+      ];
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            assetExchangeRates: {},
+            marketData: {},
+            quotes: quotesWithPriceImpact as unknown as QuoteResponse[],
+          },
+          mockClientParams,
+        );
+
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result).toMatchSnapshot();
+      expect(result.sortedQuotes[0].cost.valueInCurrency).toBeNull();
+      expect(result.recommendedQuote?.quote.priceData?.priceImpact).toBe(
+        '-0.02',
+      );
     });
 
     describe('returns swap metadata', () => {
@@ -1113,8 +1200,20 @@ describe('Bridge Selectors', () => {
         sortOrder: SortOrder.ETA_ASC,
       });
 
-      expect(resultCostAsc.sortedQuotes).toBeDefined();
-      expect(resultEtaAsc.sortedQuotes).toBeDefined();
+      expect(resultCostAsc.sortedQuotes.map((quote) => quote.quote.requestId))
+        .toMatchInlineSnapshot(`
+        [
+          "456",
+          "123",
+        ]
+      `);
+      expect(resultEtaAsc.sortedQuotes.map((quote) => quote.quote.requestId))
+        .toMatchInlineSnapshot(`
+        [
+          "123",
+          "456",
+        ]
+      `);
     });
 
     it('should handle selected quote', () => {
@@ -1381,7 +1480,7 @@ describe('Bridge Selectors', () => {
         '1': {
           isActiveSrc: true,
           isActiveDest: true,
-          stablecoins: ['0x123', '0x456'],
+          stablecoins: [MOCK_USDC_ADDRESS, '0x456'],
         },
         '10': {
           isActiveSrc: true,
@@ -1402,7 +1501,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           srcChainId: '10',
           destChainId: '10',
@@ -1420,7 +1519,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           srcChainId: '1',
           destChainId: ChainId.SOLANA,
@@ -1438,7 +1537,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           destChainId: '1',
           srcChainId: ChainId.SOLANA,
@@ -1456,7 +1555,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           destChainId: ChainId.SOLANA,
           srcChainId: ChainId.SOLANA,
@@ -1474,7 +1573,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x789',
           destChainId: '1',
           srcChainId: '1',
@@ -1510,7 +1609,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           destChainId: '1',
           srcChainId: '1',
@@ -1528,7 +1627,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           destChainId: '1',
         },
@@ -1545,7 +1644,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           srcChainId: '1',
         },

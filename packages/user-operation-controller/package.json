@@ -60,7 +60,7 @@
     "@metamask/polling-controller": "^16.0.2",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^62.16.0",
+    "@metamask/transaction-controller": "^62.17.0",
     "@metamask/utils": "^11.9.0",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
@@ -75,7 +75,7 @@
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
-    "typedoc": "^0.24.8",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },

@@ -54,7 +54,7 @@ export class DetectionMiddleware {
       }
 
       // Get metadata from state
-      const { assetsMetadata: stateMetadata } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
 
       const detectedAssets: Record<AccountId, Caip19AssetId[]> = {};
 

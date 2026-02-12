@@ -185,13 +185,13 @@ export class TokenDataSource {
         return next(ctx);
       }
 
-      const { assetsMetadata: stateMetadata } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
 
       for (const detectedIds of Object.values(response.detectedAssets)) {
         for (const assetId of detectedIds) {
           // Skip if response already has metadata with image
-          const responseMetadata = response.assetsMetadata?.[assetId];
+          const responseMetadata = response.assetsInfo?.[assetId];
           if (responseMetadata?.image) {
             continue;
           }
@@ -235,12 +235,14 @@ export class TokenDataSource {
           },
         );
 
-        response.assetsMetadata ??= {};
+        response.assetsInfo ??= {};
 
         for (const assetData of metadataResponse) {
           const caipAssetId = assetData.assetId as Caip19AssetId;
-          response.assetsMetadata[caipAssetId] =
-            transformV3AssetResponseToMetadata(assetData.assetId, assetData);
+          response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
+            assetData.assetId,
+            assetData,
+          );
         }
       } catch (error) {
         log('Failed to fetch metadata', { error });
