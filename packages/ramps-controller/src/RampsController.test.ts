@@ -5982,16 +5982,18 @@ describe('RampsController', () => {
           orderId: null,
         };
 
+        let staleResolve: ((value: unknown) => void) | undefined;
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getBuyWidgetUrl',
-          async () => {
+          () => {
             callCount += 1;
             if (callCount === 1) {
-              await new Promise((resolve) => setTimeout(resolve, 100));
-              return staleResponse;
+              return new Promise((resolve) => {
+                staleResolve = () => resolve(staleResponse);
+              });
             }
-            return freshResponse;
+            return Promise.resolve(freshResponse);
           },
         );
 
@@ -6018,6 +6020,11 @@ describe('RampsController', () => {
         controller.setSelectedQuote(staleQuote);
         controller.setSelectedQuote(freshQuote);
 
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.data).toStrictEqual(freshResponse);
+
+        staleResolve?.(undefined);
         await flushPromises();
 
         expect(controller.state.widgetUrl.data).toStrictEqual(freshResponse);
@@ -6034,16 +6041,18 @@ describe('RampsController', () => {
           orderId: null,
         };
 
+        let staleReject: ((reason: unknown) => void) | undefined;
         let callCount = 0;
         rootMessenger.registerActionHandler(
           'RampsService:getBuyWidgetUrl',
-          async () => {
+          () => {
             callCount += 1;
             if (callCount === 1) {
-              await new Promise((resolve) => setTimeout(resolve, 100));
-              throw new Error('Stale error');
+              return new Promise((_resolve, reject) => {
+                staleReject = reject;
+              });
             }
-            return freshResponse;
+            return Promise.resolve(freshResponse);
           },
         );
 
@@ -6073,6 +6082,11 @@ describe('RampsController', () => {
         await flushPromises();
 
         expect(controller.state.widgetUrl.data).toStrictEqual(freshResponse);
+
+        staleReject?.(new Error('Stale error'));
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.data).toStrictEqual(freshResponse);
         expect(controller.state.widgetUrl.isLoading).toBe(false);
         expect(controller.state.widgetUrl.error).toBeNull();
       });
@@ -6086,12 +6100,13 @@ describe('RampsController', () => {
           orderId: null,
         };
 
+        let staleResolve: ((value: unknown) => void) | undefined;
         rootMessenger.registerActionHandler(
           'RampsService:getBuyWidgetUrl',
-          async () => {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            return staleResponse;
-          },
+          () =>
+            new Promise((resolve) => {
+              staleResolve = () => resolve(staleResponse);
+            }),
         );
 
         const quote: Quote = {
@@ -6107,6 +6122,7 @@ describe('RampsController', () => {
         controller.setSelectedQuote(quote);
         controller.setSelectedQuote(null);
 
+        staleResolve?.(undefined);
         await flushPromises();
 
         expect(controller.state.widgetUrl.data).toBeNull();
@@ -6147,12 +6163,13 @@ describe('RampsController', () => {
             orderId: null,
           };
 
+          let staleResolve: ((value: unknown) => void) | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getBuyWidgetUrl',
-            async () => {
-              await new Promise((resolve) => setTimeout(resolve, 100));
-              return staleResponse;
-            },
+            () =>
+              new Promise((resolve) => {
+                staleResolve = () => resolve(staleResponse);
+              }),
           );
 
           rootMessenger.registerActionHandler(
@@ -6173,6 +6190,7 @@ describe('RampsController', () => {
           controller.setSelectedQuote(quote);
           controller.setSelectedProvider(mockProvider.id);
 
+          staleResolve?.(undefined);
           await flushPromises();
 
           expect(controller.state.widgetUrl.data).toBeNull();
@@ -6215,12 +6233,13 @@ describe('RampsController', () => {
             orderId: null,
           };
 
+          let staleResolve: ((value: unknown) => void) | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getBuyWidgetUrl',
-            async () => {
-              await new Promise((resolve) => setTimeout(resolve, 100));
-              return staleResponse;
-            },
+            () =>
+              new Promise((resolve) => {
+                staleResolve = () => resolve(staleResponse);
+              }),
           );
 
           rootMessenger.registerActionHandler(
@@ -6241,6 +6260,7 @@ describe('RampsController', () => {
           controller.setSelectedQuote(quote);
           controller.setSelectedToken(mockToken.assetId);
 
+          staleResolve?.(undefined);
           await flushPromises();
 
           expect(controller.state.widgetUrl.data).toBeNull();
