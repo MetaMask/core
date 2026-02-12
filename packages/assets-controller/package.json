@@ -64,6 +64,7 @@
     "@metamask/network-enablement-controller": "^4.1.0",
     "@metamask/permission-controller": "^12.2.0",
     "@metamask/polling-controller": "^16.0.2",
+    "@metamask/preferences-controller": "^22.1.0",
     "@metamask/snaps-controllers": "^17.2.0",
     "@metamask/snaps-utils": "^11.7.0",
     "@metamask/utils": "^11.9.0",

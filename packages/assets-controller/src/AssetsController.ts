@@ -24,6 +24,7 @@ import type {
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { parseCaipAssetType } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
@@ -186,7 +187,8 @@ type AllowedEvents =
   | NetworkEnablementControllerEvents
   | BackendWebSocketServiceEvents
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  | PreferencesControllerStateChangeEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -209,11 +211,21 @@ export type AssetsControllerOptions = {
    * Getter for basic functionality (matches the "Basic functionality" setting in the UI).
    * When it returns true, internet services are on: token/price APIs are used for metadata, price,
    * and price subscription. When false, only RPC is used (no token/price APIs).
-   * No value is stored; the getter is invoked when needed. When the consumer changes the toggle,
-   * call {@link AssetsController.handleBasicFunctionalityChange} to refresh subscriptions.
+   * No value is stored; the getter is invoked when needed.
    * Defaults to () => true when not provided (APIs enabled).
    */
   isBasicFunctionality?: () => boolean;
+  /**
+   * Called by the controller with an onChange callback. The consumer subscribes to its own
+   * basic-functionality source (e.g. PreferencesController:stateChange in extension, or a
+   * different mechanism in mobile) and invokes onChange(isBasic) when the value changes.
+   * The controller will then refresh its subscriptions. May return an unsubscribe function
+   * called on controller destroy. Optional; when omitted, basic-functionality changes are not
+   * subscribed to (e.g. host can notify via root messenger or another path).
+   */
+  subscribeToBasicFunctionalityChange?: (
+    onChange: (isBasic: boolean) => void,
+  ) => void | (() => void);
   /**
    * API client for balance/price/metadata. The controller instantiates data sources
    * and uses them directly when this is provided.
@@ -432,12 +444,15 @@ export class AssetsController extends BaseController<
 
   readonly #tokenDataSource: TokenDataSource;
 
+  #unsubscribeBasicFunctionality: (() => void) | null = null;
+
   constructor({
     messenger,
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
     isEnabled = (): boolean => true,
     isBasicFunctionality,
+    subscribeToBasicFunctionalityChange,
     queryApiClient,
     rpcDataSourceConfig,
   }: AssetsControllerOptions) {
@@ -454,6 +469,7 @@ export class AssetsController extends BaseController<
     this.#isEnabled = isEnabled();
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
+
     const rpcConfig = rpcDataSourceConfig ?? {};
 
     const onActiveChainsUpdated = (
@@ -501,6 +517,17 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
+
+    // Subscribe to basic-functionality changes after construction so a synchronous
+    // onChange during subscribe cannot run before data sources are initialized.
+    if (subscribeToBasicFunctionalityChange) {
+      const unsubscribe = subscribeToBasicFunctionalityChange((isBasic) =>
+        this.handleBasicFunctionalityChange(isBasic),
+      );
+      if (typeof unsubscribe === 'function') {
+        this.#unsubscribeBasicFunctionality = unsubscribe;
+      }
+    }
   }
 
   // ============================================================================
@@ -1720,17 +1747,15 @@ export class AssetsController extends BaseController<
     this.#backendWebsocketDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
-    if (
-      this.#rpcDataSource &&
-      'destroy' in this.#rpcDataSource &&
-      typeof (this.#rpcDataSource as { destroy: () => void }).destroy ===
-        'function'
-    ) {
-      (this.#rpcDataSource as { destroy: () => void }).destroy();
-    }
+    this.#rpcDataSource?.destroy?.();
 
     // Stop all active subscriptions
     this.#stop();
+
+    if (this.#unsubscribeBasicFunctionality) {
+      this.#unsubscribeBasicFunctionality();
+      this.#unsubscribeBasicFunctionality = null;
+    }
 
     // Unregister action handlers
     this.messenger.unregisterActionHandler('AssetsController:getAssets');
