@@ -1,0 +1,9 @@
+---
+description: Rules for updating CHANGELOG.md files in the monorepo
+globs: **/CHANGELOG.md
+---
+
+# Changelog rules
+
+- When updating a CHANGELOG.md, prefix breaking change entries with `**BREAKING:**` and list them above non-breaking entries in the same category section.
+- A change is breaking if it removes, renames, or changes the signature of any public export (function, type, class, constant), or changes default behavior that consumers rely on.
