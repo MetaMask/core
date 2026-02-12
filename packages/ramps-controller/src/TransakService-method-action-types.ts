@@ -1,0 +1,135 @@
+import type { TransakService } from './TransakService';
+
+export type TransakServiceSetApiKeyAction = {
+  type: `TransakService:setApiKey`;
+  handler: TransakService['setApiKey'];
+};
+
+export type TransakServiceSetAccessTokenAction = {
+  type: `TransakService:setAccessToken`;
+  handler: TransakService['setAccessToken'];
+};
+
+export type TransakServiceClearAccessTokenAction = {
+  type: `TransakService:clearAccessToken`;
+  handler: TransakService['clearAccessToken'];
+};
+
+export type TransakServiceSendUserOtpAction = {
+  type: `TransakService:sendUserOtp`;
+  handler: TransakService['sendUserOtp'];
+};
+
+export type TransakServiceVerifyUserOtpAction = {
+  type: `TransakService:verifyUserOtp`;
+  handler: TransakService['verifyUserOtp'];
+};
+
+export type TransakServiceLogoutAction = {
+  type: `TransakService:logout`;
+  handler: TransakService['logout'];
+};
+
+export type TransakServiceGetUserDetailsAction = {
+  type: `TransakService:getUserDetails`;
+  handler: TransakService['getUserDetails'];
+};
+
+export type TransakServiceGetBuyQuoteAction = {
+  type: `TransakService:getBuyQuote`;
+  handler: TransakService['getBuyQuote'];
+};
+
+export type TransakServiceGetKycRequirementAction = {
+  type: `TransakService:getKycRequirement`;
+  handler: TransakService['getKycRequirement'];
+};
+
+export type TransakServiceGetAdditionalRequirementsAction = {
+  type: `TransakService:getAdditionalRequirements`;
+  handler: TransakService['getAdditionalRequirements'];
+};
+
+export type TransakServiceCreateOrderAction = {
+  type: `TransakService:createOrder`;
+  handler: TransakService['createOrder'];
+};
+
+export type TransakServiceGetOrderAction = {
+  type: `TransakService:getOrder`;
+  handler: TransakService['getOrder'];
+};
+
+export type TransakServiceGetUserLimitsAction = {
+  type: `TransakService:getUserLimits`;
+  handler: TransakService['getUserLimits'];
+};
+
+export type TransakServiceRequestOttAction = {
+  type: `TransakService:requestOtt`;
+  handler: TransakService['requestOtt'];
+};
+
+export type TransakServiceGeneratePaymentWidgetUrlAction = {
+  type: `TransakService:generatePaymentWidgetUrl`;
+  handler: TransakService['generatePaymentWidgetUrl'];
+};
+
+export type TransakServiceSubmitPurposeOfUsageFormAction = {
+  type: `TransakService:submitPurposeOfUsageForm`;
+  handler: TransakService['submitPurposeOfUsageForm'];
+};
+
+export type TransakServicePatchUserAction = {
+  type: `TransakService:patchUser`;
+  handler: TransakService['patchUser'];
+};
+
+export type TransakServiceGetTranslationAction = {
+  type: `TransakService:getTranslation`;
+  handler: TransakService['getTranslation'];
+};
+
+export type TransakServiceGetIdProofStatusAction = {
+  type: `TransakService:getIdProofStatus`;
+  handler: TransakService['getIdProofStatus'];
+};
+
+export type TransakServiceCancelOrderAction = {
+  type: `TransakService:cancelOrder`;
+  handler: TransakService['cancelOrder'];
+};
+
+export type TransakServiceCancelAllActiveOrdersAction = {
+  type: `TransakService:cancelAllActiveOrders`;
+  handler: TransakService['cancelAllActiveOrders'];
+};
+
+export type TransakServiceGetActiveOrdersAction = {
+  type: `TransakService:getActiveOrders`;
+  handler: TransakService['getActiveOrders'];
+};
+
+export type TransakServiceMethodActions =
+  | TransakServiceSetApiKeyAction
+  | TransakServiceSetAccessTokenAction
+  | TransakServiceClearAccessTokenAction
+  | TransakServiceSendUserOtpAction
+  | TransakServiceVerifyUserOtpAction
+  | TransakServiceLogoutAction
+  | TransakServiceGetUserDetailsAction
+  | TransakServiceGetBuyQuoteAction
+  | TransakServiceGetKycRequirementAction
+  | TransakServiceGetAdditionalRequirementsAction
+  | TransakServiceCreateOrderAction
+  | TransakServiceGetOrderAction
+  | TransakServiceGetUserLimitsAction
+  | TransakServiceRequestOttAction
+  | TransakServiceGeneratePaymentWidgetUrlAction
+  | TransakServiceSubmitPurposeOfUsageFormAction
+  | TransakServicePatchUserAction
+  | TransakServiceGetTranslationAction
+  | TransakServiceGetIdProofStatusAction
+  | TransakServiceCancelOrderAction
+  | TransakServiceCancelAllActiveOrdersAction
+  | TransakServiceGetActiveOrdersAction;
