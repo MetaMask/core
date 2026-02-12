@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `CodefiTokenPricesServiceV2` now supports fetching prices of CHZ on Chiliz Mainnet (chain `0xdef1`) ([#7794](https://github.com/MetaMask/core/pull/7794))
+
 ## [99.3.2]
 
 ### Changed
