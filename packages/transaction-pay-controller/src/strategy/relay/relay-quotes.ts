@@ -37,7 +37,11 @@ import {
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
-import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+import {
+  calculateGasCost,
+  calculateGasFeeTokenCost,
+  calculateTransactionGasCost,
+} from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -328,6 +332,19 @@ async function normalizeQuote(
     isGasFeeToken: isSourceGasFeeToken,
     ...sourceNetwork
   } = await calculateSourceNetworkCost(quote, messenger, request);
+
+  // For post-quote flows (e.g. predictWithdraw), the source network fee
+  // should include the original transaction's gas cost (the user's Polygon
+  // USDC.e transfer) in addition to the Relay deposit transaction gas.
+  if (request.isPostQuote) {
+    const txGas = calculateTransactionGasCost(
+      fullRequest.transaction,
+      messenger,
+    );
+
+    sourceNetwork.estimate = addAmounts(sourceNetwork.estimate, txGas);
+    sourceNetwork.max = addAmounts(sourceNetwork.max, txGas);
+  }
 
   const targetNetwork = {
     usd: '0',
@@ -896,4 +913,20 @@ function isStablecoin(chainId: string, tokenAddress: string): boolean {
   return Boolean(
     STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
   );
+}
+
+/**
+ * Add two Amount objects together.
+ *
+ * @param a - First amount.
+ * @param b - Second amount.
+ * @returns Combined amount.
+ */
+function addAmounts(a: Amount, b: Amount): Amount {
+  return {
+    fiat: new BigNumber(a.fiat).plus(b.fiat).toString(10),
+    human: new BigNumber(a.human).plus(b.human).toString(10),
+    raw: new BigNumber(a.raw).plus(b.raw).toString(10),
+    usd: new BigNumber(a.usd).plus(b.usd).toString(10),
+  };
 }
