@@ -206,11 +206,12 @@ export type AssetsControllerOptions = {
   /** Function to determine if the controller is enabled. Defaults to true. */
   isEnabled?: () => boolean;
   /**
-   * Getter for basic functionality. When it returns true, only balance fetch and balance subscribe
-   * use RPC; token and price APIs are not used (no metadata/price fetch, no price subscription).
+   * Getter for basic functionality (matches the "Basic functionality" setting in the UI).
+   * When it returns true, internet services are on: token/price APIs are used for metadata, price,
+   * and price subscription. When false, only RPC is used (no token/price APIs).
    * No value is stored; the getter is invoked when needed. When the consumer changes the toggle,
    * call {@link AssetsController.handleBasicFunctionalityChange} to refresh subscriptions.
-   * Defaults to () => false when not provided.
+   * Defaults to () => true when not provided (APIs enabled).
    */
   isBasicFunctionality?: () => boolean;
   /**
@@ -451,7 +452,7 @@ export class AssetsController extends BaseController<
     });
 
     this.#isEnabled = isEnabled();
-    this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => false);
+    this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
@@ -734,16 +735,16 @@ export class AssetsController extends BaseController<
       });
       const middlewares = this.#isBasicFunctionality()
         ? [
-            this.#rpcDataSource.assetsMiddleware,
-            this.#detectionMiddleware.assetsMiddleware,
-          ]
-        : [
             this.#accountsApiDataSource.assetsMiddleware,
             this.#snapDataSource.assetsMiddleware,
             this.#rpcDataSource.assetsMiddleware,
             this.#detectionMiddleware.assetsMiddleware,
             this.#tokenDataSource.assetsMiddleware,
             this.#priceDataSource.assetsMiddleware,
+          ]
+        : [
+            this.#rpcDataSource.assetsMiddleware,
+            this.#detectionMiddleware.assetsMiddleware,
           ];
       const response = await this.#executeMiddlewares(middlewares, request);
       await this.#updateState(response);
@@ -964,7 +965,7 @@ export class AssetsController extends BaseController<
     chainIds: ChainId[],
     options: { updateInterval?: number } = {},
   ): void {
-    if (this.#isBasicFunctionality()) {
+    if (!this.#isBasicFunctionality()) {
       return;
     }
     const { updateInterval = this.#defaultUpdateInterval } = options;
@@ -1341,8 +1342,9 @@ export class AssetsController extends BaseController<
 
   /**
    * Handle basic functionality toggle change. Call this from the consumer (extension or mobile)
-   * when the user changes the basic functionality setting. Refreshes subscriptions so the
-   * current {@link AssetsControllerOptions.isBasicFunctionality} getter is used for balance sources.
+   * when the user changes the "Basic functionality" setting. Refreshes subscriptions so the
+   * current {@link AssetsControllerOptions.isBasicFunctionality} getter is used (true = APIs on,
+   * false = RPC only).
    *
    * @param _isBasic - The new value (for call-site clarity; the getter is the source of truth).
    */
@@ -1392,10 +1394,10 @@ export class AssetsController extends BaseController<
     );
     const remainingChains = new Set(chainToAccounts.keys());
 
-    // Basic functionality: only RPC for balance; otherwise all balance data sources in priority order.
+    // When basic functionality is on (getter true), use all balance data sources; when off (getter false), RPC only.
     const balanceDataSources = this.#isBasicFunctionality()
-      ? [this.#rpcDataSource]
-      : this.#allBalanceDataSources;
+      ? this.#allBalanceDataSources
+      : [this.#rpcDataSource];
 
     for (const source of balanceDataSources) {
       const availableChains = new Set(source.getActiveChainsSync());

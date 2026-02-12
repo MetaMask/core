@@ -78,8 +78,10 @@ async function withController<ReturnValue>(
     | [WithControllerOptions, WithControllerCallback<ReturnValue>]
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
-  const [{ state = {}, isBasicFunctionality }, fn] =
-    args.length === 2 ? args : [{}, args[0]];
+  const [{ state = {}, isBasicFunctionality = () => true }, fn]: [
+    WithControllerOptions,
+    WithControllerCallback<ReturnValue>,
+  ] = args.length === 2 ? args : [{}, args[0]];
 
   // Use root messenger (MOCK_ANY_NAMESPACE) so data sources can register their actions.
   const messenger: RootMessenger = new Messenger({
@@ -132,7 +134,7 @@ async function withController<ReturnValue>(
     messenger: messenger as unknown as AssetsControllerMessenger,
     state,
     queryApiClient: createMockQueryApiClient(),
-    ...(isBasicFunctionality !== undefined && { isBasicFunctionality }),
+    isBasicFunctionality,
   });
 
   return fn({ controller, messenger });
@@ -265,15 +267,26 @@ describe('AssetsController', () => {
     });
 
     it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {
+      await withController(async ({ controller }) => {
+        expect(controller.handleBasicFunctionalityChange).toBeDefined();
+        expect(() =>
+          controller.handleBasicFunctionalityChange(true),
+        ).not.toThrow();
+      });
+    });
+
+    it('works with isBasicFunctionality false (RPC-only mode)', async () => {
       await withController(
-        {
-          state: {},
-          isBasicFunctionality: () => true,
-        },
+        { state: {}, isBasicFunctionality: () => false },
         async ({ controller }) => {
-          expect(controller.handleBasicFunctionalityChange).toBeDefined();
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            forceUpdate: true,
+          });
+          expect(assets).toBeDefined();
+          expect(assets[MOCK_ACCOUNT_ID]).toBeDefined();
           expect(() =>
-            controller.handleBasicFunctionalityChange(true),
+            controller.handleBasicFunctionalityChange(false),
           ).not.toThrow();
         },
       );
