@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Blockaid token security scanning to `MultichainAssetsController` to filter out spam, malicious, and warning tokens during automatic asset detection ([#TBD](https://github.com/MetaMask/core/pull/7923))
+- Add Blockaid token security scanning to `MultichainAssetsController` to filter out spam, malicious, and warning tokens during automatic asset detection ([#7923](https://github.com/MetaMask/core/pull/7923))
   - Tokens with `assetNamespace` of "token" (e.g. SPL tokens) are scanned via the Blockaid bulk token scan API
   - Only tokens with a `Benign` result are kept; native assets (e.g. `slip44`) are not scanned
   - The filter fails open: if the API is unreachable or returns an error, all tokens are kept
