@@ -10,5 +10,6 @@
     { "path": "../messenger/tsconfig.build.json" },
     { "path": "../transaction-controller/tsconfig.build.json" }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "exclude": ["./src/test"]
 }
