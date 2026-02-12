@@ -12,9 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add new `SeedlessOnboardingError` class for generic controller errors with support for `cause` and `details` properties ([#7660](https://github.com/MetaMask/core/pull/7660))
   - Enables proper error chaining by wrapping underlying errors with additional context
   - Includes `toJSON()` method for serialization in logging/transmission
-
-### Added
-
 - **BREAKING** The `encryptor` constructor param requires `encryptWithKey` method. ([#7800](https://github.com/MetaMask/core/pull/7800))
   - The method is to encrypt the vault with cached encryption key while the wallet is unlocked.
 - Added new public method, `getAccessToken`. ([#7800](https://github.com/MetaMask/core/pull/7800))
