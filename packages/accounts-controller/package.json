@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "35.0.2",
+  "version": "36.0.0",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -77,7 +77,7 @@
     "@types/readable-stream": "^2.3.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
-    "typedoc": "^0.24.8",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3",
     "webextension-polyfill": "^0.12.0"

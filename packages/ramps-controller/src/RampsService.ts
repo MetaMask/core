@@ -374,9 +374,9 @@ export type GetQuotesParams = {
    */
   redirectUrl?: string;
   /**
-   * Optional provider ID to filter quotes.
+   * Optional provider IDs to filter quotes.
    */
-  provider?: string;
+  providers?: string[];
   /**
    * The ramp action type. Defaults to 'buy'.
    */
@@ -1097,7 +1097,7 @@ export class RampsService {
    * @param params.amount - The amount (in fiat for buy, crypto for sell).
    * @param params.walletAddress - The destination wallet address.
    * @param params.redirectUrl - Optional redirect URL after order completion.
-   * @param params.provider - Optional provider ID to filter quotes.
+   * @param params.providers - Optional provider IDs to filter quotes.
    * @param params.action - The ramp action type. Defaults to 'buy'.
    * @returns The quotes response containing success, sorted, error, and customActions.
    */
@@ -1125,9 +1125,9 @@ export class RampsService {
     });
 
     // Add provider filter if specified
-    if (params.provider) {
-      url.searchParams.append('providers', params.provider);
-    }
+    params.providers?.forEach((provider) => {
+      url.searchParams.append('providers', provider);
+    });
 
     // Add redirect URL if specified
     if (params.redirectUrl) {
