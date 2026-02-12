@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add new `SeedlessOnboardingError` class for generic controller errors with support for `cause` and `details` properties ([#7660](https://github.com/MetaMask/core/pull/7660))
+  - Enables proper error chaining by wrapping underlying errors with additional context
+  - Includes `toJSON()` method for serialization in logging/transmission
 - **BREAKING** The `encryptor` constructor param requires `encryptWithKey` method. ([#7800](https://github.com/MetaMask/core/pull/7800))
   - The method is to encrypt the vault with cached encryption key while the wallet is unlocked.
 - Added new public method, `getAccessToken`. ([#7800](https://github.com/MetaMask/core/pull/7800))
@@ -21,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Exclude All the tokens values from the state log explicitly.
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Refactor controller methods to throw `SeedlessOnboardingError` with original error as `cause` for better error tracing ([#7660](https://github.com/MetaMask/core/pull/7660))
+  - Affected methods: `authenticate`, `changePassword`, `#persistLocalEncryptionKey`, `#fetchAndParseSecretMetadata`, `refreshAuthTokens`
 
 ### Fixed
 
