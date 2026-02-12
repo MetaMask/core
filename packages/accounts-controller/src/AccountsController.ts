@@ -60,6 +60,7 @@ export type AccountsControllerState = {
     accounts: Record<AccountId, InternalAccount>;
     selectedAccount: string; // id of the selected account
   };
+  accountIdByAddress: Record<string, AccountId>;
 };
 
 export type AccountsControllerGetStateAction = ControllerGetStateAction<
@@ -223,6 +224,12 @@ const accountsControllerMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  accountIdByAddress: {
+    includeInStateLogs: false,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const defaultState: AccountsControllerState = {
@@ -230,6 +237,7 @@ const defaultState: AccountsControllerState = {
     accounts: {},
     selectedAccount: '',
   },
+  accountIdByAddress: {},
 };
 
 export const EMPTY_ACCOUNT = {
@@ -288,6 +296,13 @@ export class AccountsController extends BaseController<
     messenger: AccountsControllerMessenger;
     state: AccountsControllerState;
   }) {
+    const accountIdByAddress = Object.values(
+      state.internalAccounts.accounts,
+    ).reduce<AccountsControllerState['accountIdByAddress']>((acc, account) => {
+      // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
+      acc[account.address.toLowerCase()] = account.id;
+      return acc;
+    }, {});
     super({
       messenger,
       name: controllerName,
@@ -295,6 +310,7 @@ export class AccountsController extends BaseController<
       state: {
         ...defaultState,
         ...state,
+        accountIdByAddress,
       },
     });
 
@@ -437,9 +453,8 @@ export class AccountsController extends BaseController<
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    return this.listMultichainAccounts().find(
-      (account) => account.address.toLowerCase() === address.toLowerCase(),
-    );
+    const accountId = this.state.accountIdByAddress[address.toLowerCase()];
+    return accountId ? this.getAccount(accountId) : undefined;
   }
 
   /**
@@ -571,6 +586,8 @@ export class AccountsController extends BaseController<
     const existingInternalAccounts = this.state.internalAccounts.accounts;
     const internalAccounts: AccountsControllerState['internalAccounts']['accounts'] =
       {};
+    const accountIdByAddress: AccountsControllerState['accountIdByAddress'] =
+      {};
 
     const { keyrings } = this.messenger.call('KeyringController:getState');
     for (const keyring of keyrings) {
@@ -610,6 +627,10 @@ export class AccountsController extends BaseController<
           },
         };
 
+        // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
+        accountIdByAddress[internalAccount.address.toLowerCase()] =
+          internalAccount.id;
+
         // Increment the account index for this keyring.
         keyringAccountIndexes.set(keyringTypeName, keyringAccountIndex + 1);
       }
@@ -617,6 +638,7 @@ export class AccountsController extends BaseController<
 
     this.#update((state) => {
       state.internalAccounts.accounts = internalAccounts;
+      state.accountIdByAddress = accountIdByAddress;
     });
   }
 
@@ -627,9 +649,20 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
+      const accountIdByAddress = Object.values(
+        backup.internalAccounts.accounts,
+      ).reduce<AccountsControllerState['accountIdByAddress']>(
+        (acc, account) => {
+          // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
+          acc[account.address.toLowerCase()] = account.id;
+          return acc;
+        },
+        {},
+      );
       this.update(
         (currentState: WritableDraft<AccountsControllerStrictState>) => {
           currentState.internalAccounts = backup.internalAccounts;
+          currentState.accountIdByAddress = accountIdByAddress;
         },
       );
     }
@@ -852,11 +885,13 @@ export class AccountsController extends BaseController<
 
     this.#update(
       (state) => {
-        const { internalAccounts } = state;
+        const { internalAccounts, accountIdByAddress } = state;
 
         for (const patch of [patches.snap, patches.normal]) {
           for (const account of patch.removed) {
             delete internalAccounts.accounts[account.id];
+            // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
+            delete accountIdByAddress[account.address.toLowerCase()];
 
             diff.removed.push(account.id);
           }
@@ -884,6 +919,9 @@ export class AccountsController extends BaseController<
                   lastSelected,
                 },
               };
+
+              // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
+              accountIdByAddress[account.address.toLowerCase()] = account.id;
 
               diff.added.push(internalAccounts.accounts[account.id]);
             }
