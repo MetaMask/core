@@ -5942,7 +5942,7 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getBuyWidgetUrl',
           async () => {
-            throw new Error('unexpected failure');
+            throw 'unexpected failure';
           },
         );
 
