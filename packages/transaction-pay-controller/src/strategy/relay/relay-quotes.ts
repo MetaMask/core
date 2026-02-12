@@ -317,7 +317,9 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
-  const provider = quote.fees?.subsidized
+  const subsidizedFeeUsd = getSubsidizedFeeAmountUsd(quote);
+
+  const provider = subsidizedFeeUsd.gt(0)
     ? { usd: '0', fiat: '0' }
     : getFiatValueFromUsd(calculateProviderFee(quote), usdToFiatRate);
 
@@ -338,29 +340,21 @@ async function normalizeQuote(
     ...getFiatValueFromUsd(new BigNumber(currencyIn.amountUsd), usdToFiatRate),
   };
 
-  const isTargetStablecoin = STABLECOINS[request.targetChainId]?.includes(
-    request.targetTokenAddress.toLowerCase() as Hex,
+  const isTargetStablecoin = isStablecoin(
+    request.targetChainId,
+    request.targetTokenAddress,
   );
 
-  const subsidizedFee = quote.fees?.subsidized;
-
-  const isSubsidizedFeeStablecoin =
-    subsidizedFee &&
-    STABLECOINS[toHex(subsidizedFee.currency.chainId)]?.includes(
-      subsidizedFee.currency.address.toLowerCase() as Hex,
-    );
-
   const additionalTargetAmountUsd =
-    quote.request.tradeType === 'EXACT_INPUT' && subsidizedFee
-      ? new BigNumber(
-          isSubsidizedFeeStablecoin
-            ? subsidizedFee.amountFormatted
-            : subsidizedFee.amountUsd,
-        )
+    quote.request.tradeType === 'EXACT_INPUT'
+      ? subsidizedFeeUsd
       : new BigNumber(0);
 
   if (additionalTargetAmountUsd.gt(0)) {
-    log('Including subsidized fee in target amount', subsidizedFee?.amountUsd);
+    log(
+      'Including subsidized fee in target amount',
+      additionalTargetAmountUsd.toString(10),
+    );
   }
 
   const baseTargetAmountUsd = isTargetStablecoin
@@ -879,4 +873,27 @@ async function calculateSourceNetworkGasLimitBatch(
     totalGasLimit,
     gasLimits,
   };
+}
+
+function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
+  const subsidizedFee = quote.fees?.subsidized;
+  const amountUsd = new BigNumber(subsidizedFee?.amountUsd ?? '0');
+  const amountFormatted = new BigNumber(subsidizedFee?.amountFormatted ?? '0');
+
+  if (!subsidizedFee || amountUsd.isZero()) {
+    return new BigNumber(0);
+  }
+
+  const isSubsidizedStablecoin = isStablecoin(
+    toHex(subsidizedFee.currency.chainId),
+    subsidizedFee.currency.address,
+  );
+
+  return isSubsidizedStablecoin ? amountFormatted : amountUsd;
+}
+
+function isStablecoin(chainId: string, tokenAddress: string): boolean {
+  return Boolean(
+    STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
+  );
 }
