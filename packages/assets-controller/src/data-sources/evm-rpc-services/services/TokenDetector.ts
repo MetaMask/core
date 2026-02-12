@@ -27,6 +27,9 @@ export type TokenDetectorMessenger = {
 };
 
 export type TokenDetectorConfig = {
+  tokenDetectionEnabled?: boolean;
+  /** Whether external services are allowed; detection stops when false (default: true) */
+  useExternalService?: boolean;
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
   /** Polling interval in ms (default: 3 minutes) */
@@ -72,6 +75,8 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     this.#multicallClient = multicallClient;
     this.#messenger = messenger;
     this.#config = {
+      tokenDetectionEnabled: config?.tokenDetectionEnabled ?? false,
+      useExternalService: config?.useExternalService ?? true,
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
     };
@@ -150,6 +155,22 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     accountAddress: Address,
     options?: TokenDetectionOptions,
   ): Promise<TokenDetectionResult> {
+    const tokenDetectionEnabled =
+      options?.tokenDetectionEnabled ?? this.#config.tokenDetectionEnabled;
+    const useExternalService =
+      options?.useExternalService ?? this.#config.useExternalService;
+    if (!tokenDetectionEnabled || !useExternalService) {
+      return {
+        chainId,
+        accountId,
+        accountAddress,
+        detectedAssets: [],
+        detectedBalances: [],
+        zeroBalanceAddresses: [],
+        failedAddresses: [],
+        timestamp: Date.now(),
+      };
+    }
     const batchSize = options?.batchSize ?? this.#config.defaultBatchSize;
     const timestamp = Date.now();
 

@@ -198,7 +198,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           const mockCallback = jest.fn();
           controller.setOnDetectionUpdate(mockCallback);
@@ -438,7 +441,7 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        { config: { tokenDetectionEnabled: true }, tokenListState: mockState },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -488,7 +491,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, true, '0'),
@@ -519,7 +525,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, false),
@@ -560,7 +569,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -587,6 +599,341 @@ describe('TokenDetector', () => {
     });
   });
 
+  describe('tokenDetectionEnabled', () => {
+    it('returns empty result and does not call batchBalanceOf when tokenDetectionEnabled is false in config', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          config: { tokenDetectionEnabled: false },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          const result = await controller.detectTokens(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+          );
+
+          expect(result).toStrictEqual({
+            chainId: MAINNET_CHAIN_ID,
+            accountId: TEST_ACCOUNT_ID,
+            accountAddress: TEST_ACCOUNT,
+            detectedAssets: [],
+            detectedBalances: [],
+            zeroBalanceAddresses: [],
+            failedAddresses: [],
+            timestamp: 1700000000000,
+          });
+          expect(mockMulticallClient.batchBalanceOf).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('runs detection when tokenDetectionEnabled is true in config', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              TEST_TOKEN_1,
+              TEST_ACCOUNT,
+              true,
+              '1000000',
+            ),
+          ]);
+
+          const result = await controller.detectTokens(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+          );
+
+          expect(result.detectedAssets).toHaveLength(1);
+          expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('options.tokenDetectionEnabled overrides config when true', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          config: { tokenDetectionEnabled: false },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              TEST_TOKEN_1,
+              TEST_ACCOUNT,
+              true,
+              '1000000',
+            ),
+          ]);
+
+          const result = await controller.detectTokens(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+            { tokenDetectionEnabled: true },
+          );
+
+          expect(result.detectedAssets).toHaveLength(1);
+          expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('options.tokenDetectionEnabled overrides config when false', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          const result = await controller.detectTokens(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+            { tokenDetectionEnabled: false },
+          );
+
+          expect(result.detectedAssets).toStrictEqual([]);
+          expect(result.detectedBalances).toStrictEqual([]);
+          expect(mockMulticallClient.batchBalanceOf).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('_executePoll does not call onDetectionUpdate when tokenDetectionEnabled is false in config', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          config: { tokenDetectionEnabled: false },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          const mockCallback = jest.fn();
+          controller.setOnDetectionUpdate(mockCallback);
+
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              TEST_TOKEN_1,
+              TEST_ACCOUNT,
+              true,
+              '1000000000',
+            ),
+          ]);
+
+          const input: DetectionPollingInput = {
+            chainId: MAINNET_CHAIN_ID,
+            accountId: TEST_ACCOUNT_ID,
+            accountAddress: TEST_ACCOUNT,
+          };
+
+          await controller._executePoll(input);
+
+          expect(mockCallback).not.toHaveBeenCalled();
+          expect(mockMulticallClient.batchBalanceOf).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('returns empty result and does not call batchBalanceOf when useExternalService is false in config', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          config: {
+            tokenDetectionEnabled: true,
+            useExternalService: false,
+          },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          const result = await controller.detectTokens(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+          );
+
+          expect(result.detectedAssets).toStrictEqual([]);
+          expect(result.detectedBalances).toStrictEqual([]);
+          expect(mockMulticallClient.batchBalanceOf).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('runs detection when both tokenDetectionEnabled and useExternalService are true', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          config: {
+            tokenDetectionEnabled: true,
+            useExternalService: true,
+          },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              TEST_TOKEN_1,
+              TEST_ACCOUNT,
+              true,
+              '1000000',
+            ),
+          ]);
+
+          const result = await controller.detectTokens(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+          );
+
+          expect(result.detectedAssets).toHaveLength(1);
+          expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('options.useExternalService overrides config when false', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          config: {
+            tokenDetectionEnabled: true,
+            useExternalService: true,
+          },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          const result = await controller.detectTokens(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+            { useExternalService: false },
+          );
+
+          expect(result.detectedAssets).toStrictEqual([]);
+          expect(mockMulticallClient.batchBalanceOf).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('_executePoll does not call onDetectionUpdate when useExternalService is false in config', async () => {
+      const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
+        {
+          address: TEST_TOKEN_1,
+          symbol: 'USDC',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      ]);
+
+      await withController(
+        {
+          config: {
+            tokenDetectionEnabled: true,
+            useExternalService: false,
+          },
+          tokenListState: mockState,
+        },
+        async ({ controller, mockMulticallClient }) => {
+          const mockCallback = jest.fn();
+          controller.setOnDetectionUpdate(mockCallback);
+
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
+            createMockBalanceResponse(
+              TEST_TOKEN_1,
+              TEST_ACCOUNT,
+              true,
+              '1000000000',
+            ),
+          ]);
+
+          const input: DetectionPollingInput = {
+            chainId: MAINNET_CHAIN_ID,
+            accountId: TEST_ACCOUNT_ID,
+            accountAddress: TEST_ACCOUNT,
+          };
+
+          await controller._executePoll(input);
+
+          expect(mockCallback).not.toHaveBeenCalled();
+          expect(mockMulticallClient.batchBalanceOf).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
   describe('asset creation', () => {
     it('creates correct CAIP-19 asset ID for mainnet', async () => {
       const mockState = createMockTokenListState(MAINNET_CHAIN_ID, [
@@ -599,7 +946,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -634,7 +984,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -671,7 +1024,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -706,7 +1062,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -749,7 +1108,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, true, '100'),
@@ -784,7 +1146,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf
             .mockResolvedValueOnce([
@@ -843,7 +1208,10 @@ describe('TokenDetector', () => {
       };
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -879,7 +1247,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
