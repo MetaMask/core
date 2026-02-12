@@ -554,6 +554,30 @@ describe('Validation Utils', () => {
             ).not.toThrow();
           });
 
+          it('throws if external origin and delegation with missing authority from internal account', () => {
+            const data = JSON.parse(DATA_TYPED_MOCK);
+
+            data.primaryType = PRIMARY_TYPE_DELEGATION;
+            data.types.Delegation = [{ name: 'delegator', type: 'address' }];
+            data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+            // authority field intentionally omitted
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: {
+                  data,
+                  from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+                },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).toThrow(
+              'External signature requests cannot sign root delegations for internal accounts.',
+            );
+          });
+
           it('does not throw if external origin and redelegation from internal account with different case authority', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
             const NON_ROOT_AUTHORITY =

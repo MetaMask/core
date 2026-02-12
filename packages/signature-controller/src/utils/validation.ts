@@ -289,11 +289,17 @@ function validateDelegation({
     );
 
     const authority = (
-      (data.message as Record<string, Json>)?.[AUTHORITY_FIELD] as string
+      (data.message as Record<string, Json>)?.[AUTHORITY_FIELD] as
+        | string
+        | undefined
     )?.toLowerCase();
-    const isRootAuthority = authority === ROOT_AUTHORITY;
 
-    if (isOriginExternal && isSignerInternal && isRootAuthority) {
+    // Fail-closed: if authority is missing or is ROOT_AUTHORITY, block the request.
+    // Only allow signing when authority is explicitly a non-root value (redelegation).
+    const isRootOrMissingAuthority =
+      !authority || authority === ROOT_AUTHORITY;
+
+    if (isOriginExternal && isSignerInternal && isRootOrMissingAuthority) {
       throw new Error(
         `External signature requests cannot sign root delegations for internal accounts.`,
       );
