@@ -564,11 +564,13 @@ export class RampsController extends BaseController<
    * 2. **Cache hit** – If valid, non-expired data exists in state.requests for
    *    this key and forceRefresh is not set, returns that data without fetching.
    *
-   * 3. **New request** – If options.resourceType is set, aborts any other
-   *    in-flight request for that resource so only one request per resource
-   *    runs at a time. Sets resource loading true, runs the fetcher, then on
-   *    success or error updates request state and resource error; in finally,
-   *    clears resource loading only if this request was not aborted.
+   * 3. **New request** – Creates an AbortController and fires the fetcher.
+   *    If options.resourceType is set, tags the pending request with that
+   *    resource type (so #abortDependentRequests can cancel it on region
+   *    change or cleanup) and ref-counts resource-level loading state.
+   *    On success or error, updates request state and resource error;
+   *    in finally, clears resource loading only if this request was not
+   *    aborted.
    *
    * @param cacheKey - Unique identifier for this request (e.g. from createCacheKey).
    * @param fetcher - Async function that performs the fetch. Receives an AbortSignal

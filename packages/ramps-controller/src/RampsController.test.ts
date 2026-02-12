@@ -1217,7 +1217,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('does not throw when updating resource field and resource is null (defensive)', async () => {
+    it('throws when updating resource field and resource is null', async () => {
       const stateWithNullCountries = {
         ...getDefaultRampsControllerState(),
         countries: null,
