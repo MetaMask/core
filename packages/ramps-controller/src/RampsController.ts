@@ -1690,7 +1690,6 @@ export class RampsController extends BaseController<
         })
         .catch((error: unknown) => {
           this.update((state) => {
-            state.widgetUrl.data = null;
             state.widgetUrl.isLoading = false;
             state.widgetUrl.error =
               error instanceof Error

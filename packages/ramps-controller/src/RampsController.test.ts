@@ -6009,6 +6009,56 @@ describe('RampsController', () => {
         );
       });
     });
+
+    it('preserves existing widget URL data when a revalidation request fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const buyWidgetResponse = {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER' as const,
+          orderId: null,
+        };
+
+        let shouldFail = false;
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            if (shouldFail) {
+              throw new Error('Network error');
+            }
+            return buyWidgetResponse;
+          },
+        );
+
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        controller.setSelectedQuote(quote);
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.data).toStrictEqual(
+          buyWidgetResponse,
+        );
+
+        shouldFail = true;
+        controller.setSelectedQuote(quote);
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.data).toStrictEqual(
+          buyWidgetResponse,
+        );
+        expect(controller.state.widgetUrl.error).toBe('Network error');
+      });
+    });
   });
 
   describe('polling restart on dependency changes', () => {
