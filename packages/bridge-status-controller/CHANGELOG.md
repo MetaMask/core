@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `location` property to `BridgeHistoryItem` to persist the entry point across the transaction lifecycle
+- Added `location` parameter to `StartPollingForBridgeTxStatusArgs`
+- Added optional `location` parameter to `submitTx` method
+
+### Changed
+
+- All post-submission events (`Submitted`, `Completed`, `Failed`, `PollingStatusUpdated`, `StatusValidationFailed`) now include the `location` property from `BridgeHistoryItem`
+
 ## [66.0.2]
 
 ### Changed

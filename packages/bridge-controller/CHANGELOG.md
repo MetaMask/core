@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `TrendingExplore` value to `MetaMetricsSwapsEventSource` enum for attributing swaps to the trending explore flow
+- Added `location` as a required property on all Unified SwapBridge events in `RequiredEventContextFromClient`
+- Added `setLocation()` method to `BridgeController` for clients to set the entry point when the flow starts
+- Exported `MetaMetricsSwapsEventSource` from the package index
+
+### Changed
+
+- Updated `#getEventProperties` to fall back to stored `#location` when `location` is not provided by the client
+- Replaced `@deprecated` tag on `MetaMetricsSwapsEventSource` with proper JSDoc description
+
 ## [66.1.1]
 
 ### Fixed
