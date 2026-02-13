@@ -2,6 +2,8 @@ import type { Hex } from '@metamask/utils';
 
 import {
   DEFAULT_GAS_BUFFER,
+  DEFAULT_MAX_GASLESS_BUFFER_PERCENTAGE,
+  DEFAULT_MAX_GASLESS_ENABLED,
   DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
   DEFAULT_RELAY_FALLBACK_GAS_MAX,
   DEFAULT_RELAY_QUOTE_URL,
@@ -44,6 +46,10 @@ describe('Feature Flags Utils', () => {
       const featureFlags = getFeatureFlags(messenger);
 
       expect(featureFlags).toStrictEqual({
+        maxGasless: {
+          enabled: DEFAULT_MAX_GASLESS_ENABLED,
+          bufferPercentage: DEFAULT_MAX_GASLESS_BUFFER_PERCENTAGE,
+        },
         relayDisabledGasStationChains: [],
         relayFallbackGas: {
           estimate: DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
@@ -74,6 +80,10 @@ describe('Feature Flags Utils', () => {
       const featureFlags = getFeatureFlags(messenger);
 
       expect(featureFlags).toStrictEqual({
+        maxGasless: {
+          enabled: DEFAULT_MAX_GASLESS_ENABLED,
+          bufferPercentage: DEFAULT_MAX_GASLESS_BUFFER_PERCENTAGE,
+        },
         relayDisabledGasStationChains: RELAY_GAS_STATION_DISABLED_CHAINS_MOCK,
         relayFallbackGas: {
           estimate: GAS_FALLBACK_ESTIMATE_MOCK,

@@ -59,6 +59,7 @@ export type RelayQuote = {
   };
   metamask: {
     gasLimits: number[];
+    twoPhaseQuoteForMaxAmount?: boolean;
   };
   request: RelayQuoteRequest;
   steps: {
