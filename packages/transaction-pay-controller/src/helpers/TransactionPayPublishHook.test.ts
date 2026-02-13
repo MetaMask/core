@@ -5,14 +5,14 @@ import type {
 
 import { TransactionPayPublishHook } from './TransactionPayPublishHook';
 import { TransactionPayStrategy } from '..';
-import { TestStrategy } from '../strategy/test/TestStrategy';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
   TransactionPayControllerState,
   TransactionPayQuote,
 } from '../types';
+import { getStrategyByName } from '../utils/strategy';
 
-jest.mock('../strategy/test/TestStrategy');
+jest.mock('../utils/strategy');
 
 const TRANSACTION_META_MOCK = {
   id: '123-456',
@@ -21,14 +21,16 @@ const TRANSACTION_META_MOCK = {
   },
 } as TransactionMeta;
 
-const QUOTE_MOCK = {} as TransactionPayQuote<unknown>;
+const QUOTE_MOCK = {
+  strategy: TransactionPayStrategy.Test,
+} as TransactionPayQuote<unknown>;
 
 describe('TransactionPayPublishHook', () => {
   const isSmartTransactionMock = jest.fn();
   const executeMock = jest.fn();
+  const getStrategyByNameMock = jest.mocked(getStrategyByName);
 
-  const { messenger, getControllerStateMock, getStrategyMock } =
-    getMessengerMock();
+  const { messenger, getControllerStateMock } = getMessengerMock();
 
   let hook: TransactionPayPublishHook;
 
@@ -49,10 +51,10 @@ describe('TransactionPayPublishHook', () => {
       messenger,
     });
 
-    jest.mocked(TestStrategy).mockReturnValue({
+    getStrategyByNameMock.mockReturnValue({
       execute: executeMock,
       getQuotes: jest.fn(),
-    } as unknown as TestStrategy);
+    } as never);
 
     isSmartTransactionMock.mockReturnValue(false);
 
@@ -63,8 +65,6 @@ describe('TransactionPayPublishHook', () => {
         },
       },
     } as TransactionPayControllerState);
-
-    getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
   });
 
   it('executes strategy with quotes', async () => {
@@ -75,6 +75,12 @@ describe('TransactionPayPublishHook', () => {
         quotes: [QUOTE_MOCK, QUOTE_MOCK],
       }),
     );
+  });
+
+  it('selects strategy from quote', async () => {
+    await runHook();
+
+    expect(getStrategyByNameMock).toHaveBeenCalledWith(QUOTE_MOCK.strategy);
   });
 
   it('does nothing if no quotes in state', async () => {

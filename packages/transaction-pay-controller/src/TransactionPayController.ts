@@ -16,6 +16,7 @@ import type {
   TransactionPayControllerState,
   UpdatePaymentTokenRequest,
 } from './types';
+import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
@@ -44,9 +45,14 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy;
 
+  readonly #getStrategies?: (
+    transaction: TransactionMeta,
+  ) => TransactionPayStrategy[];
+
   constructor({
     getDelegationTransaction,
     getStrategy,
+    getStrategies,
     messenger,
     state,
   }: TransactionPayControllerOptions) {
@@ -59,6 +65,7 @@ export class TransactionPayController extends BaseController<
 
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
+    this.#getStrategies = getStrategies;
 
     this.#registerActionHandlers();
 
@@ -70,6 +77,7 @@ export class TransactionPayController extends BaseController<
 
     // eslint-disable-next-line no-new
     new QuoteRefresher({
+      getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
@@ -151,6 +159,7 @@ export class TransactionPayController extends BaseController<
 
     if (shouldUpdateQuotes) {
       updateQuotes({
+        getStrategies: this.#getStrategiesWithFallback.bind(this),
         messenger: this.messenger,
         transactionData: this.state.transactionData[transactionId],
         transactionId,
@@ -167,8 +176,12 @@ export class TransactionPayController extends BaseController<
 
     this.messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ??
-        ((): TransactionPayStrategy => TransactionPayStrategy.Relay),
+      (transaction: TransactionMeta): TransactionPayStrategy => {
+        const fallbackStrategy = getStrategyOrder(this.messenger)[0];
+        return (
+          this.#getStrategiesWithFallback(transaction)[0] ?? fallbackStrategy
+        );
+      },
     );
 
     this.messenger.registerActionHandler(
@@ -180,5 +193,22 @@ export class TransactionPayController extends BaseController<
       'TransactionPayController:updatePaymentToken',
       this.updatePaymentToken.bind(this),
     );
+  }
+
+  #getStrategiesWithFallback(
+    transaction: TransactionMeta,
+  ): TransactionPayStrategy[] {
+    const fallbackStrategies = getStrategyOrder(this.messenger);
+    let strategies: TransactionPayStrategy[] = [];
+
+    if (this.#getStrategies) {
+      strategies = this.#getStrategies(transaction);
+    } else if (this.#getStrategy) {
+      strategies = [this.#getStrategy(transaction)];
+    } else {
+      strategies = fallbackStrategies;
+    }
+
+    return strategies.length ? strategies : fallbackStrategies;
   }
 }

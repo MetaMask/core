@@ -1,29 +1,8 @@
-import type { TransactionMeta } from '@metamask/transaction-controller';
-
 import { TransactionPayStrategy } from '../constants';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
-import type { PayStrategy, TransactionPayControllerMessenger } from '../types';
-
-/**
- * Get the payment strategy instance.
- *
- * @param messenger - Controller messenger
- * @param transaction - Transaction to get the strategy for.
- * @returns The payment strategy instance.
- */
-export function getStrategy(
-  messenger: TransactionPayControllerMessenger,
-  transaction: TransactionMeta,
-): PayStrategy<unknown> {
-  const strategyName = messenger.call(
-    'TransactionPayController:getStrategy',
-    transaction,
-  );
-
-  return getStrategyByName(strategyName);
-}
+import type { PayStrategy } from '../types';
 
 /**
  * Get strategy instance by name.

@@ -6,9 +6,10 @@ import { cloneDeep } from 'lodash';
 
 import type { UpdateQuotesRequest } from './quotes';
 import { refreshQuotes, updateQuotes } from './quotes';
-import { getStrategy, getStrategyByName } from './strategy';
+import { getStrategyByName } from './strategy';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
+import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
   TransactionPaySourceAmount,
@@ -58,6 +59,7 @@ const QUOTE_MOCK = {
     usd: '1.23',
     fiat: '2.34',
   },
+  strategy: TransactionPayStrategy.Test,
 } as TransactionPayQuote<Json>;
 
 const TOTALS_MOCK = {
@@ -90,11 +92,11 @@ const BATCH_TRANSACTION_MOCK = {
 describe('Quotes Utils', () => {
   const { messenger, getControllerStateMock } = getMessengerMock();
   const updateTransactionDataMock = jest.fn();
-  const getStrategyMock = jest.mocked(getStrategy);
   const getStrategyByNameMock = jest.mocked(getStrategyByName);
   const getTransactionMock = jest.mocked(getTransaction);
   const updateTransactionMock = jest.mocked(updateTransaction);
   const calculateTotalsMock = jest.mocked(calculateTotals);
+  const getStrategiesMock = jest.fn();
   const getQuotesMock = jest.fn();
   const getBatchTransactionsMock = jest.fn();
 
@@ -106,6 +108,7 @@ describe('Quotes Utils', () => {
    */
   async function run(params?: Partial<UpdateQuotesRequest>): Promise<boolean> {
     return await updateQuotes({
+      getStrategies: getStrategiesMock,
       messenger,
       transactionData: cloneDeep(TRANSACTION_DATA_MOCK),
       transactionId: TRANSACTION_ID_MOCK,
@@ -118,11 +121,7 @@ describe('Quotes Utils', () => {
     jest.resetAllMocks();
     jest.clearAllTimers();
 
-    getStrategyMock.mockReturnValue({
-      execute: jest.fn(),
-      getQuotes: getQuotesMock,
-      getBatchTransactions: getBatchTransactionsMock,
-    });
+    getStrategiesMock.mockReturnValue([TransactionPayStrategy.Test]);
 
     getStrategyByNameMock.mockReturnValue({
       execute: jest.fn(),
@@ -194,6 +193,233 @@ describe('Quotes Utils', () => {
       expect(transactionDataMock).toMatchObject({
         quotes: [],
       });
+    });
+
+    it('falls back to next strategy when quotes fail', async () => {
+      const firstStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockRejectedValue(new Error('Strategy error')),
+        execute: jest.fn(),
+      };
+
+      const secondStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Bridge) {
+          return firstStrategy as never;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return secondStrategy as never;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(firstStrategy.getQuotes).toHaveBeenCalled();
+      expect(secondStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('falls back to next strategy when batch transactions fail', async () => {
+      const firstStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: jest
+          .fn()
+          .mockRejectedValue(new Error('Batch error')),
+        execute: jest.fn(),
+      };
+
+      const secondStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Bridge) {
+          return firstStrategy as never;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return secondStrategy as never;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(firstStrategy.getQuotes).toHaveBeenCalled();
+      expect(firstStrategy.getBatchTransactions).toHaveBeenCalled();
+      expect(secondStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('skips strategies that do not support the request', async () => {
+      const unsupportedStrategy = {
+        supports: jest.fn().mockReturnValue(false),
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      const supportedStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Bridge) {
+          return unsupportedStrategy as never;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return supportedStrategy as never;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(unsupportedStrategy.getQuotes).not.toHaveBeenCalled();
+      expect(supportedStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('continues to next strategy if supports throws', async () => {
+      const brokenStrategy = {
+        supports: jest.fn().mockImplementation(() => {
+          throw new Error('Supports error');
+        }),
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      const fallbackStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Bridge) {
+          return brokenStrategy as never;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return fallbackStrategy as never;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(brokenStrategy.getQuotes).not.toHaveBeenCalled();
+      expect(fallbackStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('tries next strategy when quotes are empty', async () => {
+      const emptyStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([]),
+        execute: jest.fn(),
+      };
+
+      const fallbackStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Bridge) {
+          return emptyStrategy as never;
+        }
+
+        if (name === TransactionPayStrategy.Relay) {
+          return fallbackStrategy as never;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(emptyStrategy.getQuotes).toHaveBeenCalled();
+      expect(fallbackStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('skips unknown strategies and tries the next valid strategy', async () => {
+      const fallbackStrategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        getBatchTransactions: getBatchTransactionsMock,
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([
+        'unknown-strategy' as TransactionPayStrategy,
+        TransactionPayStrategy.Relay,
+      ]);
+      getStrategyByNameMock.mockImplementation((name) => {
+        if (name === TransactionPayStrategy.Relay) {
+          return fallbackStrategy as never;
+        }
+
+        throw new Error(`Unknown strategy: ${name}`);
+      });
+
+      await run();
+
+      expect(getStrategyByNameMock).toHaveBeenCalledWith('unknown-strategy');
+      expect(fallbackStrategy.getQuotes).toHaveBeenCalled();
+    });
+
+    it('defaults to no batch transactions when strategy does not provide them', async () => {
+      const strategy = {
+        supports: jest.fn().mockReturnValue(true),
+        getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
+        execute: jest.fn(),
+      };
+
+      getStrategiesMock.mockReturnValue([TransactionPayStrategy.Bridge]);
+      getStrategyByNameMock.mockReturnValue(strategy as never);
+
+      await run();
+
+      expect(strategy.getQuotes).toHaveBeenCalled();
     });
 
     it('clears state if no payment token', async () => {
@@ -338,7 +564,11 @@ describe('Quotes Utils', () => {
         },
       });
 
-      await refreshQuotes(messenger, updateTransactionDataMock);
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
 
@@ -363,7 +593,11 @@ describe('Quotes Utils', () => {
         },
       });
 
-      await refreshQuotes(messenger, updateTransactionDataMock);
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
 
@@ -389,7 +623,11 @@ describe('Quotes Utils', () => {
         },
       });
 
-      await refreshQuotes(messenger, updateTransactionDataMock);
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });
@@ -406,7 +644,11 @@ describe('Quotes Utils', () => {
         },
       });
 
-      await refreshQuotes(messenger, updateTransactionDataMock);
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });

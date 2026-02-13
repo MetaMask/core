@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '..';
+import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import { RELAY_URL_BASE } from '../strategy/relay/constants';
 
@@ -12,6 +13,12 @@ export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_STRATEGY_ORDER: [
+  TransactionPayStrategy,
+  ...TransactionPayStrategy[],
+] = [TransactionPayStrategy.Relay];
+
+const VALID_STRATEGIES = new Set(Object.values(TransactionPayStrategy));
 
 type FeatureFlagsRaw = {
   gasBuffer?: {
@@ -30,6 +37,7 @@ type FeatureFlagsRaw = {
     max?: number;
   };
   relayQuoteUrl?: string;
+  strategyOrder?: unknown[];
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
 };
@@ -43,6 +51,39 @@ export type FeatureFlags = {
   relayQuoteUrl: string;
   slippage: number;
 };
+
+/**
+ * Get ordered list of strategies to try.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Ordered strategy list.
+ */
+export function getStrategyOrder(
+  messenger: TransactionPayControllerMessenger,
+): [TransactionPayStrategy, ...TransactionPayStrategy[]] {
+  const { strategyOrder } = getFeatureFlagsRaw(messenger);
+
+  if (!Array.isArray(strategyOrder)) {
+    return [...DEFAULT_STRATEGY_ORDER];
+  }
+
+  const validStrategyOrder = strategyOrder
+    .filter((strategy): strategy is TransactionPayStrategy =>
+      VALID_STRATEGIES.has(strategy as TransactionPayStrategy),
+    )
+    .filter(
+      (strategy, index, strategies) => strategies.indexOf(strategy) === index,
+    );
+
+  if (!validStrategyOrder.length) {
+    return [...DEFAULT_STRATEGY_ORDER];
+  }
+
+  return validStrategyOrder as [
+    TransactionPayStrategy,
+    ...TransactionPayStrategy[],
+  ];
+}
 
 /**
  * Get feature flags related to the controller.
