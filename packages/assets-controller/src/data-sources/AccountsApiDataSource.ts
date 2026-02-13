@@ -106,6 +106,56 @@ function caipChainIdToChainId(chainIdStr: string): ChainId {
   return `eip155:${chainIdStr}` as ChainId;
 }
 
+/**
+ * Filter a response to only include balances for assets already in state.
+ * Used when tokenDetectionEnabled is false to prevent adding new tokens.
+ *
+ * @param response - The fetch response to filter.
+ * @param assetsState - Current assets controller state to check existing balances against.
+ * @returns A new response with only known asset balances.
+ */
+export function filterResponseToKnownAssets(
+  response: DataResponse,
+  assetsState: AssetsControllerStateInternal,
+): DataResponse {
+  if (!response.assetsBalance) {
+    return response;
+  }
+
+  const filteredBalance: Record<
+    string,
+    Record<Caip19AssetId, AssetBalance>
+  > = {};
+
+  for (const [accountId, accountBalances] of Object.entries(
+    response.assetsBalance,
+  )) {
+    const existingBalances = assetsState.assetsBalance[accountId];
+    if (!existingBalances) {
+      // Account has no balances in state yet — skip all its tokens
+      continue;
+    }
+
+    const filtered: Record<Caip19AssetId, AssetBalance> = {};
+    for (const [assetId, balance] of Object.entries(accountBalances)) {
+      // Only include assets already tracked in state
+      if (assetId in existingBalances) {
+        filtered[assetId as Caip19AssetId] = balance;
+      }
+    }
+
+    if (Object.keys(filtered).length > 0) {
+      filteredBalance[accountId] = filtered;
+    }
+  }
+
+  return {
+    ...response,
+    assetsBalance:
+      Object.keys(filteredBalance).length > 0 ? filteredBalance : undefined,
+  };
+}
+
 // ============================================================================
 // ACCOUNTS API DATA SOURCE
 // ============================================================================
@@ -216,7 +266,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   async fetch(request: DataRequest): Promise<DataResponse> {
-    const response: DataResponse = {};
+    let response: DataResponse = {};
 
     // Filter to only chains supported by Accounts API
     const supportedChains = new Set(this.state.activeChains);
@@ -288,6 +338,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
         response.errors = response.errors ?? {};
         response.errors[chainId] = 'Chain not supported by Accounts API';
       }
+    }
+
+    // When token detection is disabled, filter out tokens not already in state
+    if (!this.#tokenDetectionEnabled && this.#getAssetsState) {
+      response = filterResponseToKnownAssets(response, this.#getAssetsState());
     }
 
     return response;
@@ -378,12 +433,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       let successfullyHandledChains: ChainId[] = [];
 
       try {
-        let response = await this.fetch(request);
-
-        // When token detection is disabled, filter out tokens not already in state
-        if (!this.#tokenDetectionEnabled && this.#getAssetsState) {
-          response = this.#filterToKnownAssets(response);
-        }
+        const response = await this.fetch(request);
 
         // Merge response into context
         if (response.assetsBalance) {
@@ -482,15 +532,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
         }
 
         // Use stored request (which gets updated on account changes)
-        let fetchResponse = await this.fetch({
+        const fetchResponse = await this.fetch({
           ...subscription.request,
           chainIds: subscription.chains,
         });
-
-        // When token detection is disabled, filter out tokens not already in state
-        if (!this.#tokenDetectionEnabled && this.#getAssetsState) {
-          fetchResponse = this.#filterToKnownAssets(fetchResponse);
-        }
 
         // Report update to AssetsController via callback
         await subscription.onAssetsUpdate(fetchResponse);
@@ -516,57 +561,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     // Initial fetch
     await pollFn();
-  }
-
-  // ============================================================================
-  // TOKEN DETECTION FILTER
-  // ============================================================================
-
-  /**
-   * Filter a response to only include balances for assets already in state.
-   * Used when tokenDetectionEnabled is false to prevent adding new tokens.
-   *
-   * @param response - The fetch response to filter.
-   * @returns A new response with only known asset balances.
-   */
-  #filterToKnownAssets(response: DataResponse): DataResponse {
-    if (!response.assetsBalance || !this.#getAssetsState) {
-      return response;
-    }
-
-    const currentState = this.#getAssetsState();
-    const filteredBalance: Record<
-      string,
-      Record<Caip19AssetId, AssetBalance>
-    > = {};
-
-    for (const [accountId, accountBalances] of Object.entries(
-      response.assetsBalance,
-    )) {
-      const existingBalances = currentState.assetsBalance[accountId];
-      if (!existingBalances) {
-        // Account has no balances in state yet — skip all its tokens
-        continue;
-      }
-
-      const filtered: Record<Caip19AssetId, AssetBalance> = {};
-      for (const [assetId, balance] of Object.entries(accountBalances)) {
-        // Only include assets already tracked in state
-        if (assetId in existingBalances) {
-          filtered[assetId as Caip19AssetId] = balance;
-        }
-      }
-
-      if (Object.keys(filtered).length > 0) {
-        filteredBalance[accountId] = filtered;
-      }
-    }
-
-    return {
-      ...response,
-      assetsBalance:
-        Object.keys(filteredBalance).length > 0 ? filteredBalance : undefined,
-    };
   }
 
   // ============================================================================

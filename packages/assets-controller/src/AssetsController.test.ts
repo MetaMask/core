@@ -277,29 +277,6 @@ describe('AssetsController', () => {
         namespace: MOCK_ANY_NAMESPACE,
       });
 
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getState', () => ({
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-        provider: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('TokenListController:getState', () => ({
-        tokensChainsCache: {},
-      }));
-
       expect(
         () =>
           new AssetsController({

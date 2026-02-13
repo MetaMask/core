@@ -8,8 +8,16 @@ import type {
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceAllowedActions,
 } from './AccountsApiDataSource';
-import { AccountsApiDataSource } from './AccountsApiDataSource';
-import type { ChainId, DataRequest, Context } from '../types';
+import {
+  AccountsApiDataSource,
+  filterResponseToKnownAssets,
+} from './AccountsApiDataSource';
+import type {
+  ChainId,
+  DataRequest,
+  Context,
+  AssetsControllerStateInternal,
+} from '../types';
 
 type AllActions = AccountsApiDataSourceAllowedActions;
 type AllEvents = never;
@@ -745,6 +753,144 @@ describe('AccountsApiDataSource', () => {
       );
 
       controller.destroy();
+    });
+  });
+});
+
+// =============================================================================
+// filterResponseToKnownAssets — standalone unit tests
+// =============================================================================
+
+describe('filterResponseToKnownAssets', () => {
+  const ACCOUNT_A = 'account-a';
+  const ACCOUNT_B = 'account-b';
+  const ASSET_1 = 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+  const ASSET_2 = 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7';
+  const ASSET_3 = 'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F';
+
+  function buildState(
+    balances: Record<string, Record<string, { amount: string }>>,
+  ): AssetsControllerStateInternal {
+    return {
+      assetsInfo: {},
+      assetsBalance: balances,
+      assetsPrice: {},
+      customAssets: {},
+      assetPreferences: {},
+    };
+  }
+
+  it('returns response unchanged when assetsBalance is undefined', () => {
+    const response = { errors: { 'eip155:1': 'fail' } };
+    const state = buildState({});
+
+    expect(filterResponseToKnownAssets(response, state)).toStrictEqual(
+      response,
+    );
+  });
+
+  it('keeps only assets that exist in state', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: {
+          [ASSET_1]: { amount: '100' },
+          [ASSET_2]: { amount: '200' },
+        },
+      },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_1]: { amount: '50' } },
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.assetsBalance?.[ACCOUNT_A]).toStrictEqual({
+      [ASSET_1]: { amount: '100' },
+    });
+    expect(
+      result.assetsBalance?.[ACCOUNT_A]?.[ASSET_2 as never],
+    ).toBeUndefined();
+  });
+
+  it('drops accounts that have no balances in state', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: { [ASSET_1]: { amount: '100' } },
+        [ACCOUNT_B]: { [ASSET_2]: { amount: '200' } },
+      },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_1]: { amount: '10' } },
+      // ACCOUNT_B not in state
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.assetsBalance?.[ACCOUNT_A]).toBeDefined();
+    expect(result.assetsBalance?.[ACCOUNT_B]).toBeUndefined();
+  });
+
+  it('returns undefined assetsBalance when all assets are filtered out', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: { [ASSET_1]: { amount: '100' } },
+      },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_3]: { amount: '10' } },
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.assetsBalance).toBeUndefined();
+  });
+
+  it('preserves other response fields (errors, etc.)', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: { [ASSET_1]: { amount: '100' } },
+      },
+      errors: { 'eip155:137': 'Unprocessed by Accounts API' },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_1]: { amount: '50' } },
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.errors).toStrictEqual({
+      'eip155:137': 'Unprocessed by Accounts API',
+    });
+    expect(result.assetsBalance?.[ACCOUNT_A]).toStrictEqual({
+      [ASSET_1]: { amount: '100' },
+    });
+  });
+
+  it('handles multiple accounts with mixed known/unknown assets', () => {
+    const response = {
+      assetsBalance: {
+        [ACCOUNT_A]: {
+          [ASSET_1]: { amount: '100' },
+          [ASSET_2]: { amount: '200' },
+        },
+        [ACCOUNT_B]: {
+          [ASSET_2]: { amount: '300' },
+          [ASSET_3]: { amount: '400' },
+        },
+      },
+    };
+    const state = buildState({
+      [ACCOUNT_A]: { [ASSET_2]: { amount: '10' } },
+      [ACCOUNT_B]: { [ASSET_3]: { amount: '20' } },
+    });
+
+    const result = filterResponseToKnownAssets(response, state);
+
+    expect(result.assetsBalance?.[ACCOUNT_A]).toStrictEqual({
+      [ASSET_2]: { amount: '200' },
+    });
+    expect(result.assetsBalance?.[ACCOUNT_B]).toStrictEqual({
+      [ASSET_3]: { amount: '400' },
     });
   });
 });
