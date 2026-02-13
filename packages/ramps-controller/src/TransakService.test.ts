@@ -1,3 +1,4 @@
+import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -14,7 +15,7 @@ import {
   TransakEnvironment,
   TransakOrderIdTransformer,
 } from './TransakService';
-import { flushPromises } from '../../../tests/helpers';
+import { advanceTime, flushPromises } from '../../../tests/helpers';
 
 // === Test Constants ===
 
@@ -334,6 +335,49 @@ describe('TransakService', () => {
     it('stores the initial API key when provided', () => {
       const { service } = getService({ options: { apiKey: 'initial-key' } });
       expect(service.getApiKey()).toBe('initial-key');
+    });
+
+    it('uses default environment and policyOptions when not provided', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getMessenger(rootMessenger);
+      const service = new TransakService({
+        fetch,
+        messenger,
+        context: MOCK_CONTEXT,
+        apiKey: MOCK_API_KEY,
+      });
+      expect(service.name).toBe('TransakService');
+    });
+
+    it('throws for invalid environment when resolving Transak API base URL', async () => {
+      const { service } = getService({
+        options: { environment: 'invalid' as TransakEnvironment },
+      });
+      authenticateService(service);
+
+      await expect(service.getUserDetails()).rejects.toThrow(
+        'Invalid Transak environment: invalid',
+      );
+    });
+
+    it('throws for invalid environment when resolving Ramps base URL', async () => {
+      const { service } = getService({
+        options: { environment: 'invalid' as TransakEnvironment },
+      });
+
+      await expect(
+        service.getOrder('raw-order-id', '0xWALLET'),
+      ).rejects.toThrow('Invalid Transak environment: invalid');
+    });
+
+    it('throws for invalid environment when resolving payment widget base URL', () => {
+      const { service } = getService({
+        options: { environment: 'invalid' as TransakEnvironment },
+      });
+
+      expect(() =>
+        service.generatePaymentWidgetUrl('ott', MOCK_BUY_QUOTE, '0x1'),
+      ).toThrow('Invalid Transak environment: invalid');
     });
   });
 
@@ -686,6 +730,24 @@ describe('TransakService', () => {
       await flushPromises();
 
       await expect(promise).resolves.toStrictEqual({ success: true });
+    });
+
+    it('throws when the PATCH API returns a non-OK response', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .patch('/api/v2/kyc/user')
+        .query(true)
+        .reply(500);
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.patchUser({
+        personalDetails: { firstName: 'Fail' },
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '500'");
     });
 
     it('throws when not authenticated', async () => {
@@ -1079,6 +1141,47 @@ describe('TransakService', () => {
       await expect(promise).resolves.toBeDefined();
     });
 
+    it('retries order creation when the first attempt fails with an existing order error', async () => {
+      clock.restore();
+
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/orders')
+        .once()
+        .reply(4005);
+
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/active-orders')
+        .query(true)
+        .reply(200, { data: [] });
+
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/orders')
+        .reply(200, { data: MOCK_TRANSAK_ORDER });
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query(true)
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const result = await service.createOrder(
+        'quote-123',
+        '0x1234',
+        'credit_debit_card',
+      );
+
+      expect(result.id).toBe(
+        `${STAGING_PROVIDER_PATH}/orders/order-abc-123`,
+      );
+      expect(result.orderType).toBe('DEPOSIT');
+
+      clock = useFakeTimers();
+    }, 10000);
+
     it('throws when not authenticated', async () => {
       const { service } = getService();
       await expect(
@@ -1211,6 +1314,23 @@ describe('TransakService', () => {
       const result = await promise;
 
       expect(result.paymentDetails).toStrictEqual([]);
+    });
+
+    it('throws when the orders API returns a non-OK response', async () => {
+      const depositOrderId = `${STAGING_PROVIDER_PATH}/orders/order-abc-123`;
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query(true)
+        .reply(503);
+
+      const { service } = getService();
+
+      const promise = service.getOrder(depositOrderId, '0x1234');
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '503'");
     });
 
     it('gracefully handles failure when fetching paymentDetails from Transak', async () => {
@@ -1381,6 +1501,24 @@ describe('TransakService', () => {
       );
 
       expect(url).toContain('https://global.transak.com');
+    });
+
+    it('logs a warning when quote.paymentMethod is falsy', () => {
+      const { service } = getService();
+      const quoteWithoutPaymentMethod = {
+        ...MOCK_BUY_QUOTE,
+        paymentMethod: '',
+      };
+
+      const url = service.generatePaymentWidgetUrl(
+        'ott-token',
+        quoteWithoutPaymentMethod,
+        '0xWALLET',
+      );
+
+      const parsed = new URL(url);
+      expect(parsed.origin).toBe(STAGING_WIDGET_BASE);
+      expect(parsed.searchParams.get('paymentMethod')).toBe('');
     });
 
     it('throws when API key is not set', () => {

@@ -266,11 +266,6 @@ export enum TransakEnvironment {
   Staging = 'staging',
 }
 
-enum TransakApiService {
-  Regions = 'regions',
-  Orders = 'orders',
-}
-
 enum TransakApiProviders {
   TransakNative = 'transak-native',
   TransakNativeStaging = 'transak-native-staging',
@@ -391,16 +386,12 @@ function getTransakApiBaseUrl(environment: TransakEnvironment): string {
   }
 }
 
-function getRampsBaseUrl(
-  environment: TransakEnvironment,
-  service: TransakApiService,
-): string {
-  const cache = service === TransakApiService.Regions ? '-cache' : '';
+function getRampsBaseUrl(environment: TransakEnvironment): string {
   switch (environment) {
     case TransakEnvironment.Production:
-      return `https://on-ramp${cache}.api.cx.metamask.io`;
+      return 'https://on-ramp.api.cx.metamask.io';
     case TransakEnvironment.Staging:
-      return `https://on-ramp${cache}.uat-api.cx.metamask.io`;
+      return 'https://on-ramp.uat-api.cx.metamask.io';
     default:
       throw new Error(`Invalid Transak environment: ${String(environment)}`);
   }
@@ -659,10 +650,7 @@ export class TransakService {
     path: string,
     params?: Record<string, string>,
   ): Promise<T> {
-    const baseUrl = getRampsBaseUrl(
-      this.#environment,
-      TransakApiService.Orders,
-    );
+    const baseUrl = getRampsBaseUrl(this.#environment);
     const providerPath = getRampsProviderPath(this.#environment);
     const url = new URL(`${providerPath}${path}`, baseUrl);
 
@@ -1090,10 +1078,7 @@ export class TransakService {
   ): Promise<TransakQuoteTranslation> {
     console.log('RAMPS: TransakService.getTranslation called', translationRequest);
 
-    const baseUrl = getRampsBaseUrl(
-      this.#environment,
-      TransakApiService.Orders,
-    );
+    const baseUrl = getRampsBaseUrl(this.#environment);
     const providerPath = getRampsProviderPath(this.#environment);
     const url = new URL(`${providerPath}/native/translate`, baseUrl);
 
