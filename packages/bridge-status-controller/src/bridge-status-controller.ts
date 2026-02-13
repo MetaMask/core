@@ -263,7 +263,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               historyKey ?? txMetaId,
               {
                 ...getEVMTxPropertiesFromTransactionMeta(transactionMeta),
-                location: historyLocation ?? MetaMetricsSwapsEventSource.MainView,
+                location:
+                  historyLocation ?? MetaMetricsSwapsEventSource.MainView,
               },
             );
           }
@@ -445,7 +446,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               action_type: MetricsActionType.SWAPBRIDGE_V1,
               polling_status: PollingStatus.ManuallyRestarted,
               retry_attempts: previousAttempts,
-              location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
+              location:
+                historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
             },
           );
         }
@@ -730,7 +732,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             action_type: MetricsActionType.SWAPBRIDGE_V1,
             polling_status: PollingStatus.MaxPollingReached,
             retry_attempts: newAttempts.counter,
-            location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
+            location:
+              historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
           },
         );
       }
@@ -821,7 +824,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           bridgeTxMetaId,
           {
             failures: validationFailures,
-            location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
+            location:
+              historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
           },
         );
         throw new Error(
