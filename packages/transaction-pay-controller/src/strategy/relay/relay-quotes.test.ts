@@ -766,7 +766,7 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
-    it('strips original transaction gas limit from gasLimits for post-quote', async () => {
+    it('includes all gas limits for post-quote including original transaction', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -800,8 +800,10 @@ describe('Relay Quotes Utils', () => {
         } as TransactionMeta,
       });
 
-      // gasLimits should only contain relay-step limits, not the original tx
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([79000]);
+      // gasLimits should include both the original tx and relay-step limits
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        21000, 79000,
+      ]);
     });
 
     it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {

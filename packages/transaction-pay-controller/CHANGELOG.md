@@ -10,9 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Remove `transactionGas` from `TransactionPayFees` ([#7929](https://github.com/MetaMask/core/pull/7929))
-  - The original transaction's gas cost is now included in `sourceNetwork` for post-quote flows instead of being reported separately
-- Include original transaction gas in source network fee for post-quote flows ([#7929](https://github.com/MetaMask/core/pull/7929))
-  - Gas estimation and gas-fee-token detection now cover both the Relay deposit and the user's original transaction
+  - The original transaction's gas cost is now included in `sourceNetwork` for post-quote flows instead of being reported separately, so gas estimation and gas-fee-token detection cover both the Relay deposit and the user's original transaction
 
 ## [14.0.0]
 

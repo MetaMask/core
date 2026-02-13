@@ -522,20 +522,8 @@ async function calculateSourceNetworkCost(
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     relayParams[0];
 
-  const {
-    totalGasEstimate,
-    totalGasLimit,
-    gasLimits: allGasLimits,
-  } = await calculateSourceNetworkGasLimit(allParams, messenger);
-
-  // For post-quote flows, gasLimits stored in the quote must only cover
-  // relay-step params — downstream submit logic (relay-submit) interprets
-  // them as per-relay-step limits.  The original transaction is prepended,
-  // so strip the leading entry to keep only relay-step limits.
-  const gasLimits =
-    request.isPostQuote && allGasLimits.length > relayParams.length
-      ? allGasLimits.slice(allGasLimits.length - relayParams.length)
-      : allGasLimits;
+  const { totalGasEstimate, totalGasLimit, gasLimits } =
+    await calculateSourceNetworkGasLimit(allParams, messenger);
 
   log('Gas limit', {
     totalGasEstimate,
