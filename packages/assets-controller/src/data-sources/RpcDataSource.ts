@@ -144,7 +144,10 @@ export type RpcDataSourceState = Record<never, never>;
 export type RpcDataSourceConfig = {
   balanceInterval?: number;
   detectionInterval?: number;
-  tokenDetectionEnabled?: boolean;
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
   timeout?: number;
 };
 
@@ -163,8 +166,10 @@ export type RpcDataSourceOptions = {
   balanceInterval?: number;
   /** Token detection polling interval in ms (default: 180s / 3 min) */
   detectionInterval?: number;
-  /** Whether token detection is enabled */
-  tokenDetectionEnabled?: boolean;
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
 };
 
 /**
@@ -233,7 +238,9 @@ export class RpcDataSource extends AbstractDataSource<
 
   readonly #timeout: number;
 
-  readonly #tokenDetectionEnabled: boolean;
+  readonly #tokenDetectionEnabled: () => boolean;
+
+  readonly #useExternalService: () => boolean;
 
   /** Currently active chains */
   #activeChains: ChainId[] = [];
@@ -259,7 +266,10 @@ export class RpcDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#timeout = options.timeout ?? 10_000;
-    this.#tokenDetectionEnabled = options.tokenDetectionEnabled ?? false;
+    this.#tokenDetectionEnabled =
+      options.tokenDetectionEnabled ?? ((): boolean => true);
+    this.#useExternalService =
+      options.useExternalService ?? ((): boolean => true);
 
     const balanceInterval = options.balanceInterval ?? DEFAULT_BALANCE_INTERVAL;
     const detectionInterval =
@@ -269,7 +279,8 @@ export class RpcDataSource extends AbstractDataSource<
       timeout: this.#timeout,
       balanceInterval,
       detectionInterval,
-      tokenDetectionEnabled: this.#tokenDetectionEnabled,
+      tokenDetectionEnabled: this.#tokenDetectionEnabled(),
+      useExternalService: this.#useExternalService(),
     });
 
     // Initialize MulticallClient with a provider getter
@@ -316,7 +327,11 @@ export class RpcDataSource extends AbstractDataSource<
     this.#tokenDetector = new TokenDetector(
       this.#multicallClient,
       tokenDetectorMessenger,
-      { pollingInterval: detectionInterval },
+      {
+        pollingInterval: detectionInterval,
+        tokenDetectionEnabled: this.#tokenDetectionEnabled,
+        useExternalService: this.#useExternalService,
+      },
     );
     this.#tokenDetector.setOnDetectionUpdate(
       this.#handleDetectionUpdate.bind(this),
@@ -881,7 +896,7 @@ export class RpcDataSource extends AbstractDataSource<
     chainId: ChainId,
     account: InternalAccount,
   ): Promise<DataResponse> {
-    if (!this.#tokenDetectionEnabled) {
+    if (!this.#tokenDetectionEnabled() || !this.#useExternalService()) {
       return {};
     }
 
@@ -895,6 +910,10 @@ export class RpcDataSource extends AbstractDataSource<
         hexChainId,
         accountId,
         address as Address,
+        {
+          tokenDetectionEnabled: this.#tokenDetectionEnabled(),
+          useExternalService: this.#useExternalService(),
+        },
       );
 
       if (result.detectedAssets.length === 0) {
@@ -1101,8 +1120,8 @@ export class RpcDataSource extends AbstractDataSource<
         const balanceToken = this.#balanceFetcher.startPolling(balanceInput);
         balancePollingTokens.push(balanceToken);
 
-        // Start detection polling if enabled
-        if (this.#tokenDetectionEnabled) {
+        // Start detection polling if enabled and external services allowed
+        if (this.#tokenDetectionEnabled() && this.#useExternalService()) {
           const detectionInput: DetectionPollingInput = {
             chainId: hexChainId,
             accountId,

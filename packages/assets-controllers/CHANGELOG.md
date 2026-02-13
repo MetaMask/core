@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Only tokens with a `Benign` result are kept; native assets (e.g. `slip44`) are not scanned
   - The filter fails open: if the API is unreachable or returns an error, all tokens are kept
   - Filtering applies to account-added and asset-list-updated events; `addAssets` (curated list) is not filtered
+- `CodefiTokenPricesServiceV2` now supports fetching prices of ETH on Ink Mainnet (chain `0xdef1`) ([#7688](https://github.com/MetaMask/core/pull/7688))
 
 ## [99.3.2]
 
