@@ -20,6 +20,9 @@ import type {
 
 export const PRIMARY_TYPE_DELEGATION = 'Delegation';
 export const DELEGATOR_FIELD = 'delegator';
+export const AUTHORITY_FIELD = 'authority';
+export const ROOT_AUTHORITY =
+  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
 /**
  * Validate a personal signature request.
@@ -285,9 +288,20 @@ function validateDelegation({
         internalAccount.toLowerCase() === delegatorAddressLowercase,
     );
 
-    if (isOriginExternal && isSignerInternal) {
+    const authority = (
+      (data.message as Record<string, Json>)?.[AUTHORITY_FIELD] as
+        | string
+        | undefined
+    )?.toLowerCase();
+
+    // Fail-closed: if authority is missing or is ROOT_AUTHORITY, block the request.
+    // Only allow signing when authority is explicitly a non-root value (redelegation).
+    const isRootOrMissingAuthority =
+      !authority || authority === ROOT_AUTHORITY;
+
+    if (isOriginExternal && isSignerInternal && isRootOrMissingAuthority) {
       throw new Error(
-        `External signature requests cannot sign delegations for internal accounts.`,
+        `External signature requests cannot sign root delegations for internal accounts.`,
       );
     }
   }
