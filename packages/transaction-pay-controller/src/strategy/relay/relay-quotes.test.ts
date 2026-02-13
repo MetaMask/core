@@ -6,13 +6,13 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { CHAIN_ID_HYPERCORE } from './constants';
 import { getRelayQuotes } from './relay-quotes';
 import type { RelayQuote } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
+  CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
 } from '../../constants';
@@ -28,11 +28,7 @@ import {
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
-import {
-  calculateGasCost,
-  calculateGasFeeTokenCost,
-  calculateTransactionGasCost,
-} from '../../utils/gas';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -161,10 +157,6 @@ describe('Relay Quotes Utils', () => {
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const getSlippageMock = jest.mocked(getSlippage);
 
-  const calculateTransactionGasCostMock = jest.mocked(
-    calculateTransactionGasCost,
-  );
-
   const {
     messenger,
     estimateGasMock,
@@ -181,13 +173,6 @@ describe('Relay Quotes Utils', () => {
     getTokenFiatRateMock.mockReturnValue({
       usdRate: '2.0',
       fiatRate: '4.0',
-    });
-
-    calculateTransactionGasCostMock.mockReturnValue({
-      fiat: '2.34',
-      human: '0.615',
-      raw: '6150000000000000',
-      usd: '1.23',
     });
 
     calculateGasCostMock.mockReturnValue({
@@ -639,18 +624,231 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
-    it('ignores requests with no target minimum', async () => {
+    it('ignores gas fee token requests (target=0 and source=0)', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
 
       await getRelayQuotes({
         messenger,
-        requests: [{ ...QUOTE_REQUEST_MOCK, targetAmountMinimum: '0' }],
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            sourceTokenAmount: '0',
+          },
+        ],
         transaction: TRANSACTION_META_MOCK,
       });
 
       expect(successfulFetchMock).not.toHaveBeenCalled();
+    });
+
+    it('processes post-quote requests', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalled();
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.tradeType).toBe('EXACT_INPUT');
+      expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
+    });
+
+    it('includes original transaction in gas estimation for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [21000, 79000],
+      });
+
+      const postQuoteTransaction = {
+        ...TRANSACTION_META_MOCK,
+        chainId: '0x1' as Hex,
+        txParams: {
+          from: FROM_MOCK,
+          to: '0x9' as Hex,
+          data: '0xaaa' as Hex,
+          gas: '79000',
+          value: '0',
+        },
+      } as TransactionMeta;
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: postQuoteTransaction,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: [
+            expect.objectContaining({
+              data: '0xaaa',
+              to: '0x9',
+            }),
+            expect.objectContaining({
+              data: QUOTE_MOCK.steps[0].items[0].data.data,
+              to: QUOTE_MOCK.steps[0].items[0].data.to,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('defaults data to 0x when original transaction has no data for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [21000, 79000],
+      });
+
+      const postQuoteTransaction = {
+        ...TRANSACTION_META_MOCK,
+        chainId: '0x1' as Hex,
+        txParams: {
+          from: FROM_MOCK,
+          to: '0x9' as Hex,
+          gas: '79000',
+          value: '0',
+        },
+      } as TransactionMeta;
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: postQuoteTransaction,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              data: '0x',
+              to: '0x9',
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('includes all gas limits for post-quote including original transaction', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      getGasBufferMock.mockReturnValue(1);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [21000, 79000],
+      });
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x9' as Hex,
+            data: '0xaaa' as Hex,
+            gas: '79000',
+            value: '0',
+          },
+        } as TransactionMeta,
+      });
+
+      // gasLimits should include both the original tx and relay-step limits
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        21000, 79000,
+      ]);
+    });
+
+    it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      // With no txParams.to the original tx should be skipped, so only
+      // the relay step params are sent to gas estimation (single path).
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('sets isSourceGasFeeToken for post-quote when insufficient native balance', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      getTokenBalanceMock.mockReturnValue('0');
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
     });
 
     it('includes duration in quote', async () => {
@@ -681,6 +879,36 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.provider).toStrictEqual({
         usd: '1.11',
         fiat: '2.22',
+      });
+    });
+
+    it('sets provider fee to zero when subsidized fee is present', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.fees.subsidized = {
+        amount: '500000',
+        amountFormatted: '0.50',
+        amountUsd: '0.50',
+        currency: {
+          address: '0xdef' as Hex,
+          chainId: 1,
+          decimals: 6,
+        },
+        minimumAmount: '500000',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        usd: '0',
+        fiat: '0',
       });
     });
 
@@ -1078,8 +1306,136 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(result[0].targetAmount).toStrictEqual({
-        human: QUOTE_MOCK.details.currencyOut.amountFormatted,
-        raw: QUOTE_MOCK.details.currencyOut.amount,
+        usd: '1.23',
+        fiat: '2.46',
+      });
+    });
+
+    it('adds subsidized fee to target amount fiat values when trade type is EXACT_INPUT', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.fees.subsidized = {
+        amount: '500000000000000',
+        amountFormatted: '0.0005',
+        amountUsd: '0.50',
+        currency: {
+          address: '0xdef' as Hex,
+          chainId: 1,
+          decimals: 18,
+        },
+        minimumAmount: '500000000000000',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
+        usd: '1.73',
+        fiat: '3.46',
+      });
+    });
+
+    it('uses amountFormatted for subsidized fee when fee token is a stablecoin', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.fees.subsidized = {
+        amount: '500000',
+        amountFormatted: '0.50',
+        amountUsd: '0.49',
+        currency: {
+          address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Hex,
+          chainId: 1,
+          decimals: 6,
+        },
+        minimumAmount: '500000',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
+        usd: '1.73',
+        fiat: '3.46',
+      });
+    });
+
+    it('does not add subsidized fee to target amount when trade type is not EXACT_INPUT', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.fees.subsidized = {
+        amount: '500000000000000',
+        amountFormatted: '0.0005',
+        amountUsd: '0.50',
+        currency: {
+          address: '0xdef' as Hex,
+          chainId: 1,
+          decimals: 18,
+        },
+        minimumAmount: '500000000000000',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
+        usd: '1.23',
+        fiat: '2.46',
+      });
+    });
+
+    it('uses amountFormatted as usd for target amount when target is a stablecoin', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
+        usd: '1',
+        fiat: '2',
+      });
+    });
+
+    it('uses amountUsd for target amount when target is not a stablecoin', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].targetAmount).toStrictEqual({
         usd: '1.23',
         fiat: '2.46',
       });
@@ -1141,6 +1497,33 @@ describe('Relay Quotes Utils', () => {
           destinationCurrency: '0x00000000000000000000000000000000',
         }),
       );
+    });
+
+    it('does not convert to Hyperliquid deposit for post-quote requests targeting Arbitrum USDC', async () => {
+      const postQuoteRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        isPostQuote: true,
+        targetAmountMinimum: '0',
+        targetChainId: CHAIN_ID_ARBITRUM,
+        targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [postQuoteRequest],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.destinationChainId).toBe(Number(CHAIN_ID_ARBITRUM));
+      expect(body.destinationCurrency).toBe(ARBITRUM_USDC_ADDRESS);
     });
 
     it('updates request if source is polygon native', async () => {

@@ -9,7 +9,8 @@
     { "path": "../core-backend" },
     { "path": "../keyring-controller" },
     { "path": "../messenger" },
-    { "path": "../network-enablement-controller" }
+    { "path": "../network-enablement-controller" },
+    { "path": "../preferences-controller" }
   ],
   "include": ["../../types", "./src"]
 }

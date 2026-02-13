@@ -65,7 +65,7 @@ describe('createRequestSelector', () => {
       const result = selector(state);
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "data": null,
           "error": null,
           "isFetching": true,
@@ -92,8 +92,8 @@ describe('createRequestSelector', () => {
       const result = selector(state);
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
-          "data": Array [
+        {
+          "data": [
             "ETH",
             "BTC",
           ],
@@ -122,7 +122,7 @@ describe('createRequestSelector', () => {
       const result = selector(state);
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "data": null,
           "error": "Network error",
           "isFetching": false,
@@ -144,7 +144,7 @@ describe('createRequestSelector', () => {
       const result = selector(state);
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "data": null,
           "error": null,
           "isFetching": false,
@@ -166,7 +166,7 @@ describe('createRequestSelector', () => {
       const result = selector(state);
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "data": null,
           "error": null,
           "isFetching": false,

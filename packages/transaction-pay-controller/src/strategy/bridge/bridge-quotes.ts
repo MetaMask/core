@@ -515,12 +515,14 @@ function normalizeQuote(
     sourceFiatRate.usdRate,
   );
 
-  const targetAmount = calculateAmount(
+  const { fiat: targetAmountFiat, usd: targetAmountUsd } = calculateAmount(
     request.targetAmountMinimum,
     quote.quote.destAsset.decimals,
     targetFiatRate.fiatRate,
     targetFiatRate.usdRate,
   );
+
+  const targetAmount = { fiat: targetAmountFiat, usd: targetAmountUsd };
 
   const targetNetwork = calculateTransactionGasCost(transaction, messenger);
 

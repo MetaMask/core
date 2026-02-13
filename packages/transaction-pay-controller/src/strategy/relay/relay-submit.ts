@@ -33,6 +33,39 @@ const FALLBACK_HASH = '0x0' as Hex;
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
 /**
+ * Determine the transaction type for a given index in the batch.
+ *
+ * @param isPostQuote - Whether this is a post-quote flow.
+ * @param index - Index of the transaction in the batch.
+ * @param originalType - Type of the original transaction (used for post-quote index 0).
+ * @param relayParamCount - Number of relay-only params (excludes prepended original tx).
+ * @returns The transaction type.
+ */
+function getTransactionType(
+  isPostQuote: boolean | undefined,
+  index: number,
+  originalType: TransactionMeta['type'],
+  relayParamCount: number,
+): TransactionMeta['type'] {
+  // Post-quote index 0 is the original transaction
+  if (isPostQuote && index === 0) {
+    return originalType;
+  }
+
+  // Adjust index for post-quote flows where original tx is prepended
+  const relayIndex = isPostQuote ? index - 1 : index;
+
+  // Single relay step is always a deposit (no approval needed)
+  if (relayParamCount === 1) {
+    return TransactionType.relayDeposit;
+  }
+
+  return relayIndex === 0
+    ? TransactionType.tokenMethodApprove
+    : TransactionType.relayDeposit;
+}
+
+/**
  * Submits Relay quotes.
  *
  * @param request - Request object.
@@ -84,7 +117,7 @@ async function executeSingleQuote(
     },
   );
 
-  await submitTransactions(quote, transaction.id, messenger);
+  await submitTransactions(quote, transaction, messenger);
 
   const targetHash = await waitForRelayCompletion(quote.original);
 
@@ -173,13 +206,13 @@ function normalizeParams(
  * Submit transactions for a relay quote.
  *
  * @param quote - Relay quote.
- * @param parentTransactionId - ID of the parent transaction.
+ * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
  * @returns Hash of the last submitted transaction.
  */
 async function submitTransactions(
   quote: TransactionPayQuote<RelayQuote>,
-  parentTransactionId: string,
+  transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
   const { steps } = quote.original;
@@ -194,6 +227,24 @@ async function submitTransactions(
     normalizeParams(singleParams, messenger),
   );
 
+  // For post-quote flows, prepend the original transaction so it gets
+  // included in the batch alongside the relay deposit(s).
+  // This always results in multiple params, so it takes the batch path.
+  const { isPostQuote } = quote.request;
+
+  const allParams =
+    isPostQuote && transaction.txParams.to
+      ? [
+          {
+            data: transaction.txParams.data as Hex | undefined,
+            from: transaction.txParams.from,
+            to: transaction.txParams.to,
+            value: transaction.txParams.value as Hex | undefined,
+          } as TransactionParams,
+          ...normalizedParams,
+        ]
+      : normalizedParams;
+
   const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
 
@@ -203,7 +254,7 @@ async function submitTransactions(
   );
 
   log('Adding transactions', {
-    normalizedParams,
+    normalizedParams: allParams,
     sourceChainId,
     from,
     networkClientId,
@@ -218,7 +269,7 @@ async function submitTransactions(
 
       updateTransaction(
         {
-          transactionId: parentTransactionId,
+          transactionId: transaction.id,
           messenger,
           note: 'Add required transaction ID from Relay submission',
         },
@@ -250,9 +301,9 @@ async function submitTransactions(
 
   const { gasLimits } = quote.original.metamask;
 
-  if (params.length === 1) {
+  if (allParams.length === 1) {
     const transactionParams = {
-      ...normalizedParams[0],
+      ...allParams[0],
       authorizationList,
       gas: toHex(gasLimits[0]),
     };
@@ -270,22 +321,32 @@ async function submitTransactions(
     );
   } else {
     const gasLimit7702 =
-      gasLimits.length === 1 ? toHex(gasLimits[0]) : undefined;
+      gasLimits.length === 1 && normalizedParams.length > 1
+        ? toHex(gasLimits[0])
+        : undefined;
 
-    const transactions = normalizedParams.map((singleParams, index) => ({
-      params: {
-        data: singleParams.data as Hex,
-        gas: gasLimit7702 ? undefined : toHex(gasLimits[index]),
-        maxFeePerGas: singleParams.maxFeePerGas as Hex,
-        maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
-        to: singleParams.to as Hex,
-        value: singleParams.value as Hex,
-      },
-      type:
-        index === 0
-          ? TransactionType.tokenMethodApprove
-          : TransactionType.relayDeposit,
-    }));
+    const transactions = allParams.map((singleParams, index) => {
+      const gasLimit = gasLimits[index];
+      const gas =
+        gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
+
+      return {
+        params: {
+          data: singleParams.data as Hex,
+          gas,
+          maxFeePerGas: singleParams.maxFeePerGas as Hex,
+          maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
+          to: singleParams.to as Hex,
+          value: singleParams.value as Hex,
+        },
+        type: getTransactionType(
+          isPostQuote,
+          index,
+          transaction.type,
+          normalizedParams.length,
+        ),
+      };
+    });
 
     await messenger.call('TransactionController:addTransactionBatch', {
       from,

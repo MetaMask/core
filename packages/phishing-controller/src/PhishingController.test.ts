@@ -3075,7 +3075,9 @@ describe('PhishingController', () => {
       // First cache a result via scanUrl
       nock(PHISHING_DETECTION_BASE_URL)
         .get(
-          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('cached-example.com')}`,
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+            'cached-example.com',
+          )}`,
         )
         .reply(200, {
           recommendedAction: RecommendedAction.None,
@@ -3185,7 +3187,9 @@ describe('PhishingController', () => {
       // Set up nock for individual caching
       nock(PHISHING_DETECTION_BASE_URL)
         .get(
-          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('domain1.com')}`,
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+            'domain1.com',
+          )}`,
         )
         .reply(200, {
           recommendedAction: RecommendedAction.None,
@@ -3193,7 +3197,9 @@ describe('PhishingController', () => {
 
       nock(PHISHING_DETECTION_BASE_URL)
         .get(
-          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent('domain2.com')}`,
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+            'domain2.com',
+          )}`,
         )
         .reply(200, {
           recommendedAction: RecommendedAction.Block,
@@ -3435,7 +3441,9 @@ describe('URL Scan Cache', () => {
 
     nock(PHISHING_DETECTION_BASE_URL)
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
@@ -3467,13 +3475,17 @@ describe('URL Scan Cache', () => {
 
     nock(PHISHING_DETECTION_BASE_URL)
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
       })
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
@@ -3504,7 +3516,9 @@ describe('URL Scan Cache', () => {
     domains.forEach((domain) => {
       nock(PHISHING_DETECTION_BASE_URL)
         .get(
-          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domain)}`,
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+            domain,
+          )}`,
         )
         .reply(200, {
           recommendedAction: RecommendedAction.None,
@@ -3514,7 +3528,9 @@ describe('URL Scan Cache', () => {
     // Setup a second request for the first domain
     nock(PHISHING_DETECTION_BASE_URL)
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domains[0])}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          domains[0],
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.Warn,
@@ -3545,13 +3561,17 @@ describe('URL Scan Cache', () => {
 
     nock(PHISHING_DETECTION_BASE_URL)
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
       })
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
@@ -3579,13 +3599,17 @@ describe('URL Scan Cache', () => {
 
     nock(PHISHING_DETECTION_BASE_URL)
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
       })
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
@@ -3626,7 +3650,9 @@ describe('URL Scan Cache', () => {
     domains.forEach((domain) => {
       nock(PHISHING_DETECTION_BASE_URL)
         .get(
-          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domain)}`,
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+            domain,
+          )}`,
         )
         .reply(200, {
           recommendedAction: RecommendedAction.None,
@@ -3665,11 +3691,15 @@ describe('URL Scan Cache', () => {
 
     nock(PHISHING_DETECTION_BASE_URL)
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(500, { error: 'Internal Server Error' })
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
@@ -3696,11 +3726,15 @@ describe('URL Scan Cache', () => {
     // First mock a timeout/error response
     nock(PHISHING_DETECTION_BASE_URL)
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .replyWithError('connection timeout')
       .get(
-        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
       )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
@@ -3745,7 +3779,7 @@ describe('URL Scan Cache', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -3758,7 +3792,7 @@ describe('URL Scan Cache', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "c2DomainBlocklistLastFetched": 0,
           "hotlistLastFetched": 0,
           "stalelistLastFetched": 0,
@@ -3776,16 +3810,16 @@ describe('URL Scan Cache', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "addressScanCache": Object {},
+        {
+          "addressScanCache": {},
           "c2DomainBlocklistLastFetched": 0,
           "hotlistLastFetched": 0,
-          "phishingLists": Array [],
+          "phishingLists": [],
           "stalelistLastFetched": 0,
-          "tokenScanCache": Object {},
-          "urlScanCache": Object {},
-          "whitelist": Array [],
-          "whitelistPaths": Object {},
+          "tokenScanCache": {},
+          "urlScanCache": {},
+          "whitelist": [],
+          "whitelistPaths": {},
         }
       `);
     });
@@ -3800,10 +3834,10 @@ describe('URL Scan Cache', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "addressScanCache": Object {},
-          "tokenScanCache": Object {},
-          "urlScanCache": Object {},
+        {
+          "addressScanCache": {},
+          "tokenScanCache": {},
+          "urlScanCache": {},
         }
       `);
     });

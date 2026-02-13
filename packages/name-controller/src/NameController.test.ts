@@ -2767,7 +2767,7 @@ describe('NameController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -2783,10 +2783,10 @@ describe('NameController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "nameSources": Object {},
-          "names": Object {
-            "ethereumAddress": Object {},
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
           },
         }
       `);
@@ -2805,10 +2805,10 @@ describe('NameController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "nameSources": Object {},
-          "names": Object {
-            "ethereumAddress": Object {},
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
           },
         }
       `);
@@ -2827,10 +2827,10 @@ describe('NameController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "nameSources": Object {},
-          "names": Object {
-            "ethereumAddress": Object {},
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
           },
         }
       `);

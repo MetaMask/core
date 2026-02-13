@@ -194,7 +194,7 @@ async function withController<ReturnValue>(
 
   // Mock AssetsController:getState
   messenger.registerActionHandler('AssetsController:getState', () => ({
-    assetsMetadata: {},
+    assetsInfo: {},
     assetsBalance: {},
   }));
 
@@ -285,7 +285,7 @@ describe('RpcDataSource', () => {
 
     it('initializes with token detection enabled', async () => {
       await withController(
-        { options: { tokenDetectionEnabled: true } },
+        { options: { tokenDetectionEnabled: () => true } },
         ({ controller }) => {
           expect(controller).toBeDefined();
         },

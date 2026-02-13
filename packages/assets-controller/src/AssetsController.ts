@@ -24,6 +24,7 @@ import type {
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { parseCaipAssetType } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
@@ -103,7 +104,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
  */
 export type AssetsControllerState = {
   /** Shared metadata for all assets (stored once per asset) */
-  assetsMetadata: { [assetId: string]: AssetMetadata };
+  assetsInfo: { [assetId: string]: AssetMetadata };
   /** Per-account balance data */
   assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
   /** Price data for assets */
@@ -121,7 +122,7 @@ export type AssetsControllerState = {
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
-    assetsMetadata: {},
+    assetsInfo: {},
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
@@ -186,7 +187,8 @@ type AllowedEvents =
   | NetworkEnablementControllerEvents
   | BackendWebSocketServiceEvents
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  | PreferencesControllerStateChangeEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -206,6 +208,25 @@ export type AssetsControllerOptions = {
   /** Function to determine if the controller is enabled. Defaults to true. */
   isEnabled?: () => boolean;
   /**
+   * Getter for basic functionality (matches the "Basic functionality" setting in the UI).
+   * When it returns true, internet services are on: token/price APIs are used for metadata, price,
+   * and price subscription. When false, only RPC is used (no token/price APIs).
+   * No value is stored; the getter is invoked when needed.
+   * Defaults to () => true when not provided (APIs enabled).
+   */
+  isBasicFunctionality?: () => boolean;
+  /**
+   * Called by the controller with an onChange callback. The consumer subscribes to its own
+   * basic-functionality source (e.g. PreferencesController:stateChange in extension, or a
+   * different mechanism in mobile) and invokes onChange(isBasic) when the value changes.
+   * The controller will then refresh its subscriptions. May return an unsubscribe function
+   * called on controller destroy. Optional; when omitted, basic-functionality changes are not
+   * subscribed to (e.g. host can notify via root messenger or another path).
+   */
+  subscribeToBasicFunctionalityChange?: (
+    onChange: (isBasic: boolean) => void,
+  ) => void | (() => void);
+  /**
    * API client for balance/price/metadata. The controller instantiates data sources
    * and uses them directly when this is provided.
    */
@@ -219,7 +240,7 @@ export type AssetsControllerOptions = {
 // ============================================================================
 
 const stateMetadata: StateMetadata<AssetsControllerState> = {
-  assetsMetadata: {
+  assetsInfo: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -271,11 +292,11 @@ function extractChainId(assetId: Caip19AssetId): ChainId {
 function normalizeResponse(response: DataResponse): DataResponse {
   const normalized: DataResponse = {};
 
-  if (response.assetsMetadata) {
-    normalized.assetsMetadata = {};
-    for (const [assetId, metadata] of Object.entries(response.assetsMetadata)) {
+  if (response.assetsInfo) {
+    normalized.assetsInfo = {};
+    for (const [assetId, metadata] of Object.entries(response.assetsInfo)) {
       const normalizedId = normalizeAssetId(assetId as Caip19AssetId);
-      normalized.assetsMetadata[normalizedId] = metadata;
+      normalized.assetsInfo[normalizedId] = metadata;
     }
   }
 
@@ -357,6 +378,9 @@ export class AssetsController extends BaseController<
   /** Whether the controller is enabled */
   readonly #isEnabled: boolean;
 
+  /** Getter for basic functionality (only balance fetch/subscribe use RPC; token/price API not used). No attribute stored. */
+  readonly #isBasicFunctionality: () => boolean;
+
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
@@ -395,11 +419,12 @@ export class AssetsController extends BaseController<
   readonly #rpcDataSource: RpcDataSource;
 
   /**
-   * Subscription balance data sources in assignment priority order (first that supports a chain gets it).
+   * All balance data sources (used for unsubscription in #stop so we can clean up
+   * regardless of current isBasicFunctionality mode).
    *
    * @returns The four balance data source instances in priority order.
    */
-  get #subscriptionBalanceDataSources(): [
+  get #allBalanceDataSources(): [
     BackendWebsocketDataSource,
     AccountsApiDataSource,
     SnapDataSource,
@@ -419,11 +444,15 @@ export class AssetsController extends BaseController<
 
   readonly #tokenDataSource: TokenDataSource;
 
+  #unsubscribeBasicFunctionality: (() => void) | null = null;
+
   constructor({
     messenger,
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
     isEnabled = (): boolean => true,
+    isBasicFunctionality,
+    subscribeToBasicFunctionalityChange,
     queryApiClient,
     rpcDataSourceConfig,
   }: AssetsControllerOptions) {
@@ -438,7 +467,9 @@ export class AssetsController extends BaseController<
     });
 
     this.#isEnabled = isEnabled();
+    this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
+
     const rpcConfig = rpcDataSourceConfig ?? {};
 
     const onActiveChainsUpdated = (
@@ -486,6 +517,17 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
+
+    // Subscribe to basic-functionality changes after construction so a synchronous
+    // onChange during subscribe cannot run before data sources are initialized.
+    if (subscribeToBasicFunctionalityChange) {
+      const unsubscribe = subscribeToBasicFunctionalityChange((isBasic) =>
+        this.handleBasicFunctionalityChange(isBasic),
+      );
+      if (typeof unsubscribe === 'function') {
+        this.#unsubscribeBasicFunctionality = unsubscribe;
+      }
+    }
   }
 
   // ============================================================================
@@ -718,17 +760,20 @@ export class AssetsController extends BaseController<
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
       });
-      const response = await this.#executeMiddlewares(
-        [
-          this.#accountsApiDataSource.assetsMiddleware,
-          this.#snapDataSource.assetsMiddleware,
-          this.#rpcDataSource.assetsMiddleware,
-          this.#detectionMiddleware.assetsMiddleware,
-          this.#tokenDataSource.assetsMiddleware,
-          this.#priceDataSource.assetsMiddleware,
-        ],
-        request,
-      );
+      const middlewares = this.#isBasicFunctionality()
+        ? [
+            this.#accountsApiDataSource.assetsMiddleware,
+            this.#snapDataSource.assetsMiddleware,
+            this.#rpcDataSource.assetsMiddleware,
+            this.#detectionMiddleware.assetsMiddleware,
+            this.#tokenDataSource.assetsMiddleware,
+            this.#priceDataSource.assetsMiddleware,
+          ]
+        : [
+            this.#rpcDataSource.assetsMiddleware,
+            this.#detectionMiddleware.assetsMiddleware,
+          ];
+      const response = await this.#executeMiddlewares(middlewares, request);
       await this.#updateState(response);
     }
 
@@ -766,7 +811,7 @@ export class AssetsController extends BaseController<
   }
 
   getAssetMetadata(assetId: Caip19AssetId): AssetMetadata | undefined {
-    return this.state.assetsMetadata[assetId] as AssetMetadata | undefined;
+    return this.state.assetsInfo[assetId] as AssetMetadata | undefined;
   }
 
   async getAssetsPrice(
@@ -947,6 +992,9 @@ export class AssetsController extends BaseController<
     chainIds: ChainId[],
     options: { updateInterval?: number } = {},
   ): void {
+    if (!this.#isBasicFunctionality()) {
+      return;
+    }
     const { updateInterval = this.#defaultUpdateInterval } = options;
     const subscriptionKey = 'ds:PriceDataSource';
 
@@ -1023,22 +1071,19 @@ export class AssetsController extends BaseController<
 
       this.update((state) => {
         // Use type assertions to avoid deep type instantiation issues with Immer Draft types
-        const metadata = state.assetsMetadata as Record<string, AssetMetadata>;
+        const metadata = state.assetsInfo as Record<string, AssetMetadata>;
         const balances = state.assetsBalance as Record<
           string,
           Record<string, AssetBalance>
         >;
         const prices = state.assetsPrice as Record<string, AssetPrice>;
 
-        if (normalizedResponse.assetsMetadata) {
+        if (normalizedResponse.assetsInfo) {
           for (const [key, value] of Object.entries(
-            normalizedResponse.assetsMetadata,
+            normalizedResponse.assetsInfo,
           )) {
             if (
-              !isEqual(
-                previousState.assetsMetadata[key as Caip19AssetId],
-                value,
-              )
+              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
             ) {
               changedMetadata.push(key);
             }
@@ -1184,7 +1229,7 @@ export class AssetsController extends BaseController<
       for (const [assetId, balance] of Object.entries(accountBalances)) {
         const typedAssetId = assetId as Caip19AssetId;
 
-        const metadataRaw = this.state.assetsMetadata[typedAssetId];
+        const metadataRaw = this.state.assetsInfo[typedAssetId];
 
         // Skip assets without metadata
         if (!metadataRaw) {
@@ -1341,13 +1386,14 @@ export class AssetsController extends BaseController<
     this.unsubscribeAssetsPrice();
 
     // Stop balance subscriptions by properly notifying data sources via messenger
-    // This ensures data sources stop their polling timers
-    // Convert to array first to avoid modifying map during iteration
+    // This ensures data sources stop their polling timers.
+    // Use #allBalanceDataSources so we unsubscribe from every source that may have
+    // been subscribed (e.g. when switching from full to basic functionality).
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
       if (subscriptionKey.startsWith('ds:')) {
         const sourceId = subscriptionKey.slice(3);
-        const source = this.#subscriptionBalanceDataSources.find(
+        const source = this.#allBalanceDataSources.find(
           (ds) => ds.getName() === sourceId,
         );
         if (source) {
@@ -1356,6 +1402,19 @@ export class AssetsController extends BaseController<
       }
     }
     this.#activeSubscriptions.clear();
+  }
+
+  /**
+   * Handle basic functionality toggle change. Call this from the consumer (extension or mobile)
+   * when the user changes the "Basic functionality" setting. Refreshes subscriptions so the
+   * current {@link AssetsControllerOptions.isBasicFunctionality} getter is used (true = APIs on,
+   * false = RPC only).
+   *
+   * @param _isBasic - The new value (for call-site clarity; the getter is the source of truth).
+   */
+  handleBasicFunctionalityChange(_isBasic: boolean): void {
+    this.#stop();
+    this.#subscribeAssets();
   }
 
   /**
@@ -1399,7 +1458,12 @@ export class AssetsController extends BaseController<
     );
     const remainingChains = new Set(chainToAccounts.keys());
 
-    for (const source of this.#subscriptionBalanceDataSources) {
+    // When basic functionality is on (getter true), use all balance data sources; when off (getter false), RPC only.
+    const balanceDataSources = this.#isBasicFunctionality()
+      ? this.#allBalanceDataSources
+      : [this.#rpcDataSource];
+
+    for (const source of balanceDataSources) {
       const availableChains = new Set(source.getActiveChainsSync());
       const assignedChains: ChainId[] = [];
 
@@ -1712,7 +1776,7 @@ export class AssetsController extends BaseController<
 
   destroy(): void {
     log('Destroying AssetsController', {
-      dataSourceCount: this.#subscriptionBalanceDataSources.length,
+      dataSourceCount: this.#allBalanceDataSources.length,
       subscriptionCount: this.#activeSubscriptions.size,
     });
 
@@ -1720,17 +1784,15 @@ export class AssetsController extends BaseController<
     this.#backendWebsocketDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
-    if (
-      this.#rpcDataSource &&
-      'destroy' in this.#rpcDataSource &&
-      typeof (this.#rpcDataSource as { destroy: () => void }).destroy ===
-        'function'
-    ) {
-      (this.#rpcDataSource as { destroy: () => void }).destroy();
-    }
+    this.#rpcDataSource?.destroy?.();
 
     // Stop all active subscriptions
     this.#stop();
+
+    if (this.#unsubscribeBasicFunctionality) {
+      this.#unsubscribeBasicFunctionality();
+      this.#unsubscribeBasicFunctionality = null;
+    }
 
     // Unregister action handlers
     this.messenger.unregisterActionHandler('AssetsController:getAssets');

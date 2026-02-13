@@ -137,7 +137,7 @@ describe('AppMetadataController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "currentAppVersion": "",
             "currentMigrationVersion": 0,
             "previousAppVersion": "",
@@ -156,7 +156,7 @@ describe('AppMetadataController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "currentAppVersion": "",
             "currentMigrationVersion": 0,
             "previousAppVersion": "",
@@ -175,7 +175,7 @@ describe('AppMetadataController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "currentAppVersion": "",
             "currentMigrationVersion": 0,
             "previousAppVersion": "",
@@ -193,7 +193,7 @@ describe('AppMetadataController', () => {
             controller.metadata,
             'usedInUi',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
   });

@@ -3,15 +3,18 @@ export {
   getInitialSeedlessOnboardingControllerStateWithDefaults as getDefaultSeedlessOnboardingControllerState,
 } from './SeedlessOnboardingController';
 export type {
-  AuthenticatedUserDetails,
-  SocialBackupsMetadata,
-  SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerGetStateAction,
+  SeedlessOnboardingControllerGetAccessTokenAction,
   SeedlessOnboardingControllerStateChangeEvent,
   SeedlessOnboardingControllerActions,
   SeedlessOnboardingControllerEvents,
+} from './SeedlessOnboardingController';
+export type {
+  AuthenticatedUserDetails,
+  SocialBackupsMetadata,
+  SeedlessOnboardingControllerState,
   ToprfKeyDeriver,
   RecoveryErrorData,
 } from './types';
@@ -22,4 +25,4 @@ export {
   SecretType,
 } from './constants';
 export { SecretMetadata } from './SecretMetadata';
-export { RecoveryError } from './errors';
+export { RecoveryError, SeedlessOnboardingError } from './errors';
