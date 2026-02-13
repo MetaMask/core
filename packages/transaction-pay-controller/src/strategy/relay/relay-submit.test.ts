@@ -502,6 +502,7 @@ describe('Relay Submit Utils', () => {
             to: '0xrecipient' as Hex,
             data: '0xorigdata' as Hex,
             value: '0x100' as Hex,
+            gas: '0x1D4C0' as Hex, // 120,000 — simulates beforeSign re-estimation
           },
           type: TransactionType.simpleSend,
         } as TransactionMeta;
@@ -611,7 +612,9 @@ describe('Relay Submit Utils', () => {
             transactions: [
               expect.objectContaining({
                 params: expect.objectContaining({
-                  gas: expect.any(String),
+                  // Original tx uses live txParams.gas (from beforeSign)
+                  // instead of stale quote-time gasLimits[0]
+                  gas: '0x1D4C0',
                 }),
                 type: TransactionType.simpleSend,
               }),
