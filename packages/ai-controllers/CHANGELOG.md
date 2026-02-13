@@ -11,5 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7693](https://github.com/MetaMask/core/pull/7693))
 - Add `AiDigestController` for fetching and caching AI-generated asset digests ([#7746](https://github.com/MetaMask/core/pull/7746))
+- Add Market Insights support to `AiDigestController` with `fetchMarketInsights` and `clearMarketInsights` actions
+- Add `searchDigests` method to `AiDigestService` for calling the GET endpoint (currently mocked)
 
 [Unreleased]: https://github.com/MetaMask/core/

@@ -2,8 +2,10 @@ export type {
   AiDigestControllerActions,
   AiDigestControllerClearAllDigestsAction,
   AiDigestControllerClearDigestAction,
+  AiDigestControllerClearMarketInsightsAction,
   AiDigestControllerEvents,
   AiDigestControllerFetchDigestAction,
+  AiDigestControllerFetchMarketInsightsAction,
   AiDigestControllerGetStateAction,
   AiDigestControllerMessenger,
   AiDigestControllerOptions,
@@ -22,6 +24,12 @@ export type {
   DigestData,
   DigestEntry,
   DigestService,
+  MarketInsightsArticle,
+  MarketInsightsTweet,
+  MarketInsightsTrend,
+  MarketInsightsSource,
+  MarketInsightsReport,
+  MarketInsightsEntry,
 } from './ai-digest-types';
 
 export {
