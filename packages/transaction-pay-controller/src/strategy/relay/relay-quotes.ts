@@ -327,7 +327,12 @@ async function normalizeQuote(
     gasLimits,
     isGasFeeToken: isSourceGasFeeToken,
     ...sourceNetwork
-  } = await calculateSourceNetworkCost(quote, messenger, request);
+  } = await calculateSourceNetworkCost(
+    quote,
+    messenger,
+    request,
+    fullRequest.transaction,
+  );
 
   const targetNetwork = {
     usd: '0',
@@ -471,15 +476,23 @@ function getFiatRates(
 /**
  * Calculates source network cost from a Relay quote.
  *
+ * For post-quote flows (e.g. predictWithdraw), the cost also includes the
+ * original transaction's gas (the user's Polygon USDC.e transfer) in addition
+ * to the Relay deposit transaction gas, by appending the original
+ * transaction's params so that gas estimation and gas-fee-token logic handle
+ * both transactions together.
+ *
  * @param quote - Relay quote.
  * @param messenger - Controller messenger.
  * @param request - Quote request.
+ * @param transaction - Original transaction metadata.
  * @returns Total source network cost in USD and fiat.
  */
 async function calculateSourceNetworkCost(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
+  transaction: TransactionMeta,
 ): Promise<
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
@@ -488,14 +501,26 @@ async function calculateSourceNetworkCost(
 > {
   const { from, sourceChainId, sourceTokenAddress } = request;
 
-  const allParams = quote.steps
+  const relayParams = quote.steps
     .flatMap((step) => step.items)
     .map((item) => item.data);
 
+  // For post-quote flows, prepend the original transaction's params so the
+  // gas estimation order matches the submit order in relay-submit (which
+  // also prepends the original tx before relay deposits).
+  // Guard on txParams.to to mirror relay-submit, which skips prepending
+  // when the original transaction has no destination address.
+  const allParams =
+    request.isPostQuote && transaction.txParams.to
+      ? [toRelayParams(transaction), ...relayParams]
+      : relayParams;
+
   const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
+  // Always use the first relay param for gas-fee properties — the prepended
+  // original transaction may carry zero/stale fee values.
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
-    allParams[0];
+    relayParams[0];
 
   const { totalGasEstimate, totalGasLimit, gasLimits } =
     await calculateSourceNetworkGasLimit(allParams, messenger);
@@ -896,4 +921,28 @@ function isStablecoin(chainId: string, tokenAddress: string): boolean {
   return Boolean(
     STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
   );
+}
+
+/**
+ * Converts a TransactionMeta into the Relay transaction params shape so it
+ * can be included in the `allParams` array for unified gas estimation.
+ *
+ * @param transaction - Original transaction metadata.
+ * @returns Relay-shaped transaction params.
+ */
+function toRelayParams(
+  transaction: TransactionMeta,
+): RelayQuote['steps'][0]['items'][0]['data'] {
+  const { chainId, txParams } = transaction;
+
+  return {
+    chainId: new BigNumber(chainId).toNumber(),
+    data: (txParams.data ?? '0x') as Hex,
+    from: txParams.from as Hex,
+    gas: txParams.gas,
+    maxFeePerGas: txParams.maxFeePerGas ?? '0',
+    maxPriorityFeePerGas: txParams.maxPriorityFeePerGas ?? '0',
+    to: txParams.to as Hex,
+    value: txParams.value,
+  };
 }
