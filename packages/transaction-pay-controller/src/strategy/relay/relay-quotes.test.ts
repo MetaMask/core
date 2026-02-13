@@ -28,11 +28,7 @@ import {
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
-import {
-  calculateGasCost,
-  calculateGasFeeTokenCost,
-  calculateTransactionGasCost,
-} from '../../utils/gas';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -161,10 +157,6 @@ describe('Relay Quotes Utils', () => {
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const getSlippageMock = jest.mocked(getSlippage);
 
-  const calculateTransactionGasCostMock = jest.mocked(
-    calculateTransactionGasCost,
-  );
-
   const {
     messenger,
     estimateGasMock,
@@ -181,13 +173,6 @@ describe('Relay Quotes Utils', () => {
     getTokenFiatRateMock.mockReturnValue({
       usdRate: '2.0',
       fiatRate: '4.0',
-    });
-
-    calculateTransactionGasCostMock.mockReturnValue({
-      fiat: '2.34',
-      human: '0.615',
-      raw: '6150000000000000',
-      usd: '1.23',
     });
 
     calculateGasCostMock.mockReturnValue({
@@ -684,6 +669,186 @@ describe('Relay Quotes Utils', () => {
 
       expect(body.tradeType).toBe('EXACT_INPUT');
       expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
+    });
+
+    it('includes original transaction in gas estimation for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [21000, 79000],
+      });
+
+      const postQuoteTransaction = {
+        ...TRANSACTION_META_MOCK,
+        chainId: '0x1' as Hex,
+        txParams: {
+          from: FROM_MOCK,
+          to: '0x9' as Hex,
+          data: '0xaaa' as Hex,
+          gas: '79000',
+          value: '0',
+        },
+      } as TransactionMeta;
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: postQuoteTransaction,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: [
+            expect.objectContaining({
+              data: '0xaaa',
+              to: '0x9',
+            }),
+            expect.objectContaining({
+              data: QUOTE_MOCK.steps[0].items[0].data.data,
+              to: QUOTE_MOCK.steps[0].items[0].data.to,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('defaults data to 0x when original transaction has no data for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [21000, 79000],
+      });
+
+      const postQuoteTransaction = {
+        ...TRANSACTION_META_MOCK,
+        chainId: '0x1' as Hex,
+        txParams: {
+          from: FROM_MOCK,
+          to: '0x9' as Hex,
+          gas: '79000',
+          value: '0',
+        },
+      } as TransactionMeta;
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: postQuoteTransaction,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              data: '0x',
+              to: '0x9',
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('includes all gas limits for post-quote including original transaction', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      getGasBufferMock.mockReturnValue(1);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [21000, 79000],
+      });
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x9' as Hex,
+            data: '0xaaa' as Hex,
+            gas: '79000',
+            value: '0',
+          },
+        } as TransactionMeta,
+      });
+
+      // gasLimits should include both the original tx and relay-step limits
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        21000, 79000,
+      ]);
+    });
+
+    it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      // With no txParams.to the original tx should be skipped, so only
+      // the relay step params are sent to gas estimation (single path).
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('sets isSourceGasFeeToken for post-quote when insufficient native balance', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      getTokenBalanceMock.mockReturnValue('0');
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
     });
 
     it('includes duration in quote', async () => {
