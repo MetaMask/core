@@ -686,6 +686,34 @@ describe('Relay Quotes Utils', () => {
       expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
     });
 
+    it('sets isSourceGasFeeToken when post-quote transaction gas uses a gas fee token', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      calculateTransactionGasCostMock.mockReturnValue({
+        fiat: '2.34',
+        human: '0.615',
+        raw: '6150000000000000',
+        usd: '1.23',
+        isGasFeeToken: true,
+      });
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+    });
+
     it('includes duration in quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,

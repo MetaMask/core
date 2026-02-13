@@ -336,14 +336,30 @@ async function normalizeQuote(
   // For post-quote flows (e.g. predictWithdraw), the source network fee
   // should include the original transaction's gas cost (the user's Polygon
   // USDC.e transfer) in addition to the Relay deposit transaction gas.
+  let isTxGasFeeToken = false;
   if (request.isPostQuote) {
-    const txGas = calculateTransactionGasCost(
+    const txGasEstimate = calculateTransactionGasCost(
       fullRequest.transaction,
       messenger,
     );
 
-    sourceNetwork.estimate = addAmounts(sourceNetwork.estimate, txGas);
-    sourceNetwork.max = addAmounts(sourceNetwork.max, txGas);
+    const txGasMax = calculateTransactionGasCost(
+      fullRequest.transaction,
+      messenger,
+      { isMax: true },
+    );
+
+    isTxGasFeeToken =
+      txGasEstimate.isGasFeeToken === true || txGasMax.isGasFeeToken === true;
+
+    // Only add fiat/usd values — human/raw cannot be summed because the
+    // two amounts may be denominated in different assets with different
+    // decimals (e.g. gas-fee token vs native gas).
+    sourceNetwork.estimate = addFiatValues(
+      sourceNetwork.estimate,
+      txGasEstimate,
+    );
+    sourceNetwork.max = addFiatValues(sourceNetwork.max, txGasMax);
   }
 
   const targetNetwork = {
@@ -390,7 +406,7 @@ async function normalizeQuote(
     dust,
     estimatedDuration: details.timeEstimate,
     fees: {
-      isSourceGasFeeToken,
+      isSourceGasFeeToken: isTxGasFeeToken ? true : isSourceGasFeeToken,
       provider,
       sourceNetwork,
       targetNetwork,
@@ -916,17 +932,21 @@ function isStablecoin(chainId: string, tokenAddress: string): boolean {
 }
 
 /**
- * Add two Amount objects together.
+ * Merge two Amount objects by summing only their fiat/usd values.
  *
- * @param a - First amount.
- * @param b - Second amount.
- * @returns Combined amount.
+ * `human` and `raw` are kept from the first operand because the two amounts
+ * may represent different assets with different decimals (e.g. a gas-fee
+ * token vs the native gas token), making arithmetic on those fields invalid.
+ *
+ * @param a - Primary amount whose human/raw values are preserved.
+ * @param b - Secondary amount contributing only fiat/usd.
+ * @returns Merged amount.
  */
-function addAmounts(a: Amount, b: Amount): Amount {
+function addFiatValues(a: Amount, b: Amount): Amount {
   return {
+    human: a.human,
+    raw: a.raw,
     fiat: new BigNumber(a.fiat).plus(b.fiat).toString(10),
-    human: new BigNumber(a.human).plus(b.human).toString(10),
-    raw: new BigNumber(a.raw).plus(b.raw).toString(10),
     usd: new BigNumber(a.usd).plus(b.usd).toString(10),
   };
 }
