@@ -31,6 +31,22 @@ import type {
   RampsToken,
 } from './RampsService';
 import type {
+  TransakAccessToken,
+  TransakUserDetails,
+  TransakBuyQuote,
+  TransakKycRequirement,
+  TransakAdditionalRequirementsResponse,
+  TransakDepositOrder,
+  TransakUserLimits,
+  TransakOttResponse,
+  TransakQuoteTranslation,
+  TransakTranslationRequest,
+  TransakIdProofStatus,
+  TransakOrder,
+  TransakOrderPaymentMethod,
+  PatchUserRequestBody,
+} from './TransakService';
+import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetTokensAction,
@@ -48,7 +64,7 @@ describe('RampsController', () => {
       const controllerPath = path.join(__dirname, 'RampsController.ts');
       const source = await fs.promises.readFile(controllerPath, 'utf-8');
       const callPattern =
-        /messenger\.call\s*\(\s*['"](RampsService:[^'"]+)['"]/gu;
+        /messenger\.call\s*\(\s*['"]((RampsService|TransakService):[^'"]+)['"]/gu;
       const calledActions = new Set<string>();
       let match: RegExpExecArray | null;
       while ((match = callPattern.exec(source)) !== null) {
@@ -99,6 +115,27 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+            },
+            "transak": {
+              "buyQuote": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "isAuthenticated": false,
+              "kycRequirement": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "userDetails": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
             },
             "userRegion": null,
           }
@@ -156,6 +193,27 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+            },
+            "transak": {
+              "buyQuote": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "isAuthenticated": false,
+              "kycRequirement": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "userDetails": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
             },
             "userRegion": null,
           }
@@ -572,6 +630,27 @@ describe('RampsController', () => {
               "isLoading": false,
               "selected": null,
             },
+            "transak": {
+              "buyQuote": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "isAuthenticated": false,
+              "kycRequirement": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "userDetails": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+            },
             "userRegion": null,
           }
         `);
@@ -692,6 +771,27 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+            },
+            "transak": {
+              "buyQuote": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "isAuthenticated": false,
+              "kycRequirement": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "userDetails": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
             },
             "userRegion": null,
           }
@@ -6164,6 +6264,809 @@ describe('RampsController', () => {
       });
     });
   });
+
+  describe('Transak methods', () => {
+    describe('transakSetApiKey', () => {
+      it('calls messenger with the api key', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handler = jest.fn();
+          rootMessenger.registerActionHandler(
+            'TransakService:setApiKey',
+            handler,
+          );
+          controller.transakSetApiKey('test-api-key');
+          expect(handler).toHaveBeenCalledWith('test-api-key');
+        });
+      });
+    });
+
+    describe('transakSetAccessToken', () => {
+      it('calls messenger and sets authenticated to true', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handler = jest.fn();
+          rootMessenger.registerActionHandler(
+            'TransakService:setAccessToken',
+            handler,
+          );
+          const token: TransakAccessToken = {
+            accessToken: 'tok',
+            ttl: 3600,
+            created: new Date('2024-01-01'),
+          };
+          controller.transakSetAccessToken(token);
+          expect(handler).toHaveBeenCalledWith(token);
+          expect(controller.state.transak.isAuthenticated).toBe(true);
+        });
+      });
+    });
+
+    describe('transakClearAccessToken', () => {
+      it('calls messenger and sets authenticated to false', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:setAccessToken',
+            jest.fn(),
+          );
+          rootMessenger.registerActionHandler(
+            'TransakService:clearAccessToken',
+            jest.fn(),
+          );
+          controller.transakSetAccessToken({
+            accessToken: 'tok',
+            ttl: 3600,
+            created: new Date('2024-01-01'),
+          });
+          expect(controller.state.transak.isAuthenticated).toBe(true);
+          controller.transakClearAccessToken();
+          expect(controller.state.transak.isAuthenticated).toBe(false);
+        });
+      });
+    });
+
+    describe('transakSetAuthenticated', () => {
+      it('sets isAuthenticated in transak state', async () => {
+        await withController(async ({ controller }) => {
+          expect(controller.state.transak.isAuthenticated).toBe(false);
+          controller.transakSetAuthenticated(true);
+          expect(controller.state.transak.isAuthenticated).toBe(true);
+          controller.transakSetAuthenticated(false);
+          expect(controller.state.transak.isAuthenticated).toBe(false);
+        });
+      });
+    });
+
+    describe('transakResetState', () => {
+      it('resets all transak state to defaults', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:setAccessToken',
+            jest.fn(),
+          );
+          controller.transakSetAccessToken({
+            accessToken: 'tok',
+            ttl: 3600,
+            created: new Date('2024-01-01'),
+          });
+          expect(controller.state.transak.isAuthenticated).toBe(true);
+
+          controller.transakResetState();
+
+          expect(controller.state.transak).toMatchSnapshot();
+        });
+      });
+    });
+
+    describe('transakSendUserOtp', () => {
+      it('calls messenger with email and returns result', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockResult = {
+            isTncAccepted: true,
+            stateToken: 'state-token',
+            email: 'test@example.com',
+            expiresIn: 300,
+          };
+          rootMessenger.registerActionHandler(
+            'TransakService:sendUserOtp',
+            async () => mockResult,
+          );
+          const result =
+            await controller.transakSendUserOtp('test@example.com');
+          expect(result).toStrictEqual(mockResult);
+        });
+      });
+    });
+
+    describe('transakVerifyUserOtp', () => {
+      it('calls messenger and sets authenticated', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockToken: TransakAccessToken = {
+            accessToken: 'verified-token',
+            ttl: 3600,
+            created: new Date('2024-01-01'),
+          };
+          rootMessenger.registerActionHandler(
+            'TransakService:verifyUserOtp',
+            async () => mockToken,
+          );
+          const result = await controller.transakVerifyUserOtp(
+            'test@example.com',
+            '123456',
+            'state-token',
+          );
+          expect(result).toStrictEqual(mockToken);
+          expect(controller.state.transak.isAuthenticated).toBe(true);
+        });
+      });
+    });
+
+    describe('transakLogout', () => {
+      it('calls messenger and clears authentication and user details on success', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:setAccessToken',
+            jest.fn(),
+          );
+          rootMessenger.registerActionHandler(
+            'TransakService:logout',
+            async () => 'logged out',
+          );
+          controller.transakSetAccessToken({
+            accessToken: 'tok',
+            ttl: 3600,
+            created: new Date('2024-01-01'),
+          });
+          expect(controller.state.transak.isAuthenticated).toBe(true);
+
+          const result = await controller.transakLogout();
+
+          expect(result).toBe('logged out');
+          expect(controller.state.transak.isAuthenticated).toBe(false);
+          expect(controller.state.transak.userDetails.data).toBeNull();
+        });
+      });
+
+      it('clears authentication and user details even when logout throws', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:setAccessToken',
+            jest.fn(),
+          );
+          rootMessenger.registerActionHandler(
+            'TransakService:logout',
+            async () => {
+              throw new Error('Network error');
+            },
+          );
+          controller.transakSetAccessToken({
+            accessToken: 'tok',
+            ttl: 3600,
+            created: new Date('2024-01-01'),
+          });
+
+          await expect(controller.transakLogout()).rejects.toThrow(
+            'Network error',
+          );
+          expect(controller.state.transak.isAuthenticated).toBe(false);
+          expect(controller.state.transak.userDetails.data).toBeNull();
+        });
+      });
+    });
+
+    describe('transakGetUserDetails', () => {
+      const mockUserDetails: TransakUserDetails = {
+        id: 'user-1',
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        mobileNumber: '+1234567890',
+        status: 'active',
+        dob: '1990-01-01',
+        kyc: {
+          status: 'APPROVED',
+          type: 'L1',
+          attempts: [],
+          highestApprovedKYCType: 'L1',
+          kycMarkedBy: null,
+          kycResult: null,
+          rejectionDetails: null,
+          userId: 'user-1',
+          workFlowRunId: 'wf-1',
+        },
+        address: {
+          addressLine1: '123 Main St',
+          addressLine2: '',
+          state: 'CA',
+          city: 'San Francisco',
+          postCode: '94105',
+          country: 'United States',
+          countryCode: 'US',
+        },
+        createdAt: '2024-01-01T00:00:00Z',
+      };
+
+      it('fetches user details and updates state on success', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getUserDetails',
+            async () => mockUserDetails,
+          );
+          const result = await controller.transakGetUserDetails();
+          expect(result).toStrictEqual(mockUserDetails);
+          expect(controller.state.transak.userDetails).toMatchSnapshot();
+        });
+      });
+
+      it('sets error state when fetch fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getUserDetails',
+            async () => {
+              throw new Error('Auth failed');
+            },
+          );
+          await expect(controller.transakGetUserDetails()).rejects.toThrow(
+            'Auth failed',
+          );
+          expect(controller.state.transak.userDetails.isLoading).toBe(false);
+          expect(controller.state.transak.userDetails.error).toBe(
+            'Auth failed',
+          );
+        });
+      });
+
+      it('uses fallback error message when error has no message', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getUserDetails',
+            async () => {
+              throw null;
+            },
+          );
+          await expect(
+            controller.transakGetUserDetails(),
+          ).rejects.toBeNull();
+          expect(controller.state.transak.userDetails.error).toBe(
+            'Unknown error',
+          );
+        });
+      });
+    });
+
+    describe('transakGetBuyQuote', () => {
+      const mockBuyQuote: TransakBuyQuote = {
+        quoteId: 'quote-1',
+        conversionPrice: 50000,
+        marketConversionPrice: 50100,
+        slippage: 0.5,
+        fiatCurrency: 'USD',
+        cryptoCurrency: 'BTC',
+        paymentMethod: 'credit_debit_card',
+        fiatAmount: 100,
+        cryptoAmount: 0.002,
+        isBuyOrSell: 'BUY',
+        network: 'bitcoin',
+        feeDecimal: 0.01,
+        totalFee: 1,
+        feeBreakdown: [],
+        nonce: 1,
+        cryptoLiquidityProvider: 'provider-1',
+        notes: [],
+      };
+
+      it('fetches buy quote and updates state on success', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            async () => mockBuyQuote,
+          );
+          const result = await controller.transakGetBuyQuote(
+            'USD',
+            'BTC',
+            'bitcoin',
+            'credit_debit_card',
+            '100',
+          );
+          expect(result).toStrictEqual(mockBuyQuote);
+          expect(controller.state.transak.buyQuote).toMatchSnapshot();
+        });
+      });
+
+      it('sets error state when fetch fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            async () => {
+              throw new Error('Quote failed');
+            },
+          );
+          await expect(
+            controller.transakGetBuyQuote(
+              'USD',
+              'BTC',
+              'bitcoin',
+              'credit_debit_card',
+              '100',
+            ),
+          ).rejects.toThrow('Quote failed');
+          expect(controller.state.transak.buyQuote.isLoading).toBe(false);
+          expect(controller.state.transak.buyQuote.error).toBe(
+            'Quote failed',
+          );
+        });
+      });
+
+      it('uses fallback error message when error has no message', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            async () => {
+              throw null;
+            },
+          );
+          await expect(
+            controller.transakGetBuyQuote(
+              'USD',
+              'BTC',
+              'bitcoin',
+              'credit_debit_card',
+              '100',
+            ),
+          ).rejects.toBeNull();
+          expect(controller.state.transak.buyQuote.error).toBe(
+            'Unknown error',
+          );
+        });
+      });
+    });
+
+    describe('transakGetKycRequirement', () => {
+      const mockKycRequirement: TransakKycRequirement = {
+        status: 'APPROVED',
+        kycType: 'L1',
+        isAllowedToPlaceOrder: true,
+      };
+
+      it('fetches KYC requirement and updates state on success', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getKycRequirement',
+            async () => mockKycRequirement,
+          );
+          const result =
+            await controller.transakGetKycRequirement('quote-1');
+          expect(result).toStrictEqual(mockKycRequirement);
+          expect(
+            controller.state.transak.kycRequirement,
+          ).toMatchSnapshot();
+        });
+      });
+
+      it('sets error state when fetch fails', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getKycRequirement',
+            async () => {
+              throw new Error('KYC failed');
+            },
+          );
+          await expect(
+            controller.transakGetKycRequirement('quote-1'),
+          ).rejects.toThrow('KYC failed');
+          expect(controller.state.transak.kycRequirement.isLoading).toBe(
+            false,
+          );
+          expect(controller.state.transak.kycRequirement.error).toBe(
+            'KYC failed',
+          );
+        });
+      });
+
+      it('uses fallback error message when error has no message', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getKycRequirement',
+            async () => {
+              throw null;
+            },
+          );
+          await expect(
+            controller.transakGetKycRequirement('quote-1'),
+          ).rejects.toBeNull();
+          expect(controller.state.transak.kycRequirement.error).toBe(
+            'Unknown error',
+          );
+        });
+      });
+    });
+
+    describe('transakGetAdditionalRequirements', () => {
+      it('calls messenger with quoteId and returns result', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockResult: TransakAdditionalRequirementsResponse = {
+            formsRequired: [],
+          };
+          rootMessenger.registerActionHandler(
+            'TransakService:getAdditionalRequirements',
+            async () => mockResult,
+          );
+          const result =
+            await controller.transakGetAdditionalRequirements('quote-1');
+          expect(result).toStrictEqual(mockResult);
+        });
+      });
+    });
+
+    describe('transakCreateOrder', () => {
+      it('calls messenger with correct arguments and returns result', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockOrder = createMockDepositOrder();
+          const handler = jest.fn().mockResolvedValue(mockOrder);
+          rootMessenger.registerActionHandler(
+            'TransakService:createOrder',
+            handler,
+          );
+          const result = await controller.transakCreateOrder(
+            'quote-1',
+            '0x123',
+            '/payments/debit-credit-card',
+          );
+          expect(handler).toHaveBeenCalledWith(
+            'quote-1',
+            '0x123',
+            '/payments/debit-credit-card',
+          );
+          expect(result).toStrictEqual(mockOrder);
+        });
+      });
+    });
+
+    describe('transakGetOrder', () => {
+      it('calls messenger with orderId and wallet', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockOrder = createMockDepositOrder();
+          rootMessenger.registerActionHandler(
+            'TransakService:getOrder',
+            async () => mockOrder,
+          );
+          const result = await controller.transakGetOrder(
+            'order-1',
+            '0x123',
+          );
+          expect(result).toStrictEqual(mockOrder);
+        });
+      });
+
+      it('passes optional paymentDetails to messenger', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockOrder = createMockDepositOrder();
+          const paymentDetails: TransakOrderPaymentMethod[] = [
+            {
+              fiatCurrency: 'USD',
+              paymentMethod: 'credit_debit_card',
+              fields: [],
+            },
+          ];
+          const handler = jest.fn().mockResolvedValue(mockOrder);
+          rootMessenger.registerActionHandler(
+            'TransakService:getOrder',
+            handler,
+          );
+          await controller.transakGetOrder(
+            'order-1',
+            '0x123',
+            paymentDetails,
+          );
+          expect(handler).toHaveBeenCalledWith(
+            'order-1',
+            '0x123',
+            paymentDetails,
+          );
+        });
+      });
+    });
+
+    describe('transakGetUserLimits', () => {
+      it('calls messenger with correct arguments and returns result', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockLimits: TransakUserLimits = {
+            limits: { '1': 500, '30': 5000, '365': 50000 },
+            spent: { '1': 0, '30': 0, '365': 0 },
+            remaining: { '1': 500, '30': 5000, '365': 50000 },
+            exceeded: { '1': false, '30': false, '365': false },
+            shortage: {},
+          };
+          rootMessenger.registerActionHandler(
+            'TransakService:getUserLimits',
+            async () => mockLimits,
+          );
+          const result = await controller.transakGetUserLimits(
+            'USD',
+            'credit_debit_card',
+            'L1',
+          );
+          expect(result).toStrictEqual(mockLimits);
+        });
+      });
+    });
+
+    describe('transakRequestOtt', () => {
+      it('calls messenger and returns result', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockResult: TransakOttResponse = { ott: 'ott-token-123' };
+          rootMessenger.registerActionHandler(
+            'TransakService:requestOtt',
+            async () => mockResult,
+          );
+          const result = await controller.transakRequestOtt();
+          expect(result).toStrictEqual(mockResult);
+        });
+      });
+    });
+
+    describe('transakGeneratePaymentWidgetUrl', () => {
+      const mockQuote: TransakBuyQuote = {
+        quoteId: 'quote-1',
+        conversionPrice: 50000,
+        marketConversionPrice: 50100,
+        slippage: 0.5,
+        fiatCurrency: 'USD',
+        cryptoCurrency: 'BTC',
+        paymentMethod: 'credit_debit_card',
+        fiatAmount: 100,
+        cryptoAmount: 0.002,
+        isBuyOrSell: 'BUY',
+        network: 'bitcoin',
+        feeDecimal: 0.01,
+        totalFee: 1,
+        feeBreakdown: [],
+        nonce: 1,
+        cryptoLiquidityProvider: 'provider-1',
+        notes: [],
+      };
+
+      it('calls messenger with correct arguments and returns URL', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:generatePaymentWidgetUrl',
+            () => 'https://widget.transak.com?param=value',
+          );
+          const result = controller.transakGeneratePaymentWidgetUrl(
+            'ott-token',
+            mockQuote,
+            '0x123',
+          );
+          expect(result).toBe('https://widget.transak.com?param=value');
+        });
+      });
+
+      it('passes optional extraParams to messenger', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handler = jest
+            .fn()
+            .mockReturnValue('https://widget.transak.com');
+          rootMessenger.registerActionHandler(
+            'TransakService:generatePaymentWidgetUrl',
+            handler,
+          );
+          const extraParams = { themeColor: 'blue' };
+          controller.transakGeneratePaymentWidgetUrl(
+            'ott-token',
+            mockQuote,
+            '0x123',
+            extraParams,
+          );
+          expect(handler).toHaveBeenCalledWith(
+            'ott-token',
+            mockQuote,
+            '0x123',
+            extraParams,
+          );
+        });
+      });
+    });
+
+    describe('transakSubmitPurposeOfUsageForm', () => {
+      it('calls messenger with purpose array', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handler = jest.fn().mockResolvedValue(undefined);
+          rootMessenger.registerActionHandler(
+            'TransakService:submitPurposeOfUsageForm',
+            handler,
+          );
+          await controller.transakSubmitPurposeOfUsageForm([
+            'investment',
+            'trading',
+          ]);
+          expect(handler).toHaveBeenCalledWith([
+            'investment',
+            'trading',
+          ]);
+        });
+      });
+    });
+
+    describe('transakPatchUser', () => {
+      it('calls messenger with user data and returns result', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const data: PatchUserRequestBody = {
+            personalDetails: { firstName: 'Jane', lastName: 'Doe' },
+          };
+          const handler = jest
+            .fn()
+            .mockResolvedValue({ success: true });
+          rootMessenger.registerActionHandler(
+            'TransakService:patchUser',
+            handler,
+          );
+          const result = await controller.transakPatchUser(data);
+          expect(handler).toHaveBeenCalledWith(data);
+          expect(result).toStrictEqual({ success: true });
+        });
+      });
+    });
+
+    describe('transakSubmitSsnDetails', () => {
+      it('calls messenger with ssn and quoteId', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handler = jest
+            .fn()
+            .mockResolvedValue({ success: true });
+          rootMessenger.registerActionHandler(
+            'TransakService:submitSsnDetails',
+            handler,
+          );
+          const result = await controller.transakSubmitSsnDetails(
+            '123-45-6789',
+            'quote-1',
+          );
+          expect(handler).toHaveBeenCalledWith(
+            '123-45-6789',
+            'quote-1',
+          );
+          expect(result).toStrictEqual({ success: true });
+        });
+      });
+    });
+
+    describe('transakConfirmPayment', () => {
+      it('calls messenger with orderId and paymentMethodId', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handler = jest
+            .fn()
+            .mockResolvedValue({ success: true });
+          rootMessenger.registerActionHandler(
+            'TransakService:confirmPayment',
+            handler,
+          );
+          const result = await controller.transakConfirmPayment(
+            'order-1',
+            '/payments/debit-credit-card',
+          );
+          expect(handler).toHaveBeenCalledWith(
+            'order-1',
+            '/payments/debit-credit-card',
+          );
+          expect(result).toStrictEqual({ success: true });
+        });
+      });
+    });
+
+    describe('transakGetTranslation', () => {
+      it('calls messenger with translation request and returns result', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockTranslation: TransakQuoteTranslation = {
+            region: 'US',
+            paymentMethod: 'credit_debit_card',
+            cryptoCurrency: 'BTC',
+            network: 'bitcoin',
+            fiatCurrency: 'USD',
+          };
+          const request: TransakTranslationRequest = {
+            cryptoCurrencyId: 'BTC',
+            chainId: 'bitcoin',
+            fiatCurrencyId: 'USD',
+            paymentMethod: 'credit_debit_card',
+          };
+          rootMessenger.registerActionHandler(
+            'TransakService:getTranslation',
+            async () => mockTranslation,
+          );
+          const result =
+            await controller.transakGetTranslation(request);
+          expect(result).toStrictEqual(mockTranslation);
+        });
+      });
+    });
+
+    describe('transakGetIdProofStatus', () => {
+      it('calls messenger with workFlowRunId and returns result', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockStatus: TransakIdProofStatus = {
+            status: 'SUBMITTED',
+            kycType: 'L1',
+            randomLogIdentifier: 'log-123',
+          };
+          rootMessenger.registerActionHandler(
+            'TransakService:getIdProofStatus',
+            async () => mockStatus,
+          );
+          const result =
+            await controller.transakGetIdProofStatus('wf-run-1');
+          expect(result).toStrictEqual(mockStatus);
+        });
+      });
+    });
+
+    describe('transakCancelOrder', () => {
+      it('calls messenger with depositOrderId', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handler = jest.fn().mockResolvedValue(undefined);
+          rootMessenger.registerActionHandler(
+            'TransakService:cancelOrder',
+            handler,
+          );
+          await controller.transakCancelOrder(
+            '/providers/transak-native/orders/order-1',
+          );
+          expect(handler).toHaveBeenCalledWith(
+            '/providers/transak-native/orders/order-1',
+          );
+        });
+      });
+    });
+
+    describe('transakCancelAllActiveOrders', () => {
+      it('calls messenger', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const handler = jest.fn().mockResolvedValue(undefined);
+          rootMessenger.registerActionHandler(
+            'TransakService:cancelAllActiveOrders',
+            handler,
+          );
+          await controller.transakCancelAllActiveOrders();
+          expect(handler).toHaveBeenCalled();
+        });
+      });
+    });
+
+    describe('transakGetActiveOrders', () => {
+      it('calls messenger and returns orders', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const mockOrders: TransakOrder[] = [
+            {
+              orderId: 'order-1',
+              partnerUserId: 'user-1',
+              status: 'PROCESSING',
+              isBuyOrSell: 'BUY',
+              fiatCurrency: 'USD',
+              cryptoCurrency: 'BTC',
+              network: 'bitcoin',
+              walletAddress: '0x123',
+              quoteId: 'quote-1',
+              fiatAmount: 100,
+              fiatAmountInUsd: 100,
+              amountPaid: 100,
+              cryptoAmount: 0.002,
+              conversionPrice: 50000,
+              totalFeeInFiat: 1,
+              paymentDetails: [],
+              txHash: '',
+              transationLink: null,
+              createdAt: '2024-01-01T00:00:00Z',
+              updatedAt: '2024-01-01T00:01:00Z',
+              completedAt: '',
+            },
+          ];
+          rootMessenger.registerActionHandler(
+            'TransakService:getActiveOrders',
+            async () => mockOrders,
+          );
+          const result = await controller.transakGetActiveOrders();
+          expect(result).toStrictEqual(mockOrders);
+        });
+      });
+    });
+  });
 });
 
 /**
@@ -6271,6 +7174,51 @@ function createResourceState<TData, TSelected = null>(
     selected,
     isLoading: false,
     error: null,
+  };
+}
+
+function createMockDepositOrder(): TransakDepositOrder {
+  return {
+    id: '/providers/transak-native/orders/order-1',
+    provider: 'transak-native',
+    cryptoAmount: 0.002,
+    fiatAmount: 100,
+    cryptoCurrency: {
+      assetId: 'eip155:1/slip44:60',
+      name: 'Bitcoin',
+      chainId: '1',
+      decimals: 8,
+      iconUrl: 'https://example.com/btc.png',
+      symbol: 'BTC',
+    },
+    fiatCurrency: 'USD',
+    providerOrderId: 'transak-order-1',
+    providerOrderLink: 'https://transak.com/order/1',
+    createdAt: 1704067200000,
+    paymentMethod: {
+      id: 'credit_debit_card',
+      name: 'Credit/Debit Card',
+      duration: '5-10 min',
+      icon: 'https://example.com/card.png',
+    },
+    totalFeesFiat: 1,
+    txHash: '',
+    walletAddress: '0x123',
+    status: 'PROCESSING',
+    network: { name: 'Bitcoin', chainId: '1' },
+    timeDescriptionPending: '5-10 minutes',
+    fiatAmountInUsd: 100,
+    feesInUsd: 1,
+    region: {
+      isoCode: 'US',
+      flag: '🇺🇸',
+      name: 'United States',
+      phone: { prefix: '+1', placeholder: '', template: '' },
+      currency: 'USD',
+      supported: true,
+    },
+    orderType: 'DEPOSIT',
+    paymentDetails: [],
   };
 }
 

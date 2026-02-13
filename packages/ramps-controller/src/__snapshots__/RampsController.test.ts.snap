@@ -1,0 +1,103 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`RampsController Transak methods transakGetBuyQuote fetches buy quote and updates state on success 1`] = `
+{
+  "data": {
+    "conversionPrice": 50000,
+    "cryptoAmount": 0.002,
+    "cryptoCurrency": "BTC",
+    "cryptoLiquidityProvider": "provider-1",
+    "feeBreakdown": [],
+    "feeDecimal": 0.01,
+    "fiatAmount": 100,
+    "fiatCurrency": "USD",
+    "isBuyOrSell": "BUY",
+    "marketConversionPrice": 50100,
+    "network": "bitcoin",
+    "nonce": 1,
+    "notes": [],
+    "paymentMethod": "credit_debit_card",
+    "quoteId": "quote-1",
+    "slippage": 0.5,
+    "totalFee": 1,
+  },
+  "error": null,
+  "isLoading": false,
+  "selected": null,
+}
+`;
+
+exports[`RampsController Transak methods transakGetKycRequirement fetches KYC requirement and updates state on success 1`] = `
+{
+  "data": {
+    "isAllowedToPlaceOrder": true,
+    "kycType": "L1",
+    "status": "APPROVED",
+  },
+  "error": null,
+  "isLoading": false,
+  "selected": null,
+}
+`;
+
+exports[`RampsController Transak methods transakGetUserDetails fetches user details and updates state on success 1`] = `
+{
+  "data": {
+    "address": {
+      "addressLine1": "123 Main St",
+      "addressLine2": "",
+      "city": "San Francisco",
+      "country": "United States",
+      "countryCode": "US",
+      "postCode": "94105",
+      "state": "CA",
+    },
+    "createdAt": "2024-01-01T00:00:00Z",
+    "dob": "1990-01-01",
+    "email": "john@example.com",
+    "firstName": "John",
+    "id": "user-1",
+    "kyc": {
+      "attempts": [],
+      "highestApprovedKYCType": "L1",
+      "kycMarkedBy": null,
+      "kycResult": null,
+      "rejectionDetails": null,
+      "status": "APPROVED",
+      "type": "L1",
+      "userId": "user-1",
+      "workFlowRunId": "wf-1",
+    },
+    "lastName": "Doe",
+    "mobileNumber": "+1234567890",
+    "status": "active",
+  },
+  "error": null,
+  "isLoading": false,
+  "selected": null,
+}
+`;
+
+exports[`RampsController Transak methods transakResetState resets all transak state to defaults 1`] = `
+{
+  "buyQuote": {
+    "data": null,
+    "error": null,
+    "isLoading": false,
+    "selected": null,
+  },
+  "isAuthenticated": false,
+  "kycRequirement": {
+    "data": null,
+    "error": null,
+    "isLoading": false,
+    "selected": null,
+  },
+  "userDetails": {
+    "data": null,
+    "error": null,
+    "isLoading": false,
+    "selected": null,
+  },
+}
+`;
