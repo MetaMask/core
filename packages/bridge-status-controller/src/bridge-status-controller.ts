@@ -19,6 +19,7 @@ import {
   isEvmTxData,
   isHardwareWallet,
   MetricsActionType,
+  MetaMetricsSwapsEventSource,
   isBitcoinTrade,
   isTronTrade,
   AbortReason,
@@ -255,10 +256,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               historyKey = actionId;
             }
 
+            const historyLocation =
+              this.state.txHistory[historyKey ?? txMetaId]?.location;
             this.#trackUnifiedSwapBridgeEvent(
               UnifiedSwapBridgeEventName.Failed,
               historyKey ?? txMetaId,
-              getEVMTxPropertiesFromTransactionMeta(transactionMeta),
+              {
+                ...getEVMTxPropertiesFromTransactionMeta(transactionMeta),
+                location: historyLocation ?? MetaMetricsSwapsEventSource.MainView,
+              },
             );
           }
         }
@@ -439,6 +445,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               action_type: MetricsActionType.SWAPBRIDGE_V1,
               polling_status: PollingStatus.ManuallyRestarted,
               retry_attempts: previousAttempts,
+              location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
             },
           );
         }
@@ -519,6 +526,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       targetContractAddress,
       approvalTxId,
       isStxEnabled,
+      location,
       accountAddress: selectedAddress,
     } = startPollingForBridgeTxStatusArgs;
 
@@ -564,6 +572,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       approvalTxId,
       isStxEnabled: isStxEnabled ?? false,
       featureId: quoteResponse.featureId,
+      location,
     };
     this.update((state) => {
       // Use actionId as key for pre-submission, or txMeta.id for post-submission
@@ -721,6 +730,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             action_type: MetricsActionType.SWAPBRIDGE_V1,
             polling_status: PollingStatus.MaxPollingReached,
             retry_attempts: newAttempts.counter,
+            location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
           },
         );
       }
@@ -811,6 +821,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           bridgeTxMetaId,
           {
             failures: validationFailures,
+            location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
           },
         );
         throw new Error(
@@ -1297,6 +1308,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param quotesReceivedContext - The context for the QuotesReceived event
+   * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, trending_explore)
    * @returns The transaction meta
    */
   submitTx = async (
@@ -1304,6 +1316,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
+    location?: MetaMetricsSwapsEventSource,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
@@ -1331,7 +1344,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
         undefined,
-        preConfirmationProperties,
+        {
+          ...preConfirmationProperties,
+          location: location ?? MetaMetricsSwapsEventSource.MainView,
+        },
       );
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
@@ -1376,6 +1392,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                   {
                     error_message: (error as Error)?.message,
                     ...preConfirmationProperties,
+                    location: location ?? MetaMetricsSwapsEventSource.MainView,
                   },
                 );
               throw error;
@@ -1425,6 +1442,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                 {
                   error_message: (error as Error)?.message,
                   ...preConfirmationProperties,
+                  location: location ?? MetaMetricsSwapsEventSource.MainView,
                 },
               );
             throw error;
@@ -1504,6 +1522,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               isStxEnabled: isStxEnabledOnClient,
               startTime,
               approvalTxId,
+              location,
             },
             actionId,
           );
@@ -1552,6 +1571,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           isStxEnabled: isStxEnabledOnClient,
           startTime,
           approvalTxId,
+          location,
         });
       }
 
@@ -1586,8 +1606,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata;
     signature: string;
     accountAddress: string;
+    location?: MetaMetricsSwapsEventSource;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
-    const { quoteResponse, signature, accountAddress } = params;
+    const { quoteResponse, signature, accountAddress, location } = params;
 
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
@@ -1743,6 +1764,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           isStxEnabled: false,
           approvalTxId,
           startTime,
+          location,
         });
 
         // Start polling using the orderId key to route to intent manager
@@ -1762,6 +1784,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         {
           error_message: (error as Error)?.message,
           ...preConfirmationProperties,
+          location: location ?? MetaMetricsSwapsEventSource.MainView,
         },
       );
 
@@ -1796,13 +1819,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...(eventProperties ?? {}),
     };
 
-    // This will publish events for PERPS dropped tx failures as well
-    if (!txMetaId) {
+    // Type assertion helper: the messenger.call for trackUnifiedSwapBridgeEvent
+    // is generic but TypeScript can't narrow EventName within this method's body,
+    // so we cast the properties argument. The real type safety comes from the
+    // external call sites of #trackUnifiedSwapBridgeEvent and the public API.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const trackEvent = (properties: Record<string, unknown> | any) => {
       this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
-        baseProperties,
+        properties,
       );
+    };
+
+    // This will publish events for PERPS dropped tx failures as well
+    if (!txMetaId) {
+      trackEvent(baseProperties);
       return;
     }
 
@@ -1810,30 +1842,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.state.txHistory[txMetaId];
 
     if (!historyItem) {
-      this.messenger.call(
-        'BridgeController:trackUnifiedSwapBridgeEvent',
-        eventName,
-        eventProperties ?? {},
-      );
+      trackEvent(eventProperties ?? {});
       return;
     }
 
     const requestParamProperties = getRequestParamFromHistory(historyItem);
     // Always publish StatusValidationFailed event, regardless of featureId
     if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
-      this.messenger.call(
-        'BridgeController:trackUnifiedSwapBridgeEvent',
-        eventName,
-        {
-          ...baseProperties,
-          chain_id_source: requestParamProperties.chain_id_source,
-          chain_id_destination: requestParamProperties.chain_id_destination,
-          token_address_source: requestParamProperties.token_address_source,
-          token_address_destination:
-            requestParamProperties.token_address_destination,
-          refresh_count: historyItem.attempts?.counter ?? 0,
-        },
-      );
+      trackEvent({
+        ...baseProperties,
+        chain_id_source: requestParamProperties.chain_id_source,
+        chain_id_destination: requestParamProperties.chain_id_destination,
+        token_address_source: requestParamProperties.token_address_source,
+        token_address_destination:
+          requestParamProperties.token_address_destination,
+        refresh_count: historyItem.attempts?.counter ?? 0,
+        location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
+      });
       return;
     }
 
@@ -1865,12 +1890,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getTxStatusesFromHistory(historyItem),
       ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(historyItem.quote),
+      location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
     };
 
-    this.messenger.call(
-      'BridgeController:trackUnifiedSwapBridgeEvent',
-      eventName,
-      requiredEventProperties,
-    );
+    trackEvent(requiredEventProperties);
   };
 }
