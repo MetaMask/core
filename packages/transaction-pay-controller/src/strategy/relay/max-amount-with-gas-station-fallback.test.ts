@@ -223,6 +223,97 @@ describe('Max Amount With Gas Station Fallback', () => {
     ).toBeUndefined();
   });
 
+  it('returns phase-1 when native balance covers gas and no gas fee token is used', async () => {
+    successfulFetchMock.mockResolvedValue({
+      json: async () => QUOTE_MOCK,
+    } as never);
+
+    // Native balance exactly covers gas cost (calculateGasCostMock returns raw: '1725000000000000')
+    getTokenBalanceMock.mockReturnValue('1725000000000000');
+    getGasFeeTokensMock.mockResolvedValue([]);
+
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        confirmations_pay: {
+          maxGasless: {
+            enabled: true,
+            bufferPercentage: 0.15,
+          },
+        },
+      },
+    });
+
+    const result = await getRelayQuotes({
+      messenger,
+      requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    // Only one fetch (phase-1), no phase-2 needed
+    expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
+    ).toBeUndefined();
+  });
+
+  it('proceeds to phase-2 when native balance is insufficient and no gas fee token', async () => {
+    const phase1Quote = cloneDeep(QUOTE_MOCK);
+    const phase2Quote = cloneDeep(QUOTE_MOCK);
+    phase2Quote.details.currencyIn.amount = '900000000';
+
+    successfulFetchMock
+      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
+      .mockResolvedValueOnce({ json: async () => phase2Quote } as never);
+
+    // Native balance is insufficient
+    getTokenBalanceMock.mockReturnValue('0');
+    getGasFeeTokensMock.mockResolvedValue([]);
+
+    // Native gas cost in ETH: usd = '3.45'
+    calculateGasCostMock.mockReturnValue({
+      fiat: '4.56',
+      human: '1.725',
+      raw: '1725000000000000',
+      usd: '3.45',
+    });
+
+    // Source token is USDC: $1 per unit, 6 decimals
+    getTokenFiatRateMock.mockReturnValue({
+      usdRate: '1.0',
+      fiatRate: '1.0',
+    });
+    getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'USDC' });
+
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        confirmations_pay: {
+          maxGasless: {
+            enabled: true,
+            bufferPercentage: 0.15,
+          },
+        },
+      },
+    });
+
+    const result = await getRelayQuotes({
+      messenger,
+      requests: [
+        {
+          ...QUOTE_REQUEST_MOCK,
+          isMaxAmount: true,
+          sourceTokenAmount: '1000000000',
+        },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    // Phase-2 should proceed via fiat conversion
+    expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+    expect(result[0].original.metamask?.twoPhaseQuoteForMaxAmount).toBe(true);
+  });
+
   it('skips two-phase flow when maxGasless.enabled is false', async () => {
     successfulFetchMock.mockResolvedValue({
       json: async () => QUOTE_MOCK,
