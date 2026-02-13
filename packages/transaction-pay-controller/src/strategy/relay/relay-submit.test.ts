@@ -15,6 +15,7 @@ import type {
 } from '../../types';
 import type { FeatureFlags } from '../../utils/feature-flags';
 import { getFeatureFlags } from '../../utils/feature-flags';
+import { getLiveTokenBalance } from '../../utils/token';
 import {
   collectTransactionIds,
   getTransaction,
@@ -22,6 +23,7 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 
+jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
 
@@ -89,6 +91,8 @@ const STATUS_RESPONSE_MOCK = {
   txHashes: [TRANSACTION_HASH_MOCK],
 };
 
+const SOURCE_AMOUNT_RAW_MOCK = '1000000';
+
 const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
   quotes: [
     {
@@ -100,6 +104,12 @@ const REQUEST_MOCK: PayStrategyExecuteRequest<RelayQuote> = {
         from: FROM_MOCK,
         sourceChainId: CHAIN_ID_MOCK,
         sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+      },
+      sourceAmount: {
+        raw: SOURCE_AMOUNT_RAW_MOCK,
+        human: '1',
+        fiat: '1',
+        usd: '1',
       },
     } as TransactionPayQuote<RelayQuote>,
   ],
@@ -116,6 +126,7 @@ describe('Relay Submit Utils', () => {
   const getTransactionMock = jest.mocked(getTransaction);
   const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
   const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
+  const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
 
   const {
     addTransactionMock,
@@ -133,6 +144,7 @@ describe('Relay Submit Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
+    getLiveTokenBalanceMock.mockResolvedValue('9999999999');
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
 
     addTransactionMock.mockResolvedValue({
@@ -689,6 +701,82 @@ describe('Relay Submit Utils', () => {
           ],
         }),
       );
+    });
+
+    it('validates source balance before submitting single transaction', async () => {
+      await submitRelayQuotes(request);
+
+      expect(getLiveTokenBalanceMock).toHaveBeenCalledWith(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+    });
+
+    it('validates source balance before submitting batch transactions', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(getLiveTokenBalanceMock).toHaveBeenCalledWith(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+      );
+    });
+
+    it('throws if source balance is insufficient for single transaction', async () => {
+      getLiveTokenBalanceMock.mockResolvedValue('500000');
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
+      );
+
+      expect(addTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('throws if source balance is insufficient for batch transactions', async () => {
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      getLiveTokenBalanceMock.mockResolvedValue('500000');
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
+      );
+
+      expect(addTransactionBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('throws if source balance is zero', async () => {
+      getLiveTokenBalanceMock.mockResolvedValue('0');
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Insufficient source token balance for relay deposit. Required: 1000000, Available: 0',
+      );
+
+      expect(addTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('proceeds if source balance exactly equals required amount', async () => {
+      getLiveTokenBalanceMock.mockResolvedValue(SOURCE_AMOUNT_RAW_MOCK);
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('proceeds if source balance exceeds required amount', async () => {
+      getLiveTokenBalanceMock.mockResolvedValue('2000000');
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
     });
   });
 });

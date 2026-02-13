@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add live on-chain balance validation for pay transactions ([#7935](https://github.com/MetaMask/core/pull/7935))
+  - Refresh payment token balance via chain before each quote update.
+  - Validate source token balance via chain before submitting Relay deposits.
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^100.0.1` to `^100.0.2` ([#8004](https://github.com/MetaMask/core/pull/8004))
