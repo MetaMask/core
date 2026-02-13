@@ -206,6 +206,14 @@ export type TransakState = {
 };
 
 /**
+ * Describes the state for all native providers managed by the RampsController.
+ * Each native provider has its own nested state object.
+ */
+export type NativeProvidersState = {
+  transak: TransakState;
+};
+
+/**
  * Describes the shape of the state object for {@link RampsController}.
  */
 export type RampsControllerState = {
@@ -252,11 +260,11 @@ export type RampsControllerState = {
    */
   requests: RequestCacheType;
   /**
-   * Transak-specific state for the unified V2 native flow.
-   * Contains authentication, user details, quote, and KYC state
-   * for the Transak native provider experience.
+   * State for native providers in the unified V2 flow.
+   * Each provider has its own nested state containing authentication,
+   * user details, quote, and KYC data.
    */
-  transak: TransakState;
+  nativeProviders: NativeProvidersState;
 };
 
 /**
@@ -311,7 +319,7 @@ const rampsControllerMetadata = {
     includeInStateLogs: false,
     usedInUi: true,
   },
-  transak: {
+  nativeProviders: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: false,
@@ -370,12 +378,14 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     ),
     widgetUrl: createDefaultResourceState<BuyWidget | null>(null),
     requests: {},
-    transak: {
-      isAuthenticated: false,
-      userDetails: createDefaultResourceState<TransakUserDetails | null>(null),
-      buyQuote: createDefaultResourceState<TransakBuyQuote | null>(null),
-      kycRequirement:
-        createDefaultResourceState<TransakKycRequirement | null>(null),
+    nativeProviders: {
+      transak: {
+        isAuthenticated: false,
+        userDetails: createDefaultResourceState<TransakUserDetails | null>(null),
+        buyQuote: createDefaultResourceState<TransakBuyQuote | null>(null),
+        kycRequirement:
+          createDefaultResourceState<TransakKycRequirement | null>(null),
+      },
     },
   };
 }
@@ -1867,24 +1877,24 @@ export class RampsController extends BaseController<
 
   transakSetAuthenticated(isAuthenticated: boolean): void {
     this.update((state) => {
-      state.transak.isAuthenticated = isAuthenticated;
+      state.nativeProviders.transak.isAuthenticated = isAuthenticated;
     });
   }
 
   transakResetState(): void {
     this.update((state) => {
-      const defaults = getDefaultRampsControllerState().transak;
-      state.transak.isAuthenticated = defaults.isAuthenticated;
-      state.transak.userDetails.data = defaults.userDetails.data;
-      state.transak.userDetails.isLoading = defaults.userDetails.isLoading;
-      state.transak.userDetails.error = defaults.userDetails.error;
-      state.transak.buyQuote.data = defaults.buyQuote.data;
-      state.transak.buyQuote.isLoading = defaults.buyQuote.isLoading;
-      state.transak.buyQuote.error = defaults.buyQuote.error;
-      state.transak.kycRequirement.data = defaults.kycRequirement.data;
-      state.transak.kycRequirement.isLoading =
+      const defaults = getDefaultRampsControllerState().nativeProviders.transak;
+      state.nativeProviders.transak.isAuthenticated = defaults.isAuthenticated;
+      state.nativeProviders.transak.userDetails.data = defaults.userDetails.data;
+      state.nativeProviders.transak.userDetails.isLoading = defaults.userDetails.isLoading;
+      state.nativeProviders.transak.userDetails.error = defaults.userDetails.error;
+      state.nativeProviders.transak.buyQuote.data = defaults.buyQuote.data;
+      state.nativeProviders.transak.buyQuote.isLoading = defaults.buyQuote.isLoading;
+      state.nativeProviders.transak.buyQuote.error = defaults.buyQuote.error;
+      state.nativeProviders.transak.kycRequirement.data = defaults.kycRequirement.data;
+      state.nativeProviders.transak.kycRequirement.isLoading =
         defaults.kycRequirement.isLoading;
-      state.transak.kycRequirement.error = defaults.kycRequirement.error;
+      state.nativeProviders.transak.kycRequirement.error = defaults.kycRequirement.error;
     });
   }
 
@@ -1921,30 +1931,30 @@ export class RampsController extends BaseController<
     } finally {
       this.transakSetAuthenticated(false);
       this.update((state) => {
-        state.transak.userDetails.data = null;
+        state.nativeProviders.transak.userDetails.data = null;
       });
     }
   }
 
   async transakGetUserDetails(): Promise<TransakUserDetails> {
     this.update((state) => {
-      state.transak.userDetails.isLoading = true;
-      state.transak.userDetails.error = null;
+      state.nativeProviders.transak.userDetails.isLoading = true;
+      state.nativeProviders.transak.userDetails.error = null;
     });
     try {
       const details = await this.messenger.call(
         'TransakService:getUserDetails',
       );
       this.update((state) => {
-        state.transak.userDetails.data = details;
-        state.transak.userDetails.isLoading = false;
+        state.nativeProviders.transak.userDetails.data = details;
+        state.nativeProviders.transak.userDetails.isLoading = false;
       });
       return details;
     } catch (error) {
       const errorMessage = (error as Error)?.message ?? 'Unknown error';
       this.update((state) => {
-        state.transak.userDetails.isLoading = false;
-        state.transak.userDetails.error = errorMessage;
+        state.nativeProviders.transak.userDetails.isLoading = false;
+        state.nativeProviders.transak.userDetails.error = errorMessage;
       });
       throw error;
     }
@@ -1967,8 +1977,8 @@ export class RampsController extends BaseController<
       fiatAmount,
     });
     this.update((state) => {
-      state.transak.buyQuote.isLoading = true;
-      state.transak.buyQuote.error = null;
+      state.nativeProviders.transak.buyQuote.isLoading = true;
+      state.nativeProviders.transak.buyQuote.error = null;
     });
     try {
       const quote = await this.messenger.call(
@@ -1984,8 +1994,8 @@ export class RampsController extends BaseController<
         quotePaymentMethod: quote.paymentMethod,
       });
       this.update((state) => {
-        state.transak.buyQuote.data = quote;
-        state.transak.buyQuote.isLoading = false;
+        state.nativeProviders.transak.buyQuote.data = quote;
+        state.nativeProviders.transak.buyQuote.isLoading = false;
       });
       return quote;
     } catch (error) {
@@ -1994,8 +2004,8 @@ export class RampsController extends BaseController<
       });
       const errorMessage = (error as Error)?.message ?? 'Unknown error';
       this.update((state) => {
-        state.transak.buyQuote.isLoading = false;
-        state.transak.buyQuote.error = errorMessage;
+        state.nativeProviders.transak.buyQuote.isLoading = false;
+        state.nativeProviders.transak.buyQuote.error = errorMessage;
       });
       throw error;
     }
@@ -2005,8 +2015,8 @@ export class RampsController extends BaseController<
     quoteId: string,
   ): Promise<TransakKycRequirement> {
     this.update((state) => {
-      state.transak.kycRequirement.isLoading = true;
-      state.transak.kycRequirement.error = null;
+      state.nativeProviders.transak.kycRequirement.isLoading = true;
+      state.nativeProviders.transak.kycRequirement.error = null;
     });
     try {
       const requirement = await this.messenger.call(
@@ -2014,15 +2024,15 @@ export class RampsController extends BaseController<
         quoteId,
       );
       this.update((state) => {
-        state.transak.kycRequirement.data = requirement;
-        state.transak.kycRequirement.isLoading = false;
+        state.nativeProviders.transak.kycRequirement.data = requirement;
+        state.nativeProviders.transak.kycRequirement.isLoading = false;
       });
       return requirement;
     } catch (error) {
       const errorMessage = (error as Error)?.message ?? 'Unknown error';
       this.update((state) => {
-        state.transak.kycRequirement.isLoading = false;
-        state.transak.kycRequirement.error = errorMessage;
+        state.nativeProviders.transak.kycRequirement.isLoading = false;
+        state.nativeProviders.transak.kycRequirement.error = errorMessage;
       });
       throw error;
     }

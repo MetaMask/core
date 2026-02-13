@@ -9,6 +9,7 @@ export type {
   UserRegion,
   ResourceState,
   TransakState,
+  NativeProvidersState,
 } from './RampsController';
 export {
   RampsController,
