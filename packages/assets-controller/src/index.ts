@@ -92,6 +92,7 @@ export type { DataSourceState, SubscriptionRequest } from './data-sources';
 export { AccountsApiDataSource } from './data-sources';
 
 export type {
+  AccountsApiDataSourceConfig,
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceState,
   AccountsApiDataSourceAllowedActions,
@@ -147,6 +148,7 @@ export { TokenDataSource, PriceDataSource } from './data-sources';
 export type {
   TokenDataSourceOptions,
   TokenDataSourceAllowedActions,
+  PriceDataSourceConfig,
   PriceDataSourceOptions,
 } from './data-sources';
 

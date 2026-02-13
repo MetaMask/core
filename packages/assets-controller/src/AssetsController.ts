@@ -36,8 +36,10 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource';
+import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
@@ -259,6 +261,10 @@ export type AssetsControllerOptions = {
   trackMetaMetricsEvent?: (
     payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
   ) => void;
+  /** Optional configuration for AccountsApiDataSource. */
+  accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
+  /** Optional configuration for PriceDataSource. */
+  priceDataSourceConfig?: PriceDataSourceConfig;
 };
 
 // ============================================================================
@@ -490,6 +496,8 @@ export class AssetsController extends BaseController<
     queryApiClient,
     rpcDataSourceConfig,
     trackMetaMetricsEvent,
+    accountsApiDataSourceConfig,
+    priceDataSourceConfig,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -522,6 +530,7 @@ export class AssetsController extends BaseController<
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
       onActiveChainsUpdated,
+      ...accountsApiDataSourceConfig,
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
@@ -537,6 +546,7 @@ export class AssetsController extends BaseController<
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
 
