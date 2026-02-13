@@ -49,6 +49,8 @@ import type {
   TransakServiceGeneratePaymentWidgetUrlAction,
   TransakServiceSubmitPurposeOfUsageFormAction,
   TransakServicePatchUserAction,
+  TransakServiceSubmitSsnDetailsAction,
+  TransakServiceConfirmPaymentAction,
   TransakServiceGetTranslationAction,
   TransakServiceGetIdProofStatusAction,
   TransakServiceCancelOrderAction,
@@ -131,6 +133,8 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'TransakService:generatePaymentWidgetUrl',
   'TransakService:submitPurposeOfUsageForm',
   'TransakService:patchUser',
+  'TransakService:submitSsnDetails',
+  'TransakService:confirmPayment',
   'TransakService:getTranslation',
   'TransakService:getIdProofStatus',
   'TransakService:cancelOrder',
@@ -450,6 +454,8 @@ type AllowedActions =
   | TransakServiceGeneratePaymentWidgetUrlAction
   | TransakServiceSubmitPurposeOfUsageFormAction
   | TransakServicePatchUserAction
+  | TransakServiceSubmitSsnDetailsAction
+  | TransakServiceConfirmPaymentAction
   | TransakServiceGetTranslationAction
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction
@@ -1639,9 +1645,7 @@ export class RampsController extends BaseController<
     }
 
     if (!provider) {
-      throw new Error(
-        'Provider is required. Cannot start quote polling without a selected provider.',
-      );
+      return;
     }
 
     if (!paymentMethod) {
@@ -2011,6 +2015,24 @@ export class RampsController extends BaseController<
 
   async transakPatchUser(data: PatchUserRequestBody): Promise<unknown> {
     return this.messenger.call('TransakService:patchUser', data);
+  }
+
+  async transakSubmitSsnDetails(
+    ssn: string,
+    quoteId: string,
+  ): Promise<unknown> {
+    return this.messenger.call('TransakService:submitSsnDetails', ssn, quoteId);
+  }
+
+  async transakConfirmPayment(
+    orderId: string,
+    paymentMethodId: string,
+  ): Promise<{ success: boolean }> {
+    return this.messenger.call(
+      'TransakService:confirmPayment',
+      orderId,
+      paymentMethodId,
+    );
   }
 
   async transakGetTranslation(

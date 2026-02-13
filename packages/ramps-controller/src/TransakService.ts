@@ -328,6 +328,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'generatePaymentWidgetUrl',
   'submitPurposeOfUsageForm',
   'patchUser',
+  'submitSsnDetails',
+  'confirmPayment',
   'getTranslation',
   'getIdProofStatus',
   'cancelOrder',
@@ -1052,6 +1054,35 @@ export class TransakService {
   async patchUser(data: PatchUserRequestBody): Promise<unknown> {
     this.#ensureAccessToken();
     return this.#transakPatch('/api/v2/kyc/user', data as Record<string, unknown>);
+  }
+
+  async submitSsnDetails(ssn: string, quoteId: string): Promise<unknown> {
+    this.#ensureAccessToken();
+    return this.#transakPost('/api/v2/kyc/ssn', { ssn, quoteId });
+  }
+
+  async confirmPayment(
+    orderId: string,
+    paymentMethodId: string,
+  ): Promise<{ success: boolean }> {
+    this.#ensureAccessToken();
+
+    const normalizedPaymentMethod =
+      normalizePaymentMethodForTranslation(paymentMethodId);
+    const translation = await this.getTranslation({
+      paymentMethod: normalizedPaymentMethod,
+    });
+
+    const transakOrderId =
+      TransakOrderIdTransformer.extractTransakOrderId(orderId);
+
+    return this.#transakPost<{ success: boolean }>(
+      '/api/v2/orders/payment-confirmation',
+      {
+        orderId: transakOrderId,
+        paymentMethod: translation.paymentMethod ?? paymentMethodId,
+      },
+    );
   }
 
   async getTranslation(

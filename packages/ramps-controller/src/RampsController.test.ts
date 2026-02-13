@@ -4625,7 +4625,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when provider is not selected', async () => {
+    it('returns early without throwing when provider is not selected', async () => {
       await withController(
         {
           options: {
@@ -4652,9 +4652,7 @@ describe('RampsController', () => {
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
               amount: 100,
             }),
-          ).toThrow(
-            'Provider is required. Cannot start quote polling without a selected provider.',
-          );
+          ).not.toThrow();
         },
       );
     });

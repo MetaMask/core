@@ -85,6 +85,16 @@ export type TransakServicePatchUserAction = {
   handler: TransakService['patchUser'];
 };
 
+export type TransakServiceSubmitSsnDetailsAction = {
+  type: `TransakService:submitSsnDetails`;
+  handler: TransakService['submitSsnDetails'];
+};
+
+export type TransakServiceConfirmPaymentAction = {
+  type: `TransakService:confirmPayment`;
+  handler: TransakService['confirmPayment'];
+};
+
 export type TransakServiceGetTranslationAction = {
   type: `TransakService:getTranslation`;
   handler: TransakService['getTranslation'];
@@ -128,6 +138,8 @@ export type TransakServiceMethodActions =
   | TransakServiceGeneratePaymentWidgetUrlAction
   | TransakServiceSubmitPurposeOfUsageFormAction
   | TransakServicePatchUserAction
+  | TransakServiceSubmitSsnDetailsAction
+  | TransakServiceConfirmPaymentAction
   | TransakServiceGetTranslationAction
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction

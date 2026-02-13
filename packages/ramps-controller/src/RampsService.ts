@@ -575,6 +575,7 @@ function getBaseUrl(
   environment: RampsEnvironment,
   service: RampsApiService,
 ): string {
+  // return 'http://localhost:3000';
   const cache = service === RampsApiService.Regions ? '-cache' : '';
 
   switch (environment) {
@@ -1062,6 +1063,8 @@ export class RampsService {
     url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
     url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
+
+    console.log('RAMPS: payment methods url', url.toString());
 
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url);
