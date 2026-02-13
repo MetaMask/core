@@ -1046,8 +1046,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         'location' in propertiesFromClient &&
         propertiesFromClient.location
       ) {
-        this.#location =
-          propertiesFromClient.location;
+        this.#location = propertiesFromClient.location;
       }
 
       const combinedPropertiesForEvent = this.#getEventProperties<EventName>(
