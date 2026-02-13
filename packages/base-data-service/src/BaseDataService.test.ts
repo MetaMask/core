@@ -66,8 +66,8 @@ class ExampleDataService extends BaseDataService<
 
         return response.json();
       },
-      // getNextPageParam: ({ pageInfo }: { pageInfo: any }) =>
-      //  pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
+      getNextPageParam: ({ pageInfo }: { pageInfo: any }) =>
+        pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
     });
   }
 }
