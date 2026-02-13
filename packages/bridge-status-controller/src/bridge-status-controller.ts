@@ -1828,22 +1828,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...(eventProperties ?? {}),
     };
 
-    // Type assertion helper: the messenger.call for trackUnifiedSwapBridgeEvent
-    // is generic but TypeScript can't narrow EventName within this method's body,
-    // so we cast the properties argument. The real type safety comes from the
-    // external call sites of #trackUnifiedSwapBridgeEvent and the public API.
+    // The messenger.call for trackUnifiedSwapBridgeEvent is generic but TypeScript
+    // can't narrow EventName within this method's body, so we use `any` for the
+    // properties argument. The real type safety comes from the external call sites.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const trackEvent = (properties: Record<string, unknown> | any): void => {
+    const callTrack = (properties: any): void =>
       this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
         properties,
       );
-    };
 
     // This will publish events for PERPS dropped tx failures as well
     if (!txMetaId) {
-      trackEvent(baseProperties);
+      callTrack(baseProperties);
       return;
     }
 
@@ -1851,14 +1849,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.state.txHistory[txMetaId];
 
     if (!historyItem) {
-      trackEvent(eventProperties ?? {});
+      callTrack(eventProperties ?? {});
       return;
     }
 
     const requestParamProperties = getRequestParamFromHistory(historyItem);
     // Always publish StatusValidationFailed event, regardless of featureId
     if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
-      trackEvent({
+      callTrack({
         ...baseProperties,
         chain_id_source: requestParamProperties.chain_id_source,
         chain_id_destination: requestParamProperties.chain_id_destination,
@@ -1866,7 +1864,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         token_address_destination:
           requestParamProperties.token_address_destination,
         refresh_count: historyItem.attempts?.counter ?? 0,
-        location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
+        location:
+          historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
       });
       return;
     }
@@ -1902,6 +1901,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
     };
 
-    trackEvent(requiredEventProperties);
+    callTrack(requiredEventProperties);
   };
 }
