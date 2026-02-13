@@ -11,6 +11,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { RELAY_POLLING_INTERVAL, RELAY_STATUS_URL } from './constants';
 import type { RelayQuote, RelayStatusResponse } from './types';
@@ -21,6 +22,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getFeatureFlags } from '../../utils/feature-flags';
+import { getLiveTokenBalance } from '../../utils/token';
 import {
   collectTransactionIds,
   getTransaction,
@@ -203,6 +205,49 @@ function normalizeParams(
 }
 
 /**
+ * Validate the source token balance is sufficient for the relay deposit.
+ *
+ * Reads the live balance from TokenBalancesController and compares it against
+ * the quote's required source amount to prevent submitting transactions that
+ * will revert on-chain due to insufficient balance.
+ *
+ * @param quote - Relay quote containing the required source amount.
+ * @param messenger - Controller messenger.
+ */
+async function validateSourceBalance(
+  quote: TransactionPayQuote<RelayQuote>,
+  messenger: TransactionPayControllerMessenger,
+): Promise<void> {
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+
+  const currentBalance = await getLiveTokenBalance(
+    messenger,
+    from,
+    sourceChainId,
+    sourceTokenAddress,
+  );
+
+  const requiredAmount = new BigNumber(quote.sourceAmount.raw);
+  const balance = new BigNumber(currentBalance);
+
+  log('Validating source balance', {
+    from,
+    sourceChainId,
+    sourceTokenAddress,
+    currentBalance,
+    requiredAmount: requiredAmount.toString(10),
+  });
+
+  if (balance.isLessThan(requiredAmount)) {
+    throw new Error(
+      `Insufficient source token balance for relay deposit. ` +
+        `Required: ${requiredAmount.toString(10)}, ` +
+        `Available: ${balance.toString(10)}`,
+    );
+  }
+}
+
+/**
  * Submit transactions for a relay quote.
  *
  * @param quote - Relay quote.
@@ -222,6 +267,8 @@ async function submitTransactions(
   if (invalidKind) {
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
+
+  await validateSourceBalance(quote, messenger);
 
   const normalizedParams = params.map((singleParams) =>
     normalizeParams(singleParams, messenger),
