@@ -529,20 +529,13 @@ export class TransakService {
     const apiKey = this.#ensureApiKey();
     url.searchParams.set('apiKey', apiKey);
 
-    console.log(`RAMPS: TransakService #transakGet ${path}`, {
-      params,
-      fullUrl: url.toString(),
-    });
-
+    
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url.toString(), {
         method: 'GET',
         headers: this.#getHeaders(),
       });
       if (!fetchResponse.ok) {
-        console.log(`RAMPS: TransakService #transakGet FAILED ${path}`, {
-          status: fetchResponse.status,
-        });
         throw new HttpError(
           fetchResponse.status,
           `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
@@ -551,9 +544,6 @@ export class TransakService {
       return fetchResponse.json() as Promise<{ data: T }>;
     });
 
-    console.log(`RAMPS: TransakService #transakGet SUCCESS ${path}`, {
-      hasData: response.data != null,
-    });
     return response.data;
   }
 
@@ -690,16 +680,12 @@ export class TransakService {
     email: string;
     expiresIn: number;
   }> {
-    console.log('RAMPS: TransakService.sendUserOtp called');
     const result = await this.#transakPost<{
       isTncAccepted: boolean;
       stateToken: string;
       email: string;
       expiresIn: number;
     }>('/api/v2/auth/login', { email });
-    console.log('RAMPS: TransakService.sendUserOtp result', {
-      hasStateToken: !!result?.stateToken,
-    });
     return result;
   }
 
@@ -708,7 +694,6 @@ export class TransakService {
     verificationCode: string,
     stateToken: string,
   ): Promise<TransakAccessToken> {
-    console.log('RAMPS: TransakService.verifyUserOtp called');
     const responseData = await this.#transakPost<{
       accessToken: string;
       ttl: number;
@@ -725,7 +710,6 @@ export class TransakService {
       created: new Date(responseData.created),
     };
 
-    console.log('RAMPS: TransakService.verifyUserOtp success, setting access token');
     this.setAccessToken(accessToken);
     return accessToken;
   }
@@ -757,17 +741,6 @@ export class TransakService {
     genericPaymentMethod: string,
     fiatAmount: string,
   ): Promise<TransakBuyQuote> {
-    console.log('RAMPS: TransakService.getBuyQuote called', {
-      genericFiatCurrency,
-      genericCryptoCurrency,
-      genericNetwork,
-      genericPaymentMethod,
-      genericPaymentMethodType: typeof genericPaymentMethod,
-      genericPaymentMethodLength: genericPaymentMethod?.length,
-      genericPaymentMethodFalsy: !genericPaymentMethod,
-      fiatAmount,
-    });
-
     const normalizedPaymentMethod = normalizePaymentMethodForTranslation(
       genericPaymentMethod || undefined,
     );
@@ -777,10 +750,8 @@ export class TransakService {
       fiatCurrencyId: genericFiatCurrency,
       paymentMethod: normalizedPaymentMethod,
     };
-    console.log('RAMPS: TransakService.getBuyQuote translation request', translationRequest);
 
     const translation = await this.getTranslation(translationRequest);
-    console.log('RAMPS: TransakService.getBuyQuote translation result', translation);
 
     const params: Record<string, string> = {
       fiatCurrency: translation.fiatCurrency,
@@ -793,25 +764,16 @@ export class TransakService {
 
     if (translation.paymentMethod) {
       params.paymentMethod = translation.paymentMethod;
-      console.log('RAMPS: TransakService.getBuyQuote adding paymentMethod to params:', translation.paymentMethod);
-    } else {
-      console.log('RAMPS: TransakService.getBuyQuote WARNING - no paymentMethod from translation!', {
-        translationPaymentMethod: translation.paymentMethod,
-        originalGenericPaymentMethod: genericPaymentMethod,
-      });
     }
 
-    console.log('RAMPS: TransakService.getBuyQuote final quote params', params);
     return this.#transakGet<TransakBuyQuote>('/api/v2/lookup/quotes', params);
   }
 
   async getKycRequirement(quoteId: string): Promise<TransakKycRequirement> {
-    console.log('RAMPS: TransakService.getKycRequirement called', { quoteId });
     this.#ensureAccessToken();
     const result = await this.#transakGet<TransakKycRequirement>('/api/v2/kyc/requirement', {
       'metadata[quoteId]': quoteId,
     });
-    console.log('RAMPS: TransakService.getKycRequirement result', result);
     return result;
   }
 
@@ -830,11 +792,6 @@ export class TransakService {
     walletAddress: string,
     paymentMethodId: string,
   ): Promise<TransakDepositOrder> {
-    console.log('RAMPS: TransakService.createOrder called', {
-      quoteId,
-      walletAddress,
-      paymentMethodId,
-    });
     this.#ensureAccessToken();
 
     const translation = await this.getTranslation({
@@ -972,10 +929,8 @@ export class TransakService {
   }
 
   async requestOtt(): Promise<TransakOttResponse> {
-    console.log('RAMPS: TransakService.requestOtt called');
     this.#ensureAccessToken();
     const result = await this.#transakPost<TransakOttResponse>('/api/v2/auth/request-ott');
-    console.log('RAMPS: TransakService.requestOtt result', { hasOtt: !!result?.ott });
     return result;
   }
 
@@ -985,15 +940,6 @@ export class TransakService {
     walletAddress: string,
     extraParams?: Record<string, string>,
   ): string {
-    console.log('RAMPS: TransakService.generatePaymentWidgetUrl called', {
-      quoteId: quote.quoteId,
-      quotePaymentMethod: quote.paymentMethod,
-      quoteFiatCurrency: quote.fiatCurrency,
-      quoteCryptoCurrency: quote.cryptoCurrency,
-      quoteNetwork: quote.network,
-      walletAddress,
-    });
-
     const apiKey = this.#ensureApiKey();
     const widgetBaseUrl = getPaymentWidgetBaseUrl(this.#environment);
 
@@ -1013,14 +959,7 @@ export class TransakService {
         'https://on-ramp-content.api.cx.metamask.io/regions/fake-callback',
       hideMenu: 'true',
     };
-
-    if (!quote.paymentMethod) {
-      console.log('RAMPS: TransakService.generatePaymentWidgetUrl WARNING - quote.paymentMethod is falsy!', {
-        paymentMethod: quote.paymentMethod,
-        paymentMethodType: typeof quote.paymentMethod,
-      });
-    }
-
+    
     const params = new URLSearchParams({
       ...defaultParams,
       ...extraParams,
@@ -1028,7 +967,6 @@ export class TransakService {
 
     const widgetUrl = new URL(widgetBaseUrl);
     widgetUrl.search = params.toString();
-    console.log('RAMPS: TransakService.generatePaymentWidgetUrl result URL:', widgetUrl.toString());
     return widgetUrl.toString();
   }
 
@@ -1076,8 +1014,6 @@ export class TransakService {
   async getTranslation(
     translationRequest: TransakTranslationRequest,
   ): Promise<TransakQuoteTranslation> {
-    console.log('RAMPS: TransakService.getTranslation called', translationRequest);
-
     const baseUrl = getRampsBaseUrl(this.#environment);
     const providerPath = getRampsProviderPath(this.#environment);
     const url = new URL(`${providerPath}/native/translate`, baseUrl);
@@ -1091,17 +1027,12 @@ export class TransakService {
       }
     }
 
-    console.log('RAMPS: TransakService.getTranslation URL:', url.toString());
-
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url.toString(), {
         method: 'GET',
         headers: { Accept: 'application/json' },
       });
       if (!fetchResponse.ok) {
-        console.log('RAMPS: TransakService.getTranslation FAILED', {
-          status: fetchResponse.status,
-        });
         throw new HttpError(
           fetchResponse.status,
           `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
@@ -1110,7 +1041,6 @@ export class TransakService {
       return fetchResponse.json() as Promise<TransakQuoteTranslation>;
     });
 
-    console.log('RAMPS: TransakService.getTranslation result', response);
     return response;
   }
 
