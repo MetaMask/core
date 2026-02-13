@@ -1,4 +1,4 @@
-import type { Hex } from '@metamask/utils';
+import { toHex } from '@metamask/controller-utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -10,7 +10,10 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { getFeatureFlags } from '../../utils/feature-flags';
+import {
+  getEIP7702SupportedChains,
+  getFeatureFlags,
+} from '../../utils/feature-flags';
 import {
   getNativeToken,
   getTokenBalance,
@@ -28,6 +31,17 @@ const log = createModuleLogger(
  * If the adjusted amount falls below this threshold, we fall back to phase-1.
  */
 const MIN_ADJUSTED_AMOUNT_PERCENTAGE = 0.01;
+
+type GasCostEstimateSource =
+  | 'quote'
+  | 'gas-station'
+  | 'probe'
+  | 'usd-bootstrap';
+
+type GasCostEstimate = {
+  amount: BigNumber;
+  source: GasCostEstimateSource;
+};
 
 type GetSingleQuoteFn = (
   request: QuoteRequest,
@@ -58,9 +72,10 @@ export async function getMaxAmountQuoteWithGasStationFallback(
   getSingleQuote: GetSingleQuoteFn,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger } = fullRequest;
-  const { sourceChainId, sourceTokenAddress, sourceTokenAmount } = request;
+  const { sourceChainId, sourceTokenAmount } = request;
 
-  const { maxGasless } = getFeatureFlags(messenger);
+  const { maxGasless, relayDisabledGasStationChains } =
+    getFeatureFlags(messenger);
 
   log('Phase 1: Getting max amount quote with full source amount', {
     sourceTokenAmount,
@@ -97,169 +112,415 @@ export async function getMaxAmountQuoteWithGasStationFallback(
     return phase1Quote;
   }
 
-  const gasCostInSourceToken = getGasCostInSourceTokenRaw(
-    phase1Quote,
-    messenger,
-    sourceChainId,
-    sourceTokenAddress,
-  );
-
-  if (!gasCostInSourceToken) {
-    log(
-      'Phase 1 complete: Unable to convert gas cost to source token units, returning phase-1 quote',
-    );
-    return phase1Quote;
-  }
-
-  const sourceAmountBN = new BigNumber(sourceTokenAmount);
-
-  const configuredBuffer = maxGasless.bufferPercentage;
-  const bufferMultiplier = 1 + configuredBuffer;
-  const bufferedGasCost = gasCostInSourceToken.multipliedBy(bufferMultiplier);
-
-  const adjustedSourceAmount = sourceAmountBN.minus(bufferedGasCost);
-
-  const minimumThreshold = sourceAmountBN.multipliedBy(
-    MIN_ADJUSTED_AMOUNT_PERCENTAGE,
+  const supportedChains = getEIP7702SupportedChains(messenger);
+  const chainSupportsGasStation = supportedChains.some(
+    (supportedChainId) =>
+      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
   );
 
   if (
-    adjustedSourceAmount.isLessThanOrEqualTo(0) ||
-    adjustedSourceAmount.isLessThan(minimumThreshold)
+    relayDisabledGasStationChains.includes(sourceChainId) ||
+    !chainSupportsGasStation
   ) {
     log(
-      'Phase 1 complete: Adjusted amount below minimum threshold, returning phase-1 quote',
+      'Phase 1 complete: Gas station disabled or unsupported, returning phase-1 quote',
       {
-        adjustedSourceAmount: adjustedSourceAmount.toString(10),
-        minimumThreshold: minimumThreshold.toString(10),
-        gasCostInSourceToken: gasCostInSourceToken.toString(10),
-        bufferedGasCost: bufferedGasCost.toString(10),
+        chainSupportsGasStation,
+        sourceChainId,
       },
     );
     return phase1Quote;
   }
 
-  log('Phase 2: Attempting re-quote with adjusted source amount', {
-    originalAmount: sourceTokenAmount,
+  const sourceAmountBN = new BigNumber(sourceTokenAmount);
+  const minimumThreshold = sourceAmountBN.multipliedBy(
+    MIN_ADJUSTED_AMOUNT_PERCENTAGE,
+  );
+  const bufferMultiplier = 1 + maxGasless.bufferPercentage;
+
+  const initialGasEstimate = await getGasCostInSourceTokenRaw(
+    phase1Quote,
+    messenger,
+    request,
+    fullRequest,
+    getSingleQuote,
+    true,
+  );
+
+  if (!initialGasEstimate) {
+    log('Unable to estimate gas station source token cost');
+    return phase1Quote;
+  }
+
+  const bufferedGasCost =
+    initialGasEstimate.amount.multipliedBy(bufferMultiplier);
+  const adjustedSourceAmount = sourceAmountBN.minus(bufferedGasCost);
+
+  if (
+    adjustedSourceAmount.isLessThanOrEqualTo(0) ||
+    adjustedSourceAmount.isLessThan(minimumThreshold)
+  ) {
+    log('Adjusted amount below minimum threshold', {
+      adjustedSourceAmount: adjustedSourceAmount.toString(10),
+      minimumThreshold: minimumThreshold.toString(10),
+      gasCostInSourceToken: initialGasEstimate.amount.toString(10),
+      bufferedGasCost: bufferedGasCost.toString(10),
+    });
+    return phase1Quote;
+  }
+
+  let phase2Quote: TransactionPayQuote<RelayQuote>;
+
+  log('Requesting adjusted max quote', {
     adjustedAmount: adjustedSourceAmount.toString(10),
-    gasCostInSourceToken: gasCostInSourceToken.toString(10),
-    bufferedGasCost: bufferedGasCost.toString(10),
+    gasCostInSourceToken: initialGasEstimate.amount.toString(10),
+    gasEstimateSource: initialGasEstimate.source,
+    originalAmount: sourceTokenAmount,
   });
 
   try {
-    const adjustedRequest: QuoteRequest = {
-      ...request,
-      sourceTokenAmount: adjustedSourceAmount.toFixed(0),
-    };
-
-    const phase2Quote = await getSingleQuote(adjustedRequest, fullRequest);
-
-    phase2Quote.original.metamask = {
-      ...phase2Quote.original.metamask,
-      twoPhaseQuoteForMaxAmount: true,
-    };
-
-    log('Phase 2 complete: Returning adjusted quote', {
-      phase1SourceAmount: sourceTokenAmount,
-      phase2SourceAmount: phase2Quote.sourceAmount.raw,
-      gasReserve: bufferedGasCost.toString(10),
-    });
-
-    return phase2Quote;
+    phase2Quote = await getSingleQuote(
+      {
+        ...request,
+        sourceTokenAmount: adjustedSourceAmount.toFixed(
+          0,
+          BigNumber.ROUND_DOWN,
+        ),
+      },
+      fullRequest,
+    );
   } catch (error) {
-    log('Phase 2 failed: Falling back to phase-1 quote', { error });
+    log('Adjusted quote request failed, falling back to phase-1 quote', {
+      error,
+    });
     return phase1Quote;
   }
-}
 
-/**
- * Converts the gas cost from the phase-1 quote into source token raw units.
- *
- * When the gas fee token IS the source token (isSourceGasFeeToken), the
- * `.raw` value is already in source token units and can be used directly.
- *
- * When it is NOT (e.g. max-send spending all source tokens so the simulation
- * cannot offer the source token as a gas fee token), the gas cost `.raw` is
- * in native token denomination. We convert it to source token units via USD:
- *   gasCostSourceRaw = (gasCostUSD / sourceTokenUsdRate) * 10^sourceDecimals
- *
- * @param phase1Quote - The phase-1 quote.
- * @param messenger - Controller messenger.
- * @param sourceChainId - Chain ID of the source token.
- * @param sourceTokenAddress - Address of the source token.
- * @returns Gas cost in source token raw units, or undefined if conversion fails.
- */
-function getGasCostInSourceTokenRaw(
-  phase1Quote: TransactionPayQuote<RelayQuote>,
-  messenger: TransactionPayControllerMessenger,
-  sourceChainId: Hex,
-  sourceTokenAddress: Hex,
-): BigNumber | undefined {
-  const gasCost = phase1Quote.fees.sourceNetwork.max;
+  const validationGasEstimate = await getGasCostInSourceTokenRaw(
+    phase2Quote,
+    messenger,
+    request,
+    fullRequest,
+    getSingleQuote,
+    false,
+  );
 
-  // When isSourceGasFeeToken is true, .raw is already in source token units
-  if (phase1Quote.fees.isSourceGasFeeToken) {
-    log('Gas cost already in source token units', { raw: gasCost.raw });
-    return new BigNumber(gasCost.raw);
+  if (
+    !validationGasEstimate ||
+    validationGasEstimate.source === 'usd-bootstrap'
+  ) {
+    log('Unable to validate gas station cost on adjusted quote');
+    return phase1Quote;
   }
 
-  // Otherwise, convert native gas cost to source token units via USD
-  const gasCostUsd = new BigNumber(gasCost.usd);
+  const validationBufferedGasCost = validationGasEstimate.amount;
+
+  if (
+    adjustedSourceAmount
+      .plus(validationBufferedGasCost)
+      .isGreaterThan(sourceAmountBN)
+  ) {
+    log('Adjusted quote fails affordability validation', {
+      adjustedSourceAmount: adjustedSourceAmount.toString(10),
+      validationBufferedGasCost: validationBufferedGasCost.toString(10),
+    });
+    return phase1Quote;
+  }
+
+  phase2Quote.original.metamask = {
+    ...phase2Quote.original.metamask,
+    twoPhaseQuoteForMaxAmount: true,
+  };
+
+  return phase2Quote;
+}
+
+async function getGasCostInSourceTokenRaw(
+  phase1Quote: TransactionPayQuote<RelayQuote>,
+  messenger: TransactionPayControllerMessenger,
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+  getSingleQuote: GetSingleQuoteFn,
+  allowProbe: boolean,
+): Promise<GasCostEstimate | undefined> {
+  const gasCost = phase1Quote.fees.sourceNetwork.max;
+
+  if (phase1Quote.fees.isSourceGasFeeToken) {
+    log('Gas cost already in source token units', { raw: gasCost.raw });
+    return {
+      amount: new BigNumber(gasCost.raw),
+      source: 'quote',
+    };
+  }
+
+  const gasStationCost = await getGasStationCostInSourceTokenRaw(
+    phase1Quote,
+    messenger,
+    request,
+  );
+
+  if (gasStationCost) {
+    return {
+      amount: gasStationCost,
+      source: 'gas-station',
+    };
+  }
+
+  if (allowProbe) {
+    const probeCost = await getProbeGasCostInSourceTokenRaw(
+      request,
+      fullRequest,
+      getSingleQuote,
+    );
+
+    if (probeCost) {
+      return {
+        amount: probeCost,
+        source: 'probe',
+      };
+    }
+  }
+
+  const bootstrapCost = getBootstrapGasCostInSourceTokenRaw(
+    phase1Quote,
+    messenger,
+    request,
+  );
+
+  if (bootstrapCost) {
+    return {
+      amount: bootstrapCost,
+      source: 'usd-bootstrap',
+    };
+  }
+
+  return undefined;
+}
+
+async function getGasStationCostInSourceTokenRaw(
+  phase1Quote: TransactionPayQuote<RelayQuote>,
+  messenger: TransactionPayControllerMessenger,
+  request: QuoteRequest,
+): Promise<BigNumber | undefined> {
+  const { from, sourceChainId, sourceTokenAddress } = request;
+
+  const params = phase1Quote.original.steps
+    .flatMap((step) => step.items)
+    .map((item) => item.data);
+
+  if (params.length === 0) {
+    return undefined;
+  }
+
+  const { data, to, value } = params[0];
+
+  let gasFeeTokens;
+
+  try {
+    gasFeeTokens = await messenger.call(
+      'TransactionController:getGasFeeTokens',
+      {
+        chainId: sourceChainId,
+        data,
+        from,
+        to,
+        value: toHex(value ?? '0'),
+      },
+    );
+  } catch (error) {
+    log('Failed to estimate gas fee tokens for max amount fallback', {
+      error,
+      sourceChainId,
+    });
+    return undefined;
+  }
+
+  const gasFeeToken = gasFeeTokens.find(
+    (singleGasFeeToken) =>
+      singleGasFeeToken.tokenAddress.toLowerCase() ===
+      sourceTokenAddress.toLowerCase(),
+  );
+
+  if (!gasFeeToken) {
+    log('No matching source token in gas fee token estimate', {
+      sourceTokenAddress,
+      sourceChainId,
+    });
+    return undefined;
+  }
+
+  let amount = parseGasValue(gasFeeToken.amount);
+
+  if (params.length > 1) {
+    const { gasLimits } = phase1Quote.original.metamask;
+    const totalGasEstimate = gasLimits.reduce(
+      (acc, gasLimit) => acc + gasLimit,
+      0,
+    );
+
+    const gas = parseGasValue(gasFeeToken.gas);
+    const gasFeeAmount = parseGasValue(gasFeeToken.amount);
+
+    if (totalGasEstimate > 0 && gas.isGreaterThan(0)) {
+      const gasRate = gasFeeAmount.dividedBy(gas);
+      amount = gasRate.multipliedBy(totalGasEstimate);
+    }
+  }
+
+  log('Estimated gas station cost for source token', {
+    amount: amount.toString(10),
+    sourceTokenAddress,
+    sourceChainId,
+  });
+
+  return amount.integerValue(BigNumber.ROUND_CEIL);
+}
+
+async function getProbeGasCostInSourceTokenRaw(
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+  getSingleQuote: GetSingleQuoteFn,
+): Promise<BigNumber | undefined> {
+  const { messenger } = fullRequest;
+
+  const sourceTokenInfo = getTokenInfo(
+    messenger,
+    request.sourceTokenAddress,
+    request.sourceChainId,
+  );
+
+  if (!sourceTokenInfo) {
+    return undefined;
+  }
+
+  const probeAmount = getProbeSourceAmountRaw(
+    request.sourceTokenAmount,
+    sourceTokenInfo.decimals,
+  );
+
+  if (!probeAmount || probeAmount === request.sourceTokenAmount) {
+    return undefined;
+  }
+
+  log('Requesting probe quote for gas station estimation', {
+    originalSourceAmount: request.sourceTokenAmount,
+    probeAmount,
+  });
+
+  let probeQuote: TransactionPayQuote<RelayQuote>;
+
+  try {
+    probeQuote = await getSingleQuote(
+      {
+        ...request,
+        sourceTokenAmount: probeAmount,
+      },
+      fullRequest,
+    );
+  } catch (error) {
+    log('Probe quote request failed', { error });
+    return undefined;
+  }
+
+  if (probeQuote.fees.isSourceGasFeeToken) {
+    return new BigNumber(probeQuote.fees.sourceNetwork.max.raw);
+  }
+
+  return await getGasStationCostInSourceTokenRaw(
+    probeQuote,
+    messenger,
+    request,
+  );
+}
+
+function getProbeSourceAmountRaw(
+  sourceAmountRaw: string,
+  sourceDecimals: number,
+): string | undefined {
+  const sourceAmount = new BigNumber(sourceAmountRaw);
+
+  if (sourceAmount.isLessThanOrEqualTo(0)) {
+    return undefined;
+  }
+
+  const onePercentRaw = sourceAmount
+    .multipliedBy(0.01)
+    .integerValue(BigNumber.ROUND_FLOOR);
+  const targetProbeRaw = new BigNumber(1).shiftedBy(
+    Math.max(sourceDecimals - 2, 0),
+  );
+
+  const probeRaw = BigNumber.minimum(
+    sourceAmount,
+    BigNumber.maximum(onePercentRaw, targetProbeRaw),
+  ).integerValue(BigNumber.ROUND_FLOOR);
+
+  if (probeRaw.isLessThanOrEqualTo(0)) {
+    return undefined;
+  }
+
+  return probeRaw.toFixed(0);
+}
+
+function getBootstrapGasCostInSourceTokenRaw(
+  quote: TransactionPayQuote<RelayQuote>,
+  messenger: TransactionPayControllerMessenger,
+  request: QuoteRequest,
+): BigNumber | undefined {
+  const gasCostUsd = new BigNumber(quote.fees.sourceNetwork.max.usd);
 
   if (gasCostUsd.isLessThanOrEqualTo(0)) {
-    log('Gas cost USD is zero or negative', { usd: gasCost.usd });
     return undefined;
   }
 
   const sourceTokenFiatRate = getTokenFiatRate(
     messenger,
-    sourceTokenAddress,
-    sourceChainId,
+    request.sourceTokenAddress,
+    request.sourceChainId,
   );
 
   if (!sourceTokenFiatRate) {
-    log('Source token fiat rate not found', {
-      sourceTokenAddress,
-      sourceChainId,
-    });
     return undefined;
   }
 
   const sourceTokenUsdRate = new BigNumber(sourceTokenFiatRate.usdRate);
 
   if (sourceTokenUsdRate.isLessThanOrEqualTo(0)) {
-    log('Source token USD rate is zero or negative', {
-      usdRate: sourceTokenFiatRate.usdRate,
-    });
     return undefined;
   }
 
   const sourceTokenInfo = getTokenInfo(
     messenger,
-    sourceTokenAddress,
-    sourceChainId,
+    request.sourceTokenAddress,
+    request.sourceChainId,
   );
 
   if (!sourceTokenInfo) {
-    log('Source token info not found', {
-      sourceTokenAddress,
-      sourceChainId,
-    });
     return undefined;
   }
 
-  // gasCostSourceHuman = gasCostUSD / sourceTokenUsdRate
-  // gasCostSourceRaw = gasCostSourceHuman * 10^sourceDecimals
-  const gasCostInSourceRaw = gasCostUsd
+  const bootstrapCost = gasCostUsd
     .dividedBy(sourceTokenUsdRate)
-    .shiftedBy(sourceTokenInfo.decimals);
+    .shiftedBy(sourceTokenInfo.decimals)
+    .integerValue(BigNumber.ROUND_CEIL);
 
-  log('Converted gas cost to source token units via USD', {
+  if (bootstrapCost.isLessThanOrEqualTo(0)) {
+    return undefined;
+  }
+
+  log('Using USD bootstrap gas estimate for source token', {
+    bootstrapCost: bootstrapCost.toString(10),
     gasCostUsd: gasCostUsd.toString(10),
     sourceTokenUsdRate: sourceTokenUsdRate.toString(10),
-    sourceDecimals: sourceTokenInfo.decimals,
-    gasCostInSourceRaw: gasCostInSourceRaw.toString(10),
   });
 
-  return gasCostInSourceRaw;
+  return bootstrapCost;
+}
+
+function parseGasValue(value: string): BigNumber {
+  if (value.toLowerCase().startsWith('0x')) {
+    return new BigNumber(value.slice(2), 16);
+  }
+
+  return new BigNumber(value);
 }
