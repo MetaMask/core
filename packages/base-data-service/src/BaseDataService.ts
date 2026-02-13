@@ -6,7 +6,6 @@ import {
   InvalidateOptions,
   InvalidateQueryFilters,
   QueryClient,
-  QueryFunctionContext,
   QueryKey,
   WithRequired,
   dehydrate,
@@ -17,7 +16,7 @@ import {
   ActionConstraint,
   EventConstraint,
 } from '@metamask/messenger';
-import { assert, Json } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 
 type SubscriptionCallback = (payload: Json) => void;
 
@@ -74,31 +73,36 @@ export class BaseDataService<
     TError = unknown,
     TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
+    TPageParam = unknown,
   >(
     options: WithRequired<
       FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
       'queryKey' | 'queryFn'
     >,
-    context: QueryFunctionContext<TQueryKey>,
+    pageParam?: TPageParam,
   ): Promise<TData> {
-    assert(context, 'Context must be passed when using fetchInfiniteQuery.');
-
     const query = this.#client
       .getQueryCache()
       .find<TQueryFnData, TError, TData>({ queryKey: options.queryKey });
 
-    if (query && context.pageParam) {
+    if (query && pageParam) {
+      const pages =
+        (query.state.data as InfiniteData<TQueryFnData> | undefined)?.pages ??
+        [];
+      const previous = options.getPreviousPageParam?.(pages[0], pages);
+
+      const direction = pageParam === previous ? 'backward' : 'forward';
+
       const result = (await query.fetch(undefined, {
         meta: {
-          // TODO: Determine if this breaks when fetching backwards.
           fetchMore: {
-            direction: 'forward',
-            pageParam: context.pageParam,
+            direction,
+            pageParam,
           },
         },
       })) as InfiniteData<TData>;
 
-      const pageIndex = result.pageParams.indexOf(context.pageParam);
+      const pageIndex = result.pageParams.indexOf(pageParam);
 
       return result.pages[pageIndex];
     }
