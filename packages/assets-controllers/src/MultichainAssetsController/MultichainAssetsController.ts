@@ -765,8 +765,7 @@ export class MultichainAssetsController extends BaseController<
           body: JSON.stringify({ chain, tokens }),
         },
       );
-    } catch (error) {
-      console.error('Blockaid token scan failed:', error);
+    } catch {
       return null;
     }
   }
