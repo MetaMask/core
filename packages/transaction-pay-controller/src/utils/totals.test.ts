@@ -254,6 +254,5 @@ describe('Totals Utils', () => {
       expect(result.sourceAmount.usd).toBe('23.02');
       expect(result.fees.isSourceGasFeeToken).toBe(true);
     });
-
   });
 });
