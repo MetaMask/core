@@ -11,7 +11,10 @@ import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
-import { selectAssetsBySelectedAccountGroup } from './token-selectors';
+import {
+  AssetListState,
+  selectAssetsBySelectedAccountGroup,
+} from './token-selectors';
 import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
@@ -1168,11 +1171,10 @@ describe('token-selectors', () => {
     });
 
     it('hides native multichain tokens on Tempo networks', () => {
-      const tempoTestnetChainId = '0xa5bf' as Hex; // 42431 in decimal
       const tempoCaipChainId = 'eip155:42431';
       const tempoNativeAssetId = `${tempoCaipChainId}/slip44:60` as const;
 
-      const stateWithTempoMultichain = {
+      const stateWithTempoMultichain: AssetListState = {
         ...mockedMergedState,
         accountsAssets: {
           ...mockMultichainAssetsControllerState.accountsAssets,
@@ -1213,7 +1215,9 @@ describe('token-selectors', () => {
         },
       };
 
-      const result = selectAssetsBySelectedAccountGroup(stateWithTempoMultichain);
+      const result = selectAssetsBySelectedAccountGroup(
+        stateWithTempoMultichain,
+      );
 
       // Native token should be hidden on Tempo testnet
       const nativeToken = result[tempoCaipChainId]?.find(
