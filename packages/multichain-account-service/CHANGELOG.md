@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801))
+
+### Changed
+
+- Optimize `EvmAccountProvider.createAccounts` for range operations ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Batch account creation with single a `withKeyring` call for entire range instead of one call per account.
+  - Batch account creation with single `keyring.addAccounts` call.
+  - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
+  - Significantly reduces lock acquisitions and API calls for batch operations.
+
 ## [7.0.0]
 
 ### Changed

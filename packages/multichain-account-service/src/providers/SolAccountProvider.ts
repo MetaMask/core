@@ -54,6 +54,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     scopes: [SolScope.Mainnet, SolScope.Devnet, SolScope.Testnet],
     bip44: {
       deriveIndex: true,
+      deriveIndexRange: true,
     },
   };
 
@@ -109,9 +110,40 @@ export class SolAccountProvider extends SnapAccountProvider {
   ): Promise<Bip44Account<KeyringAccount>[]> {
     assertCreateAccountOptionIsSupported(options, [
       `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
     ]);
 
-    const { entropySource, groupIndex } = options;
+    const { entropySource } = options;
+
+    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+      const { range } = options;
+      return this.withSnap(async ({ keyring }) => {
+        const accounts: Bip44Account<KeyringAccount>[] = [];
+
+        for (
+          let groupIndex = range.from;
+          groupIndex <= range.to;
+          groupIndex++
+        ) {
+          const account = await this.withMaxConcurrency(async () => {
+            const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
+            return this.#createAccount({
+              keyring,
+              entropySource,
+              groupIndex,
+              derivationPath,
+            });
+          });
+
+          this.accounts.add(account.id);
+          accounts.push(account);
+        }
+
+        return accounts;
+      });
+    }
+
+    const { groupIndex } = options;
 
     return this.withSnap(async ({ keyring }) => {
       return this.withMaxConcurrency(async () => {

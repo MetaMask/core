@@ -281,6 +281,79 @@ describe('SolAccountProvider', () => {
     expect(newAccounts[0]).toStrictEqual(MOCK_SOL_ACCOUNT_1);
   });
 
+  it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
+    const accounts = [MOCK_SOL_ACCOUNT_1];
+    const { provider, keyring } = setup({
+      accounts,
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 1,
+        to: 3,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(3);
+    expect(keyring.createAccount).toHaveBeenCalledTimes(3);
+
+    // Verify each account has the correct group index
+    expect(
+      isBip44Account(newAccounts[0]) &&
+        newAccounts[0].options.entropy.groupIndex,
+    ).toBe(1);
+    expect(
+      isBip44Account(newAccounts[1]) &&
+        newAccounts[1].options.entropy.groupIndex,
+    ).toBe(2);
+    expect(
+      isBip44Account(newAccounts[2]) &&
+        newAccounts[2].options.entropy.groupIndex,
+    ).toBe(3);
+  });
+
+  it('creates accounts with range starting from 0', async () => {
+    const { provider, keyring } = setup({
+      accounts: [],
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 0,
+        to: 2,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(3);
+    expect(keyring.createAccount).toHaveBeenCalledTimes(3);
+  });
+
+  it('creates a single account when range from equals to', async () => {
+    const { provider, keyring } = setup({
+      accounts: [],
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 5,
+        to: 5,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(1);
+    expect(keyring.createAccount).toHaveBeenCalledTimes(1);
+    expect(
+      isBip44Account(newAccounts[0]) &&
+        newAccounts[0].options.entropy.groupIndex,
+    ).toBe(5);
+  });
+
   it('throws if the account creation process takes too long', async () => {
     const { provider, mocks } = setup({
       accounts: [],

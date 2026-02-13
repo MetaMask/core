@@ -108,15 +108,6 @@ export class MultichainAccountGroup<
         }
       }
     }
-
-    if (this.#initialized) {
-      this.#messenger.publish(
-        'MultichainAccountService:multichainAccountGroupUpdated',
-        this,
-      );
-    } else {
-      this.#initialized = true;
-    }
   }
 
   /**
@@ -128,6 +119,8 @@ export class MultichainAccountGroup<
     this.#log('Initializing group state...');
     this.#setState(groupState);
     this.#log('Finished initializing group state...');
+
+    this.#initialized = true;
   }
 
   /**
@@ -139,6 +132,13 @@ export class MultichainAccountGroup<
     this.#log('Updating group state...');
     this.#setState(groupState);
     this.#log('Finished updating group state...');
+
+    if (this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        this,
+      );
+    }
   }
 
   /**
