@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix post-quote batch submission using stale gas limit for original transaction ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - For post-quote flows (e.g. predict withdrawals), the original transaction may be transformed by a `beforeSign` hook (e.g. wrapped in a Safe `execTransaction`), changing its gas requirements. The batch submission now uses the live `txParams.gas` from the transaction metadata instead of the stale quote-time `gasLimits[0]`.
+
 ## [15.0.0]
 
 ### Changed
