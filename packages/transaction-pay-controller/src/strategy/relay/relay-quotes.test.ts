@@ -721,6 +721,51 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('defaults data to 0x when original transaction has no data for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [21000, 79000],
+      });
+
+      const postQuoteTransaction = {
+        ...TRANSACTION_META_MOCK,
+        chainId: '0x1' as Hex,
+        txParams: {
+          from: FROM_MOCK,
+          to: '0x9' as Hex,
+          gas: '79000',
+          value: '0',
+        },
+      } as TransactionMeta;
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: postQuoteTransaction,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              data: '0x',
+              to: '0x9',
+            }),
+          ]),
+        }),
+      );
+    });
+
     it('strips original transaction gas limit from gasLimits for post-quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,

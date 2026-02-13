@@ -954,7 +954,7 @@ function toRelayParams(
     gas: txParams.gas,
     maxFeePerGas: txParams.maxFeePerGas ?? '0',
     maxPriorityFeePerGas: txParams.maxPriorityFeePerGas ?? '0',
-    to: (txParams.to ?? '0x') as Hex,
+    to: txParams.to as Hex,
     value: txParams.value,
   };
 }
