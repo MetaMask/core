@@ -709,12 +709,12 @@ describe('Relay Quotes Utils', () => {
         expect.objectContaining({
           transactions: [
             expect.objectContaining({
-              data: QUOTE_MOCK.steps[0].items[0].data.data,
-              to: QUOTE_MOCK.steps[0].items[0].data.to,
-            }),
-            expect.objectContaining({
               data: '0xaaa',
               to: '0x9',
+            }),
+            expect.objectContaining({
+              data: QUOTE_MOCK.steps[0].items[0].data.data,
+              to: QUOTE_MOCK.steps[0].items[0].data.to,
             }),
           ],
         }),
@@ -756,7 +756,29 @@ describe('Relay Quotes Utils', () => {
       });
 
       // gasLimits should only contain relay-step limits, not the original tx
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([21000]);
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([79000]);
+    });
+
+    it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      // With no txParams.to the original tx should be skipped, so only
+      // the relay step params are sent to gas estimation (single path).
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
     });
 
     it('sets isSourceGasFeeToken for post-quote when insufficient native balance', async () => {

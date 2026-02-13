@@ -505,19 +505,22 @@ async function calculateSourceNetworkCost(
     .flatMap((step) => step.items)
     .map((item) => item.data);
 
-  // For post-quote flows, append the original transaction's params so the
-  // existing gas estimation and gas-fee-token logic covers both the Relay
-  // deposit transaction(s) and the user's original transaction. The relay
-  // params stay first so their gas fee properties are used for cost
-  // calculation.
-  const allParams = request.isPostQuote
-    ? [...relayParams, toRelayParams(transaction)]
-    : relayParams;
+  // For post-quote flows, prepend the original transaction's params so the
+  // gas estimation order matches the submit order in relay-submit (which
+  // also prepends the original tx before relay deposits).
+  // Guard on txParams.to to mirror relay-submit, which skips prepending
+  // when the original transaction has no destination address.
+  const allParams =
+    request.isPostQuote && transaction.txParams.to
+      ? [toRelayParams(transaction), ...relayParams]
+      : relayParams;
 
   const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
+  // Always use the first relay param for gas-fee properties — the prepended
+  // original transaction may carry zero/stale fee values.
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
-    allParams[0];
+    relayParams[0];
 
   const {
     totalGasEstimate,
@@ -527,12 +530,11 @@ async function calculateSourceNetworkCost(
 
   // For post-quote flows, gasLimits stored in the quote must only cover
   // relay-step params — downstream submit logic (relay-submit) interprets
-  // them as per-relay-step limits.  When the estimator returns
-  // per-transaction limits the trailing entry for the appended original
-  // transaction must be stripped.
+  // them as per-relay-step limits.  The original transaction is prepended,
+  // so strip the leading entry to keep only relay-step limits.
   const gasLimits =
     request.isPostQuote && allGasLimits.length > relayParams.length
-      ? allGasLimits.slice(0, relayParams.length)
+      ? allGasLimits.slice(allGasLimits.length - relayParams.length)
       : allGasLimits;
 
   log('Gas limit', {
