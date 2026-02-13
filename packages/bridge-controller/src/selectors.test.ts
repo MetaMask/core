@@ -101,12 +101,11 @@ describe('Bridge Selectors', () => {
         SolScope.Mainnet,
         '789',
       );
-      // usdExchangeRate = rate * (usdConversionRate / conversionRate) = 4.0 * 1800 / 2468.12
+      // usdExchangeRate = rate * (usdConversionRate / conversionRate) = 4.0 * (1800 / 2468.12)
       expect(result).toStrictEqual({
         exchangeRate: '4.0',
         usdExchangeRate: new BigNumber('4.0')
-          .times(1800)
-          .div(2468.12)
+          .times(new BigNumber(1800).div(2468.12))
           .toString(),
       });
     });
