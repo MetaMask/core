@@ -11,7 +11,12 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getFeatureFlags } from '../../utils/feature-flags';
-import { getTokenFiatRate, getTokenInfo } from '../../utils/token';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+  getTokenInfo,
+} from '../../utils/token';
 
 const log = createModuleLogger(
   projectLogger,
@@ -62,6 +67,28 @@ export async function getMaxAmountQuoteWithGasStationFallback(
   });
 
   const phase1Quote = await getSingleQuote(request, fullRequest);
+
+  if (!phase1Quote.fees.isSourceGasFeeToken) {
+    const nativeGasCost = phase1Quote.fees.sourceNetwork.max;
+    const nativeBalance = getTokenBalance(
+      messenger,
+      request.from,
+      sourceChainId,
+      getNativeToken(sourceChainId),
+    );
+
+    const hasEnoughNativeBalance = new BigNumber(
+      nativeBalance,
+    ).isGreaterThanOrEqualTo(nativeGasCost.raw);
+
+    if (hasEnoughNativeBalance) {
+      log(
+        'Phase 1 complete: Native balance sufficient for gas, returning phase-1 quote',
+        { nativeBalance, nativeGasCost: nativeGasCost.raw },
+      );
+      return phase1Quote;
+    }
+  }
 
   if (!maxGasless.enabled) {
     log(
