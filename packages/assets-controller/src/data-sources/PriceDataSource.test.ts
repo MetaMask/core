@@ -158,7 +158,7 @@ describe('PriceDataSource', () => {
 
   it('initializes with correct name', () => {
     const { controller } = setupController();
-    expect(controller.name).toBe('PriceDataSource');
+    expect(controller.getName()).toBe('PriceDataSource');
     controller.destroy();
   });
 
