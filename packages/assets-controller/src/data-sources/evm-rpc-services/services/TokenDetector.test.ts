@@ -199,7 +199,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -247,7 +247,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -445,7 +445,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { config: { tokenDetectionEnabled: true }, tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: () => true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
@@ -496,7 +499,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -530,7 +533,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -574,7 +577,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -616,7 +619,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: false },
+          config: { tokenDetectionEnabled: () => false },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -653,7 +656,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -690,7 +693,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: false },
+          config: { tokenDetectionEnabled: () => false },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -728,7 +731,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -758,7 +761,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: false },
+          config: { tokenDetectionEnabled: () => false },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -801,8 +804,8 @@ describe('TokenDetector', () => {
       await withController(
         {
           config: {
-            tokenDetectionEnabled: true,
-            useExternalService: false,
+            tokenDetectionEnabled: () => true,
+            useExternalService: () => false,
           },
           tokenListState: mockState,
         },
@@ -833,8 +836,8 @@ describe('TokenDetector', () => {
       await withController(
         {
           config: {
-            tokenDetectionEnabled: true,
-            useExternalService: true,
+            tokenDetectionEnabled: () => true,
+            useExternalService: () => true,
           },
           tokenListState: mockState,
         },
@@ -873,8 +876,8 @@ describe('TokenDetector', () => {
       await withController(
         {
           config: {
-            tokenDetectionEnabled: true,
-            useExternalService: true,
+            tokenDetectionEnabled: () => true,
+            useExternalService: () => true,
           },
           tokenListState: mockState,
         },
@@ -905,8 +908,8 @@ describe('TokenDetector', () => {
       await withController(
         {
           config: {
-            tokenDetectionEnabled: true,
-            useExternalService: false,
+            tokenDetectionEnabled: () => true,
+            useExternalService: () => false,
           },
           tokenListState: mockState,
         },
@@ -951,7 +954,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -989,7 +992,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -1029,7 +1032,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -1067,7 +1070,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -1113,7 +1116,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -1151,7 +1154,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -1213,7 +1216,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {
@@ -1252,7 +1255,7 @@ describe('TokenDetector', () => {
 
       await withController(
         {
-          config: { tokenDetectionEnabled: true },
+          config: { tokenDetectionEnabled: () => true },
           tokenListState: mockState,
         },
         async ({ controller, mockMulticallClient }) => {

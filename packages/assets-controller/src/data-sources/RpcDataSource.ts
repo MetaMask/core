@@ -144,9 +144,10 @@ export type RpcDataSourceState = Record<never, never>;
 export type RpcDataSourceConfig = {
   balanceInterval?: number;
   detectionInterval?: number;
-  tokenDetectionEnabled?: boolean;
-  /** Whether external services are allowed; detection stops when false (default: true) */
-  useExternalService?: boolean;
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
   timeout?: number;
 };
 
@@ -165,10 +166,10 @@ export type RpcDataSourceOptions = {
   balanceInterval?: number;
   /** Token detection polling interval in ms (default: 180s / 3 min) */
   detectionInterval?: number;
-  /** Whether token detection is enabled */
-  tokenDetectionEnabled?: boolean;
-  /** Whether external services are allowed; detection stops when false (default: true) */
-  useExternalService?: boolean;
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
 };
 
 /**
@@ -237,9 +238,9 @@ export class RpcDataSource extends AbstractDataSource<
 
   readonly #timeout: number;
 
-  readonly #tokenDetectionEnabled: boolean;
+  readonly #tokenDetectionEnabled: () => boolean;
 
-  readonly #useExternalService: boolean;
+  readonly #useExternalService: () => boolean;
 
   /** Currently active chains */
   #activeChains: ChainId[] = [];
@@ -265,8 +266,10 @@ export class RpcDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#timeout = options.timeout ?? 10_000;
-    this.#tokenDetectionEnabled = options.tokenDetectionEnabled ?? false;
-    this.#useExternalService = options.useExternalService ?? true;
+    this.#tokenDetectionEnabled =
+      options.tokenDetectionEnabled ?? ((): boolean => true);
+    this.#useExternalService =
+      options.useExternalService ?? ((): boolean => true);
 
     const balanceInterval = options.balanceInterval ?? DEFAULT_BALANCE_INTERVAL;
     const detectionInterval =
@@ -276,8 +279,8 @@ export class RpcDataSource extends AbstractDataSource<
       timeout: this.#timeout,
       balanceInterval,
       detectionInterval,
-      tokenDetectionEnabled: this.#tokenDetectionEnabled,
-      useExternalService: this.#useExternalService,
+      tokenDetectionEnabled: this.#tokenDetectionEnabled(),
+      useExternalService: this.#useExternalService(),
     });
 
     // Initialize MulticallClient with a provider getter
@@ -893,7 +896,7 @@ export class RpcDataSource extends AbstractDataSource<
     chainId: ChainId,
     account: InternalAccount,
   ): Promise<DataResponse> {
-    if (!this.#tokenDetectionEnabled || !this.#useExternalService) {
+    if (!this.#tokenDetectionEnabled() || !this.#useExternalService()) {
       return {};
     }
 
@@ -908,8 +911,8 @@ export class RpcDataSource extends AbstractDataSource<
         accountId,
         address as Address,
         {
-          tokenDetectionEnabled: this.#tokenDetectionEnabled,
-          useExternalService: this.#useExternalService,
+          tokenDetectionEnabled: this.#tokenDetectionEnabled(),
+          useExternalService: this.#useExternalService(),
         },
       );
 
@@ -1118,7 +1121,7 @@ export class RpcDataSource extends AbstractDataSource<
         balancePollingTokens.push(balanceToken);
 
         // Start detection polling if enabled and external services allowed
-        if (this.#tokenDetectionEnabled && this.#useExternalService) {
+        if (this.#tokenDetectionEnabled() && this.#useExternalService()) {
           const detectionInput: DetectionPollingInput = {
             chainId: hexChainId,
             accountId,
