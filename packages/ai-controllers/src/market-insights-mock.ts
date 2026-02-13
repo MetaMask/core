@@ -21,8 +21,7 @@ export const mockBtcMarketInsights: MarketInsightsReport = {
       impact: 'positive',
       articles: [
         {
-          title:
-            'Tom Lee says stop timing the bottom and start buying the dip',
+          title: 'Tom Lee says stop timing the bottom and start buying the dip',
           url: 'https://www.coindesk.com/markets/2026/02/11/tom-lee-says-stop-timing-the-bottom-and-start-buying-the-dip',
           source: 'coindesk.com',
           date: '2026-02-11',
@@ -51,8 +50,7 @@ export const mockBtcMarketInsights: MarketInsightsReport = {
           date: '2026-02-10',
         },
         {
-          contentSummary:
-            'finally made it to .1 BTC thank you for this dip',
+          contentSummary: 'finally made it to .1 BTC thank you for this dip',
           url: 'https://x.com/i/status/2019843486951112839',
           author: '@levhub',
           date: '2026-02-06',

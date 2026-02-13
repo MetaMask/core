@@ -287,9 +287,7 @@ describe('AiDigestController', () => {
       const result = await controller.fetchMarketInsights('unknown-asset');
 
       expect(result).toBeNull();
-      expect(
-        controller.state.marketInsights['unknown-asset'],
-      ).toBeUndefined();
+      expect(controller.state.marketInsights['unknown-asset']).toBeUndefined();
     });
 
     it('clears stale cache when service returns null', async () => {

@@ -48,9 +48,7 @@ export class AiDigestService implements DigestService {
    * @param caip19Id - The CAIP-19 identifier of the asset.
    * @returns The market insights report, or `null` if none exists (404).
    */
-  async searchDigests(
-    caip19Id: string,
-  ): Promise<MarketInsightsReport | null> {
+  async searchDigests(caip19Id: string): Promise<MarketInsightsReport | null> {
     // TODO: Replace with real API call when endpoint is live:
     //
     // const response = await fetch(
