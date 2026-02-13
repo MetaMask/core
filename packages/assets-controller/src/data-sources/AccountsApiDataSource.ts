@@ -403,6 +403,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
         successfullyHandledChains = request.chainIds.filter(
           (chainId) => !unprocessedChains.has(chainId),
         );
+
+        // When token detection is off and we filtered out all balance data (e.g. new
+        // account with empty state), do not claim any chain as handled so that RPC
+        // middleware can still process them and fetch native balances (ETH, MATIC, etc.).
+        if (
+          !this.#tokenDetectionEnabled &&
+          (!response.assetsBalance ||
+            Object.keys(response.assetsBalance).length === 0)
+        ) {
+          successfullyHandledChains = [];
+        }
       } catch (error) {
         log('Middleware fetch failed', { error });
         successfullyHandledChains = [];

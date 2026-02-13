@@ -694,5 +694,57 @@ describe('AccountsApiDataSource', () => {
 
       controller.destroy();
     });
+
+    it('middleware does not remove chains when tokenDetectionEnabled is false and filter removes all balance data (bootstrap for RPC)', async () => {
+      const { controller } = await setupControllerWithDetection({
+        tokenDetectionEnabled: false,
+        supportedChains: [1, 137],
+        balances: [
+          createMockBalanceItem(
+            `eip155:1:${MOCK_ADDRESS}`,
+            'eip155:1/slip44:60',
+            '1000000000000000000',
+          ),
+        ],
+      });
+
+      // Simulate new account: subscribe with empty state so #getAssetsState is set.
+      // Filter will then remove all API balance data (no assets in state).
+      await controller.subscribe({
+        subscriptionId: 'sub-setup',
+        request: createDataRequest({
+          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+        }),
+        isUpdate: false,
+        onAssetsUpdate: jest.fn(),
+        getAssetsState: () => ({
+          assetsInfo: {},
+          assetsBalance: {},
+          assetsPrice: {},
+          customAssets: {},
+          assetPreferences: {},
+        }),
+      });
+
+      const nextFn = jest.fn().mockResolvedValue(undefined);
+      const context = createMiddlewareContext({
+        request: createDataRequest({
+          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+        }),
+      });
+
+      await controller.assetsMiddleware(context, nextFn);
+
+      // All chains must still be passed to next middleware so RPC can fetch native balances
+      expect(nextFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+          }),
+        }),
+      );
+
+      controller.destroy();
+    });
   });
 });
