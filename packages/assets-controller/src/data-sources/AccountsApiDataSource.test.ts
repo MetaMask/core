@@ -500,7 +500,8 @@ describe('AccountsApiDataSource', () => {
       };
 
       if (tokenDetectionEnabled !== undefined) {
-        controllerOptions.tokenDetectionEnabled = (): boolean => tokenDetectionEnabled;
+        controllerOptions.tokenDetectionEnabled = (): boolean =>
+          tokenDetectionEnabled;
       }
 
       const controller = new AccountsApiDataSource(controllerOptions);
