@@ -9,15 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `TrendingExplore` value to `MetaMetricsSwapsEventSource` enum for attributing swaps to the trending explore flow
-- Added `location` as a required property on all Unified SwapBridge events in `RequiredEventContextFromClient`
-- Added `setLocation()` method to `BridgeController` for clients to set the entry point when the flow starts
-- Exported `MetaMetricsSwapsEventSource` from the package index
+- Added `TrendingExplore` value to `MetaMetricsSwapsEventSource` enum for attributing swaps to the trending explore flow ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added `location` as a required property on all Unified SwapBridge events in `RequiredEventContextFromClient` ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added `setLocation()` method to `BridgeController` for clients to set the entry point when the flow starts ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Exported `MetaMetricsSwapsEventSource` from the package index ([#7931](https://github.com/MetaMask/core/pull/7931))
 
 ### Changed
 
-- Updated `#getEventProperties` to fall back to stored `#location` when `location` is not provided by the client
-- Replaced `@deprecated` tag on `MetaMetricsSwapsEventSource` with proper JSDoc description
+- Updated `#getEventProperties` to fall back to stored `#location` when `location` is not provided by the client ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Replaced `@deprecated` tag on `MetaMetricsSwapsEventSource` with proper JSDoc description ([#7931](https://github.com/MetaMask/core/pull/7931))
 
 ## [66.1.1]
 
