@@ -1046,16 +1046,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         'location' in propertiesFromClient &&
         propertiesFromClient.location
       ) {
-        this.#location = propertiesFromClient.location as MetaMetricsSwapsEventSource;
+        this.#location =
+          propertiesFromClient.location;
       }
 
       const combinedPropertiesForEvent = this.#getEventProperties<EventName>(
         eventName,
         propertiesFromClient,
       );
-
-      // TODO: REMOVE - Debug log for verifying location on all events
-      console.log(`[SwapBridgeEvent] ${eventName} | location: ${(combinedPropertiesForEvent as Record<string, unknown>)?.location}`);
 
       this.#trackMetaMetricsFn(eventName, combinedPropertiesForEvent);
     } catch (error) {

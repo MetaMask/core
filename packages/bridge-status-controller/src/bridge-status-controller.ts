@@ -263,7 +263,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               historyKey ?? txMetaId,
               {
                 ...getEVMTxPropertiesFromTransactionMeta(transactionMeta),
-                location: historyLocation ?? MetaMetricsSwapsEventSource.MainView,
+                location:
+                  historyLocation ??
+                  MetaMetricsSwapsEventSource.MainView,
               },
             );
           }
@@ -445,7 +447,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               action_type: MetricsActionType.SWAPBRIDGE_V1,
               polling_status: PollingStatus.ManuallyRestarted,
               retry_attempts: previousAttempts,
-              location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
+              location:
+                historyItem.location ??
+                MetaMetricsSwapsEventSource.MainView,
             },
           );
         }
@@ -730,7 +734,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             action_type: MetricsActionType.SWAPBRIDGE_V1,
             polling_status: PollingStatus.MaxPollingReached,
             retry_attempts: newAttempts.counter,
-            location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
+            location:
+              historyItem.location ??
+              MetaMetricsSwapsEventSource.MainView,
           },
         );
       }
@@ -821,7 +827,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           bridgeTxMetaId,
           {
             failures: validationFailures,
-            location: historyItem.location ?? MetaMetricsSwapsEventSource.MainView,
+            location:
+              historyItem.location ??
+              MetaMetricsSwapsEventSource.MainView,
           },
         );
         throw new Error(
@@ -1600,6 +1608,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.quoteResponse - Quote carrying intent data
    * @param params.signature - Hex signature produced by eth_signTypedData_v4
    * @param params.accountAddress - The EOA submitting the order
+   * @param params.location - The entry point from which the user initiated the swap or bridge
    * @returns A lightweight TransactionMeta-like object for history linking
    */
   submitIntent = async (params: {
@@ -1824,7 +1833,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // so we cast the properties argument. The real type safety comes from the
     // external call sites of #trackUnifiedSwapBridgeEvent and the public API.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const trackEvent = (properties: Record<string, unknown> | any) => {
+    const trackEvent = (properties: Record<string, unknown> | any): void => {
       this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
