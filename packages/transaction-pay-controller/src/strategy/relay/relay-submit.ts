@@ -325,13 +325,8 @@ async function submitTransactions(
         ? toHex(gasLimits[0])
         : undefined;
 
-    // gasLimits only covers relay params; for post-quote the original tx
-    // is prepended at index 0 with no gasLimit (chain will estimate).
-    const gasLimitOffset = isPostQuote ? 1 : 0;
-
     const transactions = allParams.map((singleParams, index) => {
-      const gasLimitIndex = index - gasLimitOffset;
-      const gasLimit = gasLimits[gasLimitIndex];
+      const gasLimit = gasLimits[index];
       const gas =
         gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
 
