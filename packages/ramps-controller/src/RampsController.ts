@@ -20,6 +20,7 @@ import type {
   Quote,
   RampsToken,
   RampsServiceActions,
+  RampsOrder,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -29,6 +30,7 @@ import type {
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -71,6 +73,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly RampsServiceAct
     'RampsService:getPaymentMethods',
     'RampsService:getQuotes',
     'RampsService:getBuyWidgetUrl',
+    'RampsService:getOrder',
   ];
 
 /**
@@ -337,7 +340,8 @@ type AllowedActions =
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
   | RampsServiceGetQuotesAction
-  | RampsServiceGetBuyWidgetUrlAction;
+  | RampsServiceGetBuyWidgetUrlAction
+  | RampsServiceGetOrderAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -1637,5 +1641,27 @@ export class RampsController extends BaseController<
       console.error('Error fetching widget URL:', error);
       return null;
     }
+  }
+
+  /**
+   * Fetches an order from the unified V2 API endpoint.
+   * Returns a normalized RampsOrder for all provider types (aggregator and native).
+   *
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param orderCode - The order identifier.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrder(
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    return await this.messenger.call(
+      'RampsService:getOrder',
+      providerCode,
+      orderCode,
+      wallet,
+    );
   }
 }

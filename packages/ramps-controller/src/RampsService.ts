@@ -482,6 +482,92 @@ export type TokensResponse = {
   allTokens: RampsToken[];
 };
 
+// === ORDER TYPES ===
+
+/**
+ * Possible statuses for a ramps order.
+ */
+export enum RampsOrderStatus {
+  Unknown = 'UNKNOWN',
+  Precreated = 'PRECREATED',
+  Created = 'CREATED',
+  Pending = 'PENDING',
+  Failed = 'FAILED',
+  Completed = 'COMPLETED',
+  Cancelled = 'CANCELLED',
+  IdExpired = 'ID_EXPIRED',
+}
+
+/**
+ * Network information associated with an order.
+ */
+export type RampsOrderNetwork = {
+  name: string;
+  chainId: string;
+};
+
+/**
+ * Crypto currency information associated with an order.
+ */
+export type RampsOrderCryptoCurrency = {
+  assetId?: string;
+  name?: string;
+  chainId?: string;
+  decimals?: number;
+  iconUrl?: string;
+  symbol: string;
+};
+
+/**
+ * Payment method information associated with an order.
+ */
+export type RampsOrderPaymentMethod = {
+  id: string;
+  name?: string;
+  shortName?: string;
+  duration?: string;
+  icon?: string;
+  isManualBankTransfer?: boolean;
+};
+
+/**
+ * A unified order type returned from the V2 API.
+ * The V2 endpoint normalizes all provider responses into this shape.
+ */
+export type RampsOrder = {
+  id?: string;
+  isOnlyLink: boolean;
+  provider?: string;
+  success: boolean;
+  cryptoAmount: string | number;
+  fiatAmount: number;
+  cryptoCurrency?: string | RampsOrderCryptoCurrency;
+  fiatCurrency?: string;
+  providerOrderId: string;
+  providerOrderLink: string;
+  createdAt: number;
+  paymentMethod?: string | RampsOrderPaymentMethod;
+  totalFeesFiat: number;
+  txHash: string;
+  walletAddress: string;
+  status: RampsOrderStatus;
+  network: string | RampsOrderNetwork;
+  canBeUpdated: boolean;
+  idHasExpired: boolean;
+  idExpirationDate?: number;
+  excludeFromPurchases: boolean;
+  timeDescriptionPending: string;
+  fiatAmountInUsd?: number;
+  feesInUsd?: number;
+  region?: string;
+  orderType: string;
+  exchangeRate?: number;
+  pollingSecondsMinimum?: number;
+  statusDescription?: string;
+  partnerFees?: number;
+  networkFees?: number;
+};
+
 /**
  * The SDK version to send with API requests. (backwards-compatibility)
  */
@@ -529,6 +615,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPaymentMethods',
   'getQuotes',
   'getBuyWidgetUrl',
+  'getOrder',
 ] as const;
 
 /**
@@ -1186,6 +1273,46 @@ export class RampsService {
 
     if (!response || typeof response !== 'object' || !response.url) {
       throw new Error('Malformed response received from buy widget URL API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Fetches an order from the unified V2 API endpoint.
+   * This endpoint returns a normalized `RampsOrder` (DepositOrder shape)
+   * for all provider types, including both aggregator and native providers.
+   *
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param orderCode - The order identifier.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrder(
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    const url = new URL(
+      getApiPath(`providers/${providerCode}/orders/${orderCode}`),
+      this.#getBaseUrl(RampsApiService.Orders),
+    );
+    this.#addCommonParams(url);
+    url.searchParams.set('wallet', wallet);
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<RampsOrder>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from order API');
     }
 
     return response;
