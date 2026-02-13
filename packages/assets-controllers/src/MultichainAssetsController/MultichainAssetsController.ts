@@ -10,7 +10,7 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import { handleFetch } from '@metamask/controller-utils';
+import { timeoutFetch } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   AccountAssetListUpdatedEventPayload,
@@ -44,6 +44,7 @@ const controllerName = 'MultichainAssetsController';
 // Blockaid token security scanning constants
 const SECURITY_ALERTS_BASE_URL = 'https://security-alerts.api.cx.metamask.io';
 const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
+const BLOCKAID_SCAN_TIMEOUT_MS = 10_000;
 
 /**
  * Result type from Blockaid token security scan.
@@ -754,7 +755,7 @@ export class MultichainAssetsController extends BaseController<
     tokens: string[],
   ): Promise<BlockaidTokenScanResponse | null> {
     try {
-      return await handleFetch(
+      const response = await timeoutFetch(
         `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
         {
           method: 'POST',
@@ -764,7 +765,9 @@ export class MultichainAssetsController extends BaseController<
           },
           body: JSON.stringify({ chain, tokens }),
         },
+        BLOCKAID_SCAN_TIMEOUT_MS,
       );
+      return await response.json();
     } catch {
       return null;
     }
