@@ -246,7 +246,10 @@ describe('TokenDetector', () => {
       ]);
 
       await withController(
-        { tokenListState: mockState },
+        {
+          config: { tokenDetectionEnabled: true },
+          tokenListState: mockState,
+        },
         async ({ controller, mockMulticallClient }) => {
           const mockCallback = jest.fn();
           controller.setOnDetectionUpdate(mockCallback);
@@ -264,6 +267,7 @@ describe('TokenDetector', () => {
           await controller._executePoll(input);
 
           expect(mockCallback).not.toHaveBeenCalled();
+          expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(1);
         },
       );
     });
