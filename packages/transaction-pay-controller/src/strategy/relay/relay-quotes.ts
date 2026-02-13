@@ -847,7 +847,25 @@ async function calculateSourceNetworkGasLimitBatch(
       return Math.ceil(limit * buffer);
     });
 
-    const bufferedTotalGasLimit = bufferedGasLimits.reduce(
+    // When EIP-7702 returns a single combined gas limit for multiple
+    // transactions, expand gasLimits by prepending the original
+    // transaction's provided gas limit. This ensures relay-submit takes
+    // the individual transaction path (enabling beforeSign hooks) while
+    // using the gas limits determined at quote time.
+    let finalGasLimits = bufferedGasLimits;
+    if (bufferedGasLimits.length === 1 && params.length > 1) {
+      const originalTxGas = paramGasLimits[0];
+      if (originalTxGas !== undefined) {
+        finalGasLimits = [originalTxGas, ...bufferedGasLimits];
+
+        log('Expanded single EIP-7702 gas limit for batch', {
+          originalTxGas,
+          expandedGasLimits: finalGasLimits,
+        });
+      }
+    }
+
+    const bufferedTotalGasLimit = finalGasLimits.reduce(
       (acc, limit) => acc + limit,
       0,
     );
@@ -857,14 +875,14 @@ async function calculateSourceNetworkGasLimitBatch(
       totalGasLimit,
       gasLimits,
       bufferedTotalGasLimit,
-      bufferedGasLimits,
+      bufferedGasLimits: finalGasLimits,
       gasBuffer,
     });
 
     return {
       totalGasEstimate: bufferedTotalGasLimit,
       totalGasLimit: bufferedTotalGasLimit,
-      gasLimits: bufferedGasLimits,
+      gasLimits: finalGasLimits,
     };
   } catch (error) {
     log('Failed to estimate gas limit for batch', error);
