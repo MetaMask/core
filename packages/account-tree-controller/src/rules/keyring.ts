@@ -43,6 +43,9 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
     case KeyringTypes.snap: {
       return 'Snap Wallet';
     }
+    case KeyringTypes.mpc: {
+      return 'MPC Wallet';
+    }
     // ------------------------------------------------------------------------
     default: {
       return 'Unknown';
@@ -84,6 +87,9 @@ export function getAccountGroupPrefixFromKeyringType(type: KeyringTypes) {
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
+    case KeyringTypes.mpc: {
+      return 'MPC Account';
+    }
     // ------------------------------------------------------------------------
     default: {
       return 'Unknown Account';
@@ -93,8 +99,7 @@ export function getAccountGroupPrefixFromKeyringType(type: KeyringTypes) {
 
 export class KeyringRule
   extends BaseRule
-  implements Rule<AccountWalletType.Keyring, AccountGroupType.SingleAccount>
-{
+  implements Rule<AccountWalletType.Keyring, AccountGroupType.SingleAccount> {
   readonly walletType = AccountWalletType.Keyring;
 
   readonly groupType = AccountGroupType.SingleAccount;
