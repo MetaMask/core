@@ -83,12 +83,15 @@ export type QuoteWarning =
   | 'tx_alert';
 
 /**
- * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called
+ * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
+ * This is the base type without the `location` property which is added to all events
+ * via the RequiredEventContextFromClient mapped type.
  */
-export type RequiredEventContextFromClient = {
-  [UnifiedSwapBridgeEventName.ButtonClicked]: {
-    location: MetaMetricsSwapsEventSource;
-  } & Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'>;
+type RequiredEventContextFromClientBase = {
+  [UnifiedSwapBridgeEventName.ButtonClicked]: Pick<
+    RequestParams,
+    'token_symbol_source' | 'token_symbol_destination'
+  >;
   // When type is object, the payload can be anything
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {
@@ -228,6 +231,18 @@ export type RequiredEventContextFromClient = {
       polling_status: PollingStatus;
       retry_attempts: number;
     };
+};
+
+/**
+ * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
+ * This combines the event-specific properties from RequiredEventContextFromClientBase
+ * with the `location` property required for every event, so that regardless of where
+ * users are in the flow, we can trace their origin.
+ */
+export type RequiredEventContextFromClient = {
+  [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
+    location: MetaMetricsSwapsEventSource;
+  };
 };
 
 /**

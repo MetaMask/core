@@ -20,6 +20,7 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
         "lifi|trade.inputsToSign",
         "lifi|trade.raw_data_hex",
       ],
+      "location": "Main View",
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
@@ -34,6 +35,7 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
       "failures": [
         "unknown|unknown",
       ],
+      "location": "Main View",
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
@@ -48,6 +50,7 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
       "failures": [
         "unknown|quote",
       ],
+      "location": "Main View",
       "refresh_count": 1,
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
@@ -66,6 +69,7 @@ exports[`BridgeController SSE should replace all stale quotes after a refresh an
     "custom_slippage": true,
     "has_sufficient_funds": true,
     "is_hardware_wallet": false,
+    "location": "Main View",
     "security_warnings": [],
     "slippage_limit": 0.5,
     "stx_enabled": true,
@@ -91,6 +95,7 @@ exports[`BridgeController SSE should reset and refetch quotes after quote reques
       "custom_slippage": true,
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -116,6 +121,7 @@ exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`
       "custom_slippage": true,
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -138,6 +144,7 @@ exports[`BridgeController SSE should reset quotes list if quote refresh fails 2`
       "error_message": "Network error",
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -185,6 +192,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "action_type": "swapbridge-v1",
       "input": "chain_source",
       "input_value": "eip155:1",
+      "location": "Main View",
     },
   ],
   [
@@ -193,6 +201,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "location": "Main View",
     },
   ],
   [
@@ -201,6 +210,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "action_type": "swapbridge-v1",
       "input": "token_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "location": "Main View",
     },
   ],
   [
@@ -209,6 +219,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "action_type": "swapbridge-v1",
       "input": "slippage",
       "input_value": 0.5,
+      "location": "Main View",
     },
   ],
   [
@@ -220,6 +231,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "custom_slippage": true,
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -242,6 +254,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
       "error_message": "Bridge-api error: timeout from server",
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
@@ -289,6 +302,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
       "action_type": "swapbridge-v1",
       "input": "chain_source",
       "input_value": "eip155:1",
+      "location": "Main View",
     },
   ],
   [
@@ -297,6 +311,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "location": "Main View",
     },
   ],
   [
@@ -305,6 +320,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
       "action_type": "swapbridge-v1",
       "input": "token_destination",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
+      "location": "Main View",
     },
   ],
   [
@@ -313,6 +329,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
       "action_type": "swapbridge-v1",
       "input": "slippage",
       "input_value": 0.5,
+      "location": "Main View",
     },
   ],
   [
@@ -324,6 +341,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
       "custom_slippage": true,
       "has_sufficient_funds": true,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "security_warnings": [],
       "slippage_limit": 0.5,
       "stx_enabled": true,
