@@ -99,10 +99,27 @@ export function getAccountGroupPrefixFromKeyringType(type: KeyringTypes) {
 
 export class KeyringRule
   extends BaseRule
-  implements Rule<AccountWalletType.Keyring, AccountGroupType.SingleAccount> {
+  implements Rule<AccountWalletType.Keyring, AccountGroupType.SingleAccount>
+{
   readonly walletType = AccountWalletType.Keyring;
 
   readonly groupType = AccountGroupType.SingleAccount;
+
+  #findKeyringIdForAccount(
+    keyringType: string,
+    address: string,
+  ): string | undefined {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    const matchingKeyrings = keyrings.filter((k) => k.type === keyringType);
+    for (const keyring of matchingKeyrings) {
+      if (
+        keyring.accounts.some((a) => a.toLowerCase() === address.toLowerCase())
+      ) {
+        return keyring.metadata?.id;
+      }
+    }
+    return undefined;
+  }
 
   match(
     account: InternalAccount,
@@ -111,7 +128,14 @@ export class KeyringRule
     // We assume that `type` is really a `KeyringTypes`.
     const keyringType = account.metadata.keyring.type as KeyringTypes;
 
-    const walletId = toAccountWalletId(this.walletType, keyringType);
+    // For MPC keyrings, we store the keyring ID in metadata and create a separate wallet per keyring instance
+    const keyringId =
+      keyringType === KeyringTypes.mpc
+        ? this.#findKeyringIdForAccount(keyringType, account.address)
+        : undefined;
+
+    const walletSubId = keyringId ? `${keyringType}/${keyringId}` : keyringType;
+    const walletId = toAccountWalletId(this.walletType, walletSubId);
     const groupId = toAccountGroupId(walletId, account.address);
 
     return {
@@ -121,6 +145,7 @@ export class KeyringRule
         metadata: {
           keyring: {
             type: keyringType,
+            ...(keyringId && { id: keyringId }),
           },
         },
       },
@@ -139,6 +164,17 @@ export class KeyringRule
   getDefaultAccountWalletName(
     wallet: AccountWalletObjectOf<AccountWalletType.Keyring>,
   ): string {
+    if (
+      wallet.metadata.keyring.type === KeyringTypes.mpc &&
+      wallet.metadata.keyring.id
+    ) {
+      const { keyrings } = this.messenger.call('KeyringController:getState');
+      const mpcKeyrings = keyrings.filter((k) => k.type === KeyringTypes.mpc);
+      const index = mpcKeyrings.findIndex(
+        (k) => k.metadata?.id === wallet.metadata.keyring.id,
+      );
+      return `MPC Wallet ${index === -1 ? '' : index + 1}`.trim();
+    }
     return getAccountWalletNameFromKeyringType(wallet.metadata.keyring.type);
   }
 
