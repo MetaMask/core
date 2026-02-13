@@ -331,36 +331,12 @@ async function normalizeQuote(
     gasLimits,
     isGasFeeToken: isSourceGasFeeToken,
     ...sourceNetwork
-  } = await calculateSourceNetworkCost(quote, messenger, request);
-
-  // For post-quote flows (e.g. predictWithdraw), the source network fee
-  // should include the original transaction's gas cost (the user's Polygon
-  // USDC.e transfer) in addition to the Relay deposit transaction gas.
-  let isTxGasFeeToken = false;
-  if (request.isPostQuote) {
-    const txGasEstimate = calculateTransactionGasCost(
-      fullRequest.transaction,
-      messenger,
-    );
-
-    const txGasMax = calculateTransactionGasCost(
-      fullRequest.transaction,
-      messenger,
-      { isMax: true },
-    );
-
-    isTxGasFeeToken =
-      txGasEstimate.isGasFeeToken === true || txGasMax.isGasFeeToken === true;
-
-    // Only add fiat/usd values — human/raw cannot be summed because the
-    // two amounts may be denominated in different assets with different
-    // decimals (e.g. gas-fee token vs native gas).
-    sourceNetwork.estimate = addFiatValues(
-      sourceNetwork.estimate,
-      txGasEstimate,
-    );
-    sourceNetwork.max = addFiatValues(sourceNetwork.max, txGasMax);
-  }
+  } = await calculateSourceNetworkCost(
+    quote,
+    messenger,
+    request,
+    fullRequest.transaction,
+  );
 
   const targetNetwork = {
     usd: '0',
@@ -406,7 +382,7 @@ async function normalizeQuote(
     dust,
     estimatedDuration: details.timeEstimate,
     fees: {
-      isSourceGasFeeToken: isTxGasFeeToken ? true : isSourceGasFeeToken,
+      isSourceGasFeeToken,
       provider,
       sourceNetwork,
       targetNetwork,
@@ -504,12 +480,65 @@ function getFiatRates(
 /**
  * Calculates source network cost from a Relay quote.
  *
+ * For post-quote flows (e.g. predictWithdraw), the cost also includes the
+ * original transaction's gas (the user's Polygon USDC.e transfer) in addition
+ * to the Relay deposit transaction gas.
+ *
  * @param quote - Relay quote.
  * @param messenger - Controller messenger.
  * @param request - Quote request.
+ * @param transaction - Original transaction metadata.
  * @returns Total source network cost in USD and fiat.
  */
 async function calculateSourceNetworkCost(
+  quote: RelayQuote,
+  messenger: TransactionPayControllerMessenger,
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): Promise<
+  TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
+    gasLimits: number[];
+    isGasFeeToken?: boolean;
+  }
+> {
+  const relayResult = await calculateRelayDepositGas(quote, messenger, request);
+
+  if (!request.isPostQuote) {
+    return relayResult;
+  }
+
+  // For post-quote flows (e.g. predictWithdraw), the source network fee
+  // should include the original transaction's gas cost (the user's Polygon
+  // USDC.e transfer) in addition to the Relay deposit transaction gas.
+  const txGasEstimate = calculateTransactionGasCost(transaction, messenger);
+
+  const txGasMax = calculateTransactionGasCost(transaction, messenger, {
+    isMax: true,
+  });
+
+  const isTxGasFeeToken =
+    txGasEstimate.isGasFeeToken === true || txGasMax.isGasFeeToken === true;
+
+  return {
+    ...relayResult,
+    isGasFeeToken: isTxGasFeeToken ? true : relayResult.isGasFeeToken,
+    // Only add fiat/usd values — human/raw cannot be summed because the
+    // two amounts may be denominated in different assets with different
+    // decimals (e.g. gas-fee token vs native gas).
+    estimate: addFiatValues(relayResult.estimate, txGasEstimate),
+    max: addFiatValues(relayResult.max, txGasMax),
+  };
+}
+
+/**
+ * Calculates the gas cost of the Relay deposit transaction(s).
+ *
+ * @param quote - Relay quote.
+ * @param messenger - Controller messenger.
+ * @param request - Quote request.
+ * @returns Relay deposit gas cost in USD and fiat.
+ */
+async function calculateRelayDepositGas(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
