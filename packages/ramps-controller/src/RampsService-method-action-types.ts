@@ -110,6 +110,20 @@ export type RampsServiceGetBuyWidgetUrlAction = {
 };
 
 /**
+ * Fetches an order from the unified V2 API endpoint.
+ * Returns a normalized RampsOrder for all provider types.
+ *
+ * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+ * @param orderCode - The order identifier.
+ * @param wallet - The wallet address associated with the order.
+ * @returns The unified order data.
+ */
+export type RampsServiceGetOrderAction = {
+  type: `RampsService:getOrder`;
+  handler: RampsService['getOrder'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
@@ -119,4 +133,5 @@ export type RampsServiceMethodActions =
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
   | RampsServiceGetQuotesAction
-  | RampsServiceGetBuyWidgetUrlAction;
+  | RampsServiceGetBuyWidgetUrlAction
+  | RampsServiceGetOrderAction;

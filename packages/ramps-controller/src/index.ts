@@ -40,6 +40,11 @@ export type {
   RampsToken,
   TokensResponse,
   BuyWidget,
+  RampsOrder,
+  RampsOrderStatus,
+  RampsOrderNetwork,
+  RampsOrderCryptoCurrency,
+  RampsOrderPaymentMethod,
 } from './RampsService';
 export {
   RampsService,
@@ -53,6 +58,7 @@ export type {
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,
