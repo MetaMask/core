@@ -288,7 +288,7 @@ describe('AssetsController', () => {
             },
             accountsApiDataSourceConfig: {
               pollInterval: 15_000,
-              tokenDetectionEnabled: false,
+              tokenDetectionEnabled: (): boolean => false,
             },
           }),
       ).not.toThrow();

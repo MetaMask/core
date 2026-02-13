@@ -54,11 +54,11 @@ export type AccountsApiDataSourceConfig = {
   /** Polling interval in ms (default: 30000) */
   pollInterval?: number;
   /**
-   * Whether token detection is enabled (default: true).
-   * When false, balances are only returned for tokens already in state.
-   * New tokens from the API are filtered out.
+   * Function returning whether token detection is enabled (default: () => true).
+   * When it returns false, balances are only returned for tokens already in state.
+   * Using a getter avoids stale values when the user toggles the preference at runtime.
    */
-  tokenDetectionEnabled?: boolean;
+  tokenDetectionEnabled?: () => boolean;
 };
 
 export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
@@ -178,7 +178,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   readonly #pollInterval: number;
 
-  readonly #tokenDetectionEnabled: boolean;
+  /** Getter avoids stale value when user toggles token detection at runtime. */
+  readonly #tokenDetectionEnabled: () => boolean;
 
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
@@ -197,7 +198,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
-    this.#tokenDetectionEnabled = options.tokenDetectionEnabled ?? true;
+    this.#tokenDetectionEnabled =
+      options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#apiClient = options.queryApiClient;
 
     this.#initializeActiveChains().catch(console.error);
@@ -341,7 +343,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
     }
 
     // When token detection is disabled, filter out tokens not already in state
-    if (!this.#tokenDetectionEnabled && this.#getAssetsState) {
+    if (!this.#tokenDetectionEnabled() && this.#getAssetsState) {
       response = filterResponseToKnownAssets(response, this.#getAssetsState());
     }
 
@@ -458,7 +460,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
         // account with empty state), do not claim any chain as handled so that RPC
         // middleware can still process them and fetch native balances (ETH, MATIC, etc.).
         if (
-          !this.#tokenDetectionEnabled &&
+          !this.#tokenDetectionEnabled() &&
           (!response.assetsBalance ||
             Object.keys(response.assetsBalance).length === 0)
         ) {
