@@ -1,6 +1,5 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import type { TransactionPayControllerMessenger } from '..';
 import { projectLogger } from '../logger';
@@ -10,6 +9,7 @@ import type {
   UpdateTransactionDataCallback,
 } from '../types';
 import {
+  computeTokenAmounts,
   getTokenBalance,
   getTokenFiatRate,
   getTokenInfo,
@@ -95,18 +95,13 @@ function getPaymentToken({
   }
 
   const balance = getTokenBalance(messenger, from, chainId, tokenAddress);
-  const balanceRawValue = new BigNumber(balance);
-  const balanceHumanValue = new BigNumber(balance).shiftedBy(-decimals);
-  const balanceRaw = balanceRawValue.toFixed(0);
-  const balanceHuman = balanceHumanValue.toString(10);
 
-  const balanceFiat = balanceHumanValue
-    .multipliedBy(tokenFiatRate.fiatRate)
-    .toString(10);
-
-  const balanceUsd = balanceHumanValue
-    .multipliedBy(tokenFiatRate.usdRate)
-    .toString(10);
+  const {
+    raw: balanceRaw,
+    human: balanceHuman,
+    usd: balanceUsd,
+    fiat: balanceFiat,
+  } = computeTokenAmounts(balance, decimals, tokenFiatRate);
 
   return {
     address: tokenAddress,

@@ -131,7 +131,9 @@ export class TransactionPayController extends BaseController<
       fn(current);
 
       const isPaymentTokenUpdated =
-        current.paymentToken !== originalPaymentToken;
+        current.paymentToken?.address?.toLowerCase() !==
+          originalPaymentToken?.address?.toLowerCase() ||
+        current.paymentToken?.chainId !== originalPaymentToken?.chainId;
 
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
