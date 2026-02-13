@@ -721,6 +721,44 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('strips original transaction gas limit from gasLimits for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      getGasBufferMock.mockReturnValue(1);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [21000, 79000],
+      });
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x9' as Hex,
+            data: '0xaaa' as Hex,
+            gas: '79000',
+            value: '0',
+          },
+        } as TransactionMeta,
+      });
+
+      // gasLimits should only contain relay-step limits, not the original tx
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([21000]);
+    });
+
     it('sets isSourceGasFeeToken for post-quote when insufficient native balance', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
