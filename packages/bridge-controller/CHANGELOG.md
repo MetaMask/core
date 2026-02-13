@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fall back to the quoted `priceImpact` or `destTokenAmount` to sort quotes if the `cost` is not available ([#7896](https://github.com/MetaMask/core/pull/7896))
 
+### Fixed
+
+- Fix `usd_amount_source`, `usd_quoted_gas`, and `usd_quoted_return` metrics fields being empty for non-EVM chains by deriving USD exchange rates from multichain asset rates ([#7899](https://github.com/MetaMask/core/pull/7899))
+
 ## [66.0.0]
 
 ### Changed
