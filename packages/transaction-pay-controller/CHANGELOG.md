@@ -7,14 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [14.0.0]
-
 ### Changed
 
 - **BREAKING:** Remove `transactionGas` from `TransactionPayFees` ([#7929](https://github.com/MetaMask/core/pull/7929))
   - The original transaction's gas cost is now included in `sourceNetwork` for post-quote flows instead of being reported separately
 - Include original transaction gas in source network fee for post-quote flows ([#7929](https://github.com/MetaMask/core/pull/7929))
   - Gas estimation and gas-fee-token detection now cover both the Relay deposit and the user's original transaction
+
+## [14.0.0]
+
+### Changed
+
 - **BREAKING:** Add subsidized fee to Relay quote target amount if `isMaxAmount` ([#7911](https://github.com/MetaMask/core/pull/7911))
   - Remove `human` and `raw` from `targetAmount` on `TransactionPayQuote` and `TransactionPayTotals`
   - Use `amountFormatted` as USD value for Relay quote target amount and subsidized fee when token is a stablecoin
