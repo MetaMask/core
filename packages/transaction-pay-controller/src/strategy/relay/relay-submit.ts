@@ -327,8 +327,21 @@ async function submitTransactions(
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];
-      const gas =
-        gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
+
+      // For post-quote flows, the original transaction (index 0) may have been
+      // transformed by a beforeSign hook (e.g. wrapped in a Safe execTransaction).
+      // The quote-time gasLimits[0] was estimated for the pre-sign transaction,
+      // so use the live txParams.gas which beforeSign updated for the actual call.
+      const isOriginalTx = isPostQuote && index === 0;
+      const originalTxGas = transaction.txParams.gas
+        ? (transaction.txParams.gas as Hex)
+        : undefined;
+
+      const gas = isOriginalTx
+        ? originalTxGas
+        : gasLimit === undefined || gasLimit7702
+          ? undefined
+          : toHex(gasLimit);
 
       return {
         params: {
