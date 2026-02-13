@@ -351,7 +351,7 @@ describe('AiDigestController', () => {
     it('registers fetchMarketInsights messenger action', async () => {
       const mockService = createMockService();
       const messenger = createMessenger();
-      new AiDigestController({
+      const controller = new AiDigestController({
         messenger,
         digestService: mockService,
       });
@@ -361,6 +361,7 @@ describe('AiDigestController', () => {
         'eip155:1/slip44:0',
       );
       expect(result).toStrictEqual(mockMarketInsightsReport);
+      expect(controller.state.marketInsights).toBeDefined();
     });
 
     it('registers clearMarketInsights messenger action', async () => {
