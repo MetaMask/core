@@ -28,11 +28,7 @@ import {
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
-import {
-  calculateGasCost,
-  calculateGasFeeTokenCost,
-  calculateTransactionGasCost,
-} from '../../utils/gas';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -161,10 +157,6 @@ describe('Relay Quotes Utils', () => {
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const getSlippageMock = jest.mocked(getSlippage);
 
-  const calculateTransactionGasCostMock = jest.mocked(
-    calculateTransactionGasCost,
-  );
-
   const {
     messenger,
     estimateGasMock,
@@ -181,13 +173,6 @@ describe('Relay Quotes Utils', () => {
     getTokenFiatRateMock.mockReturnValue({
       usdRate: '2.0',
       fiatRate: '4.0',
-    });
-
-    calculateTransactionGasCostMock.mockReturnValue({
-      fiat: '2.34',
-      human: '0.615',
-      raw: '6150000000000000',
-      usd: '1.23',
     });
 
     calculateGasCostMock.mockReturnValue({
@@ -686,18 +671,13 @@ describe('Relay Quotes Utils', () => {
       expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
     });
 
-    it('sets isSourceGasFeeToken when post-quote transaction gas uses a gas fee token', async () => {
+    it('sets isSourceGasFeeToken for post-quote when insufficient native balance', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
 
-      calculateTransactionGasCostMock.mockReturnValue({
-        fiat: '2.34',
-        human: '0.615',
-        raw: '6150000000000000',
-        usd: '1.23',
-        isGasFeeToken: true,
-      });
+      getTokenBalanceMock.mockReturnValue('0');
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
 
       const result = await getRelayQuotes({
         messenger,

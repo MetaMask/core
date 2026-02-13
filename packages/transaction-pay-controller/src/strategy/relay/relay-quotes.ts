@@ -37,11 +37,7 @@ import {
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
-import {
-  calculateGasCost,
-  calculateGasFeeTokenCost,
-  calculateTransactionGasCost,
-} from '../../utils/gas';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -482,7 +478,9 @@ function getFiatRates(
  *
  * For post-quote flows (e.g. predictWithdraw), the cost also includes the
  * original transaction's gas (the user's Polygon USDC.e transfer) in addition
- * to the Relay deposit transaction gas.
+ * to the Relay deposit transaction gas, by appending the original
+ * transaction's params so that gas estimation and gas-fee-token logic handle
+ * both transactions together.
  *
  * @param quote - Relay quote.
  * @param messenger - Controller messenger.
@@ -501,58 +499,20 @@ async function calculateSourceNetworkCost(
     isGasFeeToken?: boolean;
   }
 > {
-  const relayResult = await calculateRelayDepositGas(quote, messenger, request);
-
-  if (!request.isPostQuote) {
-    return relayResult;
-  }
-
-  // For post-quote flows (e.g. predictWithdraw), the source network fee
-  // should include the original transaction's gas cost (the user's Polygon
-  // USDC.e transfer) in addition to the Relay deposit transaction gas.
-  const txGasEstimate = calculateTransactionGasCost(transaction, messenger);
-
-  const txGasMax = calculateTransactionGasCost(transaction, messenger, {
-    isMax: true,
-  });
-
-  const isTxGasFeeToken =
-    txGasEstimate.isGasFeeToken === true || txGasMax.isGasFeeToken === true;
-
-  return {
-    ...relayResult,
-    isGasFeeToken: isTxGasFeeToken ? true : relayResult.isGasFeeToken,
-    // Only add fiat/usd values — human/raw cannot be summed because the
-    // two amounts may be denominated in different assets with different
-    // decimals (e.g. gas-fee token vs native gas).
-    estimate: addFiatValues(relayResult.estimate, txGasEstimate),
-    max: addFiatValues(relayResult.max, txGasMax),
-  };
-}
-
-/**
- * Calculates the gas cost of the Relay deposit transaction(s).
- *
- * @param quote - Relay quote.
- * @param messenger - Controller messenger.
- * @param request - Quote request.
- * @returns Relay deposit gas cost in USD and fiat.
- */
-async function calculateRelayDepositGas(
-  quote: RelayQuote,
-  messenger: TransactionPayControllerMessenger,
-  request: QuoteRequest,
-): Promise<
-  TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
-    gasLimits: number[];
-    isGasFeeToken?: boolean;
-  }
-> {
   const { from, sourceChainId, sourceTokenAddress } = request;
 
-  const allParams = quote.steps
+  const relayParams = quote.steps
     .flatMap((step) => step.items)
     .map((item) => item.data);
+
+  // For post-quote flows, append the original transaction's params so the
+  // existing gas estimation and gas-fee-token logic covers both the Relay
+  // deposit transaction(s) and the user's original transaction. The relay
+  // params stay first so their gas fee properties are used for cost
+  // calculation.
+  const allParams = request.isPostQuote
+    ? [...relayParams, toRelayParams(transaction)]
+    : relayParams;
 
   const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
@@ -961,21 +921,25 @@ function isStablecoin(chainId: string, tokenAddress: string): boolean {
 }
 
 /**
- * Merge two Amount objects by summing only their fiat/usd values.
+ * Converts a TransactionMeta into the Relay transaction params shape so it
+ * can be included in the `allParams` array for unified gas estimation.
  *
- * `human` and `raw` are kept from the first operand because the two amounts
- * may represent different assets with different decimals (e.g. a gas-fee
- * token vs the native gas token), making arithmetic on those fields invalid.
- *
- * @param a - Primary amount whose human/raw values are preserved.
- * @param b - Secondary amount contributing only fiat/usd.
- * @returns Merged amount.
+ * @param transaction - Original transaction metadata.
+ * @returns Relay-shaped transaction params.
  */
-function addFiatValues(a: Amount, b: Amount): Amount {
+function toRelayParams(
+  transaction: TransactionMeta,
+): RelayQuote['steps'][0]['items'][0]['data'] {
+  const { chainId, txParams } = transaction;
+
   return {
-    human: a.human,
-    raw: a.raw,
-    fiat: new BigNumber(a.fiat).plus(b.fiat).toString(10),
-    usd: new BigNumber(a.usd).plus(b.usd).toString(10),
+    chainId: new BigNumber(chainId).toNumber(),
+    data: (txParams.data ?? '0x') as Hex,
+    from: txParams.from as Hex,
+    gas: txParams.gas,
+    maxFeePerGas: txParams.maxFeePerGas ?? '0',
+    maxPriorityFeePerGas: txParams.maxPriorityFeePerGas ?? '0',
+    to: (txParams.to ?? '0x') as Hex,
+    value: txParams.value,
   };
 }
