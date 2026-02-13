@@ -1149,7 +1149,9 @@ describe('TransakService', () => {
       nock(STAGING_TRANSAK_BASE)
         .post('/api/v2/orders')
         .once()
-        .reply(4005);
+        .reply(409, {
+          error: { code: '4005', message: 'Order exists' },
+        });
 
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/active-orders')

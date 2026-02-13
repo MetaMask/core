@@ -567,9 +567,15 @@ export class TransakService {
         body: JSON.stringify(requestBody),
       });
       if (!fetchResponse.ok) {
+        let errorBody = '';
+        try {
+          errorBody = await fetchResponse.text();
+        } catch {
+          // ignore body read failures
+        }
         throw new HttpError(
           fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'${errorBody ? `: ${errorBody}` : ''}`,
         );
       }
       return fetchResponse.json() as Promise<{ data: T }>;
