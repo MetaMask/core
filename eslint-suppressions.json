@@ -1327,6 +1327,102 @@
       "count": 3
     }
   },
+  "packages/perps-controller/src/PerpsController.ts": {
+    "@typescript-eslint/ban-ts-comment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-shadow": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "no-eq-null": {
+      "count": 1
+    },
+    "prettier/prettier": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/services/AccountService.ts": {
+    "import-x/order": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/services/DataLakeService.ts": {
+    "@typescript-eslint/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "import-x/order": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/services/FeatureFlagConfigurationService.ts": {
+    "import-x/order": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/services/HyperLiquidClientService.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
+    "import-x/order": {
+      "count": 3
+    }
+  },
+  "packages/perps-controller/src/services/HyperLiquidWalletService.ts": {
+    "@typescript-eslint/no-unnecessary-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/src/services/MarketDataService.ts": {
+    "import-x/order": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/services/TradingService.ts": {
+    "import-x/order": {
+      "count": 3
+    },
+    "no-eq-null": {
+      "count": 14
+    }
+  },
+  "packages/perps-controller/src/types/index.ts": {
+    "import-x/order": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/types/perps-types.ts": {
+    "import-x/order": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/utils/hyperLiquidAdapter.ts": {
+    "import-x/order": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/utils/marketDataTransform.ts": {
+    "import-x/order": {
+      "count": 2
+    },
+    "no-eq-null": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/utils/orderCalculations.ts": {
+    "import-x/order": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/src/utils/rewardsUtils.ts": {
+    "import-x/order": {
+      "count": 2
+    }
+  },
   "packages/phishing-controller/src/BulkTokenScan.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
