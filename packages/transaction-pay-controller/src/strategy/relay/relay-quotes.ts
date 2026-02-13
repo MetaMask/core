@@ -7,6 +7,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import { getMaxAmountQuoteWithGasStationFallback } from './max-amount-with-gas-station-fallback';
 import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
 import type {
@@ -74,13 +75,30 @@ export async function getRelayQuotes(
 
     return await Promise.all(
       normalizedRequests.map((singleRequest) =>
-        getSingleQuote(singleRequest, request),
+        getQuoteWithMaxAmountHandling(singleRequest, request),
       ),
     );
   } catch (error) {
     log('Error fetching quotes', { error });
     throw new Error(`Failed to fetch Relay quotes: ${String(error)}`);
   }
+}
+
+async function getQuoteWithMaxAmountHandling(
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+): Promise<TransactionPayQuote<RelayQuote>> {
+  const { isMaxAmount } = request;
+
+  if (!isMaxAmount) {
+    return getSingleQuote(request, fullRequest);
+  }
+
+  return getMaxAmountQuoteWithGasStationFallback(
+    request,
+    fullRequest,
+    getSingleQuote,
+  );
 }
 
 /**
