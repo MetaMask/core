@@ -31,6 +31,16 @@ import type {
   RampsToken,
 } from './RampsService';
 import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetTokensAction,
+  RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+} from './RampsService-method-action-types';
+import { RequestStatus } from './RequestCache';
+import type {
   TransakAccessToken,
   TransakUserDetails,
   TransakBuyQuote,
@@ -46,16 +56,6 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
 } from './TransakService';
-import type {
-  RampsServiceGetGeolocationAction,
-  RampsServiceGetCountriesAction,
-  RampsServiceGetTokensAction,
-  RampsServiceGetProvidersAction,
-  RampsServiceGetPaymentMethodsAction,
-  RampsServiceGetQuotesAction,
-  RampsServiceGetBuyWidgetUrlAction,
-} from './RampsService-method-action-types';
-import { RequestStatus } from './RequestCache';
 
 describe('RampsController', () => {
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
@@ -6548,7 +6548,9 @@ describe('RampsController', () => {
           };
           controller.transakSetAccessToken(token);
           expect(handler).toHaveBeenCalledWith(token);
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(true);
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            true,
+          );
         });
       });
     });
@@ -6569,9 +6571,13 @@ describe('RampsController', () => {
             ttl: 3600,
             created: new Date('2024-01-01'),
           });
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(true);
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            true,
+          );
           controller.transakClearAccessToken();
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(false);
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
         });
       });
     });
@@ -6579,11 +6585,17 @@ describe('RampsController', () => {
     describe('transakSetAuthenticated', () => {
       it('sets isAuthenticated in transak state', async () => {
         await withController(async ({ controller }) => {
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(false);
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
           controller.transakSetAuthenticated(true);
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(true);
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            true,
+          );
           controller.transakSetAuthenticated(false);
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(false);
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
         });
       });
     });
@@ -6600,11 +6612,15 @@ describe('RampsController', () => {
             ttl: 3600,
             created: new Date('2024-01-01'),
           });
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(true);
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            true,
+          );
 
           controller.transakResetState();
 
-          expect(controller.state.nativeProviders.transak).toMatchSnapshot();
+          expect(
+            controller.state.nativeProviders.transak,
+          ).toMatchInlineSnapshot();
         });
       });
     });
@@ -6647,7 +6663,9 @@ describe('RampsController', () => {
             'state-token',
           );
           expect(result).toStrictEqual(mockToken);
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(true);
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            true,
+          );
         });
       });
     });
@@ -6668,13 +6686,19 @@ describe('RampsController', () => {
             ttl: 3600,
             created: new Date('2024-01-01'),
           });
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(true);
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            true,
+          );
 
           const result = await controller.transakLogout();
 
           expect(result).toBe('logged out');
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(false);
-          expect(controller.state.nativeProviders.transak.userDetails.data).toBeNull();
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+          expect(
+            controller.state.nativeProviders.transak.userDetails.data,
+          ).toBeNull();
         });
       });
 
@@ -6699,8 +6723,12 @@ describe('RampsController', () => {
           await expect(controller.transakLogout()).rejects.toThrow(
             'Network error',
           );
-          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(false);
-          expect(controller.state.nativeProviders.transak.userDetails.data).toBeNull();
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+          expect(
+            controller.state.nativeProviders.transak.userDetails.data,
+          ).toBeNull();
         });
       });
     });
@@ -6745,7 +6773,9 @@ describe('RampsController', () => {
           );
           const result = await controller.transakGetUserDetails();
           expect(result).toStrictEqual(mockUserDetails);
-          expect(controller.state.nativeProviders.transak.userDetails).toMatchSnapshot();
+          expect(
+            controller.state.nativeProviders.transak.userDetails,
+          ).toMatchInlineSnapshot();
         });
       });
 
@@ -6760,10 +6790,12 @@ describe('RampsController', () => {
           await expect(controller.transakGetUserDetails()).rejects.toThrow(
             'Auth failed',
           );
-          expect(controller.state.nativeProviders.transak.userDetails.isLoading).toBe(false);
-          expect(controller.state.nativeProviders.transak.userDetails.error).toBe(
-            'Auth failed',
-          );
+          expect(
+            controller.state.nativeProviders.transak.userDetails.isLoading,
+          ).toBe(false);
+          expect(
+            controller.state.nativeProviders.transak.userDetails.error,
+          ).toBe('Auth failed');
         });
       });
 
@@ -6772,15 +6804,14 @@ describe('RampsController', () => {
           rootMessenger.registerActionHandler(
             'TransakService:getUserDetails',
             async () => {
+              // eslint-disable-next-line @typescript-eslint/only-throw-error
               throw null;
             },
           );
-          await expect(
-            controller.transakGetUserDetails(),
-          ).rejects.toBeNull();
-          expect(controller.state.nativeProviders.transak.userDetails.error).toBe(
-            'Unknown error',
-          );
+          await expect(controller.transakGetUserDetails()).rejects.toBeNull();
+          expect(
+            controller.state.nativeProviders.transak.userDetails.error,
+          ).toBe('Unknown error');
         });
       });
     });
@@ -6820,7 +6851,9 @@ describe('RampsController', () => {
             '100',
           );
           expect(result).toStrictEqual(mockBuyQuote);
-          expect(controller.state.nativeProviders.transak.buyQuote).toMatchSnapshot();
+          expect(
+            controller.state.nativeProviders.transak.buyQuote,
+          ).toMatchInlineSnapshot();
         });
       });
 
@@ -6841,7 +6874,9 @@ describe('RampsController', () => {
               '100',
             ),
           ).rejects.toThrow('Quote failed');
-          expect(controller.state.nativeProviders.transak.buyQuote.isLoading).toBe(false);
+          expect(
+            controller.state.nativeProviders.transak.buyQuote.isLoading,
+          ).toBe(false);
           expect(controller.state.nativeProviders.transak.buyQuote.error).toBe(
             'Quote failed',
           );
@@ -6853,6 +6888,7 @@ describe('RampsController', () => {
           rootMessenger.registerActionHandler(
             'TransakService:getBuyQuote',
             async () => {
+              // eslint-disable-next-line @typescript-eslint/only-throw-error
               throw null;
             },
           );
@@ -6885,12 +6921,11 @@ describe('RampsController', () => {
             'TransakService:getKycRequirement',
             async () => mockKycRequirement,
           );
-          const result =
-            await controller.transakGetKycRequirement('quote-1');
+          const result = await controller.transakGetKycRequirement('quote-1');
           expect(result).toStrictEqual(mockKycRequirement);
           expect(
             controller.state.nativeProviders.transak.kycRequirement,
-          ).toMatchSnapshot();
+          ).toMatchInlineSnapshot();
         });
       });
 
@@ -6905,12 +6940,12 @@ describe('RampsController', () => {
           await expect(
             controller.transakGetKycRequirement('quote-1'),
           ).rejects.toThrow('KYC failed');
-          expect(controller.state.nativeProviders.transak.kycRequirement.isLoading).toBe(
-            false,
-          );
-          expect(controller.state.nativeProviders.transak.kycRequirement.error).toBe(
-            'KYC failed',
-          );
+          expect(
+            controller.state.nativeProviders.transak.kycRequirement.isLoading,
+          ).toBe(false);
+          expect(
+            controller.state.nativeProviders.transak.kycRequirement.error,
+          ).toBe('KYC failed');
         });
       });
 
@@ -6919,15 +6954,16 @@ describe('RampsController', () => {
           rootMessenger.registerActionHandler(
             'TransakService:getKycRequirement',
             async () => {
+              // eslint-disable-next-line @typescript-eslint/only-throw-error
               throw null;
             },
           );
           await expect(
             controller.transakGetKycRequirement('quote-1'),
           ).rejects.toBeNull();
-          expect(controller.state.nativeProviders.transak.kycRequirement.error).toBe(
-            'Unknown error',
-          );
+          expect(
+            controller.state.nativeProviders.transak.kycRequirement.error,
+          ).toBe('Unknown error');
         });
       });
     });
@@ -6981,10 +7017,7 @@ describe('RampsController', () => {
             'TransakService:getOrder',
             async () => mockOrder,
           );
-          const result = await controller.transakGetOrder(
-            'order-1',
-            '0x123',
-          );
+          const result = await controller.transakGetOrder('order-1', '0x123');
           expect(result).toStrictEqual(mockOrder);
         });
       });
@@ -7004,11 +7037,7 @@ describe('RampsController', () => {
             'TransakService:getOrder',
             handler,
           );
-          await controller.transakGetOrder(
-            'order-1',
-            '0x123',
-            paymentDetails,
-          );
+          await controller.transakGetOrder('order-1', '0x123', paymentDetails);
           expect(handler).toHaveBeenCalledWith(
             'order-1',
             '0x123',
@@ -7130,10 +7159,7 @@ describe('RampsController', () => {
             'investment',
             'trading',
           ]);
-          expect(handler).toHaveBeenCalledWith([
-            'investment',
-            'trading',
-          ]);
+          expect(handler).toHaveBeenCalledWith(['investment', 'trading']);
         });
       });
     });
@@ -7144,9 +7170,7 @@ describe('RampsController', () => {
           const data: PatchUserRequestBody = {
             personalDetails: { firstName: 'Jane', lastName: 'Doe' },
           };
-          const handler = jest
-            .fn()
-            .mockResolvedValue({ success: true });
+          const handler = jest.fn().mockResolvedValue({ success: true });
           rootMessenger.registerActionHandler(
             'TransakService:patchUser',
             handler,
@@ -7161,9 +7185,7 @@ describe('RampsController', () => {
     describe('transakSubmitSsnDetails', () => {
       it('calls messenger with ssn and quoteId', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          const handler = jest
-            .fn()
-            .mockResolvedValue({ success: true });
+          const handler = jest.fn().mockResolvedValue({ success: true });
           rootMessenger.registerActionHandler(
             'TransakService:submitSsnDetails',
             handler,
@@ -7172,10 +7194,7 @@ describe('RampsController', () => {
             '123-45-6789',
             'quote-1',
           );
-          expect(handler).toHaveBeenCalledWith(
-            '123-45-6789',
-            'quote-1',
-          );
+          expect(handler).toHaveBeenCalledWith('123-45-6789', 'quote-1');
           expect(result).toStrictEqual({ success: true });
         });
       });
@@ -7184,9 +7203,7 @@ describe('RampsController', () => {
     describe('transakConfirmPayment', () => {
       it('calls messenger with orderId and paymentMethodId', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          const handler = jest
-            .fn()
-            .mockResolvedValue({ success: true });
+          const handler = jest.fn().mockResolvedValue({ success: true });
           rootMessenger.registerActionHandler(
             'TransakService:confirmPayment',
             handler,
@@ -7224,8 +7241,7 @@ describe('RampsController', () => {
             'TransakService:getTranslation',
             async () => mockTranslation,
           );
-          const result =
-            await controller.transakGetTranslation(request);
+          const result = await controller.transakGetTranslation(request);
           expect(result).toStrictEqual(mockTranslation);
         });
       });
@@ -7243,8 +7259,7 @@ describe('RampsController', () => {
             'TransakService:getIdProofStatus',
             async () => mockStatus,
           );
-          const result =
-            await controller.transakGetIdProofStatus('wf-run-1');
+          const result = await controller.transakGetIdProofStatus('wf-run-1');
           expect(result).toStrictEqual(mockStatus);
         });
       });

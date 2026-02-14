@@ -1,21 +1,23 @@
-import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock from 'nock';
+import nock, { cleanAll, isDone } from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
-import type { TransakServiceMessenger, TransakAccessToken } from './TransakService';
+import type {
+  TransakServiceMessenger,
+  TransakAccessToken,
+} from './TransakService';
 import {
   TransakService,
   TransakEnvironment,
   TransakOrderIdTransformer,
 } from './TransakService';
-import { advanceTime, flushPromises } from '../../../tests/helpers';
+import { flushPromises } from '../../../tests/helpers';
 
 // === Test Constants ===
 
@@ -182,7 +184,11 @@ const MOCK_DEPOSIT_ORDER = {
     isoCode: 'US',
     flag: '🇺🇸',
     name: 'United States',
-    phone: { prefix: '+1', placeholder: '(555) 123-4567', template: '(###) ###-####' },
+    phone: {
+      prefix: '+1',
+      placeholder: '(555) 123-4567',
+      template: '(###) ###-####',
+    },
     currency: 'USD',
     supported: true,
   },
@@ -248,6 +254,10 @@ function authenticateService(service: TransakService): void {
 /**
  * Sets up a nock interceptor for the staging Transak translation endpoint.
  * Many methods call getTranslation internally, so this helper avoids repetition.
+ *
+ * @param translationResponse - The mock translation response to return.
+ * @param queryOverrides - Optional query parameter overrides to match against.
+ * @returns The nock interceptor.
  */
 function nockTranslation(
   translationResponse = MOCK_TRANSLATION,
@@ -280,7 +290,7 @@ describe('TransakService', () => {
 
   afterEach(() => {
     clock.restore();
-    nock.cleanAll();
+    cleanAll();
   });
 
   describe('constructor', () => {
@@ -298,7 +308,7 @@ describe('TransakService', () => {
       expect(service.getApiKey()).toBe('messenger-key');
     });
 
-    it('defaults to staging environment', () => {
+    it('defaults to staging environment', async () => {
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/active-orders')
         .query(true)
@@ -308,13 +318,13 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      clock.runAllAsync();
-      return promise.then(() => {
-        expect(nock.isDone()).toBe(true);
-      });
+      await clock.runAllAsync();
+      await flushPromises();
+      await promise;
+      expect(isDone()).toBe(true);
     });
 
-    it('uses production URLs when environment is Production', () => {
+    it('uses production URLs when environment is Production', async () => {
       nock(PRODUCTION_TRANSAK_BASE)
         .get('/api/v2/active-orders')
         .query(true)
@@ -326,10 +336,10 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      clock.runAllAsync();
-      return promise.then(() => {
-        expect(nock.isDone()).toBe(true);
-      });
+      await clock.runAllAsync();
+      await flushPromises();
+      await promise;
+      expect(isDone()).toBe(true);
     });
 
     it('stores the initial API key when provided', () => {
@@ -407,7 +417,7 @@ describe('TransakService', () => {
     it('setAccessToken stores the token', () => {
       const { service } = getService();
       service.setAccessToken(MOCK_ACCESS_TOKEN);
-      expect(service.getAccessToken()).toEqual(MOCK_ACCESS_TOKEN);
+      expect(service.getAccessToken()).toStrictEqual(MOCK_ACCESS_TOKEN);
     });
 
     it('getAccessToken returns null before any token is set', () => {
@@ -448,8 +458,10 @@ describe('TransakService', () => {
       };
 
       nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/auth/login', (body) =>
-          body.email === 'test@example.com' && body.apiKey === MOCK_API_KEY,
+        .post(
+          '/api/v2/auth/login',
+          (body) =>
+            body.email === 'test@example.com' && body.apiKey === MOCK_API_KEY,
         )
         .reply(200, { data: mockResponse });
 
@@ -489,9 +501,7 @@ describe('TransakService', () => {
     });
 
     it('throws when the API responds with an error', async () => {
-      nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/auth/login')
-        .reply(400);
+      nock(STAGING_TRANSAK_BASE).post('/api/v2/auth/login').reply(400);
 
       const { service } = getService();
 
@@ -512,11 +522,13 @@ describe('TransakService', () => {
       };
 
       nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/auth/verify', (body) =>
-          body.email === 'test@example.com' &&
-          body.otp === '123456' &&
-          body.stateToken === 'state-token' &&
-          body.apiKey === MOCK_API_KEY,
+        .post(
+          '/api/v2/auth/verify',
+          (body) =>
+            body.email === 'test@example.com' &&
+            body.otp === '123456' &&
+            body.stateToken === 'state-token' &&
+            body.apiKey === MOCK_API_KEY,
         )
         .reply(200, { data: mockApiResponse });
 
@@ -561,9 +573,7 @@ describe('TransakService', () => {
     });
 
     it('throws when verification fails', async () => {
-      nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/auth/verify')
-        .reply(401);
+      nock(STAGING_TRANSAK_BASE).post('/api/v2/auth/verify').reply(401);
 
       const { service } = getService();
 
@@ -594,9 +604,7 @@ describe('TransakService', () => {
     });
 
     it('clears the token and returns a message when already logged out (401)', async () => {
-      nock(STAGING_TRANSAK_BASE)
-        .post('/api/v1/auth/logout')
-        .reply(401);
+      nock(STAGING_TRANSAK_BASE).post('/api/v1/auth/logout').reply(401);
 
       const { service } = getService();
       authenticateService(service);
@@ -612,15 +620,11 @@ describe('TransakService', () => {
 
     it('throws when not authenticated', async () => {
       const { service } = getService();
-      await expect(service.logout()).rejects.toThrow(
-        'Authentication required',
-      );
+      await expect(service.logout()).rejects.toThrow('Authentication required');
     });
 
     it('rethrows non-401 errors without clearing the token', async () => {
-      nock(STAGING_TRANSAK_BASE)
-        .post('/api/v1/auth/logout')
-        .reply(500);
+      nock(STAGING_TRANSAK_BASE).post('/api/v1/auth/logout').reply(500);
 
       const { service } = getService();
       authenticateService(service);
@@ -666,7 +670,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeDefined();
+      expect(await promise).toBeDefined();
     });
 
     it('throws when not authenticated', async () => {
@@ -687,8 +691,9 @@ describe('TransakService', () => {
       };
 
       nock(STAGING_TRANSAK_BASE)
-        .patch('/api/v2/kyc/user', (body) =>
-          body.personalDetails?.firstName === 'Updated',
+        .patch(
+          '/api/v2/kyc/user',
+          (body) => body.personalDetails?.firstName === 'Updated',
         )
         .query((query) => query.apiKey === MOCK_API_KEY)
         .reply(200, { data: { success: true } });
@@ -716,8 +721,9 @@ describe('TransakService', () => {
       };
 
       nock(STAGING_TRANSAK_BASE)
-        .patch('/api/v2/kyc/user', (body) =>
-          body.addressDetails?.city === 'New York',
+        .patch(
+          '/api/v2/kyc/user',
+          (body) => body.addressDetails?.city === 'New York',
         )
         .query(true)
         .reply(200, { data: { success: true } });
@@ -729,7 +735,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toStrictEqual({ success: true });
+      expect(await promise).toStrictEqual({ success: true });
     });
 
     it('throws when the PATCH API returns a non-OK response', async () => {
@@ -764,15 +770,16 @@ describe('TransakService', () => {
 
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/lookup/quotes')
-        .query((query) =>
-          query.fiatCurrency === 'USD' &&
-          query.cryptoCurrency === 'ETH' &&
-          query.network === 'ethereum' &&
-          query.paymentMethod === 'credit_debit_card' &&
-          query.fiatAmount === '100' &&
-          query.isBuyOrSell === 'BUY' &&
-          query.isFeeExcludedFromFiat === 'true' &&
-          query.apiKey === MOCK_API_KEY,
+        .query(
+          (query) =>
+            query.fiatCurrency === 'USD' &&
+            query.cryptoCurrency === 'ETH' &&
+            query.network === 'ethereum' &&
+            query.paymentMethod === 'credit_debit_card' &&
+            query.fiatAmount === '100' &&
+            query.isBuyOrSell === 'BUY' &&
+            query.isFeeExcludedFromFiat === 'true' &&
+            query.apiKey === MOCK_API_KEY,
         )
         .reply(200, { data: MOCK_BUY_QUOTE });
 
@@ -815,7 +822,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeDefined();
+      expect(await promise).toBeDefined();
     });
 
     it('omits paymentMethod param when translation returns undefined', async () => {
@@ -838,7 +845,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeDefined();
+      expect(await promise).toBeDefined();
     });
   });
 
@@ -846,12 +853,13 @@ describe('TransakService', () => {
     it('calls the ramps translation endpoint with query params', async () => {
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/native/translate`)
-        .query((query) =>
-          query.action === 'deposit' &&
-          query.context === MOCK_CONTEXT &&
-          query.cryptoCurrencyId === 'eip155:1/slip44:60' &&
-          query.chainId === 'eip155:1' &&
-          query.fiatCurrencyId === 'USD',
+        .query(
+          (query) =>
+            query.action === 'deposit' &&
+            query.context === MOCK_CONTEXT &&
+            query.cryptoCurrencyId === 'eip155:1/slip44:60' &&
+            query.chainId === 'eip155:1' &&
+            query.fiatCurrencyId === 'USD',
         )
         .reply(200, MOCK_TRANSLATION);
 
@@ -883,16 +891,17 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toStrictEqual(MOCK_TRANSLATION);
+      expect(await promise).toStrictEqual(MOCK_TRANSLATION);
     });
 
     it('omits undefined values from query params', async () => {
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/native/translate`)
-        .query((query) =>
-          query.fiatCurrencyId === 'USD' &&
-          !('paymentMethod' in query) &&
-          !('cryptoCurrencyId' in query),
+        .query(
+          (query) =>
+            query.fiatCurrencyId === 'USD' &&
+            !('paymentMethod' in query) &&
+            !('cryptoCurrencyId' in query),
         )
         .reply(200, MOCK_TRANSLATION);
 
@@ -906,7 +915,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeDefined();
+      expect(await promise).toBeDefined();
     });
 
     it('throws when translation endpoint fails', async () => {
@@ -929,9 +938,10 @@ describe('TransakService', () => {
     it('fetches KYC requirement for a quote', async () => {
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/kyc/requirement')
-        .query((query) =>
-          query['metadata[quoteId]'] === 'quote-123' &&
-          query.apiKey === MOCK_API_KEY,
+        .query(
+          (query) =>
+            query['metadata[quoteId]'] === 'quote-123' &&
+            query.apiKey === MOCK_API_KEY,
         )
         .reply(200, { data: MOCK_KYC_REQUIREMENT });
 
@@ -948,9 +958,9 @@ describe('TransakService', () => {
 
     it('throws when not authenticated', async () => {
       const { service } = getService();
-      await expect(
-        service.getKycRequirement('quote-123'),
-      ).rejects.toThrow('Authentication required');
+      await expect(service.getKycRequirement('quote-123')).rejects.toThrow(
+        'Authentication required',
+      );
     });
   });
 
@@ -974,17 +984,18 @@ describe('TransakService', () => {
 
     it('throws when not authenticated', async () => {
       const { service } = getService();
-      await expect(
-        service.getAdditionalRequirements('q-1'),
-      ).rejects.toThrow('Authentication required');
+      await expect(service.getAdditionalRequirements('q-1')).rejects.toThrow(
+        'Authentication required',
+      );
     });
   });
 
   describe('submitSsnDetails', () => {
     it('submits SSN and quoteId', async () => {
       nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/kyc/ssn', (body) =>
-          body.ssn === '123-45-6789' && body.quoteId === 'quote-123',
+        .post(
+          '/api/v2/kyc/ssn',
+          (body) => body.ssn === '123-45-6789' && body.quoteId === 'quote-123',
         )
         .reply(200, { data: { success: true } });
 
@@ -995,7 +1006,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toStrictEqual({ success: true });
+      expect(await promise).toStrictEqual({ success: true });
     });
 
     it('throws when not authenticated', async () => {
@@ -1009,9 +1020,11 @@ describe('TransakService', () => {
   describe('submitPurposeOfUsageForm', () => {
     it('submits purpose list', async () => {
       nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/kyc/purpose-of-usage', (body) =>
-          Array.isArray(body.purposeList) &&
-          body.purposeList.includes('investment'),
+        .post(
+          '/api/v2/kyc/purpose-of-usage',
+          (body) =>
+            Array.isArray(body.purposeList) &&
+            body.purposeList.includes('investment'),
         )
         .reply(200, { data: null });
 
@@ -1025,14 +1038,14 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeUndefined();
+      expect(await promise).toBeUndefined();
     });
 
     it('throws when not authenticated', async () => {
       const { service } = getService();
-      await expect(
-        service.submitPurposeOfUsageForm(['test']),
-      ).rejects.toThrow('Authentication required');
+      await expect(service.submitPurposeOfUsageForm(['test'])).rejects.toThrow(
+        'Authentication required',
+      );
     });
   });
 
@@ -1056,7 +1069,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toStrictEqual(mockStatus);
+      expect(await promise).toStrictEqual(mockStatus);
     });
   });
 
@@ -1065,10 +1078,12 @@ describe('TransakService', () => {
       nockTranslation();
 
       nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/orders', (body) =>
-          body.quoteId === 'quote-123' &&
-          body.walletAddress === '0x1234' &&
-          body.paymentInstrumentId === 'credit_debit_card',
+        .post(
+          '/api/v2/orders',
+          (body) =>
+            body.quoteId === 'quote-123' &&
+            body.walletAddress === '0x1234' &&
+            body.paymentInstrumentId === 'credit_debit_card',
         )
         .reply(200, { data: MOCK_TRANSAK_ORDER });
 
@@ -1089,23 +1104,23 @@ describe('TransakService', () => {
       await flushPromises();
       const result = await promise;
 
-      expect(result.id).toBe(
-        `${STAGING_PROVIDER_PATH}/orders/order-abc-123`,
-      );
+      expect(result.id).toBe(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`);
       expect(result.orderType).toBe('DEPOSIT');
     });
 
     it('throws when the order creation API returns an error', async () => {
       nockTranslation();
 
-      nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/orders')
-        .reply(400);
+      nock(STAGING_TRANSAK_BASE).post('/api/v2/orders').reply(400);
 
       const { service } = getService();
       authenticateService(service);
 
-      const promise = service.createOrder('quote-123', '0x1234', 'credit_debit_card');
+      const promise = service.createOrder(
+        'quote-123',
+        '0x1234',
+        'credit_debit_card',
+      );
       await clock.runAllAsync();
       await flushPromises();
 
@@ -1138,7 +1153,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeDefined();
+      expect(await promise).toBeDefined();
     });
 
     it('retries order creation when the first attempt fails with an existing order error', async () => {
@@ -1176,19 +1191,18 @@ describe('TransakService', () => {
         'credit_debit_card',
       );
 
-      expect(result.id).toBe(
-        `${STAGING_PROVIDER_PATH}/orders/order-abc-123`,
-      );
+      expect(result.id).toBe(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`);
       expect(result.orderType).toBe('DEPOSIT');
 
+      // eslint-disable-next-line require-atomic-updates
       clock = useFakeTimers();
     }, 10000);
 
     it('throws when not authenticated', async () => {
       const { service } = getService();
-      await expect(
-        service.createOrder('q-1', '0x1', 'card'),
-      ).rejects.toThrow('Authentication required');
+      await expect(service.createOrder('q-1', '0x1', 'card')).rejects.toThrow(
+        'Authentication required',
+      );
     });
   });
 
@@ -1198,10 +1212,11 @@ describe('TransakService', () => {
 
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
-        .query((query) =>
-          query.wallet === '0x1234' &&
-          query.action === 'deposit' &&
-          query.context === MOCK_CONTEXT,
+        .query(
+          (query) =>
+            query.wallet === '0x1234' &&
+            query.action === 'deposit' &&
+            query.context === MOCK_CONTEXT,
         )
         .reply(200, MOCK_DEPOSIT_ORDER);
 
@@ -1232,9 +1247,7 @@ describe('TransakService', () => {
       await flushPromises();
       const result = await promise;
 
-      expect(result.id).toBe(
-        `${STAGING_PROVIDER_PATH}/orders/raw-order-id`,
-      );
+      expect(result.id).toBe(`${STAGING_PROVIDER_PATH}/orders/raw-order-id`);
     });
 
     it('uses provided paymentDetails instead of fetching from Transak API', async () => {
@@ -1370,22 +1383,19 @@ describe('TransakService', () => {
 
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/orders/user-limit')
-        .query((query) =>
-          query.isBuyOrSell === 'BUY' &&
-          query.kycType === 'L2' &&
-          query.fiatCurrency === 'USD' &&
-          query.paymentCategory === 'credit_debit_card',
+        .query(
+          (query) =>
+            query.isBuyOrSell === 'BUY' &&
+            query.kycType === 'L2' &&
+            query.fiatCurrency === 'USD' &&
+            query.paymentCategory === 'credit_debit_card',
         )
         .reply(200, { data: MOCK_USER_LIMITS });
 
       const { service } = getService();
       authenticateService(service);
 
-      const promise = service.getUserLimits(
-        'USD',
-        'credit_debit_card',
-        'L2',
-      );
+      const promise = service.getUserLimits('USD', 'credit_debit_card', 'L2');
       await clock.runAllAsync();
       await flushPromises();
       const result = await promise;
@@ -1411,14 +1421,14 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toStrictEqual(MOCK_USER_LIMITS);
+      expect(await promise).toStrictEqual(MOCK_USER_LIMITS);
     });
 
     it('throws when not authenticated', async () => {
       const { service } = getService();
-      await expect(
-        service.getUserLimits('USD', 'card', 'L2'),
-      ).rejects.toThrow('Authentication required');
+      await expect(service.getUserLimits('USD', 'card', 'L2')).rejects.toThrow(
+        'Authentication required',
+      );
     });
   });
 
@@ -1563,9 +1573,11 @@ describe('TransakService', () => {
       nockTranslation();
 
       nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/orders/payment-confirmation', (body) =>
-          body.orderId === 'order-abc-123' &&
-          body.paymentMethod === 'credit_debit_card',
+        .post(
+          '/api/v2/orders/payment-confirmation',
+          (body) =>
+            body.orderId === 'order-abc-123' &&
+            body.paymentMethod === 'credit_debit_card',
         )
         .reply(200, { data: { success: true } });
 
@@ -1588,8 +1600,9 @@ describe('TransakService', () => {
       nockTranslation();
 
       nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/orders/payment-confirmation', (body) =>
-          body.orderId === 'raw-order-id',
+        .post(
+          '/api/v2/orders/payment-confirmation',
+          (body) => body.orderId === 'raw-order-id',
         )
         .reply(200, { data: { success: true } });
 
@@ -1603,7 +1616,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toStrictEqual({ success: true });
+      expect(await promise).toStrictEqual({ success: true });
     });
 
     it('falls back to the original payment method ID when translation returns undefined', async () => {
@@ -1613,8 +1626,9 @@ describe('TransakService', () => {
         .reply(200, { ...MOCK_TRANSLATION, paymentMethod: undefined });
 
       nock(STAGING_TRANSAK_BASE)
-        .post('/api/v2/orders/payment-confirmation', (body) =>
-          body.paymentMethod === 'custom_method',
+        .post(
+          '/api/v2/orders/payment-confirmation',
+          (body) => body.paymentMethod === 'custom_method',
         )
         .reply(200, { data: { success: true } });
 
@@ -1625,14 +1639,14 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toStrictEqual({ success: true });
+      expect(await promise).toStrictEqual({ success: true });
     });
 
     it('throws when not authenticated', async () => {
       const { service } = getService();
-      await expect(
-        service.confirmPayment('o-1', 'card'),
-      ).rejects.toThrow('Authentication required');
+      await expect(service.confirmPayment('o-1', 'card')).rejects.toThrow(
+        'Authentication required',
+      );
     });
   });
 
@@ -1642,9 +1656,10 @@ describe('TransakService', () => {
 
       nock(STAGING_TRANSAK_BASE)
         .delete('/api/v2/orders/order-to-cancel')
-        .query((query) =>
-          query.cancelReason === 'Creating new order' &&
-          query.apiKey === MOCK_API_KEY,
+        .query(
+          (query) =>
+            query.cancelReason === 'Creating new order' &&
+            query.apiKey === MOCK_API_KEY,
         )
         .reply(200);
 
@@ -1655,7 +1670,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeUndefined();
+      expect(await promise).toBeUndefined();
     });
 
     it('handles raw Transak order ID', async () => {
@@ -1671,7 +1686,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeUndefined();
+      expect(await promise).toBeUndefined();
     });
 
     it('throws when not authenticated', async () => {
@@ -1727,8 +1742,8 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeUndefined();
-      expect(nock.isDone()).toBe(true);
+      expect(await promise).toBeUndefined();
+      expect(isDone()).toBe(true);
     });
 
     it('swallows individual cancel errors', async () => {
@@ -1759,7 +1774,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeUndefined();
+      expect(await promise).toBeUndefined();
     });
 
     it('does nothing when there are no active orders', async () => {
@@ -1775,7 +1790,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeUndefined();
+      expect(await promise).toBeUndefined();
     });
   });
 
@@ -1812,7 +1827,9 @@ describe('TransakService', () => {
         .get('/api/v2/active-orders')
         .query((query) => {
           const keys = Object.keys(query);
-          return !keys.includes('undefinedParam') && !keys.includes('nullParam');
+          return (
+            !keys.includes('undefinedParam') && !keys.includes('nullParam')
+          );
         })
         .reply(200, { data: [] });
 
@@ -1823,7 +1840,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeDefined();
+      expect(await promise).toBeDefined();
     });
 
     it('includes Content-Type and Accept headers on POST requests', async () => {
@@ -1846,7 +1863,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      await expect(promise).resolves.toBeDefined();
+      expect(await promise).toBeDefined();
     });
   });
 });
@@ -1906,9 +1923,9 @@ describe('TransakOrderIdTransformer', () => {
     });
 
     it('returns false for raw Transak order IDs', () => {
-      expect(
-        TransakOrderIdTransformer.isDepositOrderId('raw-order-id'),
-      ).toBe(false);
+      expect(TransakOrderIdTransformer.isDepositOrderId('raw-order-id')).toBe(
+        false,
+      );
     });
   });
 

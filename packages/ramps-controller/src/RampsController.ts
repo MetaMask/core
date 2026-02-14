@@ -22,7 +22,6 @@ import type {
   RampsServiceActions,
   BuyWidget,
 } from './RampsService';
-import type { TransakServiceActions } from './TransakService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -32,6 +31,40 @@ import type {
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
+import type {
+  RequestCache as RequestCacheType,
+  RequestState,
+  ExecuteRequestOptions,
+  PendingRequest,
+  ResourceType,
+} from './RequestCache';
+import {
+  DEFAULT_REQUEST_CACHE_TTL,
+  DEFAULT_REQUEST_CACHE_MAX_SIZE,
+  createCacheKey,
+  isCacheExpired,
+  createLoadingState,
+  createSuccessState,
+  createErrorState,
+  RequestStatus,
+} from './RequestCache';
+import type {
+  TransakAccessToken,
+  TransakUserDetails,
+  TransakBuyQuote,
+  TransakKycRequirement,
+  TransakAdditionalRequirementsResponse,
+  TransakDepositOrder,
+  TransakUserLimits,
+  TransakOttResponse,
+  TransakQuoteTranslation,
+  TransakTranslationRequest,
+  TransakIdProofStatus,
+  TransakOrderPaymentMethod,
+  PatchUserRequestBody,
+  TransakOrder,
+} from './TransakService';
+import type { TransakServiceActions } from './TransakService';
 import type {
   TransakServiceSetApiKeyAction,
   TransakServiceSetAccessTokenAction,
@@ -58,39 +91,6 @@ import type {
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
 } from './TransakService-method-action-types';
-import type {
-  TransakAccessToken,
-  TransakUserDetails,
-  TransakBuyQuote,
-  TransakKycRequirement,
-  TransakAdditionalRequirementsResponse,
-  TransakDepositOrder,
-  TransakUserLimits,
-  TransakOttResponse,
-  TransakQuoteTranslation,
-  TransakTranslationRequest,
-  TransakIdProofStatus,
-  TransakOrderPaymentMethod,
-  PatchUserRequestBody,
-  TransakOrder,
-} from './TransakService';
-import type {
-  RequestCache as RequestCacheType,
-  RequestState,
-  ExecuteRequestOptions,
-  PendingRequest,
-  ResourceType,
-} from './RequestCache';
-import {
-  DEFAULT_REQUEST_CACHE_TTL,
-  DEFAULT_REQUEST_CACHE_MAX_SIZE,
-  createCacheKey,
-  isCacheExpired,
-  createLoadingState,
-  createSuccessState,
-  createErrorState,
-  RequestStatus,
-} from './RequestCache';
 
 // === GENERAL ===
 
@@ -381,7 +381,9 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     nativeProviders: {
       transak: {
         isAuthenticated: false,
-        userDetails: createDefaultResourceState<TransakUserDetails | null>(null),
+        userDetails: createDefaultResourceState<TransakUserDetails | null>(
+          null,
+        ),
         buyQuote: createDefaultResourceState<TransakBuyQuote | null>(null),
         kycRequirement:
           createDefaultResourceState<TransakKycRequirement | null>(null),
@@ -1885,22 +1887,26 @@ export class RampsController extends BaseController<
     this.update((state) => {
       const defaults = getDefaultRampsControllerState().nativeProviders.transak;
       state.nativeProviders.transak.isAuthenticated = defaults.isAuthenticated;
-      state.nativeProviders.transak.userDetails.data = defaults.userDetails.data;
-      state.nativeProviders.transak.userDetails.isLoading = defaults.userDetails.isLoading;
-      state.nativeProviders.transak.userDetails.error = defaults.userDetails.error;
+      state.nativeProviders.transak.userDetails.data =
+        defaults.userDetails.data;
+      state.nativeProviders.transak.userDetails.isLoading =
+        defaults.userDetails.isLoading;
+      state.nativeProviders.transak.userDetails.error =
+        defaults.userDetails.error;
       state.nativeProviders.transak.buyQuote.data = defaults.buyQuote.data;
-      state.nativeProviders.transak.buyQuote.isLoading = defaults.buyQuote.isLoading;
+      state.nativeProviders.transak.buyQuote.isLoading =
+        defaults.buyQuote.isLoading;
       state.nativeProviders.transak.buyQuote.error = defaults.buyQuote.error;
-      state.nativeProviders.transak.kycRequirement.data = defaults.kycRequirement.data;
+      state.nativeProviders.transak.kycRequirement.data =
+        defaults.kycRequirement.data;
       state.nativeProviders.transak.kycRequirement.isLoading =
         defaults.kycRequirement.isLoading;
-      state.nativeProviders.transak.kycRequirement.error = defaults.kycRequirement.error;
+      state.nativeProviders.transak.kycRequirement.error =
+        defaults.kycRequirement.error;
     });
   }
 
-  async transakSendUserOtp(
-    email: string,
-  ): Promise<{
+  async transakSendUserOtp(email: string): Promise<{
     isTncAccepted: boolean;
     stateToken: string;
     email: string;
