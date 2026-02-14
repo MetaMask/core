@@ -504,7 +504,8 @@ export class TransakService {
       );
     }
 
-    const tokenAgeMs = Date.now() - this.#accessToken.created.getTime();
+    const createdTime = new Date(this.#accessToken.created).getTime();
+    const tokenAgeMs = Date.now() - createdTime;
     if (tokenAgeMs > this.#accessToken.ttl * 1000) {
       this.clearAccessToken();
       throw new HttpError(

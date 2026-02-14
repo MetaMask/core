@@ -2202,6 +2202,7 @@ export class RampsController extends BaseController<
    * Submits the user's purpose of usage form for KYC compliance.
    *
    * @param purpose - Array of purpose strings selected by the user.
+   * @returns A promise that resolves when the form is submitted.
    */
   async transakSubmitPurposeOfUsageForm(purpose: string[]): Promise<void> {
     return this.messenger.call(
@@ -2283,6 +2284,7 @@ export class RampsController extends BaseController<
    * Cancels a specific Transak order.
    *
    * @param depositOrderId - The deposit order ID to cancel.
+   * @returns A promise that resolves when the order is cancelled.
    */
   async transakCancelOrder(depositOrderId: string): Promise<void> {
     return this.messenger.call('TransakService:cancelOrder', depositOrderId);

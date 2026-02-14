@@ -462,6 +462,21 @@ describe('TransakService', () => {
       expect(service.getAccessToken()).toBeNull();
     });
 
+    it('handles created field as a string (e.g. after messenger serialization)', async () => {
+      const { service } = getService();
+      const tokenWithStringDate = {
+        accessToken: 'jwt-from-messenger',
+        ttl: 3600,
+        created: new Date(Date.now() - 3601 * 1000).toISOString(),
+      } as unknown as TransakAccessToken;
+      service.setAccessToken(tokenWithStringDate);
+
+      await expect(service.getUserDetails()).rejects.toThrow(
+        'Authentication token has expired. Please log in again.',
+      );
+      expect(service.getAccessToken()).toBeNull();
+    });
+
     it('allows requests when token is within TTL', async () => {
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/user/')
