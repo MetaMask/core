@@ -325,20 +325,10 @@ async function submitTransactions(
         ? toHex(gasLimits[0])
         : undefined;
 
-    log('Submit batch gas details', {
-      gasLimits,
-      gasLimit7702,
-      isPostQuote,
-      txParamsGas: transaction?.txParams?.gas,
-      allParamsLength: allParams.length,
-    });
-
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];
       const gas =
         gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
-
-      log('Submit tx gas', { index, gasLimit, gas, gasLimit7702 });
 
       return {
         params: {
