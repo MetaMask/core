@@ -502,7 +502,6 @@ describe('Relay Submit Utils', () => {
             to: '0xrecipient' as Hex,
             data: '0xorigdata' as Hex,
             value: '0x100' as Hex,
-            gas: '0x1D4C0' as Hex,
           },
           type: TransactionType.simpleSend,
         } as TransactionMeta;
@@ -612,7 +611,7 @@ describe('Relay Submit Utils', () => {
             transactions: [
               expect.objectContaining({
                 params: expect.objectContaining({
-                  gas: '0x1D4C0',
+                  gas: expect.any(String),
                 }),
                 type: TransactionType.simpleSend,
               }),

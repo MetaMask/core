@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Use live `txParams.gas` for the original transaction in post-quote batch submissions ([#7933](https://github.com/MetaMask/core/pull/7933))
-- Expand single EIP-7702 gas limit for post-quote batch transactions ([#7933](https://github.com/MetaMask/core/pull/7933))
+- Estimate relay transactions separately and combine with original transaction gas at quote time ([#7933](https://github.com/MetaMask/core/pull/7933))
 
 ## [15.0.0]
 
