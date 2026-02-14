@@ -132,6 +132,10 @@ export type PaymentMethod = {
    * Localized pending order description (optional).
    */
   pendingOrderDescription?: string;
+  /**
+   * Whether this payment method is a manual bank transfer.
+   */
+  isManualBankTransfer?: boolean;
 };
 
 /**
