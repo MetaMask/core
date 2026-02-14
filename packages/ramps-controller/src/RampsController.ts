@@ -1688,11 +1688,15 @@ export class RampsController extends BaseController<
     }
 
     if (!provider) {
-      return;
+      throw new Error(
+        'Provider is required. Cannot start quote polling without a selected provider.',
+      );
     }
 
     if (!paymentMethod) {
-      return;
+      throw new Error(
+        'Payment method is required. Cannot start quote polling without a selected payment method.',
+      );
     }
 
     // Stop any existing polling first
@@ -1856,7 +1860,6 @@ export class RampsController extends BaseController<
       );
       return buyWidget.url ?? null;
     } catch (error) {
-      console.error('Error fetching widget URL:', error);
       return null;
     }
   }
@@ -1885,24 +1888,8 @@ export class RampsController extends BaseController<
 
   transakResetState(): void {
     this.update((state) => {
-      const defaults = getDefaultRampsControllerState().nativeProviders.transak;
-      state.nativeProviders.transak.isAuthenticated = defaults.isAuthenticated;
-      state.nativeProviders.transak.userDetails.data =
-        defaults.userDetails.data;
-      state.nativeProviders.transak.userDetails.isLoading =
-        defaults.userDetails.isLoading;
-      state.nativeProviders.transak.userDetails.error =
-        defaults.userDetails.error;
-      state.nativeProviders.transak.buyQuote.data = defaults.buyQuote.data;
-      state.nativeProviders.transak.buyQuote.isLoading =
-        defaults.buyQuote.isLoading;
-      state.nativeProviders.transak.buyQuote.error = defaults.buyQuote.error;
-      state.nativeProviders.transak.kycRequirement.data =
-        defaults.kycRequirement.data;
-      state.nativeProviders.transak.kycRequirement.isLoading =
-        defaults.kycRequirement.isLoading;
-      state.nativeProviders.transak.kycRequirement.error =
-        defaults.kycRequirement.error;
+      state.nativeProviders.transak =
+        getDefaultRampsControllerState().nativeProviders.transak;
     });
   }
 
@@ -1973,15 +1960,6 @@ export class RampsController extends BaseController<
     paymentMethod: string,
     fiatAmount: string,
   ): Promise<TransakBuyQuote> {
-    console.log('RAMPS: RampsController.transakGetBuyQuote called', {
-      fiatCurrency,
-      cryptoCurrency,
-      network,
-      paymentMethod,
-      paymentMethodType: typeof paymentMethod,
-      paymentMethodFalsy: !paymentMethod,
-      fiatAmount,
-    });
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
       state.nativeProviders.transak.buyQuote.error = null;
@@ -1995,19 +1973,12 @@ export class RampsController extends BaseController<
         paymentMethod,
         fiatAmount,
       );
-      console.log('RAMPS: RampsController.transakGetBuyQuote success', {
-        quoteId: quote.quoteId,
-        quotePaymentMethod: quote.paymentMethod,
-      });
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.data = quote;
         state.nativeProviders.transak.buyQuote.isLoading = false;
       });
       return quote;
     } catch (error) {
-      console.log('RAMPS: RampsController.transakGetBuyQuote error', {
-        error: (error as Error)?.message,
-      });
       const errorMessage = (error as Error)?.message ?? 'Unknown error';
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.isLoading = false;
