@@ -1688,15 +1688,11 @@ export class RampsController extends BaseController<
     }
 
     if (!provider) {
-      throw new Error(
-        'Provider is required. Cannot start quote polling without a selected provider.',
-      );
+      return;
     }
 
     if (!paymentMethod) {
-      throw new Error(
-        'Payment method is required. Cannot start quote polling without a selected payment method.',
-      );
+      return;
     }
 
     // Stop any existing polling first

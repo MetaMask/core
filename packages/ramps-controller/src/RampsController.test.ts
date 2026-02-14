@@ -6618,9 +6618,30 @@ describe('RampsController', () => {
 
           controller.transakResetState();
 
-          expect(
-            controller.state.nativeProviders.transak,
-          ).toMatchInlineSnapshot();
+          expect(controller.state.nativeProviders.transak)
+            .toMatchInlineSnapshot(`
+            {
+              "buyQuote": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "isAuthenticated": false,
+              "kycRequirement": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+              "userDetails": {
+                "data": null,
+                "error": null,
+                "isLoading": false,
+                "selected": null,
+              },
+            }
+          `);
         });
       });
     });
@@ -6638,8 +6659,9 @@ describe('RampsController', () => {
             'TransakService:sendUserOtp',
             async () => mockResult,
           );
-          const result =
-            await controller.transakSendUserOtp('test@example.com');
+          const result = await controller.transakSendUserOtp(
+            'test@example.com',
+          );
           expect(result).toStrictEqual(mockResult);
         });
       });
@@ -6773,9 +6795,44 @@ describe('RampsController', () => {
           );
           const result = await controller.transakGetUserDetails();
           expect(result).toStrictEqual(mockUserDetails);
-          expect(
-            controller.state.nativeProviders.transak.userDetails,
-          ).toMatchInlineSnapshot();
+          expect(controller.state.nativeProviders.transak.userDetails)
+            .toMatchInlineSnapshot(`
+            {
+              "data": {
+                "address": {
+                  "addressLine1": "123 Main St",
+                  "addressLine2": "",
+                  "city": "San Francisco",
+                  "country": "United States",
+                  "countryCode": "US",
+                  "postCode": "94105",
+                  "state": "CA",
+                },
+                "createdAt": "2024-01-01T00:00:00Z",
+                "dob": "1990-01-01",
+                "email": "john@example.com",
+                "firstName": "John",
+                "id": "user-1",
+                "kyc": {
+                  "attempts": [],
+                  "highestApprovedKYCType": "L1",
+                  "kycMarkedBy": null,
+                  "kycResult": null,
+                  "rejectionDetails": null,
+                  "status": "APPROVED",
+                  "type": "L1",
+                  "userId": "user-1",
+                  "workFlowRunId": "wf-1",
+                },
+                "lastName": "Doe",
+                "mobileNumber": "+1234567890",
+                "status": "active",
+              },
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            }
+          `);
         });
       });
 
@@ -6851,9 +6908,33 @@ describe('RampsController', () => {
             '100',
           );
           expect(result).toStrictEqual(mockBuyQuote);
-          expect(
-            controller.state.nativeProviders.transak.buyQuote,
-          ).toMatchInlineSnapshot();
+          expect(controller.state.nativeProviders.transak.buyQuote)
+            .toMatchInlineSnapshot(`
+            {
+              "data": {
+                "conversionPrice": 50000,
+                "cryptoAmount": 0.002,
+                "cryptoCurrency": "BTC",
+                "cryptoLiquidityProvider": "provider-1",
+                "feeBreakdown": [],
+                "feeDecimal": 0.01,
+                "fiatAmount": 100,
+                "fiatCurrency": "USD",
+                "isBuyOrSell": "BUY",
+                "marketConversionPrice": 50100,
+                "network": "bitcoin",
+                "nonce": 1,
+                "notes": [],
+                "paymentMethod": "credit_debit_card",
+                "quoteId": "quote-1",
+                "slippage": 0.5,
+                "totalFee": 1,
+              },
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            }
+          `);
         });
       });
 
@@ -6923,9 +7004,19 @@ describe('RampsController', () => {
           );
           const result = await controller.transakGetKycRequirement('quote-1');
           expect(result).toStrictEqual(mockKycRequirement);
-          expect(
-            controller.state.nativeProviders.transak.kycRequirement,
-          ).toMatchInlineSnapshot();
+          expect(controller.state.nativeProviders.transak.kycRequirement)
+            .toMatchInlineSnapshot(`
+            {
+              "data": {
+                "isAllowedToPlaceOrder": true,
+                "kycType": "L1",
+                "status": "APPROVED",
+              },
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            }
+          `);
         });
       });
 
@@ -6978,8 +7069,9 @@ describe('RampsController', () => {
             'TransakService:getAdditionalRequirements',
             async () => mockResult,
           );
-          const result =
-            await controller.transakGetAdditionalRequirements('quote-1');
+          const result = await controller.transakGetAdditionalRequirements(
+            'quote-1',
+          );
           expect(result).toStrictEqual(mockResult);
         });
       });
