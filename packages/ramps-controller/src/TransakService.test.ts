@@ -446,6 +446,42 @@ describe('TransakService', () => {
         'Authentication required. Please log in to continue.',
       );
     });
+
+    it('throws 401 HttpError and clears token when token has expired', async () => {
+      const { service } = getService();
+      const expiredToken: TransakAccessToken = {
+        accessToken: 'expired-jwt',
+        ttl: 3600,
+        created: new Date(Date.now() - 3601 * 1000),
+      };
+      service.setAccessToken(expiredToken);
+
+      await expect(service.getUserDetails()).rejects.toThrow(
+        'Authentication token has expired. Please log in again.',
+      );
+      expect(service.getAccessToken()).toBeNull();
+    });
+
+    it('allows requests when token is within TTL', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(200, { data: MOCK_USER_DETAILS });
+
+      const { service } = getService();
+      const validToken: TransakAccessToken = {
+        accessToken: 'valid-jwt',
+        ttl: 3600,
+        created: new Date(Date.now() - 1800 * 1000),
+      };
+      service.setAccessToken(validToken);
+
+      const promise = service.getUserDetails();
+      await clock.runAllAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual(MOCK_USER_DETAILS);
+    });
   });
 
   describe('sendUserOtp', () => {
@@ -1182,8 +1218,11 @@ describe('TransakService', () => {
         .query(true)
         .reply(200, MOCK_DEPOSIT_ORDER);
 
-      const { service } = getService();
-      authenticateService(service);
+      const { service } = getService({ options: { orderRetryDelayMs: 50 } });
+      service.setAccessToken({
+        ...MOCK_ACCESS_TOKEN,
+        created: new Date(),
+      });
 
       const result = await service.createOrder(
         'quote-123',
@@ -1714,7 +1753,7 @@ describe('TransakService', () => {
   });
 
   describe('cancelAllActiveOrders', () => {
-    it('fetches active orders and cancels each one', async () => {
+    it('fetches active orders and cancels each one, returning empty errors', async () => {
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/active-orders')
         .query(true)
@@ -1742,11 +1781,11 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      expect(await promise).toBeUndefined();
+      expect(await promise).toStrictEqual([]);
       expect(isDone()).toBe(true);
     });
 
-    it('swallows individual cancel errors', async () => {
+    it('collects individual cancel errors instead of throwing', async () => {
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/active-orders')
         .query(true)
@@ -1774,10 +1813,38 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      expect(await promise).toBeUndefined();
+      const errors = await promise;
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toBeInstanceOf(Error);
+      expect(errors[0].message).toContain("failed with status '500'");
     });
 
-    it('does nothing when there are no active orders', async () => {
+    it('wraps non-Error throws in Error objects', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/active-orders')
+        .query(true)
+        .reply(200, {
+          data: [{ ...MOCK_TRANSAK_ORDER, orderId: 'string-error-order' }],
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      jest
+        .spyOn(service, 'cancelOrder')
+        .mockRejectedValue('string error value');
+
+      const promise = service.cancelAllActiveOrders();
+      await clock.runAllAsync();
+      await flushPromises();
+
+      const errors = await promise;
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toBeInstanceOf(Error);
+      expect(errors[0].message).toBe('string error value');
+    });
+
+    it('returns empty array when there are no active orders', async () => {
       nock(STAGING_TRANSAK_BASE)
         .get('/api/v2/active-orders')
         .query(true)
@@ -1790,7 +1857,7 @@ describe('TransakService', () => {
       await clock.runAllAsync();
       await flushPromises();
 
-      expect(await promise).toBeUndefined();
+      expect(await promise).toStrictEqual([]);
     });
   });
 

@@ -4757,7 +4757,7 @@ describe('RampsController', () => {
       );
     });
 
-    it('returns early without throwing when provider is not selected', async () => {
+    it('throws error when provider is not selected', async () => {
       await withController(
         {
           options: {
@@ -4784,12 +4784,14 @@ describe('RampsController', () => {
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
               amount: 100,
             }),
-          ).not.toThrow();
+          ).toThrow(
+            'Provider is required. Cannot start quote polling without a selected provider.',
+          );
         },
       );
     });
 
-    it('returns early without throwing when payment method is not selected', async () => {
+    it('throws error when payment method is not selected', async () => {
       await withController(
         {
           options: {
@@ -4830,7 +4832,9 @@ describe('RampsController', () => {
               walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
               amount: 100,
             }),
-          ).not.toThrow();
+          ).toThrow(
+            'Payment method is required. Cannot start quote polling without a selected payment method.',
+          );
         },
       );
     });
@@ -7374,15 +7378,16 @@ describe('RampsController', () => {
     });
 
     describe('transakCancelAllActiveOrders', () => {
-      it('calls messenger', async () => {
+      it('calls messenger and returns collected errors', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          const handler = jest.fn().mockResolvedValue(undefined);
+          const handler = jest.fn().mockResolvedValue([]);
           rootMessenger.registerActionHandler(
             'TransakService:cancelAllActiveOrders',
             handler,
           );
-          await controller.transakCancelAllActiveOrders();
+          const errors = await controller.transakCancelAllActiveOrders();
           expect(handler).toHaveBeenCalled();
+          expect(errors).toStrictEqual([]);
         });
       });
     });

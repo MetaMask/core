@@ -1688,11 +1688,15 @@ export class RampsController extends BaseController<
     }
 
     if (!provider) {
-      return;
+      throw new Error(
+        'Provider is required. Cannot start quote polling without a selected provider.',
+      );
     }
 
     if (!paymentMethod) {
-      return;
+      throw new Error(
+        'Payment method is required. Cannot start quote polling without a selected payment method.',
+      );
     }
 
     // Stop any existing polling first
@@ -1861,27 +1865,53 @@ export class RampsController extends BaseController<
   }
 
   // === TRANSAK METHODS ===
+  //
+  // Auth state is managed at two levels:
+  // - TransakService stores the access token (needed for API calls)
+  // - RampsController stores isAuthenticated (needed for UI state)
+  // Both are kept in sync by the controller methods below.
 
+  /**
+   * Sets the Transak API key used for all Transak API requests.
+   *
+   * @param apiKey - The Transak API key.
+   */
   transakSetApiKey(apiKey: string): void {
     this.messenger.call('TransakService:setApiKey', apiKey);
   }
 
+  /**
+   * Sets the Transak access token and marks the user as authenticated.
+   *
+   * @param token - The access token received from Transak auth.
+   */
   transakSetAccessToken(token: TransakAccessToken): void {
     this.messenger.call('TransakService:setAccessToken', token);
     this.transakSetAuthenticated(true);
   }
 
+  /**
+   * Clears the Transak access token and marks the user as unauthenticated.
+   */
   transakClearAccessToken(): void {
     this.messenger.call('TransakService:clearAccessToken');
     this.transakSetAuthenticated(false);
   }
 
+  /**
+   * Updates the Transak authentication flag in controller state.
+   *
+   * @param isAuthenticated - Whether the user is authenticated with Transak.
+   */
   transakSetAuthenticated(isAuthenticated: boolean): void {
     this.update((state) => {
       state.nativeProviders.transak.isAuthenticated = isAuthenticated;
     });
   }
 
+  /**
+   * Resets all Transak state back to defaults (unauthenticated, no data).
+   */
   transakResetState(): void {
     this.update((state) => {
       state.nativeProviders.transak =
@@ -1889,6 +1919,12 @@ export class RampsController extends BaseController<
     });
   }
 
+  /**
+   * Sends a one-time password to the user's email for Transak authentication.
+   *
+   * @param email - The user's email address.
+   * @returns The OTP response containing a state token for verification.
+   */
   async transakSendUserOtp(email: string): Promise<{
     isTncAccepted: boolean;
     stateToken: string;
@@ -1898,6 +1934,15 @@ export class RampsController extends BaseController<
     return this.messenger.call('TransakService:sendUserOtp', email);
   }
 
+  /**
+   * Verifies a one-time password and authenticates the user with Transak.
+   * Updates the controller's authentication state on success.
+   *
+   * @param email - The user's email address.
+   * @param verificationCode - The OTP code entered by the user.
+   * @param stateToken - The state token from the sendUserOtp response.
+   * @returns The access token for subsequent authenticated requests.
+   */
   async transakVerifyUserOtp(
     email: string,
     verificationCode: string,
@@ -1913,6 +1958,12 @@ export class RampsController extends BaseController<
     return token;
   }
 
+  /**
+   * Logs the user out of Transak. Clears authentication state and user details
+   * regardless of whether the API call succeeds or fails.
+   *
+   * @returns A message indicating the logout result.
+   */
   async transakLogout(): Promise<string> {
     try {
       const result = await this.messenger.call('TransakService:logout');
@@ -1925,6 +1976,12 @@ export class RampsController extends BaseController<
     }
   }
 
+  /**
+   * Fetches the authenticated user's details from Transak.
+   * Updates the userDetails resource state with loading/success/error states.
+   *
+   * @returns The user's profile and KYC details.
+   */
   async transakGetUserDetails(): Promise<TransakUserDetails> {
     this.update((state) => {
       state.nativeProviders.transak.userDetails.isLoading = true;
@@ -1949,6 +2006,17 @@ export class RampsController extends BaseController<
     }
   }
 
+  /**
+   * Fetches a buy quote from Transak for the given parameters.
+   * Updates the buyQuote resource state with loading/success/error states.
+   *
+   * @param fiatCurrency - The fiat currency code (e.g., "USD").
+   * @param cryptoCurrency - The cryptocurrency identifier.
+   * @param network - The blockchain network identifier.
+   * @param paymentMethod - The payment method identifier.
+   * @param fiatAmount - The fiat amount as a string.
+   * @returns The buy quote with pricing and fee details.
+   */
   async transakGetBuyQuote(
     fiatCurrency: string,
     cryptoCurrency: string,
@@ -1984,6 +2052,13 @@ export class RampsController extends BaseController<
     }
   }
 
+  /**
+   * Fetches the KYC requirement for a given quote.
+   * Updates the kycRequirement resource state with loading/success/error states.
+   *
+   * @param quoteId - The quote ID to check KYC requirements for.
+   * @returns The KYC requirement status and whether the user can place an order.
+   */
   async transakGetKycRequirement(
     quoteId: string,
   ): Promise<TransakKycRequirement> {
@@ -2011,6 +2086,12 @@ export class RampsController extends BaseController<
     }
   }
 
+  /**
+   * Fetches additional KYC requirements (e.g., ID proof, address proof) for a quote.
+   *
+   * @param quoteId - The quote ID to check additional requirements for.
+   * @returns The list of additional forms required.
+   */
   async transakGetAdditionalRequirements(
     quoteId: string,
   ): Promise<TransakAdditionalRequirementsResponse> {
@@ -2020,6 +2101,15 @@ export class RampsController extends BaseController<
     );
   }
 
+  /**
+   * Creates a new order on Transak. If an existing order conflicts (HTTP 409),
+   * active orders are cancelled and the creation is retried.
+   *
+   * @param quoteId - The quote ID to create an order from.
+   * @param walletAddress - The destination wallet address.
+   * @param paymentMethodId - The payment method to use.
+   * @returns The created deposit order.
+   */
   async transakCreateOrder(
     quoteId: string,
     walletAddress: string,
@@ -2033,6 +2123,14 @@ export class RampsController extends BaseController<
     );
   }
 
+  /**
+   * Fetches an existing order from Transak by order ID.
+   *
+   * @param orderId - The order ID (deposit format or raw Transak format).
+   * @param wallet - The wallet address associated with the order.
+   * @param paymentDetails - Optional payment details to attach to the order.
+   * @returns The deposit order details.
+   */
   async transakGetOrder(
     orderId: string,
     wallet: string,
@@ -2046,6 +2144,14 @@ export class RampsController extends BaseController<
     );
   }
 
+  /**
+   * Fetches the user's spending limits for a given currency and payment method.
+   *
+   * @param fiatCurrency - The fiat currency code.
+   * @param paymentMethod - The payment method identifier.
+   * @param kycType - The KYC level type.
+   * @returns The user's limits, spending, and remaining amounts.
+   */
   async transakGetUserLimits(
     fiatCurrency: string,
     paymentMethod: string,
@@ -2059,10 +2165,24 @@ export class RampsController extends BaseController<
     );
   }
 
+  /**
+   * Requests a one-time token (OTT) for the Transak payment widget.
+   *
+   * @returns The OTT response containing the token.
+   */
   async transakRequestOtt(): Promise<TransakOttResponse> {
     return this.messenger.call('TransakService:requestOtt');
   }
 
+  /**
+   * Generates a URL for the Transak payment widget with pre-filled parameters.
+   *
+   * @param ottToken - The one-time token for widget authentication.
+   * @param quote - The buy quote to pre-fill in the widget.
+   * @param walletAddress - The destination wallet address.
+   * @param extraParams - Optional additional URL parameters.
+   * @returns The fully constructed widget URL string.
+   */
   transakGeneratePaymentWidgetUrl(
     ottToken: string,
     quote: TransakBuyQuote,
@@ -2078,6 +2198,11 @@ export class RampsController extends BaseController<
     );
   }
 
+  /**
+   * Submits the user's purpose of usage form for KYC compliance.
+   *
+   * @param purpose - Array of purpose strings selected by the user.
+   */
   async transakSubmitPurposeOfUsageForm(purpose: string[]): Promise<void> {
     return this.messenger.call(
       'TransakService:submitPurposeOfUsageForm',
@@ -2085,10 +2210,23 @@ export class RampsController extends BaseController<
     );
   }
 
+  /**
+   * Updates the user's personal or address details on Transak.
+   *
+   * @param data - The user data fields to update.
+   * @returns The API response data.
+   */
   async transakPatchUser(data: PatchUserRequestBody): Promise<unknown> {
     return this.messenger.call('TransakService:patchUser', data);
   }
 
+  /**
+   * Submits the user's SSN for identity verification.
+   *
+   * @param ssn - The Social Security Number.
+   * @param quoteId - The quote ID associated with the order requiring SSN.
+   * @returns The API response data.
+   */
   async transakSubmitSsnDetails(
     ssn: string,
     quoteId: string,
@@ -2096,6 +2234,13 @@ export class RampsController extends BaseController<
     return this.messenger.call('TransakService:submitSsnDetails', ssn, quoteId);
   }
 
+  /**
+   * Confirms payment for an order after the user has completed payment.
+   *
+   * @param orderId - The order ID to confirm payment for.
+   * @param paymentMethodId - The payment method used.
+   * @returns Whether the payment confirmation was successful.
+   */
   async transakConfirmPayment(
     orderId: string,
     paymentMethodId: string,
@@ -2107,12 +2252,24 @@ export class RampsController extends BaseController<
     );
   }
 
+  /**
+   * Translates generic ramps identifiers to Transak-specific identifiers.
+   *
+   * @param request - The translation request with optional identifiers to translate.
+   * @returns The translated Transak-specific identifiers.
+   */
   async transakGetTranslation(
     request: TransakTranslationRequest,
   ): Promise<TransakQuoteTranslation> {
     return this.messenger.call('TransakService:getTranslation', request);
   }
 
+  /**
+   * Checks the status of an ID proof submission for KYC.
+   *
+   * @param workFlowRunId - The workflow run ID to check status for.
+   * @returns The current ID proof status.
+   */
   async transakGetIdProofStatus(
     workFlowRunId: string,
   ): Promise<TransakIdProofStatus> {
@@ -2122,14 +2279,30 @@ export class RampsController extends BaseController<
     );
   }
 
+  /**
+   * Cancels a specific Transak order.
+   *
+   * @param depositOrderId - The deposit order ID to cancel.
+   */
   async transakCancelOrder(depositOrderId: string): Promise<void> {
     return this.messenger.call('TransakService:cancelOrder', depositOrderId);
   }
 
-  async transakCancelAllActiveOrders(): Promise<void> {
+  /**
+   * Cancels all active Transak orders. Individual cancellation failures
+   * are collected and returned rather than thrown.
+   *
+   * @returns An array of errors from any failed cancellations (empty if all succeeded).
+   */
+  async transakCancelAllActiveOrders(): Promise<Error[]> {
     return this.messenger.call('TransakService:cancelAllActiveOrders');
   }
 
+  /**
+   * Fetches all active Transak orders for the authenticated user.
+   *
+   * @returns The list of active orders.
+   */
   async transakGetActiveOrders(): Promise<TransakOrder[]> {
     return this.messenger.call('TransakService:getActiveOrders');
   }

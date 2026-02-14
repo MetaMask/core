@@ -431,6 +431,8 @@ export class TransakService {
 
   readonly #context: string;
 
+  readonly #orderRetryDelayMs: number;
+
   #apiKey: string | null = null;
 
   #accessToken: TransakAccessToken | null = null;
@@ -442,6 +444,7 @@ export class TransakService {
     fetch: fetchFunction,
     apiKey,
     policyOptions = {},
+    orderRetryDelayMs = 2000,
   }: {
     messenger: TransakServiceMessenger;
     environment?: TransakEnvironment;
@@ -449,6 +452,7 @@ export class TransakService {
     fetch: typeof fetch;
     apiKey?: string;
     policyOptions?: CreateServicePolicyOptions;
+    orderRetryDelayMs?: number;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -457,6 +461,7 @@ export class TransakService {
     this.#environment = environment;
     this.#context = context;
     this.#apiKey = apiKey ?? null;
+    this.#orderRetryDelayMs = orderRetryDelayMs;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -496,6 +501,15 @@ export class TransakService {
       throw new HttpError(
         401,
         'Authentication required. Please log in to continue.',
+      );
+    }
+
+    const tokenAgeMs = Date.now() - this.#accessToken.created.getTime();
+    if (tokenAgeMs > this.#accessToken.ttl * 1000) {
+      this.clearAccessToken();
+      throw new HttpError(
+        401,
+        'Authentication token has expired. Please log in again.',
       );
     }
   }
@@ -726,7 +740,7 @@ export class TransakService {
       this.clearAccessToken();
       return result;
     } catch (error) {
-      if (error instanceof HttpError && error.message.includes('401')) {
+      if (error instanceof HttpError && error.httpStatus === 401) {
         this.clearAccessToken();
         return 'user was already logged out';
       }
@@ -828,13 +842,11 @@ export class TransakService {
         transakOrder.paymentDetails,
       );
     } catch (error) {
-      if (
-        error instanceof HttpError &&
-        (error.message.includes('Order exists') ||
-          error.message.includes('4005'))
-      ) {
+      if (error instanceof HttpError && error.httpStatus === 409) {
         await this.cancelAllActiveOrders();
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.#orderRetryDelayMs),
+        );
 
         const retryOrder = await this.#transakPost<TransakOrder>(
           '/api/v2/orders',
@@ -1073,9 +1085,10 @@ export class TransakService {
     });
   }
 
-  async cancelAllActiveOrders(): Promise<void> {
+  async cancelAllActiveOrders(): Promise<Error[]> {
     this.#ensureAccessToken();
     const activeOrders = await this.getActiveOrders();
+    const errors: Error[] = [];
 
     await Promise.all(
       activeOrders.map(async (order) => {
@@ -1086,11 +1099,15 @@ export class TransakService {
               this.#environment,
             );
           await this.cancelOrder(depositOrderId);
-        } catch {
-          // Swallow individual cancel errors
+        } catch (error) {
+          errors.push(
+            error instanceof Error ? error : new Error(String(error)),
+          );
         }
       }),
     );
+
+    return errors;
   }
 
   async getActiveOrders(): Promise<TransakOrder[]> {
