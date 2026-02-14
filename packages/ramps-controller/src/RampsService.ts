@@ -576,8 +576,6 @@ function getBaseUrl(
   service: RampsApiService,
 ): string {
   const cache = service === RampsApiService.Regions ? '-cache' : '';
-  return 'https://on-ramp${cache}.api.cx.metamask.io';
-  // return 'http://localhost:3000';
 
   switch (environment) {
     case RampsEnvironment.Production:
