@@ -651,7 +651,11 @@ async function calculateSourceNetworkCost(
 
   let finalAmount = gasFeeToken.amount;
 
-  if (gasLimits.length > 1) {
+  const hasMultipleTransactions =
+    relayParams.length > 1 ||
+    (request.isPostQuote && Boolean(transaction.txParams.to));
+
+  if (hasMultipleTransactions) {
     const gasRate = new BigNumber(gasFeeToken.amount, 16).dividedBy(
       gasFeeToken.gas,
       16,
