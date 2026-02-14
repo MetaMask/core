@@ -1855,7 +1855,7 @@ export class RampsController extends BaseController<
         buyUrl,
       );
       return buyWidget.url ?? null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }

@@ -6659,9 +6659,8 @@ describe('RampsController', () => {
             'TransakService:sendUserOtp',
             async () => mockResult,
           );
-          const result = await controller.transakSendUserOtp(
-            'test@example.com',
-          );
+          const result =
+            await controller.transakSendUserOtp('test@example.com');
           expect(result).toStrictEqual(mockResult);
         });
       });
@@ -7069,9 +7068,8 @@ describe('RampsController', () => {
             'TransakService:getAdditionalRequirements',
             async () => mockResult,
           );
-          const result = await controller.transakGetAdditionalRequirements(
-            'quote-1',
-          );
+          const result =
+            await controller.transakGetAdditionalRequirements('quote-1');
           expect(result).toStrictEqual(mockResult);
         });
       });
