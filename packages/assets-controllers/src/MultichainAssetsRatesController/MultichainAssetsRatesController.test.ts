@@ -150,7 +150,7 @@ const setupController = ({
 } = {}): {
   controller: MultichainAssetsRatesController;
   messenger: RootMessenger;
-  updateSpy: jest.SpyInstance;
+  updateSpy: jest.SpiedFunction;
 } => {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,

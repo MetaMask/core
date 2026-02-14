@@ -93,7 +93,7 @@ type Mocks = {
 type Spies = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SnapPlatformWatcher: {
-    ensureCanUseSnapPlatform: jest.SpyInstance;
+    ensureCanUseSnapPlatform: jest.SpiedFunction;
   };
 };
 

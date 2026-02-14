@@ -249,7 +249,7 @@ export function createStubForGenericRequest<
  * `provider.request`.
  */
 export function expectProviderRequestNotToHaveBeenMade(
-  requestSpy: jest.SpyInstance,
+  requestSpy: jest.SpiedFunction,
   requestMatcher: Partial<JsonRpcRequest>,
 ): void {
   expect(
@@ -281,7 +281,7 @@ export function stubProviderRequests<
 >(
   provider: InternalProvider,
   stubs: ProviderRequestStub<Params, Result>[],
-): jest.SpyInstance<Promise<Json>, Parameters<InternalProvider['request']>> {
+): jest.SpiedFunction<Promise<Json>, Parameters<InternalProvider['request']>> {
   const remainingStubs = klona(stubs);
   const callNumbersByRequest = new Map<Partial<JsonRpcRequest>, number>();
   return jest.spyOn(provider, 'request').mockImplementation(async (request) => {

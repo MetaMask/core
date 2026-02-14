@@ -554,7 +554,7 @@ async function waitForRequestToBeRetried({
   request,
   numberOfTimes,
 }: {
-  requestSpy: jest.SpyInstance;
+  requestSpy: jest.SpiedFunction;
   request: JsonRpcRequest;
   numberOfTimes: number;
 }): Promise<void> {

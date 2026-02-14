@@ -7,7 +7,7 @@ import type {
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
-import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { providerErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
@@ -202,11 +202,7 @@ describe.each([
       };
 
       await expect(async () => provider.request(request)).rejects.toThrow(
-        providerErrors.custom({
-          code: 1001,
-          message: 'Test error',
-          data: { cause: 'Test cause' },
-        }),
+        'Test error',
       );
     });
 
@@ -222,9 +218,7 @@ describe.each([
       };
 
       await expect(async () => provider.request(request)).rejects.toThrow(
-        rpcErrors.internal({
-          message: 'Test error',
-        }),
+        'Test error',
       );
     });
   });
