@@ -85,4 +85,32 @@ describe('AiDigestService', () => {
       'API returned error',
     );
   });
+
+  describe('searchDigests', () => {
+    it('returns mock market insights for BTC-related CAIP-19 identifiers', async () => {
+      const service = new AiDigestService({ baseUrl: 'http://test.com' });
+      const result = await service.searchDigests('eip155:1/slip44:0');
+
+      expect(result).not.toBeNull();
+      expect(result?.asset).toBe('btc');
+      expect(result?.headline).toBeDefined();
+      expect(result?.trends).toHaveLength(3);
+      expect(result?.sources).toHaveLength(5);
+    });
+
+    it('returns null for unknown assets', async () => {
+      const service = new AiDigestService({ baseUrl: 'http://test.com' });
+      const result = await service.searchDigests('eip155:1/erc20:0xunknown');
+
+      expect(result).toBeNull();
+    });
+
+    it('returns mock data for CAIP-19 identifiers containing "btc"', async () => {
+      const service = new AiDigestService({ baseUrl: 'http://test.com' });
+      const result = await service.searchDigests('bip122:btc/slip44:0');
+
+      expect(result).not.toBeNull();
+      expect(result?.asset).toBe('btc');
+    });
+  });
 });
