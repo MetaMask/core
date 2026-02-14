@@ -416,6 +416,19 @@ function getPaymentWidgetBaseUrl(environment: TransakEnvironment): string {
   }
 }
 
+// === TRANSAK API ERROR ===
+
+const TRANSAK_ORDER_EXISTS_CODE = '4005';
+
+export class TransakApiError extends HttpError {
+  readonly errorCode: string | undefined;
+
+  constructor(status: number, message: string, errorCode?: string) {
+    super(status, message);
+    this.errorCode = errorCode;
+  }
+}
+
 // === SERVICE DEFINITION ===
 
 export class TransakService {
@@ -582,14 +595,20 @@ export class TransakService {
       });
       if (!fetchResponse.ok) {
         let errorBody = '';
+        let errorCode: string | undefined;
         try {
           errorBody = await fetchResponse.text();
+          const parsed = JSON.parse(errorBody) as {
+            error?: { code?: string };
+          };
+          errorCode = parsed?.error?.code;
         } catch {
-          // ignore body read failures
+          // ignore body read/parse failures
         }
-        throw new HttpError(
+        throw new TransakApiError(
           fetchResponse.status,
           `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'${errorBody ? `: ${errorBody}` : ''}`,
+          errorCode,
         );
       }
       return fetchResponse.json() as Promise<{ data: ResponseType }>;
@@ -843,7 +862,11 @@ export class TransakService {
         transakOrder.paymentDetails,
       );
     } catch (error) {
-      if (error instanceof HttpError && error.httpStatus === 409) {
+      if (
+        error instanceof TransakApiError &&
+        error.httpStatus === 409 &&
+        error.errorCode === TRANSAK_ORDER_EXISTS_CODE
+      ) {
         await this.cancelAllActiveOrders();
         await new Promise((resolve) =>
           setTimeout(resolve, this.#orderRetryDelayMs),

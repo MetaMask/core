@@ -102,6 +102,7 @@ export type {
   PatchUserRequestBody as TransakPatchUserRequestBody,
 } from './TransakService';
 export {
+  TransakApiError,
   TransakService,
   TransakEnvironment,
   TransakOrderIdTransformer,

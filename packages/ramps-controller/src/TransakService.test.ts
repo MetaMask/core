@@ -1252,6 +1252,58 @@ describe('TransakService', () => {
       clock = useFakeTimers();
     }, 10000);
 
+    it('throws without retrying when a 409 response does not contain the order-exists error code', async () => {
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/orders')
+        .once()
+        .reply(409, {
+          error: { code: '9999', message: 'Some other conflict' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.createOrder(
+        'quote-123',
+        '0x1234',
+        'credit_debit_card',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '409'");
+    });
+
+    it('throws a TransakApiError with the parsed errorCode from the response body', async () => {
+      nockTranslation();
+
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/orders')
+        .reply(422, {
+          error: { code: '5001', message: 'Validation failed' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.createOrder(
+        'quote-123',
+        '0x1234',
+        'credit_debit_card',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow(
+        expect.objectContaining({
+          httpStatus: 422,
+          errorCode: '5001',
+        }),
+      );
+    });
+
     it('throws when not authenticated', async () => {
       const { service } = getService();
       await expect(service.createOrder('q-1', '0x1', 'card')).rejects.toThrow(

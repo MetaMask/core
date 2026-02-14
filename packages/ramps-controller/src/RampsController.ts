@@ -1913,6 +1913,7 @@ export class RampsController extends BaseController<
    * Resets all Transak state back to defaults (unauthenticated, no data).
    */
   transakResetState(): void {
+    this.messenger.call('TransakService:clearAccessToken');
     this.update((state) => {
       state.nativeProviders.transak =
         getDefaultRampsControllerState().nativeProviders.transak;
@@ -1969,7 +1970,7 @@ export class RampsController extends BaseController<
       const result = await this.messenger.call('TransakService:logout');
       return result;
     } finally {
-      this.transakSetAuthenticated(false);
+      this.transakClearAccessToken();
       this.update((state) => {
         state.nativeProviders.transak.userDetails.data = null;
       });

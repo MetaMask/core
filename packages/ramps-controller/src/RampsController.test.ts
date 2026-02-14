@@ -6605,11 +6605,16 @@ describe('RampsController', () => {
     });
 
     describe('transakResetState', () => {
-      it('resets all transak state to defaults', async () => {
+      it('resets all transak state to defaults and clears access token', async () => {
         await withController(async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'TransakService:setAccessToken',
             jest.fn(),
+          );
+          const clearAccessTokenHandler = jest.fn();
+          rootMessenger.registerActionHandler(
+            'TransakService:clearAccessToken',
+            clearAccessTokenHandler,
           );
           controller.transakSetAccessToken({
             accessToken: 'tok',
@@ -6622,6 +6627,7 @@ describe('RampsController', () => {
 
           controller.transakResetState();
 
+          expect(clearAccessTokenHandler).toHaveBeenCalled();
           expect(controller.state.nativeProviders.transak)
             .toMatchInlineSnapshot(`
             {
@@ -6702,6 +6708,11 @@ describe('RampsController', () => {
             'TransakService:setAccessToken',
             jest.fn(),
           );
+          const clearAccessTokenHandler = jest.fn();
+          rootMessenger.registerActionHandler(
+            'TransakService:clearAccessToken',
+            clearAccessTokenHandler,
+          );
           rootMessenger.registerActionHandler(
             'TransakService:logout',
             async () => 'logged out',
@@ -6718,6 +6729,7 @@ describe('RampsController', () => {
           const result = await controller.transakLogout();
 
           expect(result).toBe('logged out');
+          expect(clearAccessTokenHandler).toHaveBeenCalled();
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
           );
@@ -6727,11 +6739,16 @@ describe('RampsController', () => {
         });
       });
 
-      it('clears authentication and user details even when logout throws', async () => {
+      it('clears authentication, access token, and user details even when logout throws', async () => {
         await withController(async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'TransakService:setAccessToken',
             jest.fn(),
+          );
+          const clearAccessTokenHandler = jest.fn();
+          rootMessenger.registerActionHandler(
+            'TransakService:clearAccessToken',
+            clearAccessTokenHandler,
           );
           rootMessenger.registerActionHandler(
             'TransakService:logout',
@@ -6748,6 +6765,7 @@ describe('RampsController', () => {
           await expect(controller.transakLogout()).rejects.toThrow(
             'Network error',
           );
+          expect(clearAccessTokenHandler).toHaveBeenCalled();
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             false,
           );
