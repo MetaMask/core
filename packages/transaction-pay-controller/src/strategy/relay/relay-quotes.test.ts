@@ -671,15 +671,10 @@ describe('Relay Quotes Utils', () => {
       expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
     });
 
-    it('includes original transaction in gas estimation for post-quote', async () => {
+    it('estimates only relay transactions for post-quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
-
-      estimateGasBatchMock.mockResolvedValue({
-        totalGasLimit: 100000,
-        gasLimits: [21000, 79000],
-      });
 
       const postQuoteTransaction = {
         ...TRANSACTION_META_MOCK,
@@ -705,44 +700,19 @@ describe('Relay Quotes Utils', () => {
         transaction: postQuoteTransaction,
       });
 
-      expect(estimateGasBatchMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          transactions: [
-            expect.objectContaining({
-              data: '0xaaa',
-              to: '0x9',
-            }),
-            expect.objectContaining({
-              data: QUOTE_MOCK.steps[0].items[0].data.data,
-              to: QUOTE_MOCK.steps[0].items[0].data.to,
-            }),
-          ],
-        }),
-      );
+      // Original transaction should NOT be included in gas estimation.
+      // Only relay step params are estimated.
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
     });
 
-    it('defaults data to 0x when original transaction has no data for post-quote', async () => {
+    it('prepends original transaction gas to relay gas limits for post-quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
 
-      estimateGasBatchMock.mockResolvedValue({
-        totalGasLimit: 100000,
-        gasLimits: [21000, 79000],
-      });
+      getGasBufferMock.mockReturnValue(1);
 
-      const postQuoteTransaction = {
-        ...TRANSACTION_META_MOCK,
-        chainId: '0x1' as Hex,
-        txParams: {
-          from: FROM_MOCK,
-          to: '0x9' as Hex,
-          gas: '79000',
-          value: '0',
-        },
-      } as TransactionMeta;
-
-      await getRelayQuotes({
+      const result = await getRelayQuotes({
         messenger,
         requests: [
           {
@@ -751,31 +721,55 @@ describe('Relay Quotes Utils', () => {
             isPostQuote: true,
           },
         ],
-        transaction: postQuoteTransaction,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x9' as Hex,
+            data: '0xaaa' as Hex,
+            gas: '0x13498',
+            value: '0',
+          },
+        } as TransactionMeta,
       });
 
-      expect(estimateGasBatchMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          transactions: expect.arrayContaining([
-            expect.objectContaining({
-              data: '0x',
-              to: '0x9',
-            }),
-          ]),
-        }),
-      );
+      // Original tx gas (0x13498 = 79000) prepended, relay gas (21000) from params
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        79000, 21000,
+      ]);
     });
 
-    it('includes all gas limits for post-quote including original transaction', async () => {
+    it('adds original transaction gas to EIP-7702 combined gas limit for post-quote', async () => {
+      const multiStepQuote = {
+        ...QUOTE_MOCK,
+        steps: [
+          {
+            ...QUOTE_MOCK.steps[0],
+            items: [
+              QUOTE_MOCK.steps[0].items[0],
+              {
+                ...QUOTE_MOCK.steps[0].items[0],
+                data: {
+                  ...QUOTE_MOCK.steps[0].items[0].data,
+                  gas: '30000',
+                },
+              },
+            ],
+          },
+        ],
+      } as RelayQuote;
+
       successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_MOCK,
+        json: async () => multiStepQuote,
       } as never);
 
       getGasBufferMock.mockReturnValue(1);
 
+      // EIP-7702: batch returns single combined gas for multiple relay txs
       estimateGasBatchMock.mockResolvedValue({
-        totalGasLimit: 100000,
-        gasLimits: [21000, 79000],
+        totalGasLimit: 51000,
+        gasLimits: [51000],
       });
 
       const result = await getRelayQuotes({
@@ -794,16 +788,14 @@ describe('Relay Quotes Utils', () => {
             from: FROM_MOCK,
             to: '0x9' as Hex,
             data: '0xaaa' as Hex,
-            gas: '79000',
+            gas: '0x13498',
             value: '0',
           },
         } as TransactionMeta,
       });
 
-      // gasLimits should include both the original tx and relay-step limits
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([
-        21000, 79000,
-      ]);
+      // EIP-7702: original tx gas (79000) added to combined relay gas (51000)
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([130000]);
     });
 
     it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
