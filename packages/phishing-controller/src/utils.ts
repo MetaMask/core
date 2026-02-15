@@ -434,9 +434,7 @@ export const buildCacheKey = (
   caseSensitive = false,
 ) => {
   const normalizedAddress = caseSensitive ? address : address.toLowerCase();
-  const key = `${chainId.toLowerCase()}:${normalizedAddress}`;
-  console.log(`[buildCacheKey] chainId=${chainId}, address=${address}, caseSensitive=${caseSensitive} => key="${key}"`);
-  return key;
+  return `${chainId.toLowerCase()}:${normalizedAddress}`;
 };
 
 /**
@@ -481,7 +479,6 @@ export const splitCacheHits = (
     const normalizedAddress = caseSensitive ? address : address.toLowerCase();
     const key = buildCacheKey(chainId, normalizedAddress, caseSensitive);
     const hit = cache.get(key);
-    console.log(`[splitCacheHits] address=${address}, normalizedAddress=${normalizedAddress}, key="${key}", cacheHit=${!!hit}`);
     if (hit) {
       cachedResults[normalizedAddress] = {
         result_type: hit.result_type,
