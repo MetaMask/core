@@ -109,6 +109,10 @@ function transformV3AssetResponseToMetadata(
 export class TokenDataSource {
   readonly name = CONTROLLER_NAME;
 
+  getName(): string {
+    return this.name;
+  }
+
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 

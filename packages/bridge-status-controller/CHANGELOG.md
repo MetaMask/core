@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `usd_amount_source` default value in EVM transaction metrics properties from `100` to `0` ([#7899](https://github.com/MetaMask/core/pull/7899))
+
 ## [66.0.2]
 
 ### Changed

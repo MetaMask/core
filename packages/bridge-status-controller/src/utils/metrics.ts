@@ -253,7 +253,7 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     chain_id_destination: formatChainIdToCaip(transactionMeta.chainId),
     token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
     token_symbol_destination: transactionMeta.destinationTokenSymbol ?? '',
-    usd_amount_source: 100,
+    usd_amount_source: 0,
     stx_enabled: false,
     token_address_source:
       formatAddressToAssetId(

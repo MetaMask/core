@@ -449,80 +449,85 @@ const pricesClient = new PricesApiClient({
 
 ### API Clients
 
+Optional parameters: `options` is `FetchOptions` (e.g. `staleTime`, `gcTime`). `queryOptions` are API-specific filters (e.g. `networks`, `cursor`). Each `fetch*` method has a matching `get*QueryOptions` that returns the TanStack Query options object for use with `useQuery`, `useInfiniteQuery`, `useSuspenseQuery`, etc.
+
 #### AccountsApiClient
 
 Handles account-related operations including balances, transactions, NFTs, and token discovery.
 
-| Method                                                  | Description                                |
-| ------------------------------------------------------- | ------------------------------------------ |
-| `fetchV1SupportedNetworks()`                            | Get supported networks (v1)                |
-| `fetchV2SupportedNetworks()`                            | Get supported networks (v2)                |
-| `fetchV2ActiveNetworks(accountIds, options?)`           | Get active networks by CAIP-10 account IDs |
-| `fetchV2Balances(address, options?)`                    | Get balances for single address            |
-| `fetchV2BalancesWithOptions(address, options?)`         | Get balances with filters                  |
-| `fetchV4MultiAccountBalances(addresses, options?)`      | Get balances for multiple addresses        |
-| `fetchV5MultiAccountBalances(accountIds, options?)`     | Get balances using CAIP-10 IDs             |
-| `fetchV1TransactionByHash(chainId, txHash, options?)`   | Get transaction by hash                    |
-| `fetchV1AccountTransactions(address, options?)`         | Get account transactions                   |
-| `fetchV4MultiAccountTransactions(accountIds, options?)` | Get multi-account transactions             |
-| `fetchV1AccountRelationship(chainId, from, to)`         | Get address relationship                   |
-| `fetchV2AccountNfts(address, options?)`                 | Get account NFTs                           |
-| `fetchV2AccountTokens(address, options?)`               | Get detected ERC20 tokens                  |
-| `invalidateBalances()`                                  | Invalidate all balance cache               |
-| `invalidateAccounts()`                                  | Invalidate all account cache               |
+| Method                                                                                 | Description                                                                                                            |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `fetchV1SupportedNetworks(options?)`                                                   | Get supported networks (v1)                                                                                            |
+| `fetchV2SupportedNetworks(options?)`                                                   | Get supported networks (v2)                                                                                            |
+| `fetchV2ActiveNetworks(accountIds, queryOptions?, options?)`                           | Get active networks by CAIP-10 account IDs                                                                             |
+| `fetchV2Balances(address, queryOptions?, options?)`                                    | Get balances for single address (supports networks, filterSupportedTokens, includeTokenAddresses, includeStakedAssets) |
+| `fetchV4MultiAccountBalances(addresses, queryOptions?, options?)`                      | Get balances for multiple addresses                                                                                    |
+| `fetchV5MultiAccountBalances(accountIds, queryOptions?, options?)`                     | Get balances using CAIP-10 IDs                                                                                         |
+| `fetchV1TransactionByHash(chainId, txHash, queryOptions?, options?)`                   | Get transaction by hash                                                                                                |
+| `fetchV1AccountTransactions(address, queryOptions?, options?)`                         | Get account transactions                                                                                               |
+| `fetchV4MultiAccountTransactions(accountAddresses, queryOptions?, options?)`           | Get multi-account transactions                                                                                         |
+| `fetchV1AccountRelationship(chainId, from, to, options?)`                              | Get address relationship                                                                                               |
+| `fetchV2AccountNfts(address, queryOptions?, options?)`                                 | Get account NFTs                                                                                                       |
+| `fetchV2AccountTokens(address, queryOptions?, options?)`                               | Get detected ERC20 tokens                                                                                              |
+| `getV1SupportedNetworksQueryOptions(options?)` … `getV2AccountTokensQueryOptions(...)` | Return TanStack Query options for each fetch (use with useQuery, useInfiniteQuery, etc.)                               |
+| `invalidateBalances()`                                                                 | Invalidate all balance cache                                                                                           |
+| `invalidateAccounts()`                                                                 | Invalidate all account cache                                                                                           |
 
 #### PricesApiClient
 
 Handles price-related operations including spot prices, exchange rates, and historical data.
 
-| Method                                                                  | Description                                      |
-| ----------------------------------------------------------------------- | ------------------------------------------------ |
-| `fetchPriceV1SupportedNetworks()`                                       | Get price-supported networks (v1)                |
-| `fetchPriceV2SupportedNetworks()`                                       | Get price-supported networks in CAIP format (v2) |
-| `fetchV1ExchangeRates(baseCurrency)`                                    | Get exchange rates for base currency             |
-| `fetchV1FiatExchangeRates()`                                            | Get fiat exchange rates                          |
-| `fetchV1CryptoExchangeRates()`                                          | Get crypto exchange rates                        |
-| `fetchV1SpotPricesByCoinIds(coinIds)`                                   | Get spot prices by CoinGecko IDs                 |
-| `fetchV1SpotPriceByCoinId(coinId, currency?)`                           | Get single coin spot price                       |
-| `fetchV1TokenPrices(chainId, addresses, options?)`                      | Get token prices on chain                        |
-| `fetchV1TokenPrice(chainId, address, currency?)`                        | Get single token price                           |
-| `fetchV2SpotPrices(chainId, addresses, options?)`                       | Get spot prices with market data                 |
-| `fetchV3SpotPrices(assetIds, options?)`                                 | Get spot prices by CAIP-19 asset IDs             |
-| `fetchV1HistoricalPricesByCoinId(coinId, options?)`                     | Get historical prices by CoinGecko ID            |
-| `fetchV1HistoricalPricesByTokenAddresses(chainId, addresses, options?)` | Get historical prices for tokens                 |
-| `fetchV1HistoricalPrices(chainId, address, options?)`                   | Get historical prices for single token           |
-| `fetchV3HistoricalPrices(chainId, assetType, options?)`                 | Get historical prices by CAIP-19                 |
-| `fetchV1HistoricalPriceGraphByCoinId(coinId, options?)`                 | Get price graph by CoinGecko ID                  |
-| `fetchV1HistoricalPriceGraphByTokenAddress(chainId, address, options?)` | Get price graph by token address                 |
-| `invalidatePrices()`                                                    | Invalidate all price cache                       |
+| Method                                                                                                           | Description                                      |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `fetchPriceV1SupportedNetworks(options?)`                                                                        | Get price-supported networks (v1)                |
+| `fetchPriceV2SupportedNetworks(options?)`                                                                        | Get price-supported networks in CAIP format (v2) |
+| `fetchV1ExchangeRates(baseCurrency, options?)`                                                                   | Get exchange rates for base currency             |
+| `fetchV1FiatExchangeRates(options?)`                                                                             | Get fiat exchange rates                          |
+| `fetchV1CryptoExchangeRates(options?)`                                                                           | Get crypto exchange rates                        |
+| `fetchV1SpotPricesByCoinIds(coinIds, options?)`                                                                  | Get spot prices by CoinGecko IDs                 |
+| `fetchV1SpotPriceByCoinId(coinId, currency?, options?)`                                                          | Get single coin spot price                       |
+| `fetchV1TokenPrices(chainId, addresses, queryOptions?, options?)`                                                | Get token prices on chain                        |
+| `fetchV1TokenPrice(chainId, address, currency?, options?)`                                                       | Get single token price                           |
+| `fetchV2SpotPrices(chainId, addresses, queryOptions?, options?)`                                                 | Get spot prices with market data                 |
+| `fetchV3SpotPrices(assetIds, queryOptions?, options?)`                                                           | Get spot prices by CAIP-19 asset IDs             |
+| `fetchV1HistoricalPricesByCoinId(coinId, queryOptions?, options?)`                                               | Get historical prices by CoinGecko ID            |
+| `fetchV1HistoricalPricesByTokenAddresses(chainId, addresses, queryOptions?, options?)`                           | Get historical prices for tokens                 |
+| `fetchV1HistoricalPrices(chainId, address, queryOptions?, options?)`                                             | Get historical prices for single token           |
+| `fetchV3HistoricalPrices(chainId, assetType, queryOptions?, options?)`                                           | Get historical prices by CAIP-19                 |
+| `fetchV1HistoricalPriceGraphByCoinId(coinId, queryOptions?, options?)`                                           | Get price graph by CoinGecko ID                  |
+| `fetchV1HistoricalPriceGraphByTokenAddress(chainId, address, queryOptions?, options?)`                           | Get price graph by token address                 |
+| `getPriceV1SupportedNetworksQueryOptions(options?)` … `getV1HistoricalPriceGraphByTokenAddressQueryOptions(...)` | Return TanStack Query options for each fetch     |
+| `invalidatePrices()`                                                                                             | Invalidate all price cache                       |
 
 #### TokenApiClient
 
 Handles token metadata, lists, and trending/popular token discovery.
 
-| Method                                             | Description                     |
-| -------------------------------------------------- | ------------------------------- |
-| `fetchNetworks()`                                  | Get all networks                |
-| `fetchNetworkByChainId(chainId)`                   | Get network by chain ID         |
-| `fetchTokenList(chainId, options?)`                | Get token list for chain        |
-| `fetchV1TokenMetadata(chainId, address, options?)` | Get token metadata              |
-| `fetchTokenDescription(chainId, address)`          | Get token description           |
-| `fetchV3TrendingTokens(chainIds, options?)`        | Get trending tokens             |
-| `fetchV3TopGainers(chainIds, options?)`            | Get top gainers/losers          |
-| `fetchV3PopularTokens(chainIds, options?)`         | Get popular tokens              |
-| `fetchTopAssets(chainId)`                          | Get top assets for chain        |
-| `fetchV1SuggestedOccurrenceFloors()`               | Get suggested occurrence floors |
+| Method                                                                                  | Description                                  |
+| --------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `fetchNetworks(options?)`                                                               | Get all networks                             |
+| `fetchNetworkByChainId(chainId, options?)`                                              | Get network by chain ID                      |
+| `fetchTokenList(chainId, queryOptions?, options?)`                                      | Get token list for chain                     |
+| `fetchV1TokenMetadata(chainId, address, queryOptions?, options?)`                       | Get token metadata                           |
+| `fetchTokenDescription(chainId, address, options?)`                                     | Get token description                        |
+| `fetchV3TrendingTokens(chainIds, queryOptions?, options?)`                              | Get trending tokens                          |
+| `fetchV3TopGainers(chainIds, queryOptions?, options?)`                                  | Get top gainers/losers                       |
+| `fetchV3PopularTokens(chainIds, queryOptions?, options?)`                               | Get popular tokens                           |
+| `fetchTopAssets(chainId, options?)`                                                     | Get top assets for chain                     |
+| `fetchV1SuggestedOccurrenceFloors(options?)`                                            | Get suggested occurrence floors              |
+| `getNetworksQueryOptions(options?)` … `getV1SuggestedOccurrenceFloorsQueryOptions(...)` | Return TanStack Query options for each fetch |
 
 #### TokensApiClient
 
 Handles bulk token operations and supported network queries.
 
-| Method                            | Description                                                 |
-| --------------------------------- | ----------------------------------------------------------- |
-| `fetchTokenV1SupportedNetworks()` | Get token-supported networks (v1)                           |
-| `fetchTokenV2SupportedNetworks()` | Get token-supported networks with full/partial support (v2) |
-| `fetchV3Assets(assetIds)`         | Fetch assets by CAIP-19 IDs                                 |
-| `invalidateTokens()`              | Invalidate all token cache                                  |
+| Method                                                                               | Description                                                 |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| `fetchTokenV1SupportedNetworks(options?)`                                            | Get token-supported networks (v1)                           |
+| `fetchTokenV2SupportedNetworks(options?)`                                            | Get token-supported networks with full/partial support (v2) |
+| `fetchV3Assets(assetIds, queryOptions?, fetchOptions?)`                              | Fetch assets by CAIP-19 IDs                                 |
+| `getTokenV1SupportedNetworksQueryOptions(options?)` … `getV3AssetsQueryOptions(...)` | Return TanStack Query options for each fetch                |
+| `invalidateTokens()`                                                                 | Invalidate all token cache                                  |
 
 ### Configuration
 
