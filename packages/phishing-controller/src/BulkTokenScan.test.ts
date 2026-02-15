@@ -689,9 +689,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
         expect(scope.isDone()).toBe(true);
         // Result key should preserve original casing
         expect(result[originalCaseToken]).toBeDefined();
-        expect(
-          result[originalCaseToken.toLowerCase()],
-        ).toBeUndefined();
+        expect(result[originalCaseToken.toLowerCase()]).toBeUndefined();
       });
 
       it('should cache Solana token results', async () => {

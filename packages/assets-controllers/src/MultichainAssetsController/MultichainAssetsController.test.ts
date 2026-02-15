@@ -20,6 +20,7 @@ import type {
 } from '@metamask/messenger';
 import type { PermissionConstraint } from '@metamask/permission-controller';
 import type { SubjectPermissions } from '@metamask/permission-controller';
+import type { BulkTokenScanResponse } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 import type { Snap } from '@metamask/snaps-utils';
 import { useFakeTimers } from 'sinon';
@@ -1681,10 +1682,7 @@ describe('MultichainAssetsController', () => {
 
       // Mark the last token in each batch as spam to verify both batches are processed
       mockBulkScanTokens.mockImplementation((request: { tokens: string[] }) => {
-        const results: Record<
-          string,
-          { result_type: string; chain: string; address: string }
-        > = {};
+        const results: BulkTokenScanResponse = {};
         for (const addr of request.tokens) {
           // Token099 (last in batch 1) and Token149 (last in batch 2) are spam
           if (addr === 'Token099' || addr === 'Token149') {
@@ -1756,10 +1754,7 @@ describe('MultichainAssetsController', () => {
         callCount += 1;
         // First batch succeeds — marks Token099 as spam
         if (callCount === 1) {
-          const results: Record<
-            string,
-            { result_type: string; chain: string; address: string }
-          > = {};
+          const results: BulkTokenScanResponse = {};
           for (const addr of request.tokens) {
             results[addr] = {
               result_type:
