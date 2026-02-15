@@ -537,8 +537,8 @@ async function calculateSourceNetworkCost(
         gasLimits = [originalTxGas, ...gasLimits];
       }
 
-      totalGasEstimate = gasLimits.reduce((acc, gas) => acc + gas, 0);
-      totalGasLimit = totalGasEstimate;
+      totalGasEstimate += originalTxGas;
+      totalGasLimit += originalTxGas;
 
       log('Combined original tx gas with relay gas', {
         originalTxGas,

@@ -864,6 +864,56 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].original.metamask.gasLimits).toStrictEqual([21000]);
     });
 
+    it('preserves estimate vs limit distinction when using fallback gas for post-quote', async () => {
+      // Use a quote whose relay step has NO gas param so the single-path
+      // estimation is attempted; make it fail to trigger the fallback path
+      // where estimate (900 000) != max (1 500 000).
+      const noGasQuote = cloneDeep(QUOTE_MOCK);
+      delete noGasQuote.steps[0].items[0].data.gas;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => noGasQuote,
+      } as never);
+
+      estimateGasMock.mockRejectedValue(new Error('Estimation failed'));
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x9' as Hex,
+            data: '0xaaa' as Hex,
+            gas: '0x13498', // 79 000
+            value: '0',
+          },
+        } as TransactionMeta,
+      });
+
+      // Fallback: estimate=900000, max=1500000.
+      // With originalTxGas=79000 added independently:
+      //   estimate call should receive 900000+79000 = 979000
+      //   max call should receive      1500000+79000 = 1579000
+      const estimateCall = calculateGasCostMock.mock.calls.find(
+        ([args]) => !args.isMax,
+      );
+      const maxCall = calculateGasCostMock.mock.calls.find(
+        ([args]) => args.isMax,
+      );
+
+      expect(estimateCall?.[0].gas).toBe(979000);
+      expect(maxCall?.[0].gas).toBe(1579000);
+    });
+
     it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
