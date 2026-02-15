@@ -24,7 +24,10 @@ import type {
   PermissionConstraint,
   SubjectPermissions,
 } from '@metamask/permission-controller';
-import type { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
+import type {
+  BulkTokenScanResponse,
+  PhishingControllerBulkScanTokensAction,
+} from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 import type {
   GetAllSnaps,
@@ -752,28 +755,49 @@ export class MultichainAssetsController extends BaseController<
     // Build a set of assets to reject (non-benign tokens)
     const rejectedAssets = new Set<CaipAssetType>();
 
+    // PhishingController:bulkScanTokens rejects requests with more than
+    // 100 tokens (returning {}). Batch addresses into chunks to stay within
+    // the limit.
+    const BATCH_SIZE = 100;
+
     for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {
       const addresses = tokenEntries.map((entry) => entry.address);
 
-      try {
-        const scanResponse = await this.messenger.call(
-          'PhishingController:bulkScanTokens',
-          { chainId: chainName, tokens: addresses },
-        );
+      // Create batches of BATCH_SIZE
+      const batches: string[][] = [];
+      for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
+        batches.push(addresses.slice(i, i + BATCH_SIZE));
+      }
 
-        for (const entry of tokenEntries) {
-          const result = scanResponse[entry.address];
-          // Reject the token only if we have a definitive non-benign result
-          if (
-            result?.result_type &&
-            result.result_type !== TokenScanResultType.Benign
-          ) {
-            rejectedAssets.add(entry.asset);
-          }
+      // Scan all batches in parallel. Using Promise.allSettled so that a
+      // single batch failure doesn't discard results from successful batches
+      // (fail open at the batch level, not the chain level).
+      const batchResults = await Promise.allSettled(
+        batches.map((batch) =>
+          this.messenger.call('PhishingController:bulkScanTokens', {
+            chainId: chainName,
+            tokens: batch,
+          }),
+        ),
+      );
+
+      // Merge results from fulfilled batches (rejected batches fail open)
+      const scanResponse: BulkTokenScanResponse = {};
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          Object.assign(scanResponse, result.value);
         }
-      } catch {
-        // If the scan fails, keep all tokens (fail open)
-        continue;
+      }
+
+      for (const entry of tokenEntries) {
+        const result = scanResponse[entry.address];
+        // Reject the token only if we have a definitive non-benign result
+        if (
+          result?.result_type &&
+          result.result_type !== TokenScanResultType.Benign
+        ) {
+          rejectedAssets.add(entry.asset);
+        }
       }
     }
 
