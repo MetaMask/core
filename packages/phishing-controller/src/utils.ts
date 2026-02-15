@@ -423,10 +423,20 @@ export const generateParentDomains = (
  *
  * @param chainId - The chain ID.
  * @param address - The token address.
+ * @param caseSensitive - When `true`, the address is kept as-is (for chains
+ * like Solana where addresses are case-sensitive). When `false` (default),
+ * the address is lowercased (appropriate for EVM).
  * @returns The cache key.
  */
-export const buildCacheKey = (chainId: string, address: string) => {
-  return `${chainId.toLowerCase()}:${address.toLowerCase()}`;
+export const buildCacheKey = (
+  chainId: string,
+  address: string,
+  caseSensitive = false,
+) => {
+  const normalizedAddress = caseSensitive ? address : address.toLowerCase();
+  const key = `${chainId.toLowerCase()}:${normalizedAddress}`;
+  console.log(`[buildCacheKey] chainId=${chainId}, address=${address}, caseSensitive=${caseSensitive} => key="${key}"`);
+  return key;
 };
 
 /**
@@ -469,8 +479,9 @@ export const splitCacheHits = (
 
   for (const address of tokens) {
     const normalizedAddress = caseSensitive ? address : address.toLowerCase();
-    const key = buildCacheKey(chainId, normalizedAddress);
+    const key = buildCacheKey(chainId, normalizedAddress, caseSensitive);
     const hit = cache.get(key);
+    console.log(`[splitCacheHits] address=${address}, normalizedAddress=${normalizedAddress}, key="${key}", cacheHit=${!!hit}`);
     if (hit) {
       cachedResults[normalizedAddress] = {
         result_type: hit.result_type,

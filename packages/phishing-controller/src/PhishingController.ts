@@ -1366,6 +1366,7 @@ export class PhishingController extends BaseController<
         chain,
         tokensToFetch,
       );
+      console.log('🚀 ~ PhishingController ~ apiResponse:', apiResponse);
 
       if (apiResponse?.results) {
         // Process API results and update cache
@@ -1386,6 +1387,10 @@ export class PhishingController extends BaseController<
             const cacheKey = buildCacheKey(
               normalizedChainId,
               normalizedAddress,
+              caseSensitive,
+            );
+            console.log(
+              `[bulkScanTokens] CACHE WRITE key="${cacheKey}", result_type=${tokenResult.result_type}`,
             );
             this.#tokenScanCache.set(cacheKey, {
               result_type: tokenResult.result_type,

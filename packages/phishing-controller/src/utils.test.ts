@@ -1131,6 +1131,24 @@ describe('buildCacheKey', () => {
     const result = buildCacheKey(chainId, address);
     expect(result).toBe('0x89:0xabcdef123456');
   });
+
+  it('should preserve address casing when caseSensitive is true', () => {
+    const chainId = 'solana';
+    const address = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+    const result = buildCacheKey(chainId, address, true);
+    expect(result).toBe(
+      'solana:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+    );
+  });
+
+  it('should lowercase address when caseSensitive is false (default)', () => {
+    const chainId = 'solana';
+    const address = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+    const result = buildCacheKey(chainId, address);
+    expect(result).toBe(
+      'solana:gh9zwemdlj8dsckntktqpbnwlnnbjuszag9vp2kgtkjr',
+    );
+  });
 });
 
 describe('resolveChainName', () => {
