@@ -740,6 +740,42 @@ describe('Relay Quotes Utils', () => {
       ]);
     });
 
+    it('prefers nestedTransactions gas over txParams.gas for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      getGasBufferMock.mockReturnValue(1);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x9' as Hex,
+            data: '0xaaa' as Hex,
+            gas: '0x13498',
+            value: '0',
+          },
+          nestedTransactions: [{ gas: '0xC350' }],
+        } as TransactionMeta,
+      });
+
+      // nestedTransactions gas (0xC350 = 50000) used instead of txParams.gas (79000)
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        50000, 21000,
+      ]);
+    });
+
     it('adds original transaction gas to EIP-7702 combined gas limit for post-quote', async () => {
       const multiStepQuote = {
         ...QUOTE_MOCK,
@@ -796,6 +832,36 @@ describe('Relay Quotes Utils', () => {
 
       // EIP-7702: original tx gas (79000) added to combined relay gas (51000)
       expect(result[0].original.metamask.gasLimits).toStrictEqual([130000]);
+    });
+
+    it('skips original transaction gas when txParams.gas is missing for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x9' as Hex,
+            data: '0xaaa' as Hex,
+            value: '0',
+          },
+        } as TransactionMeta,
+      });
+
+      // No gas on txParams or nestedTransactions — only relay gas limits
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([21000]);
     });
 
     it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
