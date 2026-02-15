@@ -14,8 +14,20 @@ import { RpcDataSource, createRpcDataSource } from './RpcDataSource';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import type { ChainId, DataRequest, Context } from '../types';
 
+type TransactionConfirmedPayload = { chainId?: string };
+type IncomingTransactionsPayload = { chainId?: string }[];
+
 type AllActions = RpcDataSourceAllowedActions;
-type AllEvents = RpcDataSourceAllowedEvents;
+type AllEvents =
+  | RpcDataSourceAllowedEvents
+  | {
+      type: 'TransactionController:transactionConfirmed';
+      payload: [TransactionConfirmedPayload];
+    }
+  | {
+      type: 'TransactionController:incomingTransactionsReceived';
+      payload: [IncomingTransactionsPayload];
+    };
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const MOCK_CHAIN_ID_HEX = '0x1';
@@ -169,7 +181,11 @@ async function withController<ReturnValue>(
       'TokenListController:getState',
       'NetworkEnablementController:getState',
     ],
-    events: ['NetworkController:stateChange'],
+    events: [
+      'NetworkController:stateChange',
+      'TransactionController:transactionConfirmed',
+      'TransactionController:incomingTransactionsReceived',
+    ],
   });
 
   // Mock NetworkController:getState
@@ -581,6 +597,62 @@ describe('RpcDataSource', () => {
         await middleware(context, next);
 
         expect(next).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('transaction events', () => {
+    it('calls refreshBalances and refreshDetectedTokens when transactionConfirmed is published', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const refreshBalancesSpy = jest
+          .spyOn(controller, 'refreshBalances')
+          .mockResolvedValue();
+        const refreshDetectedTokensSpy = jest
+          .spyOn(controller, 'refreshDetectedTokens')
+          .mockResolvedValue();
+
+        (messenger.publish as CallableFunction)(
+          'TransactionController:transactionConfirmed',
+          { chainId: MOCK_CHAIN_ID_HEX },
+        );
+        await new Promise(process.nextTick);
+
+        expect(refreshBalancesSpy).toHaveBeenCalled();
+        expect(refreshDetectedTokensSpy).toHaveBeenCalled();
+      });
+    });
+
+    it('calls refreshBalances and refreshDetectedTokens when incomingTransactionsReceived is published', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const refreshBalancesSpy = jest
+          .spyOn(controller, 'refreshBalances')
+          .mockResolvedValue();
+        const refreshDetectedTokensSpy = jest
+          .spyOn(controller, 'refreshDetectedTokens')
+          .mockResolvedValue();
+
+        (messenger.publish as CallableFunction)(
+          'TransactionController:incomingTransactionsReceived',
+          [{ chainId: MOCK_CHAIN_ID_HEX }],
+        );
+        await new Promise(process.nextTick);
+
+        expect(refreshBalancesSpy).toHaveBeenCalled();
+        expect(refreshDetectedTokensSpy).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('refreshBalances and refreshDetectedTokens', () => {
+    it('refreshBalances is callable and does not throw when no subscriptions', async () => {
+      await withController(async ({ controller }) => {
+        expect(await controller.refreshBalances()).toBeUndefined();
+      });
+    });
+
+    it('refreshDetectedTokens is callable and does not throw', async () => {
+      await withController(async ({ controller }) => {
+        expect(await controller.refreshDetectedTokens()).toBeUndefined();
       });
     });
   });

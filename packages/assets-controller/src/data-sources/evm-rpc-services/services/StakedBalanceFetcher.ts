@@ -2,7 +2,7 @@ import { Interface } from '@ethersproject/abi';
 import { Web3Provider } from '@ethersproject/providers';
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 
-import { Address, AccountId, ChainId } from '../types';
+import type { Address, AccountId, ChainId } from '../types';
 import { chainIdToHex, weiToHumanReadable } from '../utils';
 
 export type StakedBalancePollingInput = {
@@ -18,6 +18,23 @@ export type StakedBalancePollingInput = {
 export type StakedBalance = {
   amount: string;
 };
+
+/** Result reported via the update callback. */
+export type StakedBalanceFetchResult = {
+  /** Account ID (UUID). */
+  accountId: AccountId;
+  /** Hex chain ID. */
+  chainId: ChainId;
+  /** Human-readable staked balance. */
+  balance: StakedBalance;
+};
+
+/**
+ * Callback type for staked balance updates.
+ */
+export type OnStakedBalanceUpdateCallback = (
+  result: StakedBalanceFetchResult,
+) => void;
 
 /** Staking contract addresses by chain ID (hex). Same as AccountTrackerController / assets-controllers. */
 const STAKING_CONTRACT_ADDRESS_BY_CHAINID: Record<string, string> = {
@@ -56,8 +73,31 @@ export type StakedBalanceFetcherConfig = {
 
 const DEFAULT_STAKED_BALANCE_INTERVAL = 180_000; // 3 minutes
 
+/**
+ * Returns the set of hex chain IDs that have a known staking contract.
+ *
+ * @returns Array of hex chain IDs.
+ */
+export function getSupportedStakingChainIds(): string[] {
+  return Object.keys(STAKING_CONTRACT_ADDRESS_BY_CHAINID);
+}
+
+/**
+ * Returns the staking contract address for a chain, or undefined if not supported.
+ *
+ * @param hexChainId - Hex chain ID (e.g. "0x1").
+ * @returns Contract address (checksummed as stored) or undefined.
+ */
+export function getStakingContractAddress(
+  hexChainId: string,
+): string | undefined {
+  return STAKING_CONTRACT_ADDRESS_BY_CHAINID[hexChainId];
+}
+
 export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<StakedBalancePollingInput>() {
   readonly #providerGetter?: (chainId: ChainId) => Web3Provider | undefined;
+
+  #onStakedBalanceUpdate: OnStakedBalanceUpdateCallback | undefined;
 
   constructor(config?: StakedBalanceFetcherConfig) {
     super();
@@ -68,37 +108,34 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
     );
   }
 
-  async _executePoll(input: StakedBalancePollingInput): Promise<void> {
-    await this.fetchStakedBalance(input);
-    // Optional: push staked balance to state via callback when wired
+  /**
+   * Register a callback that is invoked after every successful poll with
+   * a non-zero staked balance.
+   *
+   * @param callback - The callback to invoke.
+   */
+  setOnStakedBalanceUpdate(callback: OnStakedBalanceUpdateCallback): void {
+    this.#onStakedBalanceUpdate = callback;
   }
 
-  /**
-   * Returns the Web3Provider for the given chain.
-   *
-   * @param chainId - Chain ID (CAIP-2 or hex).
-   * @returns The provider for the chain.
-   */
-  #getNetworkProvider(chainId: ChainId): Web3Provider {
-    const getter = this.#providerGetter;
-    if (!getter) {
-      throw new Error(
-        `StakedBalanceFetcher: no provider for chain ${chainId}. Set getNetworkProvider in config.`,
-      );
+  async _executePoll(input: StakedBalancePollingInput): Promise<void> {
+    const result = await this.fetchStakedBalance(input);
+
+    if (this.#onStakedBalanceUpdate && result.amount !== '0') {
+      this.#onStakedBalanceUpdate({
+        accountId: input.accountId,
+        chainId: input.chainId,
+        balance: result,
+      });
     }
-    const provider = getter(chainId);
-    if (!provider) {
-      throw new Error(
-        `StakedBalanceFetcher: no provider for chain ${chainId}. Set getNetworkProvider in config.`,
-      );
-    }
-    return provider;
   }
 
   /**
    * Fetches the staked balance for an account on a chain using the same
    * staking contract as AccountTrackerController (getShares then convertToAssets).
    * Returns a human-readable amount string (e.g. "1.5" for 1.5 ETH).
+   * When no provider is configured or the getter returns undefined, returns zero
+   * so that polling does not throw (e.g. in tests or when provider is not yet available).
    *
    * @param input - Chain, account ID, and address to query.
    * @returns Human-readable staked balance (amount string).
@@ -107,7 +144,12 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
     input: StakedBalancePollingInput,
   ): Promise<StakedBalance> {
     const { chainId, accountAddress } = input;
-    const provider = this.#getNetworkProvider(chainId);
+    const provider = this.#providerGetter?.(chainId);
+    if (!provider) {
+      // No provider (e.g. not yet available or not configured). Skip this cycle;
+      // polling will run again on the next interval.
+      return { amount: '0' };
+    }
     const hexChainId = chainIdToHex(chainId);
     const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[hexChainId];
 

@@ -12,3 +12,12 @@ export {
   type BalancePollingInput,
   type OnBalanceUpdateCallback,
 } from './BalanceFetcher';
+export {
+  StakedBalanceFetcher,
+  getSupportedStakingChainIds,
+  getStakingContractAddress,
+  type StakedBalanceFetcherConfig,
+  type StakedBalancePollingInput,
+  type StakedBalanceFetchResult,
+  type OnStakedBalanceUpdateCallback,
+} from './StakedBalanceFetcher';

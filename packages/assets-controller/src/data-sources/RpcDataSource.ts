@@ -339,6 +339,39 @@ export class RpcDataSource extends AbstractDataSource<
 
     this.#subscribeToNetworkController();
     this.#initializeFromNetworkController();
+
+    const unsubConfirmed = this.#messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      this.#onTransactionEvent.bind(this),
+    );
+    this.#unsubscribeTransactionConfirmed =
+      typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
+
+    const unsubIncoming = this.#messenger.subscribe(
+      'TransactionController:incomingTransactionsReceived',
+      this.#onTransactionEvent.bind(this),
+    );
+    this.#unsubscribeIncomingTransactions =
+      typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
+  }
+
+  readonly #unsubscribeTransactionConfirmed: (() => void) | undefined =
+    undefined;
+
+  readonly #unsubscribeIncomingTransactions: (() => void) | undefined =
+    undefined;
+
+  /**
+   * Called on transaction confirmed or incoming. Refreshes RPC balances and token detection.
+   * Only needed for RPC; websocket/API update automatically. Staked balance is refreshed by StakedBalanceDataSource.
+   */
+  #onTransactionEvent(): void {
+    this.refreshBalances().catch((error) => {
+      log('refreshBalances after transaction failed', { error });
+    });
+    this.refreshDetectedTokens().catch((error) => {
+      log('refreshDetectedTokens after transaction failed', { error });
+    });
   }
 
   /**
@@ -982,6 +1015,80 @@ export class RpcDataSource extends AbstractDataSource<
     }
   }
 
+  /**
+   * Refresh balances for all currently subscribed accounts and chains, then
+   * push updates to the controller. Can be called from UI or after transaction events.
+   */
+  async refreshBalances(): Promise<void> {
+    const subscription = this.#activeSubscriptions.values().next().value as
+      | SubscriptionData
+      | undefined;
+    if (!subscription) {
+      return;
+    }
+
+    const request: DataRequest = {
+      accountsWithSupportedChains: subscription.accounts.map((account) => ({
+        account,
+        supportedChains: subscription.chains,
+      })),
+      chainIds: subscription.chains,
+      dataTypes: ['balance'],
+      assetTypes: ['fungible'],
+    };
+
+    const response = await this.fetch(request);
+    if (
+      response.assetsBalance &&
+      Object.keys(response.assetsBalance).length > 0
+    ) {
+      for (const sub of this.#activeSubscriptions.values()) {
+        sub.onAssetsUpdate(response)?.catch((error) => {
+          log('Failed to update assets in refreshBalances', { error });
+        });
+      }
+    }
+  }
+
+  /**
+   * Run token detection for all currently subscribed accounts and chains, then
+   * push updates to the controller. Can be called from UI or after transaction events.
+   */
+  async refreshDetectedTokens(): Promise<void> {
+    if (!this.#tokenDetectionEnabled() || !this.#useExternalService()) {
+      return;
+    }
+
+    for (const subscription of this.#activeSubscriptions.values()) {
+      for (const account of subscription.accounts) {
+        const { address, id: accountId } = account;
+        for (const chainId of subscription.chains) {
+          try {
+            const hexChainId = caipChainIdToHex(chainId);
+            const result = await this.#tokenDetector.detectTokens(
+              hexChainId,
+              accountId,
+              address as Address,
+              {
+                tokenDetectionEnabled: this.#tokenDetectionEnabled(),
+                useExternalService: this.#useExternalService(),
+              },
+            );
+            if (result.detectedAssets.length > 0) {
+              this.#handleDetectionUpdate(result);
+            }
+          } catch (error) {
+            log('Token detection failed in refreshDetectedTokens', {
+              chainId,
+              accountId,
+              error,
+            });
+          }
+        }
+      }
+    }
+  }
+
   get assetsMiddleware(): Middleware {
     return async (context, next) => {
       const { request } = context;
@@ -1286,6 +1393,9 @@ export class RpcDataSource extends AbstractDataSource<
 
     // Clear subscriptions
     this.#activeSubscriptions.clear();
+
+    this.#unsubscribeTransactionConfirmed?.();
+    this.#unsubscribeIncomingTransactions?.();
 
     // Clear caches
     this.#providerCache.clear();

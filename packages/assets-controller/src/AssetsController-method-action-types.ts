@@ -26,6 +26,33 @@ export type AssetsControllerGetAssetsPriceAction = {
 };
 
 /**
+ * Refresh balances from RPC for all subscribed accounts/chains and update state.
+ * Exposed for UI (e.g. pull-to-refresh). Also triggered automatically on transaction events.
+ */
+export type AssetsControllerRefreshBalancesAction = {
+  type: `AssetsController:refreshBalances`;
+  handler: AssetsController['refreshBalances'];
+};
+
+/**
+ * Run token detection for all subscribed accounts/chains and update state.
+ * Exposed for UI. Also triggered automatically on transaction events.
+ */
+export type AssetsControllerRefreshDetectedTokensAction = {
+  type: `AssetsController:refreshDetectedTokens`;
+  handler: AssetsController['refreshDetectedTokens'];
+};
+
+/**
+ * Refresh staked balances for all subscribed accounts/chains and update state.
+ * Exposed for UI. Also triggered automatically on transaction events.
+ */
+export type AssetsControllerRefreshStakedBalanceAction = {
+  type: `AssetsController:refreshStakedBalance`;
+  handler: AssetsController['refreshStakedBalance'];
+};
+
+/**
  * Add a custom asset for an account.
  * Custom assets are included in subscription and fetch operations.
  * Adding a custom asset also unhides it if it was previously hidden.
@@ -90,6 +117,9 @@ export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
   | AssetsControllerGetAssetsPriceAction
+  | AssetsControllerRefreshBalancesAction
+  | AssetsControllerRefreshDetectedTokensAction
+  | AssetsControllerRefreshStakedBalanceAction
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction

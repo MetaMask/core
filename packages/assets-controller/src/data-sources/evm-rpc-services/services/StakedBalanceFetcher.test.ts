@@ -49,10 +49,6 @@ function createFetcher(
   return new StakedBalanceFetcher(config);
 }
 
-// =============================================================================
-// TESTS
-// =============================================================================
-
 describe('StakedBalanceFetcher', () => {
   describe('constructor', () => {
     it('accepts empty config', () => {
@@ -131,22 +127,22 @@ describe('StakedBalanceFetcher', () => {
       expect(result).toStrictEqual({ amount: '0' });
     });
 
-    it('throws when getNetworkProvider is not set', async () => {
+    it('returns zero when getNetworkProvider is not set', async () => {
       const fetcher = createFetcher();
 
-      await expect(fetcher.fetchStakedBalance(INPUT)).rejects.toThrow(
-        'StakedBalanceFetcher: no provider for chain',
-      );
+      const result = await fetcher.fetchStakedBalance(INPUT);
+
+      expect(result).toStrictEqual({ amount: '0' });
     });
 
-    it('throws when getNetworkProvider returns undefined', async () => {
+    it('returns zero when getNetworkProvider returns undefined', async () => {
       const fetcher = createFetcher({
         getNetworkProvider: () => undefined,
       });
 
-      await expect(fetcher.fetchStakedBalance(INPUT)).rejects.toThrow(
-        'StakedBalanceFetcher: no provider for chain',
-      );
+      const result = await fetcher.fetchStakedBalance(INPUT);
+
+      expect(result).toStrictEqual({ amount: '0' });
     });
 
     it('works with CAIP-2 chain ID (eip155:1)', async () => {

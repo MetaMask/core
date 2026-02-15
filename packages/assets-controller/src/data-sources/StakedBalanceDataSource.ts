@@ -1,0 +1,769 @@
+import { toChecksumAddress } from '@ethereumjs/util';
+import { Web3Provider } from '@ethersproject/providers';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { NetworkState } from '@metamask/network-controller';
+import {
+  isStrictHexString,
+  isCaipChainId,
+  parseCaipChainId,
+} from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
+
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
+import { AbstractDataSource } from './AbstractDataSource';
+import type {
+  StakedBalancePollingInput,
+  StakedBalanceFetchResult,
+} from './evm-rpc-services';
+import {
+  StakedBalanceFetcher,
+  getStakingContractAddress,
+  getSupportedStakingChainIds,
+} from './evm-rpc-services';
+import type { AssetsControllerMessenger } from '../AssetsController';
+import { projectLogger, createModuleLogger } from '../logger';
+import type {
+  AccountId,
+  ChainId,
+  Caip19AssetId,
+  AssetBalance,
+  AssetMetadata,
+  DataRequest,
+  DataResponse,
+  Middleware,
+} from '../types';
+
+const CONTROLLER_NAME = 'StakedBalanceDataSource';
+const DEFAULT_POLL_INTERVAL = 180_000; // 3 minutes
+
+/** Metadata for staked ETH (same symbol and decimals as native ETH). */
+const STAKED_ETH_METADATA: AssetMetadata = {
+  type: 'erc20',
+  name: 'staked ethereum',
+  symbol: 'ETH',
+  decimals: 18,
+};
+
+const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
+
+// Network client returned by NetworkController
+type NetworkClient = {
+  provider: EthereumProvider;
+  configuration: { chainId: string };
+};
+
+// Ethereum provider interface
+type EthereumProvider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+
+/** Optional configuration for StakedBalanceDataSource. */
+export type StakedBalanceDataSourceConfig = {
+  /** Whether staked balance fetching is enabled (default: true). */
+  enabled?: boolean;
+  /** Polling interval in ms (default: 180s / 3 min). */
+  pollInterval?: number;
+};
+
+export type StakedBalanceDataSourceOptions = StakedBalanceDataSourceConfig & {
+  /** The AssetsController messenger (for accessing NetworkController). */
+  messenger: AssetsControllerMessenger;
+  /** Called when active chains are updated. */
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
+};
+
+/** Subscription data stored for each active subscription. */
+type SubscriptionData = {
+  /** Polling tokens from StakedBalanceFetcher. */
+  pollingTokens: string[];
+  /** Chain IDs being polled. */
+  chains: ChainId[];
+  /** Accounts being polled. */
+  accounts: InternalAccount[];
+  /** Callback to report asset updates. */
+  onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+};
+
+/**
+ * Convert CAIP chain ID or hex chain ID to hex chain ID.
+ *
+ * @param chainId - CAIP chain ID or hex chain ID.
+ * @returns Hex chain ID.
+ */
+function caipChainIdToHex(chainId: string): Hex {
+  if (isStrictHexString(chainId)) {
+    return chainId;
+  }
+
+  if (isCaipChainId(chainId)) {
+    const ref = parseCaipChainId(chainId).reference;
+    return `0x${parseInt(ref, 10).toString(16)}`;
+  }
+
+  throw new Error('caipChainIdToHex - Failed to provide CAIP-2 or Hex chainId');
+}
+
+/**
+ * Build the CAIP-19 asset ID for staked balance (same format as ERC20).
+ * Uses the staking contract address (checksummed) so it is consistent with
+ * other token assets.
+ * Example: "eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df"
+ *
+ * @param chainId - CAIP-2 chain ID (e.g. "eip155:1").
+ * @param contractAddress - Staking contract address (hex).
+ * @returns The staked asset CAIP-19 ID with checksummed address.
+ */
+function stakedAssetId(
+  chainId: ChainId,
+  contractAddress: string,
+): Caip19AssetId {
+  const checksummed = toChecksumAddress(contractAddress);
+  return `${chainId}/erc20:${checksummed}` as Caip19AssetId;
+}
+
+/**
+ * Data source for fetching staked ETH balances via on-chain staking contracts.
+ *
+ * Delegates to {@link StakedBalanceFetcher} for the actual RPC calls
+ * (getShares + convertToAssets on ERC-4626-style staking contracts).
+ * Reports balances as CAIP-19 asset IDs using the ERC20 format with the
+ * staking contract address (e.g. "eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df").
+ *
+ * Only supports chains with known staking contracts (mainnet, Hoodi).
+ * Polling is managed by StakedBalanceFetcher via startPolling/stopPollingByPollingToken.
+ */
+export class StakedBalanceDataSource extends AbstractDataSource<
+  typeof CONTROLLER_NAME,
+  DataSourceState
+> {
+  readonly #messenger: AssetsControllerMessenger;
+
+  readonly #onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
+
+  readonly #pollInterval: number;
+
+  readonly #enabled: boolean;
+
+  /** The StakedBalanceFetcher that handles polling and RPC calls. */
+  readonly #stakedBalanceFetcher: StakedBalanceFetcher;
+
+  /** Active subscriptions by ID. */
+  readonly #activeSubscriptions: Map<string, SubscriptionData> = new Map();
+
+  /** Cache of Web3Provider instances by hex chain ID. */
+  readonly #providerCache: Map<Hex, Web3Provider> = new Map();
+
+  /** Hex chain IDs that have known staking contracts. */
+  readonly #supportedHexChains: string[];
+
+  constructor(options: StakedBalanceDataSourceOptions) {
+    super(CONTROLLER_NAME, { activeChains: [] });
+    this.#messenger = options.messenger;
+    this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    this.#enabled = options.enabled !== false;
+    this.#supportedHexChains = getSupportedStakingChainIds();
+
+    log('Initializing StakedBalanceDataSource', {
+      enabled: this.#enabled,
+      pollInterval: this.#pollInterval,
+    });
+
+    // Create StakedBalanceFetcher with provider getter
+    this.#stakedBalanceFetcher = new StakedBalanceFetcher({
+      pollingInterval: this.#pollInterval,
+      getNetworkProvider: (hexChainId): Web3Provider | undefined =>
+        this.#getProvider(hexChainId),
+    });
+
+    // Wire the callback so polling results flow back to subscriptions
+    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate(
+      this.#handleStakedBalanceUpdate.bind(this),
+    );
+
+    const unsubConfirmed = this.#messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      this.#onTransactionConfirmed.bind(this),
+    );
+    this.#unsubscribeTransactionConfirmed =
+      typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
+
+    const unsubIncoming = this.#messenger.subscribe(
+      'TransactionController:incomingTransactionsReceived',
+      this.#onIncomingTransactions.bind(this),
+    );
+    this.#unsubscribeIncomingTransactions =
+      typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
+
+    this.#initializeActiveChains();
+  }
+
+  readonly #unsubscribeTransactionConfirmed: (() => void) | undefined =
+    undefined;
+
+  readonly #unsubscribeIncomingTransactions: (() => void) | undefined =
+    undefined;
+
+  /**
+   * When a transaction is confirmed, refresh staked balance for the chain from the payload.
+   *
+   * @param payload - From TransactionController:transactionConfirmed.
+   * @param payload.chainId - Hex chain ID of the transaction.
+   */
+  #onTransactionConfirmed(payload: { chainId?: string }): void {
+    if (!this.#enabled) {
+      return;
+    }
+    const hexChainId = payload?.chainId;
+    if (!hexChainId) {
+      return;
+    }
+    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    const toRefresh = this.#getToRefreshForChains([caipChainId]);
+    if (toRefresh.length > 0) {
+      this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
+        log('Failed to refresh staked balance after transaction', { error });
+      });
+    }
+  }
+
+  /**
+   * When incoming transactions are received, refresh staked balance for chains in the payload.
+   *
+   * @param payload - From TransactionController:incomingTransactionsReceived (array of { chainId? }).
+   */
+  #onIncomingTransactions(payload: { chainId?: string }[]): void {
+    if (!this.#enabled) {
+      return;
+    }
+    const chainIds = Array.from(
+      new Set(
+        (payload ?? [])
+          .map((item) => item?.chainId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const caipChainIds = chainIds.map(
+      (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
+    );
+    const toRefresh =
+      caipChainIds.length > 0
+        ? this.#getToRefreshForChains(caipChainIds)
+        : this.#getToRefreshAll();
+    if (toRefresh.length > 0) {
+      this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
+        log('Failed to refresh staked balance after incoming transactions', {
+          error,
+        });
+      });
+    }
+  }
+
+  /**
+   * Build toRefresh list for subscribed (account, chainId) pairs for the given chains.
+   *
+   * @param chainIds - CAIP-2 chain IDs to target.
+   * @returns Pairs of account and chainId to refresh.
+   */
+  #getToRefreshForChains(
+    chainIds: ChainId[],
+  ): { account: InternalAccount; chainId: ChainId }[] {
+    const toRefresh: { account: InternalAccount; chainId: ChainId }[] = [];
+    const chainSet = new Set(chainIds);
+    for (const subscription of this.#activeSubscriptions.values()) {
+      for (const account of subscription.accounts) {
+        for (const chainId of subscription.chains) {
+          if (chainSet.has(chainId)) {
+            toRefresh.push({ account, chainId });
+          }
+        }
+      }
+    }
+    return toRefresh;
+  }
+
+  /**
+   * Build toRefresh list for all subscribed (account, chainId) pairs.
+   *
+   * @returns Pairs of account and chainId to refresh.
+   */
+  #getToRefreshAll(): { account: InternalAccount; chainId: ChainId }[] {
+    const toRefresh: { account: InternalAccount; chainId: ChainId }[] = [];
+    for (const subscription of this.#activeSubscriptions.values()) {
+      for (const account of subscription.accounts) {
+        for (const chainId of subscription.chains) {
+          toRefresh.push({ account, chainId });
+        }
+      }
+    }
+    return toRefresh;
+  }
+
+  /**
+   * Refresh staked balance for all currently subscribed accounts and chains, then
+   * push updates to the controller. Can be called from UI or after transaction events.
+   */
+  async refreshStakedBalance(): Promise<void> {
+    if (!this.#enabled) {
+      return;
+    }
+    const toRefresh = this.#getToRefreshAll();
+    if (toRefresh.length > 0) {
+      await this.#refreshStakedBalanceAfterTransaction(toRefresh);
+    }
+  }
+
+  /**
+   * Fetch staked balance for the given account/chain pairs and push a single
+   * DataResponse to all active subscriptions.
+   *
+   * @param toRefresh - List of { account, chainId } to refresh.
+   */
+  async #refreshStakedBalanceAfterTransaction(
+    toRefresh: { account: InternalAccount; chainId: ChainId }[],
+  ): Promise<void> {
+    const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
+    const assetsBalance: Record<
+      AccountId,
+      Record<Caip19AssetId, AssetBalance>
+    > = {};
+
+    for (const { account, chainId } of toRefresh) {
+      try {
+        const hexChainId = caipChainIdToHex(chainId);
+        const contractAddress = getStakingContractAddress(hexChainId);
+        if (!contractAddress) {
+          continue;
+        }
+
+        const input: StakedBalancePollingInput = {
+          chainId: hexChainId,
+          accountId: account.id,
+          accountAddress: account.address as Hex,
+        };
+
+        const result =
+          await this.#stakedBalanceFetcher.fetchStakedBalance(input);
+        const assetId = stakedAssetId(chainId, contractAddress);
+
+        assetsInfo[assetId] = STAKED_ETH_METADATA;
+        const existing = assetsBalance[account.id];
+        assetsBalance[account.id] = {
+          ...existing,
+          [assetId]: { amount: result.amount },
+        };
+      } catch (error) {
+        log('Failed to fetch staked balance in transaction refresh', {
+          chainId,
+          accountId: account.id,
+          error,
+        });
+      }
+    }
+
+    if (Object.keys(assetsBalance).length > 0) {
+      const response: DataResponse = { assetsInfo, assetsBalance };
+      for (const subscription of this.#activeSubscriptions.values()) {
+        subscription.onAssetsUpdate(response)?.catch((error: unknown) => {
+          log('Failed to report staked balance update after transaction', {
+            error,
+          });
+        });
+      }
+    }
+  }
+
+  /**
+   * Set active chains to those with known staking contracts when enabled; otherwise [].
+   */
+  #initializeActiveChains(): void {
+    const supportedChains = this.#enabled ? this.#getSupportedChains() : [];
+    const previous = [...this.state.activeChains];
+    this.updateActiveChains(supportedChains, (updatedChains) =>
+      this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+    );
+  }
+
+  /**
+   * Determine which staking chains are currently supported.
+   *
+   * @returns CAIP-2 chain IDs for supported staking chains.
+   */
+  #getSupportedChains(): ChainId[] {
+    return this.#supportedHexChains.map((hexChainId) => {
+      const decimal = parseInt(hexChainId, 16).toString();
+      return `eip155:${decimal}` as ChainId;
+    });
+  }
+
+  /**
+   * Get or create a Web3Provider for the given hex chain ID.
+   * Uses the same messenger-cast pattern as RpcDataSource.
+   *
+   * @param hexChainId - The hex chain ID.
+   * @returns Web3Provider instance, or undefined if not available.
+   */
+  #getProvider(hexChainId: Hex): Web3Provider | undefined {
+    const cached = this.#providerCache.get(hexChainId);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const networkState = (
+        this.#messenger as unknown as {
+          call: (action: string) => NetworkState;
+        }
+      ).call('NetworkController:getState');
+
+      const { networkConfigurationsByChainId } = networkState;
+      if (!networkConfigurationsByChainId) {
+        return undefined;
+      }
+
+      const chainConfig = networkConfigurationsByChainId[hexChainId];
+      if (!chainConfig) {
+        return undefined;
+      }
+
+      // Get the first RPC endpoint's network client ID
+      const { rpcEndpoints } = chainConfig;
+      if (!rpcEndpoints || rpcEndpoints.length === 0) {
+        return undefined;
+      }
+
+      const firstEndpoint = rpcEndpoints[0] as {
+        networkClientId?: string;
+      };
+      const networkClientId = firstEndpoint?.networkClientId;
+      if (!networkClientId) {
+        return undefined;
+      }
+
+      const networkClient = (
+        this.#messenger as unknown as {
+          call: (action: string, id: string) => NetworkClient;
+        }
+      ).call('NetworkController:getNetworkClientById', networkClientId);
+
+      if (!networkClient?.provider) {
+        return undefined;
+      }
+
+      const provider = new Web3Provider(networkClient.provider);
+      this.#providerCache.set(hexChainId, provider);
+      return provider;
+    } catch (error) {
+      log('Failed to get provider for chain', { hexChainId, error });
+      return undefined;
+    }
+  }
+
+  /**
+   * Handle a staked balance update from StakedBalanceFetcher.
+   * Converts the result into a DataResponse and forwards it to all active
+   * subscriptions.
+   *
+   * @param result - The staked balance fetch result.
+   */
+  #handleStakedBalanceUpdate(result: StakedBalanceFetchResult): void {
+    const contractAddress = getStakingContractAddress(result.chainId);
+    if (!contractAddress) {
+      return;
+    }
+    const chainIdDecimal = parseInt(result.chainId, 16);
+    const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
+    const assetId = stakedAssetId(caipChainId, contractAddress);
+
+    const response: DataResponse = {
+      assetsInfo: {
+        [assetId]: STAKED_ETH_METADATA,
+      },
+      assetsBalance: {
+        [result.accountId]: {
+          [assetId]: { amount: result.balance.amount },
+        },
+      },
+    };
+
+    log('Staked balance update', {
+      accountId: result.accountId,
+      chainId: caipChainId,
+      amount: result.balance.amount,
+    });
+
+    for (const subscription of this.#activeSubscriptions.values()) {
+      subscription.onAssetsUpdate(response)?.catch((error: unknown) => {
+        log('Failed to report staked balance update', { error });
+      });
+    }
+  }
+
+  /**
+   * Fetch staked balances for all accounts on supported chains.
+   *
+   * @param request - The data request with accounts and chains.
+   * @returns DataResponse with staked balance data.
+   */
+  async fetch(request: DataRequest): Promise<DataResponse> {
+    if (!this.#enabled) {
+      return {};
+    }
+    const response: DataResponse = {};
+    const activeChainsSet = new Set(this.state.activeChains);
+
+    const chainsToFetch = request.chainIds.filter((chainId) =>
+      activeChainsSet.has(chainId),
+    );
+
+    if (chainsToFetch.length === 0) {
+      return response;
+    }
+
+    const balances: Record<AccountId, Record<Caip19AssetId, AssetBalance>> = {};
+
+    for (const {
+      account,
+      supportedChains: accountChains,
+    } of request.accountsWithSupportedChains) {
+      const chains = chainsToFetch.filter((chain) =>
+        accountChains.includes(chain),
+      );
+
+      for (const chainId of chains) {
+        try {
+          const hexChainId = caipChainIdToHex(chainId);
+          const contractAddress = getStakingContractAddress(hexChainId);
+          if (!contractAddress) {
+            continue;
+          }
+
+          const input: StakedBalancePollingInput = {
+            chainId: hexChainId,
+            accountId: account.id,
+            accountAddress: account.address as Hex,
+          };
+
+          const result =
+            await this.#stakedBalanceFetcher.fetchStakedBalance(input);
+
+          if (result.amount !== '0') {
+            balances[account.id] ??= {};
+            const assetId = stakedAssetId(chainId, contractAddress);
+            balances[account.id][assetId] = { amount: result.amount };
+          }
+        } catch (error) {
+          log('Failed to fetch staked balance', {
+            chainId,
+            accountId: account.id,
+            error,
+          });
+        }
+      }
+    }
+
+    if (Object.keys(balances).length > 0) {
+      response.assetsBalance = balances;
+      // Add metadata for each staked asset ID present in balances
+      const assetIds = new Set<Caip19AssetId>();
+      for (const accountBalances of Object.values(balances)) {
+        for (const assetId of Object.keys(accountBalances)) {
+          assetIds.add(assetId as Caip19AssetId);
+        }
+      }
+      response.assetsInfo = {};
+      for (const assetId of assetIds) {
+        response.assetsInfo[assetId] = STAKED_ETH_METADATA;
+      }
+    }
+
+    return response;
+  }
+
+  /**
+   * Assets middleware for the fetch pipeline.
+   * Fetches staked balances and merges them into the response, then passes
+   * all chains to the next middleware (staked balance doesn't claim chains).
+   *
+   * @returns The middleware function for the assets pipeline.
+   */
+  get assetsMiddleware(): Middleware {
+    return async (context, next) => {
+      if (!this.#enabled) {
+        return next(context);
+      }
+      const { request } = context;
+
+      if (!request.dataTypes.includes('balance')) {
+        return next(context);
+      }
+
+      if (request.chainIds.length === 0) {
+        return next(context);
+      }
+
+      try {
+        const fetchResponse = await this.fetch(request);
+
+        if (fetchResponse.assetsInfo) {
+          context.response.assetsInfo ??= {};
+          Object.assign(context.response.assetsInfo, fetchResponse.assetsInfo);
+        }
+        if (fetchResponse.assetsBalance) {
+          context.response.assetsBalance ??= {};
+          for (const [accountId, accountBalances] of Object.entries(
+            fetchResponse.assetsBalance,
+          )) {
+            context.response.assetsBalance[accountId] = {
+              ...context.response.assetsBalance[accountId],
+              ...accountBalances,
+            };
+          }
+        }
+      } catch (error) {
+        log('Middleware fetch failed', { error });
+      }
+
+      // Pass all chains through (staked balance doesn't claim chains)
+      return next(context);
+    };
+  }
+
+  /**
+   * Subscribe to staked balance updates with polling.
+   * Starts polling via StakedBalanceFetcher for each account/chain combination.
+   *
+   * @param subscriptionRequest - The subscription request details.
+   */
+  async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
+    const { request, subscriptionId, isUpdate } = subscriptionRequest;
+
+    const activeChainsSet = new Set(this.state.activeChains);
+    const chainsToSubscribe = request.chainIds.filter((chainId) =>
+      activeChainsSet.has(chainId),
+    );
+
+    log('Subscribe requested', {
+      subscriptionId,
+      isUpdate,
+      chainsToSubscribe,
+    });
+
+    if (chainsToSubscribe.length === 0) {
+      log('No staking chains to subscribe');
+      return;
+    }
+
+    // Handle subscription update - restart polling for new chains
+    if (isUpdate) {
+      const existing = this.#activeSubscriptions.get(subscriptionId);
+      if (existing) {
+        log('Updating existing subscription - restarting polling', {
+          subscriptionId,
+        });
+      }
+    }
+
+    // Clean up existing subscription (stops old polling)
+    await this.unsubscribe(subscriptionId);
+
+    // Start polling through StakedBalanceFetcher for each account/chain
+    const pollingTokens: string[] = [];
+
+    for (const {
+      account,
+      supportedChains: accountChains,
+    } of request.accountsWithSupportedChains) {
+      const chainsForAccount = chainsToSubscribe.filter((chain) =>
+        accountChains.includes(chain),
+      );
+
+      for (const chainId of chainsForAccount) {
+        const hexChainId = caipChainIdToHex(chainId);
+
+        const input: StakedBalancePollingInput = {
+          chainId: hexChainId,
+          accountId: account.id,
+          accountAddress: account.address as Hex,
+        };
+
+        const pollingToken = this.#stakedBalanceFetcher.startPolling(input);
+        pollingTokens.push(pollingToken);
+      }
+    }
+
+    // Store subscription data
+    const accounts = request.accountsWithSupportedChains.map(
+      (entry) => entry.account,
+    );
+    this.#activeSubscriptions.set(subscriptionId, {
+      pollingTokens,
+      chains: chainsToSubscribe,
+      accounts,
+      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
+    });
+
+    // Also store in parent activeSubscriptions for cleanup
+    this.activeSubscriptions.set(subscriptionId, {
+      cleanup: () => {
+        for (const token of pollingTokens) {
+          this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
+        }
+        this.#activeSubscriptions.delete(subscriptionId);
+      },
+      chains: chainsToSubscribe,
+      request,
+      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
+    });
+
+    log('Subscription SUCCESS', {
+      subscriptionId,
+      chains: chainsToSubscribe,
+      pollingCount: pollingTokens.length,
+    });
+  }
+
+  /**
+   * Unsubscribe from staked balance updates and stop polling.
+   *
+   * @param subscriptionId - The subscription ID to unsubscribe.
+   */
+  async unsubscribe(subscriptionId: string): Promise<void> {
+    const subscription = this.#activeSubscriptions.get(subscriptionId);
+    if (subscription) {
+      for (const token of subscription.pollingTokens) {
+        this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
+      }
+      this.#activeSubscriptions.delete(subscriptionId);
+    }
+
+    await super.unsubscribe(subscriptionId);
+  }
+
+  /**
+   * Destroy the data source and clean up all resources.
+   */
+  destroy(): void {
+    this.#unsubscribeTransactionConfirmed?.();
+    this.#unsubscribeIncomingTransactions?.();
+    for (const subscription of this.#activeSubscriptions.values()) {
+      for (const token of subscription.pollingTokens) {
+        this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
+      }
+    }
+    this.#activeSubscriptions.clear();
+    this.#providerCache.clear();
+    super.destroy();
+  }
+}
