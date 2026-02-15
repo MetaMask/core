@@ -3,7 +3,20 @@ import { Web3Provider } from '@ethersproject/providers';
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 
 import type { Address, AccountId, ChainId } from '../types';
-import { chainIdToHex, weiToHumanReadable } from '../utils';
+import {
+  getStakingContractAddress,
+  getSupportedStakingChainIds,
+  isStakingContractAssetId,
+  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
+  chainIdToHex,
+  weiToHumanReadable,
+} from '../utils';
+
+export {
+  getStakingContractAddress,
+  getSupportedStakingChainIds,
+  isStakingContractAssetId,
+};
 
 export type StakedBalancePollingInput = {
   /** Chain ID (hex format, e.g. 0x1) */
@@ -36,12 +49,6 @@ export type OnStakedBalanceUpdateCallback = (
   result: StakedBalanceFetchResult,
 ) => void;
 
-/** Staking contract addresses by chain ID (hex). Same as AccountTrackerController / assets-controllers. */
-const STAKING_CONTRACT_ADDRESS_BY_CHAINID: Record<string, string> = {
-  '0x1': '0x4fef9d741011476750a243ac70b9789a63dd47df', // Mainnet
-  '0x88bb0': '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff', // Hoodi
-};
-
 /** Staking contract ABI: getShares(account) and convertToAssets(shares). */
 const STAKING_CONTRACT_ABI = [
   {
@@ -72,27 +79,6 @@ export type StakedBalanceFetcherConfig = {
 };
 
 const DEFAULT_STAKED_BALANCE_INTERVAL = 180_000; // 3 minutes
-
-/**
- * Returns the set of hex chain IDs that have a known staking contract.
- *
- * @returns Array of hex chain IDs.
- */
-export function getSupportedStakingChainIds(): string[] {
-  return Object.keys(STAKING_CONTRACT_ADDRESS_BY_CHAINID);
-}
-
-/**
- * Returns the staking contract address for a chain, or undefined if not supported.
- *
- * @param hexChainId - Hex chain ID (e.g. "0x1").
- * @returns Contract address (checksummed as stored) or undefined.
- */
-export function getStakingContractAddress(
-  hexChainId: string,
-): string | undefined {
-  return STAKING_CONTRACT_ADDRESS_BY_CHAINID[hexChainId];
-}
 
 export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<StakedBalancePollingInput>() {
   readonly #providerGetter?: (chainId: ChainId) => Web3Provider | undefined;

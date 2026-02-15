@@ -17,6 +17,7 @@ export {
   StakedBalanceFetcher,
   getSupportedStakingChainIds,
   getStakingContractAddress,
+  isStakingContractAssetId,
   type BalancePollingInput,
   type DetectionPollingInput,
   type StakedBalancePollingInput,

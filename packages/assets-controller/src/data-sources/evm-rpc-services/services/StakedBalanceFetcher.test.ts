@@ -5,7 +5,10 @@ import type {
   StakedBalanceFetcherConfig,
   StakedBalancePollingInput,
 } from './StakedBalanceFetcher';
-import { StakedBalanceFetcher } from './StakedBalanceFetcher';
+import {
+  StakedBalanceFetcher,
+  isStakingContractAssetId,
+} from './StakedBalanceFetcher';
 
 // =============================================================================
 // CONSTANTS
@@ -48,6 +51,43 @@ function createFetcher(
 ): StakedBalanceFetcher {
   return new StakedBalanceFetcher(config);
 }
+
+describe('isStakingContractAssetId', () => {
+  it('returns true for mainnet staking contract asset ID', () => {
+    expect(
+      isStakingContractAssetId(
+        'eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df',
+      ),
+    ).toBe(true);
+    expect(
+      isStakingContractAssetId(
+        'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df',
+      ),
+    ).toBe(true);
+  });
+
+  it('returns true for Hoodi staking contract asset ID', () => {
+    expect(
+      isStakingContractAssetId(
+        'eip155:560048/erc20:0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff',
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false for other ERC20 asset IDs', () => {
+    expect(
+      isStakingContractAssetId(
+        'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      ),
+    ).toBe(false);
+    expect(isStakingContractAssetId('eip155:1/slip44:60')).toBe(false);
+  });
+
+  it('returns false for malformed asset IDs', () => {
+    expect(isStakingContractAssetId('eip155:1')).toBe(false);
+    expect(isStakingContractAssetId('')).toBe(false);
+  });
+});
 
 describe('StakedBalanceFetcher', () => {
   describe('constructor', () => {
