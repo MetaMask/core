@@ -511,10 +511,7 @@ async function calculateSourceNetworkCost(
     relayParams[0];
 
   // Estimate gas for relay transactions only.
-  const relayGas = await calculateSourceNetworkGasLimit(
-    relayParams,
-    messenger,
-  );
+  const relayGas = await calculateSourceNetworkGasLimit(relayParams, messenger);
 
   let { totalGasEstimate, totalGasLimit, gasLimits } = relayGas;
 
@@ -523,17 +520,12 @@ async function calculateSourceNetworkCost(
   if (request.isPostQuote && transaction.txParams.to) {
     // Prefer the gas from nestedTransactions (preserves the caller-provided
     // value) since TC may re-estimate txParams.gas during batch creation.
-    const nestedGas = transaction.nestedTransactions?.find(
-      (tx) => tx.gas,
-    )?.gas;
+    const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
     const rawGas = nestedGas ?? transaction.txParams.gas;
-    const originalTxGas = rawGas
-      ? new BigNumber(rawGas as string).toNumber()
-      : undefined;
+    const originalTxGas = rawGas ? new BigNumber(rawGas).toNumber() : undefined;
 
     if (originalTxGas !== undefined) {
-      const isEIP7702 =
-        gasLimits.length === 1 && relayParams.length > 1;
+      const isEIP7702 = gasLimits.length === 1 && relayParams.length > 1;
 
       if (isEIP7702) {
         // EIP-7702: single combined gas limit — add the original tx gas
@@ -545,7 +537,7 @@ async function calculateSourceNetworkCost(
         gasLimits = [originalTxGas, ...gasLimits];
       }
 
-      totalGasEstimate = gasLimits.reduce((acc, g) => acc + g, 0);
+      totalGasEstimate = gasLimits.reduce((acc, gas) => acc + gas, 0);
       totalGasLimit = totalGasEstimate;
 
       log('Combined original tx gas with relay gas', {
@@ -958,4 +950,3 @@ function isStablecoin(chainId: string, tokenAddress: string): boolean {
     STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
   );
 }
-
