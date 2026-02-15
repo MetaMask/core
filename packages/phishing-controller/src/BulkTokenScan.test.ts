@@ -617,6 +617,115 @@ describe('PhishingController - Bulk Token Scanning', () => {
       });
     });
 
+    describe('non-EVM chains', () => {
+      it('should work with Solana chain name', async () => {
+        const tokens = [
+          'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+          'SpamTokenAddress',
+        ];
+        const mockApiResponse: TokenScanApiResponse = {
+          results: {
+            Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr: {
+              result_type: TokenScanResultType.Benign,
+            },
+            SpamTokenAddress: {
+              result_type: TokenScanResultType.Spam,
+            },
+          },
+        };
+
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+            chain: 'solana',
+            tokens,
+          })
+          .reply(200, mockApiResponse);
+
+        const request: BulkTokenScanRequest = {
+          chainId: 'solana',
+          tokens,
+        };
+
+        const result = await controller.bulkScanTokens(request);
+
+        expect(scope.isDone()).toBe(true);
+        expect(result).toStrictEqual({
+          Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr: {
+            result_type: TokenScanResultType.Benign,
+            chain: 'solana',
+            address: 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+          },
+          SpamTokenAddress: {
+            result_type: TokenScanResultType.Spam,
+            chain: 'solana',
+            address: 'SpamTokenAddress',
+          },
+        });
+      });
+
+      it('should preserve address casing for Solana tokens', async () => {
+        const originalCaseToken =
+          'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+        const mockApiResponse: TokenScanApiResponse = {
+          results: {
+            [originalCaseToken]: {
+              result_type: TokenScanResultType.Benign,
+            },
+          },
+        };
+
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+            chain: 'solana',
+            tokens: [originalCaseToken],
+          })
+          .reply(200, mockApiResponse);
+
+        const result = await controller.bulkScanTokens({
+          chainId: 'solana',
+          tokens: [originalCaseToken],
+        });
+
+        expect(scope.isDone()).toBe(true);
+        // Result key should preserve original casing
+        expect(result[originalCaseToken]).toBeDefined();
+        expect(
+          result[originalCaseToken.toLowerCase()],
+        ).toBeUndefined();
+      });
+
+      it('should cache Solana token results', async () => {
+        const token = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+        const mockApiResponse: TokenScanApiResponse = {
+          results: {
+            [token]: {
+              result_type: TokenScanResultType.Benign,
+            },
+          },
+        };
+
+        // First call should hit the API
+        const scope1 = nock(SECURITY_ALERTS_BASE_URL)
+          .post(TOKEN_BULK_SCANNING_ENDPOINT)
+          .reply(200, mockApiResponse);
+
+        const result1 = await controller.bulkScanTokens({
+          chainId: 'solana',
+          tokens: [token],
+        });
+        expect(scope1.isDone()).toBe(true);
+
+        // Second call should use cache (no additional API call)
+        const result2 = await controller.bulkScanTokens({
+          chainId: 'solana',
+          tokens: [token],
+        });
+
+        expect(result1).toStrictEqual(result2);
+        expect(result2[token]).toBeDefined();
+      });
+    });
+
     describe('maximum tokens boundary', () => {
       it('should successfully process exactly 100 tokens', async () => {
         const tokens = Array.from(

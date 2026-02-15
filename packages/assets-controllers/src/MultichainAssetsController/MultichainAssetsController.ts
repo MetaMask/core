@@ -10,7 +10,6 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import { timeoutFetch } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   AccountAssetListUpdatedEventPayload,
@@ -25,6 +24,8 @@ import type {
   PermissionConstraint,
   SubjectPermissions,
 } from '@metamask/permission-controller';
+import type { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
+import { TokenScanResultType } from '@metamask/phishing-controller';
 import type {
   GetAllSnaps,
   HandleSnapRequest,
@@ -40,39 +41,6 @@ import { Mutex } from 'async-mutex';
 import { getChainIdsCaveat } from './utils';
 
 const controllerName = 'MultichainAssetsController';
-
-// Blockaid token security scanning constants
-const SECURITY_ALERTS_BASE_URL = 'https://security-alerts.api.cx.metamask.io';
-const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
-const BLOCKAID_SCAN_TIMEOUT_MS = 10_000;
-
-/**
- * Result type from Blockaid token security scan.
- */
-export enum BlockaidResultType {
-  Benign = 'Benign',
-  Spam = 'Spam',
-  Warning = 'Warning',
-  Malicious = 'Malicious',
-}
-
-/**
- * Response shape from the Blockaid token bulk scanning endpoint.
- */
-type BlockaidTokenScanResponse = {
-  results: Record<
-    string,
-    {
-      /* eslint-disable @typescript-eslint/naming-convention */
-      result_type: BlockaidResultType;
-      malicious_score: string;
-      attack_types: Record<string, unknown>;
-      /* eslint-enable @typescript-eslint/naming-convention */
-      chain: string;
-      address: string;
-    }
-  >;
-};
 
 export type MultichainAssetsControllerState = {
   assetsMetadata: {
@@ -173,7 +141,8 @@ type AllowedActions =
   | HandleSnapRequest
   | GetAllSnaps
   | GetPermissions
-  | AccountsControllerListMultichainAccountsAction;
+  | AccountsControllerListMultichainAccountsAction
+  | PhishingControllerBulkScanTokensAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -743,40 +712,11 @@ export class MultichainAssetsController extends BaseController<
   }
 
   /**
-   * Calls the Blockaid token bulk scanning endpoint for a given chain and
-   * set of token addresses.
-   *
-   * @param chain - The chain name for the Blockaid API (e.g. "solana").
-   * @param tokens - The token addresses to scan.
-   * @returns The scan response, or null if the request fails or times out.
-   */
-  async #scanBlockaidTokens(
-    chain: string,
-    tokens: string[],
-  ): Promise<BlockaidTokenScanResponse | null> {
-    try {
-      const response = await timeoutFetch(
-        `${SECURITY_ALERTS_BASE_URL}${TOKEN_BULK_SCANNING_ENDPOINT}`,
-        {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ chain, tokens }),
-        },
-        BLOCKAID_SCAN_TIMEOUT_MS,
-      );
-      return await response.json();
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Filters out tokens flagged as non-benign by Blockaid. Only tokens with
+   * Filters out tokens flagged as non-benign by Blockaid via the
+   * `PhishingController:bulkScanTokens` messenger action. Only tokens with
    * an `assetNamespace` of "token" are scanned (native assets like slip44 are
-   * passed through unfiltered). If the API call fails, all tokens are kept.
+   * passed through unfiltered). If the scan fails, all tokens are kept
+   * (fail open).
    *
    * @param assets - The CAIP asset type list to filter.
    * @returns The filtered list with malicious/spam/warning tokens removed.
@@ -814,22 +754,26 @@ export class MultichainAssetsController extends BaseController<
 
     for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {
       const addresses = tokenEntries.map((entry) => entry.address);
-      const scanResponse = await this.#scanBlockaidTokens(chainName, addresses);
 
-      if (!scanResponse?.results) {
+      try {
+        const scanResponse = await this.messenger.call(
+          'PhishingController:bulkScanTokens',
+          { chainId: chainName, tokens: addresses },
+        );
+
+        for (const entry of tokenEntries) {
+          const result = scanResponse[entry.address];
+          // Reject the token only if we have a definitive non-benign result
+          if (
+            result?.result_type &&
+            result.result_type !== TokenScanResultType.Benign
+          ) {
+            rejectedAssets.add(entry.asset);
+          }
+        }
+      } catch {
         // If the scan fails, keep all tokens (fail open)
         continue;
-      }
-
-      for (const entry of tokenEntries) {
-        const result = scanResponse.results[entry.address];
-        // Reject the token only if we have a definitive non-benign result
-        if (
-          result?.result_type &&
-          result.result_type !== BlockaidResultType.Benign
-        ) {
-          rejectedAssets.add(entry.asset);
-        }
       }
     }
 
