@@ -26,8 +26,9 @@ export type AssetsControllerGetAssetsPriceAction = {
 };
 
 /**
- * Refresh balances from RPC for all subscribed accounts/chains and update state.
- * Exposed for UI (e.g. pull-to-refresh). Also triggered automatically on transaction events.
+ * Refresh balances from RPC for selected accounts/chains and update state.
+ * Exposed for UI (e.g. pull-to-refresh). Only used when RPC is the data source;
+ * websocket/API update automatically. Also triggered on transaction events (RPC path).
  */
 export type AssetsControllerRefreshBalancesAction = {
   type: `AssetsController:refreshBalances`;
@@ -35,8 +36,8 @@ export type AssetsControllerRefreshBalancesAction = {
 };
 
 /**
- * Run token detection for all subscribed accounts/chains and update state.
- * Exposed for UI. Also triggered automatically on transaction events.
+ * Run token detection for selected accounts/chains (RPC path) and update state.
+ * Exposed for UI. Only used when RPC is the data source; websocket/API update automatically.
  */
 export type AssetsControllerRefreshDetectedTokensAction = {
   type: `AssetsController:refreshDetectedTokens`;

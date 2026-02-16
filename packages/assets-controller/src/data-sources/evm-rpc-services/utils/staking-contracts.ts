@@ -1,6 +1,5 @@
-import type { ChainId } from '../types';
-
 import { chainIdToHex } from './parsing';
+import type { ChainId } from '../types';
 
 /** Staking contract addresses by chain ID (hex). Same as AccountTrackerController / assets-controllers. */
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID: Record<string, string> = {
@@ -51,4 +50,3 @@ export function isStakingContractAssetId(assetId: string): boolean {
   const stakingAddress = getStakingContractAddress(hexChainId)?.toLowerCase();
   return stakingAddress !== undefined && address === stakingAddress;
 }
-
