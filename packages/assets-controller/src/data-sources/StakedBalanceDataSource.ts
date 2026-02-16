@@ -801,9 +801,42 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     // Clean up existing subscription (stops old polling)
     await this.unsubscribe(subscriptionId);
 
-    // Start polling through StakedBalanceFetcher for each account/chain
+    // Build subscription data first so it is available when the first poll runs
+    const accountsWithSupportedChains: AccountWithSupportedChains[] =
+      request.accountsWithSupportedChains
+        .map(({ account, supportedChains }) => ({
+          account,
+          supportedChains: chainsToSubscribe.filter((chain) =>
+            supportedChains.includes(chain),
+          ),
+        }))
+        .filter(({ supportedChains }) => supportedChains.length > 0);
+
+    const accounts = accountsWithSupportedChains.map((entry) => entry.account);
     const pollingTokens: string[] = [];
 
+    // Store subscription before startPolling so first poll (setTimeout 0) has the callback
+    this.#activeSubscriptions.set(subscriptionId, {
+      pollingTokens,
+      chains: chainsToSubscribe,
+      accounts,
+      accountsWithSupportedChains,
+      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
+    });
+
+    this.activeSubscriptions.set(subscriptionId, {
+      cleanup: () => {
+        for (const token of pollingTokens) {
+          this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
+        }
+        this.#activeSubscriptions.delete(subscriptionId);
+      },
+      chains: chainsToSubscribe,
+      request,
+      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
+    });
+
+    // Start polling for each account/chain (first poll runs on next tick)
     for (const {
       account,
       supportedChains: accountChains,
@@ -826,38 +859,27 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       }
     }
 
-    // Store subscription data (preserve per-account scope for refresh paths)
-    const accountsWithSupportedChains: AccountWithSupportedChains[] =
-      request.accountsWithSupportedChains
-        .map(({ account, supportedChains }) => ({
-          account,
-          supportedChains: chainsToSubscribe.filter((chain) =>
-            supportedChains.includes(chain),
-          ),
-        }))
-        .filter(({ supportedChains }) => supportedChains.length > 0);
-
-    const accounts = accountsWithSupportedChains.map((entry) => entry.account);
-    this.#activeSubscriptions.set(subscriptionId, {
-      pollingTokens,
-      chains: chainsToSubscribe,
-      accounts,
-      accountsWithSupportedChains,
-      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
-    });
-
-    // Also store in parent activeSubscriptions for cleanup
-    this.activeSubscriptions.set(subscriptionId, {
-      cleanup: () => {
-        for (const token of pollingTokens) {
-          this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
-        }
-        this.#activeSubscriptions.delete(subscriptionId);
-      },
-      chains: chainsToSubscribe,
-      request,
-      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
-    });
+    // Immediate initial fetch so state is updated without waiting for first poll
+    try {
+      const initialRequest: DataRequest = {
+        accountsWithSupportedChains,
+        chainIds: chainsToSubscribe,
+        dataTypes: ['balance'],
+      };
+      const initialResponse = await this.fetch(initialRequest);
+      if (
+        initialResponse.assetsBalance &&
+        Object.keys(initialResponse.assetsBalance).length > 0
+      ) {
+        subscriptionRequest
+          .onAssetsUpdate?.(initialResponse)
+          ?.catch((error) => {
+            log('Initial staked balance update failed', { error });
+          });
+      }
+    } catch (error) {
+      log('Initial staked balance fetch failed', { error });
+    }
 
     log('Subscription SUCCESS', {
       subscriptionId,
