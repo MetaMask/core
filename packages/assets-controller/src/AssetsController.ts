@@ -76,6 +76,7 @@ import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
 import type {
   AccountId,
   AssetPreferences,
+  AssetsUpdateMode,
   ChainId,
   Caip19AssetId,
   AssetMetadata,
@@ -416,6 +417,10 @@ function normalizeResponse(response: DataResponse): DataResponse {
   // Preserve errors (chain IDs don't need normalization)
   if (response.errors) {
     normalized.errors = { ...response.errors };
+  }
+
+  if (response.updateMode) {
+    normalized.updateMode = response.updateMode;
   }
 
   return normalized;
@@ -924,7 +929,7 @@ export class AssetsController extends BaseController<
         sources,
         request,
       );
-      await this.#updateState(response);
+      await this.#updateState({ ...response, updateMode: 'full' });
       if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
         const durationMs = Date.now() - startTime;
@@ -1199,8 +1204,8 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   async #updateState(response: DataResponse): Promise<void> {
-    // Normalize asset IDs (checksum EVM addresses) before storing in state
     const normalizedResponse = normalizeResponse(response);
+    const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
 
     const releaseLock = await this.#controllerMutex.acquire();
 
@@ -1248,20 +1253,35 @@ export class AssetsController extends BaseController<
           )) {
             const previousBalances =
               previousState.assetsBalance[accountId] ?? {};
+            const customAssetIds =
+              (state.customAssets as Record<string, Caip19AssetId[]>)[
+                accountId
+              ] ?? [];
 
-            if (!balances[accountId]) {
-              balances[accountId] = {};
-            }
+            // Full: response is authoritative; preserve custom assets not in response. Merge: response overlays previous.
+            const effective: Record<string, AssetBalance> =
+              mode === 'full'
+                ? ((): Record<string, AssetBalance> => {
+                    const next: Record<string, AssetBalance> = {
+                      ...accountBalances,
+                    };
+                    for (const customId of customAssetIds) {
+                      if (!(customId in next)) {
+                        const prev = previousBalances[customId];
+                        next[customId] =
+                          prev ?? ({ amount: '0' } as AssetBalance);
+                      }
+                    }
+                    return next;
+                  })()
+                : { ...previousBalances, ...accountBalances };
 
-            for (const [assetId, balance] of Object.entries(accountBalances)) {
+            for (const [assetId, balance] of Object.entries(effective)) {
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
               ] as { amount: string } | undefined;
-              const balanceData = balance as { amount: string };
-              const newAmount = balanceData.amount;
+              const newAmount = (balance as { amount: string }).amount;
               const oldAmount = previousBalance?.amount;
-
-              // Track if balance actually changed
               if (oldAmount !== newAmount) {
                 changedBalances.push({
                   accountId,
@@ -1271,8 +1291,7 @@ export class AssetsController extends BaseController<
                 });
               }
             }
-
-            Object.assign(balances[accountId], accountBalances);
+            balances[accountId] = effective;
           }
         }
 
