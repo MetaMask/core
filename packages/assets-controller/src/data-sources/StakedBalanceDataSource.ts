@@ -558,11 +558,10 @@ export class StakedBalanceDataSource extends AbstractDataSource<
           const result =
             await this.#stakedBalanceFetcher.fetchStakedBalance(input);
 
-          if (result.amount !== '0') {
-            balances[account.id] ??= {};
-            const assetId = stakedAssetId(chainId, contractAddress);
-            balances[account.id][assetId] = { amount: result.amount };
-          }
+          // Include zero amounts so merged updates clear prior non-zero state.
+          balances[account.id] ??= {};
+          const assetId = stakedAssetId(chainId, contractAddress);
+          balances[account.id][assetId] = { amount: result.amount };
         } catch (error) {
           log('Failed to fetch staked balance', {
             chainId,

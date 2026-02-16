@@ -96,7 +96,8 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
 
   /**
    * Register a callback that is invoked after every successful poll with
-   * a non-zero staked balance.
+   * the staked balance (including zero). Zero is reported so that merged
+   * updates can clear prior non-zero state.
    *
    * @param callback - The callback to invoke.
    */
@@ -107,7 +108,7 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
   async _executePoll(input: StakedBalancePollingInput): Promise<void> {
     const result = await this.fetchStakedBalance(input);
 
-    if (this.#onStakedBalanceUpdate && result.amount !== '0') {
+    if (this.#onStakedBalanceUpdate) {
       this.#onStakedBalanceUpdate({
         accountId: input.accountId,
         chainId: input.chainId,
