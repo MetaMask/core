@@ -1131,6 +1131,20 @@ describe('buildCacheKey', () => {
     const result = buildCacheKey(chainId, address);
     expect(result).toBe('0x89:0xabcdef123456');
   });
+
+  it('should preserve address casing when caseSensitive is true', () => {
+    const chainId = 'solana';
+    const address = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+    const result = buildCacheKey(chainId, address, true);
+    expect(result).toBe('solana:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr');
+  });
+
+  it('should lowercase address when caseSensitive is false (default)', () => {
+    const chainId = 'solana';
+    const address = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+    const result = buildCacheKey(chainId, address);
+    expect(result).toBe('solana:gh9zwemdlj8dsckntktqpbnwlnnbjuszag9vp2kgtkjr');
+  });
 });
 
 describe('resolveChainName', () => {
@@ -1144,6 +1158,10 @@ describe('resolveChainName', () => {
     expect(resolveChainName('0X1')).toBe('ethereum');
     expect(resolveChainName('0X89')).toBe('polygon');
     expect(resolveChainName('0XA')).toBe('optimism');
+  });
+
+  it('should resolve non-EVM chain names', () => {
+    expect(resolveChainName('solana')).toBe('solana');
   });
 
   it('should return null for unknown chain IDs', () => {
@@ -1245,6 +1263,38 @@ describe('splitCacheHits', () => {
     expect(mockCache.get).toHaveBeenCalledWith('0x1:0xtoken1');
     expect(result.cachedResults).toHaveProperty('0xtoken1');
     expect(result.cachedResults['0xtoken1'].address).toBe('0xtoken1');
+  });
+
+  it('should preserve address casing when caseSensitive is true', () => {
+    const chainId = 'solana';
+    const tokens = ['Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr'];
+
+    mockCache.get.mockReturnValue(undefined);
+
+    const result = splitCacheHits(mockCache, chainId, tokens, true);
+
+    // tokensToFetch should preserve original casing
+    expect(result.tokensToFetch).toStrictEqual([
+      'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+    ]);
+  });
+
+  it('should return cached result with preserved casing when caseSensitive is true', () => {
+    const chainId = 'solana';
+    const token = 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr';
+
+    mockCache.get.mockReturnValue({
+      result_type: 'Benign' as TokenScanResultType,
+    });
+
+    const result = splitCacheHits(mockCache, chainId, [token], true);
+
+    expect(result.cachedResults[token]).toStrictEqual({
+      result_type: 'Benign',
+      chain: 'solana',
+      address: token,
+    });
+    expect(result.tokensToFetch).toStrictEqual([]);
   });
 });
 
