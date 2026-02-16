@@ -526,7 +526,7 @@ function getProbeSourceAmountRaw(
     return undefined;
   }
 
-  const onePercentRaw = sourceAmount
+  const probeRawAmount = sourceAmount
     .multipliedBy(PROBE_AMOUNT_PERCENTAGE)
     .integerValue(BigNumber.ROUND_FLOOR);
   const targetProbeRaw = new BigNumber(1).shiftedBy(
@@ -535,7 +535,7 @@ function getProbeSourceAmountRaw(
 
   const probeRaw = BigNumber.minimum(
     sourceAmount,
-    BigNumber.maximum(onePercentRaw, targetProbeRaw),
+    BigNumber.maximum(probeRawAmount, targetProbeRaw),
   ).integerValue(BigNumber.ROUND_FLOOR);
 
   if (probeRaw.isLessThanOrEqualTo(0)) {
