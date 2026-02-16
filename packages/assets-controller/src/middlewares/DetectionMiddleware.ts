@@ -32,6 +32,10 @@ createModuleLogger(projectLogger, CONTROLLER_NAME);
 export class DetectionMiddleware {
   readonly name = CONTROLLER_NAME;
 
+  getName(): string {
+    return this.name;
+  }
+
   /**
    * Get the middleware for detecting assets without metadata.
    *
