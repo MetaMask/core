@@ -10,10 +10,6 @@ import {
   isStakingContractAssetId,
 } from './StakedBalanceFetcher';
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
-
 const TEST_ADDRESS = '0x9bed78535d6a03a955f1504aadba974d9a29e292';
 const MAINNET_CHAIN_ID = '0x1';
 const INPUT: StakedBalancePollingInput = {
@@ -22,9 +18,6 @@ const INPUT: StakedBalancePollingInput = {
   accountAddress: TEST_ADDRESS as StakedBalancePollingInput['accountAddress'],
 };
 
-// =============================================================================
-// MOCK HELPERS
-// =============================================================================
 
 function createMockProvider(options: {
   sharesWei?: string;
