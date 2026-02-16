@@ -79,14 +79,26 @@ export type StakedBalanceDataSourceOptions = StakedBalanceDataSourceConfig & {
   ) => void;
 };
 
-/** Subscription data stored for each active subscription. */
+/** Per-account supported chains (same shape as in DataRequest). */
+type AccountWithSupportedChains = {
+  account: InternalAccount;
+  supportedChains: ChainId[];
+};
+
+/**
+ * Subscription data stored for each active subscription.
+ * Stores accountsWithSupportedChains so refresh paths use the same per-account
+ * scope as normal subscription setup (avoids querying unsupported chains/accounts).
+ */
 type SubscriptionData = {
   /** Polling tokens from StakedBalanceFetcher. */
   pollingTokens: string[];
-  /** Chain IDs being polled. */
+  /** Chain IDs being polled (union of all account chains). */
   chains: ChainId[];
   /** Accounts being polled. */
   accounts: InternalAccount[];
+  /** Per-account supported chains; used by refreshStakedBalance and transaction handlers. */
+  accountsWithSupportedChains: AccountWithSupportedChains[];
   /** Callback to report asset updates. */
   onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
 };
@@ -282,8 +294,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     const toRefresh: { account: InternalAccount; chainId: ChainId }[] = [];
     const chainSet = new Set(chainIds);
     for (const subscription of this.#activeSubscriptions.values()) {
-      for (const account of subscription.accounts) {
-        for (const chainId of subscription.chains) {
+      for (const {
+        account,
+        supportedChains,
+      } of subscription.accountsWithSupportedChains) {
+        for (const chainId of supportedChains) {
           if (chainSet.has(chainId)) {
             toRefresh.push({ account, chainId });
           }
@@ -301,8 +316,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   #getToRefreshAll(): { account: InternalAccount; chainId: ChainId }[] {
     const toRefresh: { account: InternalAccount; chainId: ChainId }[] = [];
     for (const subscription of this.#activeSubscriptions.values()) {
-      for (const account of subscription.accounts) {
-        for (const chainId of subscription.chains) {
+      for (const {
+        account,
+        supportedChains,
+      } of subscription.accountsWithSupportedChains) {
+        for (const chainId of supportedChains) {
           toRefresh.push({ account, chainId });
         }
       }
@@ -708,14 +726,23 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       }
     }
 
-    // Store subscription data
-    const accounts = request.accountsWithSupportedChains.map(
-      (entry) => entry.account,
-    );
+    // Store subscription data (preserve per-account scope for refresh paths)
+    const accountsWithSupportedChains: AccountWithSupportedChains[] =
+      request.accountsWithSupportedChains
+        .map(({ account, supportedChains }) => ({
+          account,
+          supportedChains: chainsToSubscribe.filter((chain) =>
+            supportedChains.includes(chain),
+          ),
+        }))
+        .filter(({ supportedChains }) => supportedChains.length > 0);
+
+    const accounts = accountsWithSupportedChains.map((entry) => entry.account);
     this.#activeSubscriptions.set(subscriptionId, {
       pollingTokens,
       chains: chainsToSubscribe,
       accounts,
+      accountsWithSupportedChains,
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
