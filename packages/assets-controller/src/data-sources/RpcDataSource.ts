@@ -172,18 +172,28 @@ export type RpcDataSourceOptions = {
   useExternalService?: () => boolean;
 };
 
+/** Per-account supported chains (same shape as in DataRequest). */
+type AccountWithSupportedChains = {
+  account: InternalAccount;
+  supportedChains: ChainId[];
+};
+
 /**
  * Subscription data stored for each active subscription.
+ * Stores accountsWithSupportedChains so refresh paths use the same per-account
+ * scope as normal subscription setup (avoids querying unsupported chains/accounts).
  */
 type SubscriptionData = {
   /** Polling tokens from BalanceFetcher */
   balancePollingTokens: string[];
   /** Polling tokens from TokenDetector */
   detectionPollingTokens: string[];
-  /** Chain IDs being polled */
+  /** Chain IDs being polled (union of all account chains) */
   chains: ChainId[];
   /** Accounts being polled */
   accounts: InternalAccount[];
+  /** Per-account supported chains; used by refreshBalances/refreshDetectedTokens. */
+  accountsWithSupportedChains: AccountWithSupportedChains[];
   /** Callback to report asset updates to the controller */
   onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
 };
@@ -1018,21 +1028,24 @@ export class RpcDataSource extends AbstractDataSource<
   /**
    * Refresh balances for all currently subscribed accounts and chains, then
    * push updates to the controller. Can be called from UI or after transaction events.
+   * Uses per-account supportedChains from subscription so scope matches normal setup.
    */
   async refreshBalances(): Promise<void> {
     const subscription = this.#activeSubscriptions.values().next().value as
       | SubscriptionData
       | undefined;
-    if (!subscription) {
+    const accountsWithSupportedChains =
+      subscription?.accountsWithSupportedChains;
+    if (!accountsWithSupportedChains?.length) {
       return;
     }
 
+    const chainIds = Array.from(
+      new Set(accountsWithSupportedChains.flatMap((a) => a.supportedChains)),
+    );
     const request: DataRequest = {
-      accountsWithSupportedChains: subscription.accounts.map((account) => ({
-        account,
-        supportedChains: subscription.chains,
-      })),
-      chainIds: subscription.chains,
+      accountsWithSupportedChains,
+      chainIds,
       dataTypes: ['balance'],
       assetTypes: ['fungible'],
     };
@@ -1043,7 +1056,7 @@ export class RpcDataSource extends AbstractDataSource<
       Object.keys(response.assetsBalance).length > 0
     ) {
       for (const sub of this.#activeSubscriptions.values()) {
-        sub.onAssetsUpdate(response)?.catch((error) => {
+        sub.onAssetsUpdate(response)?.catch((error: unknown) => {
           log('Failed to update assets in refreshBalances', { error });
         });
       }
@@ -1053,6 +1066,7 @@ export class RpcDataSource extends AbstractDataSource<
   /**
    * Run token detection for all currently subscribed accounts and chains, then
    * push updates to the controller. Can be called from UI or after transaction events.
+   * Uses per-account supportedChains from each subscription so scope matches normal setup.
    */
   async refreshDetectedTokens(): Promise<void> {
     if (!this.#tokenDetectionEnabled() || !this.#useExternalService()) {
@@ -1060,9 +1074,13 @@ export class RpcDataSource extends AbstractDataSource<
     }
 
     for (const subscription of this.#activeSubscriptions.values()) {
-      for (const account of subscription.accounts) {
+      const scope = subscription.accountsWithSupportedChains;
+      if (!scope?.length) {
+        continue;
+      }
+      for (const { account, supportedChains } of scope) {
         const { address, id: accountId } = account;
-        for (const chainId of subscription.chains) {
+        for (const chainId of supportedChains) {
           try {
             const hexChainId = caipChainIdToHex(chainId);
             const result = await this.#tokenDetector.detectTokens(
@@ -1241,15 +1259,24 @@ export class RpcDataSource extends AbstractDataSource<
       }
     }
 
-    // Store subscription data
-    const accounts = request.accountsWithSupportedChains.map(
-      (entry) => entry.account,
-    );
+    // Store subscription data (preserve per-account scope for refresh paths)
+    const accountsWithSupportedChains: AccountWithSupportedChains[] =
+      request.accountsWithSupportedChains
+        .map(({ account, supportedChains }) => ({
+          account,
+          supportedChains: chainsToSubscribe.filter((chain) =>
+            supportedChains.includes(chain),
+          ),
+        }))
+        .filter(({ supportedChains }) => supportedChains.length > 0);
+
+    const accounts = accountsWithSupportedChains.map((entry) => entry.account);
     this.#activeSubscriptions.set(subscriptionId, {
       balancePollingTokens,
       detectionPollingTokens,
       chains: chainsToSubscribe,
       accounts,
+      accountsWithSupportedChains,
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 

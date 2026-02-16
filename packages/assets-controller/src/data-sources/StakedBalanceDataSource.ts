@@ -437,16 +437,22 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         return undefined;
       }
 
-      // Get the first RPC endpoint's network client ID
-      const { rpcEndpoints } = chainConfig;
+      // Use the network's configured default RPC endpoint (same as RpcDataSource).
+      const { rpcEndpoints, defaultRpcEndpointIndex } = chainConfig;
       if (!rpcEndpoints || rpcEndpoints.length === 0) {
         return undefined;
       }
 
-      const firstEndpoint = rpcEndpoints[0] as {
+      const index =
+        typeof defaultRpcEndpointIndex === 'number' &&
+        defaultRpcEndpointIndex >= 0 &&
+        defaultRpcEndpointIndex < rpcEndpoints.length
+          ? defaultRpcEndpointIndex
+          : 0;
+      const defaultEndpoint = rpcEndpoints[index] as {
         networkClientId?: string;
       };
-      const networkClientId = firstEndpoint?.networkClientId;
+      const networkClientId = defaultEndpoint?.networkClientId;
       if (!networkClientId) {
         return undefined;
       }
