@@ -18,6 +18,7 @@ import type {
 import {
   isStrictHexString,
   isCaipChainId,
+  numberToHex,
   parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
@@ -1295,13 +1296,12 @@ export class RpcDataSource extends AbstractDataSource<
       }
       const tokenAddress = parsed.assetReference;
       const { reference } = parseCaipChainId(parsed.chainId);
-      const hexChainId = `0x${parseInt(reference, 10).toString(16)}`;
+      const hexChainId = numberToHex(parseInt(reference, 10));
 
       const tokenListState = (
         this.#messenger as unknown as { call: (a: string) => TokenListState }
       ).call('TokenListController:getState');
-      const chainCacheEntry =
-        tokenListState?.tokensChainsCache?.[hexChainId as `0x${string}`];
+      const chainCacheEntry = tokenListState?.tokensChainsCache?.[hexChainId];
       const chainTokenList = chainCacheEntry?.data;
 
       if (!chainTokenList) {

@@ -5,6 +5,7 @@ import type { NetworkState } from '@metamask/network-controller';
 import {
   isStrictHexString,
   isCaipChainId,
+  numberToHex,
   parseCaipChainId,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -121,7 +122,7 @@ function caipChainIdToHex(chainId: string): Hex {
 
   if (isCaipChainId(chainId)) {
     const ref = parseCaipChainId(chainId).reference;
-    return `0x${parseInt(ref, 10).toString(16)}`;
+    return numberToHex(parseInt(ref, 10));
   }
 
   throw new Error('caipChainIdToHex - Failed to provide CAIP-2 or Hex chainId');
@@ -541,7 +542,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
           continue;
         }
         const { reference } = parseCaipChainId(caip2);
-        const storageKey = `0x${parseInt(reference, 10).toString(16)}`;
+        const storageKey = numberToHex(parseInt(reference, 10));
         if (eip155Map[storageKey]) {
           activeChains.push(caip2);
         }
