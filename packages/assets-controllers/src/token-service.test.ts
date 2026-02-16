@@ -768,7 +768,11 @@ describe('Token service', () => {
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
       // Non-array responses should be converted to empty object with count 0 and error message
-      expect(result).toStrictEqual({ count: 0, data: [], error: 'Unexpected API response format' });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: 'Unexpected API response format',
+      });
     });
 
     it('should handle supported CAIP format chain IDs', async () => {
