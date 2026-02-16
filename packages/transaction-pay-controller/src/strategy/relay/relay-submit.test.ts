@@ -778,5 +778,13 @@ describe('Relay Submit Utils', () => {
 
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
     });
+
+    it('throws descriptive error if balance check fails', async () => {
+      getLiveTokenBalanceMock.mockRejectedValue(new Error('RPC timeout'));
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Cannot validate payment token balance - RPC timeout',
+      );
+    });
   });
 });

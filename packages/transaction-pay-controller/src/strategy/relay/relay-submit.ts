@@ -220,12 +220,20 @@ async function validateSourceBalance(
 ): Promise<void> {
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
 
-  const currentBalance = await getLiveTokenBalance(
-    messenger,
-    from,
-    sourceChainId,
-    sourceTokenAddress,
-  );
+  let currentBalance: string;
+
+  try {
+    currentBalance = await getLiveTokenBalance(
+      messenger,
+      from,
+      sourceChainId,
+      sourceTokenAddress,
+    );
+  } catch (error) {
+    throw new Error(
+      `Cannot validate payment token balance - ${(error as Error).message}`,
+    );
+  }
 
   const requiredAmount = new BigNumber(quote.sourceAmount.raw);
   const balance = new BigNumber(currentBalance);
