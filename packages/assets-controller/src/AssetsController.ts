@@ -995,23 +995,6 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Refresh balances from RPC for selected accounts/chains and update state.
-   * Exposed for UI (e.g. pull-to-refresh). Only used when RPC is the data source;
-   * websocket/API update automatically. Also triggered on transaction events (RPC path).
-   */
-  async refreshBalances(): Promise<void> {
-    await this.#rpcDataSource.refreshBalances();
-  }
-
-  /**
-   * Run token detection for selected accounts/chains (RPC path) and update state.
-   * Exposed for UI. Only used when RPC is the data source; websocket/API update automatically.
-   */
-  async refreshDetectedTokens(): Promise<void> {
-    await this.#rpcDataSource.refreshDetectedTokens();
-  }
-
-  /**
    * Refresh staked balances for all subscribed accounts/chains and update state.
    * Exposed for UI. Also triggered automatically on transaction events.
    */

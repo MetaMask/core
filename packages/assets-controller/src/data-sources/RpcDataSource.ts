@@ -172,28 +172,18 @@ export type RpcDataSourceOptions = {
   useExternalService?: () => boolean;
 };
 
-/** Per-account supported chains (same shape as in DataRequest). */
-type AccountWithSupportedChains = {
-  account: InternalAccount;
-  supportedChains: ChainId[];
-};
-
 /**
  * Subscription data stored for each active subscription.
- * Stores accountsWithSupportedChains so refresh paths use the same per-account
- * scope as normal subscription setup (avoids querying unsupported chains/accounts).
  */
 type SubscriptionData = {
   /** Polling tokens from BalanceFetcher */
   balancePollingTokens: string[];
   /** Polling tokens from TokenDetector */
   detectionPollingTokens: string[];
-  /** Chain IDs being polled (union of all account chains) */
+  /** Chain IDs being polled */
   chains: ChainId[];
   /** Accounts being polled */
   accounts: InternalAccount[];
-  /** Per-account supported chains; used by refreshBalances/refreshDetectedTokens. */
-  accountsWithSupportedChains: AccountWithSupportedChains[];
   /** Callback to report asset updates to the controller */
   onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
 };
@@ -349,39 +339,6 @@ export class RpcDataSource extends AbstractDataSource<
 
     this.#subscribeToNetworkController();
     this.#initializeFromNetworkController();
-
-    const unsubConfirmed = this.#messenger.subscribe(
-      'TransactionController:transactionConfirmed',
-      this.#onTransactionEvent.bind(this),
-    );
-    this.#unsubscribeTransactionConfirmed =
-      typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
-
-    const unsubIncoming = this.#messenger.subscribe(
-      'TransactionController:incomingTransactionsReceived',
-      this.#onTransactionEvent.bind(this),
-    );
-    this.#unsubscribeIncomingTransactions =
-      typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
-  }
-
-  readonly #unsubscribeTransactionConfirmed: (() => void) | undefined =
-    undefined;
-
-  readonly #unsubscribeIncomingTransactions: (() => void) | undefined =
-    undefined;
-
-  /**
-   * Called on transaction confirmed or incoming. Refreshes RPC balances and token detection.
-   * Only needed for RPC; websocket/API update automatically. Staked balance is refreshed by StakedBalanceDataSource.
-   */
-  #onTransactionEvent(): void {
-    this.refreshBalances().catch((error) => {
-      log('refreshBalances after transaction failed', { error });
-    });
-    this.refreshDetectedTokens().catch((error) => {
-      log('refreshDetectedTokens after transaction failed', { error });
-    });
   }
 
   /**
@@ -1025,114 +982,6 @@ export class RpcDataSource extends AbstractDataSource<
     }
   }
 
-  /**
-   * Refresh balances for all currently subscribed accounts and chains, then
-   * push updates to the controller. Can be called from UI or after transaction events.
-   * Aggregates per-account supportedChains from every subscription so all subscribed
-   * accounts/chains are included (merges chains per account when an account appears
-   * in multiple subscriptions).
-   */
-  async refreshBalances(): Promise<void> {
-    const accountChainsMap = new Map<
-      string,
-      { account: InternalAccount; supportedChains: Set<ChainId> }
-    >();
-    for (const subscription of this.#activeSubscriptions.values()) {
-      const scope = subscription.accountsWithSupportedChains;
-      if (!scope?.length) {
-        continue;
-      }
-      for (const { account, supportedChains } of scope) {
-        const existing = accountChainsMap.get(account.id);
-        if (existing) {
-          for (const chainId of supportedChains) {
-            existing.supportedChains.add(chainId);
-          }
-        } else {
-          accountChainsMap.set(account.id, {
-            account,
-            supportedChains: new Set(supportedChains),
-          });
-        }
-      }
-    }
-    const accountsWithSupportedChains = Array.from(
-      accountChainsMap.values(),
-    ).map(({ account, supportedChains }) => ({
-      account,
-      supportedChains: Array.from(supportedChains),
-    }));
-    if (accountsWithSupportedChains.length === 0) {
-      return;
-    }
-
-    const chainIds = Array.from(
-      new Set(accountsWithSupportedChains.flatMap((a) => a.supportedChains)),
-    );
-    const request: DataRequest = {
-      accountsWithSupportedChains,
-      chainIds,
-      dataTypes: ['balance'],
-      assetTypes: ['fungible'],
-    };
-
-    const response = await this.fetch(request);
-    if (
-      response.assetsBalance &&
-      Object.keys(response.assetsBalance).length > 0
-    ) {
-      for (const sub of this.#activeSubscriptions.values()) {
-        sub.onAssetsUpdate(response)?.catch((error: unknown) => {
-          log('Failed to update assets in refreshBalances', { error });
-        });
-      }
-    }
-  }
-
-  /**
-   * Run token detection for all currently subscribed accounts and chains, then
-   * push updates to the controller. Can be called from UI or after transaction events.
-   * Uses per-account supportedChains from each subscription so scope matches normal setup.
-   */
-  async refreshDetectedTokens(): Promise<void> {
-    if (!this.#tokenDetectionEnabled() || !this.#useExternalService()) {
-      return;
-    }
-
-    for (const subscription of this.#activeSubscriptions.values()) {
-      const scope = subscription.accountsWithSupportedChains;
-      if (!scope?.length) {
-        continue;
-      }
-      for (const { account, supportedChains } of scope) {
-        const { address, id: accountId } = account;
-        for (const chainId of supportedChains) {
-          try {
-            const hexChainId = caipChainIdToHex(chainId);
-            const result = await this.#tokenDetector.detectTokens(
-              hexChainId,
-              accountId,
-              address as Address,
-              {
-                tokenDetectionEnabled: this.#tokenDetectionEnabled(),
-                useExternalService: this.#useExternalService(),
-              },
-            );
-            if (result.detectedAssets.length > 0) {
-              this.#handleDetectionUpdate(result);
-            }
-          } catch (error) {
-            log('Token detection failed in refreshDetectedTokens', {
-              chainId,
-              accountId,
-              error,
-            });
-          }
-        }
-      }
-    }
-  }
-
   get assetsMiddleware(): Middleware {
     return async (context, next) => {
       const { request } = context;
@@ -1285,24 +1134,15 @@ export class RpcDataSource extends AbstractDataSource<
       }
     }
 
-    // Store subscription data (preserve per-account scope for refresh paths)
-    const accountsWithSupportedChains: AccountWithSupportedChains[] =
-      request.accountsWithSupportedChains
-        .map(({ account, supportedChains }) => ({
-          account,
-          supportedChains: chainsToSubscribe.filter((chain) =>
-            supportedChains.includes(chain),
-          ),
-        }))
-        .filter(({ supportedChains }) => supportedChains.length > 0);
-
-    const accounts = accountsWithSupportedChains.map((entry) => entry.account);
+    // Store subscription data
+    const accounts = request.accountsWithSupportedChains.map(
+      (entry) => entry.account,
+    );
     this.#activeSubscriptions.set(subscriptionId, {
       balancePollingTokens,
       detectionPollingTokens,
       chains: chainsToSubscribe,
       accounts,
-      accountsWithSupportedChains,
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
@@ -1446,9 +1286,6 @@ export class RpcDataSource extends AbstractDataSource<
 
     // Clear subscriptions
     this.#activeSubscriptions.clear();
-
-    this.#unsubscribeTransactionConfirmed?.();
-    this.#unsubscribeIncomingTransactions?.();
 
     // Clear caches
     this.#providerCache.clear();

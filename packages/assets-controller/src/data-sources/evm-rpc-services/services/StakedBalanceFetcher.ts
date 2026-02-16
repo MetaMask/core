@@ -7,8 +7,6 @@ import {
   getStakingContractAddress,
   getSupportedStakingChainIds,
   isStakingContractAssetId,
-  STAKING_CONTRACT_ADDRESS_BY_CHAINID,
-  chainIdToHex,
   weiToHumanReadable,
 } from '../utils';
 
@@ -143,8 +141,7 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
     if (!provider) {
       throw new Error('StakedBalanceFetcher: no provider available for chain');
     }
-    const hexChainId = chainIdToHex(chainId);
-    const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[hexChainId];
+    const contractAddress = getStakingContractAddress(chainId);
 
     if (!contractAddress) {
       return { amount: '0' };

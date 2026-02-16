@@ -14,20 +14,8 @@ import { RpcDataSource, createRpcDataSource } from './RpcDataSource';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import type { ChainId, DataRequest, Context } from '../types';
 
-type TransactionConfirmedPayload = { chainId?: string };
-type IncomingTransactionsPayload = { chainId?: string }[];
-
 type AllActions = RpcDataSourceAllowedActions;
-type AllEvents =
-  | RpcDataSourceAllowedEvents
-  | {
-      type: 'TransactionController:transactionConfirmed';
-      payload: [TransactionConfirmedPayload];
-    }
-  | {
-      type: 'TransactionController:incomingTransactionsReceived';
-      payload: [IncomingTransactionsPayload];
-    };
+type AllEvents = RpcDataSourceAllowedEvents;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const MOCK_CHAIN_ID_HEX = '0x1';
@@ -181,11 +169,7 @@ async function withController<ReturnValue>(
       'TokenListController:getState',
       'NetworkEnablementController:getState',
     ],
-    events: [
-      'NetworkController:stateChange',
-      'TransactionController:transactionConfirmed',
-      'TransactionController:incomingTransactionsReceived',
-    ],
+    events: ['NetworkController:stateChange'],
   });
 
   // Mock NetworkController:getState
@@ -597,108 +581,6 @@ describe('RpcDataSource', () => {
         await middleware(context, next);
 
         expect(next).toHaveBeenCalled();
-      });
-    });
-  });
-
-  describe('transaction events', () => {
-    it('calls refreshBalances and refreshDetectedTokens when transactionConfirmed is published', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const refreshBalancesSpy = jest
-          .spyOn(controller, 'refreshBalances')
-          .mockResolvedValue();
-        const refreshDetectedTokensSpy = jest
-          .spyOn(controller, 'refreshDetectedTokens')
-          .mockResolvedValue();
-
-        (messenger.publish as CallableFunction)(
-          'TransactionController:transactionConfirmed',
-          { chainId: MOCK_CHAIN_ID_HEX },
-        );
-        await new Promise(process.nextTick);
-
-        expect(refreshBalancesSpy).toHaveBeenCalled();
-        expect(refreshDetectedTokensSpy).toHaveBeenCalled();
-      });
-    });
-
-    it('calls refreshBalances and refreshDetectedTokens when incomingTransactionsReceived is published', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const refreshBalancesSpy = jest
-          .spyOn(controller, 'refreshBalances')
-          .mockResolvedValue();
-        const refreshDetectedTokensSpy = jest
-          .spyOn(controller, 'refreshDetectedTokens')
-          .mockResolvedValue();
-
-        (messenger.publish as CallableFunction)(
-          'TransactionController:incomingTransactionsReceived',
-          [{ chainId: MOCK_CHAIN_ID_HEX }],
-        );
-        await new Promise(process.nextTick);
-
-        expect(refreshBalancesSpy).toHaveBeenCalled();
-        expect(refreshDetectedTokensSpy).toHaveBeenCalled();
-      });
-    });
-  });
-
-  describe('refreshBalances and refreshDetectedTokens', () => {
-    it('refreshBalances is callable and does not throw when no subscriptions', async () => {
-      await withController(async ({ controller }) => {
-        expect(await controller.refreshBalances()).toBeUndefined();
-      });
-    });
-
-    it('refreshBalances includes all subscriptions (accounts and chains from every subscription)', async () => {
-      await withController(async ({ controller }) => {
-        const account1 = createMockInternalAccount({ id: 'account-1' });
-        const account2 = createMockInternalAccount({ id: 'account-2' });
-
-        await controller.subscribe({
-          request: {
-            accountsWithSupportedChains: [
-              { account: account1, supportedChains: [MOCK_CHAIN_ID_CAIP] },
-            ],
-            chainIds: [MOCK_CHAIN_ID_CAIP],
-            dataTypes: ['balance'],
-          },
-          subscriptionId: 'sub-1',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-        });
-        await controller.subscribe({
-          request: {
-            accountsWithSupportedChains: [
-              { account: account2, supportedChains: [MOCK_CHAIN_ID_CAIP] },
-            ],
-            chainIds: [MOCK_CHAIN_ID_CAIP],
-            dataTypes: ['balance'],
-          },
-          subscriptionId: 'sub-2',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-        });
-
-        const fetchSpy = jest.spyOn(controller, 'fetch').mockResolvedValue({
-          assetsBalance: {},
-        });
-        await controller.refreshBalances();
-
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
-        const [capturedRequest] = fetchSpy.mock.calls[0] as [DataRequest];
-        const accountIds = capturedRequest.accountsWithSupportedChains.map(
-          (entry) => entry.account.id,
-        );
-        expect(accountIds).toContain('account-1');
-        expect(accountIds).toContain('account-2');
-        expect(capturedRequest.accountsWithSupportedChains).toHaveLength(2);
-      });
-    });
-
-    it('refreshDetectedTokens is callable and does not throw', async () => {
-      await withController(async ({ controller }) => {
-        expect(await controller.refreshDetectedTokens()).toBeUndefined();
       });
     });
   });

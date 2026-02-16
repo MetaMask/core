@@ -60,6 +60,11 @@ type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
+/** Structural type for NetworkEnablementController state (enabled networks only). */
+type NetworkEnablementState = {
+  enabledNetworkMap: Record<string, Record<string, boolean>>;
+};
+
 /** Optional configuration for StakedBalanceDataSource. */
 export type StakedBalanceDataSourceConfig = {
   /** Whether staked balance fetching is enabled (default: true). */
@@ -176,8 +181,8 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   /** Cache of Web3Provider instances by hex chain ID. */
   readonly #providerCache: Map<Hex, Web3Provider> = new Map();
 
-  /** Hex chain IDs that have known staking contracts. */
-  readonly #supportedHexChains: string[];
+  /** CAIP-2 chain IDs that have known staking contracts. */
+  readonly #supportedChainIds: ChainId[];
 
   constructor(options: StakedBalanceDataSourceOptions) {
     super(CONTROLLER_NAME, { activeChains: [] });
@@ -185,7 +190,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#enabled = options.enabled !== false;
-    this.#supportedHexChains = getSupportedStakingChainIds();
+    this.#supportedChainIds = getSupportedStakingChainIds() as ChainId[];
 
     log('Initializing StakedBalanceDataSource', {
       enabled: this.#enabled,
@@ -231,6 +236,22 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         ? (unsubNetwork as () => void)
         : undefined;
 
+    const unsubEnablement = (
+      this.#messenger as unknown as {
+        subscribe: (
+          e: string,
+          h: (state: NetworkEnablementState) => void,
+        ) => unknown;
+      }
+    ).subscribe(
+      'NetworkEnablementController:stateChange',
+      this.#onNetworkEnablementStateChange.bind(this),
+    );
+    this.#unsubscribeNetworkEnablementStateChange =
+      typeof unsubEnablement === 'function'
+        ? (unsubEnablement as () => void)
+        : undefined;
+
     this.#initializeActiveChains();
   }
 
@@ -242,6 +263,9 @@ export class StakedBalanceDataSource extends AbstractDataSource<
 
   readonly #unsubscribeNetworkStateChange: (() => void) | undefined = undefined;
 
+  readonly #unsubscribeNetworkEnablementStateChange: (() => void) | undefined =
+    undefined;
+
   /**
    * When NetworkController state changes (e.g. RPC endpoints or network clients
    * reconfigured), clear the provider cache so subsequent fetches use fresh
@@ -250,6 +274,20 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   #onNetworkStateChange(): void {
     this.#providerCache.clear();
     log('Provider cache cleared after network state change');
+  }
+
+  /**
+   * When NetworkEnablementController state changes (user enables/disables
+   * networks), recompute active chains so we only fetch for enabled staking chains.
+   *
+   * @param state - The new NetworkEnablementController state.
+   */
+  #onNetworkEnablementStateChange(state: NetworkEnablementState): void {
+    const { enabledNetworkMap } = state ?? {};
+    if (!enabledNetworkMap) {
+      return;
+    }
+    this.#initializeActiveChainsFromEnabledMap(enabledNetworkMap);
   }
 
   /**
@@ -428,26 +466,63 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   }
 
   /**
-   * Set active chains to those with known staking contracts when enabled; otherwise [].
+   * Set active chains from NetworkEnablementController state.
+   * Only staking-supported chains that are enabled in the network enablement map
+   * are active (e.g. if mainnet is not selected we do not fetch).
    */
   #initializeActiveChains(): void {
-    const supportedChains = this.#enabled ? this.#getSupportedChains() : [];
-    const previous = [...this.state.activeChains];
-    this.updateActiveChains(supportedChains, (updatedChains) =>
-      this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
-    );
+    try {
+      const state = (
+        this.#messenger as unknown as {
+          call: (action: string) => NetworkEnablementState;
+        }
+      ).call('NetworkEnablementController:getState');
+      this.#initializeActiveChainsFromEnabledMap(
+        state?.enabledNetworkMap ?? {},
+      );
+    } catch (error) {
+      log('Failed to get NetworkEnablementController state', { error });
+      this.#initializeActiveChainsFromEnabledMap({});
+    }
   }
 
   /**
-   * Determine which staking chains are currently supported.
+   * Compute active chains as the intersection of supported staking chains and
+   * enabled networks, then update state. Uses the same EIP-155 storage key
+   * convention as NetworkEnablementController (hex for eip155).
    *
-   * @returns CAIP-2 chain IDs for supported staking chains.
+   * @param enabledNetworkMap - The enabled network map from NetworkEnablementController.
    */
-  #getSupportedChains(): ChainId[] {
-    return this.#supportedHexChains.map((hexChainId) => {
-      const decimal = parseInt(hexChainId, 16).toString();
-      return `eip155:${decimal}` as ChainId;
-    });
+  #initializeActiveChainsFromEnabledMap(
+    enabledNetworkMap: Record<string, Record<string, boolean>>,
+  ): void {
+    if (!this.#enabled) {
+      const previous = [...this.state.activeChains];
+      this.updateActiveChains([], (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
+      return;
+    }
+
+    const activeChains: ChainId[] = [];
+    const eip155Map = enabledNetworkMap.eip155;
+    if (eip155Map) {
+      for (const caip2 of this.#supportedChainIds) {
+        const ref = caip2.startsWith('eip155:') ? caip2.slice(7) : undefined;
+        if (ref === undefined) {
+          continue;
+        }
+        const storageKey = `0x${parseInt(ref, 10).toString(16)}`;
+        if (eip155Map[storageKey]) {
+          activeChains.push(caip2);
+        }
+      }
+    }
+
+    const previous = [...this.state.activeChains];
+    this.updateActiveChains(activeChains, (updatedChains) =>
+      this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+    );
   }
 
   /**
@@ -815,6 +890,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     this.#unsubscribeTransactionConfirmed?.();
     this.#unsubscribeIncomingTransactions?.();
     this.#unsubscribeNetworkStateChange?.();
+    this.#unsubscribeNetworkEnablementStateChange?.();
     for (const subscription of this.#activeSubscriptions.values()) {
       for (const token of subscription.pollingTokens) {
         this.#stakedBalanceFetcher.stopPollingByPollingToken(token);

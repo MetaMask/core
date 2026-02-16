@@ -1,16 +1,27 @@
-import { chainIdToHex } from './parsing';
-import type { ChainId } from '../types';
-
-/** Staking contract addresses by chain ID (hex). Same as AccountTrackerController / assets-controllers. */
+/** Staking contract addresses by CAIP-2 chain ID (e.g. "eip155:1"). */
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID: Record<string, string> = {
-  '0x1': '0x4fef9d741011476750a243ac70b9789a63dd47df', // Mainnet
-  '0x88bb0': '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff', // Hoodi
+  'eip155:1': '0x4fef9d741011476750a243ac70b9789a63dd47df', // Mainnet
+  'eip155:560048': '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff', // Hoodi (0x88bb0)
 };
 
 /**
- * Returns the set of hex chain IDs that have a known staking contract.
+ * Normalize chain ID to CAIP-2 for lookup (e.g. "0x1" -> "eip155:1").
  *
- * @returns Array of hex chain IDs.
+ * @param chainId - Hex chain ID (e.g. "0x1") or CAIP-2 (e.g. "eip155:1").
+ * @returns CAIP-2 chain ID.
+ */
+function toCaip2ChainId(chainId: string): string {
+  if (chainId.startsWith('eip155:')) {
+    return chainId;
+  }
+  const decimal = parseInt(chainId, 16);
+  return `eip155:${decimal}`;
+}
+
+/**
+ * Returns the set of CAIP-2 chain IDs that have a known staking contract.
+ *
+ * @returns Array of CAIP-2 chain IDs.
  */
 export function getSupportedStakingChainIds(): string[] {
   return Object.keys(STAKING_CONTRACT_ADDRESS_BY_CHAINID);
@@ -19,13 +30,12 @@ export function getSupportedStakingChainIds(): string[] {
 /**
  * Returns the staking contract address for a chain, or undefined if not supported.
  *
- * @param hexChainId - Hex chain ID (e.g. "0x1").
+ * @param chainId - Hex chain ID (e.g. "0x1") or CAIP-2 (e.g. "eip155:1").
  * @returns Contract address (checksummed as stored) or undefined.
  */
-export function getStakingContractAddress(
-  hexChainId: string,
-): string | undefined {
-  return STAKING_CONTRACT_ADDRESS_BY_CHAINID[hexChainId];
+export function getStakingContractAddress(chainId: string): string | undefined {
+  const caip2 = toCaip2ChainId(chainId);
+  return STAKING_CONTRACT_ADDRESS_BY_CHAINID[caip2];
 }
 
 /**
@@ -44,9 +54,8 @@ export function isStakingContractAssetId(assetId: string): boolean {
   ) {
     return false;
   }
-  const chainPart = parts[0] as ChainId;
+  const chainPart = parts[0];
   const address = parts[1].slice(6).toLowerCase();
-  const hexChainId = chainIdToHex(chainPart);
-  const stakingAddress = getStakingContractAddress(hexChainId)?.toLowerCase();
+  const stakingAddress = getStakingContractAddress(chainPart)?.toLowerCase();
   return stakingAddress !== undefined && address === stakingAddress;
 }
