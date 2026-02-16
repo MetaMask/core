@@ -3,13 +3,13 @@ import type {
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
+import { parseCaipAssetType } from '@metamask/utils';
 
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
   Caip19AssetId,
-  ChainId,
   DataRequest,
   DataResponse,
   FungibleAssetPrice,
@@ -265,7 +265,7 @@ export class PriceDataSource {
           )) {
             // Filter by chain if specified
             if (chainFilter) {
-              const chainId = assetId.split('/')[0] as ChainId;
+              const { chainId } = parseCaipAssetType(assetId as Caip19AssetId);
               if (!chainFilter.has(chainId)) {
                 continue;
               }

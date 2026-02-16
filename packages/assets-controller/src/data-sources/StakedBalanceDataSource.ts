@@ -291,13 +291,52 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   }
 
   /**
-   * When a transaction is confirmed, refresh staked balance for the chain from the payload.
+   * Returns true if the transaction involves the staking contract (from or to)
+   * for the payload's chain, so we only refresh staked balance when relevant.
+   *
+   * @param payload - Transaction payload.
+   * @param payload.chainId - Hex chain ID.
+   * @param payload.txParams - Optional transaction params.
+   * @param payload.txParams.from - Sender address.
+   * @param payload.txParams.to - Recipient address.
+   * @returns True if txParams.from or txParams.to matches the staking contract address.
+   */
+  #isTransactionInvolvingStakingContract(payload: {
+    chainId?: string;
+    txParams?: { from?: string; to?: string };
+  }): boolean {
+    const hexChainId = payload?.chainId;
+    if (!hexChainId) {
+      return false;
+    }
+    const contractAddress = getStakingContractAddress(hexChainId);
+    if (!contractAddress) {
+      return false;
+    }
+    const contractLower = contractAddress.toLowerCase();
+    const from = payload.txParams?.from?.toLowerCase();
+    const to = payload.txParams?.to?.toLowerCase();
+    return from === contractLower || to === contractLower;
+  }
+
+  /**
+   * When a transaction is confirmed, refresh staked balance only if the
+   * transaction is from or to the staking contract for that chain.
    *
    * @param payload - From TransactionController:transactionConfirmed.
    * @param payload.chainId - Hex chain ID of the transaction.
+   * @param payload.txParams - Optional transaction params.
+   * @param payload.txParams.from - Sender address.
+   * @param payload.txParams.to - Recipient address.
    */
-  #onTransactionConfirmed(payload: { chainId?: string }): void {
+  #onTransactionConfirmed(payload: {
+    chainId?: string;
+    txParams?: { from?: string; to?: string };
+  }): void {
     if (!this.#enabled) {
+      return;
+    }
+    if (!this.#isTransactionInvolvingStakingContract(payload)) {
       return;
     }
     const hexChainId = payload?.chainId;
@@ -314,28 +353,33 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   }
 
   /**
-   * When incoming transactions are received, refresh staked balance for chains in the payload.
+   * When incoming transactions are received, refresh staked balance only for
+   * chains where at least one transaction is from or to the staking contract.
    *
-   * @param payload - From TransactionController:incomingTransactionsReceived (array of { chainId? }).
+   * @param payload - From TransactionController:incomingTransactionsReceived (array of { chainId?, txParams? }).
    */
-  #onIncomingTransactions(payload: { chainId?: string }[]): void {
+  #onIncomingTransactions(
+    payload: { chainId?: string; txParams?: { from?: string; to?: string } }[],
+  ): void {
     if (!this.#enabled) {
       return;
     }
-    const chainIds = Array.from(
-      new Set(
-        (payload ?? [])
-          .map((item) => item?.chainId)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    const caipChainIds = chainIds.map(
+    const chainIdsToRefresh = new Set<string>();
+    for (const item of payload ?? []) {
+      if (!item?.chainId) {
+        continue;
+      }
+      if (this.#isTransactionInvolvingStakingContract(item)) {
+        chainIdsToRefresh.add(item.chainId);
+      }
+    }
+    const caipChainIds = [...chainIdsToRefresh].map(
       (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
     );
-    const toRefresh =
-      caipChainIds.length > 0
-        ? this.#getToRefreshForChains(caipChainIds)
-        : this.#getToRefreshAll();
+    if (caipChainIds.length === 0) {
+      return;
+    }
+    const toRefresh = this.#getToRefreshForChains(caipChainIds);
     if (toRefresh.length > 0) {
       this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
         log('Failed to refresh staked balance after incoming transactions', {
@@ -508,11 +552,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     const eip155Map = enabledNetworkMap.eip155;
     if (eip155Map) {
       for (const caip2 of this.#supportedChainIds) {
-        const ref = caip2.startsWith('eip155:') ? caip2.slice(7) : undefined;
-        if (ref === undefined) {
+        if (!isCaipChainId(caip2)) {
           continue;
         }
-        const storageKey = `0x${parseInt(ref, 10).toString(16)}`;
+        const { reference } = parseCaipChainId(caip2);
+        const storageKey = `0x${parseInt(reference, 10).toString(16)}`;
         if (eip155Map[storageKey]) {
           activeChains.push(caip2);
         }

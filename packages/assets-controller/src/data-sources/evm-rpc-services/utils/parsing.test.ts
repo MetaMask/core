@@ -30,6 +30,11 @@ describe('parsing utilities', () => {
     it('handles single digit wei below one unit', () => {
       expect(weiToHumanReadable('5', 18)).toBe('0.000000000000000005');
     });
+
+    it('accepts bigint and converts to human-readable', () => {
+      expect(weiToHumanReadable(1500000000000000000n, 18)).toBe('1.5');
+      expect(weiToHumanReadable(0n, 18)).toBe('0');
+    });
   });
 
   describe('chainIdToHex', () => {

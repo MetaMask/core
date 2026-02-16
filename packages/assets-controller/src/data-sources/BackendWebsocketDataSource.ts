@@ -8,6 +8,7 @@ import type {
   BalanceUpdate,
 } from '@metamask/core-backend';
 import type { ApiPlatformClient } from '@metamask/core-backend';
+import { isCaipChainId } from '@metamask/utils';
 
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
@@ -153,20 +154,21 @@ function buildAccountActivityChannel(
 
 /**
  * Normalize API chain identifier to CAIP-2 ChainId.
- * Passes through strings already in namespace:reference form (e.g. eip155:1, solana:5eykt...).
+ * Passes through strings already in CAIP-2 form (e.g. eip155:1, solana:5eykt...).
  * Converts bare decimals to eip155:decimal.
+ * Uses @metamask/utils for CAIP parsing.
  *
  * @param chainIdOrDecimal - Chain ID string (CAIP-2 or decimal) or decimal number.
  * @returns CAIP-2 ChainId.
  */
 function toChainId(chainIdOrDecimal: number | string): ChainId {
   if (typeof chainIdOrDecimal === 'string') {
-    if (chainIdOrDecimal.includes(':')) {
-      return chainIdOrDecimal as ChainId;
+    if (isCaipChainId(chainIdOrDecimal)) {
+      return chainIdOrDecimal;
     }
-    return `eip155:${chainIdOrDecimal}` as ChainId;
+    return `eip155:${chainIdOrDecimal}`;
   }
-  return `eip155:${chainIdOrDecimal}` as ChainId;
+  return `eip155:${chainIdOrDecimal}`;
 }
 
 // Note: AccountActivityMessage and BalanceUpdate types are imported from @metamask/core-backend

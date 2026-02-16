@@ -1,3 +1,9 @@
+import {
+  isCaipChainId,
+  isStrictHexString,
+  parseCaipAssetType,
+} from '@metamask/utils';
+
 /** Staking contract addresses by CAIP-2 chain ID (e.g. "eip155:1"). */
 export const STAKING_CONTRACT_ADDRESS_BY_CHAINID: Record<string, string> = {
   'eip155:1': '0x4fef9d741011476750a243ac70b9789a63dd47df', // Mainnet
@@ -6,16 +12,20 @@ export const STAKING_CONTRACT_ADDRESS_BY_CHAINID: Record<string, string> = {
 
 /**
  * Normalize chain ID to CAIP-2 for lookup (e.g. "0x1" -> "eip155:1").
+ * Uses @metamask/utils for CAIP parsing.
  *
  * @param chainId - Hex chain ID (e.g. "0x1") or CAIP-2 (e.g. "eip155:1").
  * @returns CAIP-2 chain ID.
  */
 function toCaip2ChainId(chainId: string): string {
-  if (chainId.startsWith('eip155:')) {
+  if (isCaipChainId(chainId)) {
     return chainId;
   }
-  const decimal = parseInt(chainId, 16);
-  return `eip155:${decimal}`;
+  if (isStrictHexString(chainId)) {
+    const decimal = parseInt(chainId, 16);
+    return `eip155:${decimal}`;
+  }
+  return `eip155:${chainId}`;
 }
 
 /**
@@ -41,21 +51,25 @@ export function getStakingContractAddress(chainId: string): string | undefined {
 /**
  * Returns true if the CAIP-19 asset ID is for a known staking contract.
  * Used to skip fetching metadata for staking contracts from the tokens API.
+ * Uses @metamask/utils parseCaipAssetType for CAIP-19 parsing.
  *
  * @param assetId - CAIP-19 asset ID (e.g. "eip155:1/erc20:0x4fef9d741011476750a243ac70b9789a63dd47df").
  * @returns True if the asset is a staking contract.
  */
 export function isStakingContractAssetId(assetId: string): boolean {
-  const parts = assetId.split('/');
-  if (
-    parts.length !== 2 ||
-    !parts[0].startsWith('eip155:') ||
-    !parts[1].startsWith('erc20:')
-  ) {
+  try {
+    const parsed = parseCaipAssetType(
+      assetId as `${string}:${string}/${string}:${string}`,
+    );
+    if (parsed.assetNamespace !== 'erc20') {
+      return false;
+    }
+    const address = parsed.assetReference.toLowerCase();
+    const stakingAddress = getStakingContractAddress(
+      parsed.chainId,
+    )?.toLowerCase();
+    return stakingAddress !== undefined && address === stakingAddress;
+  } catch {
     return false;
   }
-  const chainPart = parts[0];
-  const address = parts[1].slice(6).toLowerCase();
-  const stakingAddress = getStakingContractAddress(chainPart)?.toLowerCase();
-  return stakingAddress !== undefined && address === stakingAddress;
 }

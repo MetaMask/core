@@ -13,6 +13,7 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType, SnapCaveatType } from '@metamask/snaps-utils';
+import { parseCaipAssetType } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { AbstractDataSource } from './AbstractDataSource';
@@ -101,15 +102,16 @@ export function getChainIdsCaveat(
 }
 
 /**
- * Extract chain ID from a CAIP-19 asset ID.
+ * Extracts the CAIP-2 chain ID from a CAIP-19 asset ID.
  * e.g., "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501" -> "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+ * Uses @metamask/utils parseCaipAssetType for CAIP parsing.
  *
  * @param assetId - The CAIP-19 asset ID to extract chain from.
  * @returns The CAIP-2 chain ID portion of the asset ID.
  */
 export function extractChainFromAssetId(assetId: string): ChainId {
-  const parts = assetId.split('/');
-  return parts[0] as ChainId;
+  const parsed = parseCaipAssetType(assetId as CaipAssetType);
+  return parsed.chainId;
 }
 
 // ============================================================================

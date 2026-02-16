@@ -179,7 +179,7 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
       )[0];
       const assetsWei = BigInt(assetsRaw.toString());
 
-      const amount = weiToHumanReadable(assetsWei.toString(), STAKING_DECIMALS);
+      const amount = weiToHumanReadable(assetsWei, STAKING_DECIMALS);
       return { amount };
     } catch (error) {
       throw error instanceof Error
