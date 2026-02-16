@@ -42,6 +42,7 @@ import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
 import {
+  constructAccountIdByAddress,
   getEvmDerivationPathForIndex,
   getEvmGroupIndexFromAddressIndex,
   getUUIDFromAddressOfNormalAccount,
@@ -296,13 +297,9 @@ export class AccountsController extends BaseController<
     messenger: AccountsControllerMessenger;
     state: AccountsControllerState;
   }) {
-    const accountIdByAddress = Object.values(
+    const accountIdByAddress = constructAccountIdByAddress(
       state.internalAccounts.accounts,
-    ).reduce<AccountsControllerState['accountIdByAddress']>((acc, account) => {
-      // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
-      acc[account.address.toLowerCase()] = account.id;
-      return acc;
-    }, {});
+    );
     super({
       messenger,
       name: controllerName,
@@ -649,15 +646,8 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      const accountIdByAddress = Object.values(
+      const accountIdByAddress = constructAccountIdByAddress(
         backup.internalAccounts.accounts,
-      ).reduce<AccountsControllerState['accountIdByAddress']>(
-        (acc, account) => {
-          // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
-          acc[account.address.toLowerCase()] = account.id;
-          return acc;
-        },
-        {},
       );
       this.update(
         (currentState: WritableDraft<AccountsControllerStrictState>) => {
