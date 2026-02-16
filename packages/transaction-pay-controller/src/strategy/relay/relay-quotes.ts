@@ -505,25 +505,17 @@ async function calculateSourceNetworkCost(
     .flatMap((step) => step.items)
     .map((item) => item.data);
 
-  // For post-quote flows, prepend the original transaction's params so the
-  // gas estimation order matches the submit order in relay-submit (which
-  // also prepends the original tx before relay deposits).
-  // Guard on txParams.to to mirror relay-submit, which skips prepending
-  // when the original transaction has no destination address.
-  const allParams =
-    request.isPostQuote && transaction.txParams.to
-      ? [toRelayParams(transaction), ...relayParams]
-      : relayParams;
-
   const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
-  // Always use the first relay param for gas-fee properties — the prepended
-  // original transaction may carry zero/stale fee values.
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     relayParams[0];
 
   const { totalGasEstimate, totalGasLimit, gasLimits } =
-    await calculateSourceNetworkGasLimit(allParams, messenger);
+    await calculateSourceNetworkGasLimit(
+      relayParams,
+      messenger,
+      request.isPostQuote ? transaction : undefined,
+    );
 
   log('Gas limit', {
     totalGasEstimate,
@@ -619,7 +611,10 @@ async function calculateSourceNetworkCost(
 
   let finalAmount = gasFeeToken.amount;
 
-  if (allParams.length > 1) {
+  const hasMultipleTransactions =
+    relayParams.length > 1 || gasLimits.length > 1;
+
+  if (hasMultipleTransactions) {
     const gasRate = new BigNumber(gasFeeToken.amount, 16).dividedBy(
       gasFeeToken.gas,
       16,
@@ -661,25 +656,95 @@ async function calculateSourceNetworkCost(
 }
 
 /**
- * Calculate the total gas limit for the source network transactions.
+ * Calculate the total gas limit for the source network.
  *
- * @param params - Array of transaction parameters.
+ * For post-quote flows (e.g. predict withdrawals), the original transaction's
+ * gas is combined with the relay gas so that source network cost accounts for
+ * both the user's transaction and the relay transactions.
+ *
+ * @param params - Array of relay transaction parameters.
  * @param messenger - Controller messenger.
- * @returns - Total gas limit.
+ * @param postQuoteTransaction - Original transaction for post-quote flows.
+ * When provided, its gas is included in the returned totals.
+ * @returns Total gas estimates and per-transaction gas limits.
  */
 async function calculateSourceNetworkGasLimit(
   params: RelayQuote['steps'][0]['items'][0]['data'][],
   messenger: TransactionPayControllerMessenger,
+  postQuoteTransaction?: TransactionMeta,
 ): Promise<{
   totalGasEstimate: number;
   totalGasLimit: number;
   gasLimits: number[];
 }> {
-  if (params.length === 1) {
-    return calculateSourceNetworkGasLimitSingle(params[0], messenger);
+  const relayGas =
+    params.length === 1
+      ? await calculateSourceNetworkGasLimitSingle(params[0], messenger)
+      : await calculateSourceNetworkGasLimitBatch(params, messenger);
+
+  if (!postQuoteTransaction?.txParams.to) {
+    return relayGas;
   }
 
-  return calculateSourceNetworkGasLimitBatch(params, messenger);
+  return combinePostQuoteGas(relayGas, params.length, postQuoteTransaction);
+}
+
+/**
+ * Combine the original transaction's gas with relay gas for post-quote flows.
+ *
+ * Prefers gas from `nestedTransactions` (preserves the caller-provided value)
+ * since TransactionController may re-estimate `txParams.gas` during batch
+ * creation.
+ *
+ * @param relayGas - Gas estimates from relay transactions.
+ * @param relayGas.totalGasEstimate - Estimated gas total.
+ * @param relayGas.totalGasLimit - Maximum gas total.
+ * @param relayGas.gasLimits - Per-transaction gas limits.
+ * @param relayParamCount - Number of relay transaction parameters.
+ * @param transaction - Original transaction metadata.
+ * @returns Combined gas estimates including the original transaction.
+ */
+function combinePostQuoteGas(
+  relayGas: {
+    totalGasEstimate: number;
+    totalGasLimit: number;
+    gasLimits: number[];
+  },
+  relayParamCount: number,
+  transaction: TransactionMeta,
+): { totalGasEstimate: number; totalGasLimit: number; gasLimits: number[] } {
+  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
+  const rawGas = nestedGas ?? transaction.txParams.gas;
+  const originalTxGas = rawGas ? new BigNumber(rawGas).toNumber() : undefined;
+
+  if (originalTxGas === undefined) {
+    return relayGas;
+  }
+
+  let { gasLimits } = relayGas;
+  const isEIP7702 = gasLimits.length === 1 && relayParamCount > 1;
+
+  if (isEIP7702) {
+    // EIP-7702: single combined gas limit — add the original tx gas
+    // so the atomic batch covers both relay and original transactions.
+    gasLimits = [gasLimits[0] + originalTxGas];
+  } else {
+    // Non-7702: individual gas limits — prepend the original tx gas
+    // so the list order matches relay-submit's transaction order.
+    gasLimits = [originalTxGas, ...gasLimits];
+  }
+
+  const totalGasEstimate = relayGas.totalGasEstimate + originalTxGas;
+  const totalGasLimit = relayGas.totalGasLimit + originalTxGas;
+
+  log('Combined original tx gas with relay gas', {
+    originalTxGas,
+    isEIP7702,
+    gasLimits,
+    totalGasLimit,
+  });
+
+  return { totalGasEstimate, totalGasLimit, gasLimits };
 }
 
 /**
@@ -921,28 +986,4 @@ function isStablecoin(chainId: string, tokenAddress: string): boolean {
   return Boolean(
     STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
   );
-}
-
-/**
- * Converts a TransactionMeta into the Relay transaction params shape so it
- * can be included in the `allParams` array for unified gas estimation.
- *
- * @param transaction - Original transaction metadata.
- * @returns Relay-shaped transaction params.
- */
-function toRelayParams(
-  transaction: TransactionMeta,
-): RelayQuote['steps'][0]['items'][0]['data'] {
-  const { chainId, txParams } = transaction;
-
-  return {
-    chainId: new BigNumber(chainId).toNumber(),
-    data: (txParams.data ?? '0x') as Hex,
-    from: txParams.from as Hex,
-    gas: txParams.gas,
-    maxFeePerGas: txParams.maxFeePerGas ?? '0',
-    maxPriorityFeePerGas: txParams.maxPriorityFeePerGas ?? '0',
-    to: txParams.to as Hex,
-    value: txParams.value,
-  };
 }
