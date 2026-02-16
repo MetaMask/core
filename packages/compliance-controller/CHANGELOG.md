@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Initial release ([#7945](https://github.com/MetaMask/core/pull/7945))
   - Add `ComplianceController` for managing OFAC compliance state for wallet addresses.
   - Add `ComplianceService` for fetching compliance data from the Compliance API.
 
