@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add live on-chain balance validation for pay transactions ([#7935](https://github.com/MetaMask/core/pull/7935))
+- **BREAKING:** Add live on-chain balance validation for pay transactions ([#7935](https://github.com/MetaMask/core/pull/7935))
   - Refresh payment token balance via chain before each quote update.
   - Validate source token balance via chain before submitting Relay deposits.
+  - Requires `NetworkController:getNetworkClientById` messenger action permission in `TransactionController` publish hook.
 
 ### Changed
 
