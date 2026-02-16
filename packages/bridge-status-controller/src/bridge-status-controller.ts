@@ -1312,7 +1312,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param quotesReceivedContext - The context for the QuotesReceived event
-   * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, trending_explore)
+   * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
    * @returns The transaction meta
    */
   submitTx = async (

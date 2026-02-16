@@ -133,7 +133,7 @@ export type BridgeHistoryItem = {
   isStxEnabled?: boolean;
   /**
    * The location/entry point from which the user initiated the swap or bridge.
-   * Used to attribute swaps to specific flows (e.g. trending_explore).
+   * Used to attribute swaps to specific flows (e.g. Trending Explore).
    */
   location?: MetaMetricsSwapsEventSource;
   /**

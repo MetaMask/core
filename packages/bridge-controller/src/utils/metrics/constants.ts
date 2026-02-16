@@ -44,7 +44,7 @@ export enum AbortReason {
 export enum MetaMetricsSwapsEventSource {
   MainView = 'Main View',
   TokenView = 'Token View',
-  TrendingExplore = 'trending_explore',
+  TrendingExplore = 'Trending Explore',
 }
 
 export enum MetricsActionType {
