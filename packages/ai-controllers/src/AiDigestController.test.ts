@@ -348,6 +348,26 @@ describe('AiDigestController', () => {
       jest.useRealTimers();
     });
 
+    it('evicts oldest market insights entries when exceeding max cache size', async () => {
+      jest.useFakeTimers();
+      const mockService = createMockService();
+      const controller = new AiDigestController({
+        messenger: createMessenger(),
+        digestService: mockService,
+      });
+
+      for (let i = 0; i < MAX_CACHE_ENTRIES + 1; i++) {
+        await controller.fetchMarketInsights(`asset-${i}`);
+        jest.advanceTimersByTime(1);
+      }
+
+      expect(Object.keys(controller.state.marketInsights)).toHaveLength(
+        MAX_CACHE_ENTRIES,
+      );
+      expect(controller.state.marketInsights['asset-0']).toBeUndefined();
+      jest.useRealTimers();
+    });
+
     it('registers fetchMarketInsights messenger action', async () => {
       const mockService = createMockService();
       const messenger = createMessenger();
