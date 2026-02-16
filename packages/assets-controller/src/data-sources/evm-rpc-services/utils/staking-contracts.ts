@@ -1,5 +1,6 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import {
+  isCaipAssetType,
   isCaipChainId,
   isStrictHexString,
   KnownCaipNamespace,
@@ -59,19 +60,16 @@ export function getStakingContractAddress(chainId: string): string | undefined {
  * @returns True if the asset is a staking contract.
  */
 export function isStakingContractAssetId(assetId: string): boolean {
-  try {
-    const parsed = parseCaipAssetType(
-      assetId as `${string}:${string}/${string}:${string}`,
-    );
-    if (parsed.assetNamespace !== 'erc20') {
-      return false;
-    }
-    const address = parsed.assetReference.toLowerCase();
-    const stakingAddress = getStakingContractAddress(
-      parsed.chainId,
-    )?.toLowerCase();
-    return stakingAddress !== undefined && address === stakingAddress;
-  } catch {
+  if (!isCaipAssetType(assetId)) {
     return false;
   }
+  const parsed = parseCaipAssetType(assetId);
+  if (parsed.assetNamespace !== 'erc20') {
+    return false;
+  }
+  const address = parsed.assetReference.toLowerCase();
+  const stakingAddress = getStakingContractAddress(
+    parsed.chainId,
+  )?.toLowerCase();
+  return stakingAddress !== undefined && address === stakingAddress;
 }

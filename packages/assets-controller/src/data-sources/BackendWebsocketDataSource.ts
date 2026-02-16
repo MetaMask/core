@@ -8,7 +8,11 @@ import type {
   BalanceUpdate,
 } from '@metamask/core-backend';
 import type { ApiPlatformClient } from '@metamask/core-backend';
-import { isCaipChainId } from '@metamask/utils';
+import {
+  isCaipChainId,
+  KnownCaipNamespace,
+  toCaipChainId,
+} from '@metamask/utils';
 
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
@@ -166,9 +170,9 @@ function toChainId(chainIdOrDecimal: number | string): ChainId {
     if (isCaipChainId(chainIdOrDecimal)) {
       return chainIdOrDecimal;
     }
-    return `eip155:${chainIdOrDecimal}`;
+    return toCaipChainId(KnownCaipNamespace.Eip155, chainIdOrDecimal);
   }
-  return `eip155:${chainIdOrDecimal}`;
+  return toCaipChainId(KnownCaipNamespace.Eip155, String(chainIdOrDecimal));
 }
 
 // Note: AccountActivityMessage and BalanceUpdate types are imported from @metamask/core-backend

@@ -223,34 +223,19 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     this.#unsubscribeIncomingTransactions =
       typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
 
-    const unsubNetwork = (
-      this.#messenger as unknown as {
-        subscribe: (e: string, h: (state: NetworkState) => void) => unknown;
-      }
-    ).subscribe(
+    const unsubNetwork = this.#messenger.subscribe(
       'NetworkController:stateChange',
       this.#onNetworkStateChange.bind(this),
     );
     this.#unsubscribeNetworkStateChange =
-      typeof unsubNetwork === 'function'
-        ? (unsubNetwork as () => void)
-        : undefined;
+      typeof unsubNetwork === 'function' ? unsubNetwork : undefined;
 
-    const unsubEnablement = (
-      this.#messenger as unknown as {
-        subscribe: (
-          e: string,
-          h: (state: NetworkEnablementState) => void,
-        ) => unknown;
-      }
-    ).subscribe(
+    const unsubEnablement = this.#messenger.subscribe(
       'NetworkEnablementController:stateChange',
       this.#onNetworkEnablementStateChange.bind(this),
     );
     this.#unsubscribeNetworkEnablementStateChange =
-      typeof unsubEnablement === 'function'
-        ? (unsubEnablement as () => void)
-        : undefined;
+      typeof unsubEnablement === 'function' ? unsubEnablement : undefined;
 
     this.#initializeActiveChains();
   }

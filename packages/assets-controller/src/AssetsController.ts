@@ -19,12 +19,17 @@ import type {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
+import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import type {
+  TransactionControllerIncomingTransactionsReceivedEvent,
+  TransactionControllerTransactionConfirmedEvent,
+} from '@metamask/transaction-controller';
 import {
   isCaipChainId,
   isStrictHexString,
@@ -193,33 +198,9 @@ type AllowedActions =
   // BackendWebsocketDataSource calls BackendWebSocketService
   | BackendWebSocketServiceActions;
 
-/**
- * Structural type for TransactionController:transactionConfirmed payload.
- * Allows StakedBalanceDataSource to subscribe without depending on @metamask/transaction-controller.
- */
-type TransactionConfirmedPayload = {
-  chainId: string;
-  txParams?: { from?: string; to?: string };
-};
-
-type TransactionControllerTransactionConfirmedEvent = {
-  type: 'TransactionController:transactionConfirmed';
-  payload: [TransactionConfirmedPayload];
-};
-
-/**
- * Structural type for TransactionController:incomingTransactionsReceived payload.
- * Allows data sources to subscribe without depending on @metamask/transaction-controller.
- */
-type IncomingTransactionsReceivedPayload = { chainId?: string }[];
-
-type TransactionControllerIncomingTransactionsReceivedEvent = {
-  type: 'TransactionController:incomingTransactionsReceived';
-  payload: [IncomingTransactionsReceivedPayload];
-};
-
 type AllowedEvents =
   | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | NetworkControllerStateChangeEvent
   | NetworkEnablementControllerEvents
   | BackendWebSocketServiceEvents
   | KeyringControllerLockEvent
@@ -452,6 +433,9 @@ export class AssetsController extends BaseController<
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
+  /** Price subscription poll interval from priceDataSourceConfig (used when subscribeAssetsPrice gets no updateInterval). */
+  readonly #pricePollInterval: number | undefined;
+
   /** Optional callback for first init/fetch MetaMetrics (duration). */
   readonly #trackMetaMetricsEvent?: (
     payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
@@ -555,6 +539,7 @@ export class AssetsController extends BaseController<
     this.#isEnabled = isEnabled();
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
+    this.#pricePollInterval = priceDataSourceConfig?.pollInterval;
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
@@ -1148,7 +1133,9 @@ export class AssetsController extends BaseController<
     if (!this.#isBasicFunctionality()) {
       return;
     }
-    const { updateInterval = this.#defaultUpdateInterval } = options;
+    const {
+      updateInterval = this.#pricePollInterval ?? this.#defaultUpdateInterval,
+    } = options;
     const subscriptionKey = 'ds:PriceDataSource';
 
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);

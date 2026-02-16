@@ -1,6 +1,10 @@
 import type { V5BalanceItem } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
-import { isCaipChainId } from '@metamask/utils';
+import {
+  isCaipChainId,
+  KnownCaipNamespace,
+  toCaipChainId,
+} from '@metamask/utils';
 
 import type {
   DataSourceState,
@@ -84,9 +88,9 @@ function decimalToChainId(decimalChainId: number | string): ChainId {
     if (isCaipChainId(decimalChainId)) {
       return decimalChainId;
     }
-    return `eip155:${decimalChainId}`;
+    return toCaipChainId(KnownCaipNamespace.Eip155, decimalChainId);
   }
-  return `eip155:${decimalChainId}`;
+  return toCaipChainId(KnownCaipNamespace.Eip155, String(decimalChainId));
 }
 
 /**
@@ -101,7 +105,7 @@ function caipChainIdToChainId(chainIdStr: string): ChainId {
   if (isCaipChainId(chainIdStr)) {
     return chainIdStr;
   }
-  return `eip155:${chainIdStr}`;
+  return toCaipChainId(KnownCaipNamespace.Eip155, chainIdStr);
 }
 
 /**

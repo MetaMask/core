@@ -1,10 +1,9 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "baseUrl": "./"
-  },
+  "compilerOptions": { "baseUrl": "./" },
   "references": [
     { "path": "../account-tree-controller" },
+    { "path": "../assets-controllers" },
     { "path": "../base-controller" },
     { "path": "../core-backend" },
     { "path": "../keyring-controller" },

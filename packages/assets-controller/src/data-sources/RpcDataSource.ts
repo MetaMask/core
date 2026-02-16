@@ -1,7 +1,20 @@
 import { Web3Provider } from '@ethersproject/providers';
+import type { GetTokenListState } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { NetworkState, NetworkStatus } from '@metamask/network-controller';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
+  NetworkState,
+  NetworkStatus,
+} from '@metamask/network-controller';
+import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
+import type {
+  TransactionControllerIncomingTransactionsReceivedEvent,
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import {
   isStrictHexString,
   isCaipChainId,
@@ -32,7 +45,10 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services';
-import type { AssetsControllerMessenger } from '../AssetsController';
+import type {
+  AssetsControllerGetStateAction,
+  AssetsControllerMessenger,
+} from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
@@ -50,19 +66,7 @@ const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
-// NetworkController action to get state
-export type NetworkControllerGetStateAction = {
-  type: 'NetworkController:getState';
-  handler: () => NetworkState;
-};
-
-// NetworkController action to get network client by ID
-export type NetworkControllerGetNetworkClientByIdAction = {
-  type: 'NetworkController:getNetworkClientById';
-  handler: (networkClientId: string) => NetworkClient;
-};
-
-// Network client returned by NetworkController
+// Network client returned by NetworkController:getNetworkClientById (minimal shape used here)
 export type NetworkClient = {
   provider: EthereumProvider;
   configuration: {
@@ -75,73 +79,12 @@ export type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
-// NetworkController state change event
-export type NetworkControllerStateChangeEvent = {
-  type: 'NetworkController:stateChange';
-  payload: [NetworkState, Patch[]];
-};
-
-/** Structural type for TransactionController:transactionConfirmed payload. */
-type TransactionConfirmedPayload = {
-  chainId: string;
-  txParams?: { from?: string; to?: string };
-};
-
-type TransactionControllerTransactionConfirmedEvent = {
-  type: 'TransactionController:transactionConfirmed';
-  payload: [TransactionConfirmedPayload];
-};
-
-/** Structural type for TransactionController:incomingTransactionsReceived payload. */
-type IncomingTransactionsReceivedPayload = { chainId?: string }[];
-
-type TransactionControllerIncomingTransactionsReceivedEvent = {
-  type: 'TransactionController:incomingTransactionsReceived';
-  payload: [IncomingTransactionsReceivedPayload];
-};
-
-// Patch type for state changes
-type Patch = {
-  op: 'add' | 'remove' | 'replace';
-  path: string[];
-  value?: unknown;
-};
-
-// TokenListController:getState action
-type TokenListControllerGetStateAction = {
-  type: 'TokenListController:getState';
-  handler: () => {
-    tokensChainsCache: Record<
-      string,
-      { timestamp: number; data: Record<string, unknown> }
-    >;
-  };
-};
-
-// AssetsController:getState action (for assets balance and metadata)
-type AssetsControllerGetStateAction = {
-  type: 'AssetsController:getState';
-  handler: () => {
-    assetsInfo: Record<Caip19AssetId, AssetMetadata>;
-    assetsBalance: Record<string, Record<string, { amount: string }>>;
-  };
-};
-
-// NetworkEnablementController:getState action
-type NetworkEnablementControllerGetStateAction = {
-  type: 'NetworkEnablementController:getState';
-  handler: () => {
-    enabledNetworkMap: Record<string, Record<string, boolean>>;
-    nativeAssetIdentifiers: Record<string, string>;
-  };
-};
-
 // Allowed actions that RpcDataSource can call
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AssetsControllerGetStateAction
-  | TokenListControllerGetStateAction
+  | GetTokenListState
   | NetworkEnablementControllerGetStateAction;
 
 // Allowed events that RpcDataSource can subscribe to
@@ -564,11 +507,7 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   #subscribeToNetworkController(): void {
-    (
-      this.#messenger as unknown as {
-        subscribe: (e: string, h: (s: NetworkState) => void) => void;
-      }
-    ).subscribe(
+    this.#messenger.subscribe(
       'NetworkController:stateChange',
       (networkState: NetworkState) => {
         log('NetworkController state changed');
@@ -579,28 +518,14 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   #subscribeToTransactionEvents(): void {
-    const unsubConfirmed = (
-      this.#messenger as unknown as {
-        subscribe: (
-          e: string,
-          h: (payload: TransactionConfirmedPayload) => void,
-        ) => (() => void) | undefined;
-      }
-    ).subscribe(
+    const unsubConfirmed = this.#messenger.subscribe(
       'TransactionController:transactionConfirmed',
       this.#onTransactionConfirmed.bind(this),
     );
     this.#unsubscribeTransactionConfirmed =
       typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
 
-    const unsubIncoming = (
-      this.#messenger as unknown as {
-        subscribe: (
-          e: string,
-          h: (payload: IncomingTransactionsReceivedPayload) => void,
-        ) => (() => void) | undefined;
-      }
-    ).subscribe(
+    const unsubIncoming = this.#messenger.subscribe(
       'TransactionController:incomingTransactionsReceived',
       this.#onIncomingTransactions.bind(this),
     );
@@ -608,7 +533,7 @@ export class RpcDataSource extends AbstractDataSource<
       typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
   }
 
-  #onTransactionConfirmed(payload: TransactionConfirmedPayload): void {
+  #onTransactionConfirmed(payload: TransactionMeta): void {
     const hexChainId = payload?.chainId;
     if (!hexChainId) {
       return;
@@ -619,12 +544,12 @@ export class RpcDataSource extends AbstractDataSource<
     });
   }
 
-  #onIncomingTransactions(payload: IncomingTransactionsReceivedPayload): void {
+  #onIncomingTransactions(payload: TransactionMeta[]): void {
     const chainIds = Array.from(
       new Set(
         (payload ?? [])
           .map((item) => item?.chainId)
-          .filter((id): id is string => Boolean(id)),
+          .filter((id): id is Hex => Boolean(id)),
       ),
     );
     const caipChainIds = chainIds.map(
