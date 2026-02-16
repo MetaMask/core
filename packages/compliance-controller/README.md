@@ -66,10 +66,10 @@ await rootMessenger.call(
 );
 
 // Check multiple wallets
-await rootMessenger.call(
-  'ComplianceController:checkWalletsCompliance',
-  ['0x1234...', '0x5678...'],
-);
+await rootMessenger.call('ComplianceController:checkWalletsCompliance', [
+  '0x1234...',
+  '0x5678...',
+]);
 
 // Fetch the full blocked wallets list
 await rootMessenger.call('ComplianceController:fetchBlockedWallets');

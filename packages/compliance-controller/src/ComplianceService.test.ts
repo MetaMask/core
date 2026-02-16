@@ -229,9 +229,9 @@ describe('ComplianceService', () => {
         clock.nextAsync().catch(console.error);
       });
 
-      await expect(
-        service.checkWalletsCompliance(['0xABC']),
-      ).rejects.toThrow(/failed with status '500'/u);
+      await expect(service.checkWalletsCompliance(['0xABC'])).rejects.toThrow(
+        /failed with status '500'/u,
+      );
     });
   });
 
