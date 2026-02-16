@@ -637,7 +637,7 @@ describe('Token service', () => {
       });
     });
 
-    it('should return empty array if the fetch fails with a network error', async () => {
+    it('should return empty array with error if the fetch fails with a network error', async () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
@@ -648,10 +648,14 @@ describe('Token service', () => {
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: expect.stringContaining('Example network error'),
+      });
     });
 
-    it('should return empty array if the fetch fails with 400 error', async () => {
+    it('should return empty array with error if the fetch fails with 400 error', async () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
@@ -662,10 +666,14 @@ describe('Token service', () => {
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: expect.stringContaining("Fetch failed with status '400'"),
+      });
     });
 
-    it('should return empty array if the fetch fails with 500 error', async () => {
+    it('should return empty array with error if the fetch fails with 500 error', async () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
@@ -676,7 +684,11 @@ describe('Token service', () => {
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: expect.stringContaining("Fetch failed with status '500'"),
+      });
     });
 
     it('should handle empty search results', async () => {
