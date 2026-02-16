@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Estimate relay transactions separately and combine with original transaction gas at quote time ([#7933](https://github.com/MetaMask/core/pull/7933))
 
+## Added
+
+- Adds a dedicated max-amount gas-station fallback flow for Relay quoting ([#7927](https://github.com/MetaMask/core/pull/7927))
+  - It depends on the `maxGaslessEnabled` feature flag, defaults to `true`
+
 ## [15.0.0]
 
 ### Changed
