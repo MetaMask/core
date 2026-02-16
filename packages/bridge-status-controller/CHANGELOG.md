@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `usd_amount_source` default value in EVM transaction metrics properties from `100` to `0` ([#7899](https://github.com/MetaMask/core/pull/7899))
+
+## [66.0.2]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^66.1.0` to `^66.1.1 ([#7910](https://github.com/MetaMask/core/pull/7910))
+
 ## [66.0.1]
 
 ### Changed
@@ -939,7 +949,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.2...HEAD
+[66.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.1...@metamask/bridge-status-controller@66.0.2
 [66.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.0...@metamask/bridge-status-controller@66.0.1
 [66.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@65.0.1...@metamask/bridge-status-controller@66.0.0
 [65.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@65.0.0...@metamask/bridge-status-controller@65.0.1

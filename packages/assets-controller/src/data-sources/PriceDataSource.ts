@@ -30,13 +30,17 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // OPTIONS
 // ============================================================================
 
-export type PriceDataSourceOptions = {
+/** Optional configuration for PriceDataSource. */
+export type PriceDataSourceConfig = {
+  /** Polling interval in ms (default: 60000) */
+  pollInterval?: number;
+};
+
+export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
   /** Currency to fetch prices in (default: 'usd') */
   currency?: SupportedCurrency;
-  /** Polling interval in ms (default: 60000) */
-  pollInterval?: number;
 };
 
 // ============================================================================
@@ -100,7 +104,11 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
  * Usage: Create with queryApiClient; subscribe() requires getAssetsState in the request for balance-based pricing.
  */
 export class PriceDataSource {
-  readonly name = CONTROLLER_NAME;
+  static readonly controllerName = CONTROLLER_NAME;
+
+  getName(): string {
+    return PriceDataSource.controllerName;
+  }
 
   readonly #currency: SupportedCurrency;
 

@@ -350,14 +350,6 @@ export type TransactionPayFees = {
 
   /** Network fee for transactions on the target network. */
   targetNetwork: FiatValue;
-
-  /**
-   * Gas cost of the original user transaction on its native network.
-   * Always calculated from the transaction's own gas params via
-   * `calculateTransactionGasCost`, independent of any bridge quote fees.
-   * Only populated on totals, not on individual quotes.
-   */
-  transactionGas?: FiatValue;
 };
 
 /** Quote returned to retrieve a required token using the payment token. */
@@ -384,7 +376,7 @@ export type TransactionPayQuote<OriginalQuote> = {
   strategy: TransactionPayStrategy;
 
   /** Amount of target token provided. */
-  targetAmount: Amount;
+  targetAmount: FiatValue;
 };
 
 /** Request to get quotes for a transaction. */
@@ -479,7 +471,7 @@ export type TransactionPayTotals = {
   sourceAmount: Amount;
 
   /** Total amount of target token provided. */
-  targetAmount: Amount;
+  targetAmount: FiatValue;
 
   /** Overall total cost for the target transaction and all quotes. */
   total: FiatValue;

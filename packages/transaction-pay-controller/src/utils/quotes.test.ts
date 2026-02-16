@@ -75,8 +75,6 @@ const TOTALS_MOCK = {
   },
   targetAmount: {
     fiat: '5.67',
-    human: '5.67',
-    raw: '567000',
     usd: '6.78',
   },
   total: {

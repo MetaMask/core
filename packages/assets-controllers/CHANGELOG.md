@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [99.4.0]
+
+### Added
+
+- `CodefiTokenPricesServiceV2` now supports fetching prices of ETH on Ink Mainnet (chain `0xdef1`) ([#7688](https://github.com/MetaMask/core/pull/7688))
+- Added Chiliz Chain native token ([#7939](https://github.com/MetaMask/core/pull/7939))
+
+### Changed
+
+- Changed Plasma native token ([#7939](https://github.com/MetaMask/core/pull/7939))
+- `searchTokens` now returns an optional `error` field when requests fail, allowing consumers to detect and handle search failures instead of silently receiving empty results ([#7938](https://github.com/MetaMask/core/pull/7938))
+
 ## [99.3.2]
 
 ### Changed
@@ -2668,7 +2680,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.4.0...HEAD
+[99.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.2...@metamask/assets-controllers@99.4.0
 [99.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.1...@metamask/assets-controllers@99.3.2
 [99.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.0...@metamask/assets-controllers@99.3.1
 [99.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...@metamask/assets-controllers@99.3.0

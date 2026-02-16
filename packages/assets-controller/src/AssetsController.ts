@@ -24,6 +24,7 @@ import type {
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import { parseCaipAssetType } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
@@ -35,8 +36,10 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource';
+import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
@@ -57,6 +60,8 @@ import type {
   DataType,
   DataRequest,
   DataResponse,
+  FetchContext,
+  FetchNextFunction,
   NextFunction,
   Middleware,
   SubscriptionResponse,
@@ -186,7 +191,8 @@ type AllowedEvents =
   | NetworkEnablementControllerEvents
   | BackendWebSocketServiceEvents
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  | PreferencesControllerStateChangeEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -198,6 +204,23 @@ export type AssetsControllerMessenger = Messenger<
 // CONTROLLER OPTIONS
 // ============================================================================
 
+/**
+ * Payload for the first init/fetch MetaMetrics event.
+ * Passed to the optional trackMetaMetricsEvent callback when the initial
+ * asset fetch completes after unlock or app open.
+ */
+export type AssetsControllerFirstInitFetchMetaMetricsPayload = {
+  /** Duration of the first init fetch in milliseconds (wall-clock). */
+  durationMs: number;
+  /** Chain IDs requested in the fetch (e.g. ['eip155:1', 'eip155:137']). */
+  chainIds: string[];
+  /**
+   * Exclusive latency in ms per data source (time spent in that source only).
+   * Sum of values approximates durationMs. Order: same as middleware chain.
+   */
+  durationByDataSource: Record<string, number>;
+};
+
 export type AssetsControllerOptions = {
   messenger: AssetsControllerMessenger;
   state?: Partial<AssetsControllerState>;
@@ -206,12 +229,42 @@ export type AssetsControllerOptions = {
   /** Function to determine if the controller is enabled. Defaults to true. */
   isEnabled?: () => boolean;
   /**
+   * Getter for basic functionality (matches the "Basic functionality" setting in the UI).
+   * When it returns true, internet services are on: token/price APIs are used for metadata, price,
+   * and price subscription. When false, only RPC is used (no token/price APIs).
+   * No value is stored; the getter is invoked when needed.
+   * Defaults to () => true when not provided (APIs enabled).
+   */
+  isBasicFunctionality?: () => boolean;
+  /**
+   * Called by the controller with an onChange callback. The consumer subscribes to its own
+   * basic-functionality source (e.g. PreferencesController:stateChange in extension, or a
+   * different mechanism in mobile) and invokes onChange(isBasic) when the value changes.
+   * The controller will then refresh its subscriptions. May return an unsubscribe function
+   * called on controller destroy. Optional; when omitted, basic-functionality changes are not
+   * subscribed to (e.g. host can notify via root messenger or another path).
+   */
+  subscribeToBasicFunctionalityChange?: (
+    onChange: (isBasic: boolean) => void,
+  ) => void | (() => void);
+  /**
    * API client for balance/price/metadata. The controller instantiates data sources
    * and uses them directly when this is provided.
    */
   queryApiClient: ApiPlatformClient;
   /** Optional configuration for RpcDataSource. */
   rpcDataSourceConfig?: RpcDataSourceConfig;
+  /**
+   * Optional callback invoked when the first init/fetch completes (e.g. after unlock).
+   * Use this to track first init fetch duration in MetaMetrics.
+   */
+  trackMetaMetricsEvent?: (
+    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+  ) => void;
+  /** Optional configuration for AccountsApiDataSource. */
+  accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
+  /** Optional configuration for PriceDataSource. */
+  priceDataSourceConfig?: PriceDataSourceConfig;
 };
 
 // ============================================================================
@@ -357,8 +410,19 @@ export class AssetsController extends BaseController<
   /** Whether the controller is enabled */
   readonly #isEnabled: boolean;
 
+  /** Getter for basic functionality (only balance fetch/subscribe use RPC; token/price API not used). No attribute stored. */
+  readonly #isBasicFunctionality: () => boolean;
+
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
+
+  /** Optional callback for first init/fetch MetaMetrics (duration). */
+  readonly #trackMetaMetricsEvent?: (
+    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+  ) => void;
+
+  /** Whether we have already reported first init fetch for this session (reset on #stop). */
+  #firstInitFetchReported = false;
 
   readonly #controllerMutex = new Mutex();
 
@@ -395,11 +459,12 @@ export class AssetsController extends BaseController<
   readonly #rpcDataSource: RpcDataSource;
 
   /**
-   * Subscription balance data sources in assignment priority order (first that supports a chain gets it).
+   * All balance data sources (used for unsubscription in #stop so we can clean up
+   * regardless of current isBasicFunctionality mode).
    *
    * @returns The four balance data source instances in priority order.
    */
-  get #subscriptionBalanceDataSources(): [
+  get #allBalanceDataSources(): [
     BackendWebsocketDataSource,
     AccountsApiDataSource,
     SnapDataSource,
@@ -419,13 +484,20 @@ export class AssetsController extends BaseController<
 
   readonly #tokenDataSource: TokenDataSource;
 
+  #unsubscribeBasicFunctionality: (() => void) | null = null;
+
   constructor({
     messenger,
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
     isEnabled = (): boolean => true,
+    isBasicFunctionality,
+    subscribeToBasicFunctionalityChange,
     queryApiClient,
     rpcDataSourceConfig,
+    trackMetaMetricsEvent,
+    accountsApiDataSourceConfig,
+    priceDataSourceConfig,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -438,7 +510,9 @@ export class AssetsController extends BaseController<
     });
 
     this.#isEnabled = isEnabled();
+    this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
+    this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
     const onActiveChainsUpdated = (
@@ -456,6 +530,7 @@ export class AssetsController extends BaseController<
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
       onActiveChainsUpdated,
+      ...accountsApiDataSourceConfig,
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
@@ -471,6 +546,7 @@ export class AssetsController extends BaseController<
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
 
@@ -486,6 +562,17 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
+
+    // Subscribe to basic-functionality changes after construction so a synchronous
+    // onChange during subscribe cannot run before data sources are initialized.
+    if (subscribeToBasicFunctionalityChange) {
+      const unsubscribe = subscribeToBasicFunctionalityChange((isBasic) =>
+        this.handleBasicFunctionalityChange(isBasic),
+      );
+      if (typeof unsubscribe === 'function') {
+        this.#unsubscribeBasicFunctionality = unsubscribe;
+      }
+    }
   }
 
   // ============================================================================
@@ -649,18 +736,44 @@ export class AssetsController extends BaseController<
 
   /**
    * Execute middlewares with request/response context.
+   * Returns response and exclusive duration per source (sum ≈ wall time).
    *
-   * @param middlewares - Middlewares to execute in order.
+   * @param sources - Data sources or middlewares with getName() and assetsMiddleware (executed in order).
    * @param request - The data request.
    * @param initialResponse - Optional initial response (for enriching existing data).
-   * @returns The final DataResponse after all middlewares have processed.
+   * @returns Response and durationByDataSource (exclusive ms per source name).
    */
   async #executeMiddlewares(
-    middlewares: Middleware[],
+    sources: { getName(): string; assetsMiddleware: Middleware }[],
     request: DataRequest,
     initialResponse: DataResponse = {},
-  ): Promise<DataResponse> {
-    const chain = middlewares.reduceRight<NextFunction>(
+  ): Promise<{
+    response: DataResponse;
+    durationByDataSource: Record<string, number>;
+  }> {
+    const names = sources.map((source) => source.getName());
+    const middlewares = sources.map((source) => source.assetsMiddleware);
+    const inclusive: number[] = [];
+    const wrapped = middlewares.map(
+      (middleware, i) =>
+        (async (
+          ctx: FetchContext,
+          next: FetchNextFunction,
+        ): Promise<{
+          request: DataRequest;
+          response: DataResponse;
+          getAssetsState: () => AssetsControllerStateInternal;
+        }> => {
+          const start = Date.now();
+          try {
+            return await middleware(ctx, next);
+          } finally {
+            inclusive[i] = Date.now() - start;
+          }
+        }) as Middleware,
+    );
+
+    const chain = wrapped.reduceRight<NextFunction>(
       (next, middleware) =>
         async (
           ctx,
@@ -684,7 +797,17 @@ export class AssetsController extends BaseController<
       response: initialResponse,
       getAssetsState: () => this.state as AssetsControllerStateInternal,
     });
-    return result.response;
+
+    const durationByDataSource: Record<string, number> = {};
+    for (let i = 0; i < inclusive.length; i++) {
+      const nextInc = i + 1 < inclusive.length ? (inclusive[i + 1] ?? 0) : 0;
+      const exclusive = Math.max(0, (inclusive[i] ?? 0) - nextInc);
+      const name = names[i];
+      if (name !== undefined) {
+        durationByDataSource[name] = exclusive;
+      }
+    }
+    return { response: result.response, durationByDataSource };
   }
 
   // ============================================================================
@@ -712,24 +835,37 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
+      const startTime = Date.now();
       const request = this.#buildDataRequest(accounts, chainIds, {
         assetTypes,
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
       });
-      const response = await this.#executeMiddlewares(
-        [
-          this.#accountsApiDataSource.assetsMiddleware,
-          this.#snapDataSource.assetsMiddleware,
-          this.#rpcDataSource.assetsMiddleware,
-          this.#detectionMiddleware.assetsMiddleware,
-          this.#tokenDataSource.assetsMiddleware,
-          this.#priceDataSource.assetsMiddleware,
-        ],
+      const sources = this.#isBasicFunctionality()
+        ? [
+            this.#accountsApiDataSource,
+            this.#snapDataSource,
+            this.#rpcDataSource,
+            this.#detectionMiddleware,
+            this.#tokenDataSource,
+            this.#priceDataSource,
+          ]
+        : [this.#rpcDataSource, this.#detectionMiddleware];
+      const { response, durationByDataSource } = await this.#executeMiddlewares(
+        sources,
         request,
       );
       await this.#updateState(response);
+      if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
+        this.#firstInitFetchReported = true;
+        const durationMs = Date.now() - startTime;
+        this.#trackMetaMetricsEvent({
+          durationMs,
+          chainIds,
+          durationByDataSource,
+        });
+      }
     }
 
     return this.#getAssetsFromState(accounts, chainIds, assetTypes);
@@ -947,6 +1083,9 @@ export class AssetsController extends BaseController<
     chainIds: ChainId[],
     options: { updateInterval?: number } = {},
   ): void {
+    if (!this.#isBasicFunctionality()) {
+      return;
+    }
     const { updateInterval = this.#defaultUpdateInterval } = options;
     const subscriptionKey = 'ds:PriceDataSource';
 
@@ -1277,14 +1416,12 @@ export class AssetsController extends BaseController<
     });
 
     this.#subscribeAssets();
-    if (this.#selectedAccounts.length > 0) {
-      this.getAssets(this.#selectedAccounts, {
-        chainIds: [...this.#enabledChains],
-        forceUpdate: true,
-      }).catch((error) => {
-        log('Failed to fetch assets', error);
-      });
-    }
+    this.getAssets(this.#selectedAccounts, {
+      chainIds: [...this.#enabledChains],
+      forceUpdate: true,
+    }).catch((error) => {
+      log('Failed to fetch assets', error);
+    });
   }
 
   /**
@@ -1297,17 +1434,20 @@ export class AssetsController extends BaseController<
       hasPriceSubscription: this.#activeSubscriptions.has('ds:PriceDataSource'),
     });
 
+    this.#firstInitFetchReported = false;
+
     // Stop price subscription first (uses direct messenger call)
     this.unsubscribeAssetsPrice();
 
     // Stop balance subscriptions by properly notifying data sources via messenger
-    // This ensures data sources stop their polling timers
-    // Convert to array first to avoid modifying map during iteration
+    // This ensures data sources stop their polling timers.
+    // Use #allBalanceDataSources so we unsubscribe from every source that may have
+    // been subscribed (e.g. when switching from full to basic functionality).
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
       if (subscriptionKey.startsWith('ds:')) {
         const sourceId = subscriptionKey.slice(3);
-        const source = this.#subscriptionBalanceDataSources.find(
+        const source = this.#allBalanceDataSources.find(
           (ds) => ds.getName() === sourceId,
         );
         if (source) {
@@ -1316,6 +1456,19 @@ export class AssetsController extends BaseController<
       }
     }
     this.#activeSubscriptions.clear();
+  }
+
+  /**
+   * Handle basic functionality toggle change. Call this from the consumer (extension or mobile)
+   * when the user changes the "Basic functionality" setting. Refreshes subscriptions so the
+   * current {@link AssetsControllerOptions.isBasicFunctionality} getter is used (true = APIs on,
+   * false = RPC only).
+   *
+   * @param _isBasic - The new value (for call-site clarity; the getter is the source of truth).
+   */
+  handleBasicFunctionalityChange(_isBasic: boolean): void {
+    this.#stop();
+    this.#subscribeAssets();
   }
 
   /**
@@ -1359,7 +1512,12 @@ export class AssetsController extends BaseController<
     );
     const remainingChains = new Set(chainToAccounts.keys());
 
-    for (const source of this.#subscriptionBalanceDataSources) {
+    // When basic functionality is on (getter true), use all balance data sources; when off (getter false), RPC only.
+    const balanceDataSources = this.#isBasicFunctionality()
+      ? this.#allBalanceDataSources
+      : [this.#rpcDataSource];
+
+    for (const source of balanceDataSources) {
       const availableChains = new Set(source.getActiveChainsSync());
       const assignedChains: ChainId[] = [];
 
@@ -1649,12 +1807,8 @@ export class AssetsController extends BaseController<
 
     // Run through enrichment middlewares (Event Stack: Detection → Token → Price)
     // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
-    const enrichedResponse = await this.#executeMiddlewares(
-      [
-        this.#detectionMiddleware.assetsMiddleware,
-        this.#tokenDataSource.assetsMiddleware,
-        this.#priceDataSource.assetsMiddleware,
-      ],
+    const { response: enrichedResponse } = await this.#executeMiddlewares(
+      [this.#detectionMiddleware, this.#tokenDataSource, this.#priceDataSource],
       request ?? {
         accountsWithSupportedChains: [],
         chainIds: [],
@@ -1672,7 +1826,7 @@ export class AssetsController extends BaseController<
 
   destroy(): void {
     log('Destroying AssetsController', {
-      dataSourceCount: this.#subscriptionBalanceDataSources.length,
+      dataSourceCount: this.#allBalanceDataSources.length,
       subscriptionCount: this.#activeSubscriptions.size,
     });
 
@@ -1680,17 +1834,15 @@ export class AssetsController extends BaseController<
     this.#backendWebsocketDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
-    if (
-      this.#rpcDataSource &&
-      'destroy' in this.#rpcDataSource &&
-      typeof (this.#rpcDataSource as { destroy: () => void }).destroy ===
-        'function'
-    ) {
-      (this.#rpcDataSource as { destroy: () => void }).destroy();
-    }
+    this.#rpcDataSource?.destroy?.();
 
     // Stop all active subscriptions
     this.#stop();
+
+    if (this.#unsubscribeBasicFunctionality) {
+      this.#unsubscribeBasicFunctionality();
+      this.#unsubscribeBasicFunctionality = null;
+    }
 
     // Unregister action handlers
     this.messenger.unregisterActionHandler('AssetsController:getAssets');
