@@ -13,6 +13,7 @@ import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
+  TransactionPayQuote,
 } from '../../types';
 import {
   DEFAULT_SLIPPAGE,
@@ -167,7 +168,7 @@ describe('Max Amount With Gas Station Fallback', () => {
 
   const getMaxRelayQuote = async (
     requestOverrides: Partial<QuoteRequest> = {},
-  ) =>
+  ): Promise<TransactionPayQuote<RelayQuote>[]> =>
     await getRelayQuotes({
       messenger,
       requests: [
