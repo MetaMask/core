@@ -18,7 +18,14 @@ const INPUT: StakedBalancePollingInput = {
   accountAddress: TEST_ADDRESS as StakedBalancePollingInput['accountAddress'],
 };
 
-
+/**
+ * Creates a mock Web3Provider that returns the specified shares and assets when called.
+ *
+ * @param options - The options for the mock provider.
+ * @param options.sharesWei - The shares to return when the provider is called.
+ * @param options.assetsWei - The assets to return when the provider is called.
+ * @returns A mock Web3Provider.
+ */
 function createMockProvider(options: {
   sharesWei?: string;
   assetsWei?: string;
