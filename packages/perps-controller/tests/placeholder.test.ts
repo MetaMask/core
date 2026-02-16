@@ -7,8 +7,12 @@
 //
 // Remove this file when tests are migrated from Mobile to Core.
 
+// Satisfies import-x/unambiguous (file must be an ES module).
+import type { PerpsControllerState } from '../src';
+
 describe('PerpsController', () => {
-  it('placeholder for Mobile-first sync period', () => {
-    expect(true).toBe(true);
+  it('exports PerpsControllerState type', () => {
+    const stub: PerpsControllerState | undefined = undefined;
+    expect(stub).toBeUndefined();
   });
 });
