@@ -153,11 +153,7 @@ async function withController<ReturnValue>(
     ...controllerOptions,
   });
 
-  try {
-    return await fn({ controller, messenger });
-  } finally {
-    controller.destroy();
-  }
+  return fn({ controller, messenger });
 }
 
 describe('AssetsController', () => {
