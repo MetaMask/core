@@ -236,12 +236,12 @@ type RequiredEventContextFromClientBase = {
 /**
  * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
  * This combines the event-specific properties from RequiredEventContextFromClientBase
- * with the `location` property required for every event, so that regardless of where
- * users are in the flow, we can trace their origin.
+ * with an optional `location` property. When `location` is omitted, the controller
+ * falls back to the value stored via `setLocation()` (defaults to MainView).
  */
 export type RequiredEventContextFromClient = {
   [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
-    location: MetaMetricsSwapsEventSource;
+    location?: MetaMetricsSwapsEventSource;
   };
 };
 
