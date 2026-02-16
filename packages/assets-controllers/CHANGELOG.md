@@ -15,9 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Changed Plasma native token ([#7939](https://github.com/MetaMask/core/pull/7939))
-
-### Changed
-
 - `searchTokens` now returns an optional `error` field when requests fail, allowing consumers to detect and handle search failures instead of silently receiving empty results ([#7938](https://github.com/MetaMask/core/pull/7938))
 
 ## [99.3.2]
