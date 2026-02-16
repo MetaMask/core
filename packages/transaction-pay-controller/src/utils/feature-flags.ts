@@ -13,7 +13,6 @@ export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_MAX_GASLESS_ENABLED = true;
-export const DEFAULT_MAX_GASLESS_BUFFER_PERCENTAGE = 0.15;
 
 type FeatureFlagsRaw = {
   gasBuffer?: {
