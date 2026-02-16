@@ -236,7 +236,7 @@ export async function searchTokens(
     }
 
     // Handle non-expected responses
-    return { count: 0, data: [] };
+    return { count: 0, data: [], error: 'Unexpected API response format' };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { count: 0, data: [], error: errorMessage };

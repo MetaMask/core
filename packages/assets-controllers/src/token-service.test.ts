@@ -691,6 +691,30 @@ describe('Token service', () => {
       });
     });
 
+    it('should return error for malformed API response', async () => {
+      const searchQuery = 'USD';
+      const malformedResponse = {
+        count: 5,
+        // Missing 'data' array - this is malformed
+        someOtherField: 'value',
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, malformedResponse)
+        .persist();
+
+      const result = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: 'Unexpected API response format',
+      });
+    });
+
     it('should handle empty search results', async () => {
       const searchQuery = 'NONEXISTENT';
       const mockResponse = {
@@ -743,8 +767,8 @@ describe('Token service', () => {
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      // Non-array responses should be converted to empty object with count 0
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      // Non-array responses should be converted to empty object with count 0 and error message
+      expect(result).toStrictEqual({ count: 0, data: [], error: 'Unexpected API response format' });
     });
 
     it('should handle supported CAIP format chain IDs', async () => {
