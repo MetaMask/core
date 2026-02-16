@@ -650,6 +650,52 @@ describe('RpcDataSource', () => {
       });
     });
 
+    it('refreshBalances includes all subscriptions (accounts and chains from every subscription)', async () => {
+      await withController(async ({ controller }) => {
+        const account1 = createMockInternalAccount({ id: 'account-1' });
+        const account2 = createMockInternalAccount({ id: 'account-2' });
+
+        await controller.subscribe({
+          request: {
+            accountsWithSupportedChains: [
+              { account: account1, supportedChains: [MOCK_CHAIN_ID_CAIP] },
+            ],
+            chainIds: [MOCK_CHAIN_ID_CAIP],
+            dataTypes: ['balance'],
+          },
+          subscriptionId: 'sub-1',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+        await controller.subscribe({
+          request: {
+            accountsWithSupportedChains: [
+              { account: account2, supportedChains: [MOCK_CHAIN_ID_CAIP] },
+            ],
+            chainIds: [MOCK_CHAIN_ID_CAIP],
+            dataTypes: ['balance'],
+          },
+          subscriptionId: 'sub-2',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+
+        const fetchSpy = jest.spyOn(controller, 'fetch').mockResolvedValue({
+          assetsBalance: {},
+        });
+        await controller.refreshBalances();
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        const [capturedRequest] = fetchSpy.mock.calls[0] as [DataRequest];
+        const accountIds = capturedRequest.accountsWithSupportedChains.map(
+          (entry) => entry.account.id,
+        );
+        expect(accountIds).toContain('account-1');
+        expect(accountIds).toContain('account-2');
+        expect(capturedRequest.accountsWithSupportedChains).toHaveLength(2);
+      });
+    });
+
     it('refreshDetectedTokens is callable and does not throw', async () => {
       await withController(async ({ controller }) => {
         expect(await controller.refreshDetectedTokens()).toBeUndefined();

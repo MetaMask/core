@@ -617,7 +617,7 @@ export class AssetsController extends BaseController<
     this.#subscribeToEvents();
     this.#registerActionHandlers();
     this.#constructionState.initialized = true;
-    this.#subscribeAssets();
+    // Subscriptions start only on KeyringController:unlock -> #start(), not here.
 
     // Subscribe to basic-functionality changes after construction so a synchronous
     // onChange during subscribe cannot run before data sources are initialized.

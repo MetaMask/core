@@ -1028,15 +1028,41 @@ export class RpcDataSource extends AbstractDataSource<
   /**
    * Refresh balances for all currently subscribed accounts and chains, then
    * push updates to the controller. Can be called from UI or after transaction events.
-   * Uses per-account supportedChains from subscription so scope matches normal setup.
+   * Aggregates per-account supportedChains from every subscription so all subscribed
+   * accounts/chains are included (merges chains per account when an account appears
+   * in multiple subscriptions).
    */
   async refreshBalances(): Promise<void> {
-    const subscription = this.#activeSubscriptions.values().next().value as
-      | SubscriptionData
-      | undefined;
-    const accountsWithSupportedChains =
-      subscription?.accountsWithSupportedChains;
-    if (!accountsWithSupportedChains?.length) {
+    const accountChainsMap = new Map<
+      string,
+      { account: InternalAccount; supportedChains: Set<ChainId> }
+    >();
+    for (const subscription of this.#activeSubscriptions.values()) {
+      const scope = subscription.accountsWithSupportedChains;
+      if (!scope?.length) {
+        continue;
+      }
+      for (const { account, supportedChains } of scope) {
+        const existing = accountChainsMap.get(account.id);
+        if (existing) {
+          for (const chainId of supportedChains) {
+            existing.supportedChains.add(chainId);
+          }
+        } else {
+          accountChainsMap.set(account.id, {
+            account,
+            supportedChains: new Set(supportedChains),
+          });
+        }
+      }
+    }
+    const accountsWithSupportedChains = Array.from(
+      accountChainsMap.values(),
+    ).map(({ account, supportedChains }) => ({
+      account,
+      supportedChains: Array.from(supportedChains),
+    }));
+    if (accountsWithSupportedChains.length === 0) {
       return;
     }
 

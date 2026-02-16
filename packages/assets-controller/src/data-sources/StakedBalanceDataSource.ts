@@ -218,6 +218,19 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     this.#unsubscribeIncomingTransactions =
       typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
 
+    const unsubNetwork = (
+      this.#messenger as unknown as {
+        subscribe: (e: string, h: (state: NetworkState) => void) => unknown;
+      }
+    ).subscribe(
+      'NetworkController:stateChange',
+      this.#onNetworkStateChange.bind(this),
+    );
+    this.#unsubscribeNetworkStateChange =
+      typeof unsubNetwork === 'function'
+        ? (unsubNetwork as () => void)
+        : undefined;
+
     this.#initializeActiveChains();
   }
 
@@ -226,6 +239,18 @@ export class StakedBalanceDataSource extends AbstractDataSource<
 
   readonly #unsubscribeIncomingTransactions: (() => void) | undefined =
     undefined;
+
+  readonly #unsubscribeNetworkStateChange: (() => void) | undefined = undefined;
+
+  /**
+   * When NetworkController state changes (e.g. RPC endpoints or network clients
+   * reconfigured), clear the provider cache so subsequent fetches use fresh
+   * providers.
+   */
+  #onNetworkStateChange(): void {
+    this.#providerCache.clear();
+    log('Provider cache cleared after network state change');
+  }
 
   /**
    * When a transaction is confirmed, refresh staked balance for the chain from the payload.
@@ -789,6 +814,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   destroy(): void {
     this.#unsubscribeTransactionConfirmed?.();
     this.#unsubscribeIncomingTransactions?.();
+    this.#unsubscribeNetworkStateChange?.();
     for (const subscription of this.#activeSubscriptions.values()) {
       for (const token of subscription.pollingTokens) {
         this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
