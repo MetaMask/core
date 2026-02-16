@@ -272,7 +272,16 @@ export class SnapDataSource extends AbstractDataSource<
       let accountAssets: Record<Caip19AssetId, AssetBalance> | undefined;
 
       for (const [assetId, balance] of Object.entries(assets)) {
-        const chainId = extractChainFromAssetId(assetId);
+        let chainId: ChainId;
+        try {
+          chainId = extractChainFromAssetId(assetId);
+        } catch (error) {
+          log('Skipping snap balance for malformed asset ID', {
+            assetId,
+            error,
+          });
+          continue;
+        }
         if (this.#isChainSupportedBySnap(chainId)) {
           accountAssets ??= {};
           accountAssets[assetId as Caip19AssetId] = {

@@ -263,10 +263,20 @@ export class PriceDataSource {
           for (const assetId of Object.keys(
             accountBalances as Record<string, unknown>,
           )) {
-            // Filter by chain if specified
+            // Filter by chain if specified; skip malformed asset IDs for this entry only
             if (chainFilter) {
-              const { chainId } = parseCaipAssetType(assetId as Caip19AssetId);
-              if (!chainFilter.has(chainId)) {
+              try {
+                const { chainId } = parseCaipAssetType(
+                  assetId as Caip19AssetId,
+                );
+                if (!chainFilter.has(chainId)) {
+                  continue;
+                }
+              } catch (error) {
+                log('Skipping malformed asset ID in balance state', {
+                  assetId,
+                  error,
+                });
                 continue;
               }
             }
