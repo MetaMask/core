@@ -424,7 +424,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHar
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -663,7 +663,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -902,7 +902,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -1142,7 +1142,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -1408,7 +1408,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -1647,7 +1647,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -1886,7 +1886,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -2229,7 +2229,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -2488,7 +2488,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -2900,7 +2900,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -3256,7 +3256,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -3472,7 +3472,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -3776,7 +3776,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "signature",
   "pricingData": {
     "amountSent": "1",
@@ -4118,7 +4118,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "signature",
   "pricingData": {
     "amountSent": "1",
@@ -4501,7 +4501,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "bridge-signature",
   "pricingData": {
     "amountSent": "1",
@@ -4716,7 +4716,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
-  "location": undefined,
+  "location": "Main View",
   "originalTransactionId": "swap-signature",
   "pricingData": {
     "amountSent": "1",

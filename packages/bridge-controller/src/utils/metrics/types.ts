@@ -216,6 +216,7 @@ type RequiredEventContextFromClientBase = {
   };
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
+    refresh_count: number;
   };
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
@@ -296,9 +297,7 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.QuotesValidationFailed]: RequestParams & {
     refresh_count: number;
   };
-  [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams & {
-    refresh_count: number;
-  };
+  [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams;
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: null;
 };
 
@@ -311,6 +310,7 @@ export type CrossChainSwapsEventProperties<
 > =
   | {
       action_type: MetricsActionType;
+      location: MetaMetricsSwapsEventSource;
     }
   | Pick<EventPropertiesFromControllerState, T>[T]
   | Pick<RequiredEventContextFromClient, T>[T];
