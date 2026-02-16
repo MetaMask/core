@@ -1912,7 +1912,7 @@ export class PerpsController extends BaseController<
 
         // Add deposit request to tracking
         const depositRequest = {
-          id: currentDepositId,
+          id: currentDepositId ?? uuidv4(),
           timestamp: Date.now(),
           amount: amount ?? '0', // Use provided amount or default to '0'
           asset: USDC_SYMBOL,
@@ -2468,21 +2468,13 @@ export class PerpsController extends BaseController<
   ]);
 
   #preloadTimer: ReturnType<typeof setInterval> | null = null;
-
   #isPreloading = false;
-
   #isPreloadingUserData = false;
-
   #preloadStateUnsubscribe: (() => void) | null = null;
-
   #accountChangeUnsubscribe: (() => void) | null = null;
-
   #previousIsTestnet: boolean | null = null;
-
   #previousHip3ConfigVersion: number | null = null;
-
   static readonly #preloadRefreshMs = 5 * 60 * 1000; // 5 min
-
   static readonly #preloadGuardMs = 30_000; // 30s debounce
 
   /**
