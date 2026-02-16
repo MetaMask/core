@@ -11,7 +11,10 @@
  * - Token discovery
  */
 
-import type { QueryFunctionContext } from '@tanstack/query-core';
+import type {
+  FetchQueryOptions,
+  QueryFunctionContext,
+} from '@tanstack/query-core';
 
 import type {
   V1SupportedNetworksResponse,
@@ -27,13 +30,8 @@ import type {
   V2NftsResponse,
   V2TokensResponse,
 } from './types';
-import {
-  BaseApiClient,
-  API_URLS,
-  STALE_TIMES,
-  GC_TIMES,
-  HttpError,
-} from '../base-client';
+import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
+import { getQueryOptionsOverrides } from '../shared-types';
 import type { FetchOptions } from '../shared-types';
 
 /**
@@ -68,6 +66,29 @@ export class AccountsApiClient extends BaseApiClient {
   // ==========================================================================
 
   /**
+   * Returns the TanStack Query options object for v1 supported networks.
+   *
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV1SupportedNetworksQueryOptions(
+    options?: FetchOptions,
+  ): FetchQueryOptions<V1SupportedNetworksResponse> {
+    return {
+      queryKey: ['accounts', 'v1SupportedNetworks'],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<V1SupportedNetworksResponse>(
+          API_URLS.ACCOUNTS,
+          '/v1/supportedNetworks',
+          { signal },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
+      gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
+    };
+  }
+
+  /**
    * Get list of supported networks (v1 endpoint).
    *
    * @param options - Fetch options including cache settings.
@@ -76,17 +97,32 @@ export class AccountsApiClient extends BaseApiClient {
   async fetchV1SupportedNetworks(
     options?: FetchOptions,
   ): Promise<V1SupportedNetworksResponse> {
-    return this.queryClient.fetchQuery({
-      queryKey: ['accounts', 'v1SupportedNetworks'],
+    return this.queryClient.fetchQuery(
+      this.getV1SupportedNetworksQueryOptions(options),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for v2 supported networks.
+   *
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV2SupportedNetworksQueryOptions(
+    options?: FetchOptions,
+  ): FetchQueryOptions<V2SupportedNetworksResponse> {
+    return {
+      queryKey: ['accounts', 'v2SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V1SupportedNetworksResponse>(
+        this.fetch<V2SupportedNetworksResponse>(
           API_URLS.ACCOUNTS,
-          '/v1/supportedNetworks',
+          '/v2/supportedNetworks',
           { signal },
         ),
+      ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
       gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
-    });
+    };
   }
 
   /**
@@ -98,22 +134,67 @@ export class AccountsApiClient extends BaseApiClient {
   async fetchV2SupportedNetworks(
     options?: FetchOptions,
   ): Promise<V2SupportedNetworksResponse> {
-    return this.queryClient.fetchQuery({
-      queryKey: ['accounts', 'v2SupportedNetworks'],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V2SupportedNetworksResponse>(
-          API_URLS.ACCOUNTS,
-          '/v2/supportedNetworks',
-          { signal },
-        ),
-      staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
-      gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
-    });
+    return this.queryClient.fetchQuery(
+      this.getV2SupportedNetworksQueryOptions(options),
+    );
   }
 
   // ==========================================================================
   // ACTIVE NETWORKS
   // ==========================================================================
+
+  /**
+   * Returns the TanStack Query options object for v2 active networks.
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.filterMMListTokens - Whether to filter MM list tokens.
+   * @param queryOptions.networks - Networks to filter by.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV2ActiveNetworksQueryOptions(
+    accountIds: string[],
+    queryOptions?: { filterMMListTokens?: boolean; networks?: string[] },
+    options?: FetchOptions,
+  ): FetchQueryOptions<V2ActiveNetworksResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'v2ActiveNetworks',
+        {
+          accountIds: [...accountIds].sort(),
+          options: queryOptions && {
+            ...queryOptions,
+            networks:
+              queryOptions.networks && [...queryOptions.networks].sort(),
+          },
+        },
+      ],
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V2ActiveNetworksResponse> => {
+        if (accountIds.length === 0) {
+          return { activeNetworks: [] };
+        }
+        return this.fetch<V2ActiveNetworksResponse>(
+          API_URLS.ACCOUNTS,
+          '/v2/activeNetworks',
+          {
+            signal,
+            params: {
+              accountIds,
+              filterMMListTokens: queryOptions?.filterMMListTokens,
+              networks: queryOptions?.networks,
+            },
+          },
+        );
+      },
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.NETWORKS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
 
   /**
    * Get active networks by CAIP-10 account IDs (v2 endpoint).
@@ -130,35 +211,12 @@ export class AccountsApiClient extends BaseApiClient {
     queryOptions?: { filterMMListTokens?: boolean; networks?: string[] },
     options?: FetchOptions,
   ): Promise<V2ActiveNetworksResponse> {
-    return this.queryClient.fetchQuery({
-      queryKey: [
-        'accounts',
-        'v2ActiveNetworks',
-        {
-          accountIds: [...accountIds].sort(),
-          options: queryOptions && {
-            ...queryOptions,
-            networks:
-              queryOptions.networks && [...queryOptions.networks].sort(),
-          },
-        },
-      ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V2ActiveNetworksResponse>(
-          API_URLS.ACCOUNTS,
-          '/v2/activeNetworks',
-          {
-            signal,
-            params: {
-              accountIds,
-              filterMMListTokens: queryOptions?.filterMMListTokens,
-              networks: queryOptions?.networks,
-            },
-          },
-        ),
-      staleTime: options?.staleTime ?? STALE_TIMES.NETWORKS,
-      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    if (accountIds.length === 0) {
+      return { activeNetworks: [] };
+    }
+    return this.queryClient.fetchQuery(
+      this.getV2ActiveNetworksQueryOptions(accountIds, queryOptions, options),
+    );
   }
 
   // ==========================================================================
@@ -166,49 +224,7 @@ export class AccountsApiClient extends BaseApiClient {
   // ==========================================================================
 
   /**
-   * Get account balances for a single address (v2 endpoint).
-   *
-   * @param address - The account address.
-   * @param queryOptions - Query filter options.
-   * @param queryOptions.networks - Networks to filter by.
-   * @param options - Fetch options including cache settings.
-   * @returns The account balances response.
-   */
-  async fetchV2Balances(
-    address: string,
-    queryOptions?: { networks?: number[] },
-    options?: FetchOptions,
-  ): Promise<V2BalancesResponse> {
-    return this.queryClient.fetchQuery({
-      queryKey: [
-        'accounts',
-        'balances',
-        'v2',
-        {
-          address,
-          options: queryOptions && {
-            ...queryOptions,
-            networks:
-              queryOptions.networks && [...queryOptions.networks].sort(),
-          },
-        },
-      ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V2BalancesResponse>(
-          API_URLS.ACCOUNTS,
-          `/v2/accounts/${address}/balances`,
-          {
-            signal,
-            params: { networks: queryOptions?.networks },
-          },
-        ),
-      staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
-      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
-  }
-
-  /**
-   * Get account balances with additional options (v2 endpoint).
+   * Returns the TanStack Query options object for v2 balances.
    *
    * @param address - The account address.
    * @param queryOptions - Query filter options.
@@ -217,9 +233,9 @@ export class AccountsApiClient extends BaseApiClient {
    * @param queryOptions.includeTokenAddresses - Token addresses to include.
    * @param queryOptions.includeStakedAssets - Whether to include staked assets.
    * @param options - Fetch options including cache settings.
-   * @returns The account balances response.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
    */
-  async fetchV2BalancesWithOptions(
+  getV2BalancesQueryOptions(
     address: string,
     queryOptions?: {
       networks?: number[];
@@ -228,8 +244,8 @@ export class AccountsApiClient extends BaseApiClient {
       includeStakedAssets?: boolean;
     },
     options?: FetchOptions,
-  ): Promise<V2BalancesResponse> {
-    return this.queryClient.fetchQuery({
+  ): FetchQueryOptions<V2BalancesResponse> {
+    return {
       queryKey: [
         'accounts',
         'balances',
@@ -246,8 +262,13 @@ export class AccountsApiClient extends BaseApiClient {
           },
         },
       ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V2BalancesResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V2BalancesResponse> => {
+        if (address === '') {
+          return { count: 0, balances: [], unprocessedNetworks: [] };
+        }
+        return this.fetch<V2BalancesResponse>(
           API_URLS.ACCOUNTS,
           `/v2/accounts/${address}/balances`,
           {
@@ -259,10 +280,94 @@ export class AccountsApiClient extends BaseApiClient {
               includeStakedAssets: queryOptions?.includeStakedAssets,
             },
           },
-        ),
+        );
+      },
+      ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    };
+  }
+
+  /**
+   * Get account balances for a single address (v2 endpoint).
+   *
+   * @param address - The account address.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.networks - Networks to filter by.
+   * @param queryOptions.filterSupportedTokens - Whether to filter supported tokens.
+   * @param queryOptions.includeTokenAddresses - Token addresses to include.
+   * @param queryOptions.includeStakedAssets - Whether to include staked assets.
+   * @param options - Fetch options including cache settings.
+   * @returns The account balances response.
+   */
+  async fetchV2Balances(
+    address: string,
+    queryOptions?: {
+      networks?: number[];
+      filterSupportedTokens?: boolean;
+      includeTokenAddresses?: string[];
+      includeStakedAssets?: boolean;
+    },
+    options?: FetchOptions,
+  ): Promise<V2BalancesResponse> {
+    if (address === '') {
+      return { count: 0, balances: [], unprocessedNetworks: [] };
+    }
+    return this.queryClient.fetchQuery(
+      this.getV2BalancesQueryOptions(address, queryOptions, options),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for v4 multi-account balances.
+   *
+   * @param accountAddresses - Array of account addresses.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.networks - Networks to filter by.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV4MultiAccountBalancesQueryOptions(
+    accountAddresses: string[],
+    queryOptions?: { networks?: number[] },
+    options?: FetchOptions,
+  ): FetchQueryOptions<V4BalancesResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'balances',
+        'v4',
+        {
+          accountAddresses: [...accountAddresses].sort(),
+          options: queryOptions && {
+            ...queryOptions,
+            networks:
+              queryOptions.networks && [...queryOptions.networks].sort(),
+          },
+        },
+      ],
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V4BalancesResponse> => {
+        if (accountAddresses.length === 0) {
+          return { count: 0, balances: [], unprocessedNetworks: [] };
+        }
+        return this.fetch<V4BalancesResponse>(
+          API_URLS.ACCOUNTS,
+          '/v4/multiaccount/balances',
+          {
+            signal,
+            params: {
+              accountAddresses,
+              networks: queryOptions?.networks,
+            },
+          },
+        );
+      },
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
   }
 
   /**
@@ -279,13 +384,45 @@ export class AccountsApiClient extends BaseApiClient {
     queryOptions?: { networks?: number[] },
     options?: FetchOptions,
   ): Promise<V4BalancesResponse> {
-    return this.queryClient.fetchQuery({
+    if (accountAddresses.length === 0) {
+      return { count: 0, balances: [], unprocessedNetworks: [] };
+    }
+    return this.queryClient.fetchQuery(
+      this.getV4MultiAccountBalancesQueryOptions(
+        accountAddresses,
+        queryOptions,
+        options,
+      ),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for v5 multi-account balances.
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.filterMMListTokens - Whether to filter MM list tokens.
+   * @param queryOptions.networks - Networks to filter by.
+   * @param queryOptions.includeStakedAssets - Whether to include staked assets.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV5MultiAccountBalancesQueryOptions(
+    accountIds: string[],
+    queryOptions?: {
+      filterMMListTokens?: boolean;
+      networks?: string[];
+      includeStakedAssets?: boolean;
+    },
+    options?: FetchOptions,
+  ): FetchQueryOptions<V5BalancesResponse> {
+    return {
       queryKey: [
         'accounts',
         'balances',
-        'v4',
+        'v5',
         {
-          accountAddresses: [...accountAddresses].sort(),
+          accountIds: [...accountIds].sort(),
           options: queryOptions && {
             ...queryOptions,
             networks:
@@ -293,21 +430,30 @@ export class AccountsApiClient extends BaseApiClient {
           },
         },
       ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V4BalancesResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V5BalancesResponse> => {
+        if (accountIds.length === 0) {
+          return { count: 0, unprocessedNetworks: [], balances: [] };
+        }
+        return this.fetch<V5BalancesResponse>(
           API_URLS.ACCOUNTS,
-          '/v4/multiaccount/balances',
+          '/v5/multiaccount/balances',
           {
             signal,
             params: {
-              accountAddresses,
+              accountIds,
               networks: queryOptions?.networks,
+              filterMMListTokens: queryOptions?.filterMMListTokens,
+              includeStakedAssets: queryOptions?.includeStakedAssets,
             },
           },
-        ),
+        );
+      },
+      ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    };
   }
 
   /**
@@ -330,42 +476,72 @@ export class AccountsApiClient extends BaseApiClient {
     },
     options?: FetchOptions,
   ): Promise<V5BalancesResponse> {
-    return this.queryClient.fetchQuery({
-      queryKey: [
-        'accounts',
-        'balances',
-        'v5',
-        {
-          accountIds: [...accountIds].sort(),
-          options: queryOptions && {
-            ...queryOptions,
-            networks:
-              queryOptions.networks && [...queryOptions.networks].sort(),
-          },
-        },
-      ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V5BalancesResponse>(
-          API_URLS.ACCOUNTS,
-          '/v5/multiaccount/balances',
-          {
-            signal,
-            params: {
-              accountIds,
-              networks: queryOptions?.networks,
-              filterMMListTokens: queryOptions?.filterMMListTokens,
-              includeStakedAssets: queryOptions?.includeStakedAssets,
-            },
-          },
-        ),
-      staleTime: options?.staleTime ?? STALE_TIMES.BALANCES,
-      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    if (accountIds.length === 0) {
+      return { count: 0, unprocessedNetworks: [], balances: [] };
+    }
+    return this.queryClient.fetchQuery(
+      this.getV5MultiAccountBalancesQueryOptions(
+        accountIds,
+        queryOptions,
+        options,
+      ),
+    );
   }
 
   // ==========================================================================
   // TRANSACTIONS
   // ==========================================================================
+
+  /**
+   * Returns the TanStack Query options object for v1 transaction by hash.
+   *
+   * @param chainId - The chain ID.
+   * @param txHash - The transaction hash.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.includeLogs - Whether to include logs.
+   * @param queryOptions.includeValueTransfers - Whether to include value transfers.
+   * @param queryOptions.includeTxMetadata - Whether to include transaction metadata.
+   * @param queryOptions.lang - Language for metadata.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV1TransactionByHashQueryOptions(
+    chainId: number,
+    txHash: string,
+    queryOptions?: {
+      includeLogs?: boolean;
+      includeValueTransfers?: boolean;
+      includeTxMetadata?: boolean;
+      lang?: string;
+    },
+    options?: FetchOptions,
+  ): FetchQueryOptions<V1TransactionByHashResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'transactions',
+        'v1ByHash',
+        { chainId, txHash, options: queryOptions },
+      ],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<V1TransactionByHashResponse>(
+          API_URLS.ACCOUNTS,
+          `/v1/networks/${chainId}/transactions/${txHash}`,
+          {
+            signal,
+            params: {
+              includeLogs: queryOptions?.includeLogs,
+              includeValueTransfers: queryOptions?.includeValueTransfers,
+              includeTxMetadata: queryOptions?.includeTxMetadata,
+              lang: queryOptions?.lang,
+            },
+          },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
 
   /**
    * Get a specific transaction by hash (v1 endpoint).
@@ -391,30 +567,79 @@ export class AccountsApiClient extends BaseApiClient {
     },
     options?: FetchOptions,
   ): Promise<V1TransactionByHashResponse> {
-    return this.queryClient.fetchQuery({
+    return this.queryClient.fetchQuery(
+      this.getV1TransactionByHashQueryOptions(
+        chainId,
+        txHash,
+        queryOptions,
+        options,
+      ),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for v1 account transactions.
+   *
+   * @param address - The account address.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.chainIds - Chain IDs to filter by.
+   * @param queryOptions.cursor - Pagination cursor.
+   * @param queryOptions.startTimestamp - Start timestamp filter.
+   * @param queryOptions.endTimestamp - End timestamp filter.
+   * @param queryOptions.sortDirection - Sort direction (ASC/DESC).
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useInfiniteQuery, useSuspenseQuery, etc.
+   */
+  getV1AccountTransactionsQueryOptions(
+    address: string,
+    queryOptions?: {
+      chainIds?: string[];
+      cursor?: string;
+      startTimestamp?: number;
+      endTimestamp?: number;
+      sortDirection?: 'ASC' | 'DESC';
+    },
+    options?: FetchOptions,
+  ): FetchQueryOptions<V1AccountTransactionsResponse> {
+    return {
       queryKey: [
         'accounts',
         'transactions',
-        'v1ByHash',
-        { chainId, txHash, options: queryOptions },
+        'v1Account',
+        {
+          address,
+          options: queryOptions && {
+            ...queryOptions,
+            chainIds:
+              queryOptions.chainIds && [...queryOptions.chainIds].sort(),
+          },
+        },
       ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V1TransactionByHashResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V1AccountTransactionsResponse> => {
+        if (address === '') {
+          return { data: [], pageInfo: { count: 0, hasNextPage: false } };
+        }
+        return this.fetch<V1AccountTransactionsResponse>(
           API_URLS.ACCOUNTS,
-          `/v1/networks/${chainId}/transactions/${txHash}`,
+          `/v1/accounts/${address}/transactions`,
           {
             signal,
             params: {
-              includeLogs: queryOptions?.includeLogs,
-              includeValueTransfers: queryOptions?.includeValueTransfers,
-              includeTxMetadata: queryOptions?.includeTxMetadata,
-              lang: queryOptions?.lang,
+              networks: queryOptions?.chainIds,
+              cursor: queryOptions?.cursor,
+              startTimestamp: queryOptions?.startTimestamp,
+              endTimestamp: queryOptions?.endTimestamp,
+              sortDirection: queryOptions?.sortDirection,
             },
           },
-        ),
+        );
+      },
+      ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    };
   }
 
   /**
@@ -441,73 +666,61 @@ export class AccountsApiClient extends BaseApiClient {
     },
     options?: FetchOptions,
   ): Promise<V1AccountTransactionsResponse> {
-    return this.queryClient.fetchQuery({
-      queryKey: [
-        'accounts',
-        'transactions',
-        'v1Account',
-        {
-          address,
-          options: queryOptions && {
-            ...queryOptions,
-            chainIds:
-              queryOptions.chainIds && [...queryOptions.chainIds].sort(),
-          },
-        },
-      ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V1AccountTransactionsResponse>(
-          API_URLS.ACCOUNTS,
-          `/v1/accounts/${address}/transactions`,
-          {
-            signal,
-            params: {
-              networks: queryOptions?.chainIds,
-              cursor: queryOptions?.cursor,
-              startTimestamp: queryOptions?.startTimestamp,
-              endTimestamp: queryOptions?.endTimestamp,
-              sortDirection: queryOptions?.sortDirection,
-            },
-          },
-        ),
-      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
-      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    if (address === '') {
+      return { data: [], pageInfo: { count: 0, hasNextPage: false } };
+    }
+    return this.queryClient.fetchQuery(
+      this.getV1AccountTransactionsQueryOptions(address, queryOptions, options),
+    );
   }
 
   /**
-   * Get multi-account transactions (v4 endpoint).
+   * Returns the TanStack Query options object for v4 multi-account transactions.
+   * Use this with `queryClient.fetchQuery()`, `useQuery()`, `useInfiniteQuery()`,
+   * `useSuspenseQuery()`, etc. for flexibility across query permutations.
    *
-   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param accountAddresses - Array of CAIP-10 account addresses.
    * @param queryOptions - Query filter options.
-   * @param queryOptions.networks - Networks to filter by.
-   * @param queryOptions.cursor - Pagination cursor.
+   * @param queryOptions.networks - Comma-separated CAIP-2 network IDs.
+   * @param queryOptions.startTimestamp - Start timestamp (epoch) from which to return results.
+   * @param queryOptions.endTimestamp - End timestamp (epoch) for which to return results.
+   * @param queryOptions.cursor - Pagination cursor (deprecated, use after).
+   * @param queryOptions.limit - Maximum number of transactions to request (default 50).
+   * @param queryOptions.after - JWT containing the endCursor for the query.
+   * @param queryOptions.before - JWT containing the startCursor for the query.
    * @param queryOptions.sortDirection - Sort direction (ASC/DESC).
    * @param queryOptions.includeLogs - Whether to include logs.
-   * @param queryOptions.includeValueTransfers - Whether to include value transfers.
    * @param queryOptions.includeTxMetadata - Whether to include transaction metadata.
+   * @param queryOptions.maxLogsPerTx - Maximum number of logs per transaction.
+   * @param queryOptions.lang - Language for transaction category (default "en").
    * @param options - Fetch options including cache settings.
-   * @returns The multi-account transactions response.
+   * @returns Query options object compatible with fetchQuery/useQuery/useInfiniteQuery.
    */
-  async fetchV4MultiAccountTransactions(
-    accountIds: string[],
+  getV4MultiAccountTransactionsQueryOptions(
+    accountAddresses: string[],
     queryOptions?: {
       networks?: string[];
+      startTimestamp?: number;
+      endTimestamp?: number;
       cursor?: string;
+      limit?: number;
+      after?: string;
+      before?: string;
       sortDirection?: 'ASC' | 'DESC';
       includeLogs?: boolean;
-      includeValueTransfers?: boolean;
       includeTxMetadata?: boolean;
+      maxLogsPerTx?: number;
+      lang?: string;
     },
     options?: FetchOptions,
-  ): Promise<V4MultiAccountTransactionsResponse> {
-    return this.queryClient.fetchQuery({
+  ): FetchQueryOptions<V4MultiAccountTransactionsResponse> {
+    return {
       queryKey: [
         'accounts',
         'transactions',
         'v4MultiAccount',
         {
-          accountIds: [...accountIds].sort(),
+          accountAddresses: [...accountAddresses].sort(),
           options: queryOptions && {
             ...queryOptions,
             networks:
@@ -522,24 +735,109 @@ export class AccountsApiClient extends BaseApiClient {
           {
             signal,
             params: {
-              accountIds,
+              accountAddresses,
               networks: queryOptions?.networks,
+              startTimestamp: queryOptions?.startTimestamp,
+              endTimestamp: queryOptions?.endTimestamp,
               cursor: queryOptions?.cursor,
+              limit: queryOptions?.limit,
+              after: queryOptions?.after,
+              before: queryOptions?.before,
               sortDirection: queryOptions?.sortDirection,
               includeLogs: queryOptions?.includeLogs,
-              includeValueTransfers: queryOptions?.includeValueTransfers,
               includeTxMetadata: queryOptions?.includeTxMetadata,
+              maxLogsPerTx: queryOptions?.maxLogsPerTx,
+              lang: queryOptions?.lang,
             },
           },
         ),
+      ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    };
+  }
+
+  /**
+   * Get multi-account transactions (v4 endpoint).
+   *
+   * @param accountAddresses - Array of CAIP-10 account addresses.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.networks - Comma-separated CAIP-2 network IDs.
+   * @param queryOptions.startTimestamp - Start timestamp (epoch) from which to return results.
+   * @param queryOptions.endTimestamp - End timestamp (epoch) for which to return results.
+   * @param queryOptions.cursor - Pagination cursor (deprecated, use after).
+   * @param queryOptions.limit - Maximum number of transactions to request (default 50).
+   * @param queryOptions.after - JWT containing the endCursor for the query.
+   * @param queryOptions.before - JWT containing the startCursor for the query.
+   * @param queryOptions.sortDirection - Sort direction (ASC/DESC).
+   * @param queryOptions.includeLogs - Whether to include logs.
+   * @param queryOptions.includeTxMetadata - Whether to include transaction metadata.
+   * @param queryOptions.maxLogsPerTx - Maximum number of logs per transaction.
+   * @param queryOptions.lang - Language for transaction category (default "en").
+   * @param options - Fetch options including cache settings.
+   * @returns The multi-account transactions response.
+   */
+  async fetchV4MultiAccountTransactions(
+    accountAddresses: string[],
+    queryOptions?: {
+      networks?: string[];
+      startTimestamp?: number;
+      endTimestamp?: number;
+      cursor?: string;
+      limit?: number;
+      after?: string;
+      before?: string;
+      sortDirection?: 'ASC' | 'DESC';
+      includeLogs?: boolean;
+      includeTxMetadata?: boolean;
+      maxLogsPerTx?: number;
+      lang?: string;
+    },
+    options?: FetchOptions,
+  ): Promise<V4MultiAccountTransactionsResponse> {
+    return this.queryClient.fetchQuery(
+      this.getV4MultiAccountTransactionsQueryOptions(
+        accountAddresses,
+        queryOptions,
+        options,
+      ),
+    );
   }
 
   // ==========================================================================
   // RELATIONSHIPS
   // ==========================================================================
+
+  /**
+   * Returns the TanStack Query options object for v1 account relationship.
+   *
+   * @param chainId - The chain ID.
+   * @param from - The from address.
+   * @param to - The to address.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV1AccountRelationshipQueryOptions(
+    chainId: number,
+    from: string,
+    to: string,
+    options?: FetchOptions,
+  ): FetchQueryOptions<V1AccountRelationshipResult> {
+    return {
+      queryKey: ['accounts', 'v1Relationship', chainId, from, to],
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V1AccountRelationshipResult> =>
+        this.fetch<V1AccountRelationshipResult>(
+          API_URLS.ACCOUNTS,
+          `/v1/networks/${chainId}/accounts/${from}/relationships/${to}`,
+          { signal },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.DEFAULT,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
 
   /**
    * Get account address relationship (v1 endpoint).
@@ -556,45 +854,66 @@ export class AccountsApiClient extends BaseApiClient {
     to: string,
     options?: FetchOptions,
   ): Promise<V1AccountRelationshipResult> {
-    return this.queryClient.fetchQuery({
-      queryKey: ['accounts', 'v1Relationship', chainId, from, to],
-      queryFn: async ({ signal }: QueryFunctionContext) => {
-        try {
-          return await this.fetch<V1AccountRelationshipResult>(
-            API_URLS.ACCOUNTS,
-            `/v1/networks/${chainId}/accounts/${from}/relationships/${to}`,
-            { signal },
-          );
-        } catch (error) {
-          if (error instanceof HttpError && typeof error.body === 'object') {
-            const body = error.body as {
-              error?: { code?: string; message?: string };
-            } | null;
-            if (
-              body?.error &&
-              typeof body.error === 'object' &&
-              typeof body.error.code === 'string' &&
-              typeof body.error.message === 'string'
-            ) {
-              return {
-                error: {
-                  code: body.error.code,
-                  message: body.error.message,
-                },
-              };
-            }
-          }
-          throw error;
-        }
-      },
-      staleTime: options?.staleTime ?? STALE_TIMES.DEFAULT,
-      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    return this.queryClient.fetchQuery(
+      this.getV1AccountRelationshipQueryOptions(chainId, from, to, options),
+    );
   }
 
   // ==========================================================================
   // NFTs
   // ==========================================================================
+
+  /**
+   * Returns the TanStack Query options object for v2 account NFTs.
+   *
+   * @param address - The account address.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.networks - Networks to filter by.
+   * @param queryOptions.cursor - Pagination cursor.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV2AccountNftsQueryOptions(
+    address: string,
+    queryOptions?: { networks?: number[]; cursor?: string },
+    options?: FetchOptions,
+  ): FetchQueryOptions<V2NftsResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'v2Nfts',
+        {
+          address,
+          options: queryOptions && {
+            ...queryOptions,
+            networks:
+              queryOptions.networks && [...queryOptions.networks].sort(),
+          },
+        },
+      ],
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V2NftsResponse> => {
+        if (address === '') {
+          return { data: [], pageInfo: { count: 0, hasNextPage: false } };
+        }
+        return this.fetch<V2NftsResponse>(
+          API_URLS.ACCOUNTS,
+          `/v2/accounts/${address}/nfts`,
+          {
+            signal,
+            params: {
+              networks: queryOptions?.networks,
+              cursor: queryOptions?.cursor,
+            },
+          },
+        );
+      },
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.DEFAULT,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
 
   /**
    * Get NFTs owned by an account (v2 endpoint).
@@ -611,10 +930,36 @@ export class AccountsApiClient extends BaseApiClient {
     queryOptions?: { networks?: number[]; cursor?: string },
     options?: FetchOptions,
   ): Promise<V2NftsResponse> {
-    return this.queryClient.fetchQuery({
+    if (address === '') {
+      return { data: [], pageInfo: { count: 0, hasNextPage: false } };
+    }
+    return this.queryClient.fetchQuery(
+      this.getV2AccountNftsQueryOptions(address, queryOptions, options),
+    );
+  }
+
+  // ==========================================================================
+  // TOKEN DISCOVERY
+  // ==========================================================================
+
+  /**
+   * Returns the TanStack Query options object for v2 account tokens.
+   *
+   * @param address - The account address.
+   * @param queryOptions - Query filter options.
+   * @param queryOptions.networks - Networks to filter by.
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV2AccountTokensQueryOptions(
+    address: string,
+    queryOptions?: { networks?: number[] },
+    options?: FetchOptions,
+  ): FetchQueryOptions<V2TokensResponse> {
+    return {
       queryKey: [
         'accounts',
-        'v2Nfts',
+        'v2Tokens',
         {
           address,
           options: queryOptions && {
@@ -624,26 +969,26 @@ export class AccountsApiClient extends BaseApiClient {
           },
         },
       ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V2NftsResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V2TokensResponse> => {
+        if (address === '') {
+          return { data: [] };
+        }
+        return this.fetch<V2TokensResponse>(
           API_URLS.ACCOUNTS,
-          `/v2/accounts/${address}/nfts`,
+          `/v2/accounts/${address}/tokens`,
           {
             signal,
-            params: {
-              networks: queryOptions?.networks,
-              cursor: queryOptions?.cursor,
-            },
+            params: { networks: queryOptions?.networks },
           },
-        ),
+        );
+      },
+      ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.DEFAULT,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    };
   }
-
-  // ==========================================================================
-  // TOKEN DISCOVERY
-  // ==========================================================================
 
   /**
    * Get ERC20 tokens detected for an account (v2 endpoint).
@@ -659,30 +1004,11 @@ export class AccountsApiClient extends BaseApiClient {
     queryOptions?: { networks?: number[] },
     options?: FetchOptions,
   ): Promise<V2TokensResponse> {
-    return this.queryClient.fetchQuery({
-      queryKey: [
-        'accounts',
-        'v2Tokens',
-        {
-          address,
-          options: queryOptions && {
-            ...queryOptions,
-            networks:
-              queryOptions.networks && [...queryOptions.networks].sort(),
-          },
-        },
-      ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V2TokensResponse>(
-          API_URLS.ACCOUNTS,
-          `/v2/accounts/${address}/tokens`,
-          {
-            signal,
-            params: { networks: queryOptions?.networks },
-          },
-        ),
-      staleTime: options?.staleTime ?? STALE_TIMES.DEFAULT,
-      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
-    });
+    if (address === '') {
+      return { data: [] };
+    }
+    return this.queryClient.fetchQuery(
+      this.getV2AccountTokensQueryOptions(address, queryOptions, options),
+    );
   }
 }

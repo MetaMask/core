@@ -41,8 +41,8 @@ describe('Bridge Selectors', () => {
       },
       currencyRates: {
         ETH: {
-          conversionRate: 2468.12,
-          usdConversionRate: 1800,
+          conversionRate: 2468.12, // ETH rate in the user's selected currency
+          usdConversionRate: 1800, // ETH rate in USD
         },
       },
       marketData: {
@@ -101,9 +101,48 @@ describe('Bridge Selectors', () => {
         SolScope.Mainnet,
         '789',
       );
+      // usdExchangeRate = rate * (usdConversionRate / conversionRate) = 4.0 * (1800 / 2468.12)
+      expect(result).toStrictEqual({
+        exchangeRate: '4.0',
+        usdExchangeRate: new BigNumber('4.0')
+          .times(new BigNumber(1800).div(2468.12))
+          .toString(),
+      });
+    });
+
+    it('should return undefined usdExchangeRate for Solana when currencyRates is empty', () => {
+      const result = selectExchangeRateByChainIdAndAddress(
+        {
+          ...mockExchangeRateSources,
+          currencyRates: {},
+        } as unknown as BridgeAppState,
+        SolScope.Mainnet,
+        '789',
+      );
       expect(result).toStrictEqual({
         exchangeRate: '4.0',
         usdExchangeRate: undefined,
+      });
+    });
+
+    it('should return rate as usdExchangeRate for Solana when user currency is USD', () => {
+      const result = selectExchangeRateByChainIdAndAddress(
+        {
+          ...mockExchangeRateSources,
+          currencyRates: {
+            ETH: {
+              conversionRate: 1800,
+              usdConversionRate: 1800,
+            },
+          },
+        } as unknown as BridgeAppState,
+        SolScope.Mainnet,
+        '789',
+      );
+      // When user currency is USD, conversionRate === usdConversionRate, ratio is 1
+      expect(result).toStrictEqual({
+        exchangeRate: '4.0',
+        usdExchangeRate: '4',
       });
     });
 
