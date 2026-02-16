@@ -20,11 +20,7 @@ import {
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
-import {
-  calculateGasCost,
-  calculateGasFeeTokenCost,
-  calculateTransactionGasCost,
-} from '../../utils/gas';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -52,10 +48,10 @@ const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: FROM_MOCK,
-  sourceBalanceRaw: '10000000000000000000',
+  sourceBalanceRaw: '10000000000',
   sourceChainId: '0x1',
   sourceTokenAddress: '0xabc',
-  sourceTokenAmount: '1000000000000000000',
+  sourceTokenAmount: '1000000000',
   targetAmountMinimum: '123',
   targetChainId: '0x2',
   targetTokenAddress: '0x1234567890123456789012345678901234567890',
@@ -64,9 +60,9 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 const QUOTE_MOCK = {
   details: {
     currencyIn: {
-      amount: '1240000000000000000',
-      amountFormatted: '1.24',
-      amountUsd: '1.24',
+      amount: '1000000000',
+      amountFormatted: '1000',
+      amountUsd: '1000',
     },
     currencyOut: {
       amount: '100',
@@ -130,27 +126,36 @@ const DELEGATION_RESULT_MOCK = {
   value: '0x333' as Hex,
 } as Awaited<ReturnType<GetDelegationTransactionCallback>>;
 
-const GAS_FEE_TOKEN_MOCK = {
+const GAS_FEE_TOKEN_MOCK: GasFeeToken = {
   amount: toHex(1230000),
+  balance: toHex(0),
+  decimals: 6,
   gas: toHex(21000),
+  maxFeePerGas: toHex(1),
+  maxPriorityFeePerGas: toHex(1),
+  rateWei: toHex(1),
+  recipient: FROM_MOCK,
+  symbol: 'USDC',
   tokenAddress: '0xabc' as Hex,
-} as GasFeeToken;
+};
+
+function createQuote(sourceAmountRaw: string): RelayQuote {
+  const quote = cloneDeep(QUOTE_MOCK);
+  quote.details.currencyIn.amount = sourceAmountRaw;
+  return quote;
+}
 
 describe('Max Amount With Gas Station Fallback', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const calculateGasCostMock = jest.mocked(calculateGasCost);
   const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
-  jest.mocked(getNativeToken);
+  const getNativeTokenMock = jest.mocked(getNativeToken);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
   const getTokenInfoMock = jest.mocked(getTokenInfo);
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const getSlippageMock = jest.mocked(getSlippage);
-
-  const calculateTransactionGasCostMock = jest.mocked(
-    calculateTransactionGasCost,
-  );
 
   const {
     messenger,
@@ -160,19 +165,27 @@ describe('Max Amount With Gas Station Fallback', () => {
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
 
+  const getMaxRelayQuote = async (
+    requestOverrides: Partial<QuoteRequest> = {},
+  ) =>
+    await getRelayQuotes({
+      messenger,
+      requests: [
+        {
+          ...QUOTE_REQUEST_MOCK,
+          ...requestOverrides,
+          isMaxAmount: true,
+        },
+      ],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
   beforeEach(() => {
     jest.resetAllMocks();
 
     getTokenFiatRateMock.mockReturnValue({
-      usdRate: '2.0',
-      fiatRate: '4.0',
-    });
-
-    calculateTransactionGasCostMock.mockReturnValue({
-      fiat: '2.34',
-      human: '0.615',
-      raw: '6150000000000000',
-      usd: '1.23',
+      fiatRate: '1',
+      usdRate: '1',
     });
 
     calculateGasCostMock.mockReturnValue({
@@ -183,173 +196,40 @@ describe('Max Amount With Gas Station Fallback', () => {
     });
 
     calculateGasFeeTokenCostMock.mockReturnValue({
-      fiat: '5.56',
-      human: '2.725',
-      raw: '2725000000000000',
-      usd: '4.45',
-    });
-
-    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-      ...getDefaultRemoteFeatureFlagControllerState(),
-    });
-
-    getTokenInfoMock.mockReturnValue({ decimals: 18, symbol: 'ETH' });
-    getEIP7702SupportedChainsMock.mockReturnValue([
-      QUOTE_REQUEST_MOCK.sourceChainId,
-    ]);
-    getGasBufferMock.mockReturnValue(1.0);
-    getSlippageMock.mockReturnValue(DEFAULT_SLIPPAGE);
-    getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
-    getGasFeeTokensMock.mockResolvedValue([]);
-    findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
-  });
-
-  it('keeps max flow single-phase when native balance is sufficient', async () => {
-    successfulFetchMock.mockResolvedValue({
-      json: async () => QUOTE_MOCK,
-    } as never);
-
-    getTokenBalanceMock.mockReturnValue('1725000000000000');
-
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(successfulFetchMock).toHaveBeenCalledTimes(1);
-    expect(
-      result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
-    ).toBeUndefined();
-  });
-
-  it('returns phase-1 when native balance covers gas and no gas fee token is used', async () => {
-    successfulFetchMock.mockResolvedValue({
-      json: async () => QUOTE_MOCK,
-    } as never);
-
-    // Native balance exactly covers gas cost (calculateGasCostMock returns raw: '1725000000000000')
-    getTokenBalanceMock.mockReturnValue('1725000000000000');
-    getGasFeeTokensMock.mockResolvedValue([]);
-
-    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-      ...getDefaultRemoteFeatureFlagControllerState(),
-      remoteFeatureFlags: {
-        confirmations_pay: {
-          maxGasless: {
-            enabled: true,
-            bufferPercentage: 0.15,
-          },
-        },
-      },
-    });
-
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    // Only one fetch (phase-1), no phase-2 needed
-    expect(successfulFetchMock).toHaveBeenCalledTimes(1);
-    expect(
-      result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
-    ).toBeUndefined();
-  });
-
-  it('proceeds to phase-2 when gas station estimate is available', async () => {
-    const phase1Quote = cloneDeep(QUOTE_MOCK);
-    const phase2Quote = cloneDeep(QUOTE_MOCK);
-    phase2Quote.details.currencyIn.amount = '900000000';
-
-    successfulFetchMock
-      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
-      .mockResolvedValueOnce({ json: async () => phase2Quote } as never);
-
-    getTokenBalanceMock.mockReturnValue('0');
-    getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
-
-    calculateGasFeeTokenCostMock.mockReturnValue({
       fiat: '3.45',
       human: '3.45',
       raw: '3450000',
       usd: '3.45',
     });
 
-    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-      ...getDefaultRemoteFeatureFlagControllerState(),
-      remoteFeatureFlags: {
-        confirmations_pay: {
-          maxGasless: {
-            enabled: true,
-            bufferPercentage: 0.15,
-          },
-        },
-      },
-    });
-
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [
-        {
-          ...QUOTE_REQUEST_MOCK,
-          isMaxAmount: true,
-          sourceTokenAmount: '1000000000',
-        },
-      ],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(successfulFetchMock).toHaveBeenCalledTimes(2);
-    expect(result[0].original.metamask?.twoPhaseQuoteForMaxAmount).toBe(true);
-
-    const phase2Body = JSON.parse(
-      successfulFetchMock.mock.calls[1][1]?.body as string,
+    getNativeTokenMock.mockReturnValue(
+      '0x0000000000000000000000000000000000000000' as Hex,
     );
-    expect(phase2Body.amount).toBe('996032500');
-  });
+    getTokenBalanceMock.mockReturnValue('0');
+    getTokenInfoMock.mockReturnValue({ decimals: 6, symbol: 'USDC' });
 
-  it('skips two-phase flow when maxGasless.enabled is false', async () => {
-    successfulFetchMock.mockResolvedValue({
-      json: async () => QUOTE_MOCK,
-    } as never);
-
-    getTokenBalanceMock.mockReturnValue('1724999999999999');
-    getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+    getEIP7702SupportedChainsMock.mockReturnValue([
+      QUOTE_REQUEST_MOCK.sourceChainId,
+    ]);
+    getGasBufferMock.mockReturnValue(1.0);
+    getSlippageMock.mockReturnValue(DEFAULT_SLIPPAGE);
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
-      remoteFeatureFlags: {
-        confirmations_pay: {
-          maxGasless: {
-            enabled: false,
-          },
-        },
-      },
     });
 
-    await getRelayQuotes({
-      messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+    getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
+    getGasFeeTokensMock.mockResolvedValue([]);
+    findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
   });
 
-  it('returns phase-1 quote when no matching gas fee token is available', async () => {
+  it('returns phase-1 quote when native balance covers gas', async () => {
     successfulFetchMock.mockResolvedValue({
       json: async () => QUOTE_MOCK,
     } as never);
+    getTokenBalanceMock.mockReturnValue('1725000000000000');
 
-    getTokenBalanceMock.mockReturnValue('1724999999999999');
-    getGasFeeTokensMock.mockResolvedValue([]);
-
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-      transaction: TRANSACTION_META_MOCK,
-    });
+    const result = await getMaxRelayQuote();
 
     expect(successfulFetchMock).toHaveBeenCalledTimes(1);
     expect(
@@ -357,293 +237,209 @@ describe('Max Amount With Gas Station Fallback', () => {
     ).toBeUndefined();
   });
 
-  it('uses configured buffer percentage from feature flags', async () => {
-    const phase1Quote = cloneDeep(QUOTE_MOCK);
-    const phase2Quote = cloneDeep(QUOTE_MOCK);
-    phase2Quote.details.currencyIn.amount = '900000000000000000';
-
-    successfulFetchMock
-      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
-      .mockResolvedValueOnce({ json: async () => phase2Quote } as never);
-
-    getTokenBalanceMock.mockReturnValue('1724999999999999');
-    getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+  it('returns phase-1 quote when max gasless feature is disabled', async () => {
+    successfulFetchMock.mockResolvedValue({
+      json: async () => QUOTE_MOCK,
+    } as never);
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_pay: {
-          maxGasless: {
-            enabled: true,
-            bufferPercentage: 0.1,
-          },
+          maxGaslessEnabled: false,
         },
       },
     });
 
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-      transaction: TRANSACTION_META_MOCK,
-    });
+    const result = await getMaxRelayQuote();
 
-    expect(successfulFetchMock).toHaveBeenCalledTimes(2);
-    expect(result[0].original.metamask?.twoPhaseQuoteForMaxAmount).toBe(true);
-
-    // Verify the adjusted amount uses configured 10% buffer
-    // gasFeeTokenCost.raw = 2725000000000000
-    // bufferedGasCost = 2725000000000000 * 1.1 = 2997500000000000
-    // adjustedAmount = 1000000000000000000 - 2997500000000000 = 997002500000000000
-    const phase2Body = JSON.parse(
-      successfulFetchMock.mock.calls[1][1]?.body as string,
-    );
-    expect(phase2Body.amount).toBe('997002500000000000');
+    expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
+    ).toBeUndefined();
   });
 
-  it('returns phase-1 quote when adjusted amount is not viable', async () => {
-    const phase1Quote = cloneDeep(QUOTE_MOCK);
+  it('returns phase-1 quote when gas station is unsupported on source chain', async () => {
+    successfulFetchMock.mockResolvedValue({
+      json: async () => QUOTE_MOCK,
+    } as never);
+    getEIP7702SupportedChainsMock.mockReturnValue([]);
 
+    const result = await getMaxRelayQuote();
+
+    expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
+    ).toBeUndefined();
+  });
+
+  it('uses probe quote when phase-1 gas estimation is unavailable', async () => {
+    const phase1Quote = createQuote('1000000000');
+    const probeQuote = createQuote('250000000');
+    const phase2Quote = createQuote('996550000');
+
+    successfulFetchMock
+      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
+      .mockResolvedValueOnce({ json: async () => probeQuote } as never)
+      .mockResolvedValueOnce({ json: async () => phase2Quote } as never);
+
+    getGasFeeTokensMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK])
+      .mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK]);
+
+    const result = await getMaxRelayQuote({ sourceTokenAmount: '1000000000' });
+
+    expect(successfulFetchMock).toHaveBeenCalledTimes(3);
+
+    const phase2Body = JSON.parse(
+      successfulFetchMock.mock.calls[2][1]?.body as string,
+    );
+
+    expect(phase2Body.amount).toBe('996550000');
+    expect(result[0].original.metamask?.twoPhaseQuoteForMaxAmount).toBe(true);
+  });
+
+  it('returns phase-1 quote when adjusted amount is not positive', async () => {
+    const phase1Quote = createQuote('1000');
     successfulFetchMock.mockResolvedValue({
       json: async () => phase1Quote,
     } as never);
 
-    calculateGasFeeTokenCostMock.mockReturnValue({
-      fiat: '1000',
-      human: '1000',
-      raw: '1000000000000000000',
-      usd: '1000',
-    });
-
-    getTokenBalanceMock.mockReturnValue('1724999999999999');
     getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
-
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-      transaction: TRANSACTION_META_MOCK,
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '0',
+      human: '0',
+      raw: '1000',
+      usd: '0',
     });
+
+    const result = await getMaxRelayQuote({ sourceTokenAmount: '1000' });
 
     expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+    expect(result[0].sourceAmount.raw).toBe('1000');
     expect(
       result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
     ).toBeUndefined();
   });
 
-  it('proceeds to phase-2 when adjusted amount is viable', async () => {
-    const phase1Quote = cloneDeep(QUOTE_MOCK);
-    const phase2Quote = cloneDeep(QUOTE_MOCK);
-    phase2Quote.details.currencyIn.amount = '900000000000000000';
-
-    successfulFetchMock
-      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
-      .mockResolvedValueOnce({ json: async () => phase2Quote } as never);
-
-    getTokenBalanceMock.mockReturnValue('1724999999999999');
-    getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
-
-    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-      ...getDefaultRemoteFeatureFlagControllerState(),
-      remoteFeatureFlags: {
-        confirmations_pay: {
-          maxGasless: {
-            enabled: true,
-            bufferPercentage: 0.15,
-          },
-        },
-      },
-    });
-
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(successfulFetchMock).toHaveBeenCalledTimes(2);
-    expect(result[0].original.metamask?.twoPhaseQuoteForMaxAmount).toBe(true);
-  });
-
-  it('performs a second adjustment when first adjusted quote is still not affordable', async () => {
-    const phase1Quote = cloneDeep(QUOTE_MOCK);
-    const phase2Quote = cloneDeep(QUOTE_MOCK);
-    const phase3Quote = cloneDeep(QUOTE_MOCK);
-
-    phase1Quote.details.currencyIn.amount = '1000000000';
-    phase2Quote.details.currencyIn.amount = '885000000';
-    phase3Quote.details.currencyIn.amount = '862000000';
-
-    successfulFetchMock
-      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
-      .mockResolvedValueOnce({ json: async () => phase2Quote } as never)
-      .mockResolvedValueOnce({ json: async () => phase3Quote } as never);
-
-    getTokenBalanceMock.mockReturnValue('0');
-    getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
-
-    calculateGasFeeTokenCostMock
-      .mockReturnValueOnce({
-        fiat: '0',
-        human: '0',
-        raw: '100000000',
-        usd: '0',
-      })
-      .mockReturnValueOnce({
-        fiat: '0',
-        human: '0',
-        raw: '120000000',
-        usd: '0',
-      })
-      .mockReturnValueOnce({
-        fiat: '0',
-        human: '0',
-        raw: '120000000',
-        usd: '0',
-      });
-
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [
-        {
-          ...QUOTE_REQUEST_MOCK,
-          isMaxAmount: true,
-          sourceTokenAmount: '1000000000',
-        },
-      ],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(successfulFetchMock).toHaveBeenCalledTimes(3);
-    expect(result[0].original.metamask?.twoPhaseQuoteForMaxAmount).toBe(true);
-
-    const phase2Body = JSON.parse(
-      successfulFetchMock.mock.calls[1][1]?.body as string,
-    );
-    expect(phase2Body.amount).toBe('885000000');
-
-    const phase3Body = JSON.parse(
-      successfulFetchMock.mock.calls[2][1]?.body as string,
-    );
-    expect(phase3Body.amount).toBe('862000000');
-  });
-
-  it('falls back to phase-1 quote when adjusted quote does not converge after max attempts', async () => {
-    const phase1Quote = cloneDeep(QUOTE_MOCK);
-    const phase2Quote = cloneDeep(QUOTE_MOCK);
-    const phase3Quote = cloneDeep(QUOTE_MOCK);
-
-    phase1Quote.details.currencyIn.amount = '1000000000';
-    phase2Quote.details.currencyIn.amount = '885000000';
-    phase3Quote.details.currencyIn.amount = '862000000';
-
-    successfulFetchMock
-      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
-      .mockResolvedValueOnce({ json: async () => phase2Quote } as never)
-      .mockResolvedValueOnce({ json: async () => phase3Quote } as never);
-
-    getTokenBalanceMock.mockReturnValue('0');
-    getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
-
-    calculateGasFeeTokenCostMock
-      .mockReturnValueOnce({
-        fiat: '0',
-        human: '0',
-        raw: '100000000',
-        usd: '0',
-      })
-      .mockReturnValueOnce({
-        fiat: '0',
-        human: '0',
-        raw: '120000000',
-        usd: '0',
-      })
-      .mockReturnValueOnce({
-        fiat: '0',
-        human: '0',
-        raw: '200000000',
-        usd: '0',
-      });
-
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [
-        {
-          ...QUOTE_REQUEST_MOCK,
-          isMaxAmount: true,
-          sourceTokenAmount: '1000000000',
-        },
-      ],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(successfulFetchMock).toHaveBeenCalledTimes(3);
-    expect(
-      result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
-    ).toBeUndefined();
-    expect(result[0].sourceAmount.raw).toBe('1000000000');
-  });
-
-  it('falls back to phase-1 quote when phase-2 request fails', async () => {
-    const phase1Quote = cloneDeep(QUOTE_MOCK);
-
+  it('returns phase-1 quote when phase-2 request fails', async () => {
+    const phase1Quote = createQuote('1000');
     successfulFetchMock
       .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
       .mockRejectedValueOnce(new Error('phase-2 failed'));
 
-    getTokenBalanceMock.mockReturnValue('1724999999999999');
     getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
-
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-      transaction: TRANSACTION_META_MOCK,
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '0',
+      human: '0',
+      raw: '100',
+      usd: '0',
     });
+
+    const result = await getMaxRelayQuote({ sourceTokenAmount: '1000' });
 
     expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+    expect(result[0].sourceAmount.raw).toBe('1000');
     expect(
       result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
     ).toBeUndefined();
-    expect(result[0].sourceAmount.raw).toBe(
-      QUOTE_MOCK.details.currencyIn.amount,
-    );
   });
 
-  it('returns phase-1 quote when gas station estimate is unavailable', async () => {
-    const phase1Quote = cloneDeep(QUOTE_MOCK);
+  it('returns phase-1 quote when phase-2 validation estimate is unavailable', async () => {
+    const phase1Quote = createQuote('1000');
+    const phase2Quote = createQuote('900');
 
-    successfulFetchMock.mockResolvedValue({
-      json: async () => phase1Quote,
-    } as never);
+    successfulFetchMock
+      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
+      .mockResolvedValueOnce({ json: async () => phase2Quote } as never);
 
-    getTokenBalanceMock.mockReturnValue('0');
-    getGasFeeTokensMock.mockResolvedValue([]);
+    getGasFeeTokensMock
+      .mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
 
-    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-      ...getDefaultRemoteFeatureFlagControllerState(),
-      remoteFeatureFlags: {
-        confirmations_pay: {
-          maxGasless: {
-            enabled: true,
-            bufferPercentage: 0.15,
-          },
-        },
-      },
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '0',
+      human: '0',
+      raw: '100',
+      usd: '0',
     });
 
-    const result = await getRelayQuotes({
-      messenger,
-      requests: [
-        {
-          ...QUOTE_REQUEST_MOCK,
-          isMaxAmount: true,
-          sourceTokenAmount: '1000000000',
-        },
-      ],
-      transaction: TRANSACTION_META_MOCK,
-    });
+    const result = await getMaxRelayQuote({ sourceTokenAmount: '1000' });
 
-    expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+    expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+    expect(result[0].sourceAmount.raw).toBe('1000');
     expect(
       result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
     ).toBeUndefined();
+  });
+
+  it('returns phase-1 quote when adjusted quote is not affordable after validation', async () => {
+    const phase1Quote = createQuote('1000');
+    const phase2Quote = createQuote('900');
+
+    successfulFetchMock
+      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
+      .mockResolvedValueOnce({ json: async () => phase2Quote } as never);
+
+    getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+    calculateGasFeeTokenCostMock
+      .mockReturnValueOnce({
+        fiat: '0',
+        human: '0',
+        raw: '100',
+        usd: '0',
+      })
+      .mockReturnValueOnce({
+        fiat: '0',
+        human: '0',
+        raw: '200',
+        usd: '0',
+      });
+
+    const result = await getMaxRelayQuote({ sourceTokenAmount: '1000' });
+
+    expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+    expect(result[0].sourceAmount.raw).toBe('1000');
+    expect(
+      result[0].original.metamask?.twoPhaseQuoteForMaxAmount,
+    ).toBeUndefined();
+  });
+
+  it('returns phase-2 quote when estimate and validation are affordable', async () => {
+    const phase1Quote = createQuote('1000');
+    const phase2Quote = createQuote('900');
+
+    successfulFetchMock
+      .mockResolvedValueOnce({ json: async () => phase1Quote } as never)
+      .mockResolvedValueOnce({ json: async () => phase2Quote } as never);
+
+    getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+    calculateGasFeeTokenCostMock
+      .mockReturnValueOnce({
+        fiat: '0',
+        human: '0',
+        raw: '100',
+        usd: '0',
+      })
+      .mockReturnValueOnce({
+        fiat: '0',
+        human: '0',
+        raw: '100',
+        usd: '0',
+      });
+
+    const result = await getMaxRelayQuote({ sourceTokenAmount: '1000' });
+
+    expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+
+    const phase2Body = JSON.parse(
+      successfulFetchMock.mock.calls[1][1]?.body as string,
+    );
+
+    expect(phase2Body.amount).toBe('900');
+    expect(result[0].original.metamask?.twoPhaseQuoteForMaxAmount).toBe(true);
   });
 });
