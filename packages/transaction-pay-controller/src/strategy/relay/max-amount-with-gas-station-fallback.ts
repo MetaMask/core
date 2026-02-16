@@ -26,21 +26,30 @@ const log = createModuleLogger(
   'max-amount-with-gas-station-fallback',
 );
 
-/**
- * Minimum adjusted amount threshold as a percentage of original max amount (1%).
- * If the adjusted amount falls below this threshold, we fall back to phase-1.
- */
-const MIN_ADJUSTED_AMOUNT_PERCENTAGE = 0.01;
+const PROBE_AMOUNT_PERCENTAGE = 0.01;
 
-type GasCostEstimateSource =
-  | 'quote'
-  | 'gas-station'
-  | 'probe'
-  | 'usd-bootstrap';
+enum GasCostEstimateSource {
+  GasStation = 'gas-station',
+  Probe = 'probe',
+  Quote = 'quote',
+  UsdBootstrap = 'usd-bootstrap',
+}
 
 type GasCostEstimate = {
   amount: BigNumber;
   source: GasCostEstimateSource;
+};
+
+type NativeBalanceCheckResult = {
+  hasEnoughNativeBalance: boolean;
+  nativeBalance?: string;
+  nativeGasCostRaw?: string;
+};
+
+type GasStationEligibility = {
+  chainSupportsGasStation: boolean;
+  isDisabledChain: boolean;
+  isEligible: boolean;
 };
 
 type GetSingleQuoteFn = (
@@ -49,22 +58,22 @@ type GetSingleQuoteFn = (
 ) => Promise<TransactionPayQuote<RelayQuote>>;
 
 /**
- * Handles max amount quotes with potential gas station fallback.
- * This implements a two-phase quoting strategy:
+ * Gets a max-amount Relay quote and applies a gas-station fallback flow.
  *
- * Phase 1: Get quote with full source amount
- * - If native balance is sufficient for gas, return phase-1 quote
- * - If gas station is not eligible, return phase-1 quote
+ * Flow:
+ * 1) Request phase-1 quote with the original max source amount.
+ * 2) Early-return phase-1 when native gas is sufficient, feature flag is disabled,
+ *    or gas station is not eligible on the source chain.
+ * 3) Estimate source-token gas cost (quote -> gas-station params -> probe quote ->
+ *    USD bootstrap fallback).
+ * 4) Request phase-2 quote with adjusted source amount.
+ * 5) Re-validate affordability from phase-2 and return adjusted quote only when
+ *    validation succeeds; otherwise fall back to phase-1.
  *
- * Phase 2: Adjust source amount and re-quote (only if needed)
- * - Compute adjusted amount = sourceAmount - gasFeeTokenCost (with buffer)
- * - If adjusted amount is viable, get phase-2 quote
- * - Return phase-2 quote on success, or fall back to phase-1
- *
- * @param request - Quote request with isMaxAmount=true.
- * @param fullRequest - Full quotes request.
- * @param getSingleQuote - Function to fetch a single quote.
- * @returns Quote with potential two-phase adjustment.
+ * @param request - Max quote request.
+ * @param fullRequest - Full quotes request context.
+ * @param getSingleQuote - Quote fetcher used for phase-1/phase-2/probe requests.
+ * @returns The adjusted phase-2 quote when valid, otherwise the phase-1 quote.
  */
 export async function getMaxAmountQuoteWithGasStationFallback(
   request: QuoteRequest,
@@ -74,7 +83,7 @@ export async function getMaxAmountQuoteWithGasStationFallback(
   const { messenger } = fullRequest;
   const { sourceChainId, sourceTokenAmount } = request;
 
-  const { maxGasless, relayDisabledGasStationChains } =
+  const { maxGaslessEnabled, relayDisabledGasStationChains } =
     getFeatureFlags(messenger);
 
   log('Phase 1: Getting max amount quote with full source amount', {
@@ -83,49 +92,42 @@ export async function getMaxAmountQuoteWithGasStationFallback(
 
   const phase1Quote = await getSingleQuote(request, fullRequest);
 
-  if (!phase1Quote.fees.isSourceGasFeeToken) {
-    const nativeGasCost = phase1Quote.fees.sourceNetwork.max;
-    const nativeBalance = getTokenBalance(
-      messenger,
-      request.from,
-      sourceChainId,
-      getNativeToken(sourceChainId),
+  const nativeBalanceCheck = checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(
+    phase1Quote,
+    messenger,
+    request,
+  );
+
+  if (nativeBalanceCheck.hasEnoughNativeBalance) {
+    log(
+      'Phase 1 complete: Native balance sufficient for gas, returning phase-1 quote',
+      {
+        nativeBalance: nativeBalanceCheck.nativeBalance,
+        nativeGasCost: nativeBalanceCheck.nativeGasCostRaw,
+      },
     );
-
-    const hasEnoughNativeBalance = new BigNumber(
-      nativeBalance,
-    ).isGreaterThanOrEqualTo(nativeGasCost.raw);
-
-    if (hasEnoughNativeBalance) {
-      log(
-        'Phase 1 complete: Native balance sufficient for gas, returning phase-1 quote',
-        { nativeBalance, nativeGasCost: nativeGasCost.raw },
-      );
-      return phase1Quote;
-    }
+    return phase1Quote;
   }
 
-  if (!maxGasless.enabled) {
+  if (!maxGaslessEnabled) {
     log(
       'Phase 1 complete: Max gasless two-phase flow disabled via feature flag',
     );
     return phase1Quote;
   }
 
-  const supportedChains = getEIP7702SupportedChains(messenger);
-  const chainSupportsGasStation = supportedChains.some(
-    (supportedChainId) =>
-      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
+  const gasStationEligibility = getGasStationEligibility(
+    messenger,
+    sourceChainId,
+    relayDisabledGasStationChains,
   );
 
-  if (
-    relayDisabledGasStationChains.includes(sourceChainId) ||
-    !chainSupportsGasStation
-  ) {
+  if (!gasStationEligibility.isEligible) {
     log(
       'Phase 1 complete: Gas station disabled or unsupported, returning phase-1 quote',
       {
-        chainSupportsGasStation,
+        chainSupportsGasStation: gasStationEligibility.chainSupportsGasStation,
+        isDisabledChain: gasStationEligibility.isDisabledChain,
         sourceChainId,
       },
     );
@@ -133,10 +135,6 @@ export async function getMaxAmountQuoteWithGasStationFallback(
   }
 
   const sourceAmountBN = new BigNumber(sourceTokenAmount);
-  const minimumThreshold = sourceAmountBN.multipliedBy(
-    MIN_ADJUSTED_AMOUNT_PERCENTAGE,
-  );
-  const bufferMultiplier = 1 + maxGasless.bufferPercentage;
 
   const initialGasEstimate = await getGasCostInSourceTokenRaw(
     phase1Quote,
@@ -152,47 +150,28 @@ export async function getMaxAmountQuoteWithGasStationFallback(
     return phase1Quote;
   }
 
-  const bufferedGasCost =
-    initialGasEstimate.amount.multipliedBy(bufferMultiplier);
-  const adjustedSourceAmount = sourceAmountBN.minus(bufferedGasCost);
+  const adjustedSourceAmount = getAdjustedSourceAmount(
+    sourceAmountBN,
+    initialGasEstimate.amount,
+  );
 
-  if (
-    adjustedSourceAmount.isLessThanOrEqualTo(0) ||
-    adjustedSourceAmount.isLessThan(minimumThreshold)
-  ) {
-    log('Adjusted amount below minimum threshold', {
+  if (!isAdjustedAmountPositive(adjustedSourceAmount)) {
+    log('Adjusted amount is not positive, returning phase-1 quote', {
       adjustedSourceAmount: adjustedSourceAmount.toString(10),
-      minimumThreshold: minimumThreshold.toString(10),
       gasCostInSourceToken: initialGasEstimate.amount.toString(10),
-      bufferedGasCost: bufferedGasCost.toString(10),
     });
     return phase1Quote;
   }
 
-  let phase2Quote: TransactionPayQuote<RelayQuote>;
+  const phase2Quote = await getAdjustedPhase2Quote(
+    adjustedSourceAmount,
+    initialGasEstimate,
+    request,
+    fullRequest,
+    getSingleQuote,
+  );
 
-  log('Requesting adjusted max quote', {
-    adjustedAmount: adjustedSourceAmount.toString(10),
-    gasCostInSourceToken: initialGasEstimate.amount.toString(10),
-    gasEstimateSource: initialGasEstimate.source,
-    originalAmount: sourceTokenAmount,
-  });
-
-  try {
-    phase2Quote = await getSingleQuote(
-      {
-        ...request,
-        sourceTokenAmount: adjustedSourceAmount.toFixed(
-          0,
-          BigNumber.ROUND_DOWN,
-        ),
-      },
-      fullRequest,
-    );
-  } catch (error) {
-    log('Adjusted quote request failed, falling back to phase-1 quote', {
-      error,
-    });
+  if (!phase2Quote) {
     return phase1Quote;
   }
 
@@ -207,32 +186,140 @@ export async function getMaxAmountQuoteWithGasStationFallback(
 
   if (
     !validationGasEstimate ||
-    validationGasEstimate.source === 'usd-bootstrap'
+    validationGasEstimate.source === GasCostEstimateSource.UsdBootstrap
   ) {
     log('Unable to validate gas station cost on adjusted quote');
     return phase1Quote;
   }
 
-  const validationBufferedGasCost = validationGasEstimate.amount;
-
   if (
-    adjustedSourceAmount
-      .plus(validationBufferedGasCost)
-      .isGreaterThan(sourceAmountBN)
+    !isAdjustedAmountAffordable(
+      adjustedSourceAmount,
+      validationGasEstimate.amount,
+      sourceAmountBN,
+    )
   ) {
     log('Adjusted quote fails affordability validation', {
       adjustedSourceAmount: adjustedSourceAmount.toString(10),
-      validationBufferedGasCost: validationBufferedGasCost.toString(10),
+      validationGasCost: validationGasEstimate.amount.toString(10),
     });
     return phase1Quote;
   }
 
-  phase2Quote.original.metamask = {
-    ...phase2Quote.original.metamask,
-    twoPhaseQuoteForMaxAmount: true,
-  };
+  markQuoteAsTwoPhaseForMaxAmount(phase2Quote);
 
   return phase2Quote;
+}
+
+function checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(
+  quote: TransactionPayQuote<RelayQuote>,
+  messenger: TransactionPayControllerMessenger,
+  request: QuoteRequest,
+): NativeBalanceCheckResult {
+  if (quote.fees.isSourceGasFeeToken) {
+    return { hasEnoughNativeBalance: false };
+  }
+
+  const nativeGasCostRaw = quote.fees.sourceNetwork.max.raw;
+  const nativeBalance = getTokenBalance(
+    messenger,
+    request.from,
+    request.sourceChainId,
+    getNativeToken(request.sourceChainId),
+  );
+
+  return {
+    hasEnoughNativeBalance: new BigNumber(nativeBalance).isGreaterThanOrEqualTo(
+      nativeGasCostRaw,
+    ),
+    nativeBalance,
+    nativeGasCostRaw,
+  };
+}
+
+function getGasStationEligibility(
+  messenger: TransactionPayControllerMessenger,
+  sourceChainId: QuoteRequest['sourceChainId'],
+  relayDisabledGasStationChains: readonly QuoteRequest['sourceChainId'][],
+): GasStationEligibility {
+  const supportedChains = getEIP7702SupportedChains(messenger);
+  const chainSupportsGasStation = supportedChains.some(
+    (supportedChainId) =>
+      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
+  );
+
+  const isDisabledChain = relayDisabledGasStationChains.includes(sourceChainId);
+
+  return {
+    chainSupportsGasStation,
+    isDisabledChain,
+    isEligible: !isDisabledChain && chainSupportsGasStation,
+  };
+}
+
+function getAdjustedSourceAmount(
+  sourceAmount: BigNumber,
+  estimatedGasCost: BigNumber,
+): BigNumber {
+  return sourceAmount
+    .minus(estimatedGasCost)
+    .integerValue(BigNumber.ROUND_DOWN);
+}
+
+function isAdjustedAmountPositive(adjustedSourceAmount: BigNumber): boolean {
+  return adjustedSourceAmount.isGreaterThan(0);
+}
+
+function isAdjustedAmountAffordable(
+  adjustedSourceAmount: BigNumber,
+  gasCost: BigNumber,
+  originalSourceAmount: BigNumber,
+): boolean {
+  return adjustedSourceAmount
+    .plus(gasCost)
+    .isLessThanOrEqualTo(originalSourceAmount);
+}
+
+function markQuoteAsTwoPhaseForMaxAmount(
+  quote: TransactionPayQuote<RelayQuote>,
+): void {
+  quote.original.metamask = {
+    ...quote.original.metamask,
+    twoPhaseQuoteForMaxAmount: true,
+  };
+}
+
+async function getAdjustedPhase2Quote(
+  adjustedSourceAmount: BigNumber,
+  initialGasEstimate: GasCostEstimate,
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+  getSingleQuote: GetSingleQuoteFn,
+): Promise<TransactionPayQuote<RelayQuote> | undefined> {
+  log('Requesting adjusted max quote', {
+    adjustedAmount: adjustedSourceAmount.toString(10),
+    gasCostInSourceToken: initialGasEstimate.amount.toString(10),
+    gasEstimateSource: initialGasEstimate.source,
+    originalAmount: request.sourceTokenAmount,
+  });
+
+  try {
+    return await getSingleQuote(
+      {
+        ...request,
+        sourceTokenAmount: adjustedSourceAmount.toFixed(
+          0,
+          BigNumber.ROUND_DOWN,
+        ),
+      },
+      fullRequest,
+    );
+  } catch (error) {
+    log('Adjusted quote request failed, falling back to phase-1 quote', {
+      error,
+    });
+    return undefined;
+  }
 }
 
 async function getGasCostInSourceTokenRaw(
@@ -249,7 +336,7 @@ async function getGasCostInSourceTokenRaw(
     log('Gas cost already in source token units', { raw: gasCost.raw });
     return {
       amount: new BigNumber(gasCost.raw),
-      source: 'quote',
+      source: GasCostEstimateSource.Quote,
     };
   }
 
@@ -262,7 +349,7 @@ async function getGasCostInSourceTokenRaw(
   if (gasStationCost) {
     return {
       amount: gasStationCost,
-      source: 'gas-station',
+      source: GasCostEstimateSource.GasStation,
     };
   }
 
@@ -276,7 +363,7 @@ async function getGasCostInSourceTokenRaw(
     if (probeCost) {
       return {
         amount: probeCost,
-        source: 'probe',
+        source: GasCostEstimateSource.Probe,
       };
     }
   }
@@ -290,7 +377,7 @@ async function getGasCostInSourceTokenRaw(
   if (bootstrapCost) {
     return {
       amount: bootstrapCost,
-      source: 'usd-bootstrap',
+      source: GasCostEstimateSource.UsdBootstrap,
     };
   }
 
@@ -444,7 +531,7 @@ function getProbeSourceAmountRaw(
   }
 
   const onePercentRaw = sourceAmount
-    .multipliedBy(0.01)
+    .multipliedBy(PROBE_AMOUNT_PERCENTAGE)
     .integerValue(BigNumber.ROUND_FLOOR);
   const targetProbeRaw = new BigNumber(1).shiftedBy(
     Math.max(sourceDecimals - 2, 0),

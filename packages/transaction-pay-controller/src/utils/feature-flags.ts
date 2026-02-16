@@ -26,10 +26,7 @@ type FeatureFlagsRaw = {
       }
     >;
   };
-  maxGasless?: {
-    enabled?: boolean;
-    bufferPercentage?: number;
-  };
+  maxGaslessEnabled?: boolean;
   relayDisabledGasStationChains?: Hex[];
   relayFallbackGas?: {
     estimate?: number;
@@ -41,10 +38,7 @@ type FeatureFlagsRaw = {
 };
 
 export type FeatureFlags = {
-  maxGasless: {
-    enabled: boolean;
-    bufferPercentage: number;
-  };
+  maxGaslessEnabled: boolean;
   relayDisabledGasStationChains: Hex[];
   relayFallbackGas: {
     estimate: number;
@@ -79,15 +73,11 @@ export function getFeatureFlags(
 
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
 
-  const maxGasless = {
-    enabled: featureFlags.maxGasless?.enabled ?? DEFAULT_MAX_GASLESS_ENABLED,
-    bufferPercentage:
-      featureFlags.maxGasless?.bufferPercentage ??
-      DEFAULT_MAX_GASLESS_BUFFER_PERCENTAGE,
-  };
+  const maxGaslessEnabled =
+    featureFlags?.maxGaslessEnabled ?? DEFAULT_MAX_GASLESS_ENABLED;
 
   const result = {
-    maxGasless,
+    maxGaslessEnabled,
     relayDisabledGasStationChains,
     relayFallbackGas: {
       estimate,
