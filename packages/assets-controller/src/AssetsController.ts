@@ -452,9 +452,6 @@ export class AssetsController extends BaseController<
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
-  /** Price polling interval from priceDataSourceConfig (overrides default when set). */
-  readonly #pricePollInterval: number | undefined;
-
   /** Optional callback for first init/fetch MetaMetrics (duration). */
   readonly #trackMetaMetricsEvent?: (
     payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
@@ -558,7 +555,6 @@ export class AssetsController extends BaseController<
     this.#isEnabled = isEnabled();
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
-    this.#pricePollInterval = priceDataSourceConfig?.pollInterval;
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
@@ -999,14 +995,6 @@ export class AssetsController extends BaseController<
     return result;
   }
 
-  /**
-   * Refresh staked balances for all subscribed accounts/chains and update state.
-   * Exposed for UI. Also triggered automatically on transaction events.
-   */
-  async refreshStakedBalance(): Promise<void> {
-    await this.#stakedBalanceDataSource.refreshStakedBalance();
-  }
-
   // ============================================================================
   // CUSTOM ASSETS MANAGEMENT
   // ============================================================================
@@ -1160,9 +1148,7 @@ export class AssetsController extends BaseController<
     if (!this.#isBasicFunctionality()) {
       return;
     }
-    const {
-      updateInterval = this.#pricePollInterval ?? this.#defaultUpdateInterval,
-    } = options;
+    const { updateInterval = this.#defaultUpdateInterval } = options;
     const subscriptionKey = 'ds:PriceDataSource';
 
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);

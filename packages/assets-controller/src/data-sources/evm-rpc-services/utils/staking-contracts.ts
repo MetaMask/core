@@ -1,7 +1,10 @@
+import { convertHexToDecimal } from '@metamask/controller-utils';
 import {
   isCaipChainId,
   isStrictHexString,
+  KnownCaipNamespace,
   parseCaipAssetType,
+  toCaipChainId,
 } from '@metamask/utils';
 
 /** Staking contract addresses by CAIP-2 chain ID (e.g. "eip155:1"). */
@@ -21,11 +24,10 @@ function toCaip2ChainId(chainId: string): string {
   if (isCaipChainId(chainId)) {
     return chainId;
   }
-  if (isStrictHexString(chainId)) {
-    const decimal = parseInt(chainId, 16);
-    return `eip155:${decimal}`;
-  }
-  return `eip155:${chainId}`;
+  const reference = isStrictHexString(chainId)
+    ? convertHexToDecimal(chainId).toString()
+    : chainId;
+  return toCaipChainId(KnownCaipNamespace.Eip155, reference);
 }
 
 /**
