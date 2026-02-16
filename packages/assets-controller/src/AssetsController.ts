@@ -89,9 +89,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCustomAssets',
   'hideAsset',
   'unhideAsset',
-  'refreshBalances',
-  'refreshDetectedTokens',
-  'refreshStakedBalance',
 ] as const;
 
 /** Default polling interval hint for data sources (30 seconds) */
@@ -1984,12 +1981,5 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getCustomAssets');
     this.messenger.unregisterActionHandler('AssetsController:hideAsset');
     this.messenger.unregisterActionHandler('AssetsController:unhideAsset');
-    this.messenger.unregisterActionHandler('AssetsController:refreshBalances');
-    this.messenger.unregisterActionHandler(
-      'AssetsController:refreshDetectedTokens',
-    );
-    this.messenger.unregisterActionHandler(
-      'AssetsController:refreshStakedBalance',
-    );
   }
 }
