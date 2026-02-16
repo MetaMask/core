@@ -149,7 +149,7 @@ describe('StakedBalanceFetcher', () => {
       expect(provider.call).toHaveBeenCalledTimes(2);
     });
 
-    it('returns "0" on provider or contract error', async () => {
+    it('throws on provider or contract error so callers do not persist false zero', async () => {
       const provider = createMockProvider({
         sharesWei: '1000000000000000000',
         assetsWei: '1500000000000000000',
@@ -162,27 +162,27 @@ describe('StakedBalanceFetcher', () => {
         getNetworkProvider: () => provider,
       });
 
-      const result = await fetcher.fetchStakedBalance(INPUT);
-
-      expect(result).toStrictEqual({ amount: '0' });
+      await expect(fetcher.fetchStakedBalance(INPUT)).rejects.toThrow(
+        'RPC error',
+      );
     });
 
-    it('returns zero when getNetworkProvider is not set', async () => {
+    it('throws when getNetworkProvider is not set', async () => {
       const fetcher = createFetcher();
 
-      const result = await fetcher.fetchStakedBalance(INPUT);
-
-      expect(result).toStrictEqual({ amount: '0' });
+      await expect(fetcher.fetchStakedBalance(INPUT)).rejects.toThrow(
+        'no provider available',
+      );
     });
 
-    it('returns zero when getNetworkProvider returns undefined', async () => {
+    it('throws when getNetworkProvider returns undefined', async () => {
       const fetcher = createFetcher({
         getNetworkProvider: () => undefined,
       });
 
-      const result = await fetcher.fetchStakedBalance(INPUT);
-
-      expect(result).toStrictEqual({ amount: '0' });
+      await expect(fetcher.fetchStakedBalance(INPUT)).rejects.toThrow(
+        'no provider available',
+      );
     });
 
     it('works with CAIP-2 chain ID (eip155:1)', async () => {
@@ -228,6 +228,18 @@ describe('StakedBalanceFetcher', () => {
       await fetcher._executePoll(INPUT);
 
       expect(fetchSpy).toHaveBeenCalledWith(INPUT);
+    });
+
+    it('does not call the update callback when fetchStakedBalance throws', async () => {
+      const fetcher = createFetcher({
+        getNetworkProvider: () => undefined,
+      });
+      const callback = jest.fn();
+      fetcher.setOnStakedBalanceUpdate(callback);
+
+      await fetcher._executePoll(INPUT);
+
+      expect(callback).not.toHaveBeenCalled();
     });
   });
 });

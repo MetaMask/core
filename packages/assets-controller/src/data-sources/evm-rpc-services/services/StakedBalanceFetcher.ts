@@ -106,7 +106,14 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
   }
 
   async _executePoll(input: StakedBalancePollingInput): Promise<void> {
-    const result = await this.fetchStakedBalance(input);
+    let result: StakedBalance;
+    try {
+      result = await this.fetchStakedBalance(input);
+    } catch {
+      // Do not push an update on provider/RPC failure; otherwise we would
+      // overwrite existing non-zero staked balances with zero in state.
+      return;
+    }
 
     if (this.#onStakedBalanceUpdate) {
       this.#onStakedBalanceUpdate({
@@ -121,11 +128,12 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
    * Fetches the staked balance for an account on a chain using the same
    * staking contract as AccountTrackerController (getShares then convertToAssets).
    * Returns a human-readable amount string (e.g. "1.5" for 1.5 ETH).
-   * When no provider is configured or the getter returns undefined, returns zero
-   * so that polling does not throw (e.g. in tests or when provider is not yet available).
+   * Throws when no provider is available or when the RPC/contract call fails, so
+   * callers do not persist a false zero and overwrite existing balances.
    *
    * @param input - Chain, account ID, and address to query.
    * @returns Human-readable staked balance (amount string).
+   * @throws When provider is missing or when getShares/convertToAssets fails.
    */
   async fetchStakedBalance(
     input: StakedBalancePollingInput,
@@ -133,9 +141,7 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
     const { chainId, accountAddress } = input;
     const provider = this.#providerGetter?.(chainId);
     if (!provider) {
-      // No provider (e.g. not yet available or not configured). Skip this cycle;
-      // polling will run again on the next interval.
-      return { amount: '0' };
+      throw new Error('StakedBalanceFetcher: no provider available for chain');
     }
     const hexChainId = chainIdToHex(chainId);
     const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[hexChainId];
@@ -178,8 +184,10 @@ export class StakedBalanceFetcher extends StaticIntervalPollingControllerOnly<St
 
       const amount = weiToHumanReadable(assetsWei.toString(), STAKING_DECIMALS);
       return { amount };
-    } catch {
-      return { amount: '0' };
+    } catch (error) {
+      throw error instanceof Error
+        ? error
+        : new Error('StakedBalanceFetcher: failed to fetch staked balance');
     }
   }
 }
