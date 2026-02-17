@@ -241,8 +241,14 @@ export type Quote = {
     /**
      * Buy URL endpoint that returns the actual provider widget URL.
      * This is a MetaMask-hosted endpoint that, when fetched, returns JSON with the provider's widget URL.
+     * @deprecated Use buyWidget instead - it's embedded in the quote response.
      */
     buyURL?: string;
+    /**
+     * Widget information embedded in the quote response.
+     * Contains the widget URL, browser type, and optional pre-order tracking ID.
+     */
+    buyWidget?: BuyWidget;
   };
   /**
    * Metadata about the quote.
