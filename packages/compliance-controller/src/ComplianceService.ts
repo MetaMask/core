@@ -8,6 +8,8 @@ import type { Infer } from '@metamask/superstruct';
 import { array, boolean, number, object, string } from '@metamask/superstruct';
 import type { IDisposable } from 'cockatiel';
 
+import type { ComplianceServiceMethodActions } from './ComplianceService-method-action-types';
+
 // === GENERAL ===
 
 /**
@@ -15,32 +17,6 @@ import type { IDisposable } from 'cockatiel';
  * actions and events.
  */
 export const serviceName = 'ComplianceService';
-
-// === ACTION TYPES ===
-
-/**
- * Checks compliance status for a single wallet address.
- */
-export type ComplianceServiceCheckWalletComplianceAction = {
-  type: `ComplianceService:checkWalletCompliance`;
-  handler: ComplianceService['checkWalletCompliance'];
-};
-
-/**
- * Checks compliance status for multiple wallet addresses in a single request.
- */
-export type ComplianceServiceCheckWalletsComplianceAction = {
-  type: `ComplianceService:checkWalletsCompliance`;
-  handler: ComplianceService['checkWalletsCompliance'];
-};
-
-/**
- * Fetches the full list of blocked wallets and source metadata.
- */
-export type ComplianceServiceFetchBlockedWalletsAction = {
-  type: `ComplianceService:fetchBlockedWallets`;
-  handler: ComplianceService['fetchBlockedWallets'];
-};
 
 // === MESSENGER ===
 
@@ -53,10 +29,7 @@ const MESSENGER_EXPOSED_METHODS = [
 /**
  * Actions that {@link ComplianceService} exposes to other consumers.
  */
-export type ComplianceServiceActions =
-  | ComplianceServiceCheckWalletComplianceAction
-  | ComplianceServiceCheckWalletsComplianceAction
-  | ComplianceServiceFetchBlockedWalletsAction;
+export type ComplianceServiceActions = ComplianceServiceMethodActions;
 
 /**
  * Actions from other messengers that {@link ComplianceService} calls.

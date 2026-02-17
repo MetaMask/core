@@ -6,11 +6,8 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type {
-  ComplianceServiceCheckWalletComplianceAction,
-  ComplianceServiceCheckWalletsComplianceAction,
-  ComplianceServiceFetchBlockedWalletsAction,
-} from './ComplianceService';
+import type { ComplianceControllerMethodActions } from './ComplianceController-method-action-types';
+import type { ComplianceServiceMethodActions } from './ComplianceService-method-action-types';
 import type { BlockedWalletsInfo, WalletComplianceStatus } from './types';
 
 // === GENERAL ===
@@ -103,59 +100,6 @@ export function getDefaultComplianceControllerState(): ComplianceControllerState
   };
 }
 
-// === ACTION TYPES ===
-
-/**
- * Initializes the controller by fetching the blocked wallets list if it is
- * missing or stale.
- */
-export type ComplianceControllerInitializeAction = {
-  type: `ComplianceController:initialize`;
-  handler: ComplianceController['initialize'];
-};
-
-/**
- * Checks compliance status for a single wallet address and persists the
- * result to state.
- */
-export type ComplianceControllerCheckWalletComplianceAction = {
-  type: `ComplianceController:checkWalletCompliance`;
-  handler: ComplianceController['checkWalletCompliance'];
-};
-
-/**
- * Checks compliance status for multiple wallet addresses and persists the
- * results to state.
- */
-export type ComplianceControllerCheckWalletsComplianceAction = {
-  type: `ComplianceController:checkWalletsCompliance`;
-  handler: ComplianceController['checkWalletsCompliance'];
-};
-
-/**
- * Fetches the full list of blocked wallets and persists the data to state.
- */
-export type ComplianceControllerFetchBlockedWalletsAction = {
-  type: `ComplianceController:fetchBlockedWallets`;
-  handler: ComplianceController['fetchBlockedWallets'];
-};
-
-/**
- * Returns whether a wallet address is blocked, based on the cached blocklist.
- */
-export type ComplianceControllerIsWalletBlockedAction = {
-  type: `ComplianceController:isWalletBlocked`;
-  handler: ComplianceController['isWalletBlocked'];
-};
-
-/**
- * Clears all compliance data from state.
- */
-export type ComplianceControllerClearComplianceStateAction = {
-  type: `ComplianceController:clearComplianceState`;
-  handler: ComplianceController['clearComplianceState'];
-};
-
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -180,20 +124,12 @@ export type ComplianceControllerGetStateAction = ControllerGetStateAction<
  */
 export type ComplianceControllerActions =
   | ComplianceControllerGetStateAction
-  | ComplianceControllerInitializeAction
-  | ComplianceControllerCheckWalletComplianceAction
-  | ComplianceControllerCheckWalletsComplianceAction
-  | ComplianceControllerFetchBlockedWalletsAction
-  | ComplianceControllerIsWalletBlockedAction
-  | ComplianceControllerClearComplianceStateAction;
+  | ComplianceControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link ComplianceController} calls.
  */
-type AllowedActions =
-  | ComplianceServiceCheckWalletComplianceAction
-  | ComplianceServiceCheckWalletsComplianceAction
-  | ComplianceServiceFetchBlockedWalletsAction;
+type AllowedActions = ComplianceServiceMethodActions;
 
 /**
  * Published when the state of {@link ComplianceController} changes.
@@ -337,15 +273,16 @@ export class ComplianceController extends BaseController<
     );
 
     const now = new Date().toISOString();
-    const statuses: WalletComplianceStatus[] = results.map((result) => ({
+    const statuses: WalletComplianceStatus[] = results.map((result, index) => ({
       address: result.address,
       blocked: result.blocked,
       checkedAt: now,
     }));
 
     this.update((draftState) => {
-      for (const status of statuses) {
-        draftState.walletComplianceStatusMap[status.address] = status;
+      for (let idx = 0; idx < statuses.length; idx++) {
+        const callerAddress = addresses[idx];
+        draftState.walletComplianceStatusMap[callerAddress] = statuses[idx];
       }
       draftState.lastCheckedAt = now;
     });
