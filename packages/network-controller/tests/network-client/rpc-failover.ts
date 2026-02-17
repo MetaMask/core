@@ -6,6 +6,9 @@ import { withMockedCommunications, withNetworkClient } from './helpers';
 import { ignoreRejection } from '../../../../tests/helpers';
 import { buildRootMessenger } from '../helpers';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Constructable = new (...args: any[]) => any;
+
 /**
  * Tests for RPC failover behavior.
  *
@@ -32,8 +35,8 @@ export function testsForRpcFailoverBehavior({
   getRequestToMock: (request: MockRequest, blockNumber: Hex) => MockRequest;
   failure: MockResponse | Error | string;
   isRetriableFailure: boolean;
-  getExpectedError: (url: string) => Error | jest.Constructable;
-  getExpectedBreakError?: (url: string) => Error | jest.Constructable;
+  getExpectedError: (url: string) => Error | Constructable;
+  getExpectedBreakError?: (url: string) => Error | Constructable;
 }): void {
   const blockNumber = '0x100';
   const backoffDuration = 100;
@@ -94,7 +97,7 @@ export function testsForRpcFailoverBehavior({
                   },
                 }),
               },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 messenger.subscribe(
                   'NetworkController:rpcEndpointRetried',
                   () => {
@@ -102,8 +105,13 @@ export function testsForRpcFailoverBehavior({
                     // retry, not the next block tracker request.
                     // We also don't need to await this, it just needs to
                     // be added to the promise queue.
-                    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                    clock.tickAsync(backoffDuration);
+                    try {
+                      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                      vi.advanceTimersByTimeAsync(backoffDuration);
+                    } catch {
+                      // Fake timers may have been restored by
+                      // withNetworkClient cleanup
+                    }
                   },
                 );
 
@@ -210,7 +218,7 @@ export function testsForRpcFailoverBehavior({
                     };
                   },
                 },
-                async ({ makeRpcCall, clock }) => {
+                async ({ makeRpcCall }) => {
                   messenger.subscribe(
                     'NetworkController:rpcEndpointRetried',
                     () => {
@@ -218,8 +226,13 @@ export function testsForRpcFailoverBehavior({
                       // retry, not the next block tracker request.
                       // We also don't need to await this, it just needs to
                       // be added to the promise queue.
-                      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      clock.tickAsync(backoffDuration);
+                      try {
+                        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                        vi.advanceTimersByTimeAsync(backoffDuration);
+                      } catch {
+                        // Fake timers may have been restored by
+                        // withNetworkClient cleanup
+                      }
                     },
                   );
 
@@ -274,14 +287,19 @@ export function testsForRpcFailoverBehavior({
               },
             }),
           },
-          async ({ makeRpcCall, clock, rpcUrl }) => {
+          async ({ makeRpcCall, rpcUrl }) => {
             messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
               // Ensure that we advance to the next RPC request
               // retry, not the next block tracker request.
               // We also don't need to await this, it just needs to
               // be added to the promise queue.
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.tickAsync(backoffDuration);
+              try {
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                vi.advanceTimersByTimeAsync(backoffDuration);
+              } catch {
+                // Fake timers may have been restored by
+                // withNetworkClient cleanup
+              }
             });
 
             for (let i = 0; i < numRequestsToMake - 1; i++) {

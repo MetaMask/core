@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "rootDir": "../.."
+    "rootDir": "../..",
+    "types": ["vitest/globals"]
   },
   "references": [
     { "path": "../base-controller" },

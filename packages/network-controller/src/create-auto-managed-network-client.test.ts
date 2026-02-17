@@ -141,7 +141,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -206,7 +206,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -281,7 +281,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -463,7 +463,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -524,7 +524,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );
@@ -593,7 +593,7 @@ describe('createAutoManagedNetworkClient', () => {
               },
             ],
           });
-          const createNetworkClientMock = jest.spyOn(
+          const createNetworkClientMock = vi.spyOn(
             createNetworkClientModule,
             'createNetworkClient',
           );

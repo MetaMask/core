@@ -112,6 +112,21 @@ const config = createConfig([
     },
   },
   {
+    files: [
+      'packages/network-controller/**/*.test.ts',
+      'packages/network-controller/tests/**/*.ts',
+    ],
+    rules: {
+      'jest/expect-expect': 'off',
+      'jest/no-alias-methods': 'off',
+      'jest/no-commented-out-tests': 'off',
+      'jest/no-disabled-tests': 'off',
+      'jest/no-export': 'off',
+      'jest/require-top-level-describe': 'off',
+      'jest/no-if': 'off',
+    },
+  },
+  {
     files: ['tests/setupAfterEnv/matchers.ts'],
     languageOptions: {
       sourceType: 'script',

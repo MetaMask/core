@@ -42,10 +42,10 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
-    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
-    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "test": "vitest run",
+    "test:clean": "vitest run --reporter=default",
+    "test:verbose": "vitest run --reporter=verbose",
+    "test:watch": "vitest watch"
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
@@ -74,24 +74,20 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
     "@types/deep-freeze-strict": "^1.1.0",
-    "@types/jest": "^29.5.14",
-    "@types/jest-when": "^2.7.3",
     "@types/lodash": "^4.14.191",
     "@types/node-fetch": "^2.6.12",
+    "@vitest/coverage-v8": "^3.0.0",
     "cockatiel": "^3.1.2",
     "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
-    "jest-when": "^3.4.2",
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "node-fetch": "^2.7.0",
     "sinon": "^9.2.4",
-    "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3"
+    "typescript": "~5.3.3",
+    "vitest": "^3.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

@@ -81,7 +81,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
             pollingInterval,
           }),
         },
-        async ({ blockTracker, makeRpcCall, clock }) => {
+        async ({ blockTracker, makeRpcCall }) => {
           const waitForTwoBlocks = new Promise<void>((resolve) => {
             let numberOfBlocks = 0;
 
@@ -97,7 +97,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           const firstResult = await makeRpcCall(requests[0]);
           // Proceed to the next iteration of the block tracker so that a new
           // block is fetched and the current block is updated.
-          await clock.tickAsync(pollingInterval);
+          await vi.advanceTimersByTimeAsync(pollingInterval);
           await waitForTwoBlocks;
           const secondResult = await makeRpcCall(requests[1]);
           return [firstResult, secondResult];
@@ -473,10 +473,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           });
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -504,10 +503,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           comms.mockNextBlockTrackerRequest();
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -573,10 +571,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
 
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -600,10 +597,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           });
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -664,10 +660,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
 
         const result = await withNetworkClient(
           { providerType },
-          async ({ makeRpcCall, clock }) => {
+          async ({ makeRpcCall }) => {
             return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
               makeRpcCall(request),
-              clock,
             );
           },
         );
@@ -693,10 +688,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         });
         const promiseForResult = withNetworkClient(
           { providerType },
-          async ({ makeRpcCall, clock }) => {
+          async ({ makeRpcCall }) => {
             return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
               makeRpcCall(request),
-              clock,
             );
           },
         );
@@ -755,10 +749,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
 
         const result = await withNetworkClient(
           { providerType },
-          async ({ makeRpcCall, clock }) => {
+          async ({ makeRpcCall }) => {
             return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
               makeRpcCall(request),
-              clock,
             );
           },
         );
@@ -782,10 +775,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         });
         const promiseForResult = withNetworkClient(
           { providerType },
-          async ({ makeRpcCall, clock }) => {
+          async ({ makeRpcCall }) => {
             return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
               makeRpcCall(request),
-              clock,
             );
           },
         );

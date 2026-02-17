@@ -100,7 +100,7 @@ export function buildRootMessenger({
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: vi.fn() });
 
   rootMessenger.registerActionHandler(
     'ConnectivityController:getState',

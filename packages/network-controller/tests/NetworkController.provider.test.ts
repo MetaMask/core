@@ -309,7 +309,7 @@ describe('NetworkController provider tests', () => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
           clock.next();
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
@@ -412,7 +412,7 @@ describe('NetworkController provider tests', () => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
           clock.next();
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
@@ -522,7 +522,7 @@ describe('NetworkController provider tests', () => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
           clock.next();
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
@@ -699,7 +699,7 @@ describe('NetworkController provider tests', () => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
           clock.next();
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
@@ -828,7 +828,7 @@ describe('NetworkController provider tests', () => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
           clock.next();
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
