@@ -1041,6 +1041,69 @@ describe('RpcService', () => {
       });
     });
 
+    it('reports the correct rpcMethodName when sequential requests use different methods', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .reply(200, () => {
+          return {
+            id: 1,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      nock(endpointUrl)
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        })
+        .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 2,
+            jsonrpc: '2.0',
+            result: '0x100',
+          };
+        });
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
+      });
+      service.onDegraded(onDegradedListener);
+
+      // First request: fast, no degraded event
+      await service.request({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_blockNumber',
+        params: [],
+      });
+
+      // Second request: slow, triggers degraded with its own method name
+      await service.request({
+        id: 2,
+        jsonrpc: '2.0',
+        method: 'eth_gasPrice',
+        params: [],
+      });
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_gasPrice',
+      });
+    });
+
     it('calls the onAvailable callback the first time a successful request occurs', async () => {
       const endpointUrl = 'https://rpc.example.chain';
       nock(endpointUrl)

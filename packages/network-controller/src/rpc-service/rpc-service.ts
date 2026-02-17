@@ -253,10 +253,12 @@ export class RpcService implements AbstractRpcService {
   /**
    * The RPC method name of the current request being processed. This is set
    * inside the Cockatiel policy's execute callback (in its `finally` block)
-   * so that it reflects the correct method when `onBreak` or `onDegraded`
-   * listeners fire synchronously after the callback exits. Setting it at the
-   * start of `request()` would be racy: a concurrent request could overwrite
-   * it while the first request's fetch is still in flight.
+   * to minimise the window between the write and Cockatiel's synchronous
+   * event dispatch. Setting it at the start of `request()` would widen the
+   * race because the entire fetch duration separates the write from the
+   * event. With the `finally` approach only a microtask boundary remains,
+   * so under concurrent requests on the same instance the reported method
+   * name may still be incorrect in rare edge cases.
    */
   #currentRpcMethodName: string | undefined;
 

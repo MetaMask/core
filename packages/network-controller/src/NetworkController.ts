@@ -456,6 +456,9 @@ export type NetworkControllerNetworkRemovedEvent = {
  * @param payload.error - The last error produced by the last failover in the
  * endpoint chain.
  * @param payload.networkClientId - The target network's client ID.
+ * @param payload.rpcMethodName - The JSON-RPC method that was being executed
+ * when the chain became unavailable, or `undefined` if no request has been
+ * processed yet (should not happen in practice).
  */
 export type NetworkControllerRpcEndpointChainUnavailableEvent = {
   type: 'NetworkController:rpcEndpointChainUnavailable';
@@ -485,6 +488,8 @@ export type NetworkControllerRpcEndpointChainUnavailableEvent = {
  * @param payload.error - The last error produced by the endpoint.
  * @param payload.networkClientId - The target network's client ID.
  * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
+ * @param payload.rpcMethodName - The JSON-RPC method that was being executed
+ * when the endpoint became unavailable.
  */
 export type NetworkControllerRpcEndpointUnavailableEvent = {
   type: 'NetworkController:rpcEndpointUnavailable';
@@ -518,6 +523,8 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
  * @param payload.error - The last error produced by the endpoint (or
  * `undefined` if the request was slow).
  * @param payload.networkClientId - The target network's client ID.
+ * @param payload.rpcMethodName - The JSON-RPC method that was being executed
+ * when the chain became degraded.
  */
 export type NetworkControllerRpcEndpointChainDegradedEvent = {
   type: 'NetworkController:rpcEndpointChainDegraded';
@@ -553,6 +560,8 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
  * `undefined` if the request was slow).
  * @param payload.networkClientId - The target network's client ID.
  * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
+ * @param payload.rpcMethodName - The JSON-RPC method that was being executed
+ * when the endpoint became degraded.
  */
 export type NetworkControllerRpcEndpointDegradedEvent = {
   type: 'NetworkController:rpcEndpointDegraded';

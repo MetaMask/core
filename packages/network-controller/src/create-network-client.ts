@@ -237,8 +237,8 @@ function createRpcServiceChain({
    * filter policy considers a failure.
    *
    * @param value - The event data object from the circuit breaker event
-   * listener (after destructuring known properties like `endpointUrl`). This
-   * represents Cockatiel's `FailureReason` type.
+   * listener (after destructuring known properties like `endpointUrl` and
+   * `rpcMethodName`). This represents Cockatiel's `FailureReason` type.
    * @returns The error or failure value, or `undefined` if neither property
    * exists (which shouldn't happen in practice unless the circuit breaker is
    * manually isolated).
