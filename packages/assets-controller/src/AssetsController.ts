@@ -73,6 +73,7 @@ import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource'
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
+import { createParallelBalanceMiddleware } from './middlewares/parallelBalanceMiddleware';
 import type {
   AccountId,
   AssetPreferences,
@@ -912,10 +913,12 @@ export class AssetsController extends BaseController<
       });
       const sources = this.#isBasicFunctionality()
         ? [
-            this.#accountsApiDataSource,
-            this.#snapDataSource,
-            this.#rpcDataSource,
-            this.#stakedBalanceDataSource,
+            createParallelBalanceMiddleware([
+              this.#accountsApiDataSource,
+              this.#snapDataSource,
+              this.#rpcDataSource,
+              this.#stakedBalanceDataSource,
+            ]),
             this.#detectionMiddleware,
             this.#tokenDataSource,
             this.#priceDataSource,
