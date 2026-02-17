@@ -15,6 +15,7 @@ import { BigNumber } from 'bignumber.js';
 
 import { RELAY_POLLING_INTERVAL, RELAY_STATUS_URL } from './constants';
 import type { RelayQuote, RelayStatusResponse } from './types';
+import { RELAY_DEPOSIT_TYPE_MAP } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
@@ -33,39 +34,6 @@ import {
 const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
-
-/**
- * Determine the transaction type for a given index in the batch.
- *
- * @param isPostQuote - Whether this is a post-quote flow.
- * @param index - Index of the transaction in the batch.
- * @param originalType - Type of the original transaction (used for post-quote index 0).
- * @param relayParamCount - Number of relay-only params (excludes prepended original tx).
- * @returns The transaction type.
- */
-function getTransactionType(
-  isPostQuote: boolean | undefined,
-  index: number,
-  originalType: TransactionMeta['type'],
-  relayParamCount: number,
-): TransactionMeta['type'] {
-  // Post-quote index 0 is the original transaction
-  if (isPostQuote && index === 0) {
-    return originalType;
-  }
-
-  // Adjust index for post-quote flows where original tx is prepended
-  const relayIndex = isPostQuote ? index - 1 : index;
-
-  // Single relay step is always a deposit (no approval needed)
-  if (relayParamCount === 1) {
-    return TransactionType.relayDeposit;
-  }
-
-  return relayIndex === 0
-    ? TransactionType.tokenMethodApprove
-    : TransactionType.relayDeposit;
-}
 
 /**
  * Submits Relay quotes.
@@ -371,7 +339,7 @@ async function submitTransactions(
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
-        type: TransactionType.relayDeposit,
+        type: getRelayDepositType(transaction.type),
       },
     );
   } else {
@@ -436,4 +404,52 @@ async function submitTransactions(
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
 
   return hash as Hex;
+}
+
+/**
+ * Determine the transaction type for a given index in the batch.
+ *
+ * @param isPostQuote - Whether this is a post-quote flow.
+ * @param index - Index of the transaction in the batch.
+ * @param originalType - Type of the original transaction (used for post-quote index 0).
+ * @param relayParamCount - Number of relay-only params (excludes prepended original tx).
+ * @returns The transaction type.
+ */
+function getTransactionType(
+  isPostQuote: boolean | undefined,
+  index: number,
+  originalType: TransactionMeta['type'],
+  relayParamCount: number,
+): TransactionMeta['type'] {
+  // Post-quote index 0 is the original transaction
+  if (isPostQuote && index === 0) {
+    return originalType;
+  }
+
+  // Adjust index for post-quote flows where original tx is prepended
+  const relayIndex = isPostQuote ? index - 1 : index;
+
+  const depositType = getRelayDepositType(originalType);
+
+  // Single relay step is always a deposit (no approval needed)
+  if (relayParamCount === 1) {
+    return depositType;
+  }
+
+  return relayIndex === 0 ? TransactionType.tokenMethodApprove : depositType;
+}
+
+/**
+ * Get the relay deposit transaction type based on the parent transaction type.
+ *
+ * @param originalType - Type of the parent transaction.
+ * @returns The mapped relay deposit type, or `relayDeposit` as a fallback.
+ */
+function getRelayDepositType(
+  originalType: TransactionMeta['type'],
+): TransactionType {
+  return (
+    (originalType && RELAY_DEPOSIT_TYPE_MAP[originalType]) ??
+    TransactionType.relayDeposit
+  );
 }

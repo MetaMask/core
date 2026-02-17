@@ -200,6 +200,57 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('uses predictRelayDeposit type when parent transaction is predictDeposit', async () => {
+      request.transaction = {
+        ...request.transaction,
+        type: TransactionType.predictDeposit,
+      } as TransactionMeta;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.predictRelayDeposit,
+        }),
+      );
+    });
+
+    it('uses perpsRelayDeposit type when parent transaction is perpsDeposit', async () => {
+      request.transaction = {
+        ...request.transaction,
+        type: TransactionType.perpsDeposit,
+      } as TransactionMeta;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.perpsRelayDeposit,
+        }),
+      );
+    });
+
+    it('falls back to relayDeposit type when parent transaction type is not mapped', async () => {
+      request.transaction = {
+        ...request.transaction,
+        type: TransactionType.simpleSend,
+      } as TransactionMeta;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.relayDeposit,
+        }),
+      );
+    });
+
     it('adds transaction with gas fee token if isSourceGasFeeToken', async () => {
       request.quotes[0].fees.isSourceGasFeeToken = true;
 
@@ -339,6 +390,60 @@ describe('Relay Submit Utils', () => {
           },
         ],
       });
+    });
+
+    it('uses mapped relay deposit type in batch when parent is predictDeposit', async () => {
+      request.transaction = {
+        ...request.transaction,
+        type: TransactionType.predictDeposit,
+      } as TransactionMeta;
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: [
+            expect.objectContaining({
+              type: TransactionType.tokenMethodApprove,
+            }),
+            expect.objectContaining({
+              type: TransactionType.predictRelayDeposit,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('uses mapped relay deposit type in batch when parent is perpsDeposit', async () => {
+      request.transaction = {
+        ...request.transaction,
+        type: TransactionType.perpsDeposit,
+      } as TransactionMeta;
+
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: [
+            expect.objectContaining({
+              type: TransactionType.tokenMethodApprove,
+            }),
+            expect.objectContaining({
+              type: TransactionType.perpsRelayDeposit,
+            }),
+          ],
+        }),
+      );
     });
 
     it('adds transaction batch with gas fee token if isSourceGasFeeToken', async () => {
@@ -585,6 +690,29 @@ describe('Relay Submit Utils', () => {
         expect(transactions[2]).toStrictEqual(
           expect.objectContaining({
             type: TransactionType.relayDeposit,
+          }),
+        );
+      });
+
+      it('uses mapped relay deposit type in post-quote when parent is predictDeposit', async () => {
+        request.transaction = {
+          ...request.transaction,
+          type: TransactionType.predictDeposit,
+        } as TransactionMeta;
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactions: [
+              expect.objectContaining({
+                type: TransactionType.predictDeposit,
+              }),
+              expect.objectContaining({
+                type: TransactionType.predictRelayDeposit,
+              }),
+            ],
           }),
         );
       });
