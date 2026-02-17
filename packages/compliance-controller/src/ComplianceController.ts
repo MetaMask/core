@@ -273,7 +273,7 @@ export class ComplianceController extends BaseController<
     );
 
     const now = new Date().toISOString();
-    const statuses: WalletComplianceStatus[] = results.map((result, index) => ({
+    const statuses: WalletComplianceStatus[] = results.map((result) => ({
       address: result.address,
       blocked: result.blocked,
       checkedAt: now,
