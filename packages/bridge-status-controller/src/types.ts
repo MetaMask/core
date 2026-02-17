@@ -20,6 +20,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
@@ -302,7 +303,8 @@ type AllowedActions =
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | AuthenticationControllerGetBearerToken;
 
 /**
  * The external events available to the BridgeStatusController.

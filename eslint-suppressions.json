@@ -591,17 +591,6 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/utils/fetch.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 8
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
   "packages/bridge-controller/src/utils/metrics/properties.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 5
@@ -658,19 +647,8 @@
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 15
-    },
     "no-new": {
       "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/utils/bridge-status.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 5
     }
   },
   "packages/bridge-status-controller/src/utils/gas.ts": {
