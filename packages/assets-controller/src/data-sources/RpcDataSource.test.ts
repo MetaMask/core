@@ -14,12 +14,12 @@ import {
 } from '@metamask/network-controller';
 
 import type {
-  RpcDataSourceOptions,
   RpcDataSourceAllowedActions,
   RpcDataSourceAllowedEvents,
+  RpcDataSourceMessenger,
+  RpcDataSourceOptions,
 } from './RpcDataSource';
 import { RpcDataSource, createRpcDataSource } from './RpcDataSource';
-import type { AssetsControllerMessenger } from '../AssetsController';
 import { getDefaultAssetsControllerState } from '../AssetsController';
 import type { ChainId, DataRequest, Context } from '../types';
 
@@ -241,7 +241,7 @@ async function withController<ReturnValue>(
       }
     ).onActiveChainsUpdated ?? jest.fn();
   const controller = new RpcDataSource({
-    messenger: rpcDataSourceMessenger as unknown as AssetsControllerMessenger,
+    messenger: rpcDataSourceMessenger as unknown as RpcDataSourceMessenger,
     onActiveChainsUpdated,
     ...options,
   });
@@ -691,8 +691,7 @@ describe('RpcDataSource', () => {
       );
 
       const controller = createRpcDataSource({
-        messenger:
-          rpcDataSourceMessenger as unknown as AssetsControllerMessenger,
+        messenger: rpcDataSourceMessenger as unknown as RpcDataSourceMessenger,
         onActiveChainsUpdated: jest.fn(),
       });
 

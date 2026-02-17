@@ -1,9 +1,11 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource';
+import type {
+  StakedBalanceDataSourceMessenger,
+  StakedBalanceDataSourceOptions,
+} from './StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './StakedBalanceDataSource';
-import type { AssetsControllerMessenger } from '../AssetsController';
 import type {
   AssetsControllerStateInternal,
   ChainId,
@@ -250,10 +252,8 @@ async function withController<ReturnValue>(
       }
     ).onActiveChainsUpdated ?? jest.fn();
 
-  const messengerForController =
-    messenger as unknown as AssetsControllerMessenger;
   const controller = new StakedBalanceDataSource({
-    messenger: messengerForController,
+    messenger: messenger as unknown as StakedBalanceDataSourceMessenger,
     onActiveChainsUpdated,
     ...options,
   });
@@ -717,10 +717,8 @@ describe('StakedBalanceDataSource', () => {
         return jest.fn();
       });
 
-      const messengerForController =
-        messenger as unknown as AssetsControllerMessenger;
       const controller = new StakedBalanceDataSource({
-        messenger: messengerForController,
+        messenger: messenger as unknown as StakedBalanceDataSourceMessenger,
         onActiveChainsUpdated: jest.fn(),
       });
       controller.destroy();

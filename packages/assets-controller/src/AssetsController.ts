@@ -2,6 +2,7 @@ import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
 } from '@metamask/account-tree-controller';
+import type { GetTokenListState } from '@metamask/assets-controllers';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -18,14 +19,26 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { Messenger } from '@metamask/messenger';
-import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
+import { Messenger } from '@metamask/messenger';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
+} from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
+import type {
+  GetPermissions,
+  PermissionControllerStateChange,
+} from '@metamask/permission-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import type {
+  GetRunnableSnaps,
+  HandleSnapRequest,
+} from '@metamask/snaps-controllers';
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
@@ -51,10 +64,19 @@ import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
-import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
+import type {
+  RpcDataSourceAllowedActions,
+  RpcDataSourceAllowedEvents,
+  RpcDataSourceConfig,
+} from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
+import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
-import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
+import type {
+  StakedBalanceDataSourceAllowedActions,
+  StakedBalanceDataSourceAllowedEvents,
+  StakedBalanceDataSourceConfig,
+} from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
@@ -193,21 +215,37 @@ export type AssetsControllerEvents =
   | AssetsControllerAssetsDetectedEvent;
 
 type AllowedActions =
+  // AssetsController direct
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  // BackendWebsocketDataSource
+  | BackendWebSocketServiceActions
+  // RpcDataSource
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | GetTokenListState
   | NetworkEnablementControllerGetStateAction
-  // BackendWebsocketDataSource calls BackendWebSocketService
-  | BackendWebSocketServiceActions;
+  // SnapDataSource
+  | GetRunnableSnaps
+  | HandleSnapRequest
+  | GetPermissions;
 
 type AllowedEvents =
+  // AssetsController direct
   | AccountTreeControllerSelectedAccountGroupChangeEvent
-  | NetworkControllerStateChangeEvent
-  | NetworkEnablementControllerEvents
-  | BackendWebSocketServiceEvents
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
+  // BackendWebsocketDataSource
+  | BackendWebSocketServiceEvents
+  // RpcDataSource
+  | NetworkControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent
-  | TransactionControllerIncomingTransactionsReceivedEvent;
+  | TransactionControllerIncomingTransactionsReceivedEvent
+  // StakedBalanceDataSource (reuses NetworkController + Transaction events above)
+  | NetworkEnablementControllerEvents
+  // SnapDataSource
+  | AccountsControllerAccountBalancesUpdatedEvent
+  | PermissionControllerStateChange;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -510,8 +548,6 @@ export class AssetsController extends BaseController<
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
-  readonly #constructionState = { initialized: false };
-
   constructor({
     messenger,
     state = {},
@@ -548,9 +584,6 @@ export class AssetsController extends BaseController<
       chains: ChainId[],
       previousChains: ChainId[],
     ): void => {
-      if (!this.#constructionState.initialized) {
-        return;
-      }
       this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
     };
 
@@ -568,13 +601,64 @@ export class AssetsController extends BaseController<
       messenger: this.messenger,
       onActiveChainsUpdated,
     });
+    const rpcDataSourceMessenger = new Messenger<
+      'RpcDataSource',
+      RpcDataSourceAllowedActions,
+      RpcDataSourceAllowedEvents,
+      AssetsControllerMessenger
+    >({
+      namespace: 'RpcDataSource',
+      parent: this.messenger,
+    });
+
+    this.messenger.delegate({
+      messenger: rpcDataSourceMessenger,
+      actions: [
+        'NetworkController:getState',
+        'NetworkController:getNetworkClientById',
+        'AssetsController:getState',
+        'TokenListController:getState',
+        'NetworkEnablementController:getState',
+      ],
+      events: [
+        'NetworkController:stateChange',
+        'TransactionController:transactionConfirmed',
+        'TransactionController:incomingTransactionsReceived',
+      ],
+    });
+
     this.#rpcDataSource = new RpcDataSource({
-      messenger: this.messenger,
+      messenger: rpcDataSourceMessenger,
       onActiveChainsUpdated,
       ...rpcConfig,
     });
+    const stakedBalanceMessenger = new Messenger<
+      'StakedBalanceDataSource',
+      StakedBalanceDataSourceAllowedActions,
+      StakedBalanceDataSourceAllowedEvents,
+      AssetsControllerMessenger
+    >({
+      namespace: 'StakedBalanceDataSource',
+      parent: this.messenger,
+    });
+
+    this.messenger.delegate({
+      messenger: stakedBalanceMessenger,
+      actions: [
+        'NetworkController:getState',
+        'NetworkController:getNetworkClientById',
+        'NetworkEnablementController:getState',
+      ],
+      events: [
+        'NetworkController:stateChange',
+        'NetworkEnablementController:stateChange',
+        'TransactionController:transactionConfirmed',
+        'TransactionController:incomingTransactionsReceived',
+      ],
+    });
+
     this.#stakedBalanceDataSource = new StakedBalanceDataSource({
-      messenger: this.messenger,
+      messenger: stakedBalanceMessenger,
       onActiveChainsUpdated,
       ...stakedBalanceDataSourceConfig,
     });
@@ -599,7 +683,6 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
-    this.#constructionState.initialized = true;
     // Subscriptions start only on KeyringController:unlock -> #start(), not here.
 
     // Subscribe to basic-functionality changes after construction so a synchronous
