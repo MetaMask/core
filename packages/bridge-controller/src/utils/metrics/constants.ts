@@ -45,6 +45,7 @@ export enum MetaMetricsSwapsEventSource {
   MainView = 'Main View',
   TokenView = 'Token View',
   TrendingExplore = 'Trending Explore',
+  Rewards = 'Rewards',
 }
 
 export enum MetricsActionType {
