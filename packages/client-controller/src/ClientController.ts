@@ -205,10 +205,8 @@ export class ClientController extends BaseController<
    * @param open - Whether the MetaMask UI is open.
    */
   setUiOpen(open: boolean): void {
-    if (this.state.isUiOpen !== open) {
-      this.update((state) => {
-        state.isUiOpen = open;
-      });
-    }
+    this.update((state) => {
+      state.isUiOpen = open;
+    });
   }
 }

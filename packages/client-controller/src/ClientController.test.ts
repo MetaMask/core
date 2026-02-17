@@ -92,7 +92,7 @@ describe('ClientController', () => {
     it('initializes with default state (client closed)', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
+          {
             "isUiOpen": false,
           }
         `);
@@ -112,7 +112,7 @@ describe('ClientController', () => {
     it('merges partial state with defaults', async () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
+          {
             "isUiOpen": false,
           }
         `);
@@ -126,7 +126,7 @@ describe('ClientController', () => {
         controller.setUiOpen(true);
 
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
+          {
             "isUiOpen": true,
           }
         `);
@@ -134,7 +134,7 @@ describe('ClientController', () => {
         controller.setUiOpen(false);
 
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
+          {
             "isUiOpen": false,
           }
         `);

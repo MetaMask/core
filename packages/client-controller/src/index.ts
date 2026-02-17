@@ -13,7 +13,4 @@ export type {
   ClientControllerEvents,
   ClientControllerMessenger,
 } from './ClientController';
-export type {
-  ClientControllerSetUiOpenAction,
-  ClientControllerMethodActions,
-} from './ClientController-method-action-types';
+export type { ClientControllerSetUiOpenAction } from './ClientController-method-action-types';
