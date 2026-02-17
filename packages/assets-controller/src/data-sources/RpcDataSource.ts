@@ -1252,9 +1252,7 @@ export class RpcDataSource extends AbstractDataSource<
    */
   #getExistingAssetsMetadata(): Record<Caip19AssetId, AssetMetadata> {
     try {
-      const state = this.#messenger.call('AssetsController:getState') as {
-        assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
-      };
+      const state = this.#messenger.call('AssetsController:getState');
       return state.assetsInfo ?? {};
     } catch {
       // If AssetsController:getState fails, return empty metadata
