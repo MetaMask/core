@@ -4,7 +4,7 @@ import { BigNumber } from 'bignumber.js';
 import {
   getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
-} from './gas-station-utils';
+} from './gas-station';
 import type { RelayQuote } from './types';
 import { projectLogger } from '../../logger';
 import type {

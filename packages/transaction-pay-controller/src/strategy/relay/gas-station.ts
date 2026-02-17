@@ -13,7 +13,7 @@ import type {
 import { getEIP7702SupportedChains } from '../../utils/feature-flags';
 import { calculateGasFeeTokenCost } from '../../utils/gas';
 
-const log = createModuleLogger(projectLogger, 'relay-gas-station-utils');
+const log = createModuleLogger(projectLogger, 'relay-gas-station');
 
 type GasStationCostParams = {
   firstStepData: {

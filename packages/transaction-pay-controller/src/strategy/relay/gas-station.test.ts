@@ -4,7 +4,7 @@ import type { Hex } from '@metamask/utils';
 import {
   getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
-} from './gas-station-utils';
+} from './gas-station';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import { calculateGasFeeTokenCost } from '../../utils/gas';
@@ -36,7 +36,7 @@ const MATCHING_GAS_FEE_TOKEN: GasFeeToken = {
   tokenAddress: REQUEST_MOCK.sourceTokenAddress,
 };
 
-describe('gas-station-utils', () => {
+describe('gas-station', () => {
   const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
 
   const {

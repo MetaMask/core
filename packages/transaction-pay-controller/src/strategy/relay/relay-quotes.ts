@@ -10,7 +10,7 @@ import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
 import {
   getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
-} from './gas-station-utils';
+} from './gas-station';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
