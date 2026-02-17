@@ -386,11 +386,9 @@ describe('AccountsController', () => {
 
       messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
 
-      const updatedAccount = accountsController.getAccountExpect(
-        mockSnapAccount.id,
-      );
+      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
 
-      expect(updatedAccount.metadata.snap?.enabled).toBe(true);
+      expect(updatedAccount?.metadata.snap?.enabled).toBe(true);
     });
 
     it('disables an account if the Snap is disabled', async () => {
@@ -430,11 +428,9 @@ describe('AccountsController', () => {
 
       messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
 
-      const updatedAccount = accountsController.getAccountExpect(
-        mockSnapAccount.id,
-      );
+      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
 
-      expect(updatedAccount.metadata.snap?.enabled).toBe(false);
+      expect(updatedAccount?.metadata.snap?.enabled).toBe(false);
     });
 
     it('disables an account if the Snap is blocked', async () => {
@@ -474,11 +470,9 @@ describe('AccountsController', () => {
 
       messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
 
-      const updatedAccount = accountsController.getAccountExpect(
-        mockSnapAccount.id,
-      );
+      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
 
-      expect(updatedAccount.metadata.snap?.enabled).toBe(false);
+      expect(updatedAccount?.metadata.snap?.enabled).toBe(false);
     });
 
     it('does not trigger any unnecessary updates', async () => {
@@ -521,16 +515,14 @@ describe('AccountsController', () => {
 
       // First update will update the account's metadata, thus triggering a `AccountsController:stateChange`.
       messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-      const updatedAccount = accountsController.getAccountExpect(
-        mockSnapAccount.id,
-      );
-      expect(updatedAccount.metadata.snap?.enabled).toBe(true);
+      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
+      expect(updatedAccount?.metadata.snap?.enabled).toBe(true);
       expect(mockStateChange).toHaveBeenCalled();
 
       // Second update is the same, thus the account does not need any update, and SHOULD NOT trigger a `AccountsController:stateChange`.
       mockStateChange.mockReset();
       messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-      expect(updatedAccount.metadata.snap?.enabled).toBe(true);
+      expect(updatedAccount?.metadata.snap?.enabled).toBe(true);
       expect(mockStateChange).not.toHaveBeenCalled();
     });
 
@@ -565,15 +557,13 @@ describe('AccountsController', () => {
       });
 
       // Initial state
-      const account = accountsController.getAccountExpect(mockSnapAccount.id);
-      expect(account.metadata.snap?.enabled).toBe(true);
+      const account = accountsController.getAccount(mockSnapAccount.id);
+      expect(account?.metadata.snap?.enabled).toBe(true);
 
       // The Snap 'mock-snap' won't be found, so we will automatically consider it disabled.
       messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-      const updatedAccount = accountsController.getAccountExpect(
-        mockSnapAccount.id,
-      );
-      expect(updatedAccount.metadata.snap?.enabled).toBe(false);
+      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
+      expect(updatedAccount?.metadata.snap?.enabled).toBe(false);
     });
   });
 
@@ -3136,38 +3126,6 @@ describe('AccountsController', () => {
     });
   });
 
-  describe('getAccountExpect', () => {
-    it('return an account by ID', () => {
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-      const result = accountsController.getAccountExpect(mockAccount.id);
-
-      expect(result).toStrictEqual(setExpectedLastSelectedAsAny(mockAccount));
-    });
-
-    it('throw an error for an unknown account ID', () => {
-      const accountId = 'unknown id';
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-
-      expect(() => accountsController.getAccountExpect(accountId)).toThrow(
-        `Account Id "${accountId}" not found`,
-      );
-    });
-  });
-
   describe('setSelectedAccount', () => {
     it('set the selected account', () => {
       const { accountsController } = setupAccountsController({
@@ -3256,9 +3214,9 @@ describe('AccountsController', () => {
         newAccountName,
       );
 
-      expect(
-        accountsController.getAccountExpect(mockAccount.id).metadata.name,
-      ).toBe(newAccountName);
+      expect(accountsController.getAccount(mockAccount.id)?.metadata.name).toBe(
+        newAccountName,
+      );
       expect(accountsController.state.internalAccounts.selectedAccount).toBe(
         mockAccount.id,
       );
@@ -3283,7 +3241,7 @@ describe('AccountsController', () => {
       );
 
       expect(
-        accountsController.getAccountExpect(mockAccount2.id).metadata.name,
+        accountsController.getAccount(mockAccount2.id)?.metadata.name,
       ).toBe(newAccountName);
       expect(accountsController.state.internalAccounts.selectedAccount).toBe(
         mockAccount2.id,
@@ -3303,7 +3261,7 @@ describe('AccountsController', () => {
       );
 
       expect(
-        accountsController.getAccountExpect(mockAccount.id).metadata
+        accountsController.getAccount(mockAccount.id)?.metadata
           .nameLastUpdatedAt,
       ).toBe(expectedTimestamp);
     });
@@ -3321,7 +3279,7 @@ describe('AccountsController', () => {
 
       expect(messengerSpy).toHaveBeenCalledWith(
         'AccountsController:accountRenamed',
-        accountsController.getAccountExpect(mockAccount.id),
+        accountsController.getAccount(mockAccount.id),
       );
     });
   });
@@ -3338,9 +3296,9 @@ describe('AccountsController', () => {
       });
       accountsController.setAccountName(mockAccount.id, 'new name');
 
-      expect(
-        accountsController.getAccountExpect(mockAccount.id).metadata.name,
-      ).toBe('new name');
+      expect(accountsController.getAccount(mockAccount.id)?.metadata.name).toBe(
+        'new name',
+      );
     });
 
     it('sets the nameLastUpdatedAt timestamp when setting the name of an existing account', () => {
@@ -3360,7 +3318,7 @@ describe('AccountsController', () => {
       accountsController.setAccountName(mockAccount.id, 'new name');
 
       expect(
-        accountsController.getAccountExpect(mockAccount.id).metadata
+        accountsController.getAccount(mockAccount.id)?.metadata
           .nameLastUpdatedAt,
       ).toBe(expectedTimestamp);
     });
@@ -3382,7 +3340,7 @@ describe('AccountsController', () => {
 
       expect(messengerSpy).toHaveBeenCalledWith(
         'AccountsController:accountRenamed',
-        accountsController.getAccountExpect(mockAccount.id),
+        accountsController.getAccount(mockAccount.id),
       );
     });
 
@@ -3428,8 +3386,7 @@ describe('AccountsController', () => {
       });
 
       expect(
-        accountsController.getAccountExpect(mockAccount.id).metadata
-          .lastSelected,
+        accountsController.getAccount(mockAccount.id)?.metadata.lastSelected,
       ).toBe(1);
     });
   });

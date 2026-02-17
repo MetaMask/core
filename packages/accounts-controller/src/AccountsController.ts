@@ -191,6 +191,27 @@ export type AccountsControllerUpdateAccountMetadataAction = {
  * @deprecated This type is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  */
+export type AccountsControllerLoadBackupAction = {
+  type: `${typeof controllerName}:loadBackup`;
+  handler: AccountsController['loadBackup'];
+};
+
+const MESSENGER_EXPOSED_METHODS = [
+  'setSelectedAccount',
+  'setAccountName',
+  'setAccountNameAndSelectAccount',
+  'listAccounts',
+  'listMultichainAccounts',
+  'updateAccounts',
+  'getSelectedAccount',
+  'getSelectedMultichainAccount',
+  'getAccountByAddress',
+  'getAccount',
+  'getAccounts',
+  'updateAccountMetadata',
+  'loadBackup',
+] as const;
+
 export type AllowedActions =
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetStateAction;
@@ -212,7 +233,8 @@ export type AccountsControllerActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountsAction
   | AccountsControllerGetSelectedMultichainAccountAction
-  | AccountsControllerUpdateAccountMetadataAction;
+  | AccountsControllerUpdateAccountMetadataAction
+  | AccountsControllerLoadBackupAction;
 
 /**
  * @deprecated This type is deprecated and will be removed in a future version.
@@ -420,8 +442,12 @@ export class AccountsController extends BaseController<
       },
     });
 
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     this.#subscribeToMessageEvents();
-    this.#registerMessageHandlers();
   }
 
   /**
@@ -492,7 +518,7 @@ export class AccountsController extends BaseController<
    * @returns The internal account object.
    * @throws An error if the account ID is not found.
    */
-  getAccountExpect(accountId: string): InternalAccount {
+  #getAccountExpect(accountId: string): InternalAccount {
     const account = this.getAccount(accountId);
     if (account === undefined) {
       throw new Error(`Account Id "${accountId}" not found`);
@@ -518,7 +544,7 @@ export class AccountsController extends BaseController<
       return EMPTY_ACCOUNT;
     }
 
-    const account = this.getAccountExpect(selectedAccount);
+    const account = this.#getAccountExpect(selectedAccount);
     if (isEvmAccountType(account.type)) {
       return account;
     }
@@ -558,7 +584,7 @@ export class AccountsController extends BaseController<
     }
 
     if (!chainId) {
-      return this.getAccountExpect(selectedAccount);
+      return this.#getAccountExpect(selectedAccount);
     }
 
     const accounts = this.listMultichainAccounts(chainId);
@@ -588,7 +614,7 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccountExpect(accountId);
+    const account = this.#getAccountExpect(accountId);
 
     if (this.state.internalAccounts.selectedAccount === account.id) {
       return;
@@ -630,7 +656,7 @@ export class AccountsController extends BaseController<
    * @throws An error if an account with the same name already exists.
    */
   setAccountNameAndSelectAccount(accountId: string, accountName: string): void {
-    const account = this.getAccountExpect(accountId);
+    const account = this.#getAccountExpect(accountId);
 
     this.#assertAccountCanBeRenamed(account, accountName);
 
@@ -682,7 +708,7 @@ export class AccountsController extends BaseController<
     accountId: string,
     metadata: Partial<InternalAccount['metadata']>,
   ): void {
-    const account = this.getAccountExpect(accountId);
+    const account = this.#getAccountExpect(accountId);
 
     if (metadata.name) {
       this.#assertAccountCanBeRenamed(account, metadata.name);
@@ -1326,71 +1352,6 @@ export class AccountsController extends BaseController<
     this.messenger.subscribe(
       'MultichainNetworkController:networkDidChange',
       (id) => this.#handleOnMultichainNetworkDidChange(id),
-    );
-  }
-
-  /**
-   * Registers message handlers for the AccountsController.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:setSelectedAccount`,
-      this.setSelectedAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:listAccounts`,
-      this.listAccounts.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:listMultichainAccounts`,
-      this.listMultichainAccounts.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountName`,
-      this.setAccountName.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountNameAndSelectAccount`,
-      this.setAccountNameAndSelectAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:updateAccounts`,
-      this.updateAccounts.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getSelectedAccount`,
-      this.getSelectedAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getSelectedMultichainAccount`,
-      this.getSelectedMultichainAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getAccountByAddress`,
-      this.getAccountByAddress.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `AccountsController:getAccount`,
-      this.getAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `AccountsController:getAccounts`,
-      this.getAccounts.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `AccountsController:updateAccountMetadata`,
-      this.updateAccountMetadata.bind(this),
     );
   }
 }
