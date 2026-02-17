@@ -951,9 +951,6 @@
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
-    },
-    "import-x/namespace": {
-      "count": 2
     }
   },
   "packages/gas-fee-controller/src/GasFeeController.ts": {
