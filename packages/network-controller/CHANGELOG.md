@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** The `RpcServiceRequestable` type's `onDegraded` listener now receives `rpcMethodName: string` in its data parameter ([#7954](https://github.com/MetaMask/core/pull/7954))
+  - Implementors of this interface will need to accept the new field in their `onDegraded` callback signature.
 - Bump `@metamask/eth-json-rpc-middleware` from `^23.0.0` to `^23.1.0` ([#7810](https://github.com/MetaMask/core/pull/7810))
 - Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
 
