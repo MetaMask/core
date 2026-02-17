@@ -58,6 +58,7 @@ import {
 } from './utils/fetch';
 import {
   AbortReason,
+  MetaMetricsSwapsEventSource,
   MetricsActionType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
@@ -165,6 +166,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   #abortController: AbortController | undefined;
 
   #quotesFirstFetched: number | undefined;
+
+  /**
+   * Stores the location/entry point from which the user initiated the swap or bridge flow.
+   * Set via setLocation() before navigating to the swap/bridge flow.
+   * Used as default for all subsequent internal events.
+   */
+  #location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView;
 
   readonly #clientId: BridgeClientId;
 
@@ -384,6 +392,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       UnifiedSwapBridgeEventName.QuotesValidationFailed,
       {
         failures: validationFailures,
+        location: this.#location,
       },
     );
   };
@@ -538,6 +547,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
     // Clears quotes list in state
     this.#abortController?.abort(reason);
+  };
+
+  /**
+   * Sets the location/entry point for the current swap or bridge flow.
+   * Call this when the user enters the flow so that all internally-fired
+   * events (InputChanged, QuotesRequested, etc.) carry the correct location.
+   *
+   * @param location - The entry point from which the user initiated the flow
+   */
+  setLocation = (location: MetaMetricsSwapsEventSource) => {
+    this.#location = location;
   };
 
   resetState = (reason = AbortReason.ResetState) => {
@@ -884,8 +904,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       EventName
     >[EventName],
   ): CrossChainSwapsEventProperties<EventName> => {
+    const clientProps = propertiesFromClient as Record<string, unknown>;
     const baseProperties = {
       ...propertiesFromClient,
+      location: clientProps?.location ?? this.#location,
       action_type: MetricsActionType.SWAPBRIDGE_V1,
     };
     switch (eventName) {
@@ -987,6 +1009,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           {
             input: inputKey,
             input_value: inputValue,
+            location: this.#location,
           },
         );
       }

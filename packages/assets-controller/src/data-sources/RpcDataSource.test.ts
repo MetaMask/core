@@ -1,9 +1,17 @@
 /* eslint-disable jest/unbound-method */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { MockAnyNamespace } from '@metamask/messenger';
-import type { NetworkState } from '@metamask/network-controller';
-import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
+import type { ActionHandler, MockAnyNamespace } from '@metamask/messenger';
+import type {
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
+  NetworkState,
+} from '@metamask/network-controller';
+import {
+  NetworkClientType,
+  NetworkStatus,
+  RpcEndpointType,
+} from '@metamask/network-controller';
 
 import type {
   RpcDataSourceOptions,
@@ -12,6 +20,7 @@ import type {
 } from './RpcDataSource';
 import { RpcDataSource, createRpcDataSource } from './RpcDataSource';
 import type { AssetsControllerMessenger } from '../AssetsController';
+import { getDefaultAssetsControllerState } from '../AssetsController';
 import type { ChainId, DataRequest, Context } from '../types';
 
 type AllActions = RpcDataSourceAllowedActions;
@@ -179,24 +188,31 @@ async function withController<ReturnValue>(
       ((): NetworkState => networkState),
   );
 
-  // Mock NetworkController:getNetworkClientById
+  // Mock NetworkController:getNetworkClientById (minimal shape; full type not needed for tests)
+  const getNetworkClientByIdHandler =
+    actionHandlerOverrides['NetworkController:getNetworkClientById'] ??
+    ((): AutoManagedNetworkClient<CustomNetworkClientConfiguration> =>
+      ({
+        provider: createMockProvider(),
+        configuration: {
+          chainId: MOCK_CHAIN_ID_HEX,
+          ticker: 'ETH',
+          rpcUrl: 'https://mainnet.infura.io',
+          type: NetworkClientType.Custom,
+        },
+      }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>);
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
-    actionHandlerOverrides['NetworkController:getNetworkClientById'] ??
-      ((): {
-        provider: EthereumProvider;
-        configuration: { chainId: string };
-      } => ({
-        provider: createMockProvider(),
-        configuration: { chainId: MOCK_CHAIN_ID_HEX },
-      })),
+    getNetworkClientByIdHandler as ActionHandler<
+      RpcDataSourceAllowedActions,
+      'NetworkController:getNetworkClientById'
+    >,
   );
 
   // Mock AssetsController:getState
-  messenger.registerActionHandler('AssetsController:getState', () => ({
-    assetsInfo: {},
-    assetsBalance: {},
-  }));
+  messenger.registerActionHandler('AssetsController:getState', () =>
+    getDefaultAssetsControllerState(),
+  );
 
   // Mock TokenListController:getState
   messenger.registerActionHandler('TokenListController:getState', () => ({
@@ -662,10 +678,16 @@ describe('RpcDataSource', () => {
       );
       messenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
-        () => ({
-          provider: createMockProvider(),
-          configuration: { chainId: MOCK_CHAIN_ID_HEX },
-        }),
+        (): AutoManagedNetworkClient<CustomNetworkClientConfiguration> =>
+          ({
+            provider: createMockProvider(),
+            configuration: {
+              chainId: MOCK_CHAIN_ID_HEX,
+              ticker: 'ETH',
+              rpcUrl: 'https://mainnet.infura.io',
+              type: NetworkClientType.Custom,
+            },
+          }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
       );
 
       const controller = createRpcDataSource({

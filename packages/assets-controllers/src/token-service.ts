@@ -204,7 +204,7 @@ type SearchTokenOptions = {
  * @param options.limit - The maximum number of results to return.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
- * @returns Object containing count and data array. Returns { count: 0, data: [] } if request fails.
+ * @returns Object containing count, data array, and an optional error message if the request failed.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
@@ -214,7 +214,7 @@ export async function searchTokens(
     includeMarketData = false,
     includeRwaData = true,
   }: SearchTokenOptions = {},
-): Promise<{ count: number; data: TokenSearchItem[] }> {
+): Promise<{ count: number; data: TokenSearchItem[]; error?: string }> {
   const tokenSearchURL = getTokenSearchURL({
     chainIds,
     query,
@@ -236,11 +236,10 @@ export async function searchTokens(
     }
 
     // Handle non-expected responses
-    return { count: 0, data: [] };
+    return { count: 0, data: [], error: 'Unexpected API response format' };
   } catch (error) {
-    // Handle 400 errors and other failures by returning count 0 and empty array
-    console.log('Search request failed:', error);
-    return { count: 0, data: [] };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { count: 0, data: [], error: errorMessage };
   }
 }
 
