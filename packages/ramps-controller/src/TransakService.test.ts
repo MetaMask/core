@@ -969,6 +969,50 @@ describe('TransakService', () => {
       expect(await promise).toBeDefined();
     });
 
+    it('normalizes ramps payment method IDs to deposit format', async () => {
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/native/translate`)
+        .query(
+          (query) =>
+            query.paymentMethod === 'credit_debit_card' &&
+            query.fiatCurrencyId === 'USD',
+        )
+        .reply(200, MOCK_TRANSLATION);
+
+      const { service } = getService();
+
+      const promise = service.getTranslation({
+        fiatCurrencyId: 'USD',
+        paymentMethod: '/payments/debit-credit-card',
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual(MOCK_TRANSLATION);
+    });
+
+    it('passes through payment methods already in deposit format', async () => {
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/native/translate`)
+        .query(
+          (query) =>
+            query.paymentMethod === 'credit_debit_card' &&
+            query.fiatCurrencyId === 'USD',
+        )
+        .reply(200, MOCK_TRANSLATION);
+
+      const { service } = getService();
+
+      const promise = service.getTranslation({
+        fiatCurrencyId: 'USD',
+        paymentMethod: 'credit_debit_card',
+      });
+      await clock.runAllAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual(MOCK_TRANSLATION);
+    });
+
     it('throws when translation endpoint fails', async () => {
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/native/translate`)

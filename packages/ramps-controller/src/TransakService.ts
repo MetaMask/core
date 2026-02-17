@@ -1074,7 +1074,14 @@ export class TransakService {
     url.searchParams.set('action', 'deposit');
     url.searchParams.set('context', this.#context);
 
-    for (const [key, value] of Object.entries(translationRequest)) {
+    const normalizedRequest = {
+      ...translationRequest,
+      paymentMethod: normalizePaymentMethodForTranslation(
+        translationRequest.paymentMethod,
+      ),
+    };
+
+    for (const [key, value] of Object.entries(normalizedRequest)) {
       if (value !== undefined) {
         url.searchParams.set(key, value);
       }
