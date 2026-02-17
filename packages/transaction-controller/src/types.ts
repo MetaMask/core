@@ -2020,8 +2020,8 @@ export type IsAtomicBatchSupportedRequest = {
 
 /** Parameters to check if the given chain IDs support EIP-7702. */
 export type IsEIP7702SupportedRequest = {
-  /** IDs of specific chains to check. */
-  chainIds: Hex[];
+  /** IDs of specific chains to check. If not provided, all supported chains will be checked. */
+  chainIds?: Hex[];
 };
 
 /** Result of checking if the given chain IDs support EIP-7702. */

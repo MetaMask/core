@@ -1261,7 +1261,7 @@ export class TransactionController extends BaseController<
    * Determine if the given chain IDs support EIP-7702.
    *
    * @param params - The parameters to check.
-   * @param params.chainIds - The chain IDs to check.
+   * @param params.chainIds - The chain IDs to check. If not provided, all supported chains will be checked.
    * @returns An array of objects with the chain ID and whether it supports EIP-7702.
    */
   async isEIP7702Supported(
@@ -1273,11 +1273,18 @@ export class TransactionController extends BaseController<
       this.messenger,
     ).map((chainId) => chainId.toLowerCase() as Hex);
 
-    return chainIds.map((chainId) => ({
+    if (chainIds) {
+      return chainIds.map((chainId) => ({
+        chainId,
+        isSupported: eip7702SupportedChainIds.includes(
+          chainId.toLowerCase() as Hex,
+        ),
+      }));
+    }
+
+    return eip7702SupportedChainIds.map((chainId) => ({
       chainId,
-      isSupported: eip7702SupportedChainIds.includes(
-        chainId.toLowerCase() as Hex,
-      ),
+      isSupported: true,
     }));
   }
 

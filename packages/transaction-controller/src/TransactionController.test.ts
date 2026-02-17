@@ -7260,6 +7260,30 @@ describe('TransactionController', () => {
       expect(result).toStrictEqual([]);
     });
 
+    it('returns all supported chains with isSupported: true when chainIds is not provided', async () => {
+      const supportedChainIds = [CHAIN_ID_MOCK, CHAIN_IDS.MAINNET] as Hex[];
+      getEIP7702SupportedChainsMock.mockReturnValue(supportedChainIds);
+
+      const { controller } = setupController();
+
+      const result = await controller.isEIP7702Supported({});
+
+      expect(result).toStrictEqual([
+        { chainId: CHAIN_ID_MOCK, isSupported: true },
+        { chainId: CHAIN_IDS.MAINNET, isSupported: true },
+      ]);
+    });
+
+    it('returns empty array when chainIds is not provided and no chains support EIP-7702', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValue([]);
+
+      const { controller } = setupController();
+
+      const result = await controller.isEIP7702Supported({});
+
+      expect(result).toStrictEqual([]);
+    });
+
     it('returns all isSupported: false when supported chains list is empty', async () => {
       getEIP7702SupportedChainsMock.mockReturnValue([]);
 
@@ -7283,6 +7307,16 @@ describe('TransactionController', () => {
       await controller.isEIP7702Supported({
         chainIds: [CHAIN_ID_MOCK],
       });
+
+      expect(getEIP7702SupportedChainsMock).toHaveBeenCalledWith(messenger);
+    });
+
+    it('calls getEIP7702SupportedChains when chainIds is not provided', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValue([CHAIN_ID_MOCK]);
+
+      const { controller, messenger } = setupController();
+
+      await controller.isEIP7702Supported({});
 
       expect(getEIP7702SupportedChainsMock).toHaveBeenCalledWith(messenger);
     });
