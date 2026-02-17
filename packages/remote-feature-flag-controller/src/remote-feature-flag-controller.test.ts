@@ -18,6 +18,7 @@ import type {
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
+import { flushPromises } from '../../../tests/helpers';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
@@ -65,6 +66,7 @@ function createController(
     disabled: boolean;
     getMetaMetricsId: () => string;
     clientVersion: string;
+    prevClientVersion: string;
   }> = {},
 ): RemoteFeatureFlagController {
   return new RemoteFeatureFlagController({
@@ -77,6 +79,7 @@ function createController(
       options.getMetaMetricsId ??
       ((): typeof MOCK_METRICS_ID => MOCK_METRICS_ID),
     clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
+    prevClientVersion: options.prevClientVersion,
   });
 }
 
@@ -184,6 +187,94 @@ describe('RemoteFeatureFlagController', () => {
         clientConfigApiService.fetchRemoteFeatureFlags,
       ).not.toHaveBeenCalled();
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
+    });
+
+    it('resets cache and fetch when clientVersion changes', async () => {
+      const versionedFlags = {
+        exploreFeature: {
+          versions: {
+            '7.62.0': { enabled: false },
+            '7.64.0': { enabled: true },
+          },
+        },
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: versionedFlags,
+      });
+
+      /**
+       * Test Util - Arrange, Act, Assert for client version change
+       *
+       * @param opts - The options for the arrangeActAssertClientVersionChange test
+       * @param opts.clientVersion - The client version to use
+       * @param opts.prevClientVersion - The previous client version to use
+       * @param opts.controllerState - The controller state to use
+       * @param opts.expectedFeatureFlagState - The expected feature flag state
+       * @returns The controller state after the arrangeActAssertClientVersionChange test
+       */
+      const arrangeActAssertClientVersionChange = async (opts: {
+        clientVersion: string;
+        prevClientVersion?: string;
+        controllerState?: RemoteFeatureFlagControllerState;
+        expectedFeatureFlagState: boolean;
+      }): Promise<RemoteFeatureFlagControllerState> => {
+        const {
+          clientVersion,
+          prevClientVersion,
+          controllerState,
+          expectedFeatureFlagState,
+        } = opts;
+
+        // Arrange - setup controller
+        jest.clearAllMocks();
+        const controller = createController({
+          clientConfigApiService,
+          clientVersion,
+          prevClientVersion,
+          state: controllerState,
+        });
+
+        // Assert - controller cache is set to 0 (either by initial state or reset by client version change)
+        expect(controller.state.cacheTimestamp).toBe(0);
+
+        // Act / Assert - We should make a network request and update the cache (cache is reset to 0)
+        await controller.updateRemoteFeatureFlags();
+        expect(
+          clientConfigApiService.fetchRemoteFeatureFlags,
+        ).toHaveBeenCalledTimes(1);
+
+        // Act / Assert - subsequent fetches should not call network again (cache is populated)
+        await controller.updateRemoteFeatureFlags();
+        expect(
+          clientConfigApiService.fetchRemoteFeatureFlags,
+        ).toHaveBeenCalledTimes(1);
+
+        // Assert - flag state is as expected
+        expect(
+          controller.state.remoteFeatureFlags.exploreFeature,
+        ).toStrictEqual({
+          enabled: expectedFeatureFlagState,
+        });
+
+        // Assert - cache timestamp has been updated
+        expect(controller.state.cacheTimestamp).toBeGreaterThan(0);
+
+        return controller.state;
+      };
+
+      // Test: New controller initialized (no previous state)
+      const controllerState = await arrangeActAssertClientVersionChange({
+        clientVersion: '7.62.0',
+        expectedFeatureFlagState: false,
+      });
+
+      // Test: Updated controller with a previous client version
+      await arrangeActAssertClientVersionChange({
+        clientVersion: '7.64.0',
+        prevClientVersion: '7.62.0',
+        controllerState,
+        expectedFeatureFlagState: true,
+      });
     });
 
     it('makes a network request to fetch when cache is expired, and then updates the cache', async () => {
@@ -932,6 +1023,7 @@ describe('RemoteFeatureFlagController', () => {
 
   describe('threshold cache cleanup', () => {
     it('removes stale threshold cache entries when flags are removed from server', async () => {
+      jest.useRealTimers();
       // Arrange
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: {
@@ -983,6 +1075,7 @@ describe('RemoteFeatureFlagController', () => {
 
       // Second update: flagA removed from server
       await controller.updateRemoteFeatureFlags();
+      await flushPromises();
 
       // Assert - flagA cache entry removed
       const cacheAfterSecond = controller.state.thresholdCache ?? {};
@@ -1283,11 +1376,11 @@ describe('RemoteFeatureFlagController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "localOverrides": Object {},
-          "rawRemoteFeatureFlags": Object {},
-          "remoteFeatureFlags": Object {},
+          "localOverrides": {},
+          "rawRemoteFeatureFlags": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -1302,11 +1395,11 @@ describe('RemoteFeatureFlagController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "localOverrides": Object {},
-          "rawRemoteFeatureFlags": Object {},
-          "remoteFeatureFlags": Object {},
+          "localOverrides": {},
+          "rawRemoteFeatureFlags": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -1321,11 +1414,11 @@ describe('RemoteFeatureFlagController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "cacheTimestamp": 0,
-          "localOverrides": Object {},
-          "rawRemoteFeatureFlags": Object {},
-          "remoteFeatureFlags": Object {},
+          "localOverrides": {},
+          "rawRemoteFeatureFlags": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });
@@ -1340,9 +1433,9 @@ describe('RemoteFeatureFlagController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "localOverrides": Object {},
-          "remoteFeatureFlags": Object {},
+        {
+          "localOverrides": {},
+          "remoteFeatureFlags": {},
         }
       `);
     });

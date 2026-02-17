@@ -103,7 +103,7 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({ assetsMetadata: {} }),
+    getAssetsState: jest.fn().mockReturnValue({ assetsInfo: {} }),
     ...overrides,
   };
 }
@@ -434,7 +434,7 @@ describe('SnapDataSource', () => {
 
     expect(response).toStrictEqual({
       assetsBalance: {},
-      assetsMetadata: {},
+      assetsInfo: {},
     });
 
     cleanup();
@@ -468,7 +468,7 @@ describe('SnapDataSource', () => {
     // No accounts to fetch, so empty balances
     expect(response).toStrictEqual({
       assetsBalance: {},
-      assetsMetadata: {},
+      assetsInfo: {},
     });
 
     cleanup();
@@ -614,6 +614,39 @@ describe('SnapDataSource', () => {
         'account-1': {
           [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
           [evmAsset]: { amount: '5000000000000000000', unit: 'ETH' },
+        },
+      },
+    });
+
+    await new Promise(process.nextTick);
+
+    expect(assetsUpdateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsBalance: {
+          'account-1': {
+            [MOCK_SOL_ASSET]: { amount: '1000000000' },
+          },
+        },
+      }),
+    );
+
+    cleanup();
+  });
+
+  it('skips malformed asset IDs in balance update and still applies valid balances', async () => {
+    const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
+      setupController({
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+      });
+    await new Promise(process.nextTick);
+
+    triggerBalancesUpdated({
+      balances: {
+        'account-1': {
+          'not-a-valid-caip19': { amount: '999', unit: 'FAKE' },
+          [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
         },
       },
     });

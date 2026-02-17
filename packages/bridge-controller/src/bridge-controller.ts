@@ -285,10 +285,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteRequest = updatedQuoteRequest;
     });
 
-    await this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
-      console.warn('Failed to fetch asset exchange rates', error),
-    );
-
     if (isValidQuoteRequest(updatedQuoteRequest)) {
       this.#quotesFirstFetched = Date.now();
       const isSrcChainNonEVM = isNonEvmChainId(updatedQuoteRequest.srcChainId);
@@ -587,6 +583,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   }: BridgePollingInput) => {
     this.#abortController?.abort(AbortReason.NewQuoteRequest);
     this.#abortController = new AbortController();
+
+    this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
+      console.warn('Failed to fetch asset exchange rates', error),
+    );
 
     this.trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.QuotesRequested,

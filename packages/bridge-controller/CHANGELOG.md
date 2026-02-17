@@ -9,7 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.16.0` ([#7872](https://github.com/MetaMask/core/pull/7872))
+- Bump `@metamask/assets-controllers` from `^99.3.2` to `^99.4.0` ([#7944](https://github.com/MetaMask/core/pull/7944))
+
+### Fixed
+
+- Fix `usd_amount_source`, `usd_quoted_gas`, and `usd_quoted_return` metrics fields being empty for non-EVM chains by deriving USD exchange rates from multichain asset rates ([#7899](https://github.com/MetaMask/core/pull/7899))
+
+## [66.1.1]
+
+### Fixed
+
+- Return 0-prefixed hex string from `formatChainIdToHex` utility ([#7909](https://github.com/MetaMask/core/pull/7909))
+
+## [66.1.0] [DEPRECATED]
+
+### Added
+
+- Add support for Tron assets in the `formatAddressToAssetId` utility ([#7896](https://github.com/MetaMask/core/pull/7896))
+
+### Changed
+
+- Refresh asset exchange rates each time quotes are fetched ([#7896](https://github.com/MetaMask/core/pull/7896))
+- Return checksummed EVM assetIds from the `formatAddressToAssetId` utility ([#7896](https://github.com/MetaMask/core/pull/7896))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.17.0` ([#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/multichain-network-controller` from `^3.0.2` to `^3.0.3` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/assets-controllers` from `^99.3.1` to `^99.3.2` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+
+### Fixed
+
+- Fall back to the quoted `priceImpact` or `destTokenAmount` to sort quotes if the `cost` is not available ([#7896](https://github.com/MetaMask/core/pull/7896))
 
 ## [66.0.0]
 
@@ -1108,7 +1138,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.1.1...HEAD
+[66.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.1.0...@metamask/bridge-controller@66.1.1
+[66.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.0.0...@metamask/bridge-controller@66.1.0
 [66.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.3.0...@metamask/bridge-controller@66.0.0
 [65.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.2.0...@metamask/bridge-controller@65.3.0
 [65.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.1.0...@metamask/bridge-controller@65.2.0

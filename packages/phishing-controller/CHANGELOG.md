@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Solana (`solana`) as a chain identifier in `bulkScanTokens` ([#7923](https://github.com/MetaMask/core/pull/7923))
+  - Non-EVM chain names (e.g. `'solana'`) can now be passed as `chainId` in addition to hex EVM chain IDs
+  - Token address casing is preserved for non-EVM chains (EVM addresses continue to be lowercased)
+- Export `TokenScanResultType` as a runtime value (previously type-only) ([#7923](https://github.com/MetaMask/core/pull/7923))
+- Export `BulkTokenScanResponse` type ([#7923](https://github.com/MetaMask/core/pull/7923))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `62.16.0` to `62.17.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+
 ## [16.2.0]
 
 ### Added

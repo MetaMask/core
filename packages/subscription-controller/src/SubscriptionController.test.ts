@@ -436,6 +436,23 @@ describe('SubscriptionController', () => {
       });
     });
 
+    it('should surface triggerAccessTokenRefresh errors', async () => {
+      await withController(
+        async ({ controller, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          mockPerformSignOut.mockImplementation(() => {
+            throw new Error('Wallet is locked');
+          });
+
+          await expect(controller.getSubscriptions()).rejects.toThrow(
+            'Wallet is locked',
+          );
+        },
+      );
+    });
+
     it('should update state when subscription is fetched', async () => {
       const initialSubscription = { ...MOCK_SUBSCRIPTION, id: 'sub_old' };
       const newSubscription = { ...MOCK_SUBSCRIPTION, id: 'sub_new' };
@@ -1405,8 +1422,8 @@ describe('SubscriptionController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "trialedProducts": Array [],
+          {
+            "trialedProducts": [],
           }
         `);
       });
@@ -1421,10 +1438,10 @@ describe('SubscriptionController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-        Object {
-          "trialedProducts": Array [],
-        }
-      `);
+          {
+            "trialedProducts": [],
+          }
+        `);
       });
     });
 
@@ -1437,11 +1454,11 @@ describe('SubscriptionController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-        Object {
-          "subscriptions": Array [],
-          "trialedProducts": Array [],
-        }
-      `);
+          {
+            "subscriptions": [],
+            "trialedProducts": [],
+          }
+        `);
       });
     });
 
@@ -1454,11 +1471,11 @@ describe('SubscriptionController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-        Object {
-          "subscriptions": Array [],
-          "trialedProducts": Array [],
-        }
-      `);
+          {
+            "subscriptions": [],
+            "trialedProducts": [],
+          }
+        `);
       });
     });
   });

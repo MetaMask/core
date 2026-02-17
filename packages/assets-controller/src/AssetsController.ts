@@ -19,12 +19,23 @@ import type {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
+import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
-import { parseCaipAssetType } from '@metamask/utils';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import type {
+  TransactionControllerIncomingTransactionsReceivedEvent,
+  TransactionControllerTransactionConfirmedEvent,
+} from '@metamask/transaction-controller';
+import {
+  isCaipChainId,
+  isStrictHexString,
+  parseCaipAssetType,
+  parseCaipChainId,
+} from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
 import { isEqual } from 'lodash';
@@ -35,12 +46,16 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './data-sources/AbstractDataSource';
+import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
+import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
+import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
@@ -57,6 +72,8 @@ import type {
   DataType,
   DataRequest,
   DataResponse,
+  FetchContext,
+  FetchNextFunction,
   NextFunction,
   Middleware,
   SubscriptionResponse,
@@ -103,7 +120,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
  */
 export type AssetsControllerState = {
   /** Shared metadata for all assets (stored once per asset) */
-  assetsMetadata: { [assetId: string]: AssetMetadata };
+  assetsInfo: { [assetId: string]: AssetMetadata };
   /** Per-account balance data */
   assetsBalance: { [accountId: string]: { [assetId: string]: AssetBalance } };
   /** Price data for assets */
@@ -121,7 +138,7 @@ export type AssetsControllerState = {
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
-    assetsMetadata: {},
+    assetsInfo: {},
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
@@ -183,10 +200,14 @@ type AllowedActions =
 
 type AllowedEvents =
   | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | NetworkControllerStateChangeEvent
   | NetworkEnablementControllerEvents
   | BackendWebSocketServiceEvents
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  | PreferencesControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -198,6 +219,23 @@ export type AssetsControllerMessenger = Messenger<
 // CONTROLLER OPTIONS
 // ============================================================================
 
+/**
+ * Payload for the first init/fetch MetaMetrics event.
+ * Passed to the optional trackMetaMetricsEvent callback when the initial
+ * asset fetch completes after unlock or app open.
+ */
+export type AssetsControllerFirstInitFetchMetaMetricsPayload = {
+  /** Duration of the first init fetch in milliseconds (wall-clock). */
+  durationMs: number;
+  /** Chain IDs requested in the fetch (e.g. ['eip155:1', 'eip155:137']). */
+  chainIds: string[];
+  /**
+   * Exclusive latency in ms per data source (time spent in that source only).
+   * Sum of values approximates durationMs. Order: same as middleware chain.
+   */
+  durationByDataSource: Record<string, number>;
+};
+
 export type AssetsControllerOptions = {
   messenger: AssetsControllerMessenger;
   state?: Partial<AssetsControllerState>;
@@ -206,12 +244,44 @@ export type AssetsControllerOptions = {
   /** Function to determine if the controller is enabled. Defaults to true. */
   isEnabled?: () => boolean;
   /**
+   * Getter for basic functionality (matches the "Basic functionality" setting in the UI).
+   * When it returns true, internet services are on: token/price APIs are used for metadata, price,
+   * and price subscription. When false, only RPC is used (no token/price APIs).
+   * No value is stored; the getter is invoked when needed.
+   * Defaults to () => true when not provided (APIs enabled).
+   */
+  isBasicFunctionality?: () => boolean;
+  /**
+   * Called by the controller with an onChange callback. The consumer subscribes to its own
+   * basic-functionality source (e.g. PreferencesController:stateChange in extension, or a
+   * different mechanism in mobile) and invokes onChange(isBasic) when the value changes.
+   * The controller will then refresh its subscriptions. May return an unsubscribe function
+   * called on controller destroy. Optional; when omitted, basic-functionality changes are not
+   * subscribed to (e.g. host can notify via root messenger or another path).
+   */
+  subscribeToBasicFunctionalityChange?: (
+    onChange: (isBasic: boolean) => void,
+  ) => void | (() => void);
+  /**
    * API client for balance/price/metadata. The controller instantiates data sources
    * and uses them directly when this is provided.
    */
   queryApiClient: ApiPlatformClient;
   /** Optional configuration for RpcDataSource. */
   rpcDataSourceConfig?: RpcDataSourceConfig;
+  /**
+   * Optional callback invoked when the first init/fetch completes (e.g. after unlock).
+   * Use this to track first init fetch duration in MetaMetrics.
+   */
+  trackMetaMetricsEvent?: (
+    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+  ) => void;
+  /** Optional configuration for AccountsApiDataSource. */
+  accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
+  /** Optional configuration for PriceDataSource. */
+  priceDataSourceConfig?: PriceDataSourceConfig;
+  /** Optional configuration for StakedBalanceDataSource. */
+  stakedBalanceDataSourceConfig?: StakedBalanceDataSourceConfig;
 };
 
 // ============================================================================
@@ -219,7 +289,7 @@ export type AssetsControllerOptions = {
 // ============================================================================
 
 const stateMetadata: StateMetadata<AssetsControllerState> = {
-  assetsMetadata: {
+  assetsInfo: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -271,11 +341,11 @@ function extractChainId(assetId: Caip19AssetId): ChainId {
 function normalizeResponse(response: DataResponse): DataResponse {
   const normalized: DataResponse = {};
 
-  if (response.assetsMetadata) {
-    normalized.assetsMetadata = {};
-    for (const [assetId, metadata] of Object.entries(response.assetsMetadata)) {
+  if (response.assetsInfo) {
+    normalized.assetsInfo = {};
+    for (const [assetId, metadata] of Object.entries(response.assetsInfo)) {
       const normalizedId = normalizeAssetId(assetId as Caip19AssetId);
-      normalized.assetsMetadata[normalizedId] = metadata;
+      normalized.assetsInfo[normalizedId] = metadata;
     }
   }
 
@@ -357,8 +427,22 @@ export class AssetsController extends BaseController<
   /** Whether the controller is enabled */
   readonly #isEnabled: boolean;
 
+  /** Getter for basic functionality (only balance fetch/subscribe use RPC; token/price API not used). No attribute stored. */
+  readonly #isBasicFunctionality: () => boolean;
+
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
+
+  /** Price subscription poll interval from priceDataSourceConfig (used when subscribeAssetsPrice gets no updateInterval). */
+  readonly #pricePollInterval: number | undefined;
+
+  /** Optional callback for first init/fetch MetaMetrics (duration). */
+  readonly #trackMetaMetricsEvent?: (
+    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+  ) => void;
+
+  /** Whether we have already reported first init fetch for this session (reset on #stop). */
+  #firstInitFetchReported = false;
 
   readonly #controllerMutex = new Mutex();
 
@@ -394,12 +478,17 @@ export class AssetsController extends BaseController<
 
   readonly #rpcDataSource: RpcDataSource;
 
+  readonly #stakedBalanceDataSource: StakedBalanceDataSource;
+
   /**
-   * Subscription balance data sources in assignment priority order (first that supports a chain gets it).
+   * All balance data sources (used for unsubscription in #stop so we can clean up
+   * regardless of current isBasicFunctionality mode).
+   * Note: StakedBalanceDataSource is excluded because it provides supplementary
+   * data and should not participate in chain-claiming.
    *
    * @returns The four balance data source instances in priority order.
    */
-  get #subscriptionBalanceDataSources(): [
+  get #allBalanceDataSources(): [
     BackendWebsocketDataSource,
     AccountsApiDataSource,
     SnapDataSource,
@@ -419,13 +508,23 @@ export class AssetsController extends BaseController<
 
   readonly #tokenDataSource: TokenDataSource;
 
+  #unsubscribeBasicFunctionality: (() => void) | null = null;
+
+  readonly #constructionState = { initialized: false };
+
   constructor({
     messenger,
     state = {},
     defaultUpdateInterval = DEFAULT_POLLING_INTERVAL_MS,
     isEnabled = (): boolean => true,
+    isBasicFunctionality,
+    subscribeToBasicFunctionalityChange,
     queryApiClient,
     rpcDataSourceConfig,
+    trackMetaMetricsEvent,
+    accountsApiDataSourceConfig,
+    priceDataSourceConfig,
+    stakedBalanceDataSourceConfig,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -438,15 +537,22 @@ export class AssetsController extends BaseController<
     });
 
     this.#isEnabled = isEnabled();
+    this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
+    this.#pricePollInterval = priceDataSourceConfig?.pollInterval;
+    this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
     const onActiveChainsUpdated = (
       dataSourceName: string,
       chains: ChainId[],
       previousChains: ChainId[],
-    ): void =>
+    ): void => {
+      if (!this.#constructionState.initialized) {
+        return;
+      }
       this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+    };
 
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
       messenger: this.messenger,
@@ -456,6 +562,7 @@ export class AssetsController extends BaseController<
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
       onActiveChainsUpdated,
+      ...accountsApiDataSourceConfig,
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
@@ -466,11 +573,17 @@ export class AssetsController extends BaseController<
       onActiveChainsUpdated,
       ...rpcConfig,
     });
+    this.#stakedBalanceDataSource = new StakedBalanceDataSource({
+      messenger: this.messenger,
+      onActiveChainsUpdated,
+      ...stakedBalanceDataSourceConfig,
+    });
     this.#tokenDataSource = new TokenDataSource({
       queryApiClient,
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
 
@@ -486,6 +599,19 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
+    this.#constructionState.initialized = true;
+    // Subscriptions start only on KeyringController:unlock -> #start(), not here.
+
+    // Subscribe to basic-functionality changes after construction so a synchronous
+    // onChange during subscribe cannot run before data sources are initialized.
+    if (subscribeToBasicFunctionalityChange) {
+      const unsubscribe = subscribeToBasicFunctionalityChange((isBasic) =>
+        this.handleBasicFunctionalityChange(isBasic),
+      );
+      if (typeof unsubscribe === 'function') {
+        this.#unsubscribeBasicFunctionality = unsubscribe;
+      }
+    }
   }
 
   // ============================================================================
@@ -549,7 +675,7 @@ export class AssetsController extends BaseController<
    * @returns The normalized chain reference in decimal format.
    */
   #normalizeChainReference(namespace: string, reference: string): string {
-    if (namespace === 'eip155' && reference.startsWith('0x')) {
+    if (namespace === 'eip155' && isStrictHexString(reference)) {
       // Convert hex to decimal for EIP155 chains
       return parseInt(reference, 16).toString();
     }
@@ -609,6 +735,9 @@ export class AssetsController extends BaseController<
     activeChains: ChainId[],
     previousChains: ChainId[],
   ): void {
+    if (!this.#isEnabled) {
+      return;
+    }
     log('Data source active chains changed', {
       dataSourceId,
       chainCount: activeChains.length,
@@ -649,18 +778,44 @@ export class AssetsController extends BaseController<
 
   /**
    * Execute middlewares with request/response context.
+   * Returns response and exclusive duration per source (sum ≈ wall time).
    *
-   * @param middlewares - Middlewares to execute in order.
+   * @param sources - Data sources or middlewares with getName() and assetsMiddleware (executed in order).
    * @param request - The data request.
    * @param initialResponse - Optional initial response (for enriching existing data).
-   * @returns The final DataResponse after all middlewares have processed.
+   * @returns Response and durationByDataSource (exclusive ms per source name).
    */
   async #executeMiddlewares(
-    middlewares: Middleware[],
+    sources: { getName(): string; assetsMiddleware: Middleware }[],
     request: DataRequest,
     initialResponse: DataResponse = {},
-  ): Promise<DataResponse> {
-    const chain = middlewares.reduceRight<NextFunction>(
+  ): Promise<{
+    response: DataResponse;
+    durationByDataSource: Record<string, number>;
+  }> {
+    const names = sources.map((source) => source.getName());
+    const middlewares = sources.map((source) => source.assetsMiddleware);
+    const inclusive: number[] = [];
+    const wrapped = middlewares.map(
+      (middleware, i) =>
+        (async (
+          ctx: FetchContext,
+          next: FetchNextFunction,
+        ): Promise<{
+          request: DataRequest;
+          response: DataResponse;
+          getAssetsState: () => AssetsControllerStateInternal;
+        }> => {
+          const start = Date.now();
+          try {
+            return await middleware(ctx, next);
+          } finally {
+            inclusive[i] = Date.now() - start;
+          }
+        }) as Middleware,
+    );
+
+    const chain = wrapped.reduceRight<NextFunction>(
       (next, middleware) =>
         async (
           ctx,
@@ -684,7 +839,17 @@ export class AssetsController extends BaseController<
       response: initialResponse,
       getAssetsState: () => this.state as AssetsControllerStateInternal,
     });
-    return result.response;
+
+    const durationByDataSource: Record<string, number> = {};
+    for (let i = 0; i < inclusive.length; i++) {
+      const nextInc = i + 1 < inclusive.length ? (inclusive[i + 1] ?? 0) : 0;
+      const exclusive = Math.max(0, (inclusive[i] ?? 0) - nextInc);
+      const name = names[i];
+      if (name !== undefined) {
+        durationByDataSource[name] = exclusive;
+      }
+    }
+    return { response: result.response, durationByDataSource };
   }
 
   // ============================================================================
@@ -712,24 +877,42 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
+      const startTime = Date.now();
       const request = this.#buildDataRequest(accounts, chainIds, {
         assetTypes,
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
       });
-      const response = await this.#executeMiddlewares(
-        [
-          this.#accountsApiDataSource.assetsMiddleware,
-          this.#snapDataSource.assetsMiddleware,
-          this.#rpcDataSource.assetsMiddleware,
-          this.#detectionMiddleware.assetsMiddleware,
-          this.#tokenDataSource.assetsMiddleware,
-          this.#priceDataSource.assetsMiddleware,
-        ],
+      const sources = this.#isBasicFunctionality()
+        ? [
+            this.#accountsApiDataSource,
+            this.#snapDataSource,
+            this.#rpcDataSource,
+            this.#stakedBalanceDataSource,
+            this.#detectionMiddleware,
+            this.#tokenDataSource,
+            this.#priceDataSource,
+          ]
+        : [
+            this.#rpcDataSource,
+            this.#stakedBalanceDataSource,
+            this.#detectionMiddleware,
+          ];
+      const { response, durationByDataSource } = await this.#executeMiddlewares(
+        sources,
         request,
       );
       await this.#updateState(response);
+      if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
+        this.#firstInitFetchReported = true;
+        const durationMs = Date.now() - startTime;
+        this.#trackMetaMetricsEvent({
+          durationMs,
+          chainIds,
+          durationByDataSource,
+        });
+      }
     }
 
     return this.#getAssetsFromState(accounts, chainIds, assetTypes);
@@ -766,7 +949,7 @@ export class AssetsController extends BaseController<
   }
 
   getAssetMetadata(assetId: Caip19AssetId): AssetMetadata | undefined {
-    return this.state.assetsMetadata[assetId] as AssetMetadata | undefined;
+    return this.state.assetsInfo[assetId] as AssetMetadata | undefined;
   }
 
   async getAssetsPrice(
@@ -947,7 +1130,12 @@ export class AssetsController extends BaseController<
     chainIds: ChainId[],
     options: { updateInterval?: number } = {},
   ): void {
-    const { updateInterval = this.#defaultUpdateInterval } = options;
+    if (!this.#isBasicFunctionality()) {
+      return;
+    }
+    const {
+      updateInterval = this.#pricePollInterval ?? this.#defaultUpdateInterval,
+    } = options;
     const subscriptionKey = 'ds:PriceDataSource';
 
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
@@ -1023,22 +1211,19 @@ export class AssetsController extends BaseController<
 
       this.update((state) => {
         // Use type assertions to avoid deep type instantiation issues with Immer Draft types
-        const metadata = state.assetsMetadata as Record<string, AssetMetadata>;
+        const metadata = state.assetsInfo as Record<string, AssetMetadata>;
         const balances = state.assetsBalance as Record<
           string,
           Record<string, AssetBalance>
         >;
         const prices = state.assetsPrice as Record<string, AssetPrice>;
 
-        if (normalizedResponse.assetsMetadata) {
+        if (normalizedResponse.assetsInfo) {
           for (const [key, value] of Object.entries(
-            normalizedResponse.assetsMetadata,
+            normalizedResponse.assetsInfo,
           )) {
             if (
-              !isEqual(
-                previousState.assetsMetadata[key as Caip19AssetId],
-                value,
-              )
+              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
             ) {
               changedMetadata.push(key);
             }
@@ -1184,7 +1369,7 @@ export class AssetsController extends BaseController<
       for (const [assetId, balance] of Object.entries(accountBalances)) {
         const typedAssetId = assetId as Caip19AssetId;
 
-        const metadataRaw = this.state.assetsMetadata[typedAssetId];
+        const metadataRaw = this.state.assetsInfo[typedAssetId];
 
         // Skip assets without metadata
         if (!metadataRaw) {
@@ -1280,14 +1465,12 @@ export class AssetsController extends BaseController<
     });
 
     this.#subscribeAssets();
-    if (this.#selectedAccounts.length > 0) {
-      this.getAssets(this.#selectedAccounts, {
-        chainIds: [...this.#enabledChains],
-        forceUpdate: true,
-      }).catch((error) => {
-        log('Failed to fetch assets', error);
-      });
-    }
+    this.getAssets(this.#selectedAccounts, {
+      chainIds: [...this.#enabledChains],
+      forceUpdate: true,
+    }).catch((error) => {
+      log('Failed to fetch assets', error);
+    });
   }
 
   /**
@@ -1300,25 +1483,43 @@ export class AssetsController extends BaseController<
       hasPriceSubscription: this.#activeSubscriptions.has('ds:PriceDataSource'),
     });
 
+    this.#firstInitFetchReported = false;
+
     // Stop price subscription first (uses direct messenger call)
     this.unsubscribeAssetsPrice();
 
     // Stop balance subscriptions by properly notifying data sources via messenger
-    // This ensures data sources stop their polling timers
-    // Convert to array first to avoid modifying map during iteration
+    // This ensures data sources stop their polling timers.
+    // Use #allBalanceDataSources + staked balance source so we unsubscribe from
+    // every source that may have been subscribed.
+    const allSources = [
+      ...this.#allBalanceDataSources,
+      this.#stakedBalanceDataSource,
+    ];
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
       if (subscriptionKey.startsWith('ds:')) {
         const sourceId = subscriptionKey.slice(3);
-        const source = this.#subscriptionBalanceDataSources.find(
-          (ds) => ds.getName() === sourceId,
-        );
+        const source = allSources.find((ds) => ds.getName() === sourceId);
         if (source) {
           this.#unsubscribeDataSource(source);
         }
       }
     }
     this.#activeSubscriptions.clear();
+  }
+
+  /**
+   * Handle basic functionality toggle change. Call this from the consumer (extension or mobile)
+   * when the user changes the "Basic functionality" setting. Refreshes subscriptions so the
+   * current {@link AssetsControllerOptions.isBasicFunctionality} getter is used (true = APIs on,
+   * false = RPC only).
+   *
+   * @param _isBasic - The new value (for call-site clarity; the getter is the source of truth).
+   */
+  handleBasicFunctionalityChange(_isBasic: boolean): void {
+    this.#stop();
+    this.#subscribeAssets();
   }
 
   /**
@@ -1331,6 +1532,11 @@ export class AssetsController extends BaseController<
 
     // Subscribe to balance updates (batched by data source)
     this.#subscribeAssetsBalance(this.#selectedAccounts, [
+      ...this.#enabledChains,
+    ]);
+
+    // Subscribe to staked balance updates (separate from regular balance chain-claiming)
+    this.#subscribeStakedBalance(this.#selectedAccounts, [
       ...this.#enabledChains,
     ]);
 
@@ -1362,7 +1568,12 @@ export class AssetsController extends BaseController<
     );
     const remainingChains = new Set(chainToAccounts.keys());
 
-    for (const source of this.#subscriptionBalanceDataSources) {
+    // When basic functionality is on (getter true), use all balance data sources; when off (getter false), RPC only.
+    const balanceDataSources = this.#isBasicFunctionality()
+      ? this.#allBalanceDataSources
+      : [this.#rpcDataSource];
+
+    for (const source of balanceDataSources) {
       const availableChains = new Set(source.getActiveChainsSync());
       const assignedChains: ChainId[] = [];
 
@@ -1389,6 +1600,35 @@ export class AssetsController extends BaseController<
         this.#subscribeDataSource(source, accountsForSource, assignedChains);
       }
     }
+  }
+
+  /**
+   * Subscribe to staked balance updates.
+   * Unlike regular balance data sources, the staked balance data source provides
+   * supplementary data and does not participate in chain-claiming.
+   *
+   * @param accounts - Accounts to subscribe staked balance updates for.
+   * @param chainIds - Chain IDs to subscribe for.
+   */
+  #subscribeStakedBalance(
+    accounts: InternalAccount[],
+    chainIds: ChainId[],
+  ): void {
+    const source = this.#stakedBalanceDataSource;
+    if (!source) {
+      return;
+    }
+    const availableChains = new Set(source.getActiveChainsSync());
+    const assignedChains = chainIds.filter((chainId) =>
+      availableChains.has(chainId),
+    );
+
+    if (assignedChains.length === 0) {
+      this.#unsubscribeDataSource(source);
+      return;
+    }
+
+    this.#subscribeDataSource(source, accounts, assignedChains);
   }
 
   /**
@@ -1543,16 +1783,24 @@ export class AssetsController extends BaseController<
     const result: ChainId[] = [];
 
     for (const scope of scopes) {
-      const [namespace, reference] = (scope as string).split(':');
+      const scopeStr = scope as string;
+      if (!isCaipChainId(scopeStr)) {
+        result.push(scope);
+        continue;
+      }
+      const { namespace, reference } = parseCaipChainId(scopeStr);
 
       // Wildcard scope (e.g., "eip155:0" means all enabled chains in that namespace)
       if (reference === '0') {
         for (const chain of this.#enabledChains) {
-          if (chain.startsWith(`${namespace}:`)) {
-            result.push(chain);
+          if (isCaipChainId(chain)) {
+            const chainParsed = parseCaipChainId(chain);
+            if (chainParsed.namespace === namespace) {
+              result.push(chain);
+            }
           }
         }
-      } else if (namespace === 'eip155' && reference?.startsWith('0x')) {
+      } else if (namespace === 'eip155' && isStrictHexString(reference)) {
         // Normalize hex to decimal for EIP155
         result.push(`eip155:${parseInt(reference, 16)}` as ChainId);
       } else {
@@ -1652,12 +1900,8 @@ export class AssetsController extends BaseController<
 
     // Run through enrichment middlewares (Event Stack: Detection → Token → Price)
     // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
-    const enrichedResponse = await this.#executeMiddlewares(
-      [
-        this.#detectionMiddleware.assetsMiddleware,
-        this.#tokenDataSource.assetsMiddleware,
-        this.#priceDataSource.assetsMiddleware,
-      ],
+    const { response: enrichedResponse } = await this.#executeMiddlewares(
+      [this.#detectionMiddleware, this.#tokenDataSource, this.#priceDataSource],
       request ?? {
         accountsWithSupportedChains: [],
         chainIds: [],
@@ -1675,7 +1919,7 @@ export class AssetsController extends BaseController<
 
   destroy(): void {
     log('Destroying AssetsController', {
-      dataSourceCount: this.#subscriptionBalanceDataSources.length,
+      dataSourceCount: this.#allBalanceDataSources.length,
       subscriptionCount: this.#activeSubscriptions.size,
     });
 
@@ -1683,17 +1927,16 @@ export class AssetsController extends BaseController<
     this.#backendWebsocketDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
-    if (
-      this.#rpcDataSource &&
-      'destroy' in this.#rpcDataSource &&
-      typeof (this.#rpcDataSource as { destroy: () => void }).destroy ===
-        'function'
-    ) {
-      (this.#rpcDataSource as { destroy: () => void }).destroy();
-    }
+    this.#rpcDataSource?.destroy?.();
+    this.#stakedBalanceDataSource?.destroy?.();
 
     // Stop all active subscriptions
     this.#stop();
+
+    if (this.#unsubscribeBasicFunctionality) {
+      this.#unsubscribeBasicFunctionality();
+      this.#unsubscribeBasicFunctionality = null;
+    }
 
     // Unregister action handlers
     this.messenger.unregisterActionHandler('AssetsController:getAssets');

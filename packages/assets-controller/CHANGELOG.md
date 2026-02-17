@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `StakedBalanceDataSource` that polls supported staking contracts on enabled chains and merges staked balances into `assetsBalance`. Configurable via `stakedBalanceDataSourceConfig` (`enabled`, `pollInterval`); the controller subscribes to it when enabled and cleans up on destroy ([#7936](https://github.com/MetaMask/core/pull/7936))
+- Add optional `trackMetaMetricsEvent` callback to measure and report first init/fetch historical time (duration in ms) to MetaMetrics when the initial asset fetch completes after unlock or app open ([#7871](https://github.com/MetaMask/core/pull/7871))
+- Add `AccountsApiDataSourceConfig` and `PriceDataSourceConfig` types; add `accountsApiDataSourceConfig` and `priceDataSourceConfig` options to `AssetsControllerOptions` for per-data-source configuration (pollInterval, tokenDetectionEnabled, etc.). When `tokenDetectionEnabled` is false, `AccountsApiDataSource` only returns balances for tokens already in state and does not add new tokens ([#7926](https://github.com/MetaMask/core/pull/7926))
+- Add `useExternalService` option to `TokenDetector`, `TokenDetectionOptions`, `RpcDataSourceConfig`, and `RpcDataSourceOptions`. Token detection runs only when both `tokenDetectionEnabled` and `useExternalService` are true and stops when either is false ([#7924](https://github.com/MetaMask/core/pull/7924))
+- Add basic functionality toggle: `isBasicFunctionality` (getter `() => boolean`); no value is stored in the controller. When the getter returns true (matches UI "Basic functionality" ON), token and price APIs are used; when false, only RPC is used. Optional `subscribeToBasicFunctionalityChange(onChange)` lets the consumer register for toggle changes (e.g. extension subscribes to PreferencesController:stateChange, mobile uses its own mechanism); may return an unsubscribe function for controller destroy ([#7904](https://github.com/MetaMask/core/pull/7904))
+
+### Changed
+
+- **BREAKING:** `AccountsApiDataSourceConfig.tokenDetectionEnabled` is now a getter `() => boolean` (was `boolean`) so the Accounts API data source reacts when the user toggles token detection at runtime, consistent with `RpcDataSourceConfig.tokenDetectionEnabled`. Pass a function, e.g. `tokenDetectionEnabled: () => preferenceController.state.useTokenDetection`.
+- **BREAKING:** Rename state and `DataResponse` property from `assetsMetadata` to `assetsInfo`. Update consumers that read `state.assetsMetadata` or set `response.assetsMetadata` to use `assetsInfo` instead ([#7902](https://github.com/MetaMask/core/pull/7902))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-internal-api` from `^9.0.0` to `^10.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-snap-client` from `^8.0.0` to `^8.2.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/account-tree-controller` from `4.1.0` to `4.1.1` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/core-backend` from `5.1.0` to `5.1.1` ([#7897](https://github.com/MetaMask/core/pull/7897))
+
 ## [1.0.0]
 
 ### Added

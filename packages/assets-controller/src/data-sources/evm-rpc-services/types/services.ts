@@ -27,6 +27,10 @@ export type TokenDetectionResult = {
  * Token detection options.
  */
 export type TokenDetectionOptions = {
+  /** Whether token detection is enabled */
+  tokenDetectionEnabled?: boolean;
+  /** Whether external services (e.g. token list API) are allowed; detection stops when false */
+  useExternalService?: boolean;
   /** Maximum number of tokens to check per batch */
   batchSize?: number;
   /** Timeout for detection in milliseconds */

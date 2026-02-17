@@ -7,11 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [99.4.0]
+
+### Added
+
+- **BREAKING:** `MultichainAssetsControllerMessenger` now requires the `PhishingController:bulkScanTokens` action to be allowed ([#7923](https://github.com/MetaMask/core/pull/7923))
+  - Consumers constructing the messenger must include this action in the allowed actions list
+- Add Blockaid token security scanning to `MultichainAssetsController` to filter out spam, malicious, and warning tokens during automatic asset detection ([#7923](https://github.com/MetaMask/core/pull/7923))
+  - Tokens with `assetNamespace` of "token" (e.g. SPL tokens) are scanned via the `PhishingController:bulkScanTokens` messenger action
+  - Only tokens with a `Benign` result are kept; native assets (e.g. `slip44`) are not scanned
+  - The filter fails open: if the scan is unreachable or returns an error, all tokens are kept
+  - Filtering applies to account-added and asset-list-updated events; `addAssets` (curated list) is not filtered
+  - Token addresses are batched into groups of 100 to stay within the `bulkScanTokens` per-request limit
+- `CodefiTokenPricesServiceV2` now supports fetching prices of ETH on Ink Mainnet (chain `0xdef1`) ([#7688](https://github.com/MetaMask/core/pull/7688))
+- Added Chiliz Chain native token ([#7939](https://github.com/MetaMask/core/pull/7939))
+
 ### Changed
 
-- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.0` ([#7869](https://github.com/MetaMask/core/pull/7869))
-- Bump `@metamask/multichain-account-service` from `^5.1.0` to `^6.0.0` ([#7869](https://github.com/MetaMask/core/pull/7869))
-- Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.16.0` ([#7872](https://github.com/MetaMask/core/pull/7872))
+- Changed Plasma native token ([#7939](https://github.com/MetaMask/core/pull/7939))
+- `searchTokens` now returns an optional `error` field when requests fail, allowing consumers to detect and handle search failures instead of silently receiving empty results ([#7938](https://github.com/MetaMask/core/pull/7938))
+
+## [99.3.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.1` ([#7869](https://github.com/MetaMask/core/pull/7869)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/multichain-account-service` from `^5.1.0` to `^7.0.0` ([#7869](https://github.com/MetaMask/core/pull/7869)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.17.0` ([#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
 - Bump `@metamask/phishing-controller` from `^16.1.0` to `^16.2.0` ([#7883](https://github.com/MetaMask/core/pull/7883))
 - Optimize Price API performance by deduplicating concurrent API calls ([#7811](https://github.com/MetaMask/core/pull/7811))
   - Add in-flight promise caching for `fetchSupportedNetworks()` to prevent duplicate concurrent requests
@@ -2664,7 +2688,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.4.0...HEAD
+[99.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.2...@metamask/assets-controllers@99.4.0
+[99.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.1...@metamask/assets-controllers@99.3.2
 [99.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.0...@metamask/assets-controllers@99.3.1
 [99.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.2.0...@metamask/assets-controllers@99.3.0
 [99.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.1.0...@metamask/assets-controllers@99.2.0

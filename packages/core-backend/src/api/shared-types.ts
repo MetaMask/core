@@ -2,7 +2,7 @@
  * Shared types, constants, and utilities for the API Platform Client.
  */
 
-import type { QueryClient } from '@tanstack/query-core';
+import type { FetchQueryOptions, QueryClient } from '@tanstack/query-core';
 
 // ============================================================================
 // SHARED TYPES
@@ -140,12 +140,53 @@ export type ApiPlatformClientOptions = {
   queryClient?: QueryClient;
 };
 
+/**
+ * Options for API fetch and query methods.
+ * Extends TanStack Query options (e.g. select, initialPageParam, retry) so callers
+ * can pass them through to useQuery / useInfiniteQuery. queryKey and queryFn are
+ * always set by the client and cannot be overridden.
+ * staleTime and gcTime are explicitly number (not function) so that client defaults apply without type conflicts.
+ */
 export type FetchOptions = {
-  /** Custom stale time (ms) */
+  /** Custom stale time (ms). */
   staleTime?: number;
-  /** Custom GC time (ms) */
+  /** Custom GC time (ms). */
   gcTime?: number;
-};
+} & Partial<
+  Omit<
+    FetchQueryOptions<unknown, Error, unknown>,
+    'queryKey' | 'queryFn' | 'staleTime' | 'gcTime'
+  >
+> & {
+    /** Allowed for infinite query options (e.g. useInfiniteQuery). */
+    initialPageParam?: unknown;
+  };
+
+/**
+ * Returns options with queryKey and queryFn omitted, for merging into
+ * get*QueryOptions return values without overwriting the client's queryKey/queryFn.
+ * Return type is intentionally loose so that spreading into FetchQueryOptions<T>
+ * does not conflict with T-specific option types (e.g. select, staleTime).
+ *
+ * @param options - Optional FetchOptions from the caller.
+ * @returns Options safe to spread into query options, or undefined.
+ */
+export function getQueryOptionsOverrides(
+  options?: FetchOptions,
+): Record<string, unknown> | undefined {
+  if (options === null || options === undefined) {
+    return undefined;
+  }
+  const {
+    queryKey: _qk,
+    queryFn: _qf,
+    ...rest
+  } = options as FetchOptions & {
+    queryKey?: unknown;
+    queryFn?: unknown;
+  };
+  return rest as Record<string, unknown>;
+}
 
 // ============================================================================
 // CONSTANTS

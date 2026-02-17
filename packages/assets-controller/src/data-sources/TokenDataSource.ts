@@ -3,6 +3,7 @@ import { ApiPlatformClient } from '@metamask/core-backend';
 import { parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
+import { isStakingContractAssetId } from './evm-rpc-services';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
@@ -109,6 +110,10 @@ function transformV3AssetResponseToMetadata(
 export class TokenDataSource {
   readonly name = CONTROLLER_NAME;
 
+  getName(): string {
+    return this.name;
+  }
+
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
@@ -185,13 +190,13 @@ export class TokenDataSource {
         return next(ctx);
       }
 
-      const { assetsMetadata: stateMetadata } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
 
       for (const detectedIds of Object.values(response.detectedAssets)) {
         for (const assetId of detectedIds) {
           // Skip if response already has metadata with image
-          const responseMetadata = response.assetsMetadata?.[assetId];
+          const responseMetadata = response.assetsInfo?.[assetId];
           if (responseMetadata?.image) {
             continue;
           }
@@ -199,6 +204,11 @@ export class TokenDataSource {
           // Skip if state already has metadata with image
           const existingMetadata = stateMetadata[assetId];
           if (existingMetadata?.image) {
+            continue;
+          }
+
+          // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
+          if (isStakingContractAssetId(assetId)) {
             continue;
           }
 
@@ -235,12 +245,14 @@ export class TokenDataSource {
           },
         );
 
-        response.assetsMetadata ??= {};
+        response.assetsInfo ??= {};
 
         for (const assetData of metadataResponse) {
           const caipAssetId = assetData.assetId as Caip19AssetId;
-          response.assetsMetadata[caipAssetId] =
-            transformV3AssetResponseToMetadata(assetData.assetId, assetData);
+          response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
+            assetData.assetId,
+            assetData,
+          );
         }
       } catch (error) {
         log('Failed to fetch metadata', { error });

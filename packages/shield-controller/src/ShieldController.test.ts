@@ -540,7 +540,7 @@ describe('ShieldController', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', async () => {
@@ -553,11 +553,11 @@ describe('ShieldController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "coverageResults": Object {},
-          "orderedTransactionHistory": Array [],
+        {
+          "coverageResults": {},
+          "orderedTransactionHistory": [],
         }
-        `);
+      `);
     });
 
     it('persists expected state', async () => {
@@ -570,11 +570,11 @@ describe('ShieldController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "coverageResults": Object {},
-          "orderedTransactionHistory": Array [],
+        {
+          "coverageResults": {},
+          "orderedTransactionHistory": [],
         }
-        `);
+      `);
     });
 
     it('exposes expected state to UI', async () => {
@@ -587,10 +587,10 @@ describe('ShieldController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-          Object {
-            "coverageResults": Object {},
-          }
-        `);
+        {
+          "coverageResults": {},
+        }
+      `);
     });
   });
 

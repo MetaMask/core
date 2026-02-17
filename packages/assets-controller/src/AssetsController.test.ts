@@ -13,9 +13,12 @@ import {
   getDefaultAssetsControllerState,
 } from './AssetsController';
 import type {
+  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
+import { PriceDataSource } from './data-sources/PriceDataSource';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import type { Caip19AssetId, AccountId } from './types';
 
 function createMockQueryApiClient(): ApiPlatformClient {
@@ -55,6 +58,14 @@ function createMockInternalAccount(
 
 type WithControllerOptions = {
   state?: Partial<AssetsControllerState>;
+  isBasicFunctionality?: () => boolean;
+  /** Extra options passed to AssetsController constructor (e.g. trackMetaMetricsEvent). */
+  controllerOptions?: Partial<{
+    trackMetaMetricsEvent: (
+      payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+    ) => void;
+    priceDataSourceConfig: PriceDataSourceConfig;
+  }>;
 };
 
 type WithControllerCallback<ReturnValue> = ({
@@ -77,7 +88,15 @@ async function withController<ReturnValue>(
     | [WithControllerOptions, WithControllerCallback<ReturnValue>]
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
-  const [{ state = {} }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const [
+    {
+      state = {},
+      isBasicFunctionality = (): boolean => true,
+      controllerOptions = {},
+    },
+    fn,
+  ]: [WithControllerOptions, WithControllerCallback<ReturnValue>] =
+    args.length === 2 ? args : [{}, args[0]];
 
   // Use root messenger (MOCK_ANY_NAMESPACE) so data sources can register their actions.
   const messenger: RootMessenger = new Messenger({
@@ -130,6 +149,11 @@ async function withController<ReturnValue>(
     messenger: messenger as unknown as AssetsControllerMessenger,
     state,
     queryApiClient: createMockQueryApiClient(),
+    isBasicFunctionality,
+    subscribeToBasicFunctionalityChange: (): void => {
+      /* no-op for tests */
+    },
+    ...controllerOptions,
   });
 
   return fn({ controller, messenger });
@@ -141,7 +165,7 @@ describe('AssetsController', () => {
       const defaultState = getDefaultAssetsControllerState();
 
       expect(defaultState).toStrictEqual({
-        assetsMetadata: {},
+        assetsInfo: {},
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -154,7 +178,7 @@ describe('AssetsController', () => {
     it('initializes with default state', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
-          assetsMetadata: {},
+          assetsInfo: {},
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
@@ -165,7 +189,7 @@ describe('AssetsController', () => {
 
     it('initializes with provided state', async () => {
       const initialState: Partial<AssetsControllerState> = {
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_ASSET_ID]: {
             type: 'erc20',
             symbol: 'USDC',
@@ -178,7 +202,7 @@ describe('AssetsController', () => {
       };
 
       await withController({ state: initialState }, ({ controller }) => {
-        expect(controller.state.assetsMetadata[MOCK_ASSET_ID]).toStrictEqual({
+        expect(controller.state.assetsInfo[MOCK_ASSET_ID]).toStrictEqual({
           type: 'erc20',
           symbol: 'USDC',
           name: 'USD Coin',
@@ -219,12 +243,15 @@ describe('AssetsController', () => {
         messenger: messenger as unknown as AssetsControllerMessenger,
         isEnabled: (): boolean => false,
         queryApiClient: createMockQueryApiClient(),
+        subscribeToBasicFunctionalityChange: (): void => {
+          /* no-op for tests */
+        },
       });
 
       // Controller should still have default state (from super() call)
       expect(controller.state).toStrictEqual({
         assetPreferences: {},
-        assetsMetadata: {},
+        assetsInfo: {},
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -245,7 +272,7 @@ describe('AssetsController', () => {
         // Controller should have default state
         expect(controller.state).toStrictEqual({
           assetPreferences: {},
-          assetsMetadata: {},
+          assetsInfo: {},
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
@@ -259,6 +286,98 @@ describe('AssetsController', () => {
           );
         }).not.toThrow();
       });
+    });
+
+    it('accepts accountsApiDataSourceConfig option', () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      expect(
+        () =>
+          new AssetsController({
+            messenger: messenger as unknown as AssetsControllerMessenger,
+            isEnabled: (): boolean => false,
+            queryApiClient: createMockQueryApiClient(),
+            subscribeToBasicFunctionalityChange: (): void => {
+              /* no-op */
+            },
+            accountsApiDataSourceConfig: {
+              pollInterval: 15_000,
+              tokenDetectionEnabled: (): boolean => false,
+            },
+          }),
+      ).not.toThrow();
+    });
+
+    it('accepts priceDataSourceConfig option', () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getState', () => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+        provider: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('TokenListController:getState', () => ({
+        tokensChainsCache: {},
+      }));
+
+      expect(
+        () =>
+          new AssetsController({
+            messenger: messenger as unknown as AssetsControllerMessenger,
+            isEnabled: (): boolean => false,
+            queryApiClient: createMockQueryApiClient(),
+            subscribeToBasicFunctionalityChange: (): void => {
+              /* no-op */
+            },
+            priceDataSourceConfig: {
+              pollInterval: 120_000,
+            },
+          }),
+      ).not.toThrow();
+    });
+
+    it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {
+      await withController(async ({ controller }) => {
+        expect(controller.handleBasicFunctionalityChange).toBeDefined();
+        expect(() =>
+          controller.handleBasicFunctionalityChange(true),
+        ).not.toThrow();
+      });
+    });
+
+    it('works with isBasicFunctionality false (RPC-only mode)', async () => {
+      await withController(
+        { state: {}, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            forceUpdate: true,
+          });
+          expect(assets).toBeDefined();
+          expect(assets[MOCK_ACCOUNT_ID]).toBeDefined();
+          expect(() =>
+            controller.handleBasicFunctionalityChange(false),
+          ).not.toThrow();
+        },
+      );
     });
   });
 
@@ -387,7 +506,7 @@ describe('AssetsController', () => {
   describe('getAssetMetadata', () => {
     it('returns metadata for existing asset', async () => {
       const initialState: Partial<AssetsControllerState> = {
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_ASSET_ID]: {
             type: 'erc20',
             symbol: 'USDC',
@@ -533,7 +652,7 @@ describe('AssetsController', () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
-            assetsMetadata: {
+            assetsInfo: {
               [MOCK_ASSET_ID]: {
                 type: 'erc20',
                 symbol: 'USDC',
@@ -545,7 +664,7 @@ describe('AssetsController', () => {
           'TestSource',
         );
 
-        expect(controller.state.assetsMetadata[MOCK_ASSET_ID]).toStrictEqual({
+        expect(controller.state.assetsInfo[MOCK_ASSET_ID]).toStrictEqual({
           type: 'erc20',
           symbol: 'USDC',
           name: 'USD Coin',
@@ -691,6 +810,51 @@ describe('AssetsController', () => {
         expect(true).toBe(true);
       });
     });
+
+    it('invokes trackMetaMetricsEvent with first init fetch duration on unlock', async () => {
+      const trackMetaMetricsEvent = jest.fn();
+
+      await withController(
+        { controllerOptions: { trackMetaMetricsEvent } },
+        async ({ messenger }) => {
+          messenger.publish('KeyringController:unlock');
+
+          // Allow #start() -> getAssets() to resolve so the callback runs
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
+          expect(trackMetaMetricsEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+              durationMs: expect.any(Number),
+              chainIds: expect.any(Array),
+              durationByDataSource: expect.any(Object),
+            }),
+          );
+          const payload = trackMetaMetricsEvent.mock
+            .calls[0][0] as AssetsControllerFirstInitFetchMetaMetricsPayload;
+          expect(payload.durationMs).toBeGreaterThanOrEqual(0);
+          expect(Array.isArray(payload.chainIds)).toBe(true);
+          expect(typeof payload.durationByDataSource).toBe('object');
+        },
+      );
+    });
+
+    it('invokes trackMetaMetricsEvent only once per session until lock', async () => {
+      const trackMetaMetricsEvent = jest.fn();
+
+      await withController(
+        { controllerOptions: { trackMetaMetricsEvent } },
+        async ({ messenger }) => {
+          messenger.publish('KeyringController:unlock');
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          messenger.publish('KeyringController:unlock');
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
   });
 
   describe('subscribeAssetsPrice', () => {
@@ -701,6 +865,31 @@ describe('AssetsController', () => {
           controller.subscribeAssetsPrice(accounts, ['eip155:1']);
         }).not.toThrow();
       });
+    });
+
+    it('uses priceDataSourceConfig.pollInterval when no updateInterval option is passed', async () => {
+      const subscribeSpy = jest.spyOn(PriceDataSource.prototype, 'subscribe');
+      await withController(
+        {
+          controllerOptions: {
+            priceDataSourceConfig: { pollInterval: 120_000 },
+          },
+        },
+        async ({ controller }) => {
+          controller.subscribeAssetsPrice(
+            [createMockInternalAccount()],
+            ['eip155:1'],
+          );
+          expect(subscribeSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              request: expect.objectContaining({
+                updateInterval: 120_000,
+              }),
+            }),
+          );
+        },
+      );
+      subscribeSpy.mockRestore();
     });
   });
 

@@ -58,7 +58,7 @@ export function calculateTotals({
     : transactionNetworkFee;
 
   const sourceAmount = sumAmounts(quotes.map((quote) => quote.sourceAmount));
-  const targetAmount = sumAmounts(quotes.map((quote) => quote.targetAmount));
+  const targetAmount = sumFiat(quotes.map((quote) => quote.targetAmount));
 
   const quoteTokens = tokens.filter(
     (singleToken) => !singleToken.skipIfBalance,

@@ -10,11 +10,13 @@ import * as path from 'path';
 
 import type {
   RampsControllerMessenger,
+  RampsControllerState,
   ResourceState,
   UserRegion,
 } from './RampsController';
 import {
   RampsController,
+  getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 import type {
@@ -35,6 +37,7 @@ import type {
   RampsServiceGetProvidersAction,
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
 } from './RampsService-method-action-types';
 import { RequestStatus } from './RequestCache';
 
@@ -65,39 +68,45 @@ describe('RampsController', () => {
     it('uses default state when no state is provided', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
             "userRegion": null,
+            "widgetUrl": {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
@@ -122,39 +131,45 @@ describe('RampsController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
             "userRegion": null,
+            "widgetUrl": {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
@@ -466,9 +481,64 @@ describe('RampsController', () => {
     it('throws error when region is not provided and userRegion is not set', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.getProviders()).rejects.toThrow(
-          'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
+    });
+
+    it('returns providers for region when state has providers (fetches and returns result)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(mockProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              serviceCalled = true;
+              return { providers: mockProviders };
+            },
+          );
+
+          const result = await controller.getProviders('us-ca');
+
+          expect(serviceCalled).toBe(true);
+          expect(result.providers).toStrictEqual(mockProviders);
+        },
+      );
+    });
+
+    it('calls service when getProviders is called with filter options even if state has providers', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(mockProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              serviceCalled = true;
+              return { providers: mockProviders };
+            },
+          );
+
+          await controller.getProviders('us-ca', { provider: 'moonpay' });
+
+          expect(serviceCalled).toBe(true);
+        },
+      );
     });
   });
 
@@ -482,39 +552,45 @@ describe('RampsController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
             "userRegion": null,
+            "widgetUrl": {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
@@ -529,26 +605,26 @@ describe('RampsController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "tokens": Object {
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -569,20 +645,20 @@ describe('RampsController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "tokens": Object {
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
@@ -603,39 +679,45 @@ describe('RampsController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "countries": Object {
-              "data": Array [],
+          {
+            "countries": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "paymentMethods": Object {
-              "data": Array [],
+            "paymentMethods": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "providers": Object {
-              "data": Array [],
+            "providers": {
+              "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "quotes": Object {
+            "quotes": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
-            "requests": Object {},
-            "tokens": Object {
+            "requests": {},
+            "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
             },
             "userRegion": null,
+            "widgetUrl": {
+              "data": null,
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
           }
         `);
       });
@@ -1107,34 +1189,34 @@ describe('RampsController', () => {
         const countries = await controller.getCountries();
 
         expect(countries).toMatchInlineSnapshot(`
-          Array [
-            Object {
+          [
+            {
               "currency": "USD",
               "flag": "🇺🇸",
               "isoCode": "US",
               "name": "United States of America",
-              "phone": Object {
+              "phone": {
                 "placeholder": "(555) 123-4567",
                 "prefix": "+1",
                 "template": "(XXX) XXX-XXXX",
               },
               "recommended": true,
-              "supported": Object {
+              "supported": {
                 "buy": true,
                 "sell": true,
               },
             },
-            Object {
+            {
               "currency": "EUR",
               "flag": "🇦🇹",
               "isoCode": "AT",
               "name": "Austria",
-              "phone": Object {
+              "phone": {
                 "placeholder": "660 1234567",
                 "prefix": "+43",
                 "template": "XXX XXXXXXX",
               },
-              "supported": Object {
+              "supported": {
                 "buy": true,
                 "sell": false,
               },
@@ -1143,6 +1225,44 @@ describe('RampsController', () => {
         `);
         expect(controller.state.countries.data).toStrictEqual(mockCountries);
       });
+    });
+
+    it('stores empty array when getCountries returns non-array (defensive)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => 'not an array' as unknown as Country[],
+        );
+
+        const countries = await controller.getCountries();
+
+        expect(countries).toBe('not an array');
+        expect(controller.state.countries.data).toStrictEqual([]);
+      });
+    });
+
+    it('throws when updating resource field and resource is null', async () => {
+      const stateWithNullCountries = {
+        ...getDefaultRampsControllerState(),
+        countries: null,
+      } as unknown as RampsControllerState;
+
+      await withController(
+        {
+          options: {
+            state: stateWithNullCountries,
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => mockCountries,
+          );
+          await expect(controller.getCountries()).rejects.toThrow(
+            /Cannot set propert(y|ies) of null/u,
+          );
+        },
+      );
     });
   });
 
@@ -1365,9 +1485,53 @@ describe('RampsController', () => {
     it('throws error when userRegion is not set', async () => {
       await withController(async ({ controller }) => {
         expect(() => controller.hydrateState()).toThrow(
-          'Region code is required. Cannot hydrate state without valid region information.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
+    });
+
+    it('calls getTokens and getProviders when hydrating even if state has data', async () => {
+      const existingProviders: Provider[] = [
+        {
+          id: '/providers/test',
+          name: 'Test Provider',
+          environmentType: 'STAGING',
+          description: 'Test',
+          hqAddress: '123 Test St',
+          links: [],
+          logos: { light: '', dark: '', height: 24, width: 77 },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(existingProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let providersCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => ({ topTokens: [], allTokens: [] }),
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              providersCalled = true;
+              return { providers: [] };
+            },
+          );
+
+          controller.hydrateState();
+
+          await new Promise((resolve) => setTimeout(resolve, 10));
+
+          expect(providersCalled).toBe(true);
+        },
+      );
     });
   });
 
@@ -2069,6 +2233,8 @@ describe('RampsController', () => {
           expect(controller.state.providers.selected).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.isLoading).toBe(false);
+          expect(controller.state.paymentMethods.error).toBeNull();
         },
       );
     });
@@ -2086,7 +2252,7 @@ describe('RampsController', () => {
           expect(() => {
             controller.setSelectedProvider(mockProvider.id);
           }).toThrow(
-            'Region is required. Cannot set selected provider without valid region information.',
+            'Region is required. Cannot proceed without valid region information.',
           );
         },
       );
@@ -2263,6 +2429,8 @@ describe('RampsController', () => {
           expect(controller.state.tokens.selected).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.isLoading).toBe(false);
+          expect(controller.state.paymentMethods.error).toBeNull();
         },
       );
     });
@@ -2278,7 +2446,7 @@ describe('RampsController', () => {
         },
         async ({ controller }) => {
           expect(() => controller.setSelectedToken(mockToken.assetId)).toThrow(
-            'Region is required. Cannot set selected token without valid region information.',
+            'Region is required. Cannot proceed without valid region information.',
           );
         },
       );
@@ -2454,9 +2622,9 @@ describe('RampsController', () => {
         const tokens = await controller.getTokens('us-ca', 'buy');
 
         expect(tokens).toMatchInlineSnapshot(`
-          Object {
-            "allTokens": Array [
-              Object {
+          {
+            "allTokens": [
+              {
                 "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -2465,7 +2633,7 @@ describe('RampsController', () => {
                 "symbol": "USDC",
                 "tokenSupported": true,
               },
-              Object {
+              {
                 "assetId": "eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -2475,8 +2643,8 @@ describe('RampsController', () => {
                 "tokenSupported": true,
               },
             ],
-            "topTokens": Array [
-              Object {
+            "topTokens": [
+              {
                 "assetId": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
                 "chainId": "eip155:1",
                 "decimals": 6,
@@ -2632,9 +2800,64 @@ describe('RampsController', () => {
     it('throws error when region is not provided and userRegion is not set', async () => {
       await withController(async ({ controller }) => {
         await expect(controller.getTokens(undefined, 'buy')).rejects.toThrow(
-          'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
+    });
+
+    it('returns tokens for region when state has tokens (fetches and returns result)', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokens, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => {
+              serviceCalled = true;
+              return mockTokens;
+            },
+          );
+
+          const result = await controller.getTokens('us-ca', 'buy');
+
+          expect(serviceCalled).toBe(true);
+          expect(result).toStrictEqual(mockTokens);
+        },
+      );
+    });
+
+    it('calls service when getTokens is called with provider filter even if state has tokens', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokens, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let serviceCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => {
+              serviceCalled = true;
+              return mockTokens;
+            },
+          );
+
+          await controller.getTokens('us-ca', 'buy', { provider: 'moonpay' });
+
+          expect(serviceCalled).toBe(true);
+        },
+      );
     });
 
     it('prefers provided region over userRegion in state', async () => {
@@ -3271,7 +3494,7 @@ describe('RampsController', () => {
             provider: '/providers/stripe',
           }),
         ).rejects.toThrow(
-          'Region is required. Either provide a region parameter or ensure userRegion is set in controller state.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
     });
@@ -3402,10 +3625,10 @@ describe('RampsController', () => {
           );
 
           controller.setSelectedToken(tokenB.assetId);
-          await new Promise((resolve) => setTimeout(resolve, 10));
 
           resolveTokenARequest({ payments: paymentMethodsForTokenA });
           await tokenAPaymentMethodsPromise;
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(controller.state.tokens.selected).toStrictEqual(tokenB);
           expect(controller.state.paymentMethods.data).toStrictEqual(
@@ -3510,10 +3733,10 @@ describe('RampsController', () => {
           );
 
           controller.setSelectedProvider(providerB.id);
-          await new Promise((resolve) => setTimeout(resolve, 10));
 
           resolveProviderARequest({ payments: paymentMethodsForProviderA });
           await providerAPaymentMethodsPromise;
+          await new Promise((resolve) => setTimeout(resolve, 10));
 
           expect(controller.state.providers.selected).toStrictEqual(providerB);
           expect(controller.state.paymentMethods.data).toStrictEqual(
@@ -3686,7 +3909,6 @@ describe('RampsController', () => {
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
             amountOutInFiat: 98,
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
           },
           metadata: {
             reliability: 95,
@@ -3747,6 +3969,58 @@ describe('RampsController', () => {
           expect(controller.state.quotes.data).toStrictEqual(
             mockQuotesResponse,
           );
+        },
+      );
+    });
+
+    it('uses selected token assetId from state when assetId option is not provided', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              tokens: createResourceState(
+                { topTokens: [], allTokens: [] },
+                {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  name: 'Ethereum',
+                  symbol: 'ETH',
+                  decimals: 18,
+                  iconUrl: 'https://example.com/eth.png',
+                  tokenSupported: true,
+                },
+              ),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              expect(params.assetId).toBe('eip155:1/slip44:60');
+              return mockQuotesResponse;
+            },
+          );
+
+          const result = await controller.getQuotes({
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          });
+
+          expect(result.success).toHaveLength(1);
         },
       );
     });
@@ -3949,6 +4223,38 @@ describe('RampsController', () => {
       );
     });
 
+    it('throws when assetId is not provided and no token is selected', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.getQuotes({
+              amount: 100,
+              walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            }),
+          ).rejects.toThrow('assetId is required');
+        },
+      );
+    });
+
     it('throws when walletAddress is empty', async () => {
       await withController(
         {
@@ -4101,6 +4407,130 @@ describe('RampsController', () => {
       );
     });
 
+    it('passes providers parameter to getQuotes', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedProviders = params.providers;
+              return mockQuotesResponse;
+            },
+          );
+
+          await controller.getQuotes({
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            paymentMethods: ['/payments/debit-credit-card'],
+            providers: ['/providers/moonpay', '/providers/transak'],
+          });
+
+          expect(capturedProviders).toStrictEqual([
+            '/providers/moonpay',
+            '/providers/transak',
+          ]);
+        },
+      );
+    });
+
+    it('uses state providers when providers option is not provided', async () => {
+      const stateProviders = [
+        {
+          id: '/providers/moonpay',
+          name: 'MoonPay',
+          environmentType: 'PRODUCTION' as const,
+          description: 'MoonPay',
+          hqAddress: '',
+          links: [],
+          logos: {
+            light: '',
+            dark: '',
+            height: 24,
+            width: 77,
+          },
+        },
+        {
+          id: '/providers/transak',
+          name: 'Transak',
+          environmentType: 'PRODUCTION' as const,
+          description: 'Transak',
+          hqAddress: '',
+          links: [],
+          logos: {
+            light: '',
+            dark: '',
+            height: 24,
+            width: 77,
+          },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              paymentMethods: createResourceState(
+                [
+                  {
+                    id: '/payments/debit-credit-card',
+                    paymentType: 'debit-credit-card',
+                    name: 'Debit or Credit',
+                    score: 90,
+                    icon: 'card',
+                  },
+                ],
+                null,
+              ),
+              providers: createResourceState(stateProviders, null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let capturedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params) => {
+              capturedProviders = params.providers;
+              return mockQuotesResponse;
+            },
+          );
+
+          await controller.getQuotes({
+            assetId: 'eip155:1/slip44:60',
+            amount: 100,
+            walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+            paymentMethods: ['/payments/debit-credit-card'],
+          });
+
+          expect(capturedProviders).toStrictEqual([
+            '/providers/moonpay',
+            '/providers/transak',
+          ]);
+        },
+      );
+    });
+
     it('does not update state when region changes during request', async () => {
       await withController(
         {
@@ -4161,16 +4591,14 @@ describe('RampsController', () => {
             walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
           });
 
-          // Change region while request is in flight
+          // Change region while request is in flight (aborts dependent requests)
           await controller.setUserRegion('fr');
 
-          // Resolve the quotes request
           if (regionChangeResolve) {
             regionChangeResolve();
           }
-          await quotesPromise;
+          await expect(quotesPromise).rejects.toThrow('Request was aborted');
 
-          // Quotes should not be updated because region changed
           expect(controller.state.quotes.data).toBeNull();
         },
       );
@@ -4194,7 +4622,7 @@ describe('RampsController', () => {
             amount: 100,
           }),
         ).toThrow(
-          'Region is required. Cannot start quote polling without valid region information.',
+          'Region is required. Cannot proceed without valid region information.',
         );
       });
     });
@@ -5408,6 +5836,229 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('fetches widget URL when selecting a quote with buyURL', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const buyWidgetResponse = {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER' as const,
+          orderId: null,
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => buyWidgetResponse,
+        );
+
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        controller.setSelectedQuote(quote);
+
+        expect(controller.state.widgetUrl.isLoading).toBe(true);
+        expect(controller.state.widgetUrl.data).toBeNull();
+
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.data).toStrictEqual(
+          buyWidgetResponse,
+        );
+        expect(controller.state.widgetUrl.error).toBeNull();
+      });
+    });
+
+    it('resets widget URL when selecting a quote without buyURL', async () => {
+      await withController(({ controller }) => {
+        const quote: Quote = {
+          provider: '/providers/moonpay',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+          },
+        };
+
+        controller.setSelectedQuote(quote);
+
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.data).toBeNull();
+        expect(controller.state.widgetUrl.error).toBeNull();
+      });
+    });
+
+    it('resets widget URL when clearing the selected quote', async () => {
+      await withController(({ controller }) => {
+        controller.setSelectedQuote(null);
+
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.data).toBeNull();
+        expect(controller.state.widgetUrl.error).toBeNull();
+      });
+    });
+
+    it('sets widget URL error state when service call fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        controller.setSelectedQuote(quote);
+
+        expect(controller.state.widgetUrl.isLoading).toBe(true);
+
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.data).toBeNull();
+        expect(controller.state.widgetUrl.error).toBe('Network error');
+      });
+    });
+
+    it('sets fallback widget URL error when service throws a non-Error', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            throw 'unexpected failure';
+          },
+        );
+
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        controller.setSelectedQuote(quote);
+
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.data).toBeNull();
+        expect(controller.state.widgetUrl.error).toBe(
+          'Failed to fetch widget URL',
+        );
+      });
+    });
+
+    it('does not reset widget URL to loading when data already exists', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const buyWidgetResponse = {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER' as const,
+          orderId: null,
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => buyWidgetResponse,
+        );
+
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        controller.setSelectedQuote(quote);
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.data).toStrictEqual(
+          buyWidgetResponse,
+        );
+
+        controller.setSelectedQuote(quote);
+
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.data).toStrictEqual(
+          buyWidgetResponse,
+        );
+      });
+    });
+
+    it('preserves existing widget URL data when a revalidation request fails', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const buyWidgetResponse = {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER' as const,
+          orderId: null,
+        };
+
+        let shouldFail = false;
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            if (shouldFail) {
+              throw new Error('Network error');
+            }
+            return buyWidgetResponse;
+          },
+        );
+
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        controller.setSelectedQuote(quote);
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.data).toStrictEqual(
+          buyWidgetResponse,
+        );
+
+        shouldFail = true;
+        controller.setSelectedQuote(quote);
+        await flushPromises();
+
+        expect(controller.state.widgetUrl.isLoading).toBe(false);
+        expect(controller.state.widgetUrl.data).toStrictEqual(
+          buyWidgetResponse,
+        );
+        expect(controller.state.widgetUrl.error).toBe('Network error');
+      });
+    });
   });
 
   describe('polling restart on dependency changes', () => {
@@ -5639,9 +6290,7 @@ describe('RampsController', () => {
 
           // Advance time - polling should not fire
           jest.advanceTimersByTime(30000);
-          for (let i = 0; i < 10; i++) {
-            await Promise.resolve();
-          }
+          await flushPromises();
 
           // Call count should still be 1
           expect(callCount).toBe(1);
@@ -5651,26 +6300,36 @@ describe('RampsController', () => {
   });
 
   describe('getWidgetUrl', () => {
-    it('returns widget URL when present in quote', async () => {
-      await withController(({ controller }) => {
+    it('fetches and returns widget URL via RampsService messenger', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
         const quote: Quote = {
-          provider: '/providers/moonpay',
+          provider: '/providers/transak-staging',
           quote: {
             amountIn: 100,
             amountOut: '0.05',
             paymentMethod: '/payments/debit-credit-card',
-            widgetUrl: 'https://buy.moonpay.com/widget?txId=123',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: 'https://global.transak.com/?apiKey=test',
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
 
-        expect(widgetUrl).toBe('https://buy.moonpay.com/widget?txId=123');
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBe('https://global.transak.com/?apiKey=test');
       });
     });
 
-    it('returns null when widget URL is not present', async () => {
-      await withController(({ controller }) => {
+    it('returns null when buyURL is not present', async () => {
+      await withController(async ({ controller }) => {
         const quote: Quote = {
           provider: '/providers/transak',
           quote: {
@@ -5680,19 +6339,73 @@ describe('RampsController', () => {
           },
         };
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });
     });
 
     it('returns null when quote object is malformed', async () => {
-      await withController(({ controller }) => {
+      await withController(async ({ controller }) => {
         const quote = {
           provider: '/providers/moonpay',
         } as unknown as Quote;
 
-        const widgetUrl = controller.getWidgetUrl(quote);
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns null when service call throws an error', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => {
+            throw new Error('Network error');
+          },
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns null when service returns BuyWidget with null url', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: null as unknown as string,
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
       });
@@ -5820,7 +6533,8 @@ type RootMessenger = Messenger<
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
-  | RampsServiceGetQuotesAction,
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction,
   MessengerEvents<RampsControllerMessenger>
 >;
 
@@ -5894,4 +6608,13 @@ async function withController<ReturnValue>(
     ...options,
   });
   return await testFunction({ controller, rootMessenger, messenger });
+}
+
+/**
+ * Flushes pending microtasks by yielding to the event loop multiple times.
+ */
+async function flushPromises(): Promise<void> {
+  for (let i = 0; i < 10; i++) {
+    await Promise.resolve();
+  }
 }

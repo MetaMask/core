@@ -32,6 +32,10 @@ createModuleLogger(projectLogger, CONTROLLER_NAME);
 export class DetectionMiddleware {
   readonly name = CONTROLLER_NAME;
 
+  getName(): string {
+    return this.name;
+  }
+
   /**
    * Get the middleware for detecting assets without metadata.
    *
@@ -54,7 +58,7 @@ export class DetectionMiddleware {
       }
 
       // Get metadata from state
-      const { assetsMetadata: stateMetadata } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
 
       const detectedAssets: Record<AccountId, Caip19AssetId[]> = {};
 

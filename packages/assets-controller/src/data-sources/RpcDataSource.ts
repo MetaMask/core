@@ -1,10 +1,25 @@
 import { Web3Provider } from '@ethersproject/providers';
+import type { GetTokenListState } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { NetworkState, NetworkStatus } from '@metamask/network-controller';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
+  NetworkState,
+  NetworkStatus,
+} from '@metamask/network-controller';
+import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
+import type {
+  TransactionControllerIncomingTransactionsReceivedEvent,
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import {
   isStrictHexString,
   isCaipChainId,
+  numberToHex,
+  parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -31,7 +46,10 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services';
-import type { AssetsControllerMessenger } from '../AssetsController';
+import type {
+  AssetsControllerGetStateAction,
+  AssetsControllerMessenger,
+} from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
@@ -49,19 +67,7 @@ const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
-// NetworkController action to get state
-export type NetworkControllerGetStateAction = {
-  type: 'NetworkController:getState';
-  handler: () => NetworkState;
-};
-
-// NetworkController action to get network client by ID
-export type NetworkControllerGetNetworkClientByIdAction = {
-  type: 'NetworkController:getNetworkClientById';
-  handler: (networkClientId: string) => NetworkClient;
-};
-
-// Network client returned by NetworkController
+// Network client returned by NetworkController:getNetworkClientById (minimal shape used here)
 export type NetworkClient = {
   provider: EthereumProvider;
   configuration: {
@@ -74,58 +80,19 @@ export type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
-// NetworkController state change event
-export type NetworkControllerStateChangeEvent = {
-  type: 'NetworkController:stateChange';
-  payload: [NetworkState, Patch[]];
-};
-
-// Patch type for state changes
-type Patch = {
-  op: 'add' | 'remove' | 'replace';
-  path: string[];
-  value?: unknown;
-};
-
-// TokenListController:getState action
-type TokenListControllerGetStateAction = {
-  type: 'TokenListController:getState';
-  handler: () => {
-    tokensChainsCache: Record<
-      string,
-      { timestamp: number; data: Record<string, unknown> }
-    >;
-  };
-};
-
-// AssetsController:getState action (for assets balance and metadata)
-type AssetsControllerGetStateAction = {
-  type: 'AssetsController:getState';
-  handler: () => {
-    assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
-    assetsBalance: Record<string, Record<string, { amount: string }>>;
-  };
-};
-
-// NetworkEnablementController:getState action
-type NetworkEnablementControllerGetStateAction = {
-  type: 'NetworkEnablementController:getState';
-  handler: () => {
-    enabledNetworkMap: Record<string, Record<string, boolean>>;
-    nativeAssetIdentifiers: Record<string, string>;
-  };
-};
-
 // Allowed actions that RpcDataSource can call
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AssetsControllerGetStateAction
-  | TokenListControllerGetStateAction
+  | GetTokenListState
   | NetworkEnablementControllerGetStateAction;
 
 // Allowed events that RpcDataSource can subscribe to
-export type RpcDataSourceAllowedEvents = NetworkControllerStateChangeEvent;
+export type RpcDataSourceAllowedEvents =
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent;
 
 /** Network status for each chain */
 export type ChainStatus = {
@@ -144,7 +111,10 @@ export type RpcDataSourceState = Record<never, never>;
 export type RpcDataSourceConfig = {
   balanceInterval?: number;
   detectionInterval?: number;
-  tokenDetectionEnabled?: boolean;
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
   timeout?: number;
 };
 
@@ -163,8 +133,10 @@ export type RpcDataSourceOptions = {
   balanceInterval?: number;
   /** Token detection polling interval in ms (default: 180s / 3 min) */
   detectionInterval?: number;
-  /** Whether token detection is enabled */
-  tokenDetectionEnabled?: boolean;
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
 };
 
 /**
@@ -233,7 +205,9 @@ export class RpcDataSource extends AbstractDataSource<
 
   readonly #timeout: number;
 
-  readonly #tokenDetectionEnabled: boolean;
+  readonly #tokenDetectionEnabled: () => boolean;
+
+  readonly #useExternalService: () => boolean;
 
   /** Currently active chains */
   #activeChains: ChainId[] = [];
@@ -247,6 +221,10 @@ export class RpcDataSource extends AbstractDataSource<
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<string, SubscriptionData> = new Map();
 
+  #unsubscribeTransactionConfirmed: (() => void) | undefined = undefined;
+
+  #unsubscribeIncomingTransactions: (() => void) | undefined = undefined;
+
   // Rpc-datasource components
   readonly #multicallClient: MulticallClient;
 
@@ -259,7 +237,10 @@ export class RpcDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#timeout = options.timeout ?? 10_000;
-    this.#tokenDetectionEnabled = options.tokenDetectionEnabled ?? false;
+    this.#tokenDetectionEnabled =
+      options.tokenDetectionEnabled ?? ((): boolean => true);
+    this.#useExternalService =
+      options.useExternalService ?? ((): boolean => true);
 
     const balanceInterval = options.balanceInterval ?? DEFAULT_BALANCE_INTERVAL;
     const detectionInterval =
@@ -269,7 +250,8 @@ export class RpcDataSource extends AbstractDataSource<
       timeout: this.#timeout,
       balanceInterval,
       detectionInterval,
-      tokenDetectionEnabled: this.#tokenDetectionEnabled,
+      tokenDetectionEnabled: this.#tokenDetectionEnabled(),
+      useExternalService: this.#useExternalService(),
     });
 
     // Initialize MulticallClient with a provider getter
@@ -316,13 +298,18 @@ export class RpcDataSource extends AbstractDataSource<
     this.#tokenDetector = new TokenDetector(
       this.#multicallClient,
       tokenDetectorMessenger,
-      { pollingInterval: detectionInterval },
+      {
+        pollingInterval: detectionInterval,
+        tokenDetectionEnabled: this.#tokenDetectionEnabled,
+        useExternalService: this.#useExternalService,
+      },
     );
     this.#tokenDetector.setOnDetectionUpdate(
       this.#handleDetectionUpdate.bind(this),
     );
 
     this.#subscribeToNetworkController();
+    this.#subscribeToTransactionEvents();
     this.#initializeFromNetworkController();
   }
 
@@ -352,7 +339,7 @@ export class RpcDataSource extends AbstractDataSource<
     balances: { assetId: Caip19AssetId }[],
     chainId: ChainId,
   ): Record<Caip19AssetId, AssetMetadata> {
-    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+    const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const existingMetadata = this.#getExistingAssetsMetadata();
 
     for (const balance of balances) {
@@ -361,7 +348,7 @@ export class RpcDataSource extends AbstractDataSource<
         const chainStatus = this.#chainStatuses[chainId];
 
         if (chainStatus) {
-          assetsMetadata[balance.assetId] = {
+          assetsInfo[balance.assetId] = {
             type: 'native',
             symbol: chainStatus.nativeCurrency,
             name: chainStatus.nativeCurrency,
@@ -373,19 +360,19 @@ export class RpcDataSource extends AbstractDataSource<
         const existingMeta = existingMetadata[balance.assetId];
 
         if (existingMeta) {
-          assetsMetadata[balance.assetId] = existingMeta;
+          assetsInfo[balance.assetId] = existingMeta;
         } else {
           // Fallback to token list if not in state
           const tokenListMeta = this.#getTokenMetadataFromTokenList(
             balance.assetId,
           );
           if (tokenListMeta) {
-            assetsMetadata[balance.assetId] = tokenListMeta;
+            assetsInfo[balance.assetId] = tokenListMeta;
           } else {
             // Default metadata for unknown ERC20 tokens.
             // Use 18 decimals (the standard for most ERC20 tokens)
             // to ensure consistent human-readable balance format.
-            assetsMetadata[balance.assetId] = {
+            assetsInfo[balance.assetId] = {
               type: 'erc20',
               symbol: '',
               name: '',
@@ -396,7 +383,7 @@ export class RpcDataSource extends AbstractDataSource<
       }
     }
 
-    return assetsMetadata;
+    return assetsInfo;
   }
 
   /**
@@ -412,14 +399,14 @@ export class RpcDataSource extends AbstractDataSource<
     const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
 
     // Collect metadata for all balances
-    const assetsMetadata = this.#collectMetadataForBalances(
+    const assetsInfo = this.#collectMetadataForBalances(
       result.balances,
       caipChainId,
     );
 
     // Convert balances to human-readable format using metadata
     for (const balance of result.balances) {
-      const metadata = assetsMetadata[balance.assetId];
+      const metadata = assetsInfo[balance.assetId];
       // Default to 18 decimals (ERC20 standard) for consistent human-readable format
       const decimals = metadata?.decimals ?? 18;
       const humanReadableAmount = this.#convertToHumanReadable(
@@ -438,7 +425,7 @@ export class RpcDataSource extends AbstractDataSource<
       assetsBalance: {
         [result.accountId]: newBalances,
       },
-      assetsMetadata,
+      assetsInfo,
     };
 
     log('Balance update response', {
@@ -507,7 +494,7 @@ export class RpcDataSource extends AbstractDataSource<
       detectedAssets: {
         [result.accountId]: result.detectedAssets.map((asset) => asset.assetId),
       },
-      assetsMetadata: newMetadata,
+      assetsInfo: newMetadata,
       assetsBalance: {
         [result.accountId]: newBalances,
       },
@@ -521,11 +508,7 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   #subscribeToNetworkController(): void {
-    (
-      this.#messenger as unknown as {
-        subscribe: (e: string, h: (s: NetworkState) => void) => void;
-      }
-    ).subscribe(
+    this.#messenger.subscribe(
       'NetworkController:stateChange',
       (networkState: NetworkState) => {
         log('NetworkController state changed');
@@ -533,6 +516,104 @@ export class RpcDataSource extends AbstractDataSource<
         this.#updateFromNetworkState(networkState);
       },
     );
+  }
+
+  #subscribeToTransactionEvents(): void {
+    const unsubConfirmed = this.#messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      this.#onTransactionConfirmed.bind(this),
+    );
+    this.#unsubscribeTransactionConfirmed =
+      typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
+
+    const unsubIncoming = this.#messenger.subscribe(
+      'TransactionController:incomingTransactionsReceived',
+      this.#onIncomingTransactions.bind(this),
+    );
+    this.#unsubscribeIncomingTransactions =
+      typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
+  }
+
+  #onTransactionConfirmed(payload: TransactionMeta): void {
+    const hexChainId = payload?.chainId;
+    if (!hexChainId) {
+      return;
+    }
+    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    this.#refreshBalanceForChains([caipChainId]).catch((error) => {
+      log('Failed to refresh balance after transaction confirmed', { error });
+    });
+  }
+
+  #onIncomingTransactions(payload: TransactionMeta[]): void {
+    const chainIds = Array.from(
+      new Set(
+        (payload ?? [])
+          .map((item) => item?.chainId)
+          .filter((id): id is Hex => Boolean(id)),
+      ),
+    );
+    const caipChainIds = chainIds.map(
+      (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
+    );
+    const toRefresh =
+      caipChainIds.length > 0 ? caipChainIds : [...this.#activeChains];
+    this.#refreshBalanceForChains(toRefresh).catch((error) => {
+      log('Failed to refresh balance after incoming transactions', { error });
+    });
+  }
+
+  /**
+   * Fetch balances for the given chains across all active subscriptions and
+   * push updates to the controller.
+   *
+   * @param chainIds - CAIP-2 chain IDs to refresh.
+   */
+  async #refreshBalanceForChains(chainIds: ChainId[]): Promise<void> {
+    const chainIdsSet = new Set(chainIds);
+    const chainsToFetch = chainIds.filter((chainId) =>
+      this.#activeChains.includes(chainId),
+    );
+    if (chainsToFetch.length === 0) {
+      return;
+    }
+
+    for (const subscription of this.#activeSubscriptions.values()) {
+      const subscriptionChains = subscription.chains.filter((chainId) =>
+        chainIdsSet.has(chainId),
+      );
+      if (subscriptionChains.length === 0) {
+        continue;
+      }
+
+      const request: DataRequest = {
+        accountsWithSupportedChains: subscription.accounts.map((account) => ({
+          account,
+          supportedChains: subscriptionChains,
+        })),
+        chainIds: subscriptionChains,
+        dataTypes: ['balance'],
+      };
+
+      try {
+        const response = await this.fetch(request);
+        if (
+          response.assetsBalance &&
+          Object.keys(response.assetsBalance).length > 0
+        ) {
+          subscription.onAssetsUpdate(response)?.catch((error) => {
+            log('Failed to report balance update after transaction', {
+              error,
+            });
+          });
+        }
+      } catch (error) {
+        log('Failed to fetch balance after transaction', {
+          chains: subscriptionChains,
+          error,
+        });
+      }
+    }
   }
 
   #initializeFromNetworkController(): void {
@@ -759,7 +840,7 @@ export class RpcDataSource extends AbstractDataSource<
       string,
       Record<Caip19AssetId, AssetBalance>
     > = {};
-    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+    const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const failedChains: ChainId[] = [];
 
     // Fetch balances for each account and its supported chains (pre-computed in request)
@@ -798,11 +879,11 @@ export class RpcDataSource extends AbstractDataSource<
             result.balances,
             chainId,
           );
-          Object.assign(assetsMetadata, balanceMetadata);
+          Object.assign(assetsInfo, balanceMetadata);
 
           // Convert balances to human-readable format
           for (const balance of result.balances) {
-            const metadata = assetsMetadata[balance.assetId];
+            const metadata = assetsInfo[balance.assetId];
             // Default to 18 decimals (ERC20 standard) for consistent human-readable format
             const decimals = metadata?.decimals ?? 18;
             const humanReadableAmount = this.#convertToHumanReadable(
@@ -826,7 +907,7 @@ export class RpcDataSource extends AbstractDataSource<
           // Even on error, include native token metadata
           const chainStatus = this.#chainStatuses[chainId];
           if (chainStatus) {
-            assetsMetadata[nativeAssetId] = {
+            assetsInfo[nativeAssetId] = {
               type: 'native',
               symbol: chainStatus.nativeCurrency,
               name: chainStatus.nativeCurrency,
@@ -863,8 +944,8 @@ export class RpcDataSource extends AbstractDataSource<
     response.assetsBalance = assetsBalance;
 
     // Include metadata for native tokens if we have any
-    if (Object.keys(assetsMetadata).length > 0) {
-      response.assetsMetadata = assetsMetadata;
+    if (Object.keys(assetsInfo).length > 0) {
+      response.assetsInfo = assetsInfo;
     }
 
     return response;
@@ -881,7 +962,7 @@ export class RpcDataSource extends AbstractDataSource<
     chainId: ChainId,
     account: InternalAccount,
   ): Promise<DataResponse> {
-    if (!this.#tokenDetectionEnabled) {
+    if (!this.#tokenDetectionEnabled() || !this.#useExternalService()) {
       return {};
     }
 
@@ -895,6 +976,10 @@ export class RpcDataSource extends AbstractDataSource<
         hexChainId,
         accountId,
         address as Address,
+        {
+          tokenDetectionEnabled: this.#tokenDetectionEnabled(),
+          useExternalService: this.#useExternalService(),
+        },
       );
 
       if (result.detectedAssets.length === 0) {
@@ -910,12 +995,12 @@ export class RpcDataSource extends AbstractDataSource<
 
       // Convert detected assets to DataResponse format
       const balances: Record<Caip19AssetId, AssetBalance> = {};
-      const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+      const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
 
       // Build metadata from detected assets
       for (const asset of result.detectedAssets) {
         if (asset.symbol && asset.decimals !== undefined) {
-          assetsMetadata[asset.assetId] = {
+          assetsInfo[asset.assetId] = {
             type: 'erc20',
             symbol: asset.symbol,
             name: asset.name ?? asset.symbol,
@@ -952,8 +1037,8 @@ export class RpcDataSource extends AbstractDataSource<
       };
 
       // Include metadata if we have any
-      if (Object.keys(assetsMetadata).length > 0) {
-        response.assetsMetadata = assetsMetadata;
+      if (Object.keys(assetsInfo).length > 0) {
+        response.assetsInfo = assetsInfo;
       }
 
       return response;
@@ -1000,11 +1085,11 @@ export class RpcDataSource extends AbstractDataSource<
         }
       }
 
-      if (response.assetsMetadata) {
-        context.response.assetsMetadata ??= {};
-        context.response.assetsMetadata = {
-          ...context.response.assetsMetadata,
-          ...response.assetsMetadata,
+      if (response.assetsInfo) {
+        context.response.assetsInfo ??= {};
+        context.response.assetsInfo = {
+          ...context.response.assetsInfo,
+          ...response.assetsInfo,
         };
       }
 
@@ -1101,8 +1186,8 @@ export class RpcDataSource extends AbstractDataSource<
         const balanceToken = this.#balanceFetcher.startPolling(balanceInput);
         balancePollingTokens.push(balanceToken);
 
-        // Start detection polling if enabled
-        if (this.#tokenDetectionEnabled) {
+        // Start detection polling if enabled and external services allowed
+        if (this.#tokenDetectionEnabled() && this.#useExternalService()) {
           const detectionInput: DetectionPollingInput = {
             chainId: hexChainId,
             accountId,
@@ -1182,9 +1267,9 @@ export class RpcDataSource extends AbstractDataSource<
   #getExistingAssetsMetadata(): Record<Caip19AssetId, AssetMetadata> {
     try {
       const state = this.#messenger.call('AssetsController:getState') as {
-        assetsMetadata?: Record<Caip19AssetId, AssetMetadata>;
+        assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
       };
-      return (state.assetsMetadata ?? {}) as unknown as Record<
+      return (state.assetsInfo ?? {}) as unknown as Record<
         Caip19AssetId,
         AssetMetadata
       >;
@@ -1205,22 +1290,18 @@ export class RpcDataSource extends AbstractDataSource<
     assetId: Caip19AssetId,
   ): AssetMetadata | undefined {
     try {
-      // Parse asset ID to get chain and token address
-      // Format: eip155:{chainId}/erc20:{address}
-      const [chainPart, assetPart] = assetId.split('/');
-      if (!assetPart?.startsWith('erc20:')) {
+      const parsed = parseCaipAssetType(assetId);
+      if (parsed.assetNamespace !== 'erc20') {
         return undefined;
       }
-
-      const tokenAddress = assetPart.slice(6); // Remove 'erc20:' prefix
-      const chainIdDecimal = chainPart.split(':')[1];
-      const hexChainId = `0x${parseInt(chainIdDecimal, 10).toString(16)}`;
+      const tokenAddress = parsed.assetReference;
+      const { reference } = parseCaipChainId(parsed.chainId);
+      const hexChainId = numberToHex(parseInt(reference, 10));
 
       const tokenListState = (
         this.#messenger as unknown as { call: (a: string) => TokenListState }
       ).call('TokenListController:getState');
-      const chainCacheEntry =
-        tokenListState?.tokensChainsCache?.[hexChainId as `0x${string}`];
+      const chainCacheEntry = tokenListState?.tokensChainsCache?.[hexChainId];
       const chainTokenList = chainCacheEntry?.data;
 
       if (!chainTokenList) {
@@ -1260,6 +1341,9 @@ export class RpcDataSource extends AbstractDataSource<
    */
   destroy(): void {
     log('Destroying RpcDataSource');
+
+    this.#unsubscribeTransactionConfirmed?.();
+    this.#unsubscribeIncomingTransactions?.();
 
     // Stop all polling
     this.#balanceFetcher.stopAllPolling();
