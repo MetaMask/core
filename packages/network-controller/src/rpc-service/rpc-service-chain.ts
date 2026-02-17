@@ -441,7 +441,6 @@ export class RpcServiceChain {
             this.#status = STATUSES.Unavailable;
             this.#onBreakEventEmitter.emit({
               error: lastError,
-              rpcMethodName: jsonRpcRequest.method,
             });
           }
         }

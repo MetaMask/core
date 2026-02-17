@@ -729,7 +729,6 @@ describe('RpcServiceChain', () => {
       expect(onBreakListener).toHaveBeenCalledTimes(1);
       expect(onBreakListener).toHaveBeenCalledWith({
         error: new Error("Fetch failed with status '503'"),
-        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -826,11 +825,9 @@ describe('RpcServiceChain', () => {
       expect(onBreakListener).toHaveBeenCalledTimes(2);
       expect(onBreakListener).toHaveBeenNthCalledWith(1, {
         error: new Error("Fetch failed with status '503'"),
-        rpcMethodName: 'eth_chainId',
       });
       expect(onBreakListener).toHaveBeenNthCalledWith(2, {
         error: new Error("Fetch failed with status '503'"),
-        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -928,11 +925,9 @@ describe('RpcServiceChain', () => {
       expect(onBreakListener).toHaveBeenCalledTimes(2);
       expect(onBreakListener).toHaveBeenNthCalledWith(1, {
         error: new Error("Fetch failed with status '503'"),
-        rpcMethodName: 'eth_chainId',
       });
       expect(onBreakListener).toHaveBeenNthCalledWith(2, {
         error: new Error("Fetch failed with status '503'"),
-        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1039,19 +1034,16 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
-        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceBreakListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
-        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceBreakListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${tertiaryEndpointUrl}/`,
         error: new Error("Fetch failed with status '503'"),
-        rpcMethodName: 'eth_chainId',
       });
     });
 

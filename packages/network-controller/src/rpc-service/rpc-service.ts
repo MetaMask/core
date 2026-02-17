@@ -396,7 +396,6 @@ export class RpcService implements AbstractRpcService {
         listener({
           ...data,
           endpointUrl: this.endpointUrl.toString(),
-          rpcMethodName: this.#currentRpcMethodName,
         });
       }
     });

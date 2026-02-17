@@ -129,7 +129,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         chainId,
                         error: expectedUnavailableError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );
@@ -249,7 +248,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedUnavailableError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
-                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointUnavailableEventHandler,
@@ -259,7 +257,6 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedUnavailableError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
-                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );

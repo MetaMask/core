@@ -259,7 +259,7 @@ function createRpcServiceChain({
     ...rpcServiceConfigurations.slice(1),
   ]);
 
-  rpcServiceChain.onBreak(({ rpcMethodName, ...rest }) => {
+  rpcServiceChain.onBreak(({ ...rest }) => {
     const error = getError(rest);
 
     if (error === undefined) {
@@ -272,7 +272,6 @@ function createRpcServiceChain({
       chainId: configuration.chainId,
       networkClientId: id,
       error,
-      rpcMethodName,
     });
   });
 
@@ -280,7 +279,6 @@ function createRpcServiceChain({
     ({
       endpointUrl,
       primaryEndpointUrl: primaryEndpointUrlFromEvent,
-      rpcMethodName,
       ...rest
     }) => {
       const error = getError(rest);
@@ -297,7 +295,6 @@ function createRpcServiceChain({
         primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         error,
-        rpcMethodName,
       });
     },
   );

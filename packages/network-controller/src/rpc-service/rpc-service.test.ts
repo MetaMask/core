@@ -1497,7 +1497,6 @@ function testsForRetriableFetchErrors({
     expect(onBreakListener).toHaveBeenCalledWith({
       error: expectedError,
       endpointUrl: `${endpointUrl}/`,
-      rpcMethodName: 'eth_chainId',
     });
   });
 
@@ -1763,7 +1762,6 @@ function testsForRetriableResponses({
     expect(onBreakListener).toHaveBeenCalledWith({
       error: expectedOnBreakError,
       endpointUrl: `${endpointUrl}/`,
-      rpcMethodName: 'eth_chainId',
     });
   });
 

@@ -47,7 +47,7 @@ export type RpcServiceRequestable = {
       data: ExcludeCockatielEventData<
         ExtendCockatielEventData<
           ExtractCockatielEventData<ServicePolicy['onBreak']>,
-          { endpointUrl: string; rpcMethodName: string }
+          { endpointUrl: string }
         >,
         'isolated'
       >,

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `rpcMethodName` to `NetworkController:rpcEndpointDegraded`, `NetworkController:rpcEndpointChainDegraded`, `NetworkController:rpcEndpointUnavailable`, and `NetworkController:rpcEndpointChainUnavailable` event payloads ([#7954](https://github.com/MetaMask/core/pull/7954))
+- Add `rpcMethodName` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7954](https://github.com/MetaMask/core/pull/7954))
   - This field contains the JSON-RPC method name (e.g. `eth_blockNumber`) that was being processed when the event fired, enabling identification of which methods produce the most slow requests or retry exhaustions.
 
 ### Changed
