@@ -4,7 +4,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getMaxAmountQuoteWithGasStationFallback } from './max-amount-with-gas-station-fallback';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type { RelayQuote } from './types';
 import { TransactionPayStrategy } from '../..';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
@@ -150,7 +150,7 @@ function makeFullRequest(
   };
 }
 
-describe('max-amount-with-gas-station-fallback', () => {
+describe('relay-max-gas-station', () => {
   const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
   const getNativeTokenMock = jest.mocked(getNativeToken);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
@@ -185,9 +185,6 @@ describe('max-amount-with-gas-station-fallback', () => {
         confirmations_eip_7702: {
           supportedChains: [BASE_REQUEST.sourceChainId],
         },
-        confirmations_pay: {
-          maxGaslessEnabled: true,
-        },
       },
     });
   });
@@ -198,34 +195,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     getTokenBalanceMock.mockReturnValue('100');
 
     const request = { ...BASE_REQUEST };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
-      request,
-      makeFullRequest(messenger, request),
-      getSingleQuote,
-    );
-
-    expect(getSingleQuote).toHaveBeenCalledTimes(1);
-    expect(result).toBe(phase1Quote);
-  });
-
-  it('returns phase-1 quote when max gasless feature is disabled', async () => {
-    const phase1Quote = makeQuote();
-    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
-
-    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-      ...getDefaultRemoteFeatureFlagControllerState(),
-      remoteFeatureFlags: {
-        confirmations_eip_7702: {
-          supportedChains: [BASE_REQUEST.sourceChainId],
-        },
-        confirmations_pay: {
-          maxGaslessEnabled: false,
-        },
-      },
-    });
-
-    const request = { ...BASE_REQUEST };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -245,14 +215,11 @@ describe('max-amount-with-gas-station-fallback', () => {
         confirmations_eip_7702: {
           supportedChains: [],
         },
-        confirmations_pay: {
-          maxGaslessEnabled: true,
-        },
       },
     });
 
     const request = { ...BASE_REQUEST };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -276,7 +243,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -293,7 +260,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     getGasFeeTokensMock.mockRejectedValueOnce(new Error('estimation failure'));
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -310,7 +277,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     getGasFeeTokensMock.mockResolvedValue([NON_MATCHING_GAS_FEE_TOKEN]);
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -328,7 +295,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     calculateGasFeeTokenCostMock.mockReturnValue(undefined);
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -340,7 +307,11 @@ describe('max-amount-with-gas-station-fallback', () => {
 
   it('returns phase-2 quote when gas-station estimation and validation are affordable', async () => {
     const phase1Quote = makeQuote({ sourceAmountRaw: '1000' });
-    const phase2Quote = makeQuote({ sourceAmountRaw: '900' });
+    const phase2Quote = makeQuote({
+      isSourceGasFeeToken: true,
+      sourceAmountRaw: '900',
+      sourceNetworkGasRaw: '100',
+    });
     const getSingleQuote = jest
       .fn()
       .mockResolvedValueOnce(phase1Quote)
@@ -362,7 +333,7 @@ describe('max-amount-with-gas-station-fallback', () => {
       });
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -374,7 +345,7 @@ describe('max-amount-with-gas-station-fallback', () => {
       expect.objectContaining({ sourceTokenAmount: '900' }),
       expect.any(Object),
     );
-    expect(result.original.metamask.twoPhaseQuoteForMaxAmount).toBe(true);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('uses aggregated gas limits for multi-item quotes when normalizing gas-fee-token amount', async () => {
@@ -392,6 +363,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     });
     const phase2Quote = makeQuote({
       isSourceGasFeeToken: true,
+      gasLimits: [100, 200],
       sourceAmountRaw: '200',
       sourceNetworkGasRaw: '300',
     });
@@ -417,7 +389,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     });
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '500' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -428,7 +400,7 @@ describe('max-amount-with-gas-station-fallback', () => {
         gasFeeToken: expect.objectContaining({ amount: '0x12c' }),
       }),
     );
-    expect(result.original.metamask.twoPhaseQuoteForMaxAmount).toBe(true);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('handles missing tx value and missing gas limits in multi-item gas-station estimation', async () => {
@@ -457,6 +429,7 @@ describe('max-amount-with-gas-station-fallback', () => {
 
     const phase2Quote = makeQuote({
       isSourceGasFeeToken: true,
+      gasLimits: [],
       sourceAmountRaw: '900',
       sourceNetworkGasRaw: '100',
     });
@@ -482,7 +455,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     });
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -491,7 +464,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     expect(getGasFeeTokensMock).toHaveBeenCalledWith(
       expect.objectContaining({ value: '0x0' }),
     );
-    expect(result.original.metamask.twoPhaseQuoteForMaxAmount).toBe(true);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('handles decimal gas fee token fields from simulation responses', async () => {
@@ -522,7 +495,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     });
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -533,7 +506,7 @@ describe('max-amount-with-gas-station-fallback', () => {
       expect.objectContaining({ sourceTokenAmount: '700' }),
       expect.any(Object),
     );
-    expect(result.original.metamask.twoPhaseQuoteForMaxAmount).toBe(true);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('returns phase-1 quote when adjusted source amount is zero or negative', async () => {
@@ -549,7 +522,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     });
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -575,7 +548,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     });
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -585,7 +558,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     expect(result).toBe(phase1Quote);
   });
 
-  it('returns phase-1 quote when validation estimate is unavailable', async () => {
+  it('returns phase-1 quote when phase-2 quote is not source-gas-fee-token', async () => {
     const phase1Quote = makeQuote({ sourceAmountRaw: '1000' });
     const phase2Quote = makeQuote({ sourceAmountRaw: '900' });
     const getSingleQuote = jest
@@ -593,9 +566,7 @@ describe('max-amount-with-gas-station-fallback', () => {
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(phase2Quote);
 
-    getGasFeeTokensMock
-      .mockResolvedValueOnce([MATCHING_GAS_FEE_TOKEN])
-      .mockResolvedValueOnce([]);
+    getGasFeeTokensMock.mockResolvedValueOnce([MATCHING_GAS_FEE_TOKEN]);
     calculateGasFeeTokenCostMock.mockReturnValue({
       fiat: '0',
       human: '0',
@@ -604,7 +575,149 @@ describe('max-amount-with-gas-station-fallback', () => {
     });
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(result).toBe(phase1Quote);
+  });
+
+  it('returns phase-1 quote when phase-2 gas limits differ from phase-1', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '1000',
+      gasLimits: [21000],
+    });
+    const phase2Quote = makeQuote({
+      isSourceGasFeeToken: true,
+      gasLimits: [22000],
+      sourceAmountRaw: '900',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(phase2Quote);
+
+    getGasFeeTokensMock.mockResolvedValueOnce([MATCHING_GAS_FEE_TOKEN]);
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '0',
+      human: '0',
+      raw: '100',
+      usd: '0',
+    });
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(result).toBe(phase1Quote);
+  });
+
+  it('returns phase-2 quote when phase-2 gas limits differ but total gas is lower', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '1000',
+      gasLimits: [10000, 20000],
+    });
+    const phase2Quote = makeQuote({
+      isSourceGasFeeToken: true,
+      gasLimits: [9000, 19000],
+      sourceAmountRaw: '900',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(phase2Quote);
+
+    getGasFeeTokensMock.mockResolvedValueOnce([MATCHING_GAS_FEE_TOKEN]);
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '0',
+      human: '0',
+      raw: '100',
+      usd: '0',
+    });
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(result).toBe(phase2Quote);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
+  });
+
+  it('returns phase-1 quote when phase-2 gas limits are missing', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '1000',
+      gasLimits: [21000],
+    });
+    const phase2Quote = makeQuote({
+      isSourceGasFeeToken: true,
+      sourceAmountRaw: '900',
+      sourceNetworkGasRaw: '100',
+    });
+    phase2Quote.original.metamask = {} as RelayQuote['metamask'];
+
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(phase2Quote);
+
+    getGasFeeTokensMock.mockResolvedValueOnce([MATCHING_GAS_FEE_TOKEN]);
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '0',
+      human: '0',
+      raw: '100',
+      usd: '0',
+    });
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(result).toBe(phase1Quote);
+  });
+
+  it('returns phase-1 quote when phase-2 gas limit array length differs', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '1000',
+      gasLimits: [21000, 30000],
+    });
+    const phase2Quote = makeQuote({
+      isSourceGasFeeToken: true,
+      gasLimits: [21000],
+      sourceAmountRaw: '900',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(phase2Quote);
+
+    getGasFeeTokensMock.mockResolvedValueOnce([MATCHING_GAS_FEE_TOKEN]);
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '0',
+      human: '0',
+      raw: '100',
+      usd: '0',
+    });
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -635,7 +748,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     });
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -662,7 +775,7 @@ describe('max-amount-with-gas-station-fallback', () => {
       .mockResolvedValueOnce(phase2Quote);
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -670,7 +783,7 @@ describe('max-amount-with-gas-station-fallback', () => {
 
     expect(getSingleQuote).toHaveBeenCalledTimes(2);
     expect(getGasFeeTokensMock).not.toHaveBeenCalled();
-    expect(result.original.metamask.twoPhaseQuoteForMaxAmount).toBe(true);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('uses probe quote source-network cost when probe already uses source gas fee token', async () => {
@@ -694,14 +807,14 @@ describe('max-amount-with-gas-station-fallback', () => {
     getGasFeeTokensMock.mockResolvedValue([]);
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
     );
 
     expect(getSingleQuote).toHaveBeenCalledTimes(3);
-    expect(result.original.metamask.twoPhaseQuoteForMaxAmount).toBe(true);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('returns phase-1 quote when probe quote request fails', async () => {
@@ -714,7 +827,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     getGasFeeTokensMock.mockResolvedValue([]);
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -724,13 +837,115 @@ describe('max-amount-with-gas-station-fallback', () => {
     expect(result).toBe(phase1Quote);
   });
 
+  it('returns phase-1 quote when probe quote has no executable step params', async () => {
+    const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
+    const probeQuote = makeQuote({
+      isSourceGasFeeToken: false,
+      sourceAmountRaw: '25000',
+      steps: [
+        {
+          id: 'swap',
+          items: [],
+          kind: 'transaction',
+          requestId: 'request-id',
+        },
+      ] as unknown as RelayQuote['steps'],
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(probeQuote);
+
+    getGasFeeTokensMock.mockResolvedValue([]);
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(result).toBe(phase1Quote);
+  });
+
+  it('returns phase-1 quote when probe gas-station estimation has no source token cost', async () => {
+    const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
+    const probeQuote = makeQuote({
+      isSourceGasFeeToken: false,
+      sourceAmountRaw: '25000',
+    });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(probeQuote);
+
+    getGasFeeTokensMock.mockResolvedValue([]);
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(result).toBe(phase1Quote);
+  });
+
+  it('uses probe estimation when probe quote has missing gas limits', async () => {
+    const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
+    const probeQuote = makeQuote({
+      isSourceGasFeeToken: false,
+      sourceAmountRaw: '25000',
+    });
+    probeQuote.original.metamask = {} as RelayQuote['metamask'];
+
+    const phase2Quote = makeQuote({
+      isSourceGasFeeToken: true,
+      sourceAmountRaw: '99900',
+      sourceNetworkGasRaw: '100',
+    });
+
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(probeQuote)
+      .mockResolvedValueOnce(phase2Quote);
+
+    getGasFeeTokensMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([MATCHING_GAS_FEE_TOKEN]);
+
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '0',
+      human: '0',
+      raw: '100',
+      usd: '0',
+    });
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(3);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
+  });
+
   it('uses probe quote gas-station estimation when probe does not use source gas fee token directly', async () => {
     const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
     const probeQuote = makeQuote({
       isSourceGasFeeToken: false,
       sourceAmountRaw: '25000',
     });
-    const phase2Quote = makeQuote({ sourceAmountRaw: '99900' });
+    const phase2Quote = makeQuote({
+      isSourceGasFeeToken: true,
+      sourceAmountRaw: '99900',
+      sourceNetworkGasRaw: '100',
+    });
 
     const getSingleQuote = jest
       .fn()
@@ -758,14 +973,14 @@ describe('max-amount-with-gas-station-fallback', () => {
       });
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
     );
 
     expect(getSingleQuote).toHaveBeenCalledTimes(3);
-    expect(result.original.metamask.twoPhaseQuoteForMaxAmount).toBe(true);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('returns phase-1 quote when source amount is zero', async () => {
@@ -775,7 +990,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     getGasFeeTokensMock.mockResolvedValue([]);
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '0' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
@@ -792,7 +1007,7 @@ describe('max-amount-with-gas-station-fallback', () => {
     getGasFeeTokensMock.mockResolvedValue([]);
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '0.1' };
-    const result = await getMaxAmountQuoteWithGasStationFallback(
+    const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,

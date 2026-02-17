@@ -7,7 +7,11 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import { getMaxAmountQuoteWithGasStationFallback } from './max-amount-with-gas-station-fallback';
+import {
+  getGasStationEligibility,
+  getGasStationCostInSourceTokenRaw,
+} from './gas-station-utils';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
 import type {
@@ -33,12 +37,11 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
-  getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
-import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+import { calculateGasCost } from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -94,11 +97,7 @@ async function getQuoteWithMaxAmountHandling(
     return getSingleQuote(request, fullRequest);
   }
 
-  return getMaxAmountQuoteWithGasStationFallback(
-    request,
-    fullRequest,
-    getSingleQuote,
-  );
+  return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
 }
 
 /**
@@ -580,13 +579,13 @@ async function calculateSourceNetworkCost(
     return result;
   }
 
-  const supportedChains = getEIP7702SupportedChains(messenger);
-  const chainSupportsGasStation = supportedChains.some(
-    (supportedChainId) =>
-      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
+  const gasStationEligibility = getGasStationEligibility(
+    messenger,
+    sourceChainId,
+    relayDisabledGasStationChains,
   );
 
-  if (!chainSupportsGasStation) {
+  if (!gasStationEligibility.chainSupportsGasStation) {
     log('Skipping gas station as chain does not support EIP-7702', {
       sourceChainId,
     });
@@ -599,62 +598,20 @@ async function calculateSourceNetworkCost(
     max: max.raw,
   });
 
-  const gasFeeTokens = await messenger.call(
-    'TransactionController:getGasFeeTokens',
-    {
-      chainId: sourceChainId,
+  const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+    firstStepData: {
       data,
-      from,
       to,
-      value: toHex(value ?? '0'),
+      value,
     },
-  );
-
-  log('Source gas fee tokens', { gasFeeTokens });
-
-  const gasFeeToken = gasFeeTokens.find(
-    (singleGasFeeToken) =>
-      singleGasFeeToken.tokenAddress.toLowerCase() ===
-      sourceTokenAddress.toLowerCase(),
-  );
-
-  if (!gasFeeToken) {
-    log('No matching gas fee token found', {
-      sourceTokenAddress,
-      gasFeeTokens,
-    });
-
-    return result;
-  }
-
-  let finalAmount = gasFeeToken.amount;
-
-  const hasMultipleTransactions =
-    relayParams.length > 1 || gasLimits.length > 1;
-
-  if (hasMultipleTransactions) {
-    const gasRate = new BigNumber(gasFeeToken.amount, 16).dividedBy(
-      gasFeeToken.gas,
-      16,
-    );
-
-    const finalAmountValue = gasRate.multipliedBy(totalGasEstimate);
-
-    finalAmount = toHex(finalAmountValue.toFixed(0));
-
-    log('Estimated gas fee token amount for batch', {
-      finalAmount: finalAmountValue.toString(10),
-      gasRate: gasRate.toString(10),
-      totalGasEstimate,
-    });
-  }
-
-  const finalGasFeeToken = { ...gasFeeToken, amount: finalAmount };
-
-  const gasFeeTokenCost = calculateGasFeeTokenCost({
-    chainId: sourceChainId,
-    gasFeeToken: finalGasFeeToken,
     messenger,
+    request: {
+      from,
+      sourceChainId,
+      sourceTokenAddress,
+    },
+    totalGasEstimate,
+    totalItemCount: relayParams.length,
   });
 
   if (!gasFeeTokenCost) {
