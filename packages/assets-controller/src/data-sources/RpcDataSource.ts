@@ -67,19 +67,6 @@ const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
-// Network client returned by NetworkController:getNetworkClientById (minimal shape used here)
-export type NetworkClient = {
-  provider: EthereumProvider;
-  configuration: {
-    chainId: string;
-  };
-};
-
-// Ethereum provider interface
-export type EthereumProvider = {
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-};
-
 // Allowed actions that RpcDataSource can call
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
@@ -278,9 +265,7 @@ export class RpcDataSource extends AbstractDataSource<
 
     const tokenDetectorMessenger = {
       call: (_action: 'TokenListController:getState'): TokenListState => {
-        return (
-          this.#messenger as unknown as { call: (a: string) => TokenListState }
-        ).call('TokenListController:getState');
+        return this.#messenger.call('TokenListController:getState');
       },
     };
 
@@ -619,9 +604,7 @@ export class RpcDataSource extends AbstractDataSource<
   #initializeFromNetworkController(): void {
     log('Initializing from NetworkController');
     try {
-      const networkState = (
-        this.#messenger as unknown as { call: (a: string) => NetworkState }
-      ).call('NetworkController:getState');
+      const networkState = this.#messenger.call('NetworkController:getState');
       this.#updateFromNetworkState(networkState);
     } catch (error) {
       log('Failed to initialize from NetworkController', error);
@@ -701,11 +684,7 @@ export class RpcDataSource extends AbstractDataSource<
     }
 
     try {
-      const networkClient = (
-        this.#messenger as unknown as {
-          call: (a: string, id: string) => NetworkClient;
-        }
-      ).call(
+      const networkClient = this.#messenger.call(
         'NetworkController:getNetworkClientById',
         chainStatus.networkClientId,
       );
@@ -1269,10 +1248,7 @@ export class RpcDataSource extends AbstractDataSource<
       const state = this.#messenger.call('AssetsController:getState') as {
         assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
       };
-      return (state.assetsInfo ?? {}) as unknown as Record<
-        Caip19AssetId,
-        AssetMetadata
-      >;
+      return state.assetsInfo ?? {};
     } catch {
       // If AssetsController:getState fails, return empty metadata
       return {};
@@ -1298,9 +1274,9 @@ export class RpcDataSource extends AbstractDataSource<
       const { reference } = parseCaipChainId(parsed.chainId);
       const hexChainId = numberToHex(parseInt(reference, 10));
 
-      const tokenListState = (
-        this.#messenger as unknown as { call: (a: string) => TokenListState }
-      ).call('TokenListController:getState');
+      const tokenListState = this.#messenger.call(
+        'TokenListController:getState',
+      );
       const chainCacheEntry = tokenListState?.tokensChainsCache?.[hexChainId];
       const chainTokenList = chainCacheEntry?.data;
 
