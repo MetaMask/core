@@ -1,7 +1,7 @@
 import { toChecksumAddress } from '@ethereumjs/util';
 import { Web3Provider } from '@ethersproject/providers';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { NetworkState } from '@metamask/network-controller';
+import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
 import {
   isStrictHexString,
   isCaipChainId,
@@ -49,22 +49,6 @@ const STAKED_ETH_METADATA: AssetMetadata = {
 };
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
-
-// Network client returned by NetworkController
-type NetworkClient = {
-  provider: EthereumProvider;
-  configuration: { chainId: string };
-};
-
-// Ethereum provider interface
-type EthereumProvider = {
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-};
-
-/** Structural type for NetworkEnablementController state (enabled networks only). */
-type NetworkEnablementState = {
-  enabledNetworkMap: Record<string, Record<string, boolean>>;
-};
 
 /** Optional configuration for StakedBalanceDataSource. */
 export type StakedBalanceDataSourceConfig = {
@@ -233,9 +217,9 @@ export class StakedBalanceDataSource extends AbstractDataSource<
 
     const unsubEnablement = this.#messenger.subscribe(
       'NetworkEnablementController:stateChange',
-      this.#onNetworkEnablementStateChange.bind(this),
+      this.#onNetworkEnablementControllerStateChange.bind(this),
     );
-    this.#unsubscribeNetworkEnablementStateChange =
+    this.#unsubscribeNetworkEnablementControllerStateChange =
       typeof unsubEnablement === 'function' ? unsubEnablement : undefined;
 
     this.#initializeActiveChains();
@@ -249,8 +233,9 @@ export class StakedBalanceDataSource extends AbstractDataSource<
 
   readonly #unsubscribeNetworkStateChange: (() => void) | undefined = undefined;
 
-  readonly #unsubscribeNetworkEnablementStateChange: (() => void) | undefined =
-    undefined;
+  readonly #unsubscribeNetworkEnablementControllerStateChange:
+    | (() => void)
+    | undefined = undefined;
 
   /**
    * When NetworkController state changes (e.g. RPC endpoints or network clients
@@ -268,7 +253,9 @@ export class StakedBalanceDataSource extends AbstractDataSource<
    *
    * @param state - The new NetworkEnablementController state.
    */
-  #onNetworkEnablementStateChange(state: NetworkEnablementState): void {
+  #onNetworkEnablementControllerStateChange(
+    state: NetworkEnablementControllerState,
+  ): void {
     const { enabledNetworkMap } = state ?? {};
     if (!enabledNetworkMap) {
       return;
@@ -502,11 +489,9 @@ export class StakedBalanceDataSource extends AbstractDataSource<
    */
   #initializeActiveChains(): void {
     try {
-      const state = (
-        this.#messenger as unknown as {
-          call: (action: string) => NetworkEnablementState;
-        }
-      ).call('NetworkEnablementController:getState');
+      const state = this.#messenger.call(
+        'NetworkEnablementController:getState',
+      );
       this.#initializeActiveChainsFromEnabledMap(
         state?.enabledNetworkMap ?? {},
       );
@@ -569,11 +554,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     }
 
     try {
-      const networkState = (
-        this.#messenger as unknown as {
-          call: (action: string) => NetworkState;
-        }
-      ).call('NetworkController:getState');
+      const networkState = this.#messenger.call('NetworkController:getState');
 
       const { networkConfigurationsByChainId } = networkState;
       if (!networkConfigurationsByChainId) {
@@ -605,11 +586,10 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         return undefined;
       }
 
-      const networkClient = (
-        this.#messenger as unknown as {
-          call: (action: string, id: string) => NetworkClient;
-        }
-      ).call('NetworkController:getNetworkClientById', networkClientId);
+      const networkClient = this.#messenger.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      );
 
       if (!networkClient?.provider) {
         return undefined;
@@ -942,7 +922,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     this.#unsubscribeTransactionConfirmed?.();
     this.#unsubscribeIncomingTransactions?.();
     this.#unsubscribeNetworkStateChange?.();
-    this.#unsubscribeNetworkEnablementStateChange?.();
+    this.#unsubscribeNetworkEnablementControllerStateChange?.();
     for (const subscription of this.#activeSubscriptions.values()) {
       for (const token of subscription.pollingTokens) {
         this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
