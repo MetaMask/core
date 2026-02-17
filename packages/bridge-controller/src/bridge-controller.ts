@@ -169,7 +169,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   /**
    * Stores the location/entry point from which the user initiated the swap or bridge flow.
-   * Set via setLocation() or when the ButtonClicked event is tracked.
+   * Set via setLocation() before navigating to the swap/bridge flow.
    * Used as default for all subsequent internal events.
    */
   #location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView;
@@ -1037,18 +1037,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     >[EventName],
   ) => {
     try {
-      // Capture location from ButtonClicked (the first event in any flow),
-      // so subsequent internal events (InputChanged, QuotesValidationFailed)
-      // can use it as the default location
-      if (
-        eventName === UnifiedSwapBridgeEventName.ButtonClicked &&
-        propertiesFromClient &&
-        'location' in propertiesFromClient &&
-        propertiesFromClient.location
-      ) {
-        this.#location = propertiesFromClient.location;
-      }
-
       const combinedPropertiesForEvent = this.#getEventProperties<EventName>(
         eventName,
         propertiesFromClient,
