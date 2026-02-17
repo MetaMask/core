@@ -15,7 +15,7 @@ import { BigNumber } from 'bignumber.js';
 
 import { RELAY_POLLING_INTERVAL, RELAY_STATUS_URL } from './constants';
 import type { RelayQuote, RelayStatusResponse } from './types';
-import { RELAY_DEPOSIT_TYPE_MAP } from '../../constants';
+import { RELAY_DEPOSIT_TYPES } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
@@ -449,7 +449,7 @@ function getRelayDepositType(
   originalType: TransactionMeta['type'],
 ): TransactionType {
   return (
-    (originalType && RELAY_DEPOSIT_TYPE_MAP[originalType]) ??
+    (originalType && RELAY_DEPOSIT_TYPES[originalType]) ??
     TransactionType.relayDeposit
   );
 }
