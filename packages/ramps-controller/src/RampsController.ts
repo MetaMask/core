@@ -18,6 +18,7 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
+  BuyWidget,
   RampsToken,
   RampsServiceActions,
   RampsOrder,
@@ -31,6 +32,7 @@ import type {
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
   RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -74,6 +76,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly RampsServiceAct
     'RampsService:getQuotes',
     'RampsService:getBuyWidgetUrl',
     'RampsService:getOrder',
+    'RampsService:getOrderFromCallback',
   ];
 
 /**
@@ -341,7 +344,8 @@ type AllowedActions =
   | RampsServiceGetPaymentMethodsAction
   | RampsServiceGetQuotesAction
   | RampsServiceGetBuyWidgetUrlAction
-  | RampsServiceGetOrderAction;
+  | RampsServiceGetOrderAction
+  | RampsServiceGetOrderFromCallbackAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -1618,27 +1622,26 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Fetches the widget URL from a quote for redirect providers.
+   * Fetches the buy widget data from a quote for redirect providers.
    * Makes a request to the buyURL endpoint via the RampsService to get the
-   * actual provider widget URL, using the injected fetch and retry policy.
+   * actual provider widget URL, browser type, and optional order ID.
    *
-   * @param quote - The quote to fetch the widget URL from.
-   * @returns Promise resolving to the widget URL string, or null if not available.
+   * @param quote - The quote to fetch the widget data from.
+   * @returns Promise resolving to the BuyWidget data, or null if not available.
    */
-  async getWidgetUrl(quote: Quote): Promise<string | null> {
+  async getBuyWidget(quote: Quote): Promise<BuyWidget | null> {
     const buyUrl = quote.quote?.buyURL;
     if (!buyUrl) {
       return null;
     }
 
     try {
-      const buyWidget = await this.messenger.call(
+      return await this.messenger.call(
         'RampsService:getBuyWidgetUrl',
         buyUrl,
       );
-      return buyWidget.url ?? null;
     } catch (error) {
-      console.error('Error fetching widget URL:', error);
+      console.error('Error fetching buy widget:', error);
       return null;
     }
   }
@@ -1661,6 +1664,30 @@ export class RampsController extends BaseController<
       'RampsService:getOrder',
       providerCode,
       orderCode,
+      wallet,
+    );
+  }
+
+  /**
+   * Extracts an order from a provider callback URL.
+   * Sends the callback URL to the V2 backend for provider-specific parsing,
+   * then fetches the full order. This is the V2 equivalent of the aggregator
+   * SDK's `getOrderFromCallback`.
+   *
+   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param callbackUrl - The full callback URL the provider redirected to.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrderFromCallback(
+    providerCode: string,
+    callbackUrl: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    return await this.messenger.call(
+      'RampsService:getOrderFromCallback',
+      providerCode,
+      callbackUrl,
       wallet,
     );
   }

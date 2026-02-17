@@ -59,6 +59,7 @@ export type {
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
   RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,

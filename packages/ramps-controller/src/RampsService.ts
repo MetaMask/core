@@ -616,6 +616,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getQuotes',
   'getBuyWidgetUrl',
   'getOrder',
+  'getOrderFromCallback',
 ] as const;
 
 /**
@@ -1316,5 +1317,54 @@ export class RampsService {
     }
 
     return response;
+  }
+
+  /**
+   * Extracts an order from a provider callback URL.
+   * Sends the callback URL to the V2 API backend, which knows how to parse
+   * each provider's callback format and extract the order ID. Then fetches
+   * the full order using that ID.
+   *
+   * This is the V2 equivalent of the aggregator SDK's `getOrderFromCallback`.
+   *
+   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param callbackUrl - The full callback URL the provider redirected to.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrderFromCallback(
+    providerCode: string,
+    callbackUrl: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    // Step 1: Send the callback URL to the backend to extract the order ID.
+    // The backend parses it using provider-specific logic.
+    const callbackApiUrl = new URL(
+      getApiPath(`providers/${providerCode}/callback`),
+      this.#getBaseUrl(RampsApiService.Orders),
+    );
+    this.#addCommonParams(callbackApiUrl);
+    callbackApiUrl.searchParams.set('url', callbackUrl);
+
+    const callbackResponse = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(callbackApiUrl);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${callbackApiUrl.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<{ id: string }>;
+    });
+
+    const orderId = callbackResponse?.id;
+    if (!orderId) {
+      throw new Error(
+        'Could not extract order ID from callback URL via provider',
+      );
+    }
+
+    // Step 2: Fetch the full order using the extracted order ID.
+    return this.getOrder(providerCode, orderId, wallet);
   }
 }

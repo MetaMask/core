@@ -124,6 +124,21 @@ export type RampsServiceGetOrderAction = {
 };
 
 /**
+ * Extracts an order from a provider callback URL.
+ * Sends the callback URL to the V2 backend for provider-specific parsing,
+ * then fetches the full order.
+ *
+ * @param providerCode - The provider code (e.g., "transak", "moonpay").
+ * @param callbackUrl - The full callback URL the provider redirected to.
+ * @param wallet - The wallet address associated with the order.
+ * @returns The unified order data.
+ */
+export type RampsServiceGetOrderFromCallbackAction = {
+  type: `RampsService:getOrderFromCallback`;
+  handler: RampsService['getOrderFromCallback'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
@@ -134,4 +149,5 @@ export type RampsServiceMethodActions =
   | RampsServiceGetPaymentMethodsAction
   | RampsServiceGetQuotesAction
   | RampsServiceGetBuyWidgetUrlAction
-  | RampsServiceGetOrderAction;
+  | RampsServiceGetOrderAction
+  | RampsServiceGetOrderFromCallbackAction;
