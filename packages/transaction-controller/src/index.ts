@@ -65,6 +65,8 @@ export type {
   IsAtomicBatchSupportedRequest,
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedResultEntry,
+  IsEIP7702SupportedRequest,
+  IsEIP7702SupportedResult,
   LegacyGasFeeEstimates,
   Log,
   MetamaskPayMetadata,

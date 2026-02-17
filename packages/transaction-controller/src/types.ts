@@ -2018,6 +2018,21 @@ export type IsAtomicBatchSupportedRequest = {
   chainIds?: Hex[];
 };
 
+/** Parameters to check if the given chain IDs support EIP-7702. */
+export type IsEIP7702SupportedRequest = {
+  /** IDs of specific chains to check. */
+  chainIds: Hex[];
+};
+
+/** Result of checking if the given chain IDs support EIP-7702. */
+export type IsEIP7702SupportedResult = {
+  /** ID of the chain. */
+  chainId: Hex;
+
+  /** Whether the chain supports EIP-7702. */
+  isSupported: boolean;
+}[];
+
 /** Result of checking if atomic batch is supported for an account. */
 export type IsAtomicBatchSupportedResult = IsAtomicBatchSupportedResultEntry[];
 

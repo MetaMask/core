@@ -128,6 +128,8 @@ import type {
   PublishHookResult,
   GetGasFeeTokensRequest,
   InternalAccount,
+  IsEIP7702SupportedResult,
+  IsEIP7702SupportedRequest,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -145,6 +147,7 @@ import {
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import {
+  getEIP7702SupportedChains,
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
 } from './utils/feature-flags';
@@ -1252,6 +1255,30 @@ export class TransactionController extends BaseController<
       messenger: this.messenger,
       publicKeyEIP7702: this.#publicKeyEIP7702,
     });
+  }
+
+  /**
+   * Determine if the given chain IDs support EIP-7702.
+   *
+   * @param params - The parameters to check.
+   * @param params.chainIds - The chain IDs to check.
+   * @returns An array of objects with the chain ID and whether it supports EIP-7702.
+   */
+  async isEIP7702Supported(
+    params: IsEIP7702SupportedRequest,
+  ): Promise<IsEIP7702SupportedResult> {
+    const { chainIds } = params;
+
+    const eip7702SupportedChainIds = getEIP7702SupportedChains(
+      this.messenger,
+    ).map((chainId) => chainId.toLowerCase() as Hex);
+
+    return chainIds.map((chainId) => ({
+      chainId,
+      isSupported: eip7702SupportedChainIds.includes(
+        chainId.toLowerCase() as Hex,
+      ),
+    }));
   }
 
   /**

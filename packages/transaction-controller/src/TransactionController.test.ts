@@ -95,6 +95,7 @@ import { getBalanceChanges } from './utils/balance-changes';
 import { addTransactionBatch } from './utils/batch';
 import { getDelegationAddress } from './utils/eip7702';
 import {
+  getEIP7702SupportedChains,
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
 } from './utils/feature-flags';
@@ -578,6 +579,7 @@ describe('TransactionController', () => {
   const getTransactionHistoryLimitMock = jest.mocked(
     getTransactionHistoryLimit,
   );
+  const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -7177,6 +7179,112 @@ describe('TransactionController', () => {
           limit: 2,
         }),
       ).toStrictEqual([transactions[0], transactions[2], transactions[3]]);
+    });
+  });
+
+  describe('isEIP7702Supported', () => {
+    it('returns isSupported: true for chain IDs in the supported list', async () => {
+      const supportedChainIds = [CHAIN_ID_MOCK, CHAIN_IDS.MAINNET] as Hex[];
+      getEIP7702SupportedChainsMock.mockReturnValue(supportedChainIds);
+
+      const { controller } = setupController();
+
+      const result = await controller.isEIP7702Supported({
+        chainIds: [CHAIN_ID_MOCK, CHAIN_IDS.MAINNET],
+      });
+
+      expect(result).toStrictEqual([
+        { chainId: CHAIN_ID_MOCK, isSupported: true },
+        { chainId: CHAIN_IDS.MAINNET, isSupported: true },
+      ]);
+    });
+
+    it('returns isSupported: false for chain IDs not in the supported list', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValue([CHAIN_ID_MOCK]);
+
+      const { controller } = setupController();
+
+      const result = await controller.isEIP7702Supported({
+        chainIds: [CHAIN_IDS.POLYGON, CHAIN_IDS.AVALANCHE],
+      });
+
+      expect(result).toStrictEqual([
+        { chainId: CHAIN_IDS.POLYGON, isSupported: false },
+        { chainId: CHAIN_IDS.AVALANCHE, isSupported: false },
+      ]);
+    });
+
+    it('returns mixed results for chain IDs when some are supported and some are not', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValue([
+        CHAIN_ID_MOCK,
+        CHAIN_IDS.BASE,
+      ] as Hex[]);
+
+      const { controller } = setupController();
+
+      const result = await controller.isEIP7702Supported({
+        chainIds: [CHAIN_ID_MOCK, CHAIN_IDS.POLYGON, CHAIN_IDS.BASE],
+      });
+
+      expect(result).toStrictEqual([
+        { chainId: CHAIN_ID_MOCK, isSupported: true },
+        { chainId: CHAIN_IDS.POLYGON, isSupported: false },
+        { chainId: CHAIN_IDS.BASE, isSupported: true },
+      ]);
+    });
+
+    it('compares chain IDs case-insensitively', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValue(['0xaa36a7'] as Hex[]);
+
+      const { controller } = setupController();
+
+      const result = await controller.isEIP7702Supported({
+        chainIds: ['0xAA36A7', '0xaa36a7'],
+      });
+
+      expect(result).toStrictEqual([
+        { chainId: '0xAA36A7', isSupported: true },
+        { chainId: '0xaa36a7', isSupported: true },
+      ]);
+    });
+
+    it('returns empty array when chainIds is empty', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValue([CHAIN_ID_MOCK]);
+
+      const { controller } = setupController();
+
+      const result = await controller.isEIP7702Supported({
+        chainIds: [],
+      });
+
+      expect(result).toStrictEqual([]);
+    });
+
+    it('returns all isSupported: false when supported chains list is empty', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValue([]);
+
+      const { controller } = setupController();
+
+      const result = await controller.isEIP7702Supported({
+        chainIds: [CHAIN_ID_MOCK, CHAIN_IDS.MAINNET],
+      });
+
+      expect(result).toStrictEqual([
+        { chainId: CHAIN_ID_MOCK, isSupported: false },
+        { chainId: CHAIN_IDS.MAINNET, isSupported: false },
+      ]);
+    });
+
+    it('calls getEIP7702SupportedChains with the controller messenger', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValue([]);
+
+      const { controller, messenger } = setupController();
+
+      await controller.isEIP7702Supported({
+        chainIds: [CHAIN_ID_MOCK],
+      });
+
+      expect(getEIP7702SupportedChainsMock).toHaveBeenCalledWith(messenger);
     });
   });
 
