@@ -341,18 +341,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * This method does not start polling for quotes and does not emit UnifiedSwapBridge events
    *
    * @param quoteRequest - The parameters for quote requests to fetch
-   * @param jwtToken - The JWT token for authentication
    * @param abortSignal - The abort signal to cancel all the requests
    * @param featureId - The feature ID that maps to quoteParam overrides from LD
    * @returns A list of validated quotes
    */
   fetchQuotes = async (
     quoteRequest: GenericQuoteRequest,
-    jwtToken: string,
     abortSignal: AbortSignal | null = null,
     featureId: FeatureId | null = null,
   ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
+    const jwtToken = await this.#getJwtToken();
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
       ? bridgeFeatureFlags.quoteRequestOverrides?.[featureId]
@@ -666,7 +665,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // Otherwise use regular fetch
           const quotes = await this.fetchQuotes(
             updatedQuoteRequest,
-            jwtToken,
             this.#abortController?.signal,
           );
           this.update((state) => {

@@ -2932,7 +2932,6 @@ describe('BridgeController', function () {
           gasIncluded7702: false,
           fee: 0,
         },
-        'AUTH_TOKEN',
         null,
         FeatureId.PERPS,
       );
@@ -3000,7 +2999,6 @@ describe('BridgeController', function () {
             gasIncluded: false,
             gasIncluded7702: false,
           } as never,
-          'AUTH_TOKEN',
           null,
           FeatureId.PERPS,
         ),
@@ -3031,7 +3029,6 @@ describe('BridgeController', function () {
           gasIncluded: false,
           gasIncluded7702: false,
         },
-        'AUTH_TOKEN',
         null,
         FeatureId.PERPS,
       );
@@ -3096,7 +3093,6 @@ describe('BridgeController', function () {
           gasIncluded: false,
           gasIncluded7702: false,
         },
-        'AUTH_TOKEN',
         null,
       );
 
@@ -3149,10 +3145,7 @@ describe('BridgeController', function () {
           validationFailures: [],
         });
 
-      const quotes = await bridgeController.fetchQuotes(
-        makeQuoteRequest(),
-        'AUTH_TOKEN',
-      );
+      const quotes = await bridgeController.fetchQuotes(makeQuoteRequest());
 
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(quotes).toHaveLength(2);
