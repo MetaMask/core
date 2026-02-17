@@ -619,28 +619,4 @@ describe('StakedBalanceDataSource', () => {
       });
     });
   });
-
-  describe('destroy', () => {
-    it('unsubscribes from transaction and network events', async () => {
-      await withController(async ({ controller, mockMessengerUnsubscribe }) => {
-        // Act
-        controller.destroy();
-
-        // Assert
-        expect(mockMessengerUnsubscribe).toHaveBeenCalledWith(
-          'TransactionController:transactionConfirmed',
-        );
-        expect(mockMessengerUnsubscribe).toHaveBeenCalledWith(
-          'TransactionController:incomingTransactionsReceived',
-        );
-        expect(mockMessengerUnsubscribe).toHaveBeenCalled();
-        expect(mockMessengerUnsubscribe).toHaveBeenCalledWith(
-          'NetworkController:stateChange',
-        );
-        expect(mockMessengerUnsubscribe).toHaveBeenCalledWith(
-          'NetworkEnablementController:stateChange',
-        );
-      });
-    });
-  });
 });

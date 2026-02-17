@@ -899,17 +899,6 @@ export class StakedBalanceDataSource extends AbstractDataSource<
    * Destroy the data source and clean up all resources.
    */
   destroy(): void {
-    this.#messenger.clearEventSubscriptions(
-      'TransactionController:transactionConfirmed',
-    );
-    this.#messenger.clearEventSubscriptions(
-      'TransactionController:incomingTransactionsReceived',
-    );
-    this.#messenger.clearEventSubscriptions('NetworkController:stateChange');
-    this.#messenger.clearEventSubscriptions(
-      'NetworkEnablementController:stateChange',
-    );
-
     for (const subscription of this.#activeSubscriptions.values()) {
       for (const token of subscription.pollingTokens) {
         this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
