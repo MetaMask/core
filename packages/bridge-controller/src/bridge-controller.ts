@@ -351,7 +351,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     featureId: FeatureId | null = null,
   ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
-    const jwtToken = await this.#getJwtToken();
+    const jwt = await this.#getJwt();
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
     const quoteRequestOverrides = featureId
       ? bridgeFeatureFlags.quoteRequestOverrides?.[featureId]
@@ -365,7 +365,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         : { ...quoteRequest, resetApproval },
       abortSignal,
       this.#clientId,
-      jwtToken,
+      jwt,
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       featureId,
@@ -627,7 +627,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
 
-    const jwtToken = await this.#getJwtToken();
+    const jwt = await this.#getJwt();
 
     try {
       await this.#trace(
@@ -657,7 +657,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           if (shouldStream) {
             await this.#handleQuoteStreaming(
               updatedQuoteRequest,
-              jwtToken,
+              jwt,
               selectedAccount,
             );
             return;
@@ -744,7 +744,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #handleQuoteStreaming = async (
     updatedQuoteRequest: GenericQuoteRequest,
-    jwtToken?: string,
+    jwt?: string,
     selectedAccount?: InternalAccount,
   ) => {
     /**
@@ -763,7 +763,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       updatedQuoteRequest,
       this.#abortController?.signal,
       this.#clientId,
-      jwtToken,
+      jwt,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       {
         onValidationFailure: this.#trackResponseValidationFailures,
@@ -871,7 +871,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return networkClient;
   }
 
-  readonly #getJwtToken = async (): Promise<string | undefined> => {
+  readonly #getJwt = async (): Promise<string | undefined> => {
     try {
       const token = await this.messenger.call(
         'AuthenticationController:getBearerToken',

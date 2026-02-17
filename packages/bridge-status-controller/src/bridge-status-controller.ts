@@ -774,7 +774,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           historyItem.quote.intent?.protocol ?? '',
           srcChainId.toString(),
           this.#clientId,
-          await this.#getJwtToken(),
+          await this.#getJwt(),
         );
 
         intentOrderStatus = intentOrder.status;
@@ -802,7 +802,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const response = await fetchBridgeTxStatus(
           statusRequest,
           this.#clientId,
-          await this.#getJwtToken(),
+          await this.#getJwt(),
           this.#fetchFn,
           this.#config.customBridgeApiBaseUrl,
         );
@@ -894,7 +894,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
   };
 
-  readonly #getJwtToken = async (): Promise<string | undefined> => {
+  readonly #getJwt = async (): Promise<string | undefined> => {
     try {
       const token = await this.messenger.call(
         'AuthenticationController:getBearerToken',
@@ -1677,7 +1677,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const intentOrder = await intentApi.submitIntent(
         submissionParams,
         this.#clientId,
-        await this.#getJwtToken(),
+        await this.#getJwt(),
       );
 
       const orderUid = intentOrder.id;

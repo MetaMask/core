@@ -39,7 +39,7 @@ export const getStatusRequestDto = (
 export const fetchBridgeTxStatus = async (
   statusRequest: StatusRequestWithSrcTxHash,
   clientId: string,
-  jwtToken: string | undefined,
+  jwt: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
 ): Promise<{ status: StatusResponse; validationFailures: string[] }> => {
@@ -50,7 +50,7 @@ export const fetchBridgeTxStatus = async (
   const url = `${getBridgeStatusUrl(bridgeApiBaseUrl)}?${params.toString()}`;
 
   const rawTxStatus: unknown = await fetchFn(url, {
-    headers: getClientHeaders({ clientId, jwtToken }),
+    headers: getClientHeaders({ clientId, jwt }),
   });
 
   const validationFailures: string[] = [];

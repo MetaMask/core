@@ -22,14 +22,14 @@ import type {
 export const getClientHeaders = ({
   clientId,
   clientVersion,
-  jwtToken,
+  jwt,
 }: {
   clientId: string;
   clientVersion?: string;
-  jwtToken?: string;
+  jwt?: string;
 }) => ({
   'X-Client-Id': clientId,
-  ...(jwtToken ? { Authorization: `Bearer ${jwtToken}` } : {}),
+  ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
   ...(clientVersion ? { 'Client-Version': clientVersion } : {}),
 });
 
@@ -40,7 +40,7 @@ export const getClientHeaders = ({
  *
  * @param chainId - The chain ID to fetch tokens for
  * @param clientId - The client ID for metrics
- * @param jwtToken - The JWT token for authentication
+ * @param jwt - The JWT token for authentication
  * @param fetchFn - The fetch function to use
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param clientVersion - The client version for metrics (optional)
@@ -49,7 +49,7 @@ export const getClientHeaders = ({
 export async function fetchBridgeTokens(
   chainId: Hex | CaipChainId,
   clientId: string,
-  jwtToken: string | undefined,
+  jwt: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
   clientVersion?: string,
@@ -60,7 +60,7 @@ export async function fetchBridgeTokens(
   // If we allow selecting dest networks which the user has not imported,
   // note that the Assets controller won't be able to provide tokens. In extension we fetch+cache the token list from bridge-api to handle this
   const tokens = await fetchFn(url, {
-    headers: getClientHeaders({ clientId, clientVersion, jwtToken }),
+    headers: getClientHeaders({ clientId, clientVersion, jwt }),
   });
 
   const transformedTokens: Record<string, BridgeAsset> = {};
@@ -120,7 +120,7 @@ const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
  * @param request - The quote request
  * @param signal - The abort signal
  * @param clientId - The client ID for metrics
- * @param jwtToken - The JWT token for authentication
+ * @param jwt - The JWT token for authentication
  * @param fetchFn - The fetch function to use
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param featureId - The feature ID to append to each quote
@@ -131,7 +131,7 @@ export async function fetchBridgeQuotes(
   request: GenericQuoteRequest,
   signal: AbortSignal | null,
   clientId: string,
-  jwtToken: string | undefined,
+  jwt: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
   featureId: FeatureId | null,
@@ -144,7 +144,7 @@ export async function fetchBridgeQuotes(
 
   const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
   const quotes: unknown[] = await fetchFn(url, {
-    headers: getClientHeaders({ clientId, clientVersion, jwtToken }),
+    headers: getClientHeaders({ clientId, clientVersion, jwt }),
     signal,
   });
 
@@ -289,7 +289,7 @@ export const fetchAssetPrices = async (
  * @param request - The quote request
  * @param signal - The abort signal
  * @param clientId - The client ID for metrics
- * @param jwtToken - The JWT token for authentication
+ * @param jwt - The JWT token for authentication
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param serverEventHandlers - The server event handlers
  * @param serverEventHandlers.onValidationFailure - The function to handle validation failures
@@ -303,7 +303,7 @@ export async function fetchBridgeQuoteStream(
   request: GenericQuoteRequest,
   signal: AbortSignal | undefined,
   clientId: string,
-  jwtToken: string | undefined,
+  jwt: string | undefined,
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
     onClose: () => void | Promise<void>;
@@ -360,7 +360,7 @@ export async function fetchBridgeQuoteStream(
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
   await fetchServerEvents(urlStream, {
     headers: {
-      ...getClientHeaders({ clientId, clientVersion, jwtToken }),
+      ...getClientHeaders({ clientId, clientVersion, jwt }),
       'Content-Type': 'text/event-stream',
     },
     signal,
