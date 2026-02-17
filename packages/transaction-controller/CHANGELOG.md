@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new `isEIP7702Supported` method ([#7948](https://github.com/MetaMask/core/pull/7948))
+
 ## [62.17.0]
 
 ### Added
