@@ -457,8 +457,7 @@ export type NetworkControllerNetworkRemovedEvent = {
  * endpoint chain.
  * @param payload.networkClientId - The target network's client ID.
  * @param payload.rpcMethodName - The JSON-RPC method that was being executed
- * when the chain became unavailable, or `undefined` if no request has been
- * processed yet (should not happen in practice).
+ * when the chain became unavailable.
  */
 export type NetworkControllerRpcEndpointChainUnavailableEvent = {
   type: 'NetworkController:rpcEndpointChainUnavailable';
@@ -467,7 +466,7 @@ export type NetworkControllerRpcEndpointChainUnavailableEvent = {
       chainId: Hex;
       error: unknown;
       networkClientId: NetworkClientId;
-      rpcMethodName: string | undefined;
+      rpcMethodName: string;
     },
   ];
 };
@@ -500,7 +499,7 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
-      rpcMethodName: string | undefined;
+      rpcMethodName: string;
     },
   ];
 };
@@ -533,7 +532,7 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
       chainId: Hex;
       error: unknown;
       networkClientId: NetworkClientId;
-      rpcMethodName: string | undefined;
+      rpcMethodName: string;
     },
   ];
 };
@@ -572,7 +571,7 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
-      rpcMethodName: string | undefined;
+      rpcMethodName: string;
     },
   ];
 };

@@ -259,8 +259,12 @@ export class RpcService implements AbstractRpcService {
    * event. With the `finally` approach only a microtask boundary remains,
    * so under concurrent requests on the same instance the reported method
    * name may still be incorrect in rare edge cases.
+   *
+   * Initialised to `''` so the type is `string` throughout the event chain.
+   * The empty string is unreachable in practice because the field is always
+   * overwritten before Cockatiel dispatches any event.
    */
-  #currentRpcMethodName: string | undefined;
+  #currentRpcMethodName = '';
 
   /**
    * The function used to make an HTTP request.
