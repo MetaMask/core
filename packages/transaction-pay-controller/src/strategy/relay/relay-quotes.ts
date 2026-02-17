@@ -611,7 +611,7 @@ async function calculateSourceNetworkCost(
       sourceTokenAddress,
     },
     totalGasEstimate,
-    totalItemCount: relayParams.length,
+    totalItemCount: Math.max(relayParams.length, gasLimits.length),
   });
 
   if (!gasFeeTokenCost) {

@@ -959,6 +959,47 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.isSourceGasFeeToken).toBe(true);
     });
 
+    it('normalizes gas fee token cost for post-quote when combined gas limits exceed relay params', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      estimateGasMock.mockResolvedValueOnce({
+        gas: '21000',
+        simulationFails: undefined,
+      });
+      getTokenBalanceMock.mockReturnValue('0');
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            from: FROM_MOCK,
+            gas: '30000',
+            to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeToken: expect.objectContaining({
+            amount: toHex(2987143),
+          }),
+        }),
+      );
+    });
+
     it('includes duration in quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
