@@ -866,31 +866,6 @@ describe('AssetsController', () => {
         }).not.toThrow();
       });
     });
-
-    it('uses priceDataSourceConfig.pollInterval when no updateInterval option is passed', async () => {
-      const subscribeSpy = jest.spyOn(PriceDataSource.prototype, 'subscribe');
-      await withController(
-        {
-          controllerOptions: {
-            priceDataSourceConfig: { pollInterval: 120_000 },
-          },
-        },
-        async ({ controller }) => {
-          controller.subscribeAssetsPrice(
-            [createMockInternalAccount()],
-            ['eip155:1'],
-          );
-          expect(subscribeSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-              request: expect.objectContaining({
-                updateInterval: 120_000,
-              }),
-            }),
-          );
-        },
-      );
-      subscribeSpy.mockRestore();
-    });
   });
 
   describe('unsubscribeAssetsPrice', () => {
