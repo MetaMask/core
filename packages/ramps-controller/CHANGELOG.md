@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `widgetUrl` resource state that automatically fetches and stores the buy widget URL whenever the selected quote changes ([#7920](https://github.com/MetaMask/core/pull/7920))
+
 ### Changed
 
 - Refactor: Consolidate reset logic with a shared resetResource helper and fix abort handling for dependent resources ([#7818](https://github.com/MetaMask/core/pull/7818))

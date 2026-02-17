@@ -17,6 +17,7 @@ export {
   GC_TIMES,
   RETRY_CONFIG,
   calculateRetryDelay,
+  getQueryOptionsOverrides,
   shouldRetry,
   HttpError,
 } from './shared-types';

@@ -3,13 +3,13 @@ import type {
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
+import { parseCaipAssetType } from '@metamask/utils';
 
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
   Caip19AssetId,
-  ChainId,
   DataRequest,
   DataResponse,
   FungibleAssetPrice,
@@ -30,13 +30,17 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // OPTIONS
 // ============================================================================
 
-export type PriceDataSourceOptions = {
+/** Optional configuration for PriceDataSource. */
+export type PriceDataSourceConfig = {
+  /** Polling interval in ms (default: 60000) */
+  pollInterval?: number;
+};
+
+export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
   /** Currency to fetch prices in (default: 'usd') */
   currency?: SupportedCurrency;
-  /** Polling interval in ms (default: 60000) */
-  pollInterval?: number;
 };
 
 // ============================================================================
@@ -100,7 +104,11 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
  * Usage: Create with queryApiClient; subscribe() requires getAssetsState in the request for balance-based pricing.
  */
 export class PriceDataSource {
-  readonly name = CONTROLLER_NAME;
+  static readonly controllerName = CONTROLLER_NAME;
+
+  getName(): string {
+    return PriceDataSource.controllerName;
+  }
 
   readonly #currency: SupportedCurrency;
 
@@ -255,10 +263,20 @@ export class PriceDataSource {
           for (const assetId of Object.keys(
             accountBalances as Record<string, unknown>,
           )) {
-            // Filter by chain if specified
+            // Filter by chain if specified; skip malformed asset IDs for this entry only
             if (chainFilter) {
-              const chainId = assetId.split('/')[0] as ChainId;
-              if (!chainFilter.has(chainId)) {
+              try {
+                const { chainId } = parseCaipAssetType(
+                  assetId as Caip19AssetId,
+                );
+                if (!chainFilter.has(chainId)) {
+                  continue;
+                }
+              } catch (error) {
+                log('Skipping malformed asset ID in balance state', {
+                  assetId,
+                  error,
+                });
                 continue;
               }
             }

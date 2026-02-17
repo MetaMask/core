@@ -596,11 +596,9 @@ describe('Relay Submit Utils', () => {
         );
       });
 
-      it('does not activate 7702 mode with single relay step', async () => {
-        // Production scenario: 1 relay step = 1 gasLimit entry.
-        // Post-quote prepends the original tx so allParams has 2 entries,
-        // but gasLimit7702 should NOT be set because there's only 1 relay param.
-        request.quotes[0].original.metamask.gasLimits = [21000];
+      it('does not activate 7702 mode with post-quote gas limits', async () => {
+        // gasLimits covers both original tx and relay step.
+        request.quotes[0].original.metamask.gasLimits = [21000, 21000];
 
         await submitRelayQuotes(request);
 
@@ -613,7 +611,7 @@ describe('Relay Submit Utils', () => {
             transactions: [
               expect.objectContaining({
                 params: expect.objectContaining({
-                  gas: undefined,
+                  gas: expect.any(String),
                 }),
                 type: TransactionType.simpleSend,
               }),

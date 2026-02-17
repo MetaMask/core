@@ -365,6 +365,7 @@ const MockTxHistory = {
       }),
       hasApprovalTx: false,
       approvalTxId: undefined,
+      location: undefined,
     },
   }),
   getInit: ({
@@ -390,6 +391,7 @@ const MockTxHistory = {
         srcChainId,
       }),
       hasApprovalTx: false,
+      location: undefined,
     },
   }),
   getPending: ({
@@ -432,6 +434,7 @@ const MockTxHistory = {
       completionTime: undefined,
       attempts: undefined,
       featureId,
+      location: undefined,
     },
   }),
   getUnknown: ({
@@ -469,6 +472,7 @@ const MockTxHistory = {
       approvalTxId: undefined,
       hasApprovalTx: false,
       completionTime: undefined,
+      location: undefined,
     },
   }),
   getPendingSwap: ({
@@ -506,6 +510,7 @@ const MockTxHistory = {
       hasApprovalTx: false,
       completionTime: undefined,
       featureId,
+      location: undefined,
     },
   }),
   getComplete: ({
@@ -543,6 +548,7 @@ const MockTxHistory = {
       isStxEnabled: true,
       hasApprovalTx: false,
       attempts: undefined,
+      location: undefined,
     },
   }),
 };

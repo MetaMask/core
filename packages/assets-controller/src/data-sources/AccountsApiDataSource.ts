@@ -1,5 +1,10 @@
 import type { V5BalanceItem } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
+import {
+  isCaipChainId,
+  KnownCaipNamespace,
+  toCaipChainId,
+} from '@metamask/utils';
 
 import type {
   DataSourceState,
@@ -14,6 +19,7 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
+  AssetsControllerStateInternal,
 } from '../types';
 import { normalizeAssetId } from '../utils';
 
@@ -48,7 +54,19 @@ const defaultState: AccountsApiDataSourceState = {
 // OPTIONS
 // ============================================================================
 
-export type AccountsApiDataSourceOptions = {
+/** Optional configuration for AccountsApiDataSource. */
+export type AccountsApiDataSourceConfig = {
+  /** Polling interval in ms (default: 30000) */
+  pollInterval?: number;
+  /**
+   * Function returning whether token detection is enabled (default: () => true).
+   * When it returns false, balances are only returned for tokens already in state.
+   * Using a getter avoids stale values when the user toggles the preference at runtime.
+   */
+  tokenDetectionEnabled?: () => boolean;
+};
+
+export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
   /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
@@ -57,7 +75,6 @@ export type AccountsApiDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
-  pollInterval?: number;
   state?: Partial<AccountsApiDataSourceState>;
 };
 
@@ -68,30 +85,77 @@ export type AccountsApiDataSourceOptions = {
 function decimalToChainId(decimalChainId: number | string): ChainId {
   // Handle both decimal numbers and already-formatted CAIP chain IDs
   if (typeof decimalChainId === 'string') {
-    // If already a CAIP chain ID (e.g., "eip155:1"), return as-is
-    if (decimalChainId.startsWith('eip155:')) {
-      return decimalChainId as ChainId;
+    if (isCaipChainId(decimalChainId)) {
+      return decimalChainId;
     }
-    // If it's a string number, convert
-    return `eip155:${decimalChainId}` as ChainId;
+    return toCaipChainId(KnownCaipNamespace.Eip155, decimalChainId);
   }
-  return `eip155:${decimalChainId}` as ChainId;
+  return toCaipChainId(KnownCaipNamespace.Eip155, String(decimalChainId));
 }
 
 /**
  * Convert a CAIP-2 chain ID from the API response to our ChainId type.
  * Handles both formats: "eip155:1" or just "1" (decimal).
+ * Uses @metamask/utils for CAIP parsing.
  *
  * @param chainIdStr - The chain ID string to convert.
  * @returns The normalized ChainId.
  */
 function caipChainIdToChainId(chainIdStr: string): ChainId {
-  // If already in CAIP-2 format, return as-is
-  if (chainIdStr.includes(':')) {
-    return chainIdStr as ChainId;
+  if (isCaipChainId(chainIdStr)) {
+    return chainIdStr;
   }
-  // If decimal number, convert to CAIP-2
-  return `eip155:${chainIdStr}` as ChainId;
+  return toCaipChainId(KnownCaipNamespace.Eip155, chainIdStr);
+}
+
+/**
+ * Filter a response to only include balances for assets already in state.
+ * Used when tokenDetectionEnabled is false to prevent adding new tokens.
+ *
+ * @param response - The fetch response to filter.
+ * @param assetsState - Current assets controller state to check existing balances against.
+ * @returns A new response with only known asset balances.
+ */
+export function filterResponseToKnownAssets(
+  response: DataResponse,
+  assetsState: AssetsControllerStateInternal,
+): DataResponse {
+  if (!response.assetsBalance) {
+    return response;
+  }
+
+  const filteredBalance: Record<
+    string,
+    Record<Caip19AssetId, AssetBalance>
+  > = {};
+
+  for (const [accountId, accountBalances] of Object.entries(
+    response.assetsBalance,
+  )) {
+    const existingBalances = assetsState.assetsBalance[accountId];
+    if (!existingBalances) {
+      // Account has no balances in state yet — skip all its tokens
+      continue;
+    }
+
+    const filtered: Record<Caip19AssetId, AssetBalance> = {};
+    for (const [assetId, balance] of Object.entries(accountBalances)) {
+      // Only include assets already tracked in state
+      if (assetId in existingBalances) {
+        filtered[assetId as Caip19AssetId] = balance;
+      }
+    }
+
+    if (Object.keys(filtered).length > 0) {
+      filteredBalance[accountId] = filtered;
+    }
+  }
+
+  return {
+    ...response,
+    assetsBalance:
+      Object.keys(filteredBalance).length > 0 ? filteredBalance : undefined,
+  };
 }
 
 // ============================================================================
@@ -116,11 +180,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   readonly #pollInterval: number;
 
+  /** Getter avoids stale value when user toggles token detection at runtime. */
+  readonly #tokenDetectionEnabled: () => boolean;
+
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** State accessor from subscriptions (for filtering when tokenDetectionEnabled is false) */
+  #getAssetsState?: () => AssetsControllerStateInternal;
 
   constructor(options: AccountsApiDataSourceOptions) {
     super(CONTROLLER_NAME, {
@@ -130,6 +200,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    this.#tokenDetectionEnabled =
+      options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#apiClient = options.queryApiClient;
 
     this.#initializeActiveChains().catch(console.error);
@@ -198,7 +270,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   async fetch(request: DataRequest): Promise<DataResponse> {
-    const response: DataResponse = {};
+    let response: DataResponse = {};
 
     // Filter to only chains supported by Accounts API
     const supportedChains = new Set(this.state.activeChains);
@@ -270,6 +342,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
         response.errors = response.errors ?? {};
         response.errors[chainId] = 'Chain not supported by Accounts API';
       }
+    }
+
+    // When token detection is disabled, filter out tokens not already in state
+    if (!this.#tokenDetectionEnabled() && this.#getAssetsState) {
+      response = filterResponseToKnownAssets(response, this.#getAssetsState());
     }
 
     return response;
@@ -380,6 +457,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
         successfullyHandledChains = request.chainIds.filter(
           (chainId) => !unprocessedChains.has(chainId),
         );
+
+        // When token detection is off and we filtered out all balance data (e.g. new
+        // account with empty state), do not claim any chain as handled so that RPC
+        // middleware can still process them and fetch native balances (ETH, MATIC, etc.).
+        if (
+          !this.#tokenDetectionEnabled() &&
+          (!response.assetsBalance ||
+            Object.keys(response.assetsBalance).length === 0)
+        ) {
+          successfullyHandledChains = [];
+        }
       } catch (error) {
         log('Middleware fetch failed', { error });
         successfullyHandledChains = [];
@@ -411,6 +499,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     const { request, subscriptionId, isUpdate } = subscriptionRequest;
+
+    // Store state accessor for filtering when tokenDetectionEnabled is false
+    if (subscriptionRequest.getAssetsState) {
+      this.#getAssetsState = subscriptionRequest.getAssetsState;
+    }
 
     // Try all requested chains - API will handle unsupported ones via unprocessedNetworks
     const chainsToSubscribe = request.chainIds;

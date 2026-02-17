@@ -1313,9 +1313,13 @@ export class PhishingController extends BaseController<
    * Scan multiple tokens for malicious activity in bulk.
    *
    * @param request - The bulk scan request containing chainId and tokens.
-   * @param request.chainId - The chain ID in hex format (e.g., '0x1' for Ethereum).
+   * @param request.chainId - The chain identifier. Accepts a hex chain ID for
+   * EVM chains (e.g. `'0x1'` for Ethereum) or a chain name for non-EVM chains
+   * (e.g. `'solana'`).
    * @param request.tokens - Array of token addresses to scan.
-   * @returns A mapping of lowercase token addresses to their scan results. Tokens that fail to scan are omitted.
+   * @returns A mapping of token addresses to their scan results. For EVM chains,
+   * addresses are lowercased; for non-EVM chains, original casing is preserved.
+   * Tokens that fail to scan are omitted.
    */
   bulkScanTokens = async (
     request: BulkTokenScanRequest,
@@ -1342,11 +1346,16 @@ export class PhishingController extends BaseController<
       return {};
     }
 
+    // EVM addresses are case-insensitive; non-EVM addresses (e.g. Solana
+    // base58) are case-sensitive and must not be lowercased.
+    const caseSensitive = !normalizedChainId.startsWith('0x');
+
     // Split tokens into cached results and tokens that need to be fetched
     const { cachedResults, tokensToFetch } = splitCacheHits(
       this.#tokenScanCache,
       normalizedChainId,
       tokens,
+      caseSensitive,
     );
 
     const results: BulkTokenScanResponse = { ...cachedResults };
@@ -1357,11 +1366,12 @@ export class PhishingController extends BaseController<
         chain,
         tokensToFetch,
       );
-
       if (apiResponse?.results) {
         // Process API results and update cache
         for (const tokenAddress of tokensToFetch) {
-          const normalizedAddress = tokenAddress.toLowerCase();
+          const normalizedAddress = caseSensitive
+            ? tokenAddress
+            : tokenAddress.toLowerCase();
           const tokenResult = apiResponse.results[normalizedAddress];
 
           if (tokenResult?.result_type) {
@@ -1375,6 +1385,7 @@ export class PhishingController extends BaseController<
             const cacheKey = buildCacheKey(
               normalizedChainId,
               normalizedAddress,
+              caseSensitive,
             );
             this.#tokenScanCache.set(cacheKey, {
               result_type: tokenResult.result_type,
