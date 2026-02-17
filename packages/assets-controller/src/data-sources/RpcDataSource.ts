@@ -1,10 +1,25 @@
 import { Web3Provider } from '@ethersproject/providers';
+import type { GetTokenListState } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { NetworkState, NetworkStatus } from '@metamask/network-controller';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
+  NetworkState,
+  NetworkStatus,
+} from '@metamask/network-controller';
+import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
+import type {
+  TransactionControllerIncomingTransactionsReceivedEvent,
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import {
   isStrictHexString,
   isCaipChainId,
+  numberToHex,
+  parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -31,7 +46,10 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services';
-import type { AssetsControllerMessenger } from '../AssetsController';
+import type {
+  AssetsControllerGetStateAction,
+  AssetsControllerMessenger,
+} from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
@@ -49,19 +67,7 @@ const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
-// NetworkController action to get state
-export type NetworkControllerGetStateAction = {
-  type: 'NetworkController:getState';
-  handler: () => NetworkState;
-};
-
-// NetworkController action to get network client by ID
-export type NetworkControllerGetNetworkClientByIdAction = {
-  type: 'NetworkController:getNetworkClientById';
-  handler: (networkClientId: string) => NetworkClient;
-};
-
-// Network client returned by NetworkController
+// Network client returned by NetworkController:getNetworkClientById (minimal shape used here)
 export type NetworkClient = {
   provider: EthereumProvider;
   configuration: {
@@ -74,58 +80,19 @@ export type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
-// NetworkController state change event
-export type NetworkControllerStateChangeEvent = {
-  type: 'NetworkController:stateChange';
-  payload: [NetworkState, Patch[]];
-};
-
-// Patch type for state changes
-type Patch = {
-  op: 'add' | 'remove' | 'replace';
-  path: string[];
-  value?: unknown;
-};
-
-// TokenListController:getState action
-type TokenListControllerGetStateAction = {
-  type: 'TokenListController:getState';
-  handler: () => {
-    tokensChainsCache: Record<
-      string,
-      { timestamp: number; data: Record<string, unknown> }
-    >;
-  };
-};
-
-// AssetsController:getState action (for assets balance and metadata)
-type AssetsControllerGetStateAction = {
-  type: 'AssetsController:getState';
-  handler: () => {
-    assetsInfo: Record<Caip19AssetId, AssetMetadata>;
-    assetsBalance: Record<string, Record<string, { amount: string }>>;
-  };
-};
-
-// NetworkEnablementController:getState action
-type NetworkEnablementControllerGetStateAction = {
-  type: 'NetworkEnablementController:getState';
-  handler: () => {
-    enabledNetworkMap: Record<string, Record<string, boolean>>;
-    nativeAssetIdentifiers: Record<string, string>;
-  };
-};
-
 // Allowed actions that RpcDataSource can call
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AssetsControllerGetStateAction
-  | TokenListControllerGetStateAction
+  | GetTokenListState
   | NetworkEnablementControllerGetStateAction;
 
 // Allowed events that RpcDataSource can subscribe to
-export type RpcDataSourceAllowedEvents = NetworkControllerStateChangeEvent;
+export type RpcDataSourceAllowedEvents =
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent;
 
 /** Network status for each chain */
 export type ChainStatus = {
@@ -254,6 +221,10 @@ export class RpcDataSource extends AbstractDataSource<
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<string, SubscriptionData> = new Map();
 
+  #unsubscribeTransactionConfirmed: (() => void) | undefined = undefined;
+
+  #unsubscribeIncomingTransactions: (() => void) | undefined = undefined;
+
   // Rpc-datasource components
   readonly #multicallClient: MulticallClient;
 
@@ -338,6 +309,7 @@ export class RpcDataSource extends AbstractDataSource<
     );
 
     this.#subscribeToNetworkController();
+    this.#subscribeToTransactionEvents();
     this.#initializeFromNetworkController();
   }
 
@@ -536,11 +508,7 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   #subscribeToNetworkController(): void {
-    (
-      this.#messenger as unknown as {
-        subscribe: (e: string, h: (s: NetworkState) => void) => void;
-      }
-    ).subscribe(
+    this.#messenger.subscribe(
       'NetworkController:stateChange',
       (networkState: NetworkState) => {
         log('NetworkController state changed');
@@ -548,6 +516,104 @@ export class RpcDataSource extends AbstractDataSource<
         this.#updateFromNetworkState(networkState);
       },
     );
+  }
+
+  #subscribeToTransactionEvents(): void {
+    const unsubConfirmed = this.#messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      this.#onTransactionConfirmed.bind(this),
+    );
+    this.#unsubscribeTransactionConfirmed =
+      typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
+
+    const unsubIncoming = this.#messenger.subscribe(
+      'TransactionController:incomingTransactionsReceived',
+      this.#onIncomingTransactions.bind(this),
+    );
+    this.#unsubscribeIncomingTransactions =
+      typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
+  }
+
+  #onTransactionConfirmed(payload: TransactionMeta): void {
+    const hexChainId = payload?.chainId;
+    if (!hexChainId) {
+      return;
+    }
+    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    this.#refreshBalanceForChains([caipChainId]).catch((error) => {
+      log('Failed to refresh balance after transaction confirmed', { error });
+    });
+  }
+
+  #onIncomingTransactions(payload: TransactionMeta[]): void {
+    const chainIds = Array.from(
+      new Set(
+        (payload ?? [])
+          .map((item) => item?.chainId)
+          .filter((id): id is Hex => Boolean(id)),
+      ),
+    );
+    const caipChainIds = chainIds.map(
+      (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
+    );
+    const toRefresh =
+      caipChainIds.length > 0 ? caipChainIds : [...this.#activeChains];
+    this.#refreshBalanceForChains(toRefresh).catch((error) => {
+      log('Failed to refresh balance after incoming transactions', { error });
+    });
+  }
+
+  /**
+   * Fetch balances for the given chains across all active subscriptions and
+   * push updates to the controller.
+   *
+   * @param chainIds - CAIP-2 chain IDs to refresh.
+   */
+  async #refreshBalanceForChains(chainIds: ChainId[]): Promise<void> {
+    const chainIdsSet = new Set(chainIds);
+    const chainsToFetch = chainIds.filter((chainId) =>
+      this.#activeChains.includes(chainId),
+    );
+    if (chainsToFetch.length === 0) {
+      return;
+    }
+
+    for (const subscription of this.#activeSubscriptions.values()) {
+      const subscriptionChains = subscription.chains.filter((chainId) =>
+        chainIdsSet.has(chainId),
+      );
+      if (subscriptionChains.length === 0) {
+        continue;
+      }
+
+      const request: DataRequest = {
+        accountsWithSupportedChains: subscription.accounts.map((account) => ({
+          account,
+          supportedChains: subscriptionChains,
+        })),
+        chainIds: subscriptionChains,
+        dataTypes: ['balance'],
+      };
+
+      try {
+        const response = await this.fetch(request);
+        if (
+          response.assetsBalance &&
+          Object.keys(response.assetsBalance).length > 0
+        ) {
+          subscription.onAssetsUpdate(response)?.catch((error) => {
+            log('Failed to report balance update after transaction', {
+              error,
+            });
+          });
+        }
+      } catch (error) {
+        log('Failed to fetch balance after transaction', {
+          chains: subscriptionChains,
+          error,
+        });
+      }
+    }
   }
 
   #initializeFromNetworkController(): void {
@@ -1224,22 +1290,18 @@ export class RpcDataSource extends AbstractDataSource<
     assetId: Caip19AssetId,
   ): AssetMetadata | undefined {
     try {
-      // Parse asset ID to get chain and token address
-      // Format: eip155:{chainId}/erc20:{address}
-      const [chainPart, assetPart] = assetId.split('/');
-      if (!assetPart?.startsWith('erc20:')) {
+      const parsed = parseCaipAssetType(assetId);
+      if (parsed.assetNamespace !== 'erc20') {
         return undefined;
       }
-
-      const tokenAddress = assetPart.slice(6); // Remove 'erc20:' prefix
-      const chainIdDecimal = chainPart.split(':')[1];
-      const hexChainId = `0x${parseInt(chainIdDecimal, 10).toString(16)}`;
+      const tokenAddress = parsed.assetReference;
+      const { reference } = parseCaipChainId(parsed.chainId);
+      const hexChainId = numberToHex(parseInt(reference, 10));
 
       const tokenListState = (
         this.#messenger as unknown as { call: (a: string) => TokenListState }
       ).call('TokenListController:getState');
-      const chainCacheEntry =
-        tokenListState?.tokensChainsCache?.[hexChainId as `0x${string}`];
+      const chainCacheEntry = tokenListState?.tokensChainsCache?.[hexChainId];
       const chainTokenList = chainCacheEntry?.data;
 
       if (!chainTokenList) {
@@ -1279,6 +1341,9 @@ export class RpcDataSource extends AbstractDataSource<
    */
   destroy(): void {
     log('Destroying RpcDataSource');
+
+    this.#unsubscribeTransactionConfirmed?.();
+    this.#unsubscribeIncomingTransactions?.();
 
     // Stop all polling
     this.#balanceFetcher.stopAllPolling();

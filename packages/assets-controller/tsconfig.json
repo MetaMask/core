@@ -10,7 +10,8 @@
     { "path": "../keyring-controller" },
     { "path": "../messenger" },
     { "path": "../network-enablement-controller" },
-    { "path": "../preferences-controller" }
+    { "path": "../preferences-controller" },
+    { "path": "../assets-controllers" }
   ],
   "include": ["../../types", "./src"]
 }

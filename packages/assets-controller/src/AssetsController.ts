@@ -19,13 +19,23 @@ import type {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
+import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
-import { parseCaipAssetType } from '@metamask/utils';
+import type {
+  TransactionControllerIncomingTransactionsReceivedEvent,
+  TransactionControllerTransactionConfirmedEvent,
+} from '@metamask/transaction-controller';
+import {
+  isCaipChainId,
+  isStrictHexString,
+  parseCaipAssetType,
+  parseCaipChainId,
+} from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
 import { isEqual } from 'lodash';
@@ -44,6 +54,8 @@ import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
+import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
+import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
@@ -188,11 +200,14 @@ type AllowedActions =
 
 type AllowedEvents =
   | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | NetworkControllerStateChangeEvent
   | NetworkEnablementControllerEvents
   | BackendWebSocketServiceEvents
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | PreferencesControllerStateChangeEvent;
+  | PreferencesControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -265,6 +280,8 @@ export type AssetsControllerOptions = {
   accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
   /** Optional configuration for PriceDataSource. */
   priceDataSourceConfig?: PriceDataSourceConfig;
+  /** Optional configuration for StakedBalanceDataSource. */
+  stakedBalanceDataSourceConfig?: StakedBalanceDataSourceConfig;
 };
 
 // ============================================================================
@@ -416,6 +433,9 @@ export class AssetsController extends BaseController<
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
+  /** Price subscription poll interval from priceDataSourceConfig (used when subscribeAssetsPrice gets no updateInterval). */
+  readonly #pricePollInterval: number | undefined;
+
   /** Optional callback for first init/fetch MetaMetrics (duration). */
   readonly #trackMetaMetricsEvent?: (
     payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
@@ -458,9 +478,13 @@ export class AssetsController extends BaseController<
 
   readonly #rpcDataSource: RpcDataSource;
 
+  readonly #stakedBalanceDataSource: StakedBalanceDataSource;
+
   /**
    * All balance data sources (used for unsubscription in #stop so we can clean up
    * regardless of current isBasicFunctionality mode).
+   * Note: StakedBalanceDataSource is excluded because it provides supplementary
+   * data and should not participate in chain-claiming.
    *
    * @returns The four balance data source instances in priority order.
    */
@@ -486,6 +510,8 @@ export class AssetsController extends BaseController<
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
+  readonly #constructionState = { initialized: false };
+
   constructor({
     messenger,
     state = {},
@@ -498,6 +524,7 @@ export class AssetsController extends BaseController<
     trackMetaMetricsEvent,
     accountsApiDataSourceConfig,
     priceDataSourceConfig,
+    stakedBalanceDataSourceConfig,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -512,6 +539,7 @@ export class AssetsController extends BaseController<
     this.#isEnabled = isEnabled();
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
+    this.#pricePollInterval = priceDataSourceConfig?.pollInterval;
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
@@ -519,8 +547,12 @@ export class AssetsController extends BaseController<
       dataSourceName: string,
       chains: ChainId[],
       previousChains: ChainId[],
-    ): void =>
+    ): void => {
+      if (!this.#constructionState.initialized) {
+        return;
+      }
       this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+    };
 
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
       messenger: this.messenger,
@@ -540,6 +572,11 @@ export class AssetsController extends BaseController<
       messenger: this.messenger,
       onActiveChainsUpdated,
       ...rpcConfig,
+    });
+    this.#stakedBalanceDataSource = new StakedBalanceDataSource({
+      messenger: this.messenger,
+      onActiveChainsUpdated,
+      ...stakedBalanceDataSourceConfig,
     });
     this.#tokenDataSource = new TokenDataSource({
       queryApiClient,
@@ -562,6 +599,8 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
+    this.#constructionState.initialized = true;
+    // Subscriptions start only on KeyringController:unlock -> #start(), not here.
 
     // Subscribe to basic-functionality changes after construction so a synchronous
     // onChange during subscribe cannot run before data sources are initialized.
@@ -636,7 +675,7 @@ export class AssetsController extends BaseController<
    * @returns The normalized chain reference in decimal format.
    */
   #normalizeChainReference(namespace: string, reference: string): string {
-    if (namespace === 'eip155' && reference.startsWith('0x')) {
+    if (namespace === 'eip155' && isStrictHexString(reference)) {
       // Convert hex to decimal for EIP155 chains
       return parseInt(reference, 16).toString();
     }
@@ -696,6 +735,9 @@ export class AssetsController extends BaseController<
     activeChains: ChainId[],
     previousChains: ChainId[],
   ): void {
+    if (!this.#isEnabled) {
+      return;
+    }
     log('Data source active chains changed', {
       dataSourceId,
       chainCount: activeChains.length,
@@ -847,11 +889,16 @@ export class AssetsController extends BaseController<
             this.#accountsApiDataSource,
             this.#snapDataSource,
             this.#rpcDataSource,
+            this.#stakedBalanceDataSource,
             this.#detectionMiddleware,
             this.#tokenDataSource,
             this.#priceDataSource,
           ]
-        : [this.#rpcDataSource, this.#detectionMiddleware];
+        : [
+            this.#rpcDataSource,
+            this.#stakedBalanceDataSource,
+            this.#detectionMiddleware,
+          ];
       const { response, durationByDataSource } = await this.#executeMiddlewares(
         sources,
         request,
@@ -1086,7 +1133,9 @@ export class AssetsController extends BaseController<
     if (!this.#isBasicFunctionality()) {
       return;
     }
-    const { updateInterval = this.#defaultUpdateInterval } = options;
+    const {
+      updateInterval = this.#pricePollInterval ?? this.#defaultUpdateInterval,
+    } = options;
     const subscriptionKey = 'ds:PriceDataSource';
 
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
@@ -1441,15 +1490,17 @@ export class AssetsController extends BaseController<
 
     // Stop balance subscriptions by properly notifying data sources via messenger
     // This ensures data sources stop their polling timers.
-    // Use #allBalanceDataSources so we unsubscribe from every source that may have
-    // been subscribed (e.g. when switching from full to basic functionality).
+    // Use #allBalanceDataSources + staked balance source so we unsubscribe from
+    // every source that may have been subscribed.
+    const allSources = [
+      ...this.#allBalanceDataSources,
+      this.#stakedBalanceDataSource,
+    ];
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
       if (subscriptionKey.startsWith('ds:')) {
         const sourceId = subscriptionKey.slice(3);
-        const source = this.#allBalanceDataSources.find(
-          (ds) => ds.getName() === sourceId,
-        );
+        const source = allSources.find((ds) => ds.getName() === sourceId);
         if (source) {
           this.#unsubscribeDataSource(source);
         }
@@ -1481,6 +1532,11 @@ export class AssetsController extends BaseController<
 
     // Subscribe to balance updates (batched by data source)
     this.#subscribeAssetsBalance(this.#selectedAccounts, [
+      ...this.#enabledChains,
+    ]);
+
+    // Subscribe to staked balance updates (separate from regular balance chain-claiming)
+    this.#subscribeStakedBalance(this.#selectedAccounts, [
       ...this.#enabledChains,
     ]);
 
@@ -1544,6 +1600,35 @@ export class AssetsController extends BaseController<
         this.#subscribeDataSource(source, accountsForSource, assignedChains);
       }
     }
+  }
+
+  /**
+   * Subscribe to staked balance updates.
+   * Unlike regular balance data sources, the staked balance data source provides
+   * supplementary data and does not participate in chain-claiming.
+   *
+   * @param accounts - Accounts to subscribe staked balance updates for.
+   * @param chainIds - Chain IDs to subscribe for.
+   */
+  #subscribeStakedBalance(
+    accounts: InternalAccount[],
+    chainIds: ChainId[],
+  ): void {
+    const source = this.#stakedBalanceDataSource;
+    if (!source) {
+      return;
+    }
+    const availableChains = new Set(source.getActiveChainsSync());
+    const assignedChains = chainIds.filter((chainId) =>
+      availableChains.has(chainId),
+    );
+
+    if (assignedChains.length === 0) {
+      this.#unsubscribeDataSource(source);
+      return;
+    }
+
+    this.#subscribeDataSource(source, accounts, assignedChains);
   }
 
   /**
@@ -1698,16 +1783,24 @@ export class AssetsController extends BaseController<
     const result: ChainId[] = [];
 
     for (const scope of scopes) {
-      const [namespace, reference] = (scope as string).split(':');
+      const scopeStr = scope as string;
+      if (!isCaipChainId(scopeStr)) {
+        result.push(scope);
+        continue;
+      }
+      const { namespace, reference } = parseCaipChainId(scopeStr);
 
       // Wildcard scope (e.g., "eip155:0" means all enabled chains in that namespace)
       if (reference === '0') {
         for (const chain of this.#enabledChains) {
-          if (chain.startsWith(`${namespace}:`)) {
-            result.push(chain);
+          if (isCaipChainId(chain)) {
+            const chainParsed = parseCaipChainId(chain);
+            if (chainParsed.namespace === namespace) {
+              result.push(chain);
+            }
           }
         }
-      } else if (namespace === 'eip155' && reference?.startsWith('0x')) {
+      } else if (namespace === 'eip155' && isStrictHexString(reference)) {
         // Normalize hex to decimal for EIP155
         result.push(`eip155:${parseInt(reference, 16)}` as ChainId);
       } else {
@@ -1835,6 +1928,7 @@ export class AssetsController extends BaseController<
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
     this.#rpcDataSource?.destroy?.();
+    this.#stakedBalanceDataSource?.destroy?.();
 
     // Stop all active subscriptions
     this.#stop();
