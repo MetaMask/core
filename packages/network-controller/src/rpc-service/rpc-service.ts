@@ -252,9 +252,11 @@ export class RpcService implements AbstractRpcService {
 
   /**
    * The RPC method name of the current request being processed. This is set
-   * at the start of {@link RpcService.request} before the Cockatiel policy
-   * executes, so it is always defined by the time `onBreak` or `onDegraded`
-   * listeners fire.
+   * inside the Cockatiel policy's execute callback (in its `finally` block)
+   * so that it reflects the correct method when `onBreak` or `onDegraded`
+   * listeners fire synchronously after the callback exits. Setting it at the
+   * start of `request()` would be racy: a concurrent request could overwrite
+   * it while the first request's fetch is still in flight.
    */
   #currentRpcMethodName: string | undefined;
 
@@ -478,12 +480,14 @@ export class RpcService implements AbstractRpcService {
     jsonRpcRequest: Readonly<JsonRpcRequest<Params>>,
     fetchOptions: FetchOptions = {},
   ): Promise<JsonRpcResponse<Result | null>> {
-    this.#currentRpcMethodName = jsonRpcRequest.method;
     const completeFetchOptions = this.#getCompleteFetchOptions(
       jsonRpcRequest,
       fetchOptions,
     );
-    return await this.#executeAndProcessRequest<Result>(completeFetchOptions);
+    return await this.#executeAndProcessRequest<Result>(
+      completeFetchOptions,
+      jsonRpcRequest.method,
+    );
   }
 
   /**
@@ -553,6 +557,7 @@ export class RpcService implements AbstractRpcService {
    *
    * @param fetchOptions - The options for `fetch`; will be combined with the
    * fetch options passed to the constructor
+   * @param rpcMethodName - The JSON-RPC method name of the current request.
    * @returns The decoded JSON-RPC response from the endpoint.
    * @throws An "authorized" JSON-RPC error (code -32006) if the response HTTP status is 401.
    * @throws A "rate limiting" JSON-RPC error (code -32005) if the response HTTP status is 429.
@@ -562,6 +567,7 @@ export class RpcService implements AbstractRpcService {
    */
   async #executeAndProcessRequest<Result extends Json>(
     fetchOptions: FetchOptions,
+    rpcMethodName: string,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>> {
     let response: Response | undefined;
     try {
@@ -571,25 +577,32 @@ export class RpcService implements AbstractRpcService {
       );
       const jsonDecodedResponse = await this.#policy.execute(
         async (context) => {
-          log(
-            'REQUEST INITIATED:',
-            this.endpointUrl.toString(),
-            '::',
-            fetchOptions,
-            // @ts-expect-error This property _is_ here, the type of
-            // ServicePolicy is just wrong.
-            `(attempt ${context.attempt + 1})`,
-          );
-          response = await this.#fetch(this.endpointUrl, fetchOptions);
-          if (!response.ok) {
-            throw new HttpError(response.status);
+          try {
+            log(
+              'REQUEST INITIATED:',
+              this.endpointUrl.toString(),
+              '::',
+              fetchOptions,
+              // @ts-expect-error This property _is_ here, the type of
+              // ServicePolicy is just wrong.
+              `(attempt ${context.attempt + 1})`,
+            );
+            response = await this.#fetch(this.endpointUrl, fetchOptions);
+            if (!response.ok) {
+              throw new HttpError(response.status);
+            }
+            log(
+              'REQUEST SUCCESSFUL:',
+              this.endpointUrl.toString(),
+              response.status,
+            );
+            return await response.json();
+          } finally {
+            // Set the method name right before the callback exits so that
+            // it is correct when Cockatiel fires onBreak/onDegraded
+            // synchronously after the callback throws or returns.
+            this.#currentRpcMethodName = rpcMethodName;
           }
-          log(
-            'REQUEST SUCCESSFUL:',
-            this.endpointUrl.toString(),
-            response.status,
-          );
-          return await response.json();
         },
       );
       this.lastError = undefined;
