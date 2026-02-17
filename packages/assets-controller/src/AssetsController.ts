@@ -2,6 +2,7 @@ import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
 } from '@metamask/account-tree-controller';
+import type { GetTokenListState } from '@metamask/assets-controllers';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -19,7 +20,11 @@ import type {
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
-import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
+} from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerEvents,
@@ -194,6 +199,9 @@ export type AssetsControllerEvents =
 
 type AllowedActions =
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | GetTokenListState
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
   | NetworkEnablementControllerGetStateAction
   // BackendWebsocketDataSource calls BackendWebSocketService
   | BackendWebSocketServiceActions;
@@ -433,9 +441,6 @@ export class AssetsController extends BaseController<
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
-  /** Price subscription poll interval from priceDataSourceConfig (used when subscribeAssetsPrice gets no updateInterval). */
-  readonly #pricePollInterval: number | undefined;
-
   /** Optional callback for first init/fetch MetaMetrics (duration). */
   readonly #trackMetaMetricsEvent?: (
     payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
@@ -539,7 +544,6 @@ export class AssetsController extends BaseController<
     this.#isEnabled = isEnabled();
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
-    this.#pricePollInterval = priceDataSourceConfig?.pollInterval;
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
@@ -1122,20 +1126,11 @@ export class AssetsController extends BaseController<
    *
    * @param accounts - Accounts to subscribe price updates for.
    * @param chainIds - Chain IDs to filter prices for.
-   * @param options - Subscription options.
-   * @param options.updateInterval - Polling interval in ms.
    */
-  subscribeAssetsPrice(
-    accounts: InternalAccount[],
-    chainIds: ChainId[],
-    options: { updateInterval?: number } = {},
-  ): void {
+  subscribeAssetsPrice(accounts: InternalAccount[], chainIds: ChainId[]): void {
     if (!this.#isBasicFunctionality()) {
       return;
     }
-    const {
-      updateInterval = this.#pricePollInterval ?? this.#defaultUpdateInterval,
-    } = options;
     const subscriptionKey = 'ds:PriceDataSource';
 
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
@@ -1144,7 +1139,6 @@ export class AssetsController extends BaseController<
     const subscribeReq: SubscriptionRequest = {
       request: this.#buildDataRequest(accounts, chainIds, {
         dataTypes: ['price'],
-        updateInterval,
       }),
       subscriptionId: subscriptionKey,
       isUpdate,
