@@ -1207,6 +1207,38 @@ describe('TransakService', () => {
       expect(await promise).toBeDefined();
     });
 
+    it('falls back to the normalized payment method when translation returns undefined', async () => {
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/native/translate`)
+        .query(true)
+        .reply(200, { ...MOCK_TRANSLATION, paymentMethod: undefined });
+
+      nock(STAGING_TRANSAK_BASE)
+        .post(
+          '/api/v2/orders',
+          (body) => body.paymentInstrumentId === 'credit_debit_card',
+        )
+        .reply(200, { data: MOCK_TRANSAK_ORDER });
+
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
+        .query(true)
+        .reply(200, MOCK_DEPOSIT_ORDER);
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.createOrder(
+        'quote-123',
+        '0x1234',
+        '/payments/debit-credit-card',
+      );
+      await clock.runAllAsync();
+      await flushPromises();
+
+      expect(await promise).toBeDefined();
+    });
+
     it('retries order creation when the first attempt fails with an existing order error', async () => {
       clock.restore();
 
@@ -1725,7 +1757,7 @@ describe('TransakService', () => {
       expect(await promise).toStrictEqual({ success: true });
     });
 
-    it('falls back to the original payment method ID when translation returns undefined', async () => {
+    it('falls back to the normalized payment method when translation returns undefined', async () => {
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/native/translate`)
         .query(true)
@@ -1734,14 +1766,17 @@ describe('TransakService', () => {
       nock(STAGING_TRANSAK_BASE)
         .post(
           '/api/v2/orders/payment-confirmation',
-          (body) => body.paymentMethod === 'custom_method',
+          (body) => body.paymentMethod === 'credit_debit_card',
         )
         .reply(200, { data: { success: true } });
 
       const { service } = getService();
       authenticateService(service);
 
-      const promise = service.confirmPayment('order-1', 'custom_method');
+      const promise = service.confirmPayment(
+        'order-1',
+        '/payments/debit-credit-card',
+      );
       await clock.runAllAsync();
       await flushPromises();
 

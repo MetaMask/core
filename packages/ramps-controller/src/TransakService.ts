@@ -836,9 +836,14 @@ export class TransakService {
   ): Promise<TransakDepositOrder> {
     this.#ensureAccessToken();
 
+    const normalizedPaymentMethod =
+      normalizePaymentMethodForTranslation(paymentMethodId);
     const translation = await this.getTranslation({
-      paymentMethod: normalizePaymentMethodForTranslation(paymentMethodId),
+      paymentMethod: normalizedPaymentMethod,
     });
+
+    const paymentInstrumentId =
+      translation.paymentMethod ?? normalizedPaymentMethod;
 
     try {
       const transakOrder = await this.#transakPost<TransakOrder>(
@@ -846,7 +851,7 @@ export class TransakService {
         {
           quoteId,
           walletAddress,
-          paymentInstrumentId: translation.paymentMethod,
+          paymentInstrumentId,
         },
       );
 
@@ -877,7 +882,7 @@ export class TransakService {
           {
             quoteId,
             walletAddress,
-            paymentInstrumentId: translation.paymentMethod,
+            paymentInstrumentId,
           },
         );
 
@@ -1054,7 +1059,7 @@ export class TransakService {
       '/api/v2/orders/payment-confirmation',
       {
         orderId: transakOrderId,
-        paymentMethod: translation.paymentMethod ?? paymentMethodId,
+        paymentMethod: translation.paymentMethod ?? normalizedPaymentMethod,
       },
     );
   }
