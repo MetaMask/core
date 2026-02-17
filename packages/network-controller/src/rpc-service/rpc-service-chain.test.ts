@@ -1223,6 +1223,74 @@ describe('RpcServiceChain', () => {
       });
     });
 
+    it('reports only the first RPC method that triggered the degraded condition when different methods fail or respond slowly', async () => {
+      const endpointUrl = 'https://some.endpoint';
+      // First request: eth_blockNumber runs out of retries (triggers degraded)
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .times(5)
+        .reply(503);
+      // Second request: eth_gasPrice responds slowly (already degraded, no new event)
+      nock(endpointUrl)
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        })
+        .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 2,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      const expectedError = createResourceUnavailableError(503);
+      const expectedDegradedError = new HttpError(503);
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          isOffline: (): boolean => false,
+          endpointUrl,
+        },
+      ]);
+      const onDegradedListener = jest.fn();
+      rpcServiceChain.onServiceRetry(() => {
+        clock.next();
+      });
+      rpcServiceChain.onDegraded(onDegradedListener);
+
+      // eth_blockNumber exhausts retries, triggering degraded
+      await expect(
+        rpcServiceChain.request({
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+      ).rejects.toThrow(expectedError);
+      // eth_gasPrice responds slowly, but chain is already degraded
+      await rpcServiceChain.request({
+        id: 2,
+        jsonrpc: '2.0' as const,
+        method: 'eth_gasPrice',
+        params: [],
+      });
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        error: expectedDegradedError,
+        rpcMethodName: 'eth_blockNumber',
+      });
+    });
+
     it("does not call onDegraded again when the primary service's circuit breaks and its failover responds successfully but slowly", async () => {
       const primaryEndpointUrl = 'https://first.endpoint';
       const secondaryEndpointUrl = 'https://second.endpoint';
