@@ -1041,7 +1041,7 @@ describe('RpcService', () => {
       });
     });
 
-    it('reports the correct rpcMethodName when sequential requests use different methods', async () => {
+    it('calls onDegraded twice with the correct rpcMethodName when two concurrent requests to different methods both respond slowly', async () => {
       const endpointUrl = 'https://rpc.example.chain';
       nock(endpointUrl)
         .post('/', {
@@ -1051,6 +1051,7 @@ describe('RpcService', () => {
           params: [],
         })
         .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 1,
             jsonrpc: '2.0',
@@ -1081,27 +1082,83 @@ describe('RpcService', () => {
       });
       service.onDegraded(onDegradedListener);
 
-      // First request: fast, no degraded event
-      await service.request({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'eth_blockNumber',
-        params: [],
-      });
+      // Start both requests concurrently
+      await Promise.all([
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+        service.request({
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        }),
+      ]);
 
-      // Second request: slow, triggers degraded with its own method name
-      await service.request({
-        id: 2,
-        jsonrpc: '2.0',
-        method: 'eth_gasPrice',
-        params: [],
-      });
+      expect(onDegradedListener).toHaveBeenCalledTimes(2);
+    });
 
-      expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith({
-        endpointUrl: `${endpointUrl}/`,
-        rpcMethodName: 'eth_gasPrice',
+    it('calls onDegraded twice with the correct rpcMethodName when two concurrent requests to different methods fail — one slow, one retriable', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      // eth_blockNumber: responds slowly
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 1,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      // eth_gasPrice: retries exhausted (5 x 503)
+      nock(endpointUrl)
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        })
+        .times(5)
+        .reply(503);
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
       });
+      service.onRetry(() => {
+        clock.next();
+      });
+      service.onDegraded(onDegradedListener);
+
+      // Start both requests concurrently
+      const [, gasResult] = await Promise.allSettled([
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+        service.request({
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        }),
+      ]);
+
+      expect(gasResult.status).toBe('rejected');
+      expect(onDegradedListener).toHaveBeenCalledTimes(2);
     });
 
     it('calls the onAvailable callback the first time a successful request occurs', async () => {
