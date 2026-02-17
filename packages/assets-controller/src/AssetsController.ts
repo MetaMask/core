@@ -538,8 +538,6 @@ export class AssetsController extends BaseController<
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
-  readonly #constructionState = { initialized: false };
-
   constructor({
     messenger,
     state = {},
@@ -575,9 +573,6 @@ export class AssetsController extends BaseController<
       chains: ChainId[],
       previousChains: ChainId[],
     ): void => {
-      if (!this.#constructionState.initialized) {
-        return;
-      }
       this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
     };
 
@@ -626,7 +621,6 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
-    this.#constructionState.initialized = true;
     // Subscriptions start only on KeyringController:unlock -> #start(), not here.
 
     // Subscribe to basic-functionality changes after construction so a synchronous
