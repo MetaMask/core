@@ -17,7 +17,6 @@ import type {
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
-import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import type { Caip19AssetId, AccountId } from './types';
 
