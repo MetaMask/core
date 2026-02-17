@@ -6892,6 +6892,46 @@ describe('RampsController', () => {
           ).toBe('Unknown error');
         });
       });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:getUserDetails',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(controller.transakGetUserDetails()).rejects.toThrow(
+            'Token expired',
+          );
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+        });
+      });
+
+      it('does not change isAuthenticated for non-401 errors', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:getUserDetails',
+            async () => {
+              throw Object.assign(new Error('Server error'), {
+                httpStatus: 500,
+              });
+            },
+          );
+          await expect(controller.transakGetUserDetails()).rejects.toThrow(
+            'Server error',
+          );
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            true,
+          );
+        });
+      });
     });
 
     describe('transakGetBuyQuote', () => {
@@ -7078,6 +7118,26 @@ describe('RampsController', () => {
           ).toBe('Unknown error');
         });
       });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:getKycRequirement',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakGetKycRequirement('quote-1'),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+        });
+      });
     });
 
     describe('transakGetAdditionalRequirements', () => {
@@ -7093,6 +7153,26 @@ describe('RampsController', () => {
           const result =
             await controller.transakGetAdditionalRequirements('quote-1');
           expect(result).toStrictEqual(mockResult);
+        });
+      });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:getAdditionalRequirements',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakGetAdditionalRequirements('quote-1'),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
         });
       });
     });
@@ -7117,6 +7197,26 @@ describe('RampsController', () => {
             '/payments/debit-credit-card',
           );
           expect(result).toStrictEqual(mockOrder);
+        });
+      });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:createOrder',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakCreateOrder('quote-1', '0x123', 'card'),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
         });
       });
     });
@@ -7181,6 +7281,26 @@ describe('RampsController', () => {
           expect(result).toStrictEqual(mockLimits);
         });
       });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:getUserLimits',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakGetUserLimits('USD', 'card', 'L1'),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+        });
+      });
     });
 
     describe('transakRequestOtt', () => {
@@ -7193,6 +7313,26 @@ describe('RampsController', () => {
           );
           const result = await controller.transakRequestOtt();
           expect(result).toStrictEqual(mockResult);
+        });
+      });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:requestOtt',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(controller.transakRequestOtt()).rejects.toThrow(
+            'Token expired',
+          );
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
         });
       });
     });
@@ -7274,6 +7414,26 @@ describe('RampsController', () => {
           expect(handler).toHaveBeenCalledWith(['investment', 'trading']);
         });
       });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:submitPurposeOfUsageForm',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakSubmitPurposeOfUsageForm(['investment']),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+        });
+      });
     });
 
     describe('transakPatchUser', () => {
@@ -7292,6 +7452,28 @@ describe('RampsController', () => {
           expect(result).toStrictEqual({ success: true });
         });
       });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:patchUser',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakPatchUser({
+              personalDetails: { firstName: 'Jane' },
+            }),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+        });
+      });
     });
 
     describe('transakSubmitSsnDetails', () => {
@@ -7308,6 +7490,26 @@ describe('RampsController', () => {
           );
           expect(handler).toHaveBeenCalledWith('123-45-6789', 'quote-1');
           expect(result).toStrictEqual({ success: true });
+        });
+      });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:submitSsnDetails',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakSubmitSsnDetails('123-45-6789', 'quote-1'),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
         });
       });
     });
@@ -7329,6 +7531,26 @@ describe('RampsController', () => {
             '/payments/debit-credit-card',
           );
           expect(result).toStrictEqual({ success: true });
+        });
+      });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:confirmPayment',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakConfirmPayment('order-1', 'card'),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
         });
       });
     });
@@ -7375,6 +7597,26 @@ describe('RampsController', () => {
           expect(result).toStrictEqual(mockStatus);
         });
       });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:getIdProofStatus',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakGetIdProofStatus('wf-run-1'),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+        });
+      });
     });
 
     describe('transakCancelOrder', () => {
@@ -7393,6 +7635,26 @@ describe('RampsController', () => {
           );
         });
       });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:cancelOrder',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakCancelOrder('order-1'),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
+        });
+      });
     });
 
     describe('transakCancelAllActiveOrders', () => {
@@ -7406,6 +7668,26 @@ describe('RampsController', () => {
           const errors = await controller.transakCancelAllActiveOrders();
           expect(handler).toHaveBeenCalled();
           expect(errors).toStrictEqual([]);
+        });
+      });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:cancelAllActiveOrders',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(
+            controller.transakCancelAllActiveOrders(),
+          ).rejects.toThrow('Token expired');
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
         });
       });
     });
@@ -7444,6 +7726,26 @@ describe('RampsController', () => {
           );
           const result = await controller.transakGetActiveOrders();
           expect(result).toStrictEqual(mockOrders);
+        });
+      });
+
+      it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          controller.transakSetAuthenticated(true);
+          rootMessenger.registerActionHandler(
+            'TransakService:getActiveOrders',
+            async () => {
+              throw Object.assign(new Error('Token expired'), {
+                httpStatus: 401,
+              });
+            },
+          );
+          await expect(controller.transakGetActiveOrders()).rejects.toThrow(
+            'Token expired',
+          );
+          expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
+            false,
+          );
         });
       });
     });

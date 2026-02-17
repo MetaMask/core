@@ -1873,6 +1873,23 @@ export class RampsController extends BaseController<
   // Both are kept in sync by the controller methods below.
 
   /**
+   * Checks whether an error is a 401 HTTP error (expired/missing token) and,
+   * if so, marks the Transak session as unauthenticated so the UI stays in
+   * sync with the cleared token inside TransakService.
+   *
+   * @param error - The caught error to inspect.
+   */
+  #syncTransakAuthOnError(error: unknown): void {
+    if (
+      error instanceof Error &&
+      'httpStatus' in error &&
+      (error as Error & { httpStatus: number }).httpStatus === 401
+    ) {
+      this.transakSetAuthenticated(false);
+    }
+  }
+
+  /**
    * Sets the Transak API key used for all Transak API requests.
    *
    * @param apiKey - The Transak API key.
@@ -1999,6 +2016,7 @@ export class RampsController extends BaseController<
       });
       return details;
     } catch (error) {
+      this.#syncTransakAuthOnError(error);
       const errorMessage = (error as Error)?.message ?? 'Unknown error';
       this.update((state) => {
         state.nativeProviders.transak.userDetails.isLoading = false;
@@ -2079,6 +2097,7 @@ export class RampsController extends BaseController<
       });
       return requirement;
     } catch (error) {
+      this.#syncTransakAuthOnError(error);
       const errorMessage = (error as Error)?.message ?? 'Unknown error';
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.isLoading = false;
@@ -2097,10 +2116,15 @@ export class RampsController extends BaseController<
   async transakGetAdditionalRequirements(
     quoteId: string,
   ): Promise<TransakAdditionalRequirementsResponse> {
-    return this.messenger.call(
-      'TransakService:getAdditionalRequirements',
-      quoteId,
-    );
+    try {
+      return await this.messenger.call(
+        'TransakService:getAdditionalRequirements',
+        quoteId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2117,12 +2141,17 @@ export class RampsController extends BaseController<
     walletAddress: string,
     paymentMethodId: string,
   ): Promise<TransakDepositOrder> {
-    return this.messenger.call(
-      'TransakService:createOrder',
-      quoteId,
-      walletAddress,
-      paymentMethodId,
-    );
+    try {
+      return await this.messenger.call(
+        'TransakService:createOrder',
+        quoteId,
+        walletAddress,
+        paymentMethodId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2159,12 +2188,17 @@ export class RampsController extends BaseController<
     paymentMethod: string,
     kycType: string,
   ): Promise<TransakUserLimits> {
-    return this.messenger.call(
-      'TransakService:getUserLimits',
-      fiatCurrency,
-      paymentMethod,
-      kycType,
-    );
+    try {
+      return await this.messenger.call(
+        'TransakService:getUserLimits',
+        fiatCurrency,
+        paymentMethod,
+        kycType,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2173,7 +2207,12 @@ export class RampsController extends BaseController<
    * @returns The OTT response containing the token.
    */
   async transakRequestOtt(): Promise<TransakOttResponse> {
-    return this.messenger.call('TransakService:requestOtt');
+    try {
+      return await this.messenger.call('TransakService:requestOtt');
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2207,10 +2246,15 @@ export class RampsController extends BaseController<
    * @returns A promise that resolves when the form is submitted.
    */
   async transakSubmitPurposeOfUsageForm(purpose: string[]): Promise<void> {
-    return this.messenger.call(
-      'TransakService:submitPurposeOfUsageForm',
-      purpose,
-    );
+    try {
+      return await this.messenger.call(
+        'TransakService:submitPurposeOfUsageForm',
+        purpose,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2220,7 +2264,12 @@ export class RampsController extends BaseController<
    * @returns The API response data.
    */
   async transakPatchUser(data: PatchUserRequestBody): Promise<unknown> {
-    return this.messenger.call('TransakService:patchUser', data);
+    try {
+      return await this.messenger.call('TransakService:patchUser', data);
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2234,7 +2283,16 @@ export class RampsController extends BaseController<
     ssn: string,
     quoteId: string,
   ): Promise<unknown> {
-    return this.messenger.call('TransakService:submitSsnDetails', ssn, quoteId);
+    try {
+      return await this.messenger.call(
+        'TransakService:submitSsnDetails',
+        ssn,
+        quoteId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2248,11 +2306,16 @@ export class RampsController extends BaseController<
     orderId: string,
     paymentMethodId: string,
   ): Promise<{ success: boolean }> {
-    return this.messenger.call(
-      'TransakService:confirmPayment',
-      orderId,
-      paymentMethodId,
-    );
+    try {
+      return await this.messenger.call(
+        'TransakService:confirmPayment',
+        orderId,
+        paymentMethodId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2276,10 +2339,15 @@ export class RampsController extends BaseController<
   async transakGetIdProofStatus(
     workFlowRunId: string,
   ): Promise<TransakIdProofStatus> {
-    return this.messenger.call(
-      'TransakService:getIdProofStatus',
-      workFlowRunId,
-    );
+    try {
+      return await this.messenger.call(
+        'TransakService:getIdProofStatus',
+        workFlowRunId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2289,7 +2357,15 @@ export class RampsController extends BaseController<
    * @returns A promise that resolves when the order is cancelled.
    */
   async transakCancelOrder(depositOrderId: string): Promise<void> {
-    return this.messenger.call('TransakService:cancelOrder', depositOrderId);
+    try {
+      return await this.messenger.call(
+        'TransakService:cancelOrder',
+        depositOrderId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2299,7 +2375,12 @@ export class RampsController extends BaseController<
    * @returns An array of errors from any failed cancellations (empty if all succeeded).
    */
   async transakCancelAllActiveOrders(): Promise<Error[]> {
-    return this.messenger.call('TransakService:cancelAllActiveOrders');
+    try {
+      return await this.messenger.call('TransakService:cancelAllActiveOrders');
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 
   /**
@@ -2308,6 +2389,11 @@ export class RampsController extends BaseController<
    * @returns The list of active orders.
    */
   async transakGetActiveOrders(): Promise<TransakOrder[]> {
-    return this.messenger.call('TransakService:getActiveOrders');
+    try {
+      return await this.messenger.call('TransakService:getActiveOrders');
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
   }
 }

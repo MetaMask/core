@@ -1022,6 +1022,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getTranslation({ fiatCurrencyId: 'USD' });
+      promise.catch(() => undefined);
       await clock.runAllAsync();
       await flushPromises();
 
