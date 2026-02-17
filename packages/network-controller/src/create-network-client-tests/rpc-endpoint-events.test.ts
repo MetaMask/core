@@ -129,6 +129,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         chainId,
                         error: expectedUnavailableError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );
@@ -248,6 +249,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedUnavailableError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointUnavailableEventHandler,
@@ -257,6 +259,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedUnavailableError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );
@@ -541,6 +544,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         chainId,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );
@@ -657,6 +661,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         chainId,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );
@@ -767,6 +772,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -776,6 +782,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -785,6 +792,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );
@@ -903,6 +911,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -912,6 +921,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -921,6 +931,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: undefined,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -930,6 +941,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: undefined,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_gasPrice',
                       });
                     },
                   );
@@ -1128,6 +1140,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     chainId,
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    rpcMethodName: 'eth_blockNumber',
                   });
                 },
               );
@@ -1204,6 +1217,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     chainId,
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    rpcMethodName: 'eth_blockNumber',
                   });
                 },
               );
@@ -1290,6 +1304,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
+                    rpcMethodName: 'eth_blockNumber',
                   });
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
@@ -1297,6 +1312,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
+                    rpcMethodName: 'eth_blockNumber',
                   });
                 },
               );
@@ -1526,6 +1542,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
+                    rpcMethodName: 'eth_blockNumber',
                   });
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
@@ -1533,6 +1550,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
+                    rpcMethodName: 'eth_gasPrice',
                   });
                 },
               );

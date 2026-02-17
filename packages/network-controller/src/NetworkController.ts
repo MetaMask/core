@@ -464,6 +464,7 @@ export type NetworkControllerRpcEndpointChainUnavailableEvent = {
       chainId: Hex;
       error: unknown;
       networkClientId: NetworkClientId;
+      rpcMethodName: string | undefined;
     },
   ];
 };
@@ -494,6 +495,7 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
+      rpcMethodName: string | undefined;
     },
   ];
 };
@@ -524,6 +526,7 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
       chainId: Hex;
       error: unknown;
       networkClientId: NetworkClientId;
+      rpcMethodName: string | undefined;
     },
   ];
 };
@@ -560,6 +563,7 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
+      rpcMethodName: string | undefined;
     },
   ];
 };

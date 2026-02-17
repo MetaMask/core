@@ -1037,6 +1037,7 @@ describe('RpcService', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1367,6 +1368,7 @@ function testsForRetriableFetchErrors({
     expect(onDegradedListener).toHaveBeenCalledWith({
       endpointUrl: `${endpointUrl}/`,
       error: expectedError,
+      rpcMethodName: 'eth_chainId',
     });
   });
 
@@ -1432,6 +1434,7 @@ function testsForRetriableFetchErrors({
     expect(onBreakListener).toHaveBeenCalledWith({
       error: expectedError,
       endpointUrl: `${endpointUrl}/`,
+      rpcMethodName: 'eth_chainId',
     });
   });
 
@@ -1697,6 +1700,7 @@ function testsForRetriableResponses({
     expect(onBreakListener).toHaveBeenCalledWith({
       error: expectedOnBreakError,
       endpointUrl: `${endpointUrl}/`,
+      rpcMethodName: 'eth_chainId',
     });
   });
 

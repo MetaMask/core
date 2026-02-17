@@ -251,6 +251,14 @@ export class RpcService implements AbstractRpcService {
   lastError: Error | undefined;
 
   /**
+   * The RPC method name of the current request being processed. This is set
+   * at the start of {@link RpcService.request} before the Cockatiel policy
+   * executes, so it is always defined by the time `onBreak` or `onDegraded`
+   * listeners fire.
+   */
+  #currentRpcMethodName: string | undefined;
+
+  /**
    * The function used to make an HTTP request.
    */
   readonly #fetch: typeof fetch;
@@ -377,7 +385,11 @@ export class RpcService implements AbstractRpcService {
       // RpcService. However, we are making a bet that we won't need to use it
       // other than how we are already using it.
       if (!('isolated' in data)) {
-        listener({ ...data, endpointUrl: this.endpointUrl.toString() });
+        listener({
+          ...data,
+          endpointUrl: this.endpointUrl.toString(),
+          rpcMethodName: this.#currentRpcMethodName,
+        });
       }
     });
   }
@@ -394,7 +406,11 @@ export class RpcService implements AbstractRpcService {
     listener: Parameters<AbstractRpcService['onDegraded']>[0],
   ): IDisposable {
     return this.#policy.onDegraded((data) => {
-      listener({ ...(data ?? {}), endpointUrl: this.endpointUrl.toString() });
+      listener({
+        ...(data ?? {}),
+        endpointUrl: this.endpointUrl.toString(),
+        rpcMethodName: this.#currentRpcMethodName,
+      });
     });
   }
 
@@ -462,6 +478,7 @@ export class RpcService implements AbstractRpcService {
     jsonRpcRequest: Readonly<JsonRpcRequest<Params>>,
     fetchOptions: FetchOptions = {},
   ): Promise<JsonRpcResponse<Result | null>> {
+    this.#currentRpcMethodName = jsonRpcRequest.method;
     const completeFetchOptions = this.#getCompleteFetchOptions(
       jsonRpcRequest,
       fetchOptions,

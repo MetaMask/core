@@ -47,7 +47,7 @@ export type RpcServiceRequestable = {
       data: ExcludeCockatielEventData<
         ExtendCockatielEventData<
           ExtractCockatielEventData<ServicePolicy['onBreak']>,
-          { endpointUrl: string }
+          { endpointUrl: string; rpcMethodName: string | undefined }
         >,
         'isolated'
       >,
@@ -65,7 +65,7 @@ export type RpcServiceRequestable = {
   onDegraded(
     listener: CockatielEventToEventListenerWithData<
       ServicePolicy['onDegraded'],
-      { endpointUrl: string }
+      { endpointUrl: string; rpcMethodName: string | undefined }
     >,
   ): ReturnType<ServicePolicy['onDegraded']>;
 

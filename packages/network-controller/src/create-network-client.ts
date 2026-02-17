@@ -259,8 +259,8 @@ function createRpcServiceChain({
     ...rpcServiceConfigurations.slice(1),
   ]);
 
-  rpcServiceChain.onBreak((data) => {
-    const error = getError(data);
+  rpcServiceChain.onBreak(({ rpcMethodName, ...rest }) => {
+    const error = getError(rest);
 
     if (error === undefined) {
       // This error shouldn't happen in practice because we never call `.isolate`
@@ -272,6 +272,7 @@ function createRpcServiceChain({
       chainId: configuration.chainId,
       networkClientId: id,
       error,
+      rpcMethodName,
     });
   });
 
@@ -279,6 +280,7 @@ function createRpcServiceChain({
     ({
       endpointUrl,
       primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      rpcMethodName,
       ...rest
     }) => {
       const error = getError(rest);
@@ -295,16 +297,18 @@ function createRpcServiceChain({
         primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         error,
+        rpcMethodName,
       });
     },
   );
 
-  rpcServiceChain.onDegraded((data) => {
-    const error = getError(data);
+  rpcServiceChain.onDegraded(({ rpcMethodName, ...rest }) => {
+    const error = getError(rest);
     messenger.publish('NetworkController:rpcEndpointChainDegraded', {
       chainId: configuration.chainId,
       networkClientId: id,
       error,
+      rpcMethodName,
     });
   });
 
@@ -312,6 +316,7 @@ function createRpcServiceChain({
     ({
       endpointUrl,
       primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      rpcMethodName,
       ...rest
     }) => {
       const error = getError(rest);
@@ -322,6 +327,7 @@ function createRpcServiceChain({
         primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         error,
+        rpcMethodName,
       });
     },
   );
