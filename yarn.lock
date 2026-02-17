@@ -5037,7 +5037,6 @@ __metadata:
     jest-environment-jsdom: "npm:^29.7.0"
     lodash: "npm:^4.17.21"
     nock: "npm:^13.3.1"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
