@@ -1,21 +1,7 @@
 import { toChecksumAddress } from '@ethereumjs/util';
 import { Web3Provider } from '@ethersproject/providers';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { Messenger } from '@metamask/messenger';
-import type {
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-  NetworkControllerStateChangeEvent,
-} from '@metamask/network-controller';
-import type {
-  NetworkEnablementControllerEvents,
-  NetworkEnablementControllerGetStateAction,
-  NetworkEnablementControllerState,
-} from '@metamask/network-enablement-controller';
-import type {
-  TransactionControllerIncomingTransactionsReceivedEvent,
-  TransactionControllerTransactionConfirmedEvent,
-} from '@metamask/transaction-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import {
   isStrictHexString,
   isCaipChainId,
@@ -38,6 +24,7 @@ import {
   getStakingContractAddress,
   getSupportedStakingChainIds,
 } from './evm-rpc-services';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   AccountId,
@@ -63,25 +50,21 @@ const STAKED_ETH_METADATA: AssetMetadata = {
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
-// Allowed actions that StakedBalanceDataSource can call
-export type StakedBalanceDataSourceAllowedActions =
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkEnablementControllerGetStateAction;
+// Network client returned by NetworkController
+type NetworkClient = {
+  provider: EthereumProvider;
+  configuration: { chainId: string };
+};
 
-// Allowed events that StakedBalanceDataSource can subscribe to
-export type StakedBalanceDataSourceAllowedEvents =
-  | NetworkControllerStateChangeEvent
-  | NetworkEnablementControllerEvents
-  | TransactionControllerTransactionConfirmedEvent
-  | TransactionControllerIncomingTransactionsReceivedEvent;
+// Ethereum provider interface
+type EthereumProvider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
 
-/** Messenger type for StakedBalanceDataSource. */
-export type StakedBalanceDataSourceMessenger = Messenger<
-  typeof CONTROLLER_NAME,
-  StakedBalanceDataSourceAllowedActions,
-  StakedBalanceDataSourceAllowedEvents
->;
+/** Structural type for NetworkEnablementController state (enabled networks only). */
+type NetworkEnablementState = {
+  enabledNetworkMap: Record<string, Record<string, boolean>>;
+};
 
 /** Optional configuration for StakedBalanceDataSource. */
 export type StakedBalanceDataSourceConfig = {
@@ -92,8 +75,8 @@ export type StakedBalanceDataSourceConfig = {
 };
 
 export type StakedBalanceDataSourceOptions = StakedBalanceDataSourceConfig & {
-  /** The messenger for accessing NetworkController and related actions/events. */
-  messenger: StakedBalanceDataSourceMessenger;
+  /** The AssetsController messenger (for accessing NetworkController). */
+  messenger: AssetsControllerMessenger;
   /** Called when active chains are updated. */
   onActiveChainsUpdated: (
     dataSourceName: string,
@@ -178,7 +161,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   typeof CONTROLLER_NAME,
   DataSourceState
 > {
-  readonly #messenger: StakedBalanceDataSourceMessenger;
+  readonly #messenger: AssetsControllerMessenger;
 
   readonly #onActiveChainsUpdated: (
     dataSourceName: string,
@@ -285,9 +268,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
    *
    * @param state - The new NetworkEnablementController state.
    */
-  #onNetworkEnablementStateChange(
-    state: NetworkEnablementControllerState,
-  ): void {
+  #onNetworkEnablementStateChange(state: NetworkEnablementState): void {
     const { enabledNetworkMap } = state ?? {};
     if (!enabledNetworkMap) {
       return;
@@ -521,9 +502,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
    */
   #initializeActiveChains(): void {
     try {
-      const state = this.#messenger.call(
-        'NetworkEnablementController:getState',
-      );
+      const state = (
+        this.#messenger as unknown as {
+          call: (action: string) => NetworkEnablementState;
+        }
+      ).call('NetworkEnablementController:getState');
       this.#initializeActiveChainsFromEnabledMap(
         state?.enabledNetworkMap ?? {},
       );
@@ -586,7 +569,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     }
 
     try {
-      const networkState = this.#messenger.call('NetworkController:getState');
+      const networkState = (
+        this.#messenger as unknown as {
+          call: (action: string) => NetworkState;
+        }
+      ).call('NetworkController:getState');
 
       const { networkConfigurationsByChainId } = networkState;
       if (!networkConfigurationsByChainId) {
@@ -618,10 +605,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         return undefined;
       }
 
-      const networkClient = this.#messenger.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
+      const networkClient = (
+        this.#messenger as unknown as {
+          call: (action: string, id: string) => NetworkClient;
+        }
+      ).call('NetworkController:getNetworkClientById', networkClientId);
 
       if (!networkClient?.provider) {
         return undefined;

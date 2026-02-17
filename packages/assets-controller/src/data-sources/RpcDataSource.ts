@@ -2,7 +2,6 @@ import { Web3Provider } from '@ethersproject/providers';
 import type { GetTokenListState } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -47,7 +46,10 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services';
-import type { AssetsControllerGetStateAction } from '../AssetsController';
+import type {
+  AssetsControllerGetStateAction,
+  AssetsControllerMessenger,
+} from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
@@ -65,6 +67,19 @@ const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
+// Network client returned by NetworkController:getNetworkClientById (minimal shape used here)
+export type NetworkClient = {
+  provider: EthereumProvider;
+  configuration: {
+    chainId: string;
+  };
+};
+
+// Ethereum provider interface
+export type EthereumProvider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+
 // Allowed actions that RpcDataSource can call
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
@@ -78,13 +93,6 @@ export type RpcDataSourceAllowedEvents =
   | NetworkControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent
   | TransactionControllerIncomingTransactionsReceivedEvent;
-
-/** Messenger type for RpcDataSource. */
-export type RpcDataSourceMessenger = Messenger<
-  typeof CONTROLLER_NAME,
-  RpcDataSourceAllowedActions,
-  RpcDataSourceAllowedEvents
->;
 
 /** Network status for each chain */
 export type ChainStatus = {
@@ -111,8 +119,8 @@ export type RpcDataSourceConfig = {
 };
 
 export type RpcDataSourceOptions = {
-  /** The messenger for accessing NetworkController and related actions/events. */
-  messenger: RpcDataSourceMessenger;
+  /** The AssetsController messenger (shared by all data sources). */
+  messenger: AssetsControllerMessenger;
   /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
   onActiveChainsUpdated: (
     dataSourceName: string,
@@ -187,7 +195,7 @@ export class RpcDataSource extends AbstractDataSource<
   typeof CONTROLLER_NAME,
   DataSourceState
 > {
-  readonly #messenger: RpcDataSourceMessenger;
+  readonly #messenger: AssetsControllerMessenger;
 
   readonly #onActiveChainsUpdated: (
     dataSourceName: string,
@@ -270,9 +278,9 @@ export class RpcDataSource extends AbstractDataSource<
 
     const tokenDetectorMessenger = {
       call: (_action: 'TokenListController:getState'): TokenListState => {
-        return this.#messenger.call(
-          'TokenListController:getState',
-        ) as TokenListState;
+        return (
+          this.#messenger as unknown as { call: (a: string) => TokenListState }
+        ).call('TokenListController:getState');
       },
     };
 
@@ -611,7 +619,9 @@ export class RpcDataSource extends AbstractDataSource<
   #initializeFromNetworkController(): void {
     log('Initializing from NetworkController');
     try {
-      const networkState = this.#messenger.call('NetworkController:getState');
+      const networkState = (
+        this.#messenger as unknown as { call: (a: string) => NetworkState }
+      ).call('NetworkController:getState');
       this.#updateFromNetworkState(networkState);
     } catch (error) {
       log('Failed to initialize from NetworkController', error);
@@ -691,7 +701,11 @@ export class RpcDataSource extends AbstractDataSource<
     }
 
     try {
-      const networkClient = this.#messenger.call(
+      const networkClient = (
+        this.#messenger as unknown as {
+          call: (a: string, id: string) => NetworkClient;
+        }
+      ).call(
         'NetworkController:getNetworkClientById',
         chainStatus.networkClientId,
       );
@@ -1252,8 +1266,13 @@ export class RpcDataSource extends AbstractDataSource<
    */
   #getExistingAssetsMetadata(): Record<Caip19AssetId, AssetMetadata> {
     try {
-      const state = this.#messenger.call('AssetsController:getState');
-      return state.assetsInfo ?? {};
+      const state = this.#messenger.call('AssetsController:getState') as {
+        assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
+      };
+      return (state.assetsInfo ?? {}) as unknown as Record<
+        Caip19AssetId,
+        AssetMetadata
+      >;
     } catch {
       // If AssetsController:getState fails, return empty metadata
       return {};
@@ -1279,9 +1298,9 @@ export class RpcDataSource extends AbstractDataSource<
       const { reference } = parseCaipChainId(parsed.chainId);
       const hexChainId = numberToHex(parseInt(reference, 10));
 
-      const tokenListState = this.#messenger.call(
-        'TokenListController:getState',
-      );
+      const tokenListState = (
+        this.#messenger as unknown as { call: (a: string) => TokenListState }
+      ).call('TokenListController:getState');
       const chainCacheEntry = tokenListState?.tokensChainsCache?.[hexChainId];
       const chainTokenList = chainCacheEntry?.data;
 
