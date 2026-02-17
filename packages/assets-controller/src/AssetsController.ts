@@ -30,7 +30,15 @@ import type {
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
+import type {
+  GetPermissions,
+  PermissionControllerStateChange,
+} from '@metamask/permission-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import type {
+  GetRunnableSnaps,
+  HandleSnapRequest,
+} from '@metamask/snaps-controllers';
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
@@ -58,6 +66,7 @@ import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
+import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
@@ -198,24 +207,38 @@ export type AssetsControllerEvents =
   | AssetsControllerAssetsDetectedEvent;
 
 type AllowedActions =
+  // AssetsController
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  // RpcDataSource
   | GetTokenListState
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  // RpcDataSource, StakedBalanceDataSource
   | NetworkEnablementControllerGetStateAction
-  // BackendWebsocketDataSource calls BackendWebSocketService
+  // SnapDataSource
+  | GetRunnableSnaps
+  | HandleSnapRequest
+  | GetPermissions
+  // BackendWebsocketDataSource
   | BackendWebSocketServiceActions;
 
 type AllowedEvents =
+  // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
-  | NetworkControllerStateChangeEvent
-  | NetworkEnablementControllerEvents
-  | BackendWebSocketServiceEvents
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
+  // RpcDataSource, StakedBalanceDataSource
+  | NetworkControllerStateChangeEvent
   | TransactionControllerTransactionConfirmedEvent
-  | TransactionControllerIncomingTransactionsReceivedEvent;
+  | TransactionControllerIncomingTransactionsReceivedEvent
+  // StakedBalanceDataSource
+  | NetworkEnablementControllerEvents
+  // SnapDataSource
+  | AccountsControllerAccountBalancesUpdatedEvent
+  | PermissionControllerStateChange
+  // BackendWebsocketDataSource
+  | BackendWebSocketServiceEvents;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
