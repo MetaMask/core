@@ -37,6 +37,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/claims-controller`](packages/claims-controller)
+- [`@metamask/client-controller`](packages/client-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
@@ -88,7 +89,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
-- [`@metamask/ui-state-controller`](packages/ui-state-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 
 <!-- end package list -->
@@ -116,6 +116,7 @@ linkStyle default opacity:0.5
   build_utils(["@metamask/build-utils"]);
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
   claims_controller(["@metamask/claims-controller"]);
+  client_controller(["@metamask/client-controller"]);
   composable_controller(["@metamask/composable-controller"]);
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
@@ -167,7 +168,6 @@ linkStyle default opacity:0.5
   subscription_controller(["@metamask/subscription-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
-  ui_state_controller(["@metamask/ui-state-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   account_tree_controller --> accounts_controller;
   account_tree_controller --> base_controller;
@@ -197,6 +197,7 @@ linkStyle default opacity:0.5
   approval_controller --> base_controller;
   approval_controller --> messenger;
   assets_controller --> account_tree_controller;
+  assets_controller --> assets_controllers;
   assets_controller --> base_controller;
   assets_controller --> controller_utils;
   assets_controller --> core_backend;
@@ -206,12 +207,13 @@ linkStyle default opacity:0.5
   assets_controller --> network_enablement_controller;
   assets_controller --> permission_controller;
   assets_controller --> polling_controller;
+  assets_controller --> preferences_controller;
+  assets_controller --> transaction_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
-  assets_controllers --> core_backend;
   assets_controllers --> keyring_controller;
   assets_controllers --> messenger;
   assets_controllers --> multichain_account_service;
@@ -253,6 +255,8 @@ linkStyle default opacity:0.5
   claims_controller --> messenger;
   claims_controller --> keyring_controller;
   claims_controller --> profile_sync_controller;
+  client_controller --> base_controller;
+  client_controller --> messenger;
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
@@ -433,7 +437,6 @@ linkStyle default opacity:0.5
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
-  transaction_controller --> core_backend;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> messenger;
   transaction_controller --> network_controller;
@@ -450,8 +453,6 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> remote_feature_flag_controller;
   transaction_pay_controller --> transaction_controller;
-  ui_state_controller --> base_controller;
-  ui_state_controller --> messenger;
   user_operation_controller --> approval_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;
