@@ -627,9 +627,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         return undefined;
       }
 
-      const provider = new Web3Provider(
-        networkClient.provider as ConstructorParameters<typeof Web3Provider>[0],
-      );
+      const provider = new Web3Provider(networkClient.provider);
       this.#providerCache.set(hexChainId, provider);
       return provider;
     } catch (error) {
