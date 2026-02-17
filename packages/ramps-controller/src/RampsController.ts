@@ -1665,11 +1665,14 @@ export class RampsController extends BaseController<
    * If the response contains exactly one quote, it is auto-selected.
    * If multiple quotes are returned, the existing selection is preserved if still valid.
    *
+   * Returns early (no-op) if the selected payment method is not yet set,
+   * allowing callers to invoke this before payment-method selection is finalized.
+   *
    * @param options - Parameters for fetching quotes.
    * @param options.walletAddress - The destination wallet address.
    * @param options.amount - The amount (in fiat for buy, crypto for sell).
    * @param options.redirectUrl - Optional redirect URL after order completion.
-   * @throws If required dependencies (region, token, provider, payment method) are not set.
+   * @throws If required dependencies (region, token, provider) are not set.
    */
   startQuotePolling(options: {
     walletAddress: string;
@@ -1694,9 +1697,7 @@ export class RampsController extends BaseController<
     }
 
     if (!paymentMethod) {
-      throw new Error(
-        'Payment method is required. Cannot start quote polling without a selected payment method.',
-      );
+      return;
     }
 
     // Stop any existing polling first
