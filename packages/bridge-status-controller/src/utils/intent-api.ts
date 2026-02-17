@@ -45,7 +45,7 @@ export class IntentApiImpl implements IntentApi {
   async submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-    jwtToken: string,
+    jwtToken: string | undefined,
   ): Promise<IntentOrder> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
     try {
@@ -74,7 +74,7 @@ export class IntentApiImpl implements IntentApi {
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-    jwtToken: string,
+    jwtToken: string | undefined,
   ): Promise<IntentOrder> {
     const endpoint = `${this.#baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {

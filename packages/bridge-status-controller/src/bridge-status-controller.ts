@@ -894,7 +894,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
   };
 
-  readonly #getJwtToken = async (): Promise<string> => {
+  readonly #getJwtToken = async (): Promise<string | undefined> => {
     try {
       const token = await this.messenger.call(
         'AuthenticationController:getBearerToken',
@@ -902,7 +902,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return token;
     } catch (error) {
       console.error('Error getting JWT token for bridge-api request', error);
-      return '';
+      return undefined;
     }
   };
 

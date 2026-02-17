@@ -49,7 +49,7 @@ export const getClientHeaders = ({
 export async function fetchBridgeTokens(
   chainId: Hex | CaipChainId,
   clientId: string,
-  jwtToken: string,
+  jwtToken: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
   clientVersion?: string,
@@ -131,7 +131,7 @@ export async function fetchBridgeQuotes(
   request: GenericQuoteRequest,
   signal: AbortSignal | null,
   clientId: string,
-  jwtToken: string,
+  jwtToken: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
   featureId: FeatureId | null,
@@ -303,7 +303,7 @@ export async function fetchBridgeQuoteStream(
   request: GenericQuoteRequest,
   signal: AbortSignal | undefined,
   clientId: string,
-  jwtToken: string,
+  jwtToken: string | undefined,
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
     onClose: () => void | Promise<void>;

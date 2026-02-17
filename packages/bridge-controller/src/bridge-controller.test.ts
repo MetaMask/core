@@ -1381,7 +1381,7 @@ describe('BridgeController', function () {
     );
   });
 
-  it('updateBridgeQuoteRequestParams should include empty string as Authentication header if getBearerToken throws an error', async function () {
+  it('updateBridgeQuoteRequestParams should include undefined Authentication header if getBearerToken throws an error', async function () {
     jest.useFakeTimers();
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
     messengerMock.call.mockImplementation(
@@ -1438,7 +1438,7 @@ describe('BridgeController', function () {
     await advanceToNthTimerThenFlush();
 
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
-    expect(fetchBridgeQuotesSpy.mock.calls[0][3]).toBe('');
+    expect(fetchBridgeQuotesSpy.mock.calls[0][3]).toBeUndefined();
   });
 
   it('updateBridgeQuoteRequestParams should include auth token as Authentication header', async function () {
@@ -2757,6 +2757,7 @@ describe('BridgeController', function () {
         UnifiedSwapBridgeEventName.StatusValidationFailed,
         {
           failures: ['Failed to submit tx'],
+          refresh_count: 0,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);

@@ -180,6 +180,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
         "Failed to submit tx",
       ],
       "location": "Main View",
+      "refresh_count": 0,
     },
   ],
 ]

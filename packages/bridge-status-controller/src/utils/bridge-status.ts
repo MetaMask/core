@@ -39,7 +39,7 @@ export const getStatusRequestDto = (
 export const fetchBridgeTxStatus = async (
   statusRequest: StatusRequestWithSrcTxHash,
   clientId: string,
-  jwtToken: string,
+  jwtToken: string | undefined,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
 ): Promise<{ status: StatusResponse; validationFailures: string[] }> => {
