@@ -13,9 +13,12 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { RELAY_POLLING_INTERVAL, RELAY_STATUS_URL } from './constants';
+import {
+  RELAY_DEPOSIT_TYPES,
+  RELAY_POLLING_INTERVAL,
+  RELAY_STATUS_URL,
+} from './constants';
 import type { RelayQuote, RelayStatusResponse } from './types';
-import { RELAY_DEPOSIT_TYPES } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,

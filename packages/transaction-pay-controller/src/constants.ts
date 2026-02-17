@@ -1,4 +1,3 @@
-import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
@@ -31,11 +30,6 @@ export const STABLECOINS: Record<Hex, Hex[]> = {
   ],
   [CHAIN_ID_POLYGON]: [POLYGON_USDCE_ADDRESS.toLowerCase() as Hex],
   [CHAIN_ID_HYPERCORE]: ['0x00000000000000000000000000000000'], // USDC
-};
-
-export const RELAY_DEPOSIT_TYPES: Record<string, TransactionType> = {
-  [TransactionType.predictDeposit]: TransactionType.predictRelayDeposit,
-  [TransactionType.perpsDeposit]: TransactionType.perpsRelayDeposit,
 };
 
 export enum TransactionPayStrategy {
