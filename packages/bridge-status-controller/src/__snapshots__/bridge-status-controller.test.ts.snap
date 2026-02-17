@@ -160,6 +160,9 @@ exports[`BridgeStatusController constructor should setup correctly 1`] = `
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 [
   [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -333,6 +336,9 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
 
 exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
 [
+  [
+    "AuthenticationController:getBearerToken",
+  ],
   [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
@@ -4796,7 +4802,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for completed bridge tx with featureId 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for completed bridge tx with featureId 2`] = `
 {
   "bridge": "across",
   "destChain": {
@@ -4837,7 +4843,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for failed bridge tx with featureId 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for failed bridge tx with featureId 2`] = `
 {
   "bridge": "debridge",
   "destChain": {
@@ -5159,6 +5165,34 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 
 exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
 [
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+  ],
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount2",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+  ],
   [
     "NetworkController:getState",
   ],

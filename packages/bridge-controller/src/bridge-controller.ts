@@ -333,12 +333,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * This method does not start polling for quotes and does not emit UnifiedSwapBridge events
    *
    * @param quoteRequest - The parameters for quote requests to fetch
+   * @param jwtToken - The JWT token for authentication
    * @param abortSignal - The abort signal to cancel all the requests
    * @param featureId - The feature ID that maps to quoteParam overrides from LD
    * @returns A list of validated quotes
    */
   fetchQuotes = async (
     quoteRequest: GenericQuoteRequest,
+    jwtToken: string,
     abortSignal: AbortSignal | null = null,
     featureId: FeatureId | null = null,
   ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
@@ -356,6 +358,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         : { ...quoteRequest, resetApproval },
       abortSignal,
       this.#clientId,
+      jwtToken,
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       featureId,
@@ -605,6 +608,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
 
+    const jwtToken = await this.#getJwtToken();
+
     try {
       await this.#trace(
         {
@@ -633,6 +638,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           if (shouldStream) {
             await this.#handleQuoteStreaming(
               updatedQuoteRequest,
+              jwtToken,
               selectedAccount,
             );
             return;
@@ -640,6 +646,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // Otherwise use regular fetch
           const quotes = await this.fetchQuotes(
             updatedQuoteRequest,
+            jwtToken,
             this.#abortController?.signal,
           );
           this.update((state) => {
@@ -719,6 +726,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #handleQuoteStreaming = async (
     updatedQuoteRequest: GenericQuoteRequest,
+    jwtToken: string,
     selectedAccount?: InternalAccount,
   ) => {
     /**
@@ -737,6 +745,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       updatedQuoteRequest,
       this.#abortController?.signal,
       this.#clientId,
+      jwtToken,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       {
         onValidationFailure: this.#trackResponseValidationFailures,
@@ -843,6 +852,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
     return networkClient;
   }
+
+  readonly #getJwtToken = async (): Promise<string> => {
+    try {
+      const token = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      return token;
+    } catch (error) {
+      console.error('Error getting JWT token for bridge-api request', error);
+      return '';
+    }
+  };
 
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
