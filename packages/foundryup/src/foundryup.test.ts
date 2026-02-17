@@ -238,7 +238,7 @@ describe('foundryup', () => {
         Architecture.Amd64,
       );
       await expect(result).rejects.toThrow(
-        'Request to https://example.com/binaries.zip failed. Status Code: 500 - null',
+        'Request to https://example.com/binaries.zip failed. Status Code: 500 - Internal Server Error',
       );
     });
   });

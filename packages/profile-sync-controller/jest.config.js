@@ -32,5 +32,5 @@ module.exports = merge(baseConfig, {
   ],
 
   // These tests rely on the Crypto API
-  testEnvironment: '<rootDir>/jest.environment.js',
+  testEnvironment: '../../tests/jest-environment-jsdom.js',
 });

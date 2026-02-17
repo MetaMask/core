@@ -577,9 +577,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
         }),
         failure: error,
         isRetriableFailure: true,
-        getExpectedError: (url: string) =>
+        getExpectedError: () =>
           expect.objectContaining({
-            message: `request to ${url} failed, reason: ${errorCode}`,
+            message: expect.stringContaining(errorCode),
           }),
       });
     },
@@ -759,9 +759,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
       }),
       failure: error,
       isRetriableFailure: true,
-      getExpectedError: (url: string) =>
+      getExpectedError: () =>
         expect.objectContaining({
-          message: `request to ${url} failed, reason: ${error.message}`,
+          message: expect.stringContaining(error.message),
         }),
     });
   });

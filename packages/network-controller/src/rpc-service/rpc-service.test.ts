@@ -594,9 +594,7 @@ describe('RpcService', () => {
             code: -32700,
             message: 'RPC endpoint did not return JSON.',
           }),
-          expectedOnBreakError: expect.objectContaining({
-            message: expect.stringContaining('invalid json'),
-          }),
+          expectedOnBreakError: expect.any(SyntaxError),
         });
       },
     );

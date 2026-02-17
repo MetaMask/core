@@ -15,8 +15,7 @@ module.exports = merge(baseConfig, {
   displayName,
 
   // Use jsdom for BackendWebSocketService tests
-  testEnvironment: 'jsdom',
-  testEnvironmentOptions: {},
+  testEnvironment: '../../tests/jest-environment-jsdom.js',
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
