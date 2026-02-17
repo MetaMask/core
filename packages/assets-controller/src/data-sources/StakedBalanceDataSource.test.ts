@@ -1,8 +1,14 @@
-import { defaultAbiCoder } from '@ethersproject/abi';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { TransactionStatus } from '@metamask/transaction-controller';
 
 import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './StakedBalanceDataSource';
+import {
+  MockRootMessenger,
+  createMockAssetControllerMessenger,
+  createMockWeb3Provider,
+  registerStakedMessengerActions,
+} from '../__fixtures__/MockAssetControllerMessenger';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import type {
   AssetsControllerStateInternal,
@@ -10,42 +16,6 @@ import type {
   Context,
   DataRequest,
 } from '../types';
-
-function createMockProvider(options: {
-  sharesWei?: string;
-  assetsWei?: string;
-}): { call: jest.Mock } {
-  const { sharesWei = '0', assetsWei = '0' } = options;
-  let callCount = 0;
-  return {
-    call: jest.fn().mockImplementation(async () => {
-      callCount += 1;
-      if (callCount === 1) {
-        return defaultAbiCoder.encode(['uint256'], [sharesWei]);
-      }
-      return defaultAbiCoder.encode(['uint256'], [assetsWei]);
-    }),
-  };
-}
-
-jest.mock('@ethersproject/providers', () => {
-  const actual = jest.requireActual('@ethersproject/providers');
-  return {
-    ...actual,
-    Web3Provider: jest.fn().mockImplementation(
-      (provider: {
-        call?: jest.Mock;
-      }): {
-        call: (params: unknown) => Promise<string>;
-      } => ({
-        call: (params: unknown) =>
-          provider?.call
-            ? Promise.resolve(provider.call(params))
-            : Promise.resolve('0x0'),
-      }),
-    ),
-  };
-});
 
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MAINNET_CHAIN_ID_CAIP = 'eip155:1' as ChainId;
@@ -109,21 +79,10 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   };
 }
 
-type MockMessenger = {
-  subscribe: jest.Mock;
-  call: jest.Mock;
-  publish: (event: string, ...args: unknown[]) => void;
-  getSubscribeHandlers: () => Map<string, (payload: unknown) => void>;
-};
-
-type NetworkEnablementState = {
-  enabledNetworkMap: Record<string, Record<string, boolean>>;
-};
-
 type WithControllerOptions = {
   options?: Partial<StakedBalanceDataSourceOptions>;
   enabledNetworkMap?: Record<string, Record<string, boolean>>;
-  mockProvider?: ReturnType<typeof createMockProvider>;
+  mockProvider?: ReturnType<typeof createMockWeb3Provider>;
 };
 
 type WithControllerCallback<ReturnValue> = ({
@@ -133,71 +92,18 @@ type WithControllerCallback<ReturnValue> = ({
   mockProvider,
 }: {
   controller: StakedBalanceDataSource;
-  messenger: MockMessenger;
+  messenger: AssetsControllerMessenger;
+  mockMessengerCall: jest.SpyInstance;
+  mockMessengerSubscribe: jest.SpyInstance;
+  mockMessengerUnsubscribe: jest.SpyInstance;
+  rootMessenger: MockRootMessenger;
   onActiveChainsUpdated: (
     dataSourceName: string,
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
-  mockProvider: ReturnType<typeof createMockProvider>;
+  mockProvider: ReturnType<typeof createMockWeb3Provider>;
 }) => Promise<ReturnValue> | ReturnValue;
-
-function createMockMessenger(
-  mockProvider?: ReturnType<typeof createMockProvider>,
-): MockMessenger {
-  const subscribeHandlers: Map<string, (payload: unknown) => void> = new Map();
-  const provider = mockProvider ?? createMockProvider({});
-
-  const messenger = {
-    subscribe: jest
-      .fn()
-      .mockImplementation((event: string, handler: (p: unknown) => void) => {
-        subscribeHandlers.set(event, handler);
-        return jest.fn(() => subscribeHandlers.delete(event));
-      }),
-    call: jest.fn().mockImplementation((action: string, id?: string) => {
-      if (action === 'NetworkEnablementController:getState') {
-        return {
-          enabledNetworkMap: {
-            eip155: { [MAINNET_CHAIN_ID_HEX]: true },
-          },
-        } as NetworkEnablementState;
-      }
-      if (action === 'NetworkController:getState') {
-        return {
-          networkConfigurationsByChainId: {
-            [MAINNET_CHAIN_ID_HEX]: {
-              chainId: MAINNET_CHAIN_ID_HEX,
-              rpcEndpoints: [{ networkClientId: 'mainnet' }],
-              defaultRpcEndpointIndex: 0,
-            },
-          },
-          networksMetadata: {},
-        };
-      }
-      if (
-        action === 'NetworkController:getNetworkClientById' &&
-        id === 'mainnet'
-      ) {
-        return {
-          provider,
-          configuration: { chainId: MAINNET_CHAIN_ID_HEX },
-        };
-      }
-      return undefined;
-    }),
-    publish: (event: string, ...args: unknown[]): void => {
-      const handler = subscribeHandlers.get(event);
-      if (handler) {
-        handler(args[0]);
-      }
-    },
-    getSubscribeHandlers: (): Map<string, (payload: unknown) => void> =>
-      subscribeHandlers,
-  };
-
-  return messenger;
-}
 
 async function withController<ReturnValue>(
   ...args:
@@ -208,40 +114,33 @@ async function withController<ReturnValue>(
   const {
     options = {},
     enabledNetworkMap = { eip155: { [MAINNET_CHAIN_ID_HEX]: true } },
-    mockProvider = createMockProvider({
+    mockProvider = createMockWeb3Provider({
       sharesWei: '1000000000000000000',
       assetsWei: '1500000000000000000',
     }),
   } = controllerOptions;
 
-  const messenger = createMockMessenger(mockProvider);
-  messenger.call.mockImplementation((action: string, id?: string) => {
-    if (action === 'NetworkEnablementController:getState') {
-      return { enabledNetworkMap };
-    }
-    if (action === 'NetworkController:getState') {
-      return {
-        networkConfigurationsByChainId: {
-          [MAINNET_CHAIN_ID_HEX]: {
-            chainId: MAINNET_CHAIN_ID_HEX,
-            rpcEndpoints: [{ networkClientId: 'mainnet' }],
-            defaultRpcEndpointIndex: 0,
-          },
-        },
-        networksMetadata: {},
-      };
-    }
-    if (
-      action === 'NetworkController:getNetworkClientById' &&
-      id === 'mainnet'
-    ) {
-      return {
-        provider: mockProvider,
-        configuration: { chainId: MAINNET_CHAIN_ID_HEX },
-      };
-    }
-    return undefined;
+  const { assetsControllerMessenger, rootMessenger } =
+    createMockAssetControllerMessenger();
+  registerStakedMessengerActions(rootMessenger, {
+    enabledNetworkMap,
+    mockProvider,
   });
+
+  // spy on staked messenger calls, so we can inspect and assert
+  const mockStakedMessengerCall = jest.spyOn(assetsControllerMessenger, 'call');
+
+  // spy on staked messenger subscriptions, so we can inspect and assert
+  const mockStakedMessengerSubscribe = jest.spyOn(
+    assetsControllerMessenger,
+    'subscribe',
+  );
+
+  // spy on staked messenger unsubscribe, so we can inspect and assert
+  const mockStakedMessengerUnsubscribe = jest.spyOn(
+    assetsControllerMessenger,
+    'clearEventSubscriptions',
+  );
 
   const onActiveChainsUpdated =
     (
@@ -250,20 +149,23 @@ async function withController<ReturnValue>(
       }
     ).onActiveChainsUpdated ?? jest.fn();
 
-  const messengerForController =
-    messenger as unknown as AssetsControllerMessenger;
   const controller = new StakedBalanceDataSource({
-    messenger: messengerForController,
+    messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
     ...options,
+    pollInterval: 1000,
   });
 
   try {
     return await fn({
       controller,
-      messenger,
+      messenger: assetsControllerMessenger,
+      mockMessengerCall: mockStakedMessengerCall,
+      mockMessengerSubscribe: mockStakedMessengerSubscribe,
+      mockMessengerUnsubscribe: mockStakedMessengerUnsubscribe,
       onActiveChainsUpdated,
       mockProvider,
+      rootMessenger,
     });
   } finally {
     controller.destroy();
@@ -313,20 +215,20 @@ describe('StakedBalanceDataSource', () => {
     });
 
     it('subscribes to transaction and network events', async () => {
-      await withController(({ messenger }) => {
-        expect(messenger.subscribe).toHaveBeenCalledWith(
+      await withController(({ mockMessengerSubscribe }) => {
+        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
           'TransactionController:transactionConfirmed',
           expect.any(Function),
         );
-        expect(messenger.subscribe).toHaveBeenCalledWith(
+        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
           'TransactionController:incomingTransactionsReceived',
           expect.any(Function),
         );
-        expect(messenger.subscribe).toHaveBeenCalledWith(
+        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
           'NetworkController:stateChange',
           expect.any(Function),
         );
-        expect(messenger.subscribe).toHaveBeenCalledWith(
+        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
           'NetworkEnablementController:stateChange',
           expect.any(Function),
         );
@@ -401,32 +303,35 @@ describe('StakedBalanceDataSource', () => {
     });
 
     it('returns staked balance and metadata for mainnet when fetcher returns data', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const account = createMockInternalAccount();
-        const request = createDataRequest({
-          accounts: [account],
-          chainIds: [MAINNET_CHAIN_ID_CAIP],
-          accountsWithSupportedChains: [
-            { account, supportedChains: [MAINNET_CHAIN_ID_CAIP] },
-          ],
-        });
-        const response = await controller.fetch(request);
-        expect(messenger.call).toHaveBeenCalledWith(
-          'NetworkController:getNetworkClientById',
-          'mainnet',
-        );
-        expect(response).toBeDefined();
-        expect(messenger.call).toHaveBeenCalledWith(
-          'NetworkController:getNetworkClientById',
-          'mainnet',
-        );
-      });
+      await withController(
+        async ({ controller, mockMessengerCall: mockMessengerCalls }) => {
+          const account = createMockInternalAccount();
+          const request = createDataRequest({
+            accounts: [account],
+            chainIds: [MAINNET_CHAIN_ID_CAIP],
+            accountsWithSupportedChains: [
+              { account, supportedChains: [MAINNET_CHAIN_ID_CAIP] },
+            ],
+          });
+
+          const response = await controller.fetch(request);
+          expect(response).toBeDefined();
+
+          expect(mockMessengerCalls).toHaveBeenCalledWith(
+            'NetworkController:getNetworkClientById',
+            'mainnet',
+          );
+        },
+      );
     });
 
     it('returns zero amount when getShares returns zero', async () => {
       await withController(
         {
-          mockProvider: createMockProvider({ sharesWei: '0', assetsWei: '0' }),
+          mockProvider: createMockWeb3Provider({
+            sharesWei: '0',
+            assetsWei: '0',
+          }),
         },
         async ({ controller }) => {
           const account = createMockInternalAccount();
@@ -501,126 +406,147 @@ describe('StakedBalanceDataSource', () => {
   });
 
   describe('transaction events', () => {
+    const arrange = async (props: {
+      controller: StakedBalanceDataSource;
+    }): Promise<jest.Mock> => {
+      // subscribe and wait ensure polling finishes before we start test
+      const onAssetsUpdate = jest.fn();
+      await props.controller.subscribe({
+        request: createDataRequest(),
+        subscriptionId: 'test-sub',
+        isUpdate: false,
+        onAssetsUpdate,
+        getAssetsState: getMockAssetsState,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      onAssetsUpdate.mockClear();
+
+      return onAssetsUpdate;
+    };
+
     it('refreshes staked balance when transactionConfirmed involves staking contract (to)', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const onAssetsUpdate = jest.fn();
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
-        });
-        onAssetsUpdate.mockClear();
-        (messenger.publish as (e: string, p: unknown) => void)(
-          'TransactionController:transactionConfirmed',
-          {
-            chainId: MAINNET_CHAIN_ID_HEX,
-            txParams: { to: STAKING_CONTRACT_MAINNET },
+      await withController(async ({ controller, rootMessenger }) => {
+        // Arrange
+        const onAssetsUpdate = await arrange({ controller });
+
+        // Act
+        rootMessenger.publish('TransactionController:transactionConfirmed', {
+          id: '1',
+          networkClientId: 'mainnet',
+          status: TransactionStatus.confirmed,
+          time: Date.now(),
+          chainId: MAINNET_CHAIN_ID_HEX,
+          txParams: {
+            to: STAKING_CONTRACT_MAINNET,
+            from: '0x0000000000000000000000000000000000000000',
           },
-        );
+        });
+
+        // Assert
         await new Promise((resolve) => setTimeout(resolve, 300));
-        expect(onAssetsUpdate.mock.calls.length).toBeGreaterThanOrEqual(0);
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
       });
     });
 
     it('does not refresh when transactionConfirmed does not involve staking contract', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const onAssetsUpdate = jest.fn();
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
-        });
-        onAssetsUpdate.mockClear();
-        (messenger.publish as (e: string, p: unknown) => void)(
-          'TransactionController:transactionConfirmed',
-          {
-            chainId: MAINNET_CHAIN_ID_HEX,
-            txParams: {
-              from: '0xabcdef1234567890abcdef1234567890abcdef12',
-              to: '0x1234567890123456789012345678901234567890',
-            },
+      await withController(async ({ controller, rootMessenger }) => {
+        // Arrange
+        const onAssetsUpdate = await arrange({ controller });
+
+        // Act
+        rootMessenger.publish('TransactionController:transactionConfirmed', {
+          id: '1',
+          networkClientId: 'mainnet',
+          status: TransactionStatus.confirmed,
+          time: Date.now(),
+          chainId: MAINNET_CHAIN_ID_HEX,
+          txParams: {
+            from: '0xabcdef1234567890abcdef1234567890abcdef12',
+            to: '0x1234567890123456789012345678901234567890',
           },
-        );
+        });
+
+        // Assert
         await new Promise((resolve) => setTimeout(resolve, 50));
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
     });
 
     it('refreshes when transactionConfirmed has from equal to staking contract', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const onAssetsUpdate = jest.fn();
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
+      await withController(async ({ controller, rootMessenger }) => {
+        // Arrange
+        const onAssetsUpdate = await arrange({ controller });
+
+        // Act
+        rootMessenger.publish('TransactionController:transactionConfirmed', {
+          id: '1',
+          networkClientId: 'mainnet',
+          status: TransactionStatus.confirmed,
+          time: Date.now(),
+          chainId: MAINNET_CHAIN_ID_HEX,
+          txParams: { from: STAKING_CONTRACT_MAINNET.toLowerCase() },
         });
-        onAssetsUpdate.mockClear();
-        (messenger.publish as (e: string, p: unknown) => void)(
-          'TransactionController:transactionConfirmed',
-          {
-            chainId: MAINNET_CHAIN_ID_HEX,
-            txParams: { from: STAKING_CONTRACT_MAINNET.toLowerCase() },
-          },
-        );
+
+        // Assert
         await new Promise((resolve) => setTimeout(resolve, 300));
-        expect(onAssetsUpdate.mock.calls.length).toBeGreaterThanOrEqual(0);
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
       });
     });
 
     it('refreshes when incomingTransactionsReceived includes tx involving staking contract', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const onAssetsUpdate = jest.fn();
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
-        });
-        onAssetsUpdate.mockClear();
-        (messenger.publish as (e: string, p: unknown) => void)(
-          'TransactionController:incomingTransactionsReceived',
-          [
-            {
-              chainId: MAINNET_CHAIN_ID_HEX,
-              txParams: { to: STAKING_CONTRACT_MAINNET },
-            },
-          ],
-        );
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        expect(onAssetsUpdate.mock.calls.length).toBeGreaterThanOrEqual(0);
-      });
-    });
+      await withController(async ({ controller, rootMessenger }) => {
+        // Arrange
+        const onAssetsUpdate = await arrange({ controller });
 
-    it('does not refresh when incomingTransactionsReceived has no tx involving staking contract', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const onAssetsUpdate = jest.fn();
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate,
-          getAssetsState: getMockAssetsState,
-        });
-        onAssetsUpdate.mockClear();
-        (messenger.publish as (e: string, p: unknown) => void)(
+        // Act
+        rootMessenger.publish(
           'TransactionController:incomingTransactionsReceived',
           [
             {
+              id: '1',
+              networkClientId: 'mainnet',
+              status: TransactionStatus.confirmed,
+              time: Date.now(),
               chainId: MAINNET_CHAIN_ID_HEX,
               txParams: {
-                to: '0x1234567890123456789012345678901234567890',
+                to: STAKING_CONTRACT_MAINNET,
+                from: '0x0000000000000000000000000000000000000000',
               },
             },
           ],
         );
-        await new Promise((resolve) => setTimeout(resolve, 50));
+
+        // Assert
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not refresh when incomingTransactionsReceived has no tx involving staking contract', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        // Arrange
+        const onAssetsUpdate = await arrange({ controller });
+
+        // Act
+        rootMessenger.publish(
+          'TransactionController:incomingTransactionsReceived',
+          [
+            {
+              id: '1',
+              networkClientId: 'mainnet',
+              status: TransactionStatus.confirmed,
+              time: Date.now(),
+              chainId: MAINNET_CHAIN_ID_HEX,
+              txParams: {
+                to: '0x1234567890123456789012345678901234567890',
+                from: '0x0000000000000000000000000000000000000000',
+              },
+            },
+          ],
+        );
+
+        // Assert
+        await new Promise((resolve) => setTimeout(resolve, 100));
         expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
     });
@@ -696,39 +622,25 @@ describe('StakedBalanceDataSource', () => {
 
   describe('destroy', () => {
     it('unsubscribes from transaction and network events', async () => {
-      const unsubscribeConfirmed = jest.fn();
-      const unsubscribeIncoming = jest.fn();
-      const unsubscribeNetwork = jest.fn();
-      const unsubscribeEnablement = jest.fn();
-      const messenger = createMockMessenger(createMockProvider({}));
-      messenger.subscribe.mockImplementation((event: string) => {
-        if (event === 'TransactionController:transactionConfirmed') {
-          return unsubscribeConfirmed;
-        }
-        if (event === 'TransactionController:incomingTransactionsReceived') {
-          return unsubscribeIncoming;
-        }
-        if (event === 'NetworkController:stateChange') {
-          return unsubscribeNetwork;
-        }
-        if (event === 'NetworkEnablementController:stateChange') {
-          return unsubscribeEnablement;
-        }
-        return jest.fn();
-      });
+      await withController(async ({ controller, mockMessengerUnsubscribe }) => {
+        // Act
+        controller.destroy();
 
-      const messengerForController =
-        messenger as unknown as AssetsControllerMessenger;
-      const controller = new StakedBalanceDataSource({
-        messenger: messengerForController,
-        onActiveChainsUpdated: jest.fn(),
+        // Assert
+        expect(mockMessengerUnsubscribe).toHaveBeenCalledWith(
+          'TransactionController:transactionConfirmed',
+        );
+        expect(mockMessengerUnsubscribe).toHaveBeenCalledWith(
+          'TransactionController:incomingTransactionsReceived',
+        );
+        expect(mockMessengerUnsubscribe).toHaveBeenCalled();
+        expect(mockMessengerUnsubscribe).toHaveBeenCalledWith(
+          'NetworkController:stateChange',
+        );
+        expect(mockMessengerUnsubscribe).toHaveBeenCalledWith(
+          'NetworkEnablementController:stateChange',
+        );
       });
-      controller.destroy();
-
-      expect(unsubscribeConfirmed).toHaveBeenCalled();
-      expect(unsubscribeIncoming).toHaveBeenCalled();
-      expect(unsubscribeNetwork).toHaveBeenCalled();
-      expect(unsubscribeEnablement).toHaveBeenCalled();
     });
   });
 });

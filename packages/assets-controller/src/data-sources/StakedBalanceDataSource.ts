@@ -194,48 +194,28 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       this.#handleStakedBalanceUpdate.bind(this),
     );
 
-    const unsubConfirmed = this.#messenger.subscribe(
+    this.#messenger.subscribe(
       'TransactionController:transactionConfirmed',
       this.#onTransactionConfirmed.bind(this),
     );
-    this.#unsubscribeTransactionConfirmed =
-      typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
 
-    const unsubIncoming = this.#messenger.subscribe(
+    this.#messenger.subscribe(
       'TransactionController:incomingTransactionsReceived',
       this.#onIncomingTransactions.bind(this),
     );
-    this.#unsubscribeIncomingTransactions =
-      typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
 
-    const unsubNetwork = this.#messenger.subscribe(
+    this.#messenger.subscribe(
       'NetworkController:stateChange',
       this.#onNetworkStateChange.bind(this),
     );
-    this.#unsubscribeNetworkStateChange =
-      typeof unsubNetwork === 'function' ? unsubNetwork : undefined;
 
-    const unsubEnablement = this.#messenger.subscribe(
+    this.#messenger.subscribe(
       'NetworkEnablementController:stateChange',
       this.#onNetworkEnablementControllerStateChange.bind(this),
     );
-    this.#unsubscribeNetworkEnablementControllerStateChange =
-      typeof unsubEnablement === 'function' ? unsubEnablement : undefined;
 
     this.#initializeActiveChains();
   }
-
-  readonly #unsubscribeTransactionConfirmed: (() => void) | undefined =
-    undefined;
-
-  readonly #unsubscribeIncomingTransactions: (() => void) | undefined =
-    undefined;
-
-  readonly #unsubscribeNetworkStateChange: (() => void) | undefined = undefined;
-
-  readonly #unsubscribeNetworkEnablementControllerStateChange:
-    | (() => void)
-    | undefined = undefined;
 
   /**
    * When NetworkController state changes (e.g. RPC endpoints or network clients
@@ -919,10 +899,17 @@ export class StakedBalanceDataSource extends AbstractDataSource<
    * Destroy the data source and clean up all resources.
    */
   destroy(): void {
-    this.#unsubscribeTransactionConfirmed?.();
-    this.#unsubscribeIncomingTransactions?.();
-    this.#unsubscribeNetworkStateChange?.();
-    this.#unsubscribeNetworkEnablementControllerStateChange?.();
+    this.#messenger.clearEventSubscriptions(
+      'TransactionController:transactionConfirmed',
+    );
+    this.#messenger.clearEventSubscriptions(
+      'TransactionController:incomingTransactionsReceived',
+    );
+    this.#messenger.clearEventSubscriptions('NetworkController:stateChange');
+    this.#messenger.clearEventSubscriptions(
+      'NetworkEnablementController:stateChange',
+    );
+
     for (const subscription of this.#activeSubscriptions.values()) {
       for (const token of subscription.pollingTokens) {
         this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
