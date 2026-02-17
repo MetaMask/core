@@ -1255,10 +1255,7 @@ export class RpcDataSource extends AbstractDataSource<
       const state = this.#messenger.call('AssetsController:getState') as {
         assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
       };
-      return (state.assetsInfo ?? {}) as unknown as Record<
-        Caip19AssetId,
-        AssetMetadata
-      >;
+      return state.assetsInfo ?? {};
     } catch {
       // If AssetsController:getState fails, return empty metadata
       return {};
