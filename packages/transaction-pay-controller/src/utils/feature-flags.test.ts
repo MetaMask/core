@@ -44,6 +44,7 @@ describe('Feature Flags Utils', () => {
       const featureFlags = getFeatureFlags(messenger);
 
       expect(featureFlags).toStrictEqual({
+        metaMaskFee: undefined,
         relayDisabledGasStationChains: [],
         relayFallbackGas: {
           estimate: DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
@@ -74,6 +75,7 @@ describe('Feature Flags Utils', () => {
       const featureFlags = getFeatureFlags(messenger);
 
       expect(featureFlags).toStrictEqual({
+        metaMaskFee: undefined,
         relayDisabledGasStationChains: RELAY_GAS_STATION_DISABLED_CHAINS_MOCK,
         relayFallbackGas: {
           estimate: GAS_FALLBACK_ESTIMATE_MOCK,
@@ -82,6 +84,60 @@ describe('Feature Flags Utils', () => {
         relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
         slippage: SLIPPAGE_MOCK,
       });
+    });
+
+    it('returns metaMaskFee when both recipient and fee are set', () => {
+      const metaMaskFee = {
+        recipient: '0xfee0000000000000000000000000000000000001',
+        fee: '100',
+      };
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            metaMaskFee,
+          },
+        },
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags.metaMaskFee).toStrictEqual(metaMaskFee);
+    });
+
+    it('returns undefined metaMaskFee when only recipient is set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            metaMaskFee: {
+              recipient: '0xfee0000000000000000000000000000000000001',
+            },
+          },
+        },
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags.metaMaskFee).toBeUndefined();
+    });
+
+    it('returns undefined metaMaskFee when only fee is set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            metaMaskFee: {
+              fee: '100',
+            },
+          },
+        },
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags.metaMaskFee).toBeUndefined();
     });
   });
 

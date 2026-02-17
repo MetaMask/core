@@ -624,6 +624,56 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('includes appFees in request when metaMaskFee feature flag is set', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const metaMaskFee = {
+        recipient: '0xfee0000000000000000000000000000000000001',
+        fee: '100',
+      };
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            metaMaskFee,
+          },
+        },
+      });
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.appFees).toStrictEqual([metaMaskFee]);
+    });
+
+    it('does not include appFees when metaMaskFee feature flag is not set', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.appFees).toBeUndefined();
+    });
+
     it('ignores gas fee token requests (target=0 and source=0)', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,

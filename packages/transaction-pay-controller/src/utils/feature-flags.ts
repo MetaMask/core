@@ -24,6 +24,10 @@ type FeatureFlagsRaw = {
       }
     >;
   };
+  metaMaskFee?: {
+    recipient?: Hex;
+    fee?: string;
+  };
   relayDisabledGasStationChains?: Hex[];
   relayFallbackGas?: {
     estimate?: number;
@@ -35,6 +39,10 @@ type FeatureFlagsRaw = {
 };
 
 export type FeatureFlags = {
+  metaMaskFee?: {
+    recipient: Hex;
+    fee: string;
+  };
   relayDisabledGasStationChains: Hex[];
   relayFallbackGas: {
     estimate: number;
@@ -69,7 +77,14 @@ export function getFeatureFlags(
 
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
 
-  const result = {
+  const { metaMaskFee: rawFee } = featureFlags;
+  const metaMaskFee =
+    rawFee?.recipient && rawFee?.fee
+      ? { recipient: rawFee.recipient, fee: rawFee.fee }
+      : undefined;
+
+  const result: FeatureFlags = {
+    metaMaskFee,
     relayDisabledGasStationChains,
     relayFallbackGas: {
       estimate,

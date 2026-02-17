@@ -124,8 +124,13 @@ async function getSingleQuote(
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
 
+    const featureFlags = getFeatureFlags(messenger);
+
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
+      ...(featureFlags.metaMaskFee && {
+        appFees: [featureFlags.metaMaskFee],
+      }),
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
@@ -142,7 +147,7 @@ async function getSingleQuote(
       await processTransactions(transaction, request, body, messenger);
     }
 
-    const url = getFeatureFlags(messenger).relayQuoteUrl;
+    const url = featureFlags.relayQuoteUrl;
 
     log('Request body', { body, url });
 

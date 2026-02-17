@@ -2,6 +2,10 @@ import type { Hex } from '@metamask/utils';
 
 export type RelayQuoteRequest = {
   amount: string;
+  appFees?: {
+    recipient: Hex;
+    fee: string;
+  }[];
   authorizationList?: {
     address: Hex;
     chainId: number;
