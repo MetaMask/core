@@ -41,6 +41,7 @@ import mockBridgeQuotesErc20Native from '../tests/mock-quotes-erc20-native.json'
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
 import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import mockBridgeQuotesSolErc20 from '../tests/mock-quotes-sol-erc20.json';
+import { advanceToNthTimerThenFlush } from '../tests/mock-sse';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
@@ -1380,6 +1381,124 @@ describe('BridgeController', function () {
     );
   });
 
+  it('updateBridgeQuoteRequestParams should include empty string as Authentication header if getBearerToken throws an error', async function () {
+    jest.useFakeTimers();
+    const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+    messengerMock.call.mockImplementation(
+      (...args: Parameters<BridgeControllerMessenger['call']>) => {
+        switch (args[0]) {
+          case 'AuthenticationController:getBearerToken':
+            throw new Error(
+              'AuthenticationController:getBearerToken not implemented',
+            );
+          default:
+            return {
+              address: '0x123',
+              provider: jest.fn(),
+              currentCurrency: 'usd',
+              currencyRates: {},
+              marketData: {},
+              conversionRates: {},
+            } as never;
+        }
+      },
+    );
+    jest
+      .spyOn(selectors, 'selectIsAssetExchangeRateInState')
+      .mockReturnValue(true);
+
+    const fetchBridgeQuotesSpy = jest
+      .spyOn(fetchUtils, 'fetchBridgeQuotes')
+      .mockImplementationOnce(async () => {
+        return await new Promise((resolve) => {
+          return setTimeout(() => {
+            resolve({
+              quotes: mockBridgeQuotesNativeErc20Eth as never,
+              validationFailures: [],
+            });
+          }, 5000);
+        });
+      });
+
+    const quoteParams = {
+      srcChainId: '0x1',
+      destChainId: '0xa',
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    await advanceToNthTimerThenFlush();
+
+    expect(startPollingSpy).toHaveBeenCalledTimes(1);
+    expect(fetchBridgeQuotesSpy.mock.calls[0][3]).toBe('');
+  });
+
+  it('updateBridgeQuoteRequestParams should include auth token as Authentication header', async function () {
+    jest.useFakeTimers();
+    const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+    messengerMock.call.mockImplementation(
+      (...args: Parameters<BridgeControllerMessenger['call']>) => {
+        switch (args[0]) {
+          case 'AuthenticationController:getBearerToken':
+            return 'AUTH_TOKEN';
+          default:
+            return {
+              address: '0x123',
+              provider: jest.fn(),
+              currentCurrency: 'usd',
+              currencyRates: {},
+              marketData: {},
+              conversionRates: {},
+            } as never;
+        }
+      },
+    );
+    jest
+      .spyOn(selectors, 'selectIsAssetExchangeRateInState')
+      .mockReturnValue(true);
+
+    const fetchBridgeQuotesSpy = jest
+      .spyOn(fetchUtils, 'fetchBridgeQuotes')
+      .mockImplementationOnce(async () => {
+        return await new Promise((resolve) => {
+          return setTimeout(() => {
+            resolve({
+              quotes: mockBridgeQuotesNativeErc20Eth as never,
+              validationFailures: [],
+            });
+          }, 5000);
+        });
+      });
+
+    const quoteParams = {
+      srcChainId: '0x1',
+      destChainId: '0xa',
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    await advanceToNthTimerThenFlush();
+
+    expect(startPollingSpy).toHaveBeenCalledTimes(1);
+    expect(fetchBridgeQuotesSpy.mock.calls[0][3]).toBe('AUTH_TOKEN');
+  });
+
   it.each([
     [
       'should append l1GasFees if srcChain is 10 and srcToken is erc20',
@@ -2684,6 +2803,7 @@ describe('BridgeController', function () {
           } as never;
         },
       );
+      bridgeController.setLocation(MetaMetricsSwapsEventSource.TrendingExplore);
     });
 
     it('should not track the event if the account keyring type is not set', async () => {
