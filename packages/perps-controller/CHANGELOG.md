@@ -34,5 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add error code definitions for structured error handling
 - Add configuration constants for HyperLiquid, MYX, charts, order types, and performance metrics
 - Add platform-agnostic design via `PerpsPlatformDependencies` injection interface
+- Add generated method action types for messenger-exposed methods ([#7941](https://github.com/MetaMask/core/pull/7941))
 
 [Unreleased]: https://github.com/MetaMask/core/
