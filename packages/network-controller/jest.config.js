@@ -26,5 +26,5 @@ module.exports = merge(baseConfig, {
 
   // Currently the tests for NetworkController have a race condition which
   // causes intermittent failures. This seems to fix it.
-  testEnvironment: 'jsdom',
+  testEnvironment: '../../tests/jest-environment-jsdom.js',
 });
