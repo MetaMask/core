@@ -1,5 +1,6 @@
 import { AiDigestService } from '.';
 import type { CaipAssetType } from '@metamask/utils';
+import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 
 describe('AiDigestService', () => {
   const mockFetch = jest.fn();
@@ -68,6 +69,47 @@ describe('AiDigestService', () => {
       await expect(
         service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
       ).rejects.toThrow('API request failed: 500');
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            version: '1.0',
+            asset: 'btc',
+            generatedAt: '2026-02-16T10:00:00.000Z',
+            headline: 'BTC market update',
+            summary: 'Momentum is positive across major venues.',
+            trends: 'invalid-trends',
+            sources: [],
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(
+        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+      ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
+    });
+
+    it('throws when response body is not an object', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(null),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(
+        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+      ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     });
   });
 });

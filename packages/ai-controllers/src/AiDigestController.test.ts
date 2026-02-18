@@ -24,9 +24,9 @@ const mockReport: MarketInsightsReport = {
 };
 
 const createMessenger = (): AiDigestControllerMessenger =>
-  (new Messenger({
+  new Messenger({
     namespace: 'AiDigestController',
-  }) as AiDigestControllerMessenger);
+  }) as AiDigestControllerMessenger;
 
 const createService = (overrides?: Partial<DigestService>): DigestService => ({
   searchDigest: jest.fn().mockResolvedValue(mockReport),
@@ -95,9 +95,9 @@ describe('AiDigestController (market insights)', () => {
       digestService,
     });
 
-    await expect(controller.fetchMarketInsights('invalid-caip')).rejects.toThrow(
-      AiDigestControllerErrorMessage.INVALID_CAIP_ASSET_TYPE,
-    );
+    await expect(
+      controller.fetchMarketInsights('invalid-caip'),
+    ).rejects.toThrow(AiDigestControllerErrorMessage.INVALID_CAIP_ASSET_TYPE);
     expect(digestService.searchDigest).not.toHaveBeenCalled();
   });
 
@@ -116,7 +116,9 @@ describe('AiDigestController (market insights)', () => {
     jest.useRealTimers();
 
     expect(result).toBeNull();
-    expect(controller.state.marketInsights['eip155:1/slip44:0']).toBeUndefined();
+    expect(
+      controller.state.marketInsights['eip155:1/slip44:0'],
+    ).toBeUndefined();
   });
 
   it('evicts stale and oldest entries', async () => {
@@ -130,7 +132,9 @@ describe('AiDigestController (market insights)', () => {
     await controller.fetchMarketInsights('eip155:1/slip44:1');
     jest.advanceTimersByTime(CACHE_DURATION_MS + 1);
     await controller.fetchMarketInsights('eip155:1/slip44:2');
-    expect(controller.state.marketInsights['eip155:1/slip44:1']).toBeUndefined();
+    expect(
+      controller.state.marketInsights['eip155:1/slip44:1'],
+    ).toBeUndefined();
 
     for (let i = 0; i < MAX_CACHE_ENTRIES + 1; i++) {
       await controller.fetchMarketInsights(`eip155:1/slip44:${100 + i}`);
@@ -140,7 +144,9 @@ describe('AiDigestController (market insights)', () => {
     expect(Object.keys(controller.state.marketInsights)).toHaveLength(
       MAX_CACHE_ENTRIES,
     );
-    expect(controller.state.marketInsights['eip155:1/slip44:100']).toBeUndefined();
+    expect(
+      controller.state.marketInsights['eip155:1/slip44:100'],
+    ).toBeUndefined();
     jest.useRealTimers();
   });
 });

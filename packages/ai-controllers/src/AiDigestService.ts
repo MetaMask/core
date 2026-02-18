@@ -7,6 +7,27 @@ export type AiDigestServiceConfig = {
   baseUrl: string;
 };
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isMarketInsightsReport = (
+  value: unknown,
+): value is MarketInsightsReport => {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.version === 'string' &&
+    typeof value.asset === 'string' &&
+    typeof value.generatedAt === 'string' &&
+    typeof value.headline === 'string' &&
+    typeof value.summary === 'string' &&
+    Array.isArray(value.trends) &&
+    Array.isArray(value.sources)
+  );
+};
+
 export class AiDigestService implements DigestService {
   readonly #baseUrl: string;
 
@@ -39,6 +60,12 @@ export class AiDigestService implements DigestService {
       );
     }
 
-    return (await response.json()) as MarketInsightsReport;
+    const json = await response.json();
+
+    if (!isMarketInsightsReport(json)) {
+      throw new Error(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
+    }
+
+    return json;
   }
 }
