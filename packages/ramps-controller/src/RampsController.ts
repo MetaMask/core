@@ -1846,24 +1846,27 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Fetches the buy widget data from a quote for redirect providers.
+   * Fetches the widget URL from a quote for redirect providers.
    * Makes a request to the buyURL endpoint via the RampsService to get the
-   * actual provider widget URL, browser type, and optional order ID.
+   * actual provider widget URL, using the injected fetch and retry policy.
    *
-   * @param quote - The quote to fetch the widget data from.
-   * @returns Promise resolving to the BuyWidget data, or null if not available.
+   * @param quote - The quote to fetch the widget URL from.
+   * @returns Promise resolving to the widget URL string, or null if not available.
+   * @deprecated Read `state.widgetUrl` instead. The widget URL is now automatically
+   * fetched and stored in state whenever the selected quote changes.
    */
-  async getBuyWidget(quote: Quote): Promise<BuyWidget | null> {
+  async getWidgetUrl(quote: Quote): Promise<string | null> {
     const buyUrl = quote.quote?.buyURL;
     if (!buyUrl) {
       return null;
     }
 
     try {
-      return await this.messenger.call(
+      const buyWidget = await this.messenger.call(
         'RampsService:getBuyWidgetUrl',
         buyUrl,
       );
+      return buyWidget.url ?? null;
     } catch {
       return null;
     }
