@@ -104,7 +104,9 @@ describe('AiDigestService', () => {
         json: () => Promise.resolve(mockMarketInsightsReport),
       });
 
-      const service = new AiDigestService({ baseUrl: 'http://test.com/api/v1' });
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
       const result = await service.searchDigests(
         'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
@@ -118,7 +120,9 @@ describe('AiDigestService', () => {
     it('returns null when API returns 404', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 404 });
 
-      const service = new AiDigestService({ baseUrl: 'http://test.com/api/v1' });
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
       const result = await service.searchDigests('eip155:1/erc20:0xunknown');
 
       expect(result).toBeNull();
@@ -127,7 +131,9 @@ describe('AiDigestService', () => {
     it('throws on non-404 non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
-      const service = new AiDigestService({ baseUrl: 'http://test.com/api/v1' });
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
 
       await expect(
         service.searchDigests('eip155:1/erc20:0xdeadbeef'),
