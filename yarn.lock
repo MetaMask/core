@@ -4568,11 +4568,9 @@ __metadata:
     "@metamask/messenger": "npm:^0.3.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
-    "@types/sinon": "npm:^9.0.10"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
     nock: "npm:^13.3.1"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -6144,22 +6142,6 @@ __metadata:
   version: 7.5.8
   resolution: "@types/semver@npm:7.5.8"
   checksum: 10/3496808818ddb36deabfe4974fd343a78101fa242c4690044ccdc3b95dcf8785b494f5d628f2f47f38a702f8db9c53c67f47d7818f2be1b79f2efb09692e1178
-  languageName: node
-  linkType: hard
-
-"@types/sinon@npm:^9.0.10":
-  version: 9.0.11
-  resolution: "@types/sinon@npm:9.0.11"
-  dependencies:
-    "@types/sinonjs__fake-timers": "npm:*"
-  checksum: 10/6f74ddc57c755dedc7c2f8d88e11d2edcdc7acf26bebd475e84b1768bfc4db54ffaaa431e22d242eccd270911a031ec66afac52f3dd6eda48f7ccc902db4fac0
-  languageName: node
-  linkType: hard
-
-"@types/sinonjs__fake-timers@npm:*":
-  version: 8.1.5
-  resolution: "@types/sinonjs__fake-timers@npm:8.1.5"
-  checksum: 10/3a0b285fcb8e1eca435266faa27ffff206608b69041022a42857274e44d9305822e85af5e7a43a9fae78d2ab7dc0fcb49f3ae3bda1fa81f0203064dbf5afd4f6
   languageName: node
   linkType: hard
 
