@@ -163,7 +163,7 @@ export class AiDigestController extends BaseController<
 
     this.update((state) => {
       state.digests[assetId] = entry;
-      this.#evictStaleEntries(state);
+      this.#evictStaleCachedEntries(state.digests);
     });
 
     return data;
@@ -217,7 +217,7 @@ export class AiDigestController extends BaseController<
 
     this.update((state) => {
       state.marketInsights[caip19Id] = entry;
-      this.#evictStaleMarketInsightsEntries(state);
+      this.#evictStaleCachedEntries(state.marketInsights);
     });
 
     return data;
@@ -236,47 +236,14 @@ export class AiDigestController extends BaseController<
 
   /**
    * Evicts stale (TTL expired) and oldest entries (FIFO) if cache exceeds max size.
-   *
-   * @param state - The current controller state to evict entries from.
    */
-  #evictStaleEntries(state: AiDigestControllerState): void {
+  #evictStaleCachedEntries<T extends { fetchedAt: number }>(
+    cache: Record<string, T>,
+  ): void {
     const now = Date.now();
-    const entries = Object.entries(state.digests);
+    const entries = Object.entries(cache);
     const keysToDelete: string[] = [];
-    const freshEntries: [string, DigestEntry][] = [];
-
-    for (const [key, entry] of entries) {
-      if (now - entry.fetchedAt >= CACHE_DURATION_MS) {
-        keysToDelete.push(key);
-      } else {
-        freshEntries.push([key, entry]);
-      }
-    }
-
-    // Evict oldest entries if over max cache size
-    if (freshEntries.length > MAX_CACHE_ENTRIES) {
-      freshEntries.sort((a, b) => a[1].fetchedAt - b[1].fetchedAt);
-      const entriesToRemove = freshEntries.length - MAX_CACHE_ENTRIES;
-      for (let i = 0; i < entriesToRemove; i++) {
-        keysToDelete.push(freshEntries[i][0]);
-      }
-    }
-
-    for (const key of keysToDelete) {
-      delete state.digests[key];
-    }
-  }
-
-  /**
-   * Evicts stale and oldest market insights entries if cache exceeds max size.
-   *
-   * @param state - The current controller state to evict entries from.
-   */
-  #evictStaleMarketInsightsEntries(state: AiDigestControllerState): void {
-    const now = Date.now();
-    const entries = Object.entries(state.marketInsights);
-    const keysToDelete: string[] = [];
-    const freshEntries: [string, MarketInsightsEntry][] = [];
+    const freshEntries: [string, T][] = [];
 
     for (const [key, entry] of entries) {
       if (now - entry.fetchedAt >= CACHE_DURATION_MS) {
@@ -295,7 +262,7 @@ export class AiDigestController extends BaseController<
     }
 
     for (const key of keysToDelete) {
-      delete state.marketInsights[key];
+      delete cache[key];
     }
   }
 }
