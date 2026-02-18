@@ -299,12 +299,13 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onDegraded((data) => {
-    const error = getError(data);
+  rpcServiceChain.onDegraded(({ rpcMethodName, ...rest }) => {
+    const error = getError(rest);
     messenger.publish('NetworkController:rpcEndpointChainDegraded', {
       chainId: configuration.chainId,
       networkClientId: id,
       error,
+      rpcMethodName,
     });
   });
 
@@ -312,6 +313,7 @@ function createRpcServiceChain({
     ({
       endpointUrl,
       primaryEndpointUrl: primaryEndpointUrlFromEvent,
+      rpcMethodName,
       ...rest
     }) => {
       const error = getError(rest);
@@ -322,6 +324,7 @@ function createRpcServiceChain({
         primaryEndpointUrl: primaryEndpointUrlFromEvent,
         endpointUrl,
         error,
+        rpcMethodName,
       });
     },
   );

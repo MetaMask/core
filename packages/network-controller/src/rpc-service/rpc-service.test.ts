@@ -1037,7 +1037,147 @@ describe('RpcService', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
+    });
+
+    it('calls onDegraded twice with the correct rpcMethodName when two concurrent requests to different methods both respond slowly', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 1,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      nock(endpointUrl)
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        })
+        .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 2,
+            jsonrpc: '2.0',
+            result: '0x100',
+          };
+        });
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
+      });
+      service.onDegraded(onDegradedListener);
+
+      // Start both requests concurrently
+      await Promise.all([
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+        service.request({
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        }),
+      ]);
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(2);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_blockNumber',
+      });
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_gasPrice',
+      });
+    });
+
+    it('calls onDegraded twice with the correct rpcMethodName when two concurrent requests to different methods fail — one slow, one retriable', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      // eth_blockNumber: responds slowly
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 1,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      // eth_gasPrice: retries exhausted (5 x 503)
+      nock(endpointUrl)
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        })
+        .times(5)
+        .reply(503);
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
+      });
+      service.onRetry(() => {
+        clock.next();
+      });
+      service.onDegraded(onDegradedListener);
+
+      // Start both requests concurrently
+      await Promise.allSettled([
+        service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+        service.request({
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        }),
+      ]);
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(2);
+      expect(onDegradedListener).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          rpcMethodName: 'eth_blockNumber',
+        }),
+      );
+      expect(onDegradedListener).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          rpcMethodName: 'eth_gasPrice',
+        }),
+      );
     });
 
     it('calls the onAvailable callback the first time a successful request occurs', async () => {
@@ -1367,6 +1507,7 @@ function testsForRetriableFetchErrors({
     expect(onDegradedListener).toHaveBeenCalledWith({
       endpointUrl: `${endpointUrl}/`,
       error: expectedError,
+      rpcMethodName: 'eth_chainId',
     });
   });
 

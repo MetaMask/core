@@ -1097,6 +1097,7 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1142,7 +1143,9 @@ describe('RpcServiceChain', () => {
       await rpcServiceChain.request(jsonRpcRequest);
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith({});
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        rpcMethodName: 'eth_chainId',
+      });
     });
 
     it('calls onDegraded only once even if a service runs out of retries and then responds successfully but slowly, or vice versa', async () => {
@@ -1216,6 +1219,75 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
+      });
+    });
+
+    it('reports only the first RPC method that triggered the degraded condition when different methods fail or respond slowly', async () => {
+      const endpointUrl = 'https://some.endpoint';
+      // First request: eth_blockNumber runs out of retries (triggers degraded)
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_blockNumber',
+          params: [],
+        })
+        .times(5)
+        .reply(503);
+      // Second request: eth_gasPrice responds slowly (already degraded, no new event)
+      nock(endpointUrl)
+        .post('/', {
+          id: 2,
+          jsonrpc: '2.0',
+          method: 'eth_gasPrice',
+          params: [],
+        })
+        .reply(200, () => {
+          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+          return {
+            id: 2,
+            jsonrpc: '2.0',
+            result: '0x1',
+          };
+        });
+      const expectedError = createResourceUnavailableError(503);
+      const expectedDegradedError = new HttpError(503);
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          isOffline: (): boolean => false,
+          endpointUrl,
+        },
+      ]);
+      const onDegradedListener = jest.fn();
+      rpcServiceChain.onServiceRetry(() => {
+        clock.next();
+      });
+      rpcServiceChain.onDegraded(onDegradedListener);
+
+      // eth_blockNumber exhausts retries, triggering degraded
+      await expect(
+        rpcServiceChain.request({
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+      ).rejects.toThrow(expectedError);
+      // eth_gasPrice responds slowly, but chain is already degraded
+      await rpcServiceChain.request({
+        id: 2,
+        jsonrpc: '2.0' as const,
+        method: 'eth_gasPrice',
+        params: [],
+      });
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        error: expectedDegradedError,
+        rpcMethodName: 'eth_blockNumber',
       });
     });
 
@@ -1292,6 +1364,7 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1364,8 +1437,11 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
-      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {});
+      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
+        rpcMethodName: 'eth_chainId',
+      });
     });
 
     it("calls onDegraded again when a failover service's underlying circuit breaks, and then after waiting, the primary responds successfully but slowly", async () => {
@@ -1462,8 +1538,11 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
-      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {});
+      expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
+        rpcMethodName: 'eth_chainId',
+      });
     });
 
     it('calls onServiceDegraded each time a service continually runs out of retries (but before its circuit breaks)', async () => {
@@ -1518,11 +1597,13 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1571,10 +1652,12 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1651,15 +1734,18 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1738,15 +1824,18 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1821,15 +1910,18 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -1929,25 +2021,30 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(4, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: expectedDegradedError,
+        rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(5, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
       });
     });
 
@@ -2118,7 +2215,9 @@ describe('RpcServiceChain', () => {
 
       // Verify degradation occurred after the first (slow) request
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
-      expect(onDegradedListener).toHaveBeenCalledWith({});
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        rpcMethodName: 'eth_chainId',
+      });
 
       // Verify recovery occurred after the second (fast) request
       expect(onAvailableListener).toHaveBeenCalledTimes(1);
