@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add 4 networks to supported Infura networks list ([#7875](https://github.com/MetaMask/core/pull/7875))
+  - Add `avalanche-mainnet` to `InfuraNetworkType`, `NetworksTicker`, `BlockExplorerUrl` and `NetworkNickname`.
+  - Add `monad-mainnet` to `InfuraNetworkType`, `NetworksTicker`, `BlockExplorerUrl` and `NetworkNickname`.
+  - Add `hyperevm-mainnet` to `InfuraNetworkType`, `NetworksTicker`, `BlockExplorerUrl` and `NetworkNickname`.
+  - Add `megaeth-mainnet` to `InfuraNetworkType`, `NetworksTicker`, `BlockExplorerUrl` and `NetworkNickname`.
+
 ## [11.18.0]
 
 ### Changed
