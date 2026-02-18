@@ -2435,7 +2435,6 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
     nock: "npm:^13.3.1"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -2582,7 +2581,7 @@ __metadata:
     "@metamask/network-controller": "npm:^29.0.0"
     "@metamask/network-enablement-controller": "npm:^4.1.0"
     "@metamask/permission-controller": "npm:^12.2.0"
-    "@metamask/phishing-controller": "npm:^16.2.0"
+    "@metamask/phishing-controller": "npm:^16.3.0"
     "@metamask/polling-controller": "npm:^16.0.2"
     "@metamask/preferences-controller": "npm:^22.1.0"
     "@metamask/profile-sync-controller": "npm:^27.1.0"
@@ -2892,7 +2891,6 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
     jest: "npm:^29.7.0"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -2949,7 +2947,6 @@ __metadata:
     jest-environment-jsdom: "npm:^29.7.0"
     lodash: "npm:^4.17.21"
     nock: "npm:^13.3.1"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -3850,7 +3847,6 @@ __metadata:
     jest: "npm:^29.7.0"
     jest-environment-node: "npm:^29.7.0"
     lodash: "npm:^4.17.21"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -4222,7 +4218,6 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
     reselect: "npm:^5.1.1"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -4367,7 +4362,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/phishing-controller@npm:^16.1.0, @metamask/phishing-controller@npm:^16.2.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
+"@metamask/phishing-controller@npm:^16.1.0, @metamask/phishing-controller@npm:^16.3.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
@@ -4409,7 +4404,6 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     fast-json-stable-stringify: "npm:^2.1.0"
     jest: "npm:^29.7.0"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -4969,7 +4963,6 @@ __metadata:
     bignumber.js: "npm:^9.1.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
