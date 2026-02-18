@@ -4197,6 +4197,7 @@ __metadata:
     "@types/jest-when": "npm:^2.7.3"
     "@types/lodash": "npm:^4.14.191"
     "@types/node-fetch": "npm:^2.6.12"
+    "@types/sinon": "npm:^9.0.10"
     async-mutex: "npm:^0.5.0"
     cockatiel: "npm:^3.1.2"
     deep-freeze-strict: "npm:^1.1.1"
@@ -6142,6 +6143,22 @@ __metadata:
   version: 7.5.8
   resolution: "@types/semver@npm:7.5.8"
   checksum: 10/3496808818ddb36deabfe4974fd343a78101fa242c4690044ccdc3b95dcf8785b494f5d628f2f47f38a702f8db9c53c67f47d7818f2be1b79f2efb09692e1178
+  languageName: node
+  linkType: hard
+
+"@types/sinon@npm:^9.0.10":
+  version: 9.0.11
+  resolution: "@types/sinon@npm:9.0.11"
+  dependencies:
+    "@types/sinonjs__fake-timers": "npm:*"
+  checksum: 10/6f74ddc57c755dedc7c2f8d88e11d2edcdc7acf26bebd475e84b1768bfc4db54ffaaa431e22d242eccd270911a031ec66afac52f3dd6eda48f7ccc902db4fac0
+  languageName: node
+  linkType: hard
+
+"@types/sinonjs__fake-timers@npm:*":
+  version: 15.0.1
+  resolution: "@types/sinonjs__fake-timers@npm:15.0.1"
+  checksum: 10/9fa7a129742262ef4ea9c3253683453c42c2e210cdff1456e233bc9b59f6d60ef8121b32a00209a1c8c7759f88511862dab1ce340081e432515418fc44d8ec35
   languageName: node
   linkType: hard
 
