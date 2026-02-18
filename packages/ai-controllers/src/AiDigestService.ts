@@ -1,3 +1,5 @@
+import type { CaipAssetType } from '@metamask/utils';
+
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 import type {
   DigestService,
@@ -8,10 +10,6 @@ import type {
 export type AiDigestServiceConfig = {
   baseUrl: string;
 };
-
-type MarketInsightsApiResponse = {
-  digest?: MarketInsightsReport;
-} & Partial<MarketInsightsReport>;
 
 export class AiDigestService implements DigestService {
   readonly #baseUrl: string;
@@ -50,7 +48,9 @@ export class AiDigestService implements DigestService {
    * @param caip19Id - The CAIP-19 identifier of the asset.
    * @returns The market insights report, or `null` if none exists (404).
    */
-  async searchDigests(caip19Id: string): Promise<MarketInsightsReport | null> {
+  async searchDigests(
+    caip19Id: CaipAssetType,
+  ): Promise<MarketInsightsReport | null> {
     const response = await fetch(
       `${this.#baseUrl}/digests?caipAssetType=${encodeURIComponent(caip19Id)}`,
     );
@@ -65,10 +65,6 @@ export class AiDigestService implements DigestService {
       );
     }
 
-    const data: MarketInsightsApiResponse = await response.json();
-
-    // API currently returns an envelope with the report under `digest`.
-    // Keep backward compatibility if the report is returned directly.
-    return data.digest ?? (data as MarketInsightsReport);
+    return (await response.json()) as MarketInsightsReport;
   }
 }

@@ -5,8 +5,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import { isCaipAssetType } from '@metamask/utils';
 
 import {
+  AiDigestControllerErrorMessage,
   controllerName,
   CACHE_DURATION_MS,
   MAX_CACHE_ENTRIES,
@@ -40,11 +42,6 @@ export type AiDigestControllerFetchMarketInsightsAction = {
   handler: AiDigestController['fetchMarketInsights'];
 };
 
-export type AiDigestControllerClearMarketInsightsAction = {
-  type: `${typeof controllerName}:clearMarketInsights`;
-  handler: AiDigestController['clearMarketInsights'];
-};
-
 export type AiDigestControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AiDigestControllerState
@@ -55,7 +52,6 @@ export type AiDigestControllerActions =
   | AiDigestControllerClearDigestAction
   | AiDigestControllerClearAllDigestsAction
   | AiDigestControllerFetchMarketInsightsAction
-  | AiDigestControllerClearMarketInsightsAction
   | AiDigestControllerGetStateAction;
 
 export type AiDigestControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -138,10 +134,6 @@ export class AiDigestController extends BaseController<
       `${controllerName}:fetchMarketInsights`,
       this.fetchMarketInsights.bind(this),
     );
-    this.messenger.registerActionHandler(
-      `${controllerName}:clearMarketInsights`,
-      this.clearMarketInsights.bind(this),
-    );
   }
 
   async fetchDigest(assetId: string): Promise<DigestData> {
@@ -191,6 +183,10 @@ export class AiDigestController extends BaseController<
   async fetchMarketInsights(
     caip19Id: string,
   ): Promise<MarketInsightsReport | null> {
+    if (!isCaipAssetType(caip19Id)) {
+      throw new Error(AiDigestControllerErrorMessage.INVALID_CAIP_ASSET_TYPE);
+    }
+
     const existing = this.state.marketInsights[caip19Id];
     if (existing) {
       const age = Date.now() - existing.fetchedAt;
@@ -229,6 +225,10 @@ export class AiDigestController extends BaseController<
    * @param caip19Id - The CAIP-19 identifier.
    */
   clearMarketInsights(caip19Id: string): void {
+    if (!isCaipAssetType(caip19Id)) {
+      return;
+    }
+
     this.update((state) => {
       delete state.marketInsights[caip19Id];
     });

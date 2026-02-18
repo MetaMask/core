@@ -3,6 +3,7 @@ import { Messenger } from '@metamask/messenger';
 import {
   AiDigestController,
   getDefaultAiDigestControllerState,
+  AiDigestControllerErrorMessage,
   CACHE_DURATION_MS,
   MAX_CACHE_ENTRIES,
 } from '.';
@@ -284,10 +285,23 @@ describe('AiDigestController', () => {
         digestService: mockService,
       });
 
-      const result = await controller.fetchMarketInsights('unknown-asset');
+      const result = await controller.fetchMarketInsights('eip155:1/slip44:999');
 
       expect(result).toBeNull();
-      expect(controller.state.marketInsights['unknown-asset']).toBeUndefined();
+      expect(controller.state.marketInsights['eip155:1/slip44:999']).toBeUndefined();
+    });
+
+    it('throws on invalid CAIP asset type and skips service call', async () => {
+      const mockService = createMockService();
+      const controller = new AiDigestController({
+        messenger: createMessenger(),
+        digestService: mockService,
+      });
+
+      await expect(controller.fetchMarketInsights('invalid-caip-id')).rejects.toThrow(
+        AiDigestControllerErrorMessage.INVALID_CAIP_ASSET_TYPE,
+      );
+      expect(mockService.searchDigests).not.toHaveBeenCalled();
     });
 
     it('clears stale cache when service returns null', async () => {
@@ -331,6 +345,18 @@ describe('AiDigestController', () => {
       ).toBeUndefined();
     });
 
+    it('ignores clearMarketInsights for invalid CAIP asset type', () => {
+      const mockService = createMockService();
+      const controller = new AiDigestController({
+        messenger: createMessenger(),
+        digestService: mockService,
+      });
+
+      controller.clearMarketInsights('invalid-caip-id');
+
+      expect(controller.state.marketInsights).toStrictEqual({});
+    });
+
     it('evicts stale market insights entries on fetch', async () => {
       jest.useFakeTimers();
       const mockService = createMockService();
@@ -339,12 +365,12 @@ describe('AiDigestController', () => {
         digestService: mockService,
       });
 
-      await controller.fetchMarketInsights('asset-a');
+      await controller.fetchMarketInsights('eip155:1/slip44:1');
       jest.advanceTimersByTime(CACHE_DURATION_MS + 1);
-      await controller.fetchMarketInsights('asset-b');
+      await controller.fetchMarketInsights('eip155:1/slip44:2');
 
-      expect(controller.state.marketInsights['asset-a']).toBeUndefined();
-      expect(controller.state.marketInsights['asset-b']).toBeDefined();
+      expect(controller.state.marketInsights['eip155:1/slip44:1']).toBeUndefined();
+      expect(controller.state.marketInsights['eip155:1/slip44:2']).toBeDefined();
       jest.useRealTimers();
     });
 
@@ -357,14 +383,14 @@ describe('AiDigestController', () => {
       });
 
       for (let i = 0; i < MAX_CACHE_ENTRIES + 1; i++) {
-        await controller.fetchMarketInsights(`asset-${i}`);
+        await controller.fetchMarketInsights(`eip155:1/slip44:${i}`);
         jest.advanceTimersByTime(1);
       }
 
       expect(Object.keys(controller.state.marketInsights)).toHaveLength(
         MAX_CACHE_ENTRIES,
       );
-      expect(controller.state.marketInsights['asset-0']).toBeUndefined();
+      expect(controller.state.marketInsights['eip155:1/slip44:0']).toBeUndefined();
       jest.useRealTimers();
     });
 
@@ -384,23 +410,5 @@ describe('AiDigestController', () => {
       expect(controller.state.marketInsights).toBeDefined();
     });
 
-    it('registers clearMarketInsights messenger action', async () => {
-      const mockService = createMockService();
-      const messenger = createMessenger();
-      const controller = new AiDigestController({
-        messenger,
-        digestService: mockService,
-      });
-
-      await controller.fetchMarketInsights('eip155:1/slip44:0');
-      messenger.call(
-        'AiDigestController:clearMarketInsights',
-        'eip155:1/slip44:0',
-      );
-
-      expect(
-        controller.state.marketInsights['eip155:1/slip44:0'],
-      ).toBeUndefined();
-    });
   });
 });

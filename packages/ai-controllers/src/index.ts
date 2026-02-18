@@ -2,7 +2,6 @@ export type {
   AiDigestControllerActions,
   AiDigestControllerClearAllDigestsAction,
   AiDigestControllerClearDigestAction,
-  AiDigestControllerClearMarketInsightsAction,
   AiDigestControllerEvents,
   AiDigestControllerFetchDigestAction,
   AiDigestControllerFetchMarketInsightsAction,

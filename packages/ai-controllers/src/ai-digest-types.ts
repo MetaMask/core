@@ -1,3 +1,5 @@
+import type { CaipAssetType } from '@metamask/utils';
+
 /**
  * Response from the digest API.
  */
@@ -111,7 +113,7 @@ export type MarketInsightsReport = {
  */
 export type MarketInsightsEntry = {
   /** CAIP-19 asset identifier */
-  caip19Id: string;
+  caip19Id: CaipAssetType;
   /** Timestamp when the entry was fetched */
   fetchedAt: number;
   /** The market insights report data */
@@ -140,5 +142,5 @@ export type DigestService = {
    * @param caip19Id - The CAIP-19 identifier of the asset.
    * @returns The market insights report, or `null` if no insights exist (404).
    */
-  searchDigests(caip19Id: string): Promise<MarketInsightsReport | null>;
+  searchDigests(caip19Id: CaipAssetType): Promise<MarketInsightsReport | null>;
 };
