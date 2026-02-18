@@ -1,5 +1,6 @@
-import { AiDigestService } from '.';
 import type { CaipAssetType } from '@metamask/utils';
+
+import { AiDigestService } from '.';
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 
 describe('AiDigestService', () => {
