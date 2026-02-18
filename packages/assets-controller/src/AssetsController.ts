@@ -13,6 +13,7 @@ import type {
   ApiPlatformClient,
   BackendWebSocketServiceActions,
   BackendWebSocketServiceEvents,
+  SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
   KeyringControllerLockEvent,
@@ -143,6 +144,8 @@ export type AssetsControllerState = {
   customAssets: { [accountId: string]: Caip19AssetId[] };
   /** UI preferences per asset (e.g. hidden) */
   assetPreferences: { [assetId: string]: AssetPreferences };
+  /** Currently-active ISO 4217 currency code */
+  currentCurrency: SupportedCurrency;
 };
 
 /**
@@ -157,6 +160,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetsPrice: {},
     customAssets: {},
     assetPreferences: {},
+    currentCurrency: 'usd',
   };
 }
 
@@ -345,6 +349,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   assetPreferences: {
+    persist: true,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  currentCurrency: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -605,6 +615,7 @@ export class AssetsController extends BaseController<
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      getCurrentCurrency: (): SupportedCurrency => this.state.currentCurrency,
       ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
@@ -1131,6 +1142,30 @@ export class AssetsController extends BaseController<
         }
       }
     });
+  }
+
+  // ============================================================================
+  // CURRENT CURRENCY MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Set the current currency.
+   *
+   * @param currentCurrency - The ISO 4217 currency code to set.
+   */
+  setCurrentCurrency(currentCurrency: SupportedCurrency): void {
+    const previousCurrency = this.state.currentCurrency;
+
+    this.update((state) => {
+      state.currentCurrency = currentCurrency;
+    });
+
+    log('Current currency changed', {
+      previousCurrency,
+      currentCurrency,
+    });
+
+    this.subscribeAssetsPrice(this.#selectedAccounts, [...this.#enabledChains]);
   }
 
   // ============================================================================

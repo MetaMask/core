@@ -39,8 +39,8 @@ export type PriceDataSourceConfig = {
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
-  /** Currency to fetch prices in (default: 'usd') */
-  currency?: SupportedCurrency;
+  /** Function returning the currently-active ISO 4217 currency code */
+  getCurrentCurrency: () => SupportedCurrency;
 };
 
 // ============================================================================
@@ -110,7 +110,7 @@ export class PriceDataSource {
     return PriceDataSource.controllerName;
   }
 
-  readonly #currency: SupportedCurrency;
+  readonly #getCurrentCurrency: () => SupportedCurrency;
 
   readonly #pollInterval: number;
 
@@ -129,7 +129,7 @@ export class PriceDataSource {
   > = new Map();
 
   constructor(options: PriceDataSourceOptions) {
-    this.#currency = options.currency ?? 'usd';
+    this.#getCurrentCurrency = options.getCurrentCurrency;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
   }
@@ -219,7 +219,7 @@ export class PriceDataSource {
    */
   async #fetchSpotPrices(assetIds: string[]): Promise<V3SpotPricesResponse> {
     return this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-      currency: this.#currency,
+      currency: this.#getCurrentCurrency(),
       includeMarketData: true,
     });
   }
