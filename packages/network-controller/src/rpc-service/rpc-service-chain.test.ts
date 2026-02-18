@@ -1819,21 +1819,18 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
-
         rpcMethodName: 'eth_chainId',
       });
     });
@@ -2019,35 +2016,30 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(4, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(5, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-
         rpcMethodName: 'eth_chainId',
       });
     });
