@@ -14,7 +14,7 @@ import { CHAIN_IDS } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
-import type nock from 'nock';
+import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
 import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks';
@@ -6859,6 +6859,145 @@ describe('TokenBalancesController', () => {
       expect(balances?.[token1Checksum]).toBe(toHex(100));
       // token2 should NOT be present (value=undefined)
       expect(balances?.[token2Checksum]).toBeUndefined();
+    });
+
+    it('should fetch custom token balances correctly and only for queried accounts', async () => {
+      // This test verifies that only tokens for queried accounts are fetched.
+      // It uses RPC-only fetching to simplify mocking.
+      //
+      // Test scenarios:
+      // A) queryAllAccounts=false (regular polling): Only selected account is queried
+      //    - Selected account has USDC token
+      //    - Non-selected account has a custom token  
+      //    - Controller should fetch balance only for the selected account
+      //    - Non-selected account's token should NOT be queried
+      //
+      // B) queryAllAccounts=true (multi-account mode): All accounts are queried
+      //    - Both accounts should get balances fetched
+      //    - Both tokens should have balances in final state
+
+      const chainId = '0x1';
+      const account1Address = '0x1111111111111111111111111111111111111111';
+      const account2Address = '0x2222222222222222222222222222222222222222';
+
+      const account1 = createMockInternalAccount({
+        address: account1Address,
+      });
+      const account2 = createMockInternalAccount({
+        address: account2Address,
+      });
+
+      const popularToken = toChecksumHexAddress(
+        '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      ); // USDC
+      const customToken = toChecksumHexAddress(
+        '0x9208d82f121806a34a39bb90733b4c5c54f3993e',
+      ); // Custom token
+
+      // Controller state: account1 has USDC, account2 has custom token
+      const tokens = {
+        allTokens: {
+          [chainId]: {
+            [account1Address.toLowerCase()]: [
+              { address: popularToken, decimals: 6, symbol: 'USDC' },
+            ],
+            [account2Address.toLowerCase()]: [
+              { address: customToken, decimals: 18, symbol: 'CUSTOM' },
+            ],
+          },
+        },
+        allDetectedTokens: {},
+        allIgnoredTokens: {},
+      };
+
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: () => [],
+          allowExternalServices: () => false,
+        },
+        tokens,
+        listAccounts: [account1, account2],
+      });
+
+      // Test A: queryAllAccounts=false (only selected account)
+      jest
+        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
+        .mockResolvedValueOnce({
+          tokenBalances: {
+            [popularToken]: {
+              [account1Address]: new BN('1000000'), // 1 USDC
+            },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [account1Address]: new BN(0),
+            },
+          },
+          stakedBalances: {
+            [account1Address]: new BN(0),
+          },
+        });
+
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: false,
+      });
+
+      let state = controller.state.tokenBalances;
+
+      // Selected account should have balance
+      expect(
+        state[account1Address.toLowerCase() as ChecksumAddress]?.[chainId]?.[
+          popularToken as ChecksumAddress
+        ],
+      ).toBe(toHex(new BN('1000000')));
+
+      // Non-selected account should have initial 0x0 balance (initialized but not fetched)
+      const account2Balance =
+        state[account2Address.toLowerCase() as ChecksumAddress]?.[chainId]?.[
+          customToken as ChecksumAddress
+        ];
+      expect(account2Balance).toBeUndefined();
+
+      // Test B: queryAllAccounts=true (all accounts)
+      jest
+        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
+        .mockResolvedValueOnce({
+          tokenBalances: {
+            [popularToken]: {
+              [account1Address]: new BN('2000000'), // 2 USDC
+            },
+            [customToken]: {
+              [account2Address]: new BN('5000000000000000000'), // 5 custom tokens
+            },
+            [NATIVE_TOKEN_ADDRESS]: {
+              [account1Address]: new BN(0),
+              [account2Address]: new BN(0),
+            },
+          },
+          stakedBalances: {
+            [account1Address]: new BN(0),
+            [account2Address]: new BN(0),
+          },
+        });
+
+      await controller.updateBalances({
+        chainIds: [chainId],
+        queryAllAccounts: true,
+      });
+
+      state = controller.state.tokenBalances;
+
+      // Both accounts should have balances
+      expect(
+        state[account1Address.toLowerCase() as ChecksumAddress]?.[chainId]?.[
+          popularToken as ChecksumAddress
+        ],
+      ).toBe(toHex(new BN('2000000')));
+
+      expect(
+        state[account2Address.toLowerCase() as ChecksumAddress]?.[chainId]?.[
+          customToken as ChecksumAddress
+        ],
+      ).toBe(toHex(new BN('5000000000000000000')));
     });
   });
 });

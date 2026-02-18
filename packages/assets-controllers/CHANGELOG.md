@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add in-flight promise caching for `fetchSupportedNetworks()` to prevent duplicate concurrent requests
   - Update `fetchTokenPrices()` and `fetchExchangeRates()` to only refresh supported networks/currencies when no cached value exists
 
+### Fixed
+
+- Fix `TokenBalancesController` missing custom tokens on AccountsAPI-supported chains
+  - AccountsAPI fetcher returns balances but misses custom tokens, the controller now detects this and triggers an RPC fallback for those specific tokens
+
 ## [99.3.1]
 
 ### Fixed
