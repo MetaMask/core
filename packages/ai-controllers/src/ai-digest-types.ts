@@ -87,7 +87,7 @@ export type MarketInsightsSource = {
 
 /**
  * AI-generated market insights report for a crypto asset.
- * Returned by `GET /digests/search?caip19Ids=<id>`.
+ * Returned by `GET /digests?caipAssetType=<caip19Id>`.
  */
 export type MarketInsightsReport = {
   /** API version */
@@ -135,7 +135,7 @@ export type DigestService = {
   fetchDigest(assetId: string): Promise<DigestData>;
   /**
    * Search for market insights by CAIP-19 asset identifier.
-   * Calls `GET /digests/search?caip19Ids=<caip19Id>`.
+   * Calls `GET /digests?caipAssetType=<caip19Id>`.
    *
    * @param caip19Id - The CAIP-19 identifier of the asset.
    * @returns The market insights report, or `null` if no insights exist (404).

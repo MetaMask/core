@@ -87,30 +87,51 @@ describe('AiDigestService', () => {
   });
 
   describe('searchDigests', () => {
-    it('returns mock market insights for BTC-related CAIP-19 identifiers', async () => {
-      const service = new AiDigestService({ baseUrl: 'http://test.com' });
-      const result = await service.searchDigests('eip155:1/slip44:0');
+    const mockMarketInsightsReport = {
+      version: '1.0',
+      asset: 'btc',
+      generatedAt: '2026-02-16T10:00:00.000Z',
+      headline: 'BTC market update',
+      summary: 'Momentum is positive across major venues.',
+      trends: [],
+      sources: [],
+    };
 
-      expect(result).not.toBeNull();
-      expect(result?.asset).toBe('btc');
-      expect(result?.headline).toBeDefined();
-      expect(result?.trends).toHaveLength(3);
-      expect(result?.sources).toHaveLength(5);
+    it('fetches market insights from API using caipAssetType', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockMarketInsightsReport),
+      });
+
+      const service = new AiDigestService({ baseUrl: 'http://test.com/api/v1' });
+      const result = await service.searchDigests(
+        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+      );
+
+      expect(result).toStrictEqual(mockMarketInsightsReport);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://test.com/api/v1/digests?caipAssetType=eip155%3A1%2Ferc20%3A0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+      );
     });
 
-    it('returns null for unknown assets', async () => {
-      const service = new AiDigestService({ baseUrl: 'http://test.com' });
+    it('returns null when API returns 404', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = new AiDigestService({ baseUrl: 'http://test.com/api/v1' });
       const result = await service.searchDigests('eip155:1/erc20:0xunknown');
 
       expect(result).toBeNull();
     });
 
-    it('returns mock data for CAIP-19 identifiers containing "btc"', async () => {
-      const service = new AiDigestService({ baseUrl: 'http://test.com' });
-      const result = await service.searchDigests('bip122:btc/slip44:0');
+    it('throws on non-404 non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
-      expect(result).not.toBeNull();
-      expect(result?.asset).toBe('btc');
+      const service = new AiDigestService({ baseUrl: 'http://test.com/api/v1' });
+
+      await expect(
+        service.searchDigests('eip155:1/erc20:0xdeadbeef'),
+      ).rejects.toThrow('API request failed: 500');
     });
   });
 });

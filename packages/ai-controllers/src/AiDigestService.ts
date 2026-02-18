@@ -4,7 +4,6 @@ import type {
   DigestData,
   MarketInsightsReport,
 } from './ai-digest-types';
-import { getMockMarketInsights } from './market-insights-mock';
 
 export type AiDigestServiceConfig = {
   baseUrl: string;
@@ -42,33 +41,27 @@ export class AiDigestService implements DigestService {
   /**
    * Search for market insights by CAIP-19 asset identifier.
    *
-   * TODO: Replace mock with real API call when live:
-   * `GET ${this.#baseUrl}/digests/search?caip19Ids=${encodeURIComponent(caip19Id)}`
+   * Calls `GET ${this.#baseUrl}/digests?caipAssetType=${encodeURIComponent(caip19Id)}`.
    *
    * @param caip19Id - The CAIP-19 identifier of the asset.
    * @returns The market insights report, or `null` if none exists (404).
    */
   async searchDigests(caip19Id: string): Promise<MarketInsightsReport | null> {
-    // TODO: Replace with real API call when endpoint is live:
-    //
-    // const response = await fetch(
-    //   `${this.#baseUrl}/digests/search?caip19Ids=${encodeURIComponent(caip19Id)}`,
-    // );
-    //
-    // if (response.status === 404) {
-    //   return null;
-    // }
-    //
-    // if (!response.ok) {
-    //   throw new Error(
-    //     `${AiDigestControllerErrorMessage.API_REQUEST_FAILED}: ${response.status}`,
-    //   );
-    // }
-    //
-    // const data: MarketInsightsReport = await response.json();
-    // return data;
+    const response = await fetch(
+      `${this.#baseUrl}/digests?caipAssetType=${encodeURIComponent(caip19Id)}`,
+    );
 
-    // Mock implementation until API is live
-    return getMockMarketInsights(caip19Id);
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `${AiDigestControllerErrorMessage.API_REQUEST_FAILED}: ${response.status}`,
+      );
+    }
+
+    const data: MarketInsightsReport = await response.json();
+    return data;
   }
 }
