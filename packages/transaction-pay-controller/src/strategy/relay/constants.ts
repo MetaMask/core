@@ -1,4 +1,3 @@
-export const CHAIN_ID_HYPERCORE = '0x539';
 export const RELAY_URL_BASE = 'https://api.relay.link';
 export const RELAY_STATUS_URL = `${RELAY_URL_BASE}/intents/status/v3`;
 export const RELAY_POLLING_INTERVAL = 1000; // 1 Second

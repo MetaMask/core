@@ -7,8 +7,13 @@ export type {
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
 export { PhishingDetector } from './PhishingDetector';
-export type { PhishingDetectionScanResult, AddressScanResult } from './types';
-export type { TokenScanCacheData, TokenScanResultType } from './types';
+export type {
+  PhishingDetectionScanResult,
+  AddressScanResult,
+  BulkTokenScanResponse,
+} from './types';
+export type { TokenScanCacheData } from './types';
+export { TokenScanResultType } from './types';
 export {
   PhishingDetectorResultType,
   RecommendedAction,

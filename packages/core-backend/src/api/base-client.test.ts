@@ -5,8 +5,29 @@
 import { QueryClient } from '@tanstack/query-core';
 
 import { AccountsApiClient } from './accounts';
+import { authQueryKeys } from './base-client';
 
 describe('BaseApiClient', () => {
+  describe('invalidateAuthToken', () => {
+    it('calls resetQueries on the query client with auth bearer token key', async () => {
+      const mockResetQueries = jest.fn().mockResolvedValue(undefined);
+      const queryClient = {
+        resetQueries: mockResetQueries,
+      } as unknown as QueryClient;
+      const client = new AccountsApiClient({
+        clientProduct: 'test-product',
+        queryClient,
+      });
+
+      await client.invalidateAuthToken();
+
+      expect(mockResetQueries).toHaveBeenCalledTimes(1);
+      expect(mockResetQueries).toHaveBeenCalledWith({
+        queryKey: authQueryKeys.bearerToken(),
+      });
+    });
+  });
+
   describe('QueryClient initialization', () => {
     it('creates a new QueryClient when none is provided', () => {
       // Create a client without providing a queryClient

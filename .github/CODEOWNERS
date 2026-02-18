@@ -49,6 +49,7 @@
 /packages/notification-services-controller     @MetaMask/notifications
 
 ## Perps Team
+/packages/compliance-controller             @MetaMask/perps
 /packages/perps-controller                  @MetaMask/perps
 
 ## Product Safety Team
@@ -108,6 +109,7 @@
 /packages/permission-log-controller             @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/storage-service                       @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/client-controller                     @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -158,6 +160,8 @@
 /packages/name-controller/CHANGELOG.md            @MetaMask/confirmations @MetaMask/core-platform
 /packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/core-platform
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/core-platform
+/packages/compliance-controller/package.json   @MetaMask/perps @MetaMask/core-platform
+/packages/compliance-controller/CHANGELOG.md   @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/package.json       @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/CHANGELOG.md       @MetaMask/perps @MetaMask/core-platform
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/core-platform
@@ -204,3 +208,5 @@
 /packages/claims-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
 /packages/ai-controllers/package.json @MetaMask/social-ai @MetaMask/core-platform
 /packages/ai-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
+/packages/client-controller/package.json @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/client-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform

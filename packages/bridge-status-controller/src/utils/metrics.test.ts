@@ -249,7 +249,7 @@ describe('metrics utils', () => {
         } as never,
       );
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0.016666666666666666,
           "quote_vs_execution_ratio": 1.1251337476231986,
           "quoted_vs_used_gas_ratio": 2.8325818363563227,
@@ -292,7 +292,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 1,
           "quote_vs_execution_ratio": 0.9801662314040546,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
@@ -335,7 +335,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 1,
           "quote_vs_execution_ratio": 0.9801662314040546,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
@@ -397,7 +397,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0.9799999911934969,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -458,7 +458,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -498,7 +498,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 1,
           "quoted_vs_used_gas_ratio": 2.0851258834973363,
@@ -561,7 +561,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -604,7 +604,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 2.6099633492283485,
@@ -640,7 +640,7 @@ describe('metrics utils', () => {
       );
 
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0,
           "quote_vs_execution_ratio": 0,
           "quoted_vs_used_gas_ratio": 0,
@@ -662,7 +662,7 @@ describe('metrics utils', () => {
         },
       });
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "actual_time_minutes": 0.016666666666666666,
           "quote_vs_execution_ratio": 1.1251337476231986,
           "quoted_vs_used_gas_ratio": 0,
@@ -782,7 +782,7 @@ describe('metrics utils', () => {
     it('should return correct trade data', () => {
       const result = getTradeDataFromHistory(mockHistoryItem);
       expect(result).toMatchInlineSnapshot(`
-        Object {
+        {
           "gas_included": false,
           "gas_included_7702": false,
           "provider": "across_across",
@@ -991,7 +991,7 @@ describe('metrics utils', () => {
         chain_id_destination: 'eip155:1',
         token_symbol_source: 'ETH',
         token_symbol_destination: 'USDC',
-        usd_amount_source: 100,
+        usd_amount_source: 0,
         source_transaction: 'COMPLETE',
         stx_enabled: false,
         token_address_source: 'eip155:1/slip44:60',

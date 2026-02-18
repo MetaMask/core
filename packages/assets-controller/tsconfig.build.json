@@ -12,7 +12,9 @@
     { "path": "../keyring-controller/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" },
     { "path": "../network-enablement-controller/tsconfig.build.json" },
-    { "path": "../permission-controller/tsconfig.build.json" }
+    { "path": "../permission-controller/tsconfig.build.json" },
+    { "path": "../preferences-controller/tsconfig.build.json" },
+    { "path": "../assets-controllers/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"],
   "exclude": ["**/*.test.ts", "**/__fixtures__/"]

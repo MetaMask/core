@@ -83,12 +83,15 @@ export type QuoteWarning =
   | 'tx_alert';
 
 /**
- * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called
+ * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
+ * This is the base type without the `location` property which is added to all events
+ * via the RequiredEventContextFromClient mapped type.
  */
-export type RequiredEventContextFromClient = {
-  [UnifiedSwapBridgeEventName.ButtonClicked]: {
-    location: MetaMetricsSwapsEventSource;
-  } & Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'>;
+type RequiredEventContextFromClientBase = {
+  [UnifiedSwapBridgeEventName.ButtonClicked]: Pick<
+    RequestParams,
+    'token_symbol_source' | 'token_symbol_destination'
+  >;
   // When type is object, the payload can be anything
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {
@@ -213,6 +216,7 @@ export type RequiredEventContextFromClient = {
   };
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
+    refresh_count: number;
   };
   [UnifiedSwapBridgeEventName.AssetPickerOpened]: {
     location: 'source' | 'destination';
@@ -231,6 +235,18 @@ export type RequiredEventContextFromClient = {
       polling_status: PollingStatus;
       retry_attempts: number;
     };
+};
+
+/**
+ * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
+ * This combines the event-specific properties from RequiredEventContextFromClientBase
+ * with an optional `location` property. When `location` is omitted, the controller
+ * falls back to the value stored via `setLocation()` (defaults to MainView).
+ */
+export type RequiredEventContextFromClient = {
+  [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
+    location?: MetaMetricsSwapsEventSource;
+  };
 };
 
 /**
@@ -284,9 +300,7 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.QuotesValidationFailed]: RequestParams & {
     refresh_count: number;
   };
-  [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams & {
-    refresh_count: number;
-  };
+  [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams;
   [UnifiedSwapBridgeEventName.AssetPickerOpened]: null;
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: null;
 };
@@ -300,6 +314,7 @@ export type CrossChainSwapsEventProperties<
 > =
   | {
       action_type: MetricsActionType;
+      location: MetaMetricsSwapsEventSource;
     }
   | Pick<EventPropertiesFromControllerState, T>[T]
   | Pick<RequiredEventContextFromClient, T>[T];

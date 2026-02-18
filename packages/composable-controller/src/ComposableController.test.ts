@@ -15,7 +15,6 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Patch } from 'immer';
-import sinon from 'sinon';
 
 import type {
   ChildControllerStateChangeEvents,
@@ -149,10 +148,6 @@ type ControllersMap = {
 };
 
 describe('ComposableController', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
   describe('BaseController', () => {
     it('should compose controller state', () => {
       type ComposableControllerState = {
@@ -253,15 +248,15 @@ describe('ComposableController', () => {
         messenger: composableControllerMessenger,
       });
 
-      const listener = sinon.stub();
+      const listener = jest.fn();
       composableControllerMessenger.subscribe(
         'ComposableController:stateChange',
         listener,
       );
       fooController.updateFoo('qux');
 
-      expect(listener.calledOnce).toBe(true);
-      expect(listener.getCall(0).args[0]).toStrictEqual({
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0]).toStrictEqual({
         FooController: {
           foo: 'qux',
         },
@@ -331,12 +326,12 @@ describe('ComposableController', () => {
       messenger: composableControllerMessenger,
     });
 
-    const listener = sinon.stub();
+    const listener = jest.fn();
     messenger.subscribe('ComposableController:stateChange', listener);
     fooController.updateFoo('qux');
 
-    expect(listener.calledOnce).toBe(true);
-    expect(listener.getCall(0).args[0]).toStrictEqual({
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0][0]).toStrictEqual({
       QuzController: {
         quz: 'quz',
       },
@@ -551,8 +546,8 @@ describe('ComposableController', () => {
           'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "FooController": Object {
+        {
+          "FooController": {
             "foo": "foo",
           },
         }
@@ -612,7 +607,7 @@ describe('ComposableController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -669,8 +664,8 @@ describe('ComposableController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "FooController": Object {
+        {
+          "FooController": {
             "foo": "foo",
           },
         }
@@ -730,7 +725,7 @@ describe('ComposableController', () => {
           controller.metadata,
           'usedInUi',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
   });
 });

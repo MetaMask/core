@@ -87,13 +87,26 @@ export type RampsServiceGetPaymentMethodsAction = {
  * @param params.amount - The amount (in fiat for buy, crypto for sell).
  * @param params.walletAddress - The destination wallet address.
  * @param params.redirectUrl - Optional redirect URL after order completion.
- * @param params.provider - Optional provider ID to filter quotes.
+ * @param params.providers - Optional provider IDs to filter quotes.
  * @param params.action - The ramp action type. Defaults to 'buy'.
  * @returns The quotes response containing success, sorted, error, and customActions.
  */
 export type RampsServiceGetQuotesAction = {
   type: `RampsService:getQuotes`;
   handler: RampsService['getQuotes'];
+};
+
+/**
+ * Fetches the buy widget data from a buy URL endpoint.
+ * Makes a request to the buyURL (as provided in a quote) to get the actual
+ * provider widget URL, browser type, and order ID.
+ *
+ * @param buyUrl - The full buy URL endpoint to fetch from.
+ * @returns The buy widget data containing the provider widget URL.
+ */
+export type RampsServiceGetBuyWidgetUrlAction = {
+  type: `RampsService:getBuyWidgetUrl`;
+  handler: RampsService['getBuyWidgetUrl'];
 };
 
 /**
@@ -105,4 +118,5 @@ export type RampsServiceMethodActions =
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
-  | RampsServiceGetQuotesAction;
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction;

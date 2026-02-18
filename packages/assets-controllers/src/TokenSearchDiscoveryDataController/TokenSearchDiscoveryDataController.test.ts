@@ -711,7 +711,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             controller.metadata,
             'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -723,7 +723,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -736,8 +736,8 @@ describe('TokenSearchDiscoveryDataController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "tokenDisplayData": Array [],
+          {
+            "tokenDisplayData": [],
           }
         `);
       });
@@ -752,8 +752,8 @@ describe('TokenSearchDiscoveryDataController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "tokenDisplayData": Array [],
+          {
+            "tokenDisplayData": [],
           }
         `);
       });

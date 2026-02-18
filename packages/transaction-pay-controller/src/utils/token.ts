@@ -3,19 +3,29 @@ import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
-import {
-  ARBITRUM_USDC_ADDRESS,
-  CHAIN_ID_ARBITRUM,
-  CHAIN_ID_POLYGON,
-  NATIVE_TOKEN_ADDRESS,
-  POLYGON_USDCE_ADDRESS,
-} from '../constants';
+import { NATIVE_TOKEN_ADDRESS, STABLECOINS } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
 
-const STABLECOINS: Record<Hex, Hex[]> = {
-  [CHAIN_ID_ARBITRUM]: [ARBITRUM_USDC_ADDRESS.toLowerCase() as Hex],
-  [CHAIN_ID_POLYGON]: [POLYGON_USDCE_ADDRESS.toLowerCase() as Hex],
-};
+/**
+ * Check if two tokens are the same (same address and chain).
+ *
+ * @param token1 - First token identifier.
+ * @param token1.address - Token address.
+ * @param token1.chainId - Token chain ID.
+ * @param token2 - Second token identifier.
+ * @param token2.address - Token address.
+ * @param token2.chainId - Token chain ID.
+ * @returns True if tokens are the same, false otherwise.
+ */
+export function isSameToken(
+  token1: { address: Hex; chainId: Hex },
+  token2: { address: Hex; chainId: Hex },
+): boolean {
+  return (
+    token1.address.toLowerCase() === token2.address.toLowerCase() &&
+    token1.chainId === token2.chainId
+  );
+}
 
 /**
  * Get the token balance for a specific account and token.
