@@ -219,7 +219,7 @@ type RequiredEventContextFromClientBase = {
     refresh_count: number;
   };
   [UnifiedSwapBridgeEventName.AssetPickerOpened]: {
-    location: 'source' | 'destination';
+    asset_location: 'source' | 'destination';
   };
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
@@ -239,17 +239,14 @@ type RequiredEventContextFromClientBase = {
 
 /**
  * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
- * For most events, this combines the event-specific properties from
- * RequiredEventContextFromClientBase with an optional `location` property.
- * `AssetPickerOpened` is excluded because it uses `location` for
- * source/destination in the Segment schema.
+ * This combines the event-specific properties from RequiredEventContextFromClientBase
+ * with an optional `location` property. When `location` is omitted, the controller
+ * falls back to the value stored via `setLocation()` (defaults to MainView).
  */
 export type RequiredEventContextFromClient = {
-  [K in keyof RequiredEventContextFromClientBase]: K extends UnifiedSwapBridgeEventName.AssetPickerOpened
-    ? RequiredEventContextFromClientBase[K]
-    : RequiredEventContextFromClientBase[K] & {
-        location?: MetaMetricsSwapsEventSource;
-      };
+  [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
+    location?: MetaMetricsSwapsEventSource;
+  };
 };
 
 /**
