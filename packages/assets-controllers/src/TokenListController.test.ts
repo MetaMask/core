@@ -15,7 +15,6 @@ import type {
 import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
-import * as sinon from 'sinon';
 
 import * as tokenService from './token-service';
 import type {
@@ -25,7 +24,7 @@ import type {
   DataCache,
 } from './TokenListController';
 import { TokenListController } from './TokenListController';
-import { advanceTime } from '../../../tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers';
 import {
   buildCustomNetworkClientConfiguration,
   buildInfuraNetworkClientConfiguration,
@@ -555,7 +554,6 @@ describe('TokenListController', () => {
 
   afterEach(() => {
     jest.clearAllTimers();
-    sinon.restore();
   });
 
   it('should set default state', async () => {
@@ -750,10 +748,9 @@ describe('TokenListController', () => {
   });
 
   it('should poll and update rate in the right interval', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -765,19 +762,18 @@ describe('TokenListController', () => {
     await controller.start();
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
-    expect(tokenListMock.called).toBe(true);
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalled();
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(tokenListMock.calledTwice).toBe(true);
+    expect(tokenListMock).toHaveBeenCalledTimes(2);
 
     controller.destroy();
   });
 
   it('should not poll after being stopped', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -790,20 +786,19 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(true);
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalled();
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
 
     controller.destroy();
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -817,23 +812,22 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(true);
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalled();
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
 
     await controller.start();
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
-    expect(tokenListMock.calledTwice).toBe(true);
+    expect(tokenListMock).toHaveBeenCalledTimes(2);
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(tokenListMock.calledThrice).toBe(true);
+    expect(tokenListMock).toHaveBeenCalledTimes(3);
     controller.destroy();
   });
 
   it('should call fetchTokenList on network that supports token detection', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -846,15 +840,14 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(true);
+    expect(tokenListMock).toHaveBeenCalled();
     controller.destroy();
   });
 
   it('should not call fetchTokenList on network that does not support token detection', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
@@ -867,10 +860,9 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(false);
+    expect(tokenListMock).not.toHaveBeenCalled();
 
     controller.destroy();
-    tokenListMock.restore();
   });
 
   it('should update tokensChainsCache from api', async () => {
@@ -1078,14 +1070,13 @@ describe('TokenListController', () => {
   });
 
   describe('startPolling', () => {
-    let clock: sinon.SinonFakeTimers;
     const pollingIntervalTime = 1000;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
@@ -1117,7 +1108,7 @@ describe('TokenListController', () => {
       });
 
       controller.startPolling({ chainId: ChainId.sepolia });
-      await advanceTime({ clock, duration: 0 });
+      await jestAdvanceTime({ duration: 0 });
 
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
@@ -1182,7 +1173,7 @@ describe('TokenListController', () => {
       });
 
       // wait a polling interval
-      await advanceTime({ clock, duration: pollingIntervalTime });
+      await jestAdvanceTime({ duration: pollingIntervalTime });
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
 
@@ -1198,7 +1189,7 @@ describe('TokenListController', () => {
       controller.startPolling({
         chainId: '0x38',
       });
-      await advanceTime({ clock, duration: pollingIntervalTime });
+      await jestAdvanceTime({ duration: pollingIntervalTime });
 
       // expect fetchTokenListByChain to be called for binance, but not for sepolia
       // because the cache for the recently fetched sepolia token list is still valid

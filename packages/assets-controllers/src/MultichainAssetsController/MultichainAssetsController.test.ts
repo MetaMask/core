@@ -23,7 +23,6 @@ import type { SubjectPermissions } from '@metamask/permission-controller';
 import type { BulkTokenScanResponse } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 import type { Snap } from '@metamask/snaps-utils';
-import { useFakeTimers } from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -35,7 +34,7 @@ import type {
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerState,
 } from './MultichainAssetsController';
-import { advanceTime } from '../../../../tests/helpers';
+import { jestAdvanceTime } from '../../../../tests/helpers';
 
 const mockSolanaAccount: InternalAccount = {
   type: 'solana:data-account',
@@ -334,14 +333,12 @@ const setupController = ({
 };
 
 describe('MultichainAssetsController', () => {
-  let clock: sinon.SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
   it('initialize with default state', () => {
     const { controller } = setupController({});
@@ -360,7 +357,7 @@ describe('MultichainAssetsController', () => {
       mockEthAccount as unknown as InternalAccount,
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {},
@@ -391,7 +388,7 @@ describe('MultichainAssetsController', () => {
       mockSolanaAccount as unknown as InternalAccount,
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
@@ -455,7 +452,7 @@ describe('MultichainAssetsController', () => {
       mockSolanaAccount as unknown as InternalAccount,
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(mockSnapHandleRequest).toHaveBeenCalledTimes(3);
 
@@ -513,7 +510,7 @@ describe('MultichainAssetsController', () => {
       mockSolanaAccount as unknown as InternalAccount,
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(mockSnapHandleRequest).toHaveBeenCalledTimes(3);
 
@@ -551,7 +548,7 @@ describe('MultichainAssetsController', () => {
       mockSolanaAccount as unknown as InternalAccount,
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
@@ -564,7 +561,7 @@ describe('MultichainAssetsController', () => {
     // Remove an EVM account
     messenger.publish('AccountsController:accountRemoved', mockEthAccount.id);
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
@@ -599,7 +596,7 @@ describe('MultichainAssetsController', () => {
       mockSolanaAccount as unknown as InternalAccount,
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
@@ -615,7 +612,7 @@ describe('MultichainAssetsController', () => {
       mockSolanaAccount.id,
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {},
@@ -691,7 +688,7 @@ describe('MultichainAssetsController', () => {
         updatedAssetsList,
       );
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(controller.state.accountsAssets).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -752,7 +749,7 @@ describe('MultichainAssetsController', () => {
         'AccountsController:accountAssetListUpdated',
         updatedAssetsList,
       );
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(controller.state.accountsAssets).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -796,7 +793,7 @@ describe('MultichainAssetsController', () => {
         'AccountsController:accountAssetListUpdated',
         updatedAssetsList,
       );
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(controller.state.accountsAssets).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -1269,7 +1266,7 @@ describe('MultichainAssetsController', () => {
       });
 
       // Wait for async processing
-      await advanceTime({ clock: useFakeTimers(), duration: 0 });
+      await jestAdvanceTime({ duration: 0 });
 
       // Only the non-ignored asset should be added
       expect(
@@ -1306,7 +1303,7 @@ describe('MultichainAssetsController', () => {
       });
 
       // Wait for async processing
-      await advanceTime({ clock: useFakeTimers(), duration: 0 });
+      await jestAdvanceTime({ duration: 0 });
 
       // Ignored asset should remain filtered out and stay in ignored list
       expect(
@@ -1337,7 +1334,7 @@ describe('MultichainAssetsController', () => {
       messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
       // Wait for async processing
-      await advanceTime({ clock: useFakeTimers(), duration: 0 });
+      await jestAdvanceTime({ duration: 0 });
 
       // All assets should be added to active list (no ignored assets for new account)
       expect(
@@ -1376,7 +1373,7 @@ describe('MultichainAssetsController', () => {
       );
 
       // Wait for async processing
-      await advanceTime({ clock: useFakeTimers(), duration: 0 });
+      await jestAdvanceTime({ duration: 0 });
 
       expect(
         controller.state.accountsAssets[mockSolanaAccount.id],
@@ -1419,7 +1416,7 @@ describe('MultichainAssetsController', () => {
         mockSolanaAccount as unknown as InternalAccount,
       );
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Native token (slip44) should pass through unfiltered
       // Benign token should be kept
@@ -1477,7 +1474,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Malicious token should be filtered out
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1505,7 +1502,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Token should be kept when scan throws
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1534,7 +1531,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Token should be kept when scan returns empty (no result = fail open)
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1560,7 +1557,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Native token should pass through without scan call
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1599,7 +1596,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Both tokens should be kept (unknown token has no result, fail open)
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1635,7 +1632,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Warning token should be filtered out; account has no assets added
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([]);
@@ -1708,7 +1705,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Should have been called twice: once with 100 tokens, once with 50
       expect(mockBulkScanTokens).toHaveBeenCalledTimes(2);
@@ -1777,7 +1774,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       const storedAssets = controller.state.accountsAssets[mockAccountId];
 

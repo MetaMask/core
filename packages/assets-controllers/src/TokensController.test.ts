@@ -28,7 +28,6 @@ import type {
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { Patch } from 'immer';
 import nock from 'nock';
-import * as sinon from 'sinon';
 import { v1 as uuidV1 } from 'uuid';
 
 import { ERC20Standard } from './Standards/ERC20Standard';
@@ -81,10 +80,6 @@ describe('TokensController', () => {
     ContractMock.mockReturnValue(
       buildMockEthersERC721Contract({ supportsInterface: false }),
     );
-  });
-
-  afterEach(() => {
-    sinon.restore();
   });
 
   it('should set default state', async () => {
