@@ -9,6 +9,8 @@ import type {
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
+import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
+import { clientControllerSelectors } from '@metamask/client-controller';
 import type {
   ApiPlatformClient,
   BackendWebSocketServiceActions,
@@ -73,7 +75,10 @@ import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource'
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
-import { createParallelBalanceMiddleware } from './middlewares/parallelBalanceMiddleware';
+import {
+  createParallelBalanceMiddleware,
+  createParallelMiddleware,
+} from './middlewares/ParallelMiddleware';
 import type {
   AccountId,
   AssetPreferences,
@@ -227,6 +232,7 @@ type AllowedActions =
 type AllowedEvents =
   // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | ClientControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
@@ -447,8 +453,10 @@ function normalizeResponse(response: DataResponse): DataResponse {
  *    based on which chains they support. When active chains change, the controller
  *    dynamically adjusts subscriptions.
  *
- * 4. **Keyring Lifecycle**: Listens to KeyringController unlock/lock events to
- *    start/stop subscriptions when the wallet is unlocked or locked.
+ * 4. **Client + Keyring Lifecycle**: Starts subscriptions only when both the UI is
+ *    open (ClientController) and the wallet is unlocked (KeyringController).
+ *    Stops when either the UI closes or the keyring locks. See client-controller
+ *    README for the combined pattern.
  *
  * ## Architecture
  *
@@ -477,6 +485,12 @@ export class AssetsController extends BaseController<
 
   /** Whether we have already reported first init fetch for this session (reset on #stop). */
   #firstInitFetchReported = false;
+
+  /** Whether the client (UI) is open. Combined with #keyringUnlocked for #updateActive. */
+  #uiOpen = false;
+
+  /** Whether the keyring is unlocked. Combined with #uiOpen for #updateActive. */
+  #keyringUnlocked = false;
 
   readonly #controllerMutex = new Mutex();
 
@@ -539,7 +553,6 @@ export class AssetsController extends BaseController<
   readonly #priceDataSource: PriceDataSource;
 
   readonly #detectionMiddleware: DetectionMiddleware;
-
   readonly #tokenDataSource: TokenDataSource;
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
@@ -627,7 +640,7 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
-    // Subscriptions start only on KeyringController:unlock -> #start(), not here.
+    // Subscriptions start only when both UI is open and keyring unlocked -> #updateActive().
 
     // Subscribe to basic-functionality changes after construction so a synchronous
     // onChange during subscribe cannot run before data sources are initialized.
@@ -728,9 +741,36 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // Keyring lifecycle: start when unlocked, stop when locked
-    this.messenger.subscribe('KeyringController:unlock', () => this.#start());
-    this.messenger.subscribe('KeyringController:lock', () => this.#stop());
+    // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
+    this.messenger.subscribe(
+      'ClientController:stateChange',
+      (isUiOpen: boolean) => {
+        this.#uiOpen = isUiOpen;
+        this.#updateActive();
+      },
+      clientControllerSelectors.selectIsUiOpen,
+    );
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#keyringUnlocked = true;
+      this.#updateActive();
+    });
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.#keyringUnlocked = false;
+      this.#updateActive();
+    });
+  }
+
+  /**
+   * Start or stop asset tracking based on client (UI) open state and keyring
+   * unlock state. Only runs when both UI is open and keyring is unlocked.
+   */
+  #updateActive(): void {
+    const shouldRun = this.#uiOpen && this.#keyringUnlocked;
+    if (shouldRun) {
+      this.#start();
+    } else {
+      this.#stop();
+    }
   }
 
   #registerActionHandlers(): void {
@@ -896,6 +936,10 @@ export class AssetsController extends BaseController<
     const assetTypes = options?.assetTypes ?? ['fungible'];
     const dataTypes = options?.dataTypes ?? ['balance', 'metadata', 'price'];
 
+    if (accounts.length === 0 || chainIds.length === 0) {
+      return this.#getAssetsFromState(accounts, chainIds, assetTypes);
+    }
+
     // Collect custom assets for all requested accounts
     const customAssets: Caip19AssetId[] = [];
     for (const account of accounts) {
@@ -920,8 +964,10 @@ export class AssetsController extends BaseController<
               this.#stakedBalanceDataSource,
             ]),
             this.#detectionMiddleware,
-            this.#tokenDataSource,
-            this.#priceDataSource,
+            createParallelMiddleware([
+              this.#tokenDataSource,
+              this.#priceDataSource,
+            ]),
           ]
         : [
             this.#rpcDataSource,
@@ -1559,7 +1605,7 @@ export class AssetsController extends BaseController<
    * Subscribe to asset updates for all selected accounts.
    */
   #subscribeAssets(): void {
-    if (this.#selectedAccounts.length === 0) {
+    if (this.#selectedAccounts.length === 0 || this.#enabledChains.size === 0) {
       return;
     }
 
@@ -1931,10 +1977,13 @@ export class AssetsController extends BaseController<
       hasPrice: Boolean(response.assetsPrice),
     });
 
-    // Run through enrichment middlewares (Event Stack: Detection → Token → Price)
+    // Run through enrichment middlewares (Detection, then Token + Price in parallel)
     // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
     const { response: enrichedResponse } = await this.#executeMiddlewares(
-      [this.#detectionMiddleware, this.#tokenDataSource, this.#priceDataSource],
+      [this.#detectionMiddleware, createParallelMiddleware([
+        this.#tokenDataSource,
+        this.#priceDataSource,
+      ])],
       request ?? {
         accountsWithSupportedChains: [],
         chainIds: [],

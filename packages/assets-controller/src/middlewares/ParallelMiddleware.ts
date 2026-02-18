@@ -1,4 +1,12 @@
-import type { ChainId, DataRequest, DataResponse, Middleware } from '../types';
+import pLimit from 'p-limit';
+
+import type {
+  ChainId,
+  Context,
+  DataRequest,
+  DataResponse,
+  Middleware,
+} from '../types';
 
 // ============================================================================
 // MERGE HELPER
@@ -14,11 +22,11 @@ import type { ChainId, DataRequest, DataResponse, Middleware } from '../types';
 export function mergeDataResponses(responses: DataResponse[]): DataResponse {
   const merged: DataResponse = {};
 
-  for (const r of responses) {
-    if (r.assetsBalance) {
+  for (const response of responses) {
+    if (response.assetsBalance) {
       merged.assetsBalance ??= {};
       for (const [accountId, accountBalances] of Object.entries(
-        r.assetsBalance,
+        response.assetsBalance,
       )) {
         merged.assetsBalance[accountId] = {
           ...(merged.assetsBalance[accountId] ?? {}),
@@ -26,37 +34,35 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
         };
       }
     }
-    if (r.assetsInfo) {
+    if (response.assetsInfo) {
       merged.assetsInfo = {
         ...(merged.assetsInfo ?? {}),
-        ...r.assetsInfo,
+        ...response.assetsInfo,
       };
     }
-    if (r.assetsPrice) {
+    if (response.assetsPrice) {
       merged.assetsPrice = {
         ...(merged.assetsPrice ?? {}),
-        ...r.assetsPrice,
+        ...response.assetsPrice,
       };
     }
-    if (r.errors) {
+    if (response.errors) {
       merged.errors = {
         ...(merged.errors ?? {}),
-        ...r.errors,
+        ...response.errors,
       };
     }
-    if (r.detectedAssets) {
+    if (response.detectedAssets) {
       merged.detectedAssets = {
         ...(merged.detectedAssets ?? {}),
-        ...r.detectedAssets,
+        ...response.detectedAssets,
       };
     }
-    if (r.updateMode === 'full') {
+    if (response.updateMode === 'full') {
       merged.updateMode = 'full';
     }
   }
-  if (merged.updateMode === undefined) {
-    merged.updateMode = 'merge';
-  }
+  merged.updateMode ??= 'merge';
 
   return merged;
 }
@@ -66,6 +72,9 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
 // ============================================================================
 
 const PARALLEL_BALANCE_MIDDLEWARE_NAME = 'ParallelBalanceMiddleware';
+
+/** Max concurrent balance source calls (round 1 and fallback). */
+const BALANCE_CONCURRENCY = 3;
 
 export type BalanceSource = {
   getName(): string;
@@ -87,7 +96,7 @@ function partitionChainsBySource(
   request: DataRequest,
   sources: BalanceSource[],
 ): DataRequest[] {
-  const chainIds = request.chainIds;
+  const { chainIds } = request;
   const assigned = new Set<ChainId>();
 
   return sources.map((source) => {
@@ -107,6 +116,10 @@ function partitionChainsBySource(
 /**
  * Collect chain IDs that failed in the first round (present in response.errors).
  * Used to run a fallback round with remaining sources.
+ *
+ * @param requests - Partitioned requests, one per source (same order as results).
+ * @param results - Results from each source; chain IDs in requests[i] that have errors in results[i].response.errors are considered failed.
+ * @returns Set of chain IDs that had errors in the first round.
  */
 function getFailedChainIds(
   requests: DataRequest[],
@@ -132,39 +145,43 @@ function getFailedChainIds(
  * @param sources - Array of balance sources in priority order (each with getName(), getActiveChainsSync(), assetsMiddleware).
  * @returns A single middleware that runs all sources in parallel and merges responses.
  */
-export function createParallelBalanceMiddleware(
-  sources: BalanceSource[],
-): { getName(): string; assetsMiddleware: Middleware } {
+export function createParallelBalanceMiddleware(sources: BalanceSource[]): {
+  getName(): string;
+  assetsMiddleware: Middleware;
+} {
   return {
     getName(): string {
       return PARALLEL_BALANCE_MIDDLEWARE_NAME;
     },
 
-    assetsMiddleware: async (context, next) => {
+    assetsMiddleware: async (context, next): Promise<Context> => {
       if (sources.length === 0) {
         return next(context);
       }
 
       const noopNext = async (ctx: typeof context): Promise<typeof context> =>
         ctx;
+      const limit = pLimit(BALANCE_CONCURRENCY);
 
-      // Round 1: partition chains (no overlap), run all in parallel
+      // Round 1: partition chains (no overlap), run with limited concurrency
       const requests = partitionChainsBySource(context.request, sources);
       const results = await Promise.all(
         sources.map((source, i) =>
-          source.assetsMiddleware(
-            {
-              request: requests[i],
-              response: {},
-              getAssetsState: context.getAssetsState,
-            },
-            noopNext,
+          limit(() =>
+            source.assetsMiddleware(
+              {
+                request: requests[i],
+                response: {},
+                getAssetsState: context.getAssetsState,
+              },
+              noopNext,
+            ),
           ),
         ),
       );
 
       let mergedResponse = mergeDataResponses(
-        results.map((r) => r.response),
+        results.map((result) => result.response),
       );
 
       // Fallback: chains that failed (in errors) get re-partitioned and tried again
@@ -180,18 +197,20 @@ export function createParallelBalanceMiddleware(
         );
         const fallbackResults = await Promise.all(
           sources.map((source, i) =>
-            source.assetsMiddleware(
-              {
-                request: fallbackRequests[i],
-                response: {},
-                getAssetsState: context.getAssetsState,
-              },
-              noopNext,
+            limit(() =>
+              source.assetsMiddleware(
+                {
+                  request: fallbackRequests[i],
+                  response: {},
+                  getAssetsState: context.getAssetsState,
+                },
+                noopNext,
+              ),
             ),
           ),
         );
         const fallbackMerged = mergeDataResponses(
-          fallbackResults.map((r) => r.response),
+          fallbackResults.map((result) => result.response),
         );
         mergedResponse = mergeDataResponses([mergedResponse, fallbackMerged]);
         // Remove errors for chains we successfully got balance for in fallback
@@ -212,6 +231,74 @@ export function createParallelBalanceMiddleware(
           }
         }
       }
+
+      return next({
+        ...context,
+        response: mergeDataResponses([context.response, mergedResponse]),
+      });
+    },
+  };
+}
+
+// ============================================================================
+// PARALLEL TOKEN/PRICE MIDDLEWARE
+// ============================================================================
+
+const PARALLEL_MIDDLEWARE_NAME = 'ParallelMiddleware';
+
+/** Max concurrent token/price source calls. */
+const CONCURRENCY = 2;
+
+export type TokenPriceSource = {
+  getName(): string;
+  assetsMiddleware: Middleware;
+};
+
+/**
+ * Middleware that runs multiple data source middlewares (e.g. TokenDataSource,
+ * PriceDataSource) in parallel with the same request. Responses are merged so
+ * that assetsInfo (token metadata) and assetsPrice are combined. Use this to
+ * fetch token and price data concurrently instead of sequentially.
+ *
+ * @param sources - Array of sources with getName() and assetsMiddleware.
+ * @returns A single middleware that runs all sources in parallel and merges responses.
+ */
+export function createParallelMiddleware(sources: TokenPriceSource[]): {
+  getName(): string;
+  assetsMiddleware: Middleware;
+} {
+  return {
+    getName(): string {
+      return PARALLEL_MIDDLEWARE_NAME;
+    },
+
+    assetsMiddleware: async (context, next): Promise<Context> => {
+      if (sources.length === 0) {
+        return next(context);
+      }
+
+      const noopNext = async (ctx: typeof context): Promise<typeof context> =>
+        ctx;
+      const limit = pLimit(CONCURRENCY);
+
+      const results = await Promise.all(
+        sources.map((source) =>
+          limit(() =>
+            source.assetsMiddleware(
+              {
+                request: context.request,
+                response: { ...context.response },
+                getAssetsState: context.getAssetsState,
+              },
+              noopNext,
+            ),
+          ),
+        ),
+      );
+
+      const mergedResponse = mergeDataResponses(
+        results.map((result) => result.response),
+      );
 
       return next({
         ...context,

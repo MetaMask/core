@@ -2519,6 +2519,7 @@ __metadata:
     "@metamask/assets-controllers": "npm:^99.4.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/client-controller": "npm:^1.0.0"
     "@metamask/controller-utils": "npm:^11.18.0"
     "@metamask/core-backend": "npm:^6.0.0"
     "@metamask/keyring-api": "npm:^21.5.0"
@@ -2543,6 +2544,7 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
     lodash: "npm:^4.17.21"
+    p-limit: "npm:^3.1.0"
     ts-jest: "npm:^29.2.5"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
@@ -2861,7 +2863,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/client-controller@workspace:packages/client-controller":
+"@metamask/client-controller@npm:^1.0.0, @metamask/client-controller@workspace:packages/client-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/client-controller@workspace:packages/client-controller"
   dependencies:

@@ -1,6 +1,7 @@
 export { DetectionMiddleware } from './DetectionMiddleware';
 export {
   createParallelBalanceMiddleware,
+  createParallelMiddleware,
   mergeDataResponses,
-} from './parallelBalanceMiddleware';
-export type { BalanceSource } from './parallelBalanceMiddleware';
+} from './ParallelMiddleware';
+export type { BalanceSource, TokenPriceSource } from './ParallelMiddleware';
