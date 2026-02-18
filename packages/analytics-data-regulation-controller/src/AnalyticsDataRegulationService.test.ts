@@ -5,26 +5,23 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService';
 import { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService';
 import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
 
 describe('AnalyticsDataRegulationService', () => {
-  let clock: SinonFakeTimers;
   const segmentSourceId = 'test-source-id';
   const segmentRegulationsEndpoint = 'https://proxy.example.com/v1beta';
 
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     cleanAll();
     disableNetConnect();
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
     cleanAll();
     enableNetConnect();
   });
@@ -359,7 +356,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const onRetryListener = jest.fn();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
         onRetryListener();
       });
 
@@ -383,7 +380,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       const onBreakListener = jest.fn();
@@ -418,7 +415,7 @@ describe('AnalyticsDataRegulationService', () => {
       nock(segmentRegulationsEndpoint)
         .post(`/regulations/sources/${segmentSourceId}`)
         .reply(200, () => {
-          clock.tick(6000);
+          jest.advanceTimersByTime(6000);
           return {
             data: {
               data: {
@@ -448,7 +445,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
