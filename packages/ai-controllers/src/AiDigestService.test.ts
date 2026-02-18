@@ -117,6 +117,30 @@ describe('AiDigestService', () => {
       );
     });
 
+    it('unwraps market insights when API returns digest envelope', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'digest-id',
+            assetId: 'bitcoin',
+            assetSymbol: 'BTC',
+            digest: mockMarketInsightsReport,
+            success: true,
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.searchDigests(
+        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+      );
+
+      expect(result).toStrictEqual(mockMarketInsightsReport);
+    });
+
     it('returns null when API returns 404', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 404 });
 

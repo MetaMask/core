@@ -9,6 +9,10 @@ export type AiDigestServiceConfig = {
   baseUrl: string;
 };
 
+type MarketInsightsApiResponse = {
+  digest?: MarketInsightsReport;
+} & Partial<MarketInsightsReport>;
+
 export class AiDigestService implements DigestService {
   readonly #baseUrl: string;
 
@@ -61,7 +65,10 @@ export class AiDigestService implements DigestService {
       );
     }
 
-    const data: MarketInsightsReport = await response.json();
-    return data;
+    const data: MarketInsightsApiResponse = await response.json();
+
+    // API currently returns an envelope with the report under `digest`.
+    // Keep backward compatibility if the report is returned directly.
+    return data.digest ?? (data as MarketInsightsReport);
   }
 }
