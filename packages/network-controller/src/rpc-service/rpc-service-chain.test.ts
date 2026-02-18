@@ -1592,14 +1592,12 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
@@ -1650,13 +1648,11 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         rpcMethodName: 'eth_chainId',
       });
     });
@@ -1733,20 +1729,17 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
@@ -1915,21 +1908,18 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-
         rpcMethodName: 'eth_chainId',
       });
     });
