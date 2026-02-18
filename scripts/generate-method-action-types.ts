@@ -35,7 +35,7 @@ type CommandLineArguments = {
   /**
    * Optional path to a specific controller to process.
    */
-  controllerPath?: string;
+  controllerPath: string;
 };
 
 /**
@@ -61,7 +61,9 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
     })
     .positional('path', {
       type: 'string',
-      description: 'Optional path to a specific controller file to process',
+      description:
+        'Optional path to a specific folder where a controller is located (defaults to src/)',
+      default: 'src',
     })
     .help()
     .check((argv) => {
@@ -193,11 +195,11 @@ async function checkActionTypesFiles(
  * Main entry point for the script.
  */
 async function main(): Promise<void> {
-  const { fix } = await parseCommandLineArguments();
+  const { fix, controllerPath } = await parseCommandLineArguments();
 
   console.log('🔍 Searching for controllers with MESSENGER_EXPOSED_METHODS...');
 
-  const controllers = await findControllersWithExposedMethods();
+  const controllers = await findControllersWithExposedMethods(controllerPath);
 
   if (controllers.length === 0) {
     console.log('⚠️  No controllers found with MESSENGER_EXPOSED_METHODS');
@@ -249,13 +251,13 @@ async function isDirectory(pathValue: string): Promise<boolean> {
 /**
  * Finds all controller files that have MESSENGER_EXPOSED_METHODS constants.
  *
- * @param controllerPath - Optional path to a specific controller file to process.
+ * @param controllerPath - Path to the folder where controllers are located.
  * @returns A list of controller information objects.
  */
 async function findControllersWithExposedMethods(
-  controllerPath?: string,
+  controllerPath: string,
 ): Promise<ControllerInfo[]> {
-  const srcPath = controllerPath ?? path.resolve(process.cwd(), 'src');
+  const srcPath = path.resolve(process.cwd(), controllerPath);
   const controllers: ControllerInfo[] = [];
 
   if (!(await isDirectory(srcPath))) {
