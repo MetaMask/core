@@ -52,7 +52,8 @@ export enum InputAmountPreset {
   PERCENT_25 = '25%',
   PERCENT_50 = '50%',
   PERCENT_90 = '90%',
-  PERCENT_100 = '100%',
+  // "Max" may not equal 100% of balance (e.g. gas reserves are withheld)
+  MAX = 'max',
 }
 
 export enum MetricsActionType {
