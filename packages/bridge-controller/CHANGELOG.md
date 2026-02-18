@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added optional `input_amount_preset` property to the `InputChanged` event in `RequiredEventContextFromClient` ([#7987](https://github.com/MetaMask/core/pull/7987))
+
 ## [67.0.0]
 
 ### Added
