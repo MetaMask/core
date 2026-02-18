@@ -217,12 +217,6 @@ export type RequiredEventContextFromClient = {
   [UnifiedSwapBridgeEventName.AssetPickerOpened]: {
     location: 'source' | 'destination';
   };
-  [UnifiedSwapBridgeEventName.AssetSelected]: {
-    token_symbol: string;
-    token_address: string | null;
-    chain_id: CaipChainId | null;
-    location: 'source' | 'destination';
-  };
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
     Omit<RequestMetadata, 'security_warnings'> &
@@ -294,7 +288,6 @@ export type EventPropertiesFromControllerState = {
     refresh_count: number;
   };
   [UnifiedSwapBridgeEventName.AssetPickerOpened]: null;
-  [UnifiedSwapBridgeEventName.AssetSelected]: null;
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: null;
 };
 

@@ -957,7 +957,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       }
       case UnifiedSwapBridgeEventName.AssetDetailTooltipClicked:
       case UnifiedSwapBridgeEventName.AssetPickerOpened:
-      case UnifiedSwapBridgeEventName.AssetSelected:
         return baseProperties;
       // These events may be published after the bridge-controller state is reset
       // So the BridgeStatusController populates all the properties

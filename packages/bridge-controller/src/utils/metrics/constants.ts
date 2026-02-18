@@ -22,7 +22,6 @@ export enum UnifiedSwapBridgeEventName {
   QuotesValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Failed Validation`,
   StatusValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Status Failed Validation`,
   AssetPickerOpened = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Picker Opened`,
-  AssetSelected = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Selected`,
   PollingStatusUpdated = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Polling Status Updated`,
 }
 

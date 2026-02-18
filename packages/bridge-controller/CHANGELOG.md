@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AssetPickerOpened` and `AssetSelected` unified swap bridge metrics events. ([#7575](https://github.com/MetaMask/core/pull/7575))
+- Add `AssetPickerOpened` unified swap bridge metrics event. ([#7575](https://github.com/MetaMask/core/pull/7575))
 
 ### Changed
 
