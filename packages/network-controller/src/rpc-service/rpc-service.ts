@@ -221,6 +221,40 @@ function isJsonParseError(error: unknown): boolean {
 }
 
 /**
+ * Determines whether the given error represents a server HTTP error
+ * (502, 503, or 504) that should be retried.
+ *
+ * @param error - The error object to test.
+ * @returns True if the error has an httpStatus of 502, 503, or 504.
+ */
+function isServerHttpError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'httpStatus' in error &&
+    [502, 503, 504].includes((error as { httpStatus: number }).httpStatus)
+  );
+}
+
+/**
+ * Determines whether the given error has a `code` property matching
+ * `ETIMEDOUT` or `ECONNRESET`.
+ *
+ * @param error - The error object to test.
+ * @returns True if the error code is `ETIMEDOUT` or `ECONNRESET`.
+ */
+function isTimeoutOrResetError(
+  error: unknown,
+): error is { code: 'ETIMEDOUT' | 'ECONNRESET' } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    hasProperty(error, 'code') &&
+    (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET')
+  );
+}
+
+/**
  * Classifies the error that was being retried when retries were exhausted.
  *
  * @param error - The error from the last retry attempt.
@@ -234,25 +268,11 @@ function classifyRetriedError(error: unknown): RetriedError | undefined {
   if (isJsonParseError(error)) {
     return 'response_not_json';
   }
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'httpStatus' in error &&
-    [502, 503, 504].includes((error as { httpStatus: number }).httpStatus)
-  ) {
+  if (isServerHttpError(error)) {
     return 'non_success_http_status';
   }
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    hasProperty(error, 'code')
-  ) {
-    if (error.code === 'ETIMEDOUT') {
-      return 'timed_out';
-    }
-    if (error.code === 'ECONNRESET') {
-      return 'connection_reset';
-    }
+  if (isTimeoutOrResetError(error)) {
+    return error.code === 'ETIMEDOUT' ? 'timed_out' : 'connection_reset';
   }
   return undefined;
 }
@@ -376,12 +396,9 @@ export class RpcService implements AbstractRpcService {
           // Ignore server sent HTML error pages or truncated JSON responses
           isJsonParseError(error) ||
           // Ignore server overload errors
-          ('httpStatus' in error &&
-            (error.httpStatus === 502 ||
-              error.httpStatus === 503 ||
-              error.httpStatus === 504)) ||
-          (hasProperty(error, 'code') &&
-            (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET'))
+          isServerHttpError(error) ||
+          // Ignore timeout and connection reset errors
+          isTimeoutOrResetError(error)
         );
       }),
     });
