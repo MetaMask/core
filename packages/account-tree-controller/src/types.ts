@@ -119,6 +119,36 @@ export type AccountTreeControllerSetAccountGroupPinnedAction = {
   handler: AccountTreeController['setAccountGroupPinned'];
 };
 
+export type AccountTreeControllerGetAccountWalletObjectAction = {
+  type: `${typeof controllerName}:getAccountWalletObject`;
+  handler: AccountTreeController['getAccountWalletObject'];
+};
+
+export type AccountTreeControllerGetAccountWalletObjectsAction = {
+  type: `${typeof controllerName}:getAccountWalletObjects`;
+  handler: AccountTreeController['getAccountWalletObjects'];
+};
+
+export type AccountTreeControllerGetAccountGroupObjectAction = {
+  type: `${typeof controllerName}:getAccountGroupObject`;
+  handler: AccountTreeController['getAccountGroupObject'];
+};
+
+export type AccountTreeControllerClearStateAction = {
+  type: `${typeof controllerName}:clearState`;
+  handler: AccountTreeController['clearState'];
+};
+
+export type AccountTreeControllerSyncWithUserStorageAction = {
+  type: `${typeof controllerName}:syncWithUserStorage`;
+  handler: AccountTreeController['syncWithUserStorage'];
+};
+
+export type AccountTreeControllerSyncWithUserStorageAtLeastOnceAction = {
+  type: `${typeof controllerName}:syncWithUserStorageAtLeastOnce`;
+  handler: AccountTreeController['syncWithUserStorageAtLeastOnce'];
+};
+
 export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedMultichainAccountAction
@@ -143,7 +173,13 @@ export type AccountTreeControllerActions =
   | AccountTreeControllerSetAccountWalletNameAction
   | AccountTreeControllerSetAccountGroupNameAction
   | AccountTreeControllerSetAccountGroupPinnedAction
-  | AccountTreeControllerSetAccountGroupHiddenAction;
+  | AccountTreeControllerSetAccountGroupHiddenAction
+  | AccountTreeControllerGetAccountWalletObjectAction
+  | AccountTreeControllerGetAccountWalletObjectsAction
+  | AccountTreeControllerGetAccountGroupObjectAction
+  | AccountTreeControllerClearStateAction
+  | AccountTreeControllerSyncWithUserStorageAction
+  | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,

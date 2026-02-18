@@ -83,6 +83,15 @@ type ControllerConfig = {
   env: Env;
 };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'performSignIn',
+  'performSignOut',
+  'getBearerToken',
+  'getSessionProfile',
+  'getUserProfileLineage',
+  'isSignedIn',
+] as const;
+
 // Messenger Actions
 type CreateActionsObj<Controller extends keyof AuthenticationController> = {
   [K in Controller]: {
@@ -90,14 +99,7 @@ type CreateActionsObj<Controller extends keyof AuthenticationController> = {
     handler: AuthenticationController[K];
   };
 };
-type ActionsObj = CreateActionsObj<
-  | 'performSignIn'
-  | 'performSignOut'
-  | 'getBearerToken'
-  | 'getSessionProfile'
-  | 'getUserProfileLineage'
-  | 'isSignedIn'
->;
+type ActionsObj = CreateActionsObj<(typeof MESSENGER_EXPOSED_METHODS)[number]>;
 export type Actions =
   | ActionsObj[keyof ActionsObj]
   | AuthenticationControllerGetStateAction;
@@ -223,42 +225,10 @@ export default class AuthenticationController extends BaseController<
     );
 
     this.#keyringController.setupLockedStateSubscriptions();
-    this.#registerMessageHandlers();
-  }
 
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getBearerToken',
-      this.getBearerToken.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getSessionProfile',
-      this.getSessionProfile.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:isSignedIn',
-      this.isSignedIn.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:performSignIn',
-      this.performSignIn.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:performSignOut',
-      this.performSignOut.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getUserProfileLineage',
-      this.getUserProfileLineage.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

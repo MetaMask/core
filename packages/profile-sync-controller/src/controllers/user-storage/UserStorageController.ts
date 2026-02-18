@@ -139,6 +139,21 @@ type ControllerConfig = {
   };
 };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'performGetStorage',
+  'performGetStorageAllFeatureEntries',
+  'performSetStorage',
+  'performBatchSetStorage',
+  'performDeleteStorage',
+  'performBatchDeleteStorage',
+  'getStorageKey',
+  'performDeleteStorageAllFeatureEntries',
+  'listEntropySources',
+  'setIsBackupAndSyncFeatureEnabled',
+  'setIsContactSyncingInProgress',
+  'syncContactsWithUserStorage',
+] as const;
+
 // Messenger Actions
 type CreateActionsObj<Controller extends keyof UserStorageController> = {
   [K in Controller]: {
@@ -146,15 +161,7 @@ type CreateActionsObj<Controller extends keyof UserStorageController> = {
     handler: UserStorageController[K];
   };
 };
-type ActionsObj = CreateActionsObj<
-  | 'performGetStorage'
-  | 'performGetStorageAllFeatureEntries'
-  | 'performSetStorage'
-  | 'performBatchSetStorage'
-  | 'performDeleteStorage'
-  | 'performBatchDeleteStorage'
-  | 'getStorageKey'
->;
+type ActionsObj = CreateActionsObj<(typeof MESSENGER_EXPOSED_METHODS)[number]>;
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   UserStorageControllerState
@@ -175,6 +182,16 @@ export type UserStorageControllerPerformDeleteStorage =
 export type UserStorageControllerPerformBatchDeleteStorage =
   ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
+export type UserStoragePerformDeleteStorageAllFeatureEntries =
+  ActionsObj['performDeleteStorageAllFeatureEntries'];
+export type UserStorageControllerListEntropySources =
+  ActionsObj['listEntropySources'];
+export type UserStorageControllerSetIsBackupAndSyncFeatureEnabled =
+  ActionsObj['setIsBackupAndSyncFeatureEnabled'];
+export type UserStorageControllerSetIsContactSyncingInProgress =
+  ActionsObj['setIsContactSyncingInProgress'];
+export type UserStorageControllerSyncContactsWithUserStorage =
+  ActionsObj['syncContactsWithUserStorage'];
 
 export type AllowedActions =
   // Keyring Requests
@@ -346,8 +363,12 @@ export default class UserStorageController extends BaseController<
       },
     );
 
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     this.#keyringController.setupLockedStateSubscriptions();
-    this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
 
     // Contact Syncing
@@ -356,47 +377,6 @@ export default class UserStorageController extends BaseController<
       getMessenger: () => this.messenger,
       trace: this.#trace,
     });
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'UserStorageController:performGetStorage',
-      this.performGetStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performGetStorageAllFeatureEntries',
-      this.performGetStorageAllFeatureEntries.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performSetStorage',
-      this.performSetStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performBatchSetStorage',
-      this.performBatchSetStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performDeleteStorage',
-      this.performDeleteStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performBatchDeleteStorage',
-      this.performBatchDeleteStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:getStorageKey',
-      this.getStorageKey.bind(this),
-    );
   }
 
   /**
