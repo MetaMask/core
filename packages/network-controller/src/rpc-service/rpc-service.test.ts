@@ -1099,6 +1099,14 @@ describe('RpcService', () => {
       ]);
 
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_blockNumber',
+      });
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_gasPrice',
+      });
     });
 
     it('calls onDegraded twice with the correct rpcMethodName when two concurrent requests to different methods fail — one slow, one retriable', async () => {
@@ -1142,7 +1150,7 @@ describe('RpcService', () => {
       service.onDegraded(onDegradedListener);
 
       // Start both requests concurrently
-      const [, gasResult] = await Promise.allSettled([
+      await Promise.allSettled([
         service.request({
           id: 1,
           jsonrpc: '2.0',
@@ -1157,8 +1165,19 @@ describe('RpcService', () => {
         }),
       ]);
 
-      expect(gasResult.status).toBe('rejected');
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
+      expect(onDegradedListener).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          rpcMethodName: 'eth_blockNumber',
+        }),
+      );
+      expect(onDegradedListener).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          rpcMethodName: 'eth_gasPrice',
+        }),
+      );
     });
 
     it('calls the onAvailable callback the first time a successful request occurs', async () => {

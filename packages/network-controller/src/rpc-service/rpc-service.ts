@@ -251,18 +251,13 @@ export class RpcService implements AbstractRpcService {
   lastError: Error | undefined;
 
   /**
-   * The RPC method name of the current request being processed. This is set
-   * inside the Cockatiel policy's execute callback (in its `finally` block)
-   * to minimise the window between the write and Cockatiel's synchronous
-   * event dispatch. Setting it at the start of `request()` would widen the
-   * race because the entire fetch duration separates the write from the
-   * event. With the `finally` approach only a microtask boundary remains,
-   * so under concurrent requests on the same instance the reported method
-   * name may still be incorrect in rare edge cases.
+   * The RPC method name of the current request being processed. This is passed
+   * to `onDegraded` event listeners.
    *
    * Initialised to `''` so the type is `string` throughout the event chain.
-   * The empty string is unreachable in practice because the field is always
-   * overwritten before Cockatiel dispatches any event.
+   * The empty string is unreachable in practice because the method name is
+   * guaranteed to be set after the current request is completed but before
+   * any `onDegraded` callbacks are called.
    */
   #currentRpcMethodName = '';
 
@@ -603,9 +598,20 @@ export class RpcService implements AbstractRpcService {
             );
             return await response.json();
           } finally {
-            // Set the method name right before the callback exits so that
-            // it is correct when Cockatiel fires onBreak/onDegraded
-            // synchronously after the callback throws or returns.
+            // Track the RPC method for the request that has just taken place.
+            // We pass this property to `onDegraded` event listeners.
+            //
+            // We set this property after the request completes and not before
+            // the request starts to account for race conditions. That is, if
+            // there are two requests that are being performed concurrently, and
+            // the second request fails fast but the first request succeeds
+            // slowly, when `onDegraded` is called we want it to include the
+            // first request as the RPC method, not the second.
+            //
+            // Also, we set this property within a `finally` block inside of the
+            // function passed to `policy.execute` to ensure that it is set
+            // before `onDegraded` gets called, no matter the outcome of the
+            // request.
             this.#currentRpcMethodName = rpcMethodName;
           }
         },
