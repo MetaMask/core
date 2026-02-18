@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ai-controllers",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A collection of AI-related controllers",
   "keywords": [
     "MetaMask",
