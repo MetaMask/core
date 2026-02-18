@@ -404,7 +404,7 @@ describe('RpcService', () => {
       },
     );
 
-    describe.each(['ETIMEDOUT', 'ECONNRESET'] as const)(
+    describe.each(['ETIMEDOUT', 'ECONNRESET'])(
       'if making the request throws a "%s" error',
       (errorCode) => {
         const error = new Error('timed out');
