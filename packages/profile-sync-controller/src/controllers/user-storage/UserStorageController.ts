@@ -182,7 +182,7 @@ export type UserStorageControllerPerformDeleteStorage =
 export type UserStorageControllerPerformBatchDeleteStorage =
   ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
-export type UserStoragePerformDeleteStorageAllFeatureEntries =
+export type UserStorageControllerPerformDeleteStorageAllFeatureEntries =
   ActionsObj['performDeleteStorageAllFeatureEntries'];
 export type UserStorageControllerListEntropySources =
   ActionsObj['listEntropySources'];
@@ -218,7 +218,6 @@ export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
 export type Events = UserStorageControllerStateChangeEvent;
 
 export type AllowedEvents =
-  | UserStorageControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Address Book Events
