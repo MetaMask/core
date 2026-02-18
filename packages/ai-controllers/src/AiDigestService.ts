@@ -18,7 +18,7 @@ const isMarketInsightsReport = (
   }
 
   return (
-    typeof value.version === 'string' &&
+    (value.version === undefined || typeof value.version === 'string') &&
     typeof value.asset === 'string' &&
     typeof value.generatedAt === 'string' &&
     typeof value.headline === 'string' &&
@@ -26,6 +26,20 @@ const isMarketInsightsReport = (
     Array.isArray(value.trends) &&
     Array.isArray(value.sources)
   );
+};
+
+const getNormalizedMarketInsightsReport = (
+  value: unknown,
+): MarketInsightsReport | null => {
+  if (isMarketInsightsReport(value)) {
+    return value;
+  }
+
+  if (isObject(value) && isMarketInsightsReport(value.digest)) {
+    return value.digest;
+  }
+
+  return null;
 };
 
 export class AiDigestService implements DigestService {
@@ -60,12 +74,12 @@ export class AiDigestService implements DigestService {
       );
     }
 
-    const json = await response.json();
+    const report = getNormalizedMarketInsightsReport(await response.json());
 
-    if (!isMarketInsightsReport(json)) {
+    if (!report) {
       throw new Error(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     }
 
-    return json;
+    return report;
   }
 }

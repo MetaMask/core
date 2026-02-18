@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Validate `searchDigest` API responses and throw when the payload does not match the expected `MarketInsightsReport` shape.
+- Normalize `searchDigest` responses from either direct report payloads or `digest` envelope payloads.
 
 ### Removed
 

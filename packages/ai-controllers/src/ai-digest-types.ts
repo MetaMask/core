@@ -68,7 +68,7 @@ export type MarketInsightsSource = {
  */
 export type MarketInsightsReport = {
   /** API version */
-  version: string;
+  version?: string;
   /** Asset symbol (lowercase, e.g. "btc") */
   asset: string;
   /** ISO date string when the report was generated */
