@@ -1092,8 +1092,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
@@ -1142,7 +1140,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        degradedType: 'slow_success',
         rpcMethodName: 'eth_chainId',
       });
     });
@@ -1217,8 +1214,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
@@ -1287,8 +1282,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
         error: expectedDegradedError,
         rpcMethodName: 'eth_blockNumber',
       });
@@ -1366,8 +1359,6 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
@@ -1441,13 +1432,10 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
-        degradedType: 'slow_success',
         rpcMethodName: 'eth_chainId',
       });
     });
@@ -1545,13 +1533,10 @@ describe('RpcServiceChain', () => {
 
       expect(onDegradedListener).toHaveBeenCalledTimes(2);
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
-        degradedType: 'slow_success',
         rpcMethodName: 'eth_chainId',
       });
     });
@@ -1607,16 +1592,14 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
@@ -1667,13 +1650,13 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'slow_success',
+
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'slow_success',
+
         rpcMethodName: 'eth_chainId',
       });
     });
@@ -1750,22 +1733,20 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'slow_success',
+
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
@@ -1845,23 +1826,21 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
-        degradedType: 'slow_success',
+
         rpcMethodName: 'eth_chainId',
       });
     });
@@ -1936,23 +1915,21 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
-        degradedType: 'slow_success',
+
         rpcMethodName: 'eth_chainId',
       });
     });
@@ -2052,39 +2029,35 @@ describe('RpcServiceChain', () => {
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(1, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(4, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
-        degradedType: 'retries_exhausted',
-        retriedError: 'non_success_http_status',
+
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(5, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
-        degradedType: 'slow_success',
+
         rpcMethodName: 'eth_chainId',
       });
     });
@@ -2257,7 +2230,6 @@ describe('RpcServiceChain', () => {
       // Verify degradation occurred after the first (slow) request
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
-        degradedType: 'slow_success',
         rpcMethodName: 'eth_chainId',
       });
 

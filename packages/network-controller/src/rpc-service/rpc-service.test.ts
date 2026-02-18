@@ -400,17 +400,13 @@ describe('RpcService', () => {
         testsForRetriableFetchErrors({
           producedError: error,
           expectedError: error,
-          expectedRetriedError: 'request_not_initiated',
         });
       },
     );
 
-    describe.each([
-      ['ETIMEDOUT', 'timed_out'],
-      ['ECONNRESET', 'connection_reset'],
-    ] as const)(
+    describe.each(['ETIMEDOUT', 'ECONNRESET'] as const)(
       'if making the request throws a "%s" error',
-      (errorCode, expectedRetriedError) => {
+      (errorCode) => {
         const error = new Error('timed out');
         // @ts-expect-error `code` does not exist on the Error type, but is
         // still used by Node.
@@ -419,7 +415,6 @@ describe('RpcService', () => {
         testsForRetriableFetchErrors({
           producedError: error,
           expectedError: error,
-          expectedRetriedError,
         });
       },
     );
@@ -1035,7 +1030,6 @@ describe('RpcService', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_chainId',
-        degradedType: 'slow_success',
       });
     });
 
@@ -1100,12 +1094,10 @@ describe('RpcService', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_blockNumber',
-        degradedType: 'slow_success',
       });
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_gasPrice',
-        degradedType: 'slow_success',
       });
     });
 
@@ -1430,17 +1422,13 @@ function testsForNonRetriableErrors({
  * @param args.producedError - The error produced when `fetch` is called.
  * @param args.expectedError - The error that a call to the service's `request`
  * method is expected to produce.
- * @param args.expectedRetriedError - The expected `retriedError` classification
- * string for the degraded event.
  */
 function testsForRetriableFetchErrors({
   producedError,
   expectedError,
-  expectedRetriedError,
 }: {
   producedError: Error;
   expectedError: string | jest.Constructable | RegExp | Error;
-  expectedRetriedError: string;
 }): void {
   // This function is designed to be used inside of a describe, so this won't be
   // a problem in practice.
@@ -1506,8 +1494,6 @@ function testsForRetriableFetchErrors({
       endpointUrl: `${endpointUrl}/`,
       error: expectedError,
       rpcMethodName: 'eth_chainId',
-      degradedType: 'retries_exhausted',
-      retriedError: expectedRetriedError,
     });
   });
 

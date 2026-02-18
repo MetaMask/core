@@ -11,14 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `rpcMethodName` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7954](https://github.com/MetaMask/core/pull/7954))
   - This field contains the JSON-RPC method name (e.g. `eth_blockNumber`) that was being processed when the event fired, enabling identification of which methods produce the most slow requests or retry exhaustions.
-- Add `degradedType` and `retriedError` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7988](https://github.com/MetaMask/core/pull/7988))
-  - `degradedType` is `'slow_success'` when the request succeeded but was slow, or `'retries_exhausted'` when retries ran out.
-  - `retriedError` (only present when `degradedType` is `'retries_exhausted'`) classifies the error that was retried (e.g. `'non_success_http_status'`, `'timed_out'`, `'request_not_initiated'`).
+- Add `type` and `retryReason` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7988](https://github.com/MetaMask/core/pull/7988))
+  - `type` (`DegradedEventType`) is `'slow_success'` when the request succeeded but was slow, or `'retries_exhausted'` when retries ran out.
+  - `retryReason` (`RetryReason`, only present when `type` is `'retries_exhausted'`) classifies the error that was retried (e.g. `'non_successful_response'`, `'timed_out'`, `'connection_failed'`).
 
 ### Changed
 
-- **BREAKING:** The `RpcServiceRequestable` type's `onDegraded` listener now receives `rpcMethodName: string`, `degradedType: DegradedType`, and optionally `retriedError: RetriedError` in its data parameter ([#7954](https://github.com/MetaMask/core/pull/7954), [#7988](https://github.com/MetaMask/core/pull/7988))
-  - Implementors of this interface will need to accept the new fields in their `onDegraded` callback signature.
+- **BREAKING:** The `RpcServiceRequestable` type's `onDegraded` listener now receives `rpcMethodName: string` in its data parameter ([#7954](https://github.com/MetaMask/core/pull/7954))
+  - Implementors of this interface will need to accept the new field in their `onDegraded` callback signature.
 - Bump `@metamask/eth-json-rpc-middleware` from `^23.0.0` to `^23.1.0` ([#7810](https://github.com/MetaMask/core/pull/7810))
 - Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
 

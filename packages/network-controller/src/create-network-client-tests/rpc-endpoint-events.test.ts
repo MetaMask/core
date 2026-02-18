@@ -539,10 +539,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         rpcEndpointChainDegradedEventHandler,
                       ).toHaveBeenCalledWith({
                         chainId,
-                        degradedType: 'retries_exhausted',
+                        type: 'retries_exhausted',
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        retriedError: 'non_success_http_status',
+                        retryReason: 'non_successful_response',
                         rpcMethodName: 'eth_blockNumber',
                       });
                     },
@@ -662,10 +662,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         rpcEndpointChainDegradedEventHandler,
                       ).toHaveBeenCalledWith({
                         chainId,
-                        degradedType: 'retries_exhausted',
+                        type: 'retries_exhausted',
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        retriedError: 'non_success_http_status',
+                        retryReason: 'non_successful_response',
                         rpcMethodName: 'eth_blockNumber',
                       });
                     },
@@ -773,36 +773,36 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         rpcEndpointDegradedEventHandler,
                       ).toHaveBeenNthCalledWith(1, {
                         chainId,
-                        degradedType: 'retries_exhausted',
+                        type: 'retries_exhausted',
                         endpointUrl: rpcUrl,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
-                        retriedError: 'non_success_http_status',
+                        retryReason: 'non_successful_response',
                         rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
                       ).toHaveBeenNthCalledWith(2, {
                         chainId,
-                        degradedType: 'retries_exhausted',
+                        type: 'retries_exhausted',
                         endpointUrl: rpcUrl,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
-                        retriedError: 'non_success_http_status',
+                        retryReason: 'non_successful_response',
                         rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
                       ).toHaveBeenNthCalledWith(3, {
                         chainId,
-                        degradedType: 'retries_exhausted',
+                        type: 'retries_exhausted',
                         endpointUrl: failoverEndpointUrl,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
-                        retriedError: 'non_success_http_status',
+                        retryReason: 'non_successful_response',
                         rpcMethodName: 'eth_blockNumber',
                       });
                     },
@@ -922,31 +922,31 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         rpcEndpointDegradedEventHandler,
                       ).toHaveBeenNthCalledWith(1, {
                         chainId,
-                        degradedType: 'retries_exhausted',
+                        type: 'retries_exhausted',
                         endpointUrl: rpcUrl,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
-                        retriedError: 'non_success_http_status',
+                        retryReason: 'non_successful_response',
                         rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
                       ).toHaveBeenNthCalledWith(2, {
                         chainId,
-                        degradedType: 'retries_exhausted',
+                        type: 'retries_exhausted',
                         endpointUrl: rpcUrl,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
-                        retriedError: 'non_success_http_status',
+                        retryReason: 'non_successful_response',
                         rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
                       ).toHaveBeenNthCalledWith(3, {
                         chainId,
-                        degradedType: 'slow_success',
+                        type: 'slow_success',
                         endpointUrl: failoverEndpointUrl,
                         error: undefined,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -957,7 +957,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         rpcEndpointDegradedEventHandler,
                       ).toHaveBeenNthCalledWith(4, {
                         chainId,
-                        degradedType: 'slow_success',
+                        type: 'slow_success',
                         endpointUrl: failoverEndpointUrl,
                         error: undefined,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1159,10 +1159,10 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     rpcEndpointChainDegradedEventHandler,
                   ).toHaveBeenCalledWith({
                     chainId,
-                    degradedType: 'retries_exhausted',
+                    type: 'retries_exhausted',
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                    retriedError: 'non_success_http_status',
+                    retryReason: 'non_successful_response',
                     rpcMethodName: 'eth_blockNumber',
                   });
                 },
@@ -1238,7 +1238,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     rpcEndpointChainDegradedEventHandler,
                   ).toHaveBeenCalledWith({
                     chainId,
-                    degradedType: 'slow_success',
+                    type: 'slow_success',
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     rpcMethodName: 'eth_blockNumber',
@@ -1324,22 +1324,22 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   );
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
-                    degradedType: 'retries_exhausted',
+                    type: 'retries_exhausted',
                     endpointUrl: rpcUrl,
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
-                    retriedError: 'non_success_http_status',
+                    retryReason: 'non_successful_response',
                     rpcMethodName: 'eth_blockNumber',
                   });
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
-                    degradedType: 'retries_exhausted',
+                    type: 'retries_exhausted',
                     endpointUrl: rpcUrl,
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
-                    retriedError: 'non_success_http_status',
+                    retryReason: 'non_successful_response',
                     rpcMethodName: 'eth_blockNumber',
                   });
                 },
@@ -1566,7 +1566,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   );
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
-                    degradedType: 'slow_success',
+                    type: 'slow_success',
                     endpointUrl: rpcUrl,
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1575,7 +1575,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   });
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
-                    degradedType: 'slow_success',
+                    type: 'slow_success',
                     endpointUrl: rpcUrl,
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',

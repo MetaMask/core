@@ -35,6 +35,13 @@ import type {
   NetworkControllerMessenger,
 } from './NetworkController';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import {
+  isConnectionError,
+  isConnectionResetError,
+  isJsonParseError,
+  isHttpServerError,
+  isTimeoutError,
+} from './rpc-service/rpc-service';
 import { RpcServiceChain } from './rpc-service/rpc-service-chain';
 import type {
   BlockTracker,
@@ -44,6 +51,50 @@ import type {
 import { NetworkClientType } from './types';
 
 const SECOND = 1000;
+
+/**
+ * Why the degraded event was emitted.
+ */
+export type DegradedEventType = 'slow_success' | 'retries_exhausted';
+
+/**
+ * The category of error that was retried until retries were exhausted.
+ */
+export type RetryReason =
+  | 'connection_failed'
+  | 'response_not_json'
+  | 'non_successful_response'
+  | 'timed_out'
+  | 'connection_reset';
+
+/**
+ * Classifies the error that was being retried when retries were exhausted.
+ *
+ * @param error - The error from the last retry attempt.
+ * @returns A classification string, or `undefined` if the error doesn't match
+ * any known category.
+ */
+function classifyRetryReason(error: unknown): RetryReason | undefined {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+  if (isConnectionError(error)) {
+    return 'connection_failed';
+  }
+  if (isJsonParseError(error)) {
+    return 'response_not_json';
+  }
+  if (isHttpServerError(error)) {
+    return 'non_successful_response';
+  }
+  if (isTimeoutError(error)) {
+    return 'timed_out';
+  }
+  if (isConnectionResetError(error)) {
+    return 'connection_reset';
+  }
+  return undefined;
+}
 
 /**
  * The pair of provider / block tracker that can be used to interface with the
@@ -299,30 +350,30 @@ function createRpcServiceChain({
     },
   );
 
-  rpcServiceChain.onDegraded(
-    ({ rpcMethodName, degradedType, retriedError, ...rest }) => {
-      const error = getError(rest);
-      messenger.publish('NetworkController:rpcEndpointChainDegraded', {
-        chainId: configuration.chainId,
-        networkClientId: id,
-        error,
-        rpcMethodName,
-        degradedType,
-        retriedError,
-      });
-    },
-  );
+  rpcServiceChain.onDegraded(({ rpcMethodName, ...rest }) => {
+    const error = getError(rest);
+    const type: DegradedEventType =
+      error === undefined ? 'slow_success' : 'retries_exhausted';
+    messenger.publish('NetworkController:rpcEndpointChainDegraded', {
+      chainId: configuration.chainId,
+      networkClientId: id,
+      error,
+      rpcMethodName,
+      type,
+      retryReason: error === undefined ? undefined : classifyRetryReason(error),
+    });
+  });
 
   rpcServiceChain.onServiceDegraded(
     ({
       endpointUrl,
       primaryEndpointUrl: primaryEndpointUrlFromEvent,
       rpcMethodName,
-      degradedType,
-      retriedError,
       ...rest
     }) => {
       const error = getError(rest);
+      const type: DegradedEventType =
+        error === undefined ? 'slow_success' : 'retries_exhausted';
 
       messenger.publish('NetworkController:rpcEndpointDegraded', {
         chainId: configuration.chainId,
@@ -331,8 +382,9 @@ function createRpcServiceChain({
         endpointUrl,
         error,
         rpcMethodName,
-        degradedType,
-        retriedError,
+        type,
+        retryReason:
+          error === undefined ? undefined : classifyRetryReason(error),
       });
     },
   );

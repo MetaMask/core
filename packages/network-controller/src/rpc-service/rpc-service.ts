@@ -65,21 +65,6 @@ export type RpcServiceOptions = {
   isOffline: () => boolean;
 };
 
-/**
- * Why the RPC service became degraded.
- */
-export type DegradedType = 'slow_success' | 'retries_exhausted';
-
-/**
- * The category of error that was retried until retries were exhausted.
- */
-export type RetriedError =
-  | 'request_not_initiated'
-  | 'response_not_json'
-  | 'non_success_http_status'
-  | 'timed_out'
-  | 'connection_reset';
-
 const log = createModuleLogger(projectLogger, 'RpcService');
 
 /**
@@ -213,7 +198,7 @@ function isNockError(message: string): boolean {
  * @param error - The error object to test.
  * @returns True if the error indicates a JSON parse error, false otherwise.
  */
-function isJsonParseError(error: unknown): boolean {
+export function isJsonParseError(error: unknown): boolean {
   return (
     error instanceof SyntaxError ||
     /invalid json/iu.test(getErrorMessage(error))
@@ -221,60 +206,39 @@ function isJsonParseError(error: unknown): boolean {
 }
 
 /**
- * Determines whether the given error represents a server HTTP error
+ * Determines whether the given error represents a HTTP server error
  * (502, 503, or 504) that should be retried.
  *
  * @param error - The error object to test.
  * @returns True if the error has an httpStatus of 502, 503, or 504.
  */
-function isServerHttpError(error: unknown): boolean {
+export function isHttpServerError(error: Error): boolean {
   return (
-    typeof error === 'object' &&
-    error !== null &&
     'httpStatus' in error &&
-    [502, 503, 504].includes((error as { httpStatus: number }).httpStatus)
+    (error.httpStatus === 502 ||
+      error.httpStatus === 503 ||
+      error.httpStatus === 504)
   );
 }
 
 /**
- * Determines whether the given error has a `code` property matching
- * `ETIMEDOUT` or `ECONNRESET`.
+ * Determines whether the given error has a `code` property of `ETIMEDOUT`.
  *
  * @param error - The error object to test.
- * @returns True if the error code is `ETIMEDOUT` or `ECONNRESET`.
+ * @returns True if the error code is `ETIMEDOUT`.
  */
-function isTimeoutOrResetError(
-  error: unknown,
-): error is { code: 'ETIMEDOUT' | 'ECONNRESET' } {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    hasProperty(error, 'code') &&
-    (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET')
-  );
+export function isTimeoutError(error: Error): boolean {
+  return hasProperty(error, 'code') && error.code === 'ETIMEDOUT';
 }
 
 /**
- * Classifies the error that was being retried when retries were exhausted.
+ * Determines whether the given error has a `code` property of `ECONNRESET`.
  *
- * @param error - The error from the last retry attempt.
- * @returns A classification string, or `undefined` if the error doesn't match
- * any known category.
+ * @param error - The error object to test.
+ * @returns True if the error code is `ECONNRESET`.
  */
-function classifyRetriedError(error: unknown): RetriedError | undefined {
-  if (isConnectionError(error)) {
-    return 'request_not_initiated';
-  }
-  if (isJsonParseError(error)) {
-    return 'response_not_json';
-  }
-  if (isServerHttpError(error)) {
-    return 'non_success_http_status';
-  }
-  if (isTimeoutOrResetError(error)) {
-    return error.code === 'ETIMEDOUT' ? 'timed_out' : 'connection_reset';
-  }
-  return undefined;
+export function isConnectionResetError(error: Error): boolean {
+  return hasProperty(error, 'code') && error.code === 'ECONNRESET';
 }
 
 /**
@@ -396,9 +360,11 @@ export class RpcService implements AbstractRpcService {
           // Ignore server sent HTML error pages or truncated JSON responses
           isJsonParseError(error) ||
           // Ignore server overload errors
-          isServerHttpError(error) ||
-          // Ignore timeout and connection reset errors
-          isTimeoutOrResetError(error)
+          isHttpServerError(error) ||
+          // Ignore timeout errors
+          isTimeoutError(error) ||
+          // Ignore connection reset errors
+          isConnectionResetError(error)
         );
       }),
     });
@@ -481,17 +447,12 @@ export class RpcService implements AbstractRpcService {
         listener({
           endpointUrl: this.endpointUrl.toString(),
           rpcMethodName: this.#currentRpcMethodName,
-          degradedType: 'slow_success',
         });
       } else {
         listener({
           ...data,
           endpointUrl: this.endpointUrl.toString(),
           rpcMethodName: this.#currentRpcMethodName,
-          degradedType: 'retries_exhausted',
-          retriedError: classifyRetriedError(
-            'error' in data ? data.error : undefined,
-          ),
         });
       }
     });
