@@ -48,6 +48,13 @@ export enum MetaMetricsSwapsEventSource {
   Rewards = 'Rewards',
 }
 
+export enum InputAmountPreset {
+  PERCENT_25 = '25%',
+  PERCENT_50 = '50%',
+  PERCENT_90 = '90%',
+  PERCENT_100 = '100%',
+}
+
 export enum MetricsActionType {
   /**
    * @deprecated new events should use SWAPBRIDGE_V1 instead

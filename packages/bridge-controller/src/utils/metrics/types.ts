@@ -3,6 +3,7 @@ import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import type {
   UnifiedSwapBridgeEventName,
+  InputAmountPreset,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   MetricsSwapType,
@@ -102,6 +103,7 @@ type RequiredEventContextFromClientBase = {
       | 'chain_destination'
       | 'slippage';
     input_value: InputValues[keyof InputValues];
+    input_amount_preset?: InputAmountPreset;
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {
     token_symbol_source: RequestParams['token_symbol_source'];
