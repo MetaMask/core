@@ -1350,9 +1350,6 @@
   "packages/phishing-controller/src/utils.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
-    },
-    "import-x/namespace": {
-      "count": 5
     }
   },
   "packages/phishing-controller/src/utils.ts": {
