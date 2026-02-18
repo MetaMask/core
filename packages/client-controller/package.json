@@ -1,6 +1,6 @@
 {
   "name": "@metamask/client-controller",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Client-level state for MetaMask (e.g. whether a UI window is open)",
   "keywords": [
     "MetaMask",
