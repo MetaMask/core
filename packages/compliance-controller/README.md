@@ -47,7 +47,7 @@ const serviceMessenger = new Messenger({
 new ComplianceService({
   messenger: serviceMessenger,
   fetch,
-  complianceApiUrl: 'https://compliance.api.cx.metamask.io',
+  env: 'production',
 });
 
 // Create controller messenger and controller

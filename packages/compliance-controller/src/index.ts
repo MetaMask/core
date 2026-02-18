@@ -1,5 +1,6 @@
 export type {
   ComplianceServiceActions,
+  ComplianceServiceEnvironment,
   ComplianceServiceEvents,
   ComplianceServiceMessenger,
 } from './ComplianceService';

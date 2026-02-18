@@ -10,7 +10,7 @@ import nock from 'nock';
 import type { ComplianceServiceMessenger } from './ComplianceService';
 import { ComplianceService } from './ComplianceService';
 
-const MOCK_API_URL = 'https://compliance.api.example.com';
+const MOCK_API_URL = 'https://compliance.dev-api.cx.metamask.io';
 
 describe('ComplianceService', () => {
   beforeEach(() => {
@@ -427,7 +427,7 @@ function getService({
   const service = new ComplianceService({
     fetch,
     messenger,
-    complianceApiUrl: MOCK_API_URL,
+    env: 'development',
     ...options,
   });
 

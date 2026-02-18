@@ -18,6 +18,16 @@ import type { ComplianceServiceMethodActions } from './ComplianceService-method-
  */
 export const serviceName = 'ComplianceService';
 
+/**
+ * The supported environments for the Compliance API.
+ */
+export type ComplianceServiceEnvironment = 'production' | 'development';
+
+const COMPLIANCE_API_URLS: Record<ComplianceServiceEnvironment, string> = {
+  production: 'https://compliance.api.cx.metamask.io',
+  development: 'https://compliance.dev-api.cx.metamask.io',
+};
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -134,7 +144,7 @@ type BlockedWalletsResponse = Infer<typeof BlockedWalletsResponseStruct>;
  * new ComplianceService({
  *   messenger: serviceMessenger,
  *   fetch,
- *   complianceApiUrl: 'https://compliance.api.cx.metamask.io',
+ *   env: 'production',
  * });
  *
  * // Check a single wallet
@@ -164,7 +174,7 @@ export class ComplianceService {
   readonly #fetch: ConstructorParameters<typeof ComplianceService>[0]['fetch'];
 
   /**
-   * The base URL for the Compliance API.
+   * The resolved base URL for the Compliance API.
    */
   readonly #complianceApiUrl: string;
 
@@ -181,25 +191,26 @@ export class ComplianceService {
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
    * @param args.fetch - A function that can be used to make an HTTP request.
-   * @param args.complianceApiUrl - The base URL for the Compliance API.
+   * @param args.env - The environment to use for the Compliance API. Determines
+   * the base URL.
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
   constructor({
     messenger,
     fetch: fetchFunction,
-    complianceApiUrl,
+    env,
     policyOptions = {},
   }: {
     messenger: ComplianceServiceMessenger;
     fetch: typeof fetch;
-    complianceApiUrl: string;
+    env: ComplianceServiceEnvironment;
     policyOptions?: CreateServicePolicyOptions;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
-    this.#complianceApiUrl = complianceApiUrl;
+    this.#complianceApiUrl = COMPLIANCE_API_URLS[env];
     this.#policy = createServicePolicy(policyOptions);
 
     this.#messenger.registerMethodActionHandlers(
