@@ -633,6 +633,39 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
+  it('skips malformed asset IDs in balance update and still applies valid balances', async () => {
+    const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
+      setupController({
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+      });
+    await new Promise(process.nextTick);
+
+    triggerBalancesUpdated({
+      balances: {
+        'account-1': {
+          'not-a-valid-caip19': { amount: '999', unit: 'FAKE' },
+          [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+        },
+      },
+    });
+
+    await new Promise(process.nextTick);
+
+    expect(assetsUpdateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsBalance: {
+          'account-1': {
+            [MOCK_SOL_ASSET]: { amount: '1000000000' },
+          },
+        },
+      }),
+    );
+
+    cleanup();
+  });
+
   it('does not report empty balance updates', async () => {
     const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
       setupController({

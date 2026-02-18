@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [67.0.0]
+
+### Added
+
+- **BREAKING:** Retrieve JWT token from the ProfileSyncController and include it in bridge request headers ([#7955](https://github.com/MetaMask/core/pull/7955))
+
+## [66.2.0]
+
+### Added
+
+- Added `TrendingExplore` value to `MetaMetricsSwapsEventSource` enum for attributing swaps to the trending explore flow ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added `location` as a required property on all Unified SwapBridge events in `RequiredEventContextFromClient` ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added `setLocation()` method to `BridgeController` for clients to set the entry point when the flow starts ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Exported `MetaMetricsSwapsEventSource` from the package index ([#7931](https://github.com/MetaMask/core/pull/7931))
+
+### Changed
+
+- Updated `#getEventProperties` to fall back to stored `#location` when `location` is not provided by the client ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Replaced `@deprecated` tag on `MetaMetricsSwapsEventSource` with proper JSDoc description ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Bump `@metamask/assets-controllers` from `^99.3.2` to `^99.4.0` ([#7944](https://github.com/MetaMask/core/pull/7944))
+
 ### Fixed
 
 - Fix `usd_amount_source`, `usd_quoted_gas`, and `usd_quoted_return` metrics fields being empty for non-EVM chains by deriving USD exchange rates from multichain asset rates ([#7899](https://github.com/MetaMask/core/pull/7899))
@@ -1134,7 +1155,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.0.0...HEAD
+[67.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.2.0...@metamask/bridge-controller@67.0.0
+[66.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.1.1...@metamask/bridge-controller@66.2.0
 [66.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.1.0...@metamask/bridge-controller@66.1.1
 [66.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@66.0.0...@metamask/bridge-controller@66.1.0
 [66.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@65.3.0...@metamask/bridge-controller@66.0.0

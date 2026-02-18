@@ -219,6 +219,39 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
+  it('fetch skips malformed asset IDs in balance state and still fetches prices for valid assets', async () => {
+    const { controller, apiClient, getAssetsState } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          'not-a-valid-caip19': { amount: '999' },
+          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+
+    const response = await controller.fetch(
+      createDataRequest(),
+      getAssetsState,
+    );
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      { currency: 'usd', includeMarketData: true },
+    );
+    expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toStrictEqual({
+      price: 2500,
+      pricePercentChange1d: 2.5,
+      lastUpdated: expect.any(Number),
+      marketCap: 1000000000,
+      totalVolume: 50000000,
+    });
+
+    controller.destroy();
+  });
+
   it('fetch uses custom currency', async () => {
     const { controller, apiClient, getAssetsState } = setupController({
       currency: 'eur',

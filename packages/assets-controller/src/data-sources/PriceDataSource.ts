@@ -3,13 +3,13 @@ import type {
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
+import { parseCaipAssetType } from '@metamask/utils';
 
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
   Caip19AssetId,
-  ChainId,
   DataRequest,
   DataResponse,
   FungibleAssetPrice,
@@ -263,10 +263,20 @@ export class PriceDataSource {
           for (const assetId of Object.keys(
             accountBalances as Record<string, unknown>,
           )) {
-            // Filter by chain if specified
+            // Filter by chain if specified; skip malformed asset IDs for this entry only
             if (chainFilter) {
-              const chainId = assetId.split('/')[0] as ChainId;
-              if (!chainFilter.has(chainId)) {
+              try {
+                const { chainId } = parseCaipAssetType(
+                  assetId as Caip19AssetId,
+                );
+                if (!chainFilter.has(chainId)) {
+                  continue;
+                }
+              } catch (error) {
+                log('Skipping malformed asset ID in balance state', {
+                  assetId,
+                  error,
+                });
                 continue;
               }
             }
