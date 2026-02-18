@@ -1233,8 +1233,7 @@ export class RpcDataSource extends AbstractDataSource<
       'NetworkEnablementController:getState',
     );
 
-    return (nativeAssetIdentifiers[chainId] ??
-      `${chainId}/slip44:60`) as Caip19AssetId;
+    return nativeAssetIdentifiers[chainId] ?? `${chainId}/slip44:60`;
   }
 
   /**
@@ -1245,9 +1244,7 @@ export class RpcDataSource extends AbstractDataSource<
    */
   #getExistingAssetsMetadata(): Record<Caip19AssetId, AssetMetadata> {
     try {
-      const state = this.#messenger.call('AssetsController:getState') as {
-        assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
-      };
+      const state = this.#messenger.call('AssetsController:getState');
       return state.assetsInfo ?? {};
     } catch {
       // If AssetsController:getState fails, return empty metadata
@@ -1288,12 +1285,7 @@ export class RpcDataSource extends AbstractDataSource<
       const lowerAddress = tokenAddress.toLowerCase();
       for (const [address, tokenData] of Object.entries(chainTokenList)) {
         if (address.toLowerCase() === lowerAddress) {
-          const token = tokenData as {
-            symbol?: string;
-            name?: string;
-            decimals?: number;
-            iconUrl?: string;
-          };
+          const token = tokenData;
           if (token.symbol && token.decimals !== undefined) {
             return {
               type: 'erc20',
