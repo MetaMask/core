@@ -8,11 +8,11 @@ import type { ComplianceController } from './ComplianceController';
 /**
  * Initializes the controller by fetching the blocked wallets list if it
  * is missing or stale. Call once after construction to ensure the blocklist
- * is ready for `isWalletBlocked` lookups.
+ * is ready for `selectIsWalletBlocked` lookups.
  */
-export type ComplianceControllerInitializeAction = {
-  type: `ComplianceController:initialize`;
-  handler: ComplianceController['initialize'];
+export type ComplianceControllerInitAction = {
+  type: `ComplianceController:init`;
+  handler: ComplianceController['init'];
 };
 
 /**
@@ -45,26 +45,9 @@ export type ComplianceControllerCheckWalletsComplianceAction = {
  *
  * @returns The blocked wallets information.
  */
-export type ComplianceControllerFetchBlockedWalletsAction = {
-  type: `ComplianceController:fetchBlockedWallets`;
-  handler: ComplianceController['fetchBlockedWallets'];
-};
-
-/**
- * Returns whether a wallet address is blocked, based on the cached
- * blocklist. This is a synchronous lookup that does not make any API calls.
- *
- * The lookup checks the proactively fetched blocklist first, then falls
- * back to the per-address compliance status map for addresses checked
- * via `checkWalletCompliance` or `checkWalletsCompliance`.
- *
- * @param address - The wallet address to check.
- * @returns `true` if the wallet is blocked according to cached data,
- * `false` otherwise.
- */
-export type ComplianceControllerIsWalletBlockedAction = {
-  type: `ComplianceController:isWalletBlocked`;
-  handler: ComplianceController['isWalletBlocked'];
+export type ComplianceControllerUpdateBlockedWalletsAction = {
+  type: `ComplianceController:updateBlockedWallets`;
+  handler: ComplianceController['updateBlockedWallets'];
 };
 
 /**
@@ -79,9 +62,8 @@ export type ComplianceControllerClearComplianceStateAction = {
  * Union of all ComplianceController action types.
  */
 export type ComplianceControllerMethodActions =
-  | ComplianceControllerInitializeAction
+  | ComplianceControllerInitAction
   | ComplianceControllerCheckWalletComplianceAction
   | ComplianceControllerCheckWalletsComplianceAction
-  | ComplianceControllerFetchBlockedWalletsAction
-  | ComplianceControllerIsWalletBlockedAction
+  | ComplianceControllerUpdateBlockedWalletsAction
   | ComplianceControllerClearComplianceStateAction;

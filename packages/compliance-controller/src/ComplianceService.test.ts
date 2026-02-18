@@ -6,8 +6,6 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import type { ComplianceServiceMessenger } from './ComplianceService';
 import { ComplianceService } from './ComplianceService';
@@ -15,14 +13,12 @@ import { ComplianceService } from './ComplianceService';
 const MOCK_API_URL = 'https://compliance.api.example.com';
 
 describe('ComplianceService', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   describe('ComplianceService:checkWalletCompliance', () => {
@@ -92,7 +88,7 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').times(4).reply(404);
       const { service } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       await expect(service.checkWalletCompliance('0xABC123')).rejects.toThrow(
@@ -104,7 +100,7 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL)
         .get('/v1/wallet/0xABC123')
         .reply(200, () => {
-          clock.tick(6000);
+          jest.advanceTimersByTime(6000);
           return { address: '0xABC123', blocked: false };
         });
       const { service, rootMessenger } = getService();
@@ -123,7 +119,7 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').times(4).reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       await expect(
@@ -138,7 +134,7 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').times(12).reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
       const onBreakListener = jest.fn();
       service.onBreak(onBreakListener);
@@ -226,7 +222,7 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL).post('/v1/wallet/batch').times(4).reply(500);
       const { service } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       await expect(service.checkWalletsCompliance(['0xABC'])).rejects.toThrow(
@@ -235,7 +231,7 @@ describe('ComplianceService', () => {
     });
   });
 
-  describe('ComplianceService:fetchBlockedWallets', () => {
+  describe('ComplianceService:updateBlockedWallets', () => {
     it('returns the blocked wallets data', async () => {
       nock(MOCK_API_URL)
         .get('/v1/blocked-wallets')
@@ -247,7 +243,7 @@ describe('ComplianceService', () => {
       const { rootMessenger } = getService();
 
       const result = await rootMessenger.call(
-        'ComplianceService:fetchBlockedWallets',
+        'ComplianceService:updateBlockedWallets',
       );
 
       expect(result).toStrictEqual({
@@ -299,7 +295,7 @@ describe('ComplianceService', () => {
         const { rootMessenger } = getService();
 
         await expect(
-          rootMessenger.call('ComplianceService:fetchBlockedWallets'),
+          rootMessenger.call('ComplianceService:updateBlockedWallets'),
         ).rejects.toThrow(
           'Malformed response received from compliance blocked wallets API',
         );
@@ -310,10 +306,10 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL).get('/v1/blocked-wallets').times(4).reply(503);
       const { service } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
-      await expect(service.fetchBlockedWallets()).rejects.toThrow(
+      await expect(service.updateBlockedWallets()).rejects.toThrow(
         /failed with status '503'/u,
       );
     });
@@ -350,7 +346,7 @@ describe('ComplianceService', () => {
     });
   });
 
-  describe('fetchBlockedWallets', () => {
+  describe('updateBlockedWallets', () => {
     it('does the same thing as the messenger action', async () => {
       nock(MOCK_API_URL)
         .get('/v1/blocked-wallets')
@@ -361,7 +357,7 @@ describe('ComplianceService', () => {
         });
       const { service } = getService();
 
-      const result = await service.fetchBlockedWallets();
+      const result = await service.updateBlockedWallets();
 
       expect(result).toStrictEqual({
         addresses: ['0xABC'],

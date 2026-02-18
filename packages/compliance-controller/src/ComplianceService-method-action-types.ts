@@ -32,9 +32,9 @@ export type ComplianceServiceCheckWalletsComplianceAction = {
  *
  * @returns The blocked wallets data.
  */
-export type ComplianceServiceFetchBlockedWalletsAction = {
-  type: `ComplianceService:fetchBlockedWallets`;
-  handler: ComplianceService['fetchBlockedWallets'];
+export type ComplianceServiceUpdateBlockedWalletsAction = {
+  type: `ComplianceService:updateBlockedWallets`;
+  handler: ComplianceService['updateBlockedWallets'];
 };
 
 /**
@@ -43,4 +43,4 @@ export type ComplianceServiceFetchBlockedWalletsAction = {
 export type ComplianceServiceMethodActions =
   | ComplianceServiceCheckWalletComplianceAction
   | ComplianceServiceCheckWalletsComplianceAction
-  | ComplianceServiceFetchBlockedWalletsAction;
+  | ComplianceServiceUpdateBlockedWalletsAction;

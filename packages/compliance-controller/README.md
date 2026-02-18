@@ -72,7 +72,7 @@ await rootMessenger.call('ComplianceController:checkWalletsCompliance', [
 ]);
 
 // Fetch the full blocked wallets list
-await rootMessenger.call('ComplianceController:fetchBlockedWallets');
+await rootMessenger.call('ComplianceController:updateBlockedWallets');
 ```
 
 ## Contributing

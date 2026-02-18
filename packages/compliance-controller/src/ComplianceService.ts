@@ -23,7 +23,7 @@ export const serviceName = 'ComplianceService';
 const MESSENGER_EXPOSED_METHODS = [
   'checkWalletCompliance',
   'checkWalletsCompliance',
-  'fetchBlockedWallets',
+  'updateBlockedWallets',
 ] as const;
 
 /**
@@ -314,7 +314,7 @@ export class ComplianceService {
    *
    * @returns The blocked wallets data.
    */
-  async fetchBlockedWallets(): Promise<BlockedWalletsResponse> {
+  async updateBlockedWallets(): Promise<BlockedWalletsResponse> {
     const response = await this.#policy.execute(async () => {
       const url = new URL('/v1/blocked-wallets', this.#complianceApiUrl);
       const localResponse = await this.#fetch(url);

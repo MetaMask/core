@@ -103,11 +103,10 @@ export function getDefaultComplianceControllerState(): ComplianceControllerState
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
-  'initialize',
+  'init',
   'checkWalletCompliance',
   'checkWalletsCompliance',
-  'fetchBlockedWallets',
-  'isWalletBlocked',
+  'updateBlockedWallets',
   'clearComplianceState',
 ] as const;
 
@@ -164,8 +163,8 @@ export type ComplianceControllerMessenger = Messenger<
 /**
  * `ComplianceController` manages OFAC compliance state for wallet addresses.
  * It proactively fetches and caches the blocked wallets list from the
- * Compliance API so that consumers can perform synchronous lookups via
- * `isWalletBlocked` without making API calls.
+ * Compliance API so that consumers can perform synchronous lookups via the
+ * `selectIsWalletBlocked` selector without making API calls.
  */
 export class ComplianceController extends BaseController<
   typeof controllerName,
@@ -183,7 +182,7 @@ export class ComplianceController extends BaseController<
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this controller.
-   * @param args.state - The desired state with which to initialize this
+   * @param args.state - The desired state with which to init this
    * controller. Missing properties will be filled in with defaults.
    * @param args.blockedWalletsRefreshInterval - The interval in milliseconds
    * after which the blocked wallets list is considered stale. Defaults to 1
@@ -219,11 +218,11 @@ export class ComplianceController extends BaseController<
   /**
    * Initializes the controller by fetching the blocked wallets list if it
    * is missing or stale. Call once after construction to ensure the blocklist
-   * is ready for `isWalletBlocked` lookups.
+   * is ready for `selectIsWalletBlocked` lookups.
    */
-  async initialize(): Promise<void> {
+  async init(): Promise<void> {
     if (this.#isBlockedWalletsStale()) {
-      await this.fetchBlockedWallets();
+      await this.updateBlockedWallets();
     }
   }
 
@@ -296,9 +295,9 @@ export class ComplianceController extends BaseController<
    *
    * @returns The blocked wallets information.
    */
-  async fetchBlockedWallets(): Promise<BlockedWalletsInfo> {
+  async updateBlockedWallets(): Promise<BlockedWalletsInfo> {
     const result = await this.messenger.call(
-      'ComplianceService:fetchBlockedWallets',
+      'ComplianceService:updateBlockedWallets',
     );
 
     const now = new Date().toISOString();
@@ -316,29 +315,6 @@ export class ComplianceController extends BaseController<
     });
 
     return blockedWallets;
-  }
-
-  /**
-   * Returns whether a wallet address is blocked, based on the cached
-   * blocklist. This is a synchronous lookup that does not make any API calls.
-   *
-   * The lookup checks the proactively fetched blocklist first, then falls
-   * back to the per-address compliance status map for addresses checked
-   * via `checkWalletCompliance` or `checkWalletsCompliance`.
-   *
-   * @param address - The wallet address to check.
-   * @returns `true` if the wallet is blocked according to cached data,
-   * `false` otherwise.
-   */
-  isWalletBlocked(address: string): boolean {
-    // Check the proactively fetched blocklist first
-    if (this.state.blockedWallets?.addresses.includes(address)) {
-      return true;
-    }
-
-    // Fall back to per-address compliance status map
-    const status = this.state.walletComplianceStatusMap[address];
-    return status?.blocked ?? false;
   }
 
   /**

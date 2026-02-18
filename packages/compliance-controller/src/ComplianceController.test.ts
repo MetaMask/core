@@ -8,6 +8,7 @@ import type {
 
 import { ComplianceController } from './ComplianceController';
 import type { ComplianceControllerMessenger } from './ComplianceController';
+import { selectIsWalletBlocked } from './selectors';
 
 const MOCK_BLOCKED_WALLETS_RESPONSE = {
   addresses: ['0xBLOCKED_A', '0xBLOCKED_B'],
@@ -53,7 +54,7 @@ describe('ComplianceController', () => {
     });
   });
 
-  describe('initialize', () => {
+  describe('init', () => {
     beforeEach(() => {
       jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
     });
@@ -64,17 +65,17 @@ describe('ComplianceController', () => {
 
     it('fetches the blocked wallets list when it has never been fetched', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        const fetchBlockedWallets = jest.fn(
+        const updateBlockedWallets = jest.fn(
           async () => MOCK_BLOCKED_WALLETS_RESPONSE,
         );
         rootMessenger.registerActionHandler(
-          'ComplianceService:fetchBlockedWallets',
-          fetchBlockedWallets,
+          'ComplianceService:updateBlockedWallets',
+          updateBlockedWallets,
         );
 
-        await controller.initialize();
+        await controller.init();
 
-        expect(fetchBlockedWallets).toHaveBeenCalledTimes(1);
+        expect(updateBlockedWallets).toHaveBeenCalledTimes(1);
         expect(controller.state.blockedWallets).toStrictEqual({
           ...MOCK_BLOCKED_WALLETS_RESPONSE,
           fetchedAt: '2026-02-01T00:00:00.000Z',
@@ -91,17 +92,17 @@ describe('ComplianceController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          const fetchBlockedWallets = jest.fn(
+          const updateBlockedWallets = jest.fn(
             async () => MOCK_BLOCKED_WALLETS_RESPONSE,
           );
           rootMessenger.registerActionHandler(
-            'ComplianceService:fetchBlockedWallets',
-            fetchBlockedWallets,
+            'ComplianceService:updateBlockedWallets',
+            updateBlockedWallets,
           );
 
-          await controller.initialize();
+          await controller.init();
 
-          expect(fetchBlockedWallets).toHaveBeenCalledTimes(1);
+          expect(updateBlockedWallets).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -114,17 +115,17 @@ describe('ComplianceController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          const fetchBlockedWallets = jest.fn(
+          const updateBlockedWallets = jest.fn(
             async () => MOCK_BLOCKED_WALLETS_RESPONSE,
           );
           rootMessenger.registerActionHandler(
-            'ComplianceService:fetchBlockedWallets',
-            fetchBlockedWallets,
+            'ComplianceService:updateBlockedWallets',
+            updateBlockedWallets,
           );
 
-          await controller.initialize();
+          await controller.init();
 
-          expect(fetchBlockedWallets).not.toHaveBeenCalled();
+          expect(updateBlockedWallets).not.toHaveBeenCalled();
         },
       );
     });
@@ -139,23 +140,23 @@ describe('ComplianceController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          const fetchBlockedWallets = jest.fn(
+          const updateBlockedWallets = jest.fn(
             async () => MOCK_BLOCKED_WALLETS_RESPONSE,
           );
           rootMessenger.registerActionHandler(
-            'ComplianceService:fetchBlockedWallets',
-            fetchBlockedWallets,
+            'ComplianceService:updateBlockedWallets',
+            updateBlockedWallets,
           );
 
-          await controller.initialize();
+          await controller.init();
 
-          expect(fetchBlockedWallets).toHaveBeenCalledTimes(1);
+          expect(updateBlockedWallets).toHaveBeenCalledTimes(1);
         },
       );
     });
   });
 
-  describe('ComplianceController:initialize', () => {
+  describe('ComplianceController:init', () => {
     beforeEach(() => {
       jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
     });
@@ -167,11 +168,11 @@ describe('ComplianceController', () => {
     it('does the same thing as the direct method', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
-          'ComplianceService:fetchBlockedWallets',
+          'ComplianceService:updateBlockedWallets',
           async () => MOCK_BLOCKED_WALLETS_RESPONSE,
         );
 
-        await rootMessenger.call('ComplianceController:initialize');
+        await rootMessenger.call('ComplianceController:init');
 
         expect(controller.state.blockedWallets).toStrictEqual({
           ...MOCK_BLOCKED_WALLETS_RESPONSE,
@@ -181,116 +182,105 @@ describe('ComplianceController', () => {
     });
   });
 
-  describe('ComplianceController:isWalletBlocked', () => {
+  describe('selectIsWalletBlocked', () => {
     it('returns true if the wallet is in the cached blocklist', async () => {
-      const givenState = {
-        blockedWallets: {
-          addresses: ['0xBLOCKED_A', '0xBLOCKED_B'],
-          sources: { ofac: 2, remote: 0 },
-          lastUpdated: '2026-01-01T00:00:00.000Z',
-          fetchedAt: '2026-01-01T00:00:00.000Z',
-        },
-      };
-
       await withController(
-        { options: { state: givenState } },
-        ({ rootMessenger }) => {
-          expect(
-            rootMessenger.call(
-              'ComplianceController:isWalletBlocked',
-              '0xBLOCKED_A',
-            ),
-          ).toBe(true);
+        {
+          options: {
+            state: {
+              blockedWallets: {
+                addresses: ['0xBLOCKED_A', '0xBLOCKED_B'],
+                sources: { ofac: 2, remote: 0 },
+                lastUpdated: '2026-01-01T00:00:00.000Z',
+                fetchedAt: '2026-01-01T00:00:00.000Z',
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(selectIsWalletBlocked('0xBLOCKED_A')(controller.state)).toBe(
+            true,
+          );
         },
       );
     });
 
     it('returns true if the wallet was checked on-demand and found blocked', async () => {
-      const givenState = {
-        walletComplianceStatusMap: {
-          '0xON_DEMAND': {
-            address: '0xON_DEMAND',
-            blocked: true,
-            checkedAt: '2026-01-01T00:00:00.000Z',
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: {
+                '0xON_DEMAND': {
+                  address: '0xON_DEMAND',
+                  blocked: true,
+                  checkedAt: '2026-01-01T00:00:00.000Z',
+                },
+              },
+            },
           },
         },
-      };
-
-      await withController(
-        { options: { state: givenState } },
-        ({ rootMessenger }) => {
-          expect(
-            rootMessenger.call(
-              'ComplianceController:isWalletBlocked',
-              '0xON_DEMAND',
-            ),
-          ).toBe(true);
+        ({ controller }) => {
+          expect(selectIsWalletBlocked('0xON_DEMAND')(controller.state)).toBe(
+            true,
+          );
         },
       );
     });
 
     it('returns false if the wallet is not in the blocklist or status map', async () => {
-      await withController(({ rootMessenger }) => {
-        expect(
-          rootMessenger.call(
-            'ComplianceController:isWalletBlocked',
-            '0xUNKNOWN',
-          ),
-        ).toBe(false);
+      await withController(({ controller }) => {
+        expect(selectIsWalletBlocked('0xUNKNOWN')(controller.state)).toBe(
+          false,
+        );
       });
     });
 
     it('returns false if the wallet is in the status map but not blocked', async () => {
-      const givenState = {
-        walletComplianceStatusMap: {
-          '0xSAFE': {
-            address: '0xSAFE',
-            blocked: false,
-            checkedAt: '2026-01-01T00:00:00.000Z',
+      await withController(
+        {
+          options: {
+            state: {
+              walletComplianceStatusMap: {
+                '0xSAFE': {
+                  address: '0xSAFE',
+                  blocked: false,
+                  checkedAt: '2026-01-01T00:00:00.000Z',
+                },
+              },
+            },
           },
         },
-      };
-
-      await withController(
-        { options: { state: givenState } },
-        ({ rootMessenger }) => {
-          expect(
-            rootMessenger.call(
-              'ComplianceController:isWalletBlocked',
-              '0xSAFE',
-            ),
-          ).toBe(false);
+        ({ controller }) => {
+          expect(selectIsWalletBlocked('0xSAFE')(controller.state)).toBe(false);
         },
       );
     });
 
     it('returns false if the blocklist is null and the address is unknown', async () => {
-      await withController(({ rootMessenger }) => {
-        expect(
-          rootMessenger.call(
-            'ComplianceController:isWalletBlocked',
-            '0xANYTHING',
-          ),
-        ).toBe(false);
+      await withController(({ controller }) => {
+        expect(selectIsWalletBlocked('0xANYTHING')(controller.state)).toBe(
+          false,
+        );
       });
     });
 
     it('performs case-sensitive lookup', async () => {
-      const givenState = {
-        blockedWallets: {
-          addresses: ['0xABC'],
-          sources: { ofac: 1, remote: 0 },
-          lastUpdated: '2026-01-01T00:00:00.000Z',
-          fetchedAt: '2026-01-01T00:00:00.000Z',
-        },
-      };
-
       await withController(
-        { options: { state: givenState } },
-        ({ rootMessenger }) => {
-          expect(
-            rootMessenger.call('ComplianceController:isWalletBlocked', '0xAbC'),
-          ).toBe(false);
+        {
+          options: {
+            state: {
+              blockedWallets: {
+                addresses: ['0xABC'],
+                sources: { ofac: 1, remote: 0 },
+                lastUpdated: '2026-01-01T00:00:00.000Z',
+                fetchedAt: '2026-01-01T00:00:00.000Z',
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          expect(selectIsWalletBlocked('0xAbC')(controller.state)).toBe(false);
         },
       );
     });
@@ -390,7 +380,7 @@ describe('ComplianceController', () => {
     });
   });
 
-  describe('ComplianceController:fetchBlockedWallets', () => {
+  describe('ComplianceController:updateBlockedWallets', () => {
     beforeEach(() => {
       jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
     });
@@ -402,12 +392,12 @@ describe('ComplianceController', () => {
     it('calls the service, persists data to state, and updates the lastFetched timestamp', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
-          'ComplianceService:fetchBlockedWallets',
+          'ComplianceService:updateBlockedWallets',
           async () => MOCK_BLOCKED_WALLETS_RESPONSE,
         );
 
         const result = await rootMessenger.call(
-          'ComplianceController:fetchBlockedWallets',
+          'ComplianceController:updateBlockedWallets',
         );
 
         expect(result).toStrictEqual({
@@ -455,27 +445,6 @@ describe('ComplianceController', () => {
             blockedWalletsLastFetched: 0,
             lastCheckedAt: null,
           });
-        },
-      );
-    });
-  });
-
-  describe('isWalletBlocked', () => {
-    it('does the same thing as the messenger action', async () => {
-      const givenState = {
-        blockedWallets: {
-          addresses: ['0xBLOCKED'],
-          sources: { ofac: 1, remote: 0 },
-          lastUpdated: '2026-01-01T00:00:00.000Z',
-          fetchedAt: '2026-01-01T00:00:00.000Z',
-        },
-      };
-
-      await withController(
-        { options: { state: givenState } },
-        ({ controller }) => {
-          expect(controller.isWalletBlocked('0xBLOCKED')).toBe(true);
-          expect(controller.isWalletBlocked('0xUNKNOWN')).toBe(false);
         },
       );
     });
@@ -635,7 +604,7 @@ function getMessenger(
     actions: [
       'ComplianceService:checkWalletCompliance',
       'ComplianceService:checkWalletsCompliance',
-      'ComplianceService:fetchBlockedWallets',
+      'ComplianceService:updateBlockedWallets',
     ],
     events: [],
     messenger,
