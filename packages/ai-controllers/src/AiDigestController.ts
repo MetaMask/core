@@ -236,14 +236,16 @@ export class AiDigestController extends BaseController<
 
   /**
    * Evicts stale (TTL expired) and oldest entries (FIFO) if cache exceeds max size.
+   *
+   * @param cache - The cache record to evict entries from.
    */
-  #evictStaleCachedEntries<T extends { fetchedAt: number }>(
-    cache: Record<string, T>,
+  #evictStaleCachedEntries<EntryType extends { fetchedAt: number }>(
+    cache: Record<string, EntryType>,
   ): void {
     const now = Date.now();
     const entries = Object.entries(cache);
     const keysToDelete: string[] = [];
-    const freshEntries: [string, T][] = [];
+    const freshEntries: [string, EntryType][] = [];
 
     for (const [key, entry] of entries) {
       if (now - entry.fetchedAt >= CACHE_DURATION_MS) {
