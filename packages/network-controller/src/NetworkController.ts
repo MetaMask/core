@@ -48,7 +48,11 @@ import type {
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import { projectLogger, createModuleLogger } from './logger';
-import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import type {
+  DegradedType,
+  RetriedError,
+  RpcServiceOptions,
+} from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
@@ -524,8 +528,10 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
   payload: [
     {
       chainId: Hex;
+      degradedType: DegradedType;
       error: unknown;
       networkClientId: NetworkClientId;
+      retriedError?: RetriedError;
       rpcMethodName: string;
     },
   ];
@@ -561,10 +567,12 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
   payload: [
     {
       chainId: Hex;
+      degradedType: DegradedType;
       endpointUrl: string;
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
+      retriedError?: RetriedError;
       rpcMethodName: string;
     },
   ];

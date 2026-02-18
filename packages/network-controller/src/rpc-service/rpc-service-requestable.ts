@@ -6,6 +6,7 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
+import type { DegradedType, RetriedError } from './rpc-service';
 import type {
   CockatielEventToEventListenerWithData,
   ExcludeCockatielEventData,
@@ -65,7 +66,12 @@ export type RpcServiceRequestable = {
   onDegraded(
     listener: CockatielEventToEventListenerWithData<
       ServicePolicy['onDegraded'],
-      { endpointUrl: string; rpcMethodName: string }
+      {
+        endpointUrl: string;
+        rpcMethodName: string;
+        degradedType: DegradedType;
+        retriedError?: RetriedError;
+      }
     >,
   ): ReturnType<ServicePolicy['onDegraded']>;
 

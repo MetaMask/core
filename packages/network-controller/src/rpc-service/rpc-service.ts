@@ -65,6 +65,21 @@ export type RpcServiceOptions = {
   isOffline: () => boolean;
 };
 
+/**
+ * Why the RPC service became degraded.
+ */
+export type DegradedType = 'slow_success' | 'retries_exhausted';
+
+/**
+ * The category of error that was retried until retries were exhausted.
+ */
+export type RetriedError =
+  | 'request_not_initiated'
+  | 'response_not_json'
+  | 'non_success_http_status'
+  | 'timed_out'
+  | 'connection_reset';
+
 const log = createModuleLogger(projectLogger, 'RpcService');
 
 /**
@@ -203,6 +218,43 @@ function isJsonParseError(error: unknown): boolean {
     error instanceof SyntaxError ||
     /invalid json/iu.test(getErrorMessage(error))
   );
+}
+
+/**
+ * Classifies the error that was being retried when retries were exhausted.
+ *
+ * @param error - The error from the last retry attempt.
+ * @returns A classification string, or `undefined` if the error doesn't match
+ * any known category.
+ */
+function classifyRetriedError(error: unknown): RetriedError | undefined {
+  if (isConnectionError(error)) {
+    return 'request_not_initiated';
+  }
+  if (isJsonParseError(error)) {
+    return 'response_not_json';
+  }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'httpStatus' in error &&
+    [502, 503, 504].includes((error as { httpStatus: number }).httpStatus)
+  ) {
+    return 'non_success_http_status';
+  }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    hasProperty(error, 'code')
+  ) {
+    if (error.code === 'ETIMEDOUT') {
+      return 'timed_out';
+    }
+    if (error.code === 'ECONNRESET') {
+      return 'connection_reset';
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -408,11 +460,23 @@ export class RpcService implements AbstractRpcService {
     listener: Parameters<AbstractRpcService['onDegraded']>[0],
   ): IDisposable {
     return this.#policy.onDegraded((data) => {
-      listener({
-        ...(data ?? {}),
-        endpointUrl: this.endpointUrl.toString(),
-        rpcMethodName: this.#currentRpcMethodName,
-      });
+      if (data === undefined) {
+        listener({
+          endpointUrl: this.endpointUrl.toString(),
+          rpcMethodName: this.#currentRpcMethodName,
+          degradedType: 'slow_success',
+        });
+      } else {
+        listener({
+          ...data,
+          endpointUrl: this.endpointUrl.toString(),
+          rpcMethodName: this.#currentRpcMethodName,
+          degradedType: 'retries_exhausted',
+          retriedError: classifyRetriedError(
+            'error' in data ? data.error : undefined,
+          ),
+        });
+      }
     });
   }
 
