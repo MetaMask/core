@@ -15,27 +15,10 @@ import {
 } from './ai-digest-constants';
 import type {
   AiDigestControllerState,
-  DigestEntry,
   DigestService,
-  DigestData,
   MarketInsightsReport,
   MarketInsightsEntry,
 } from './ai-digest-types';
-
-export type AiDigestControllerFetchDigestAction = {
-  type: `${typeof controllerName}:fetchDigest`;
-  handler: AiDigestController['fetchDigest'];
-};
-
-export type AiDigestControllerClearDigestAction = {
-  type: `${typeof controllerName}:clearDigest`;
-  handler: AiDigestController['clearDigest'];
-};
-
-export type AiDigestControllerClearAllDigestsAction = {
-  type: `${typeof controllerName}:clearAllDigests`;
-  handler: AiDigestController['clearAllDigests'];
-};
 
 export type AiDigestControllerFetchMarketInsightsAction = {
   type: `${typeof controllerName}:fetchMarketInsights`;
@@ -48,9 +31,6 @@ export type AiDigestControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type AiDigestControllerActions =
-  | AiDigestControllerFetchDigestAction
-  | AiDigestControllerClearDigestAction
-  | AiDigestControllerClearAllDigestsAction
   | AiDigestControllerFetchMarketInsightsAction
   | AiDigestControllerGetStateAction;
 
@@ -75,18 +55,11 @@ export type AiDigestControllerOptions = {
 
 export function getDefaultAiDigestControllerState(): AiDigestControllerState {
   return {
-    digests: {},
     marketInsights: {},
   };
 }
 
 const aiDigestControllerMetadata: StateMetadata<AiDigestControllerState> = {
-  digests: {
-    persist: true,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    usedInUi: true,
-  },
   marketInsights: {
     persist: true,
     includeInDebugSnapshot: true,
@@ -119,58 +92,9 @@ export class AiDigestController extends BaseController<
 
   #registerMessageHandlers(): void {
     this.messenger.registerActionHandler(
-      `${controllerName}:fetchDigest`,
-      this.fetchDigest.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:clearDigest`,
-      this.clearDigest.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:clearAllDigests`,
-      this.clearAllDigests.bind(this),
-    );
-    this.messenger.registerActionHandler(
       `${controllerName}:fetchMarketInsights`,
       this.fetchMarketInsights.bind(this),
     );
-  }
-
-  async fetchDigest(assetId: string): Promise<DigestData> {
-    const existingDigest = this.state.digests[assetId];
-    if (existingDigest) {
-      const age = Date.now() - existingDigest.fetchedAt;
-      if (age < CACHE_DURATION_MS) {
-        return existingDigest.data;
-      }
-    }
-
-    const data = await this.#digestService.fetchDigest(assetId);
-
-    const entry: DigestEntry = {
-      asset: assetId,
-      fetchedAt: Date.now(),
-      data,
-    };
-
-    this.update((state) => {
-      state.digests[assetId] = entry;
-      this.#evictStaleCachedEntries(state.digests);
-    });
-
-    return data;
-  }
-
-  clearDigest(assetId: string): void {
-    this.update((state) => {
-      delete state.digests[assetId];
-    });
-  }
-
-  clearAllDigests(): void {
-    this.update((state) => {
-      state.digests = {};
-    });
   }
 
   /**
@@ -195,7 +119,7 @@ export class AiDigestController extends BaseController<
       }
     }
 
-    const data = await this.#digestService.searchDigests(caip19Id);
+    const data = await this.#digestService.searchDigest(caip19Id);
 
     if (data === null) {
       // No insights available for this asset — clear any stale cache entry
@@ -217,21 +141,6 @@ export class AiDigestController extends BaseController<
     });
 
     return data;
-  }
-
-  /**
-   * Clears the cached market insights for a specific CAIP-19 asset.
-   *
-   * @param caip19Id - The CAIP-19 identifier.
-   */
-  clearMarketInsights(caip19Id: string): void {
-    if (!isCaipAssetType(caip19Id)) {
-      return;
-    }
-
-    this.update((state) => {
-      delete state.marketInsights[caip19Id];
-    });
   }
 
   /**

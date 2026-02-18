@@ -1,9 +1,6 @@
 export type {
   AiDigestControllerActions,
-  AiDigestControllerClearAllDigestsAction,
-  AiDigestControllerClearDigestAction,
   AiDigestControllerEvents,
-  AiDigestControllerFetchDigestAction,
   AiDigestControllerFetchMarketInsightsAction,
   AiDigestControllerGetStateAction,
   AiDigestControllerMessenger,
@@ -20,8 +17,6 @@ export { AiDigestService } from './AiDigestService';
 
 export type {
   AiDigestControllerState,
-  DigestData,
-  DigestEntry,
   DigestService,
   MarketInsightsArticle,
   MarketInsightsTweet,
