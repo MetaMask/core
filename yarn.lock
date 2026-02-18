@@ -3848,7 +3848,6 @@ __metadata:
     jest: "npm:^29.7.0"
     jest-environment-node: "npm:^29.7.0"
     lodash: "npm:^4.17.21"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
