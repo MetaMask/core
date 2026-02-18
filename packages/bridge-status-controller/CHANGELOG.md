@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [67.0.0]
+
+### Added
+
+- **BREAKING:** Retrieve JWT token from the ProfileSyncController and include it in bridge request headers ([#7955](https://github.com/MetaMask/core/pull/7955))
+- Bump `@metamask/bridge-controller` from `^66.2.0` to `^67.0.0` ([#7961](https://github.com/MetaMask/core/pull/7961))
+
+## [66.1.0]
+
+### Added
+
+- Added `location` property to `BridgeHistoryItem` to persist the entry point across the transaction lifecycle ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added `location` parameter to `StartPollingForBridgeTxStatusArgs` ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added optional `location` parameter to `submitTx` method ([#7931](https://github.com/MetaMask/core/pull/7931))
+
+### Changed
+
+- All post-submission events (`Submitted`, `Completed`, `Failed`, `PollingStatusUpdated`, `StatusValidationFailed`) now include the `location` property from `BridgeHistoryItem` ([#7931](https://github.com/MetaMask/core/pull/7931))
+
+### Fixed
+
+- Fix `usd_amount_source` default value in EVM transaction metrics properties from `100` to `0` ([#7899](https://github.com/MetaMask/core/pull/7899))
+
 ## [66.0.2]
 
 ### Changed
@@ -945,7 +968,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@67.0.0...HEAD
+[67.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.1.0...@metamask/bridge-status-controller@67.0.0
+[66.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.2...@metamask/bridge-status-controller@66.1.0
 [66.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.1...@metamask/bridge-status-controller@66.0.2
 [66.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.0...@metamask/bridge-status-controller@66.0.1
 [66.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@65.0.1...@metamask/bridge-status-controller@66.0.0
