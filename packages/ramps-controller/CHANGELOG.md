@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(ramps-controller): replace Sinon with Jest fake timers ([#7973](https://github.com/MetaMask/core/pull/7973))
-
 ## [8.1.0]
 
 ### Added
