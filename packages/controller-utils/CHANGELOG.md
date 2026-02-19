@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `megaeth-mainnet` to `BUILT_IN_NETWORKS`([#7994](https://github.com/MetaMask/core/pull/7994))
+- Add `megaeth-mainnet` to `BUILT_IN_NETWORKS` ([#7994](https://github.com/MetaMask/core/pull/7994))
 
 ## [11.18.0]
 
