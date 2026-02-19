@@ -1391,9 +1391,8 @@ export class RampsService {
     // "/providers/transak-staging/orders/3ec2e8ac-...".
     // Extract just the order code (last segment) so getOrder doesn't
     // build a doubled path.
-    const orderCode = rawOrderId.includes('/')
-      ? (rawOrderId.split('/').pop() ?? rawOrderId)
-      : rawOrderId;
+    const lastSlash = rawOrderId.lastIndexOf('/');
+    const orderCode = lastSlash >= 0 ? rawOrderId.slice(lastSlash + 1) : rawOrderId;
 
     // Step 2: Fetch the full order using the extracted order code.
     return this.getOrder(providerCode, orderCode, wallet);

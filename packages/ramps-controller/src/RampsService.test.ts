@@ -2364,6 +2364,257 @@ describe('RampsService', () => {
       );
     });
   });
+
+  describe('RampsService:getOrder', () => {
+    const mockOrder = {
+      id: '/providers/transak-staging/orders/abc-123',
+      isOnlyLink: false,
+      provider: { id: '/providers/transak-staging', name: 'Transak (Staging)' },
+      success: true,
+      cryptoAmount: 0.05,
+      fiatAmount: 100,
+      cryptoCurrency: { symbol: 'ETH', decimals: 18 },
+      fiatCurrency: { symbol: 'USD', decimals: 2, denomSymbol: '$' },
+      providerOrderId: 'abc-123',
+      providerOrderLink: 'https://transak.com/order/abc-123',
+      createdAt: 1700000000000,
+      paymentMethod: { id: '/payments/debit-credit-card', name: 'Card' },
+      totalFeesFiat: 5,
+      txHash: '',
+      walletAddress: '0xabc',
+      status: 'COMPLETED' as const,
+      network: '1',
+      canBeUpdated: false,
+      idHasExpired: false,
+      excludeFromPurchases: false,
+      timeDescriptionPending: '',
+      orderType: 'BUY',
+      exchangeRate: 2000,
+    };
+
+    it('returns order data from the V2 unified order endpoint', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, mockOrder);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrder',
+        'transak-staging',
+        'abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const order = await orderPromise;
+
+      expect(order).toStrictEqual(mockOrder);
+    });
+
+    it('throws when the response is not ok', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .times(4)
+        .reply(404, 'Not Found');
+      const { service } = getService();
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
+      });
+
+      const orderPromise = service.getOrder('transak-staging', 'abc-123', '0xabc');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(orderPromise).rejects.toThrow("failed with status '404'");
+    });
+
+    it('throws when the response is malformed', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, null);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrder',
+        'transak-staging',
+        'abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(orderPromise).rejects.toThrow(
+        'Malformed response received from order API',
+      );
+    });
+  });
+
+  describe('RampsService:getOrderFromCallback', () => {
+    const mockOrder = {
+      id: '/providers/transak-staging/orders/abc-123',
+      isOnlyLink: false,
+      provider: { id: '/providers/transak-staging', name: 'Transak (Staging)' },
+      success: true,
+      cryptoAmount: 0.05,
+      fiatAmount: 100,
+      cryptoCurrency: { symbol: 'ETH', decimals: 18 },
+      fiatCurrency: { symbol: 'USD', decimals: 2, denomSymbol: '$' },
+      providerOrderId: 'abc-123',
+      providerOrderLink: 'https://transak.com/order/abc-123',
+      createdAt: 1700000000000,
+      paymentMethod: { id: '/payments/debit-credit-card', name: 'Card' },
+      totalFeesFiat: 5,
+      txHash: '',
+      walletAddress: '0xabc',
+      status: 'COMPLETED' as const,
+      network: '1',
+      canBeUpdated: false,
+      idHasExpired: false,
+      excludeFromPurchases: false,
+      timeDescriptionPending: '',
+      orderType: 'BUY',
+      exchangeRate: 2000,
+    };
+
+    it('parses the callback URL and returns the full order', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/callback')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          url: 'https://metamask.app.link/on-ramp?orderId=abc-123',
+        })
+        .reply(200, { id: 'abc-123' });
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, mockOrder);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrderFromCallback',
+        'transak-staging',
+        'https://metamask.app.link/on-ramp?orderId=abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const order = await orderPromise;
+
+      expect(order).toStrictEqual(mockOrder);
+    });
+
+    it('extracts the order code from a full resource path id', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/callback')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          url: 'https://metamask.app.link/on-ramp?orderId=abc-123',
+        })
+        .reply(200, { id: '/providers/transak-staging/orders/abc-123' });
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, mockOrder);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrderFromCallback',
+        'transak-staging',
+        'https://metamask.app.link/on-ramp?orderId=abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const order = await orderPromise;
+
+      expect(order).toStrictEqual(mockOrder);
+    });
+
+    it('throws when the callback response does not contain an id', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/callback')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          url: 'https://metamask.app.link/on-ramp?orderId=abc-123',
+        })
+        .reply(200, {});
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrderFromCallback',
+        'transak-staging',
+        'https://metamask.app.link/on-ramp?orderId=abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(orderPromise).rejects.toThrow(
+        'Could not extract order ID from callback URL via provider',
+      );
+    });
+
+    it('throws when the callback request fails', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/callback')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          url: 'https://metamask.app.link/on-ramp?orderId=abc-123',
+        })
+        .times(4)
+        .reply(500, 'Internal Server Error');
+      const { service } = getService();
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
+      });
+
+      const orderPromise = service.getOrderFromCallback(
+        'transak-staging',
+        'https://metamask.app.link/on-ramp?orderId=abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(orderPromise).rejects.toThrow("failed with status '500'");
+    });
+  });
 });
 
 /**
