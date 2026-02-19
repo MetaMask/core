@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "66.1.1",
+  "version": "67.0.0",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -64,6 +64,7 @@
     "@metamask/multichain-network-controller": "^3.0.3",
     "@metamask/network-controller": "^29.0.0",
     "@metamask/polling-controller": "^16.0.2",
+    "@metamask/profile-sync-controller": "^27.1.0",
     "@metamask/remote-feature-flag-controller": "^4.0.0",
     "@metamask/snaps-controllers": "^17.2.0",
     "@metamask/transaction-controller": "^62.17.0",

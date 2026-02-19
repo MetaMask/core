@@ -87,7 +87,6 @@
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "node-fetch": "^2.7.0",
-    "sinon": "^9.2.4",
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

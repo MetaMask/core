@@ -17,6 +17,7 @@ import type {
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import type { Caip19AssetId, AccountId } from './types';
 
 function createMockQueryApiClient(): ApiPlatformClient {
@@ -62,6 +63,7 @@ type WithControllerOptions = {
     trackMetaMetricsEvent: (
       payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
     ) => void;
+    priceDataSourceConfig: PriceDataSourceConfig;
   }>;
 };
 

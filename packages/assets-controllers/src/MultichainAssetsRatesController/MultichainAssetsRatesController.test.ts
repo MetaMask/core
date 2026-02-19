@@ -13,12 +13,11 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
-import { useFakeTimers } from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainAssetsRatesController } from '.';
 import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
-import { advanceTime } from '../../../../tests/helpers';
+import { jestAdvanceTime } from '../../../../tests/helpers';
 
 type AllMultichainAssetsRateControllerActions =
   MessengerActions<MultichainAssetsRatesControllerMessenger>;
@@ -245,17 +244,15 @@ const setupController = ({
 };
 
 describe('MultichainAssetsRatesController', () => {
-  let clock: sinon.SinonFakeTimers;
-
   const mockedDate = 1705760550000;
 
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers();
     jest.spyOn(Date, 'now').mockReturnValue(mockedDate);
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -510,7 +507,7 @@ describe('MultichainAssetsRatesController', () => {
 
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
-    await advanceTime({ clock, duration: 10 });
+    await jestAdvanceTime({ duration: 10 });
 
     expect(updateSpy).toHaveBeenCalledTimes(1);
     expect(controller.state.conversionRates).toMatchObject({

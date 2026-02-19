@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** `MultichainAssetsControllerMessenger` now requires the `PhishingController:bulkScanTokens` action to be allowed ([#7923](https://github.com/MetaMask/core/pull/7923))
+  - Consumers constructing the messenger must include this action in the allowed actions list
+- Add Blockaid token security scanning to `MultichainAssetsController` to filter out spam, malicious, and warning tokens during automatic asset detection ([#7923](https://github.com/MetaMask/core/pull/7923))
+  - Tokens with `assetNamespace` of "token" (e.g. SPL tokens) are scanned via the `PhishingController:bulkScanTokens` messenger action
+  - Only tokens with a `Benign` result are kept; native assets (e.g. `slip44`) are not scanned
+  - The filter fails open: if the scan is unreachable or returns an error, all tokens are kept
+  - Filtering applies to account-added and asset-list-updated events; `addAssets` (curated list) is not filtered
+  - Token addresses are batched into groups of 100 to stay within the `bulkScanTokens` per-request limit
+
+### Changed
+
+- Bump `@metamask/phishing-controller` from `^16.2.0` to `^16.3.0` ([#7979](https://github.com/MetaMask/core/pull/7979))
+- Bump `@metamask/network-enablement-controller` from `^4.1.0` to `^4.1.1` ([#7984](https://github.com/MetaMask/core/pull/7984))
+- Bump `@metamask/core-backend` from `^5.0.0` to `^6.0.0` ([#7993](https://github.com/MetaMask/core/pull/7993))
+- Change MegaETH mainnet occurences filtering for getTokensURL ([#7994](https://github.com/MetaMask/core/pull/7994))
+
 ## [99.4.0]
 
 ### Added
