@@ -109,14 +109,14 @@ function setupController(
   options: {
     priceResponse?: Record<string, unknown>;
     balanceState?: Record<string, Record<string, unknown>>;
-    getCurrentCurrency?: () => SupportedCurrency;
+    getSelectedCurrency?: () => SupportedCurrency;
     pollInterval?: number;
   } = {},
 ): SetupResult {
   const {
     priceResponse = {},
     balanceState = {},
-    getCurrentCurrency = (): SupportedCurrency => 'usd',
+    getSelectedCurrency = (): SupportedCurrency => 'usd',
     pollInterval,
   } = options;
 
@@ -125,7 +125,7 @@ function setupController(
   const controllerOptions: PriceDataSourceOptions = {
     queryApiClient:
       apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
-    getCurrentCurrency,
+    getSelectedCurrency,
   };
 
   if (pollInterval) {
@@ -253,7 +253,7 @@ describe('PriceDataSource', () => {
 
   it('fetch uses custom currency', async () => {
     const { controller, apiClient, getAssetsState } = setupController({
-      getCurrentCurrency: () => 'eur',
+      getSelectedCurrency: () => 'eur',
       balanceState: {
         'mock-account-id': {
           [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },

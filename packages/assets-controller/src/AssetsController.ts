@@ -145,7 +145,7 @@ export type AssetsControllerState = {
   /** UI preferences per asset (e.g. hidden) */
   assetPreferences: { [assetId: string]: AssetPreferences };
   /** Currently-active ISO 4217 currency code */
-  currentCurrency: SupportedCurrency;
+  selectedCurrency: SupportedCurrency;
 };
 
 /**
@@ -160,7 +160,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetsPrice: {},
     customAssets: {},
     assetPreferences: {},
-    currentCurrency: 'usd',
+    selectedCurrency: 'usd',
   };
 }
 
@@ -354,7 +354,7 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
-  currentCurrency: {
+  selectedCurrency: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -615,7 +615,7 @@ export class AssetsController extends BaseController<
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
-      getCurrentCurrency: (): SupportedCurrency => this.state.currentCurrency,
+      getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
@@ -1151,22 +1151,22 @@ export class AssetsController extends BaseController<
   /**
    * Set the current currency.
    *
-   * @param currentCurrency - The ISO 4217 currency code to set.
+   * @param selectedCurrency - The ISO 4217 currency code to set.
    */
-  setCurrentCurrency(currentCurrency: SupportedCurrency): void {
-    const previousCurrency = this.state.currentCurrency;
+  setSelectedCurrency(selectedCurrency: SupportedCurrency): void {
+    const previousCurrency = this.state.selectedCurrency;
 
-    if (previousCurrency === currentCurrency) {
+    if (previousCurrency === selectedCurrency) {
       return;
     }
 
     this.update((state) => {
-      state.currentCurrency = currentCurrency;
+      state.selectedCurrency = selectedCurrency;
     });
 
     log('Current currency changed', {
       previousCurrency,
-      currentCurrency,
+      selectedCurrency,
     });
 
     this.getAssets(this.#selectedAccounts, {

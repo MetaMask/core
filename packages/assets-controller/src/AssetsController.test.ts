@@ -169,7 +169,7 @@ describe('AssetsController', () => {
         assetsPrice: {},
         customAssets: {},
         assetPreferences: {},
-        currentCurrency: 'usd',
+        selectedCurrency: 'usd',
       });
     });
   });
@@ -183,7 +183,7 @@ describe('AssetsController', () => {
           assetsPrice: {},
           customAssets: {},
           assetPreferences: {},
-          currentCurrency: 'usd',
+          selectedCurrency: 'usd',
         });
       });
     });
@@ -200,7 +200,7 @@ describe('AssetsController', () => {
         },
         assetsBalance: {},
         customAssets: {},
-        currentCurrency: 'eur',
+        selectedCurrency: 'eur',
       };
 
       await withController({ state: initialState }, ({ controller }) => {
@@ -210,7 +210,7 @@ describe('AssetsController', () => {
           name: 'USD Coin',
           decimals: 6,
         });
-        expect(controller.state.currentCurrency).toBe('eur');
+        expect(controller.state.selectedCurrency).toBe('eur');
       });
     });
 
@@ -258,7 +258,7 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
-        currentCurrency: 'usd',
+        selectedCurrency: 'usd',
       });
 
       // Action handlers should NOT be registered when disabled
@@ -280,7 +280,7 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
-          currentCurrency: 'usd',
+          selectedCurrency: 'usd',
         });
 
         // Action handlers should be registered
@@ -730,28 +730,28 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('setCurrentCurrency', () => {
-    it('updates currentCurrency in state', async () => {
+  describe('setSelectedCurrency', () => {
+    it('updates selectedCurrency in state', async () => {
       await withController(({ controller }) => {
-        expect(controller.state.currentCurrency).toBe('usd');
+        expect(controller.state.selectedCurrency).toBe('usd');
 
-        controller.setCurrentCurrency('eur');
-        expect(controller.state.currentCurrency).toBe('eur');
+        controller.setSelectedCurrency('eur');
+        expect(controller.state.selectedCurrency).toBe('eur');
 
-        controller.setCurrentCurrency('gbp');
-        expect(controller.state.currentCurrency).toBe('gbp');
+        controller.setSelectedCurrency('gbp');
+        expect(controller.state.selectedCurrency).toBe('gbp');
       });
     });
 
     it('returns early when new currency is same as current', async () => {
       await withController(({ controller }) => {
-        expect(controller.state.currentCurrency).toBe('usd');
+        expect(controller.state.selectedCurrency).toBe('usd');
 
         const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
-        controller.setCurrentCurrency('usd');
+        controller.setSelectedCurrency('usd');
 
-        expect(controller.state.currentCurrency).toBe('usd');
+        expect(controller.state.selectedCurrency).toBe('usd');
         expect(getAssetsSpy).not.toHaveBeenCalled();
 
         getAssetsSpy.mockRestore();
@@ -762,7 +762,7 @@ describe('AssetsController', () => {
       await withController(({ controller }) => {
         const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
-        controller.setCurrentCurrency('eur');
+        controller.setSelectedCurrency('eur');
 
         expect(getAssetsSpy).toHaveBeenCalledTimes(1);
         expect(getAssetsSpy).toHaveBeenCalledWith(
