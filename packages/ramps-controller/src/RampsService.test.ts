@@ -2453,7 +2453,7 @@ describe('RampsService', () => {
           context: 'mobile-ios',
           wallet: '0xabc',
         })
-        .reply(200, '');
+        .reply(200, 'false');
       const { rootMessenger } = getService();
 
       const orderPromise = rootMessenger.call(
