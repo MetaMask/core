@@ -29,6 +29,7 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
 import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
+import { UserStorageControllerMethodActions } from './UserStorageController-method-action-types';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
@@ -39,11 +40,11 @@ import type { NativeScrypt } from '../../shared/types/encryption';
 import { EventQueue } from '../../shared/utils/event-queue';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerGetSessionProfile,
-  AuthenticationControllerIsSignedIn,
-  AuthenticationControllerPerformSignIn,
-} from '../authentication/AuthenticationController';
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerPerformSignInAction,
+} from '../authentication/AuthenticationController-method-action-types';
 
 const controllerName = 'UserStorageController';
 
@@ -154,44 +155,13 @@ const MESSENGER_EXPOSED_METHODS = [
   'syncContactsWithUserStorage',
 ] as const;
 
-// Messenger Actions
-type CreateActionsObj<Controller extends keyof UserStorageController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: UserStorageController[K];
-  };
-};
-type ActionsObj = CreateActionsObj<(typeof MESSENGER_EXPOSED_METHODS)[number]>;
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   UserStorageControllerState
 >;
 export type Actions =
-  | ActionsObj[keyof ActionsObj]
-  | UserStorageControllerGetStateAction;
-export type UserStorageControllerPerformGetStorage =
-  ActionsObj['performGetStorage'];
-export type UserStorageControllerPerformGetStorageAllFeatureEntries =
-  ActionsObj['performGetStorageAllFeatureEntries'];
-export type UserStorageControllerPerformSetStorage =
-  ActionsObj['performSetStorage'];
-export type UserStorageControllerPerformBatchSetStorage =
-  ActionsObj['performBatchSetStorage'];
-export type UserStorageControllerPerformDeleteStorage =
-  ActionsObj['performDeleteStorage'];
-export type UserStorageControllerPerformBatchDeleteStorage =
-  ActionsObj['performBatchDeleteStorage'];
-export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
-export type UserStorageControllerPerformDeleteStorageAllFeatureEntries =
-  ActionsObj['performDeleteStorageAllFeatureEntries'];
-export type UserStorageControllerListEntropySources =
-  ActionsObj['listEntropySources'];
-export type UserStorageControllerSetIsBackupAndSyncFeatureEnabled =
-  ActionsObj['setIsBackupAndSyncFeatureEnabled'];
-export type UserStorageControllerSetIsContactSyncingInProgress =
-  ActionsObj['setIsContactSyncingInProgress'];
-export type UserStorageControllerSyncContactsWithUserStorage =
-  ActionsObj['syncContactsWithUserStorage'];
+  | UserStorageControllerGetStateAction
+  | UserStorageControllerMethodActions;
 
 export type AllowedActions =
   // Keyring Requests
@@ -199,10 +169,10 @@ export type AllowedActions =
   // Snap Requests
   | HandleSnapRequest
   // Auth Requests
-  | AuthenticationControllerGetBearerToken
-  | AuthenticationControllerGetSessionProfile
-  | AuthenticationControllerPerformSignIn
-  | AuthenticationControllerIsSignedIn
+  | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationControllerGetSessionProfileAction
+  | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerIsSignedInAction
   // Contact Syncing
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
@@ -239,7 +209,7 @@ export type UserStorageControllerMessenger = Messenger<
  * - data stored on UserStorage is FULLY encrypted, with the only keys stored/managed on the client.
  * - No one can access this data unless they are have the SRP and are able to run the signing snap.
  */
-export default class UserStorageController extends BaseController<
+export class UserStorageController extends BaseController<
   typeof controllerName,
   UserStorageControllerState,
   UserStorageControllerMessenger

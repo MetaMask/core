@@ -18,6 +18,7 @@ import {
   createSnapAllPublicKeysRequest,
   createSnapSignMessageRequest,
 } from './auth-snap-requests';
+import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types';
 import type {
   LoginResponse,
   SRPInterface,
@@ -92,31 +93,14 @@ const MESSENGER_EXPOSED_METHODS = [
   'isSignedIn',
 ] as const;
 
-// Messenger Actions
-type CreateActionsObj<Controller extends keyof AuthenticationController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: AuthenticationController[K];
-  };
-};
-type ActionsObj = CreateActionsObj<(typeof MESSENGER_EXPOSED_METHODS)[number]>;
 export type Actions =
-  | ActionsObj[keyof ActionsObj]
-  | AuthenticationControllerGetStateAction;
+  | AuthenticationControllerGetStateAction
+  | AuthenticationControllerMethodActions;
+
 export type AuthenticationControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AuthenticationControllerState
 >;
-export type AuthenticationControllerPerformSignIn = ActionsObj['performSignIn'];
-export type AuthenticationControllerPerformSignOut =
-  ActionsObj['performSignOut'];
-export type AuthenticationControllerGetBearerToken =
-  ActionsObj['getBearerToken'];
-export type AuthenticationControllerGetSessionProfile =
-  ActionsObj['getSessionProfile'];
-export type AuthenticationControllerGetUserProfileLineage =
-  ActionsObj['getUserProfileLineage'];
-export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
 
 export type AuthenticationControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -142,7 +126,7 @@ export type AuthenticationControllerMessenger = Messenger<
  * Controller that enables authentication for restricted endpoints.
  * Used for Backup & Sync, Notifications, and other services.
  */
-export default class AuthenticationController extends BaseController<
+export class AuthenticationController extends BaseController<
   typeof controllerName,
   AuthenticationControllerState,
   AuthenticationControllerMessenger
