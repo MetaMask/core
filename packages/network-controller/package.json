@@ -50,7 +50,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
     "@metamask/connectivity-controller": "^0.1.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/eth-block-tracker": "^15.0.1",
     "@metamask/eth-json-rpc-infura": "^10.3.0",
     "@metamask/eth-json-rpc-middleware": "^23.1.0",

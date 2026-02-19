@@ -51,7 +51,7 @@
   "dependencies": {
     "@metamask/approval-controller": "^8.0.0",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/gas-fee-controller": "^26.0.2",
     "@metamask/keyring-controller": "^25.1.0",

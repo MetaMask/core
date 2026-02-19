@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controller",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "MetaMask",
@@ -53,9 +53,9 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/account-tree-controller": "^4.1.1",
-    "@metamask/assets-controllers": "^99.4.0",
+    "@metamask/assets-controllers": "^100.0.0",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/core-backend": "^6.0.0",
     "@metamask/keyring-api": "^21.5.0",
     "@metamask/keyring-controller": "^25.1.0",
