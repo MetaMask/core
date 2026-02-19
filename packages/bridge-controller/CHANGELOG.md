@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace `PERCENT_90` with `PERCENT_75` in `InputAmountPreset` enum ([#7997](https://github.com/MetaMask/core/pull/7997))
+
 ## [67.1.1]
 
 ### Changed
