@@ -43,7 +43,6 @@ import {
   AuthConnection,
   SecretType,
   SecretMetadataVersion,
-  PENDING_REVOKE_TOKEN_DELAY_MS,
 } from './constants';
 import { PasswordSyncError, RecoveryError } from './errors';
 import { SecretMetadata } from './SecretMetadata';
@@ -643,7 +642,6 @@ function getMockInitialControllerState(options?: {
     | {
         refreshToken: string;
         revokeToken: string;
-        queuedAt?: number;
       }[]
     | undefined;
 }): Partial<SeedlessOnboardingControllerState> {
@@ -6354,60 +6352,6 @@ describe('SeedlessOnboardingController', () => {
           // The first one was removed in the catch block (line 1911)
           // The second one was removed after successful revocation
           expect(controller.state.pendingToBeRevokedTokens?.length).toBe(1);
-        },
-      );
-    });
-
-    it('should skip tokens that were queued less than PENDING_REVOKE_TOKEN_DELAY_MS ago', async () => {
-      const recentQueuedAt = Date.now(); // just now — not yet eligible
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            pendingToBeRevokedTokens: [
-              {
-                refreshToken: 'recent-refresh-token',
-                revokeToken: 'recent-revoke-token',
-                queuedAt: recentQueuedAt,
-              },
-            ],
-          }),
-        },
-        async ({ controller, mockRevokeRefreshToken }) => {
-          await controller.revokePendingRefreshTokens();
-
-          // Token is too recent — should not have been revoked.
-          expect(mockRevokeRefreshToken).not.toHaveBeenCalled();
-          // Token should remain in the pending list.
-          expect(controller.state.pendingToBeRevokedTokens).toHaveLength(1);
-        },
-      );
-    });
-
-    it('should revoke tokens whose queuedAt is older than PENDING_REVOKE_TOKEN_DELAY_MS', async () => {
-      const oldQueuedAt = Date.now() - PENDING_REVOKE_TOKEN_DELAY_MS - 1000; // 1s past the threshold
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-            pendingToBeRevokedTokens: [
-              {
-                refreshToken: 'old-refresh-token',
-                revokeToken: 'old-revoke-token',
-                queuedAt: oldQueuedAt,
-              },
-            ],
-          }),
-        },
-        async ({ controller, mockRevokeRefreshToken }) => {
-          await controller.revokePendingRefreshTokens();
-
-          expect(mockRevokeRefreshToken).toHaveBeenCalledTimes(1);
-          expect(mockRevokeRefreshToken).toHaveBeenCalledWith({
-            connection: controller.state.authConnection,
-            revokeToken: 'old-revoke-token',
-          });
-          expect(controller.state.pendingToBeRevokedTokens).toHaveLength(0);
         },
       );
     });

@@ -40,7 +40,6 @@ import type { AuthConnection } from './constants';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
-  PENDING_REVOKE_TOKEN_DELAY_MS,
   SecretType,
   SeedlessOnboardingControllerErrorMessage,
   Web3AuthNetwork,
@@ -2274,21 +2273,8 @@ export class SeedlessOnboardingController<
         return;
       }
 
-      // Only revoke tokens that have been pending for at least PENDING_REVOKE_TOKEN_DELAY_MS.
-      // Entries without queuedAt (pre-migration persisted state) default to 0 (epoch) and
-      // are always old enough. This prevents a cross-cycle race where an earlier cycle's
-      // timer revokes tokens queued by a later cycle before those tokens' own grace period expires.
-      const now = Date.now();
-      const tokensReadyToRevoke = pendingToBeRevokedTokens.filter(
-        ({ queuedAt }) =>
-          now - (queuedAt ?? 0) >= PENDING_REVOKE_TOKEN_DELAY_MS,
-      );
-      if (tokensReadyToRevoke.length === 0) {
-        return;
-      }
-
       // revoke all pending refresh tokens in parallel
-      const promises = tokensReadyToRevoke.map(({ revokeToken }) => {
+      const promises = pendingToBeRevokedTokens.map(({ revokeToken }) => {
         const revokePromise = async (): Promise<string | null> => {
           try {
             await this.#revokeRefreshToken({
@@ -2352,7 +2338,7 @@ export class SeedlessOnboardingController<
     this.update((state) => {
       state.pendingToBeRevokedTokens = [
         ...(state.pendingToBeRevokedTokens ?? []),
-        { refreshToken, revokeToken, queuedAt: Date.now() },
+        { refreshToken, revokeToken },
       ];
     });
   }
