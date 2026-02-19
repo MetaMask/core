@@ -1169,7 +1169,12 @@ export class AssetsController extends BaseController<
       currentCurrency,
     });
 
-    this.subscribeAssetsPrice(this.#selectedAccounts, [...this.#enabledChains]);
+    this.getAssets(this.#selectedAccounts, {
+      forceUpdate: true,
+      dataTypes: ['price'],
+    }).catch((error) => {
+      log('Failed to fetch asset prices after current currency change', error);
+    });
   }
 
   // ============================================================================

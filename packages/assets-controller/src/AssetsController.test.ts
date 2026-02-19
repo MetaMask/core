@@ -747,14 +747,33 @@ describe('AssetsController', () => {
       await withController(({ controller }) => {
         expect(controller.state.currentCurrency).toBe('usd');
 
-        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
         controller.setCurrentCurrency('usd');
 
         expect(controller.state.currentCurrency).toBe('usd');
-        expect(subscribeSpy).not.toHaveBeenCalled();
+        expect(getAssetsSpy).not.toHaveBeenCalled();
 
-        subscribeSpy.mockRestore();
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('calls getAssets with forceUpdate and price dataType to refresh prices', async () => {
+      await withController(({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        controller.setCurrentCurrency('eur');
+
+        expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.objectContaining({
+            forceUpdate: true,
+            dataTypes: ['price'],
+          }),
+        );
+
+        getAssetsSpy.mockRestore();
       });
     });
   });
