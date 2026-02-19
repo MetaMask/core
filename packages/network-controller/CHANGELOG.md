@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.0.0]
+
 ### Added
 
 - Add `rpcMethodName` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7954](https://github.com/MetaMask/core/pull/7954))
@@ -1113,7 +1115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.0...HEAD
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...@metamask/network-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@28.0.0...@metamask/network-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.2.0...@metamask/network-controller@28.0.0
 [27.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.1.0...@metamask/network-controller@27.2.0
