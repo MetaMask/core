@@ -1,30 +1,13 @@
 import { HttpError } from '@metamask/controller-utils';
+import { FetchError } from 'node-fetch';
 
 import { classifyRetryReason } from '../create-network-client';
 
-/**
- * Creates a FetchError-like object matching the pattern that isConnectionError
- * expects from node-fetch.
- *
- * @param message - The error message.
- * @returns A FetchError-like object.
- */
-function createFetchError(message: string): Error {
-  const error = new Error(message);
-  Object.defineProperty(error, 'constructor', {
-    value: { name: 'FetchError' },
-  });
-  Object.defineProperty(error.constructor, 'name', {
-    value: 'FetchError',
-    writable: false,
-  });
-  return error;
-}
-
 describe('classifyRetryReason', () => {
   it('returns "connection_failed" for FetchError connection failures', () => {
-    const error = createFetchError(
+    const error = new FetchError(
       'request to https://example.com failed, reason: connect ECONNREFUSED',
+      'system',
     );
     expect(classifyRetryReason(error)).toBe('connection_failed');
   });
