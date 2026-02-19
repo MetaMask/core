@@ -154,7 +154,7 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerClearLastSelectedPaymentMethodAction;
 
 export type AllowedActions =
-  | AuthenticationController.AuthenticationControllerGetBearerToken
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
   | AuthenticationController.AuthenticationControllerPerformSignOut;
 
 // Events

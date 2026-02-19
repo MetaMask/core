@@ -57,7 +57,7 @@ export type Actions =
   | NotificationServicesPushControllerSubscribeToNotificationsAction;
 
 type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 export type NotificationServicesPushControllerStateChangeEvent =
   ControllerStateChangeEvent<
