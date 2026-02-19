@@ -516,6 +516,8 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
  * @param payload.error - The last error produced by the endpoint (or
  * `undefined` if the request was slow).
  * @param payload.networkClientId - The target network's client ID.
+ * @param payload.rpcMethodName - The JSON-RPC method that was being executed
+ * when the chain became degraded.
  */
 export type NetworkControllerRpcEndpointChainDegradedEvent = {
   type: 'NetworkController:rpcEndpointChainDegraded';
@@ -524,6 +526,7 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
       chainId: Hex;
       error: unknown;
       networkClientId: NetworkClientId;
+      rpcMethodName: string;
     },
   ];
 };
@@ -550,6 +553,8 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
  * `undefined` if the request was slow).
  * @param payload.networkClientId - The target network's client ID.
  * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
+ * @param payload.rpcMethodName - The JSON-RPC method that was being executed
+ * when the endpoint became degraded.
  */
 export type NetworkControllerRpcEndpointDegradedEvent = {
   type: 'NetworkController:rpcEndpointDegraded';
@@ -560,6 +565,7 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
+      rpcMethodName: string;
     },
   ];
 };
@@ -2701,10 +2707,7 @@ export class NetworkController extends BaseController<
       );
     }
 
-    if (
-      existingNetworkConfiguration === null ||
-      networkFields.chainId !== existingNetworkConfiguration.chainId
-    ) {
+    if (networkFields.chainId !== existingNetworkConfiguration?.chainId) {
       const existingNetworkConfigurationViaChainId =
         this.state.networkConfigurationsByChainId[networkFields.chainId];
       if (existingNetworkConfigurationViaChainId !== undefined) {

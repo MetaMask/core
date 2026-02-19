@@ -26,7 +26,7 @@ export type UpdatePaymentTokenOptions = {
 /**
  * Update the payment token for a specific transaction.
  *
- * @param request  - Request parameters.
+ * @param request - Request parameters.
  * @param options - Options bag.
  */
 export function updatePaymentToken(

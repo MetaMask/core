@@ -98,6 +98,7 @@ describe('utils', () => {
       const result = await fetchBridgeTxStatus(
         mockStatusRequest,
         mockClientId,
+        'AUTH_TOKEN',
         mockFetch,
         BRIDGE_PROD_API_BASE_URL,
       );
@@ -106,7 +107,10 @@ describe('utils', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining(getBridgeStatusUrl(BRIDGE_PROD_API_BASE_URL)),
         {
-          headers: { 'X-Client-Id': mockClientId },
+          headers: {
+            'X-Client-Id': mockClientId,
+            Authorization: 'Bearer AUTH_TOKEN',
+          },
         },
       );
 
@@ -135,6 +139,7 @@ describe('utils', () => {
       const result = await fetchBridgeTxStatus(
         mockStatusRequest,
         mockClientId,
+        'AUTH_TOKEN',
         mockFetch,
         BRIDGE_PROD_API_BASE_URL,
       );
@@ -143,7 +148,10 @@ describe('utils', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining(getBridgeStatusUrl(BRIDGE_PROD_API_BASE_URL)),
         {
-          headers: { 'X-Client-Id': mockClientId },
+          headers: {
+            'X-Client-Id': mockClientId,
+            Authorization: 'Bearer AUTH_TOKEN',
+          },
         },
       );
 
@@ -157,13 +165,11 @@ describe('utils', () => {
 
       // Verify response
       expect(result.status).toStrictEqual(mockInvalidResponse);
-      expect(result.validationFailures).toMatchInlineSnapshot(
-        `
-        Array [
+      expect(result.validationFailures).toMatchInlineSnapshot(`
+        [
           "socket|status",
         ]
-      `,
-      );
+      `);
     });
 
     it('should throw error when response validation fails', async () => {
@@ -178,6 +184,7 @@ describe('utils', () => {
       const result = await fetchBridgeTxStatus(
         mockStatusRequest,
         mockClientId,
+        'AUTH_TOKEN',
         mockFetch,
         BRIDGE_PROD_API_BASE_URL,
       );
@@ -186,7 +193,7 @@ describe('utils', () => {
       expect(result.validationFailures).toMatchInlineSnapshot(
         ['socket|status', 'socket|srcChain'],
         `
-        Array [
+        [
           "socket|status",
           "socket|srcChain",
         ]
@@ -203,6 +210,7 @@ describe('utils', () => {
         fetchBridgeTxStatus(
           mockStatusRequest,
           mockClientId,
+          'AUTH_TOKEN',
           mockFetch,
           BRIDGE_PROD_API_BASE_URL,
         ),

@@ -232,7 +232,6 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
   '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
   '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
-  '0x2611': '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
 };
 
 /**
@@ -289,7 +288,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
-  '0x2611': 'eip155:9745/erc20:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
+  '0x2611': 'eip155:9745/erc20:0x0000000000000000000000000000000000000000', // Plasma mainnet - native symbol: XPL
   '0x2710': 'eip155:10000/slip44:145', // Smart Bitcoin Cash - Native symbol: BCH
   '0x8173': 'eip155:33139/erc20:0x0000000000000000000000000000000000000000', // Apechain Mainnet - Native symbol: APE
   '0xa3c3': 'eip155:41923/erc20:0x0000000000000000000000000000000000000000', // EDU Chain - Native symbol: EDU
@@ -302,6 +301,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xed88': 'eip155:60808/erc20:0x0000000000000000000000000000000000000000', // BOB - Native symbol: ETH
   '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',
   '0x13c31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
+  '0x15b38': 'eip155:88888/erc20:0x0000000000000000000000000000000000000000', // Chiliz Chain - Native symbol: CHZ
   '0x17dcd': 'eip155:97741/erc20:0x0000000000000000000000000000000000000000', // Pepe Unchained Mainnet - Native symbol: PEPU
   '0x18232': 'eip155:98866/erc20:0x0000000000000000000000000000000000000000', // Plume Mainnet - Narive symbol: Plume
   '0x28c58': 'eip155:167000/slip44:60', // Taiko Mainnet - Native symbol: ETH
@@ -311,6 +311,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
+  '0xdef1': 'eip155:57073/erc20:0x0000000000000000000000000000000000000000', // Ink Mainnet - Native symbol: ETH
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES
@@ -368,6 +369,12 @@ type SupportedNetworksResponse = {
 let lastFetchedSupportedNetworks: SupportedNetworksResponse | null = null;
 
 /**
+ * In-flight promise to prevent concurrent requests to the supported networks endpoint.
+ */
+let runningSupportedNetworksRequest: Promise<SupportedNetworksResponse> | null =
+  null;
+
+/**
  * Converts a CAIP-2 chain ID (e.g., 'eip155:1') to a hex chain ID (e.g., '0x1').
  *
  * @param caipChainId - The CAIP-2 chain ID string.
@@ -382,12 +389,13 @@ function caipChainIdToHex(caipChainId: string): Hex | null {
 }
 
 /**
- * Fetches the list of supported networks from the API.
- * Falls back to the hardcoded list if the fetch fails.
+ * Executes the actual fetch to the supported networks endpoint.
+ * Handles errors internally by falling back to the hardcoded list,
+ * and clears the in-flight promise when done.
  *
  * @returns The supported networks response.
  */
-export async function fetchSupportedNetworks(): Promise<SupportedNetworksResponse> {
+async function executeSupportedNetworksFetch(): Promise<SupportedNetworksResponse> {
   try {
     const url = `${BASE_URL_V2}/supportedNetworks`;
     const response = await handleFetch(url, {
@@ -409,7 +417,29 @@ export async function fetchSupportedNetworks(): Promise<SupportedNetworksRespons
   } catch {
     // On any error, fall back to the hardcoded list
     return getSupportedNetworksFallback();
+  } finally {
+    // Clear the in-flight promise once the request completes
+    runningSupportedNetworksRequest = null;
   }
+}
+
+/**
+ * Fetches the list of supported networks from the API.
+ * Falls back to the hardcoded list if the fetch fails.
+ * Deduplicates concurrent requests by returning the same promise if a fetch is already in progress.
+ *
+ * @returns The supported networks response.
+ */
+export async function fetchSupportedNetworks(): Promise<SupportedNetworksResponse> {
+  // If a fetch is already in progress, return the same promise
+  if (runningSupportedNetworksRequest) {
+    return runningSupportedNetworksRequest;
+  }
+
+  // Start a new fetch and cache the promise
+  runningSupportedNetworksRequest = executeSupportedNetworksFetch();
+
+  return runningSupportedNetworksRequest;
 }
 
 /**
@@ -453,6 +483,7 @@ function getSupportedNetworksFallback(): SupportedNetworksResponse {
  */
 export function resetSupportedNetworksCache(): void {
   lastFetchedSupportedNetworks = null;
+  runningSupportedNetworksRequest = null;
 }
 
 /**
@@ -687,8 +718,10 @@ export class CodefiTokenPricesServiceV2
     // Refresh supported networks in background (non-blocking)
     // This ensures the list stays fresh during normal polling
     // Note: fetchSupportedNetworks handles errors internally and always resolves
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetchSupportedNetworks();
+    if (!lastFetchedSupportedNetworks) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      fetchSupportedNetworks();
+    }
 
     // Get dynamically fetched supported chain IDs for V3
     const supportedChainIdsV3 = getSupportedChainIdsV3AsHex();
@@ -791,8 +824,10 @@ export class CodefiTokenPricesServiceV2
     // Refresh supported currencies in background (non-blocking)
     // This ensures the list stays fresh during normal polling
     // Note: fetchSupportedCurrencies handles errors internally and always resolves
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetchSupportedCurrencies();
+    if (!lastFetchedCurrencies) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      fetchSupportedCurrencies();
+    }
 
     const url = new URL(`${BASE_URL_V1}/exchange-rates`);
     url.searchParams.append('baseCurrency', baseCurrency);

@@ -588,7 +588,7 @@ describe('AbstractTestManager', () => {
           controller.metadata,
           'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -601,8 +601,8 @@ describe('AbstractTestManager', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "unapprovedMessages": Object {},
+        {
+          "unapprovedMessages": {},
           "unapprovedMessagesCount": 0,
         }
       `);
@@ -617,7 +617,7 @@ describe('AbstractTestManager', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
@@ -630,8 +630,8 @@ describe('AbstractTestManager', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "unapprovedMessages": Object {},
+        {
+          "unapprovedMessages": {},
           "unapprovedMessagesCount": 0,
         }
       `);

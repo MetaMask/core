@@ -1,7 +1,6 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import nock from 'nock';
-import { useFakeTimers } from 'sinon';
+import nock, { isDone } from 'nock';
 
 import {
   CodefiTokenPricesServiceV2,
@@ -24,14 +23,15 @@ const defaultMaxRetryDelay = 30_000;
 
 describe('CodefiTokenPricesServiceV2', () => {
   describe('onBreak', () => {
-    let clock: sinon.SinonFakeTimers;
-
     beforeEach(() => {
-      clock = useFakeTimers({ now: Date.now() });
+      jest.useFakeTimers({
+        now: Date.now(),
+        doNotFake: ['nextTick', 'queueMicrotask'],
+      });
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('registers a listener that is called upon break', async () => {
@@ -155,10 +155,8 @@ describe('CodefiTokenPricesServiceV2', () => {
       // Initial three calls to exhaust maximum allowed failures
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       for (const _retryAttempt of Array(retries).keys()) {
-        // eslint-disable-next-line no-loop-func
         await expect(() =>
           fetchTokenPricesWithFakeTimers({
-            clock,
             fetchTokenPrices,
             retries,
           }),
@@ -170,14 +168,15 @@ describe('CodefiTokenPricesServiceV2', () => {
   });
 
   describe('onDegraded', () => {
-    let clock: sinon.SinonFakeTimers;
-
     beforeEach(() => {
-      clock = useFakeTimers({ now: Date.now() });
+      jest.useFakeTimers({
+        now: Date.now(),
+        doNotFake: ['nextTick', 'queueMicrotask'],
+      });
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('calls onDegraded when request is slower than threshold', async () => {
@@ -219,7 +218,6 @@ describe('CodefiTokenPricesServiceV2', () => {
       service.onDegraded(onDegradedHandler);
 
       await fetchTokenPricesWithFakeTimers({
-        clock,
         fetchTokenPrices: () =>
           service.fetchTokenPrices({
             assets: [
@@ -1021,14 +1019,15 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     describe('before circuit break', () => {
-      let clock: sinon.SinonFakeTimers;
-
       beforeEach(() => {
-        clock = useFakeTimers({ now: Date.now() });
+        jest.useFakeTimers({
+          now: Date.now(),
+          doNotFake: ['nextTick', 'queueMicrotask'],
+        });
       });
 
       afterEach(() => {
-        clock.restore();
+        jest.useRealTimers();
       });
 
       it('calls onDegraded when request is slower than threshold', async () => {
@@ -1070,7 +1069,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         });
 
         await fetchTokenPricesWithFakeTimers({
-          clock,
           fetchTokenPrices: () =>
             service.fetchTokenPrices({
               assets: [
@@ -1097,14 +1095,15 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     describe('after circuit break', () => {
-      let clock: sinon.SinonFakeTimers;
-
       beforeEach(() => {
-        clock = useFakeTimers({ now: Date.now() });
+        jest.useFakeTimers({
+          now: Date.now(),
+          doNotFake: ['nextTick', 'queueMicrotask'],
+        });
       });
 
       afterEach(() => {
-        clock.restore();
+        jest.useRealTimers();
       });
 
       it('calls onBreak handler upon break', async () => {
@@ -1228,10 +1227,8 @@ describe('CodefiTokenPricesServiceV2', () => {
         // Initial three calls to exhaust maximum allowed failures
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const _retryAttempt of Array(retries).keys()) {
-          // eslint-disable-next-line no-loop-func
           await expect(() =>
             fetchTokenPricesWithFakeTimers({
-              clock,
               fetchTokenPrices,
               retries,
             }),
@@ -1653,14 +1650,15 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     describe('before circuit break', () => {
-      let clock: sinon.SinonFakeTimers;
-
       beforeEach(() => {
-        clock = useFakeTimers({ now: Date.now() });
+        jest.useFakeTimers({
+          now: Date.now(),
+          doNotFake: ['nextTick', 'queueMicrotask'],
+        });
       });
 
       afterEach(() => {
-        clock.restore();
+        jest.useRealTimers();
       });
 
       it('calls onDegraded when request is slower than threshold', async () => {
@@ -1681,7 +1679,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         });
 
         await fetchExchangeRatesWithFakeTimers({
-          clock,
           fetchExchangeRates: () =>
             service.fetchExchangeRates({
               baseCurrency: 'eur',
@@ -1696,14 +1693,15 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     describe('after circuit break', () => {
-      let clock: sinon.SinonFakeTimers;
-
       beforeEach(() => {
-        clock = useFakeTimers({ now: Date.now() });
+        jest.useFakeTimers({
+          now: Date.now(),
+          doNotFake: ['nextTick', 'queueMicrotask'],
+        });
       });
 
       afterEach(() => {
-        clock.restore();
+        jest.useRealTimers();
       });
 
       it('calls onBreak handler upon break', async () => {
@@ -1747,10 +1745,8 @@ describe('CodefiTokenPricesServiceV2', () => {
         // Initial three calls to exhaust maximum allowed failures
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const _retryAttempt of Array(retries).keys()) {
-          // eslint-disable-next-line no-loop-func
           await expect(() =>
             fetchExchangeRatesWithFakeTimers({
-              clock,
               fetchExchangeRates,
               retries,
             }),
@@ -1987,6 +1983,39 @@ describe('CodefiTokenPricesServiceV2', () => {
 
       expect(result).toStrictEqual(mockResponse);
     });
+
+    it('deduplicates concurrent requests to the same endpoint', async () => {
+      const mockResponse = {
+        fullSupport: ['eip155:1'],
+        partialSupport: {
+          spotPricesV2: ['eip155:1', 'eip155:56'],
+          spotPricesV3: ['eip155:1', 'eip155:42161'],
+        },
+      };
+      // Only set up the mock to respond once
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/supportedNetworks')
+        .reply(200, mockResponse);
+
+      // Make 5 concurrent calls
+      const promises = [
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+        fetchSupportedNetworks(),
+      ];
+
+      const results = await Promise.all(promises);
+
+      // All promises should resolve to the same response
+      results.forEach((result) => {
+        expect(result).toStrictEqual(mockResponse);
+      });
+
+      // Verify no pending mocks (i.e., only one request was made)
+      expect(isDone()).toBe(true);
+    });
   });
 
   describe('getSupportedNetworks', () => {
@@ -2167,17 +2196,14 @@ describe('CodefiTokenPricesServiceV2', () => {
  * resolves.
  *
  * @param args - Arguments
- * @param args.clock - The fake timers clock to advance.
  * @param args.fetchTokenPrices - The "fetchTokenPrices" function to call.
  * @param args.retries - The number of retries the fetch call is configured to make.
  * @returns The result of the fetch call.
  */
 async function fetchTokenPricesWithFakeTimers({
-  clock,
   fetchTokenPrices,
   retries,
 }: {
-  clock: sinon.SinonFakeTimers;
   fetchTokenPrices: () => ReturnType<
     CodefiTokenPricesServiceV2['fetchTokenPrices']
   >;
@@ -2192,7 +2218,7 @@ async function fetchTokenPricesWithFakeTimers({
   // subsequent retries
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const _retryAttempt of Array(retries + 1).keys()) {
-    await clock.tickAsync(defaultMaxRetryDelay);
+    await jest.advanceTimersByTimeAsync(defaultMaxRetryDelay);
   }
 
   return await pendingUpdate;
@@ -2209,17 +2235,14 @@ async function fetchTokenPricesWithFakeTimers({
  * resolves.
  *
  * @param args - Arguments
- * @param args.clock - The fake timers clock to advance.
  * @param args.fetchExchangeRates - The "fetchExchangeRates" function to call.
  * @param args.retries - The number of retries the fetch call is configured to make.
  * @returns The result of the fetch call.
  */
 async function fetchExchangeRatesWithFakeTimers({
-  clock,
   fetchExchangeRates,
   retries,
 }: {
-  clock: sinon.SinonFakeTimers;
   fetchExchangeRates: () => ReturnType<
     CodefiTokenPricesServiceV2['fetchExchangeRates']
   >;
@@ -2234,7 +2257,7 @@ async function fetchExchangeRatesWithFakeTimers({
   // subsequent retries
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const _retryAttempt of Array(retries + 1).keys()) {
-    await clock.tickAsync(defaultMaxRetryDelay);
+    await jest.advanceTimersByTimeAsync(defaultMaxRetryDelay);
   }
 
   return await pendingUpdate;

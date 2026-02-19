@@ -251,6 +251,17 @@ export class RpcService implements AbstractRpcService {
   lastError: Error | undefined;
 
   /**
+   * The RPC method name of the current request being processed. This is passed
+   * to `onDegraded` event listeners.
+   *
+   * Initialised to `''` so the type is `string` throughout the event chain.
+   * The empty string is unreachable in practice because the method name is
+   * guaranteed to be set after the current request is completed but before
+   * any `onDegraded` callbacks are called.
+   */
+  #currentRpcMethodName = '';
+
+  /**
    * The function used to make an HTTP request.
    */
   readonly #fetch: typeof fetch;
@@ -377,7 +388,10 @@ export class RpcService implements AbstractRpcService {
       // RpcService. However, we are making a bet that we won't need to use it
       // other than how we are already using it.
       if (!('isolated' in data)) {
-        listener({ ...data, endpointUrl: this.endpointUrl.toString() });
+        listener({
+          ...data,
+          endpointUrl: this.endpointUrl.toString(),
+        });
       }
     });
   }
@@ -394,7 +408,11 @@ export class RpcService implements AbstractRpcService {
     listener: Parameters<AbstractRpcService['onDegraded']>[0],
   ): IDisposable {
     return this.#policy.onDegraded((data) => {
-      listener({ ...(data ?? {}), endpointUrl: this.endpointUrl.toString() });
+      listener({
+        ...(data ?? {}),
+        endpointUrl: this.endpointUrl.toString(),
+        rpcMethodName: this.#currentRpcMethodName,
+      });
     });
   }
 
@@ -466,7 +484,10 @@ export class RpcService implements AbstractRpcService {
       jsonRpcRequest,
       fetchOptions,
     );
-    return await this.#executeAndProcessRequest<Result>(completeFetchOptions);
+    return await this.#executeAndProcessRequest<Result>(
+      completeFetchOptions,
+      jsonRpcRequest.method,
+    );
   }
 
   /**
@@ -536,6 +557,7 @@ export class RpcService implements AbstractRpcService {
    *
    * @param fetchOptions - The options for `fetch`; will be combined with the
    * fetch options passed to the constructor
+   * @param rpcMethodName - The JSON-RPC method name of the current request.
    * @returns The decoded JSON-RPC response from the endpoint.
    * @throws An "authorized" JSON-RPC error (code -32006) if the response HTTP status is 401.
    * @throws A "rate limiting" JSON-RPC error (code -32005) if the response HTTP status is 429.
@@ -545,6 +567,7 @@ export class RpcService implements AbstractRpcService {
    */
   async #executeAndProcessRequest<Result extends Json>(
     fetchOptions: FetchOptions,
+    rpcMethodName: string,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>> {
     let response: Response | undefined;
     try {
@@ -554,25 +577,43 @@ export class RpcService implements AbstractRpcService {
       );
       const jsonDecodedResponse = await this.#policy.execute(
         async (context) => {
-          log(
-            'REQUEST INITIATED:',
-            this.endpointUrl.toString(),
-            '::',
-            fetchOptions,
-            // @ts-expect-error This property _is_ here, the type of
-            // ServicePolicy is just wrong.
-            `(attempt ${context.attempt + 1})`,
-          );
-          response = await this.#fetch(this.endpointUrl, fetchOptions);
-          if (!response.ok) {
-            throw new HttpError(response.status);
+          try {
+            log(
+              'REQUEST INITIATED:',
+              this.endpointUrl.toString(),
+              '::',
+              fetchOptions,
+              // @ts-expect-error This property _is_ here, the type of
+              // ServicePolicy is just wrong.
+              `(attempt ${context.attempt + 1})`,
+            );
+            response = await this.#fetch(this.endpointUrl, fetchOptions);
+            if (!response.ok) {
+              throw new HttpError(response.status);
+            }
+            log(
+              'REQUEST SUCCESSFUL:',
+              this.endpointUrl.toString(),
+              response.status,
+            );
+            return await response.json();
+          } finally {
+            // Track the RPC method for the request that has just taken place.
+            // We pass this property to `onDegraded` event listeners.
+            //
+            // We set this property after the request completes and not before
+            // the request starts to account for race conditions. That is, if
+            // there are two requests that are being performed concurrently, and
+            // the second request fails fast but the first request succeeds
+            // slowly, when `onDegraded` is called we want it to include the
+            // first request as the RPC method, not the second.
+            //
+            // Also, we set this property within a `finally` block inside of the
+            // function passed to `policy.execute` to ensure that it is set
+            // before `onDegraded` gets called, no matter the outcome of the
+            // request.
+            this.#currentRpcMethodName = rpcMethodName;
           }
-          log(
-            'REQUEST SUCCESSFUL:',
-            this.endpointUrl.toString(),
-            response.status,
-          );
-          return await response.json();
         },
       );
       this.lastError = undefined;

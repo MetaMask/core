@@ -23,7 +23,6 @@ import type {
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import sinon from 'sinon';
 
 import { KeyringControllerErrorMessage } from './constants';
 import { KeyringControllerError } from './errors';
@@ -135,7 +134,6 @@ function createVault(keyrings: SerializedKeyring[] = defaultKeyrings): string {
 
 describe('KeyringController', () => {
   afterEach(() => {
-    sinon.restore();
     jest.resetAllMocks();
   });
 
@@ -838,10 +836,10 @@ describe('KeyringController', () => {
 
     it('should emit KeyringController:lock event', async () => {
       await withController(async ({ controller, messenger }) => {
-        const listener = sinon.spy();
+        const listener = jest.fn();
         messenger.subscribe('KeyringController:lock', listener);
         await controller.setLocked();
-        expect(listener.called).toBe(true);
+        expect(listener).toHaveBeenCalled();
       });
     });
 
@@ -1617,13 +1615,13 @@ describe('KeyringController', () => {
             AccountImportStrategy.privateKey,
             [privateKey],
           );
-          const listener = sinon.spy();
+          const listener = jest.fn();
           messenger.subscribe('KeyringController:accountRemoved', listener);
 
           const removedAccount = '0x51253087e6f8358b5f10c0a94315d69db3357859';
           await controller.removeAccount(removedAccount);
 
-          expect(listener.calledWith(removedAccount)).toBe(true);
+          expect(listener).toHaveBeenCalledWith(removedAccount);
         });
       });
 
@@ -2785,10 +2783,10 @@ describe('KeyringController', () => {
 
     it('should emit KeyringController:unlock event', async () => {
       await withController(async ({ controller, messenger }) => {
-        const listener = sinon.spy();
+        const listener = jest.fn();
         messenger.subscribe('KeyringController:unlock', listener);
         await controller.submitPassword(password);
-        expect(listener.called).toBe(true);
+        expect(listener).toHaveBeenCalled();
       });
     });
 
@@ -3533,9 +3531,9 @@ describe('KeyringController', () => {
     describe('when wrong password is provided', () => {
       it('should throw an error', async () => {
         await withController(async ({ controller, encryptor }) => {
-          sinon
-            .stub(encryptor, 'decrypt')
-            .rejects(new Error('Incorrect password'));
+          jest
+            .spyOn(encryptor, 'decrypt')
+            .mockRejectedValue(new Error('Incorrect password'));
 
           await expect(controller.verifyPassword('12341234')).rejects.toThrow(
             'Incorrect password',
@@ -4386,7 +4384,7 @@ describe('KeyringController', () => {
               'includeInDebugSnapshot',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "isUnlocked": false,
             }
           `);
@@ -4406,9 +4404,9 @@ describe('KeyringController', () => {
               'includeInStateLogs',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "isUnlocked": false,
-              "keyrings": Array [],
+              "keyrings": [],
             }
           `);
         },
@@ -4427,8 +4425,8 @@ describe('KeyringController', () => {
               'persist',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
-              "vault": "{\\"data\\":\\"{\\\\\\"tag\\\\\\":{\\\\\\"key\\\\\\":{\\\\\\"password\\\\\\":\\\\\\"password123\\\\\\",\\\\\\"salt\\\\\\":\\\\\\"salt\\\\\\"},\\\\\\"iv\\\\\\":\\\\\\"iv\\\\\\"},\\\\\\"value\\\\\\":[{\\\\\\"type\\\\\\":\\\\\\"HD Key Tree\\\\\\",\\\\\\"data\\\\\\":{\\\\\\"mnemonic\\\\\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\\\\\"numberOfAccounts\\\\\\":1,\\\\\\"hdPath\\\\\\":\\\\\\"m/44'/60'/0'/0\\\\\\"},\\\\\\"metadata\\\\\\":{\\\\\\"id\\\\\\":\\\\\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\\\\\",\\\\\\"name\\\\\\":\\\\\\"\\\\\\"}}]}\\",\\"iv\\":\\"iv\\",\\"salt\\":\\"salt\\"}",
+            {
+              "vault": "{"data":"{\\"tag\\":{\\"key\\":{\\"password\\":\\"password123\\",\\"salt\\":\\"salt\\"},\\"iv\\":\\"iv\\"},\\"value\\":[{\\"type\\":\\"HD Key Tree\\",\\"data\\":{\\"mnemonic\\":[119,97,114,114,105,111,114,32,108,97,110,103,117,97,103,101,32,106,111,107,101,32,98,111,110,117,115,32,117,110,102,97,105,114,32,97,114,116,105,115,116,32,107,97,110,103,97,114,111,111,32,99,105,114,99,108,101,32,101,120,112,97,110,100,32,104,111,112,101,32,109,105,100,100,108,101,32,103,97,117,103,101],\\"numberOfAccounts\\":1,\\"hdPath\\":\\"m/44'/60'/0'/0\\"},\\"metadata\\":{\\"id\\":\\"01JXEFM7DAX2VJ0YFR4ESNY3GQ\\",\\"name\\":\\"\\"}}]}","iv":"iv","salt":"salt"}",
             }
           `);
         },
@@ -4447,9 +4445,9 @@ describe('KeyringController', () => {
               'usedInUi',
             ),
           ).toMatchInlineSnapshot(`
-            Object {
+            {
               "isUnlocked": false,
-              "keyrings": Array [],
+              "keyrings": [],
             }
           `);
         },

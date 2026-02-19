@@ -92,13 +92,22 @@ describe('BridgeController SSE', function () {
         },
       });
     getLayer1GasFeeMock.mockResolvedValue('0x1');
-    messengerMock.call.mockReturnValue({
-      address: '0x123',
-      provider: jest.fn(),
-      currencyRates: {},
-      marketData: {},
-      conversionRates: {},
-    } as never);
+    messengerMock.call.mockImplementation(
+      (...args: Parameters<BridgeControllerMessenger['call']>) => {
+        switch (args[0]) {
+          case 'AuthenticationController:getBearerToken':
+            return 'AUTH_TOKEN';
+          default:
+            return {
+              address: '0x123',
+              provider: jest.fn(),
+              currencyRates: {},
+              marketData: {},
+              conversionRates: {},
+            };
+        }
+      },
+    );
     jest.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValue({
       minimumVersion: '0.0.0',
       maxRefreshCount: 5,
@@ -161,17 +170,17 @@ describe('BridgeController SSE', function () {
       },
       context: metricsContext,
     });
-    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quoteRequest,
-      assetExchangeRates,
       quotesLoadingStatus: RequestStatus.LOADING,
     };
     expect(bridgeController.state).toStrictEqual(expectedState);
 
     // Loading state
     jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
       mockFetchFn,
       {
@@ -181,6 +190,7 @@ describe('BridgeController SSE', function () {
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
+      'AUTH_TOKEN',
       BRIDGE_PROD_API_BASE_URL,
       {
         onValidationFailure: expect.any(Function),
@@ -198,6 +208,7 @@ describe('BridgeController SSE', function () {
     // After first fetch
     jest.advanceTimersByTime(5000);
     await flushPromises();
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
       quotesInitialLoadTime: 6000,
@@ -214,6 +225,7 @@ describe('BridgeController SSE', function () {
       quotesRefreshCount: 1,
       quotesLoadingStatus: 1,
       quotesLastFetched: t1,
+      assetExchangeRates,
     });
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledTimes(0);
@@ -301,13 +313,13 @@ describe('BridgeController SSE', function () {
       const expectedState = {
         ...DEFAULT_BRIDGE_CONTROLLER_STATE,
         quoteRequest: usdtQuoteRequest,
-        assetExchangeRates,
         quotesLoadingStatus: RequestStatus.LOADING,
       };
       expect(bridgeController.state).toStrictEqual(expectedState);
 
       // Loading state
       jest.advanceTimersByTime(1000);
+      await advanceToNthTimerThenFlush();
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
         mockFetchFn,
         {
@@ -317,6 +329,7 @@ describe('BridgeController SSE', function () {
         },
         expect.any(AbortSignal),
         BridgeClientId.EXTENSION,
+        'AUTH_TOKEN',
         BRIDGE_PROD_API_BASE_URL,
         {
           onValidationFailure: expect.any(Function),
@@ -357,6 +370,7 @@ describe('BridgeController SSE', function () {
         quotesRefreshCount: 1,
         quotesLoadingStatus: 1,
         quotesLastFetched: t1,
+        assetExchangeRates,
       });
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(consoleLogSpy).toHaveBeenCalledTimes(0);
@@ -366,13 +380,20 @@ describe('BridgeController SSE', function () {
   );
 
   it('should use resetApproval and insufficientBal fallback values if provider is not found', async function () {
-    messengerMock.call.mockReturnValue({
-      address: '0x123',
-      provider: undefined,
-      currencyRates: {},
-      marketData: {},
-      conversionRates: {},
-    } as never);
+    messengerMock.call.mockImplementation(
+      (...args: Parameters<BridgeControllerMessenger['call']>) => {
+        if (args[0] === 'AuthenticationController:getBearerToken') {
+          return 'AUTH_TOKEN';
+        }
+        return {
+          address: '0x123',
+          provider: undefined,
+          currencyRates: {},
+          marketData: {},
+          conversionRates: {},
+        } as never;
+      },
+    );
     const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20.map((quote) => ({
       ...quote,
       quote: {
@@ -424,13 +445,14 @@ describe('BridgeController SSE', function () {
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quoteRequest: usdtQuoteRequest,
-      assetExchangeRates,
       quotesLoadingStatus: RequestStatus.LOADING,
     };
     expect(bridgeController.state).toStrictEqual(expectedState);
 
     // Loading state
     jest.advanceTimersByTime(1000);
+    // Wait for JWT token retrieval
+    await advanceToNthTimerThenFlush();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
       mockFetchFn,
       {
@@ -440,6 +462,7 @@ describe('BridgeController SSE', function () {
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
+      'AUTH_TOKEN',
       BRIDGE_PROD_API_BASE_URL,
       {
         onValidationFailure: expect.any(Function),
@@ -478,6 +501,7 @@ describe('BridgeController SSE', function () {
       quotesRefreshCount: 1,
       quotesLoadingStatus: 1,
       quotesLastFetched: t1,
+      assetExchangeRates,
     });
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledTimes(0);
@@ -502,6 +526,8 @@ describe('BridgeController SSE', function () {
       quoteRequest,
       metricsContext,
     );
+    // Wait for JWT token retrieval
+    await advanceToNthTimerThenFlush();
     // 1st fetch
     jest.advanceTimersByTime(FIRST_FETCH_DELAY);
     await flushPromises();
@@ -591,6 +617,8 @@ describe('BridgeController SSE', function () {
     );
 
     consoleLogSpy.mockImplementationOnce(jest.fn());
+    // Wait for JWT token retrieval
+    await advanceToNthTimerThenFlush();
     // 1st fetch
     jest.advanceTimersByTime(FIRST_FETCH_DELAY);
     await flushPromises();
@@ -638,8 +666,8 @@ describe('BridgeController SSE', function () {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     ).toBeGreaterThan(t2!);
     expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
-      Array [
-        Array [
+      [
+        [
           "Failed to stream bridge quotes",
           "Network error",
         ],
@@ -683,6 +711,10 @@ describe('BridgeController SSE', function () {
 
     consoleLogSpy.mockImplementationOnce(jest.fn());
     hasSufficientBalanceSpy.mockRejectedValue(new Error('Balance error'));
+
+    // Wait for JWT token retrieval
+    await advanceToNthTimerThenFlush();
+
     // 1st fetch
     jest.advanceTimersByTime(FIRST_FETCH_DELAY);
     await flushPromises();
@@ -715,7 +747,7 @@ describe('BridgeController SSE', function () {
         ...quoteRequest,
         srcTokenAmount: '10',
       },
-      assetExchangeRates,
+      assetExchangeRates: {},
     };
     // Start new quote request
     await bridgeController.updateBridgeQuoteRequestParams(
@@ -743,6 +775,8 @@ describe('BridgeController SSE', function () {
       quotesLoadingStatus: RequestStatus.LOADING,
     });
     const t1 = bridgeController.state.quotesLastFetched;
+    // Wait for JWT token retrieval
+    await advanceToNthTimerThenFlush();
     // 1st quote is received
     await advanceToNthTimerThenFlush();
     const expectedStateAfterFirstQuote = {
@@ -764,6 +798,7 @@ describe('BridgeController SSE', function () {
         resetApproval: false,
       },
       quotesLastFetched: t1,
+      assetExchangeRates,
     };
     expect(bridgeController.state.quotes).toHaveLength(1);
     expect(bridgeController.state).toStrictEqual({
@@ -788,6 +823,7 @@ describe('BridgeController SSE', function () {
         l1GasFeesInHexWei: '0x1',
         resetApproval: undefined,
       })),
+      assetExchangeRates,
     });
     expect(
       bridgeController.state.quotesLastFetched,
@@ -851,6 +887,10 @@ describe('BridgeController SSE', function () {
       .spyOn(console, 'warn')
       .mockImplementationOnce(jest.fn())
       .mockImplementationOnce(jest.fn());
+
+    // Wait for JWT token retrieval
+    await advanceToNthTimerThenFlush();
+
     // 1st fetch
     jest.advanceTimersByTime(FIRST_FETCH_DELAY);
     await flushPromises();
@@ -858,11 +898,13 @@ describe('BridgeController SSE', function () {
     expect(startPollingSpy).toHaveBeenCalledTimes(1);
 
     // Wait for next polling interval
-    jest.advanceTimersToNextTimer();
-    await flushPromises();
+    await advanceToNthTimerThenFlush();
+
+    // Wait for JWT token retrieval
+    await advanceToNthTimerThenFlush();
 
     // 2nd fetch
-    await advanceToNthTimerThenFlush(2);
+    await advanceToNthTimerThenFlush(1);
     expect(bridgeController.state.quotesRefreshCount).toBe(2);
 
     // 3nd fetch throws an error
@@ -884,9 +926,13 @@ describe('BridgeController SSE', function () {
       },
     );
 
+    // Wait for JWT token retrieval
+    await advanceToNthTimerThenFlush();
+
     // 1st quote is received
     jest.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
     await flushPromises();
+
     const t4 = bridgeController.state.quotesLastFetched;
     expect(t4).toBe(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -896,7 +942,7 @@ describe('BridgeController SSE', function () {
     expect(bridgeController.state.quotesLoadingStatus).toBe(
       RequestStatus.LOADING,
     );
-    // expect(bridgeController.state.quotes).toStrictEqual([]);
+
     // 2nd quote is received
     await advanceToNthTimerThenFlush(3);
     expect(bridgeController.state.quotes).toStrictEqual(
@@ -941,11 +987,10 @@ describe('BridgeController SSE', function () {
     const t6 = bridgeController.state.quotesLastFetched;
     expect(t6).toBeCloseTo(Date.now() - 2000);
     // Empty event.data
-    jest.advanceTimersByTime(FOURTH_FETCH_DELAY - 1000);
-    await flushPromises();
+    await advanceToNthTimerThenFlush();
     // Valid quote
-    jest.advanceTimersByTime(FOURTH_FETCH_DELAY * 2 - 1000);
-    await flushPromises();
+    await advanceToNthTimerThenFlush();
+    await advanceToNthTimerThenFlush();
     expect(bridgeController.state).toStrictEqual(expectedState);
     const t7 = bridgeController.state.quotesLastFetched;
     expect(t7).toBe(
@@ -953,9 +998,9 @@ describe('BridgeController SSE', function () {
       t6!,
     );
     expect(consoleWarnSpy.mock.calls[0]).toMatchInlineSnapshot(`
-      Array [
+      [
         "Quote validation failed",
-        Array [
+        [
           "lifi|trade",
           "lifi|trade.chainId",
           "lifi|trade.to",
@@ -983,21 +1028,21 @@ describe('BridgeController SSE', function () {
     );
     expect(consoleWarnSpy.mock.calls).toHaveLength(3);
     expect(consoleWarnSpy.mock.calls[1]).toMatchInlineSnapshot(`
-      Array [
+      [
         "Quote validation failed",
-        Array [
+        [
           "unknown|unknown",
         ],
       ]
     `);
     expect(consoleWarnSpy.mock.calls[2]).toMatchInlineSnapshot(`
-              Array [
-                "Quote validation failed",
-                Array [
-                  "unknown|quote",
-                ],
-              ]
-          `);
+      [
+        "Quote validation failed",
+        [
+          "unknown|quote",
+        ],
+      ]
+    `);
 
     expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(5);
@@ -1029,17 +1074,18 @@ describe('BridgeController SSE', function () {
       },
       context: metricsContext,
     });
-    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
     const expectedState = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE,
       quoteRequest,
-      assetExchangeRates,
+      assetExchangeRates: {},
       quotesLoadingStatus: RequestStatus.LOADING,
     };
     expect(bridgeController.state).toStrictEqual(expectedState);
 
     // Loading state
     jest.advanceTimersByTime(1000);
+    // Wait for JWT token retrieval
+    await advanceToNthTimerThenFlush();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
       mockFetchFn,
       {
@@ -1049,6 +1095,7 @@ describe('BridgeController SSE', function () {
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
+      'AUTH_TOKEN',
       BRIDGE_PROD_API_BASE_URL,
       {
         onValidationFailure: expect.any(Function),
@@ -1057,6 +1104,7 @@ describe('BridgeController SSE', function () {
       },
       '13.8.0',
     );
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
     const { quotesLastFetched: t1, ...stateWithoutTimestamp } =
       bridgeController.state;
     // eslint-disable-next-line jest/no-restricted-matchers
@@ -1068,6 +1116,7 @@ describe('BridgeController SSE', function () {
     await flushPromises();
     expect(bridgeController.state).toStrictEqual({
       ...expectedState,
+      assetExchangeRates,
       quoteRequest: {
         ...quoteRequest,
         insufficientBal: false,
@@ -1081,7 +1130,7 @@ describe('BridgeController SSE', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy).toHaveBeenCalledTimes(1);
     expect(consoleLogSpy.mock.calls[0]).toMatchInlineSnapshot(`
-      Array [
+      [
         "Failed to stream bridge quotes",
         [Error: Bridge-api error: timeout from server],
       ]

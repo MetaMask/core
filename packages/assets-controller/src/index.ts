@@ -9,18 +9,8 @@ export type {
   AssetsControllerState,
   AssetsControllerMessenger,
   AssetsControllerOptions,
+  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerGetStateAction,
-  AssetsControllerGetAssetsAction,
-  AssetsControllerGetAssetsBalanceAction,
-  AssetsControllerGetAssetMetadataAction,
-  AssetsControllerGetAssetsPriceAction,
-  AssetsControllerActiveChainsUpdateAction,
-  AssetsControllerAssetsUpdateAction,
-  AssetsControllerAddCustomAssetAction,
-  AssetsControllerRemoveCustomAssetAction,
-  AssetsControllerGetCustomAssetsAction,
-  AssetsControllerHideAssetAction,
-  AssetsControllerUnhideAssetAction,
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
   AssetsControllerBalanceChangedEvent,
@@ -28,6 +18,18 @@ export type {
   AssetsControllerAssetsDetectedEvent,
   AssetsControllerEvents,
 } from './AssetsController';
+export type {
+  AssetsControllerGetAssetsAction,
+  AssetsControllerGetAssetsBalanceAction,
+  AssetsControllerGetAssetMetadataAction,
+  AssetsControllerGetAssetsPriceAction,
+  AssetsControllerAddCustomAssetAction,
+  AssetsControllerRemoveCustomAssetAction,
+  AssetsControllerGetCustomAssetsAction,
+  AssetsControllerHideAssetAction,
+  AssetsControllerUnhideAssetAction,
+  AssetsControllerMethodActions,
+} from './AssetsController-method-action-types';
 
 // Core types
 export type {
@@ -60,6 +62,7 @@ export type {
   ERC1155AssetBalance,
   AssetBalance,
   // Data source types
+  AccountWithSupportedChains,
   DataType,
   DataRequest,
   DataResponse,
@@ -70,9 +73,6 @@ export type {
   FetchContext,
   FetchNextFunction,
   FetchMiddleware,
-  // Data source registration
-  DataSourceDefinition,
-  RegisteredDataSource,
   SubscriptionResponse,
   // Combined asset type
   Asset,
@@ -89,17 +89,13 @@ export { AbstractDataSource } from './data-sources';
 export type { DataSourceState, SubscriptionRequest } from './data-sources';
 
 // Data sources - AccountsApi
-export {
-  AccountsApiDataSource,
-  createAccountsApiDataSource,
-} from './data-sources';
+export { AccountsApiDataSource } from './data-sources';
 
 export type {
+  AccountsApiDataSourceConfig,
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceState,
-  AccountsApiDataSourceActions,
-  AccountsApiDataSourceEvents,
-  AccountsApiDataSourceMessenger,
+  AccountsApiDataSourceAllowedActions,
 } from './data-sources';
 
 // Data sources - BackendWebsocket
@@ -111,9 +107,6 @@ export {
 export type {
   BackendWebsocketDataSourceOptions,
   BackendWebsocketDataSourceState,
-  BackendWebsocketDataSourceActions,
-  BackendWebsocketDataSourceEvents,
-  BackendWebsocketDataSourceMessenger,
   BackendWebsocketDataSourceAllowedActions,
   BackendWebsocketDataSourceAllowedEvents,
 } from './data-sources';
@@ -122,11 +115,12 @@ export type {
 export { RpcDataSource, createRpcDataSource } from './data-sources';
 
 export type {
+  RpcDataSourceConfig,
   RpcDataSourceOptions,
   RpcDataSourceState,
-  RpcDataSourceActions,
-  RpcDataSourceEvents,
-  RpcDataSourceMessenger,
+  RpcDataSourceAllowedActions,
+  RpcDataSourceAllowedEvents,
+  ChainStatus,
 } from './data-sources';
 
 // Data sources - Unified Snap Data Source (dynamically discovers keyring snaps)
@@ -144,44 +138,36 @@ export {
 export type {
   SnapDataSourceState,
   SnapDataSourceOptions,
-  SnapDataSourceActions,
-  SnapDataSourceEvents,
-  SnapDataSourceMessenger,
+  SnapDataSourceAllowedActions,
+  SnapDataSourceAllowedEvents,
 } from './data-sources';
 
 // Enrichment data sources
 export { TokenDataSource, PriceDataSource } from './data-sources';
 
 export type {
-  TokenDataSourceActions,
-  TokenDataSourceMessenger,
-  PriceDataSourceActions,
-  PriceDataSourceEvents,
-  PriceDataSourceMessenger,
+  TokenDataSourceOptions,
+  TokenDataSourceAllowedActions,
+  PriceDataSourceConfig,
+  PriceDataSourceOptions,
 } from './data-sources';
 
 // Middlewares
 export { DetectionMiddleware } from './middlewares';
 
-export type {
-  DetectionMiddlewareActions,
-  DetectionMiddlewareMessenger,
-} from './middlewares';
-
-// Data source initialization
-export { initMessengers, initDataSources } from './data-sources';
-
-export type {
-  DataSourceMessengers,
-  DataSources,
-  InitMessengersOptions,
-  InitDataSourcesOptions,
-  DataSourceActions,
-  DataSourceEvents,
-  DataSourceAllowedActions,
-  DataSourceAllowedEvents,
-  RootMessenger,
-} from './data-sources';
-
 // Utilities
 export { normalizeAssetId } from './utils';
+
+// Selectors
+export {
+  getAggregatedBalanceForAccount,
+  getGroupIdForAccount,
+  getInternalAccountsForGroup,
+} from './selectors/balance';
+
+export type {
+  AccountsById,
+  AggregatedBalanceEntry,
+  AggregatedBalanceForAccount,
+  EnabledNetworkMap,
+} from './selectors/balance';

@@ -213,6 +213,8 @@ export const DEFAULT_CHAIN_ID_TO_NAME = {
   '0x531': 'sei',
   '0x2eb': 'flow-evm',
   '0x8f': 'monad',
+  '0x3e7': 'hyperevm',
+  solana: 'solana',
 } as const;
 
 export type ChainIdToNameMap = typeof DEFAULT_CHAIN_ID_TO_NAME;

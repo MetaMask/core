@@ -85,6 +85,13 @@ describe('AccountsApiClient', () => {
 
       expect(result).toStrictEqual(mockResponse);
     });
+
+    it('returns empty activeNetworks for empty accountIds', async () => {
+      const result = await client.accounts.fetchV2ActiveNetworks([]);
+
+      expect(result).toStrictEqual({ activeNetworks: [] });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('Balances', () => {
@@ -129,6 +136,17 @@ describe('AccountsApiClient', () => {
       expect(calledUrl).toContain('networks=1%2C137');
     });
 
+    it('returns empty balances for empty address', async () => {
+      const result = await client.accounts.fetchV2Balances('');
+
+      expect(result).toStrictEqual({
+        count: 0,
+        balances: [],
+        unprocessedNetworks: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
     it('fetches v5 multi-account balances', async () => {
       const mockResponse: V5BalancesResponse = {
         count: 3,
@@ -168,7 +186,7 @@ describe('AccountsApiClient', () => {
       };
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
-      await client.accounts.fetchV2BalancesWithOptions('0x123abc', {
+      await client.accounts.fetchV2Balances('0x123abc', {
         networks: [1, 137],
         filterSupportedTokens: true,
         includeTokenAddresses: ['0xtoken1', '0xtoken2'],
@@ -210,6 +228,28 @@ describe('AccountsApiClient', () => {
         expect.stringContaining('/v4/multiaccount/balances'),
         expect.any(Object),
       );
+    });
+
+    it('returns empty balances for empty accountAddresses', async () => {
+      const result = await client.accounts.fetchV4MultiAccountBalances([]);
+
+      expect(result).toStrictEqual({
+        count: 0,
+        balances: [],
+        unprocessedNetworks: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('returns empty balances for empty accountIds in v5', async () => {
+      const result = await client.accounts.fetchV5MultiAccountBalances([]);
+
+      expect(result).toStrictEqual({
+        count: 0,
+        unprocessedNetworks: [],
+        balances: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
@@ -289,7 +329,6 @@ describe('AccountsApiClient', () => {
           networks: ['eip155:1'],
           sortDirection: 'DESC',
           includeLogs: true,
-          includeValueTransfers: true,
           includeTxMetadata: true,
         },
       );
@@ -299,6 +338,39 @@ describe('AccountsApiClient', () => {
         expect.stringContaining('/v4/multiaccount/transactions'),
         expect.any(Object),
       );
+    });
+
+    it('returns query options for v4 multi-account transactions usable with fetchQuery', async () => {
+      const mockResponse = {
+        unprocessedNetworks: [],
+        pageInfo: { count: 0, hasNextPage: false },
+        data: [],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const queryOptions =
+        client.accounts.getV4MultiAccountTransactionsQueryOptions(
+          ['eip155:1:0x123'],
+          { sortDirection: 'DESC' },
+        );
+
+      expect(queryOptions).toMatchObject({
+        queryKey: [
+          'accounts',
+          'transactions',
+          'v4MultiAccount',
+          {
+            accountAddresses: ['eip155:1:0x123'],
+            options: { sortDirection: 'DESC' },
+          },
+        ],
+      });
+      expect(typeof queryOptions.queryFn).toBe('function');
+      expect(queryOptions).toHaveProperty('staleTime');
+      expect(queryOptions).toHaveProperty('gcTime');
+
+      const result = await client.queryClient.fetchQuery(queryOptions);
+      expect(result).toStrictEqual(mockResponse);
     });
 
     it('fetches account transactions with options but no chainIds', async () => {
@@ -314,6 +386,16 @@ describe('AccountsApiClient', () => {
       });
 
       expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('returns empty result for empty address without calling fetch', async () => {
+      const result = await client.accounts.fetchV1AccountTransactions('');
+
+      expect(result).toStrictEqual({
+        data: [],
+        pageInfo: { count: 0, hasNextPage: false },
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
@@ -385,7 +467,7 @@ describe('AccountsApiClient', () => {
       ).rejects.toThrow(HttpError);
     });
 
-    it('returns error object when relationship fetch fails with body error', async () => {
+    it('throws when relationship fetch fails with body error', async () => {
       mockFetch.mockResolvedValueOnce(
         createMockResponse(
           {
@@ -399,18 +481,9 @@ describe('AccountsApiClient', () => {
         ),
       );
 
-      const result = await client.accounts.fetchV1AccountRelationship(
-        1,
-        '0x123',
-        '0x456',
-      );
-
-      expect(result).toStrictEqual({
-        error: {
-          code: 'RELATIONSHIP_NOT_FOUND',
-          message: 'No relationship exists',
-        },
-      });
+      await expect(
+        client.accounts.fetchV1AccountRelationship(1, '0x123', '0x456'),
+      ).rejects.toThrow(HttpError);
     });
   });
 
@@ -451,6 +524,16 @@ describe('AccountsApiClient', () => {
 
       expect(result).toStrictEqual(mockResponse);
     });
+
+    it('returns empty result for empty address without calling fetch', async () => {
+      const result = await client.accounts.fetchV2AccountNfts('');
+
+      expect(result).toStrictEqual({
+        data: [],
+        pageInfo: { count: 0, hasNextPage: false },
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('Token Discovery', () => {
@@ -484,6 +567,212 @@ describe('AccountsApiClient', () => {
       const result = await client.accounts.fetchV2AccountTokens('0x123', {});
 
       expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('returns empty result for empty address without calling fetch', async () => {
+      const result = await client.accounts.fetchV2AccountTokens('');
+
+      expect(result).toStrictEqual({ data: [] });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('get*QueryOptions with queryOptions branches', () => {
+    it('getV1AccountTransactionsQueryOptions includes sorted chainIds in queryKey when queryOptions.chainIds provided', () => {
+      const options = client.accounts.getV1AccountTransactionsQueryOptions(
+        '0x123',
+        {
+          chainIds: ['eip155:137', 'eip155:1'],
+          cursor: 'c',
+          sortDirection: 'DESC',
+        },
+      );
+      expect(options.queryKey).toStrictEqual([
+        'accounts',
+        'transactions',
+        'v1Account',
+        {
+          address: '0x123',
+          options: {
+            chainIds: ['eip155:1', 'eip155:137'],
+            cursor: 'c',
+            sortDirection: 'DESC',
+          },
+        },
+      ]);
+    });
+
+    it('getV2AccountNftsQueryOptions includes sorted networks in queryKey when queryOptions.networks provided', () => {
+      const options = client.accounts.getV2AccountNftsQueryOptions('0x123', {
+        networks: [137, 1],
+        cursor: 'next',
+      });
+      expect(options.queryKey).toStrictEqual([
+        'accounts',
+        'v2Nfts',
+        {
+          address: '0x123',
+          options: {
+            networks: [1, 137],
+            cursor: 'next',
+          },
+        },
+      ]);
+    });
+
+    it('getV2AccountTokensQueryOptions includes sorted networks in queryKey when queryOptions.networks provided', () => {
+      const options = client.accounts.getV2AccountTokensQueryOptions('0x123', {
+        networks: [56, 1],
+      });
+      expect(options.queryKey).toStrictEqual([
+        'accounts',
+        'v2Tokens',
+        {
+          address: '0x123',
+          options: {
+            networks: [1, 56],
+          },
+        },
+      ]);
+    });
+  });
+
+  describe('get*QueryOptions empty-input short-circuit', () => {
+    it('getV2ActiveNetworksQueryOptions queryFn returns empty activeNetworks for empty accountIds without calling fetch', async () => {
+      const options = client.accounts.getV2ActiveNetworksQueryOptions([]);
+      const { queryFn } = options;
+      if (typeof queryFn !== 'function') {
+        throw new Error('queryFn is required');
+      }
+      const result = await queryFn({
+        client: client.queryClient,
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({ activeNetworks: [] });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV4MultiAccountBalancesQueryOptions queryFn returns empty balances for empty accountAddresses without calling fetch', async () => {
+      const options = client.accounts.getV4MultiAccountBalancesQueryOptions([]);
+      const { queryFn } = options;
+      if (typeof queryFn !== 'function') {
+        throw new Error('queryFn is required');
+      }
+      const result = await queryFn({
+        client: client.queryClient,
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        count: 0,
+        balances: [],
+        unprocessedNetworks: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV5MultiAccountBalancesQueryOptions queryFn returns empty balances for empty accountIds without calling fetch', async () => {
+      const options = client.accounts.getV5MultiAccountBalancesQueryOptions([]);
+      const { queryFn } = options;
+      if (typeof queryFn !== 'function') {
+        throw new Error('queryFn is required');
+      }
+      const result = await queryFn({
+        client: client.queryClient,
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        count: 0,
+        unprocessedNetworks: [],
+        balances: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV2BalancesQueryOptions queryFn returns empty balances for empty address without calling fetch', async () => {
+      const options = client.accounts.getV2BalancesQueryOptions('');
+      const { queryFn } = options;
+      if (typeof queryFn !== 'function') {
+        throw new Error('queryFn is required');
+      }
+      const result = await queryFn({
+        client: client.queryClient,
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        count: 0,
+        balances: [],
+        unprocessedNetworks: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV1AccountTransactionsQueryOptions queryFn returns empty result for empty address without calling fetch', async () => {
+      const options = client.accounts.getV1AccountTransactionsQueryOptions('');
+      const { queryFn } = options;
+      if (typeof queryFn !== 'function') {
+        throw new Error('queryFn is required');
+      }
+      const result = await queryFn({
+        client: client.queryClient,
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        data: [],
+        pageInfo: { count: 0, hasNextPage: false },
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV2AccountNftsQueryOptions queryFn returns empty result for empty address without calling fetch', async () => {
+      const options = client.accounts.getV2AccountNftsQueryOptions('');
+      const { queryFn } = options;
+      if (typeof queryFn !== 'function') {
+        throw new Error('queryFn is required');
+      }
+      const result = await queryFn({
+        client: client.queryClient,
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        data: [],
+        pageInfo: { count: 0, hasNextPage: false },
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV2AccountTokensQueryOptions queryFn returns empty result for empty address without calling fetch', async () => {
+      const options = client.accounts.getV2AccountTokensQueryOptions('');
+      const { queryFn } = options;
+      if (typeof queryFn !== 'function') {
+        throw new Error('queryFn is required');
+      }
+      const result = await queryFn({
+        client: client.queryClient,
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({ data: [] });
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

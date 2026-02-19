@@ -37,11 +37,15 @@ export enum AbortReason {
 }
 
 /**
- * @deprecated remove this event property
+ * Identifies the entry point from which the user initiated a swap or bridge flow.
+ * Included as the `location` property on every Unified SwapBridge event so
+ * analytics can trace the user's origin regardless of where they are in the flow.
  */
 export enum MetaMetricsSwapsEventSource {
   MainView = 'Main View',
   TokenView = 'Token View',
+  TrendingExplore = 'Trending Explore',
+  Rewards = 'Rewards',
 }
 
 export enum MetricsActionType {

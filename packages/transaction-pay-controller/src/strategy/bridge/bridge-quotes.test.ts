@@ -724,8 +724,6 @@ describe('Bridge Quotes Utils', () => {
 
       expect(quotes[0].targetAmount).toStrictEqual({
         fiat: '24.6',
-        human: '12.3',
-        raw: QUOTE_REQUEST_1_MOCK.targetAmountMinimum,
         usd: '36.9',
       });
     });

@@ -317,12 +317,22 @@ export type AssetBalance =
 export type DataType = 'balance' | 'metadata' | 'price';
 
 /**
+ * Account with its supported chains (enabled chains ∩ account scope).
+ * Pre-computed by the controller so data sources do not need to implement
+ * account-scope logic; they iterate over supportedChains for each account.
+ */
+export type AccountWithSupportedChains = {
+  account: InternalAccount;
+  supportedChains: ChainId[];
+};
+
+/**
  * Request for data from data sources
  */
 export type DataRequest = {
-  /** Accounts to fetch data for */
-  accounts: InternalAccount[];
-  /** CAIP-2 chain IDs */
+  /** Accounts with their supported chains (enabled ∩ account scope). Data sources use this instead of computing accountSupportsChain. */
+  accountsWithSupportedChains: AccountWithSupportedChains[];
+  /** CAIP-2 chain IDs (union of chains in this request) */
   chainIds: ChainId[];
   /** Filter by asset types */
   assetTypes?: AssetType[];
@@ -341,7 +351,7 @@ export type DataRequest = {
  */
 export type DataResponse = {
   /** Metadata for assets (shared across accounts) */
-  assetsMetadata?: Record<Caip19AssetId, AssetMetadata>;
+  assetsInfo?: Record<Caip19AssetId, AssetMetadata>;
   /** Price data for assets (shared across accounts) */
   assetsPrice?: Record<Caip19AssetId, AssetPrice>;
   /** Balance data per account */
@@ -353,6 +363,55 @@ export type DataResponse = {
 };
 
 // ============================================================================
+// DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
+// ============================================================================
+
+/**
+ * Callbacks for data sources to report to AssetsController.
+ * Passed to data sources so they report by direct call instead of messenger.
+ */
+export type AssetsControllerReport = {
+  onActiveChainsUpdate: (dataSourceId: string, activeChains: ChainId[]) => void;
+  onAssetsUpdate: (response: DataResponse, sourceId: string) => Promise<void>;
+};
+
+/** Request passed from controller to data source when subscribing */
+export type DataSourceSubscriptionRequest = {
+  request: DataRequest;
+  subscriptionId: string;
+  isUpdate: boolean;
+};
+
+/**
+ * Interface for balance data sources that the controller calls directly.
+ * No messenger is required for controller <-> data source communication.
+ */
+export type BalanceDataSource = {
+  getAssetsMiddleware: () => Middleware;
+  subscribe: (request: DataSourceSubscriptionRequest) => Promise<void>;
+  unsubscribe: (subscriptionId: string) => Promise<void>;
+  getName: () => string;
+};
+
+/**
+ * Interface for the price data source (subscribe/unsubscribe + middleware).
+ * Controller calls these methods directly.
+ */
+export type PriceDataSourceInterface = {
+  getAssetsMiddleware: () => Middleware;
+  subscribe: (request: DataSourceSubscriptionRequest) => Promise<void>;
+  unsubscribe: (subscriptionId: string) => Promise<void>;
+};
+
+/**
+ * Middleware-only source (e.g. detection, token enrichment).
+ * Controller calls getAssetsMiddleware() directly.
+ */
+export type MiddlewareDataSource = {
+  getAssetsMiddleware: () => Middleware;
+};
+
+// ============================================================================
 // UNIFIED MIDDLEWARE TYPES
 // ============================================================================
 
@@ -360,7 +419,7 @@ export type DataResponse = {
  * Internal state structure for AssetsController following normalized design.
  *
  * Keys use CAIP identifiers:
- * - assetsMetadata keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
+ * - assetsInfo keys: CAIP-19 asset IDs (e.g., "eip155:1/erc20:0x...")
  * - assetsBalance outer keys: Account IDs (InternalAccount.id UUIDs)
  * - assetsBalance inner keys: CAIP-19 asset IDs
  * - assetsPrice keys: CAIP-19 asset IDs
@@ -370,7 +429,7 @@ export type DataResponse = {
  */
 export type AssetsControllerStateInternal = {
   /** Shared metadata for all assets (stored once per asset) */
-  assetsMetadata: Record<Caip19AssetId, AssetMetadata>;
+  assetsInfo: Record<Caip19AssetId, AssetMetadata>;
   /** Per-account balance data */
   assetsBalance: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
   /** Price data for assets */
@@ -458,23 +517,7 @@ export type FetchNextFunction = NextFunction;
 export type FetchMiddleware = Middleware;
 
 /**
- * Data source ID.
- *
- * Data sources follow a standard messenger pattern:
- * - `${id}:getActiveChains` - action to get active chains
- * - `${id}:activeChainsUpdated` - event when chains change
- *
- * Registration order determines subscription order.
- */
-export type DataSourceDefinition = string;
-
-/**
- * Registered data source
- */
-export type RegisteredDataSource = DataSourceDefinition;
-
-/**
- * Subscription response
+ * Subscription response returned when subscribing to asset updates.
  */
 export type SubscriptionResponse = {
   /** Chains actively subscribed */

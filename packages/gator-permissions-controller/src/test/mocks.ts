@@ -6,12 +6,14 @@ import type {
 } from '@metamask/7715-permission-types';
 import type { Hex } from '@metamask/utils';
 
-import type {
-  CustomPermission,
-  PermissionTypesWithCustom,
-  StoredGatorPermission,
-} from '../types';
+import type { StoredGatorPermission } from '../types';
 
+/**
+ * Mock stored gator permission: native-token-stream (as returned by the Snap).
+ *
+ * @param chainId - The chain ID of the permission.
+ * @returns Mock stored gator permission: native-token-stream.
+ */
 export const mockNativeTokenStreamStorageEntry = (
   chainId: Hex,
 ): StoredGatorPermission<NativeTokenStreamPermission> => ({
@@ -43,6 +45,12 @@ export const mockNativeTokenStreamStorageEntry = (
   siteOrigin: 'http://localhost:8000',
 });
 
+/**
+ * Mock stored gator permission: native-token-periodic (as returned by the Snap).
+ *
+ * @param chainId - The chain ID of the permission.
+ * @returns Mock stored gator permission: native-token-periodic.
+ */
 export const mockNativeTokenPeriodicStorageEntry = (
   chainId: Hex,
 ): StoredGatorPermission<NativeTokenPeriodicPermission> => ({
@@ -73,6 +81,12 @@ export const mockNativeTokenPeriodicStorageEntry = (
   siteOrigin: 'http://localhost:8000',
 });
 
+/**
+ * Mock stored gator permission: erc20-token-stream (as returned by the Snap).
+ *
+ * @param chainId - The chain ID of the permission.
+ * @returns Mock stored gator permission: erc20-token-stream.
+ */
 export const mockErc20TokenStreamStorageEntry = (
   chainId: Hex,
 ): StoredGatorPermission<Erc20TokenStreamPermission> => ({
@@ -105,6 +119,12 @@ export const mockErc20TokenStreamStorageEntry = (
   siteOrigin: 'http://localhost:8000',
 });
 
+/**
+ * Mock stored gator permission: erc20-token-periodic (as returned by the Snap).
+ *
+ * @param chainId - The chain ID of the permission.
+ * @returns Mock stored gator permission: erc20-token-periodic.
+ */
 export const mockErc20TokenPeriodicStorageEntry = (
   chainId: Hex,
 ): StoredGatorPermission<Erc20TokenPeriodicPermission> => ({
@@ -136,79 +156,33 @@ export const mockErc20TokenPeriodicStorageEntry = (
   siteOrigin: 'http://localhost:8000',
 });
 
-export const mockCustomPermissionStorageEntry = (
-  chainId: Hex,
-  data: Record<string, unknown>,
-): StoredGatorPermission<CustomPermission> => ({
-  permissionResponse: {
-    chainId,
-    from: '0xB68c70159E9892DdF5659ec42ff9BD2bbC23e778',
-    to: '0x4f71DA06987BfeDE90aF0b33E1e3e4ffDCEE7a63',
-    permission: {
-      type: 'custom',
-      isAdjustmentAllowed: true,
-      data: {
-        justification:
-          'This is a very important request for streaming allowance for some very important thing',
-        ...data,
-      },
-    },
-    context: '0x00000000',
-    dependencies: [
-      {
-        factory: '0x69Aa2f9fe1572F1B640E1bbc512f5c3a734fc77c',
-        factoryData: '0x0000000',
-      },
-    ],
-    delegationManager: '0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3',
-  },
-  siteOrigin: 'http://localhost:8000',
-});
-
+/**
+ * Config for mock stored gator permissions: per chainId, how many of each permission type to create.
+ */
 export type MockGatorPermissionsStorageEntriesConfig = {
   [chainId: string]: {
     nativeTokenStream: number;
     nativeTokenPeriodic: number;
     erc20TokenStream: number;
     erc20TokenPeriodic: number;
-    custom: {
-      count: number;
-      data: Record<string, unknown>[];
-    };
   };
 };
 
 /**
- * Creates a mock gator permissions storage entry
+ * Creates mock stored gator permissions as returned by the gator permissions provider Snap.
  *
- * @param config - The config for the mock gator permissions storage entries.
- * @returns Mock gator permissions storage entry
- */
-/**
- * Creates mock gator permissions storage entries with unique expiry times
- *
- * @param config - The config for the mock gator permissions storage entries.
- * @returns Mock gator permissions storage entries
+ * @param config - Per-chain counts for each permission type.
+ * @returns Array of {@link StoredGatorPermission} entries.
  */
 export function mockGatorPermissionsStorageEntriesFactory(
   config: MockGatorPermissionsStorageEntriesConfig,
-): StoredGatorPermission<PermissionTypesWithCustom>[] {
-  const result: StoredGatorPermission<PermissionTypesWithCustom>[] = [];
+): StoredGatorPermission[] {
+  const result: StoredGatorPermission[] = [];
 
   Object.entries(config).forEach(([chainId, counts]) => {
-    if (counts.custom.count !== counts.custom.data.length) {
-      throw new Error('Custom permission count and data length mismatch');
-    }
-
-    /**
-     * Creates a number of entries with unique expiry times
-     *
-     * @param count - The number of entries to create.
-     * @param createEntry - The function to create an entry.
-     */
     const createEntries = (
       count: number,
-      createEntry: () => StoredGatorPermission<PermissionTypesWithCustom>,
+      createEntry: () => StoredGatorPermission,
     ): void => {
       for (let i = 0; i < count; i++) {
         const entry = createEntry();
@@ -231,15 +205,6 @@ export function mockGatorPermissionsStorageEntriesFactory(
     createEntries(counts.erc20TokenPeriodic, () =>
       mockErc20TokenPeriodicStorageEntry(chainId as Hex),
     );
-
-    // Create custom entries
-    for (let i = 0; i < counts.custom.count; i++) {
-      const entry = mockCustomPermissionStorageEntry(
-        chainId as Hex,
-        counts.custom.data[i],
-      );
-      result.push(entry);
-    }
   });
 
   return result;

@@ -1,10 +1,19 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
-import { KeyringRpcMethod } from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
+  BtcScope,
+  KeyringRpcMethod,
+  SolScope,
+  TrxScope,
+} from '@metamask/keyring-api';
 import type {
+  CreateAccountOptions,
   DeleteAccountRequest,
   GetAccountRequest,
+  KeyringCapabilities,
 } from '@metamask/keyring-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -50,6 +59,18 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     maxActiveCount: number;
   };
 
+  readonly capabilities: KeyringCapabilities = {
+    scopes: [
+      SolScope.Devnet,
+      SolScope.Testnet,
+      BtcScope.Testnet,
+      TrxScope.Shasta,
+    ],
+    bip44: {
+      deriveIndex: true,
+    },
+  };
+
   constructor(
     snapId: SnapId,
     messenger: MultichainAccountServiceMessenger,
@@ -80,10 +101,13 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     return [];
   }
 
-  async createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+    ]);
+
     const { tracker } = this;
 
     return this.withMaxConcurrency(async () => {
@@ -582,6 +606,7 @@ describe('SnapAccountProvider', () => {
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -606,6 +631,7 @@ describe('SnapAccountProvider', () => {
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -626,6 +652,7 @@ describe('SnapAccountProvider', () => {
       // Start 3 concurrent calls
       const promises = [0, 1, 2].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -646,6 +673,7 @@ describe('SnapAccountProvider', () => {
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
         provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
           entropySource: TEST_ENTROPY_SOURCE,
           groupIndex: index,
         }),
@@ -659,6 +687,21 @@ describe('SnapAccountProvider', () => {
       // Without maxConcurrency specified, should default to Infinity (no throttling)
       // So all 4 should have been able to run concurrently
       expect(tracker.maxActiveCount).toBe(4);
+    });
+
+    it('throws an error when type is not "bip44:derive-index"', async () => {
+      const { provider } = setup();
+
+      await expect(
+        provider.createAccounts({
+          // @ts-expect-error Testing invalid type handling.
+          type: 'unsupported-type',
+          entropySource: TEST_ENTROPY_SOURCE,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow(
+        'Unsupported create account option type: unsupported-type',
+      );
     });
   });
 
@@ -697,6 +740,7 @@ describe('SnapAccountProvider', () => {
       expect(createAccountsSpy).toHaveBeenCalledWith({
         entropySource: desyncedAccount.options.entropy.id,
         groupIndex: desyncedAccount.options.entropy.groupIndex,
+        type: AccountCreationType.Bip44DeriveIndex,
       });
     });
 
@@ -795,6 +839,7 @@ describe('SnapAccountProvider', () => {
       expect(createAccountsSpy).toHaveBeenCalledWith({
         entropySource: mockAccounts[1].options.entropy.id,
         groupIndex: mockAccounts[1].options.entropy.groupIndex,
+        type: AccountCreationType.Bip44DeriveIndex,
       });
     });
 

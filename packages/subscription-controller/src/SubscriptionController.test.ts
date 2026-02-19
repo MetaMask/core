@@ -10,7 +10,6 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import * as sinon from 'sinon';
 
 import {
   controllerName,
@@ -52,7 +51,7 @@ import {
   SUBSCRIPTION_STATUSES,
   SubscriptionUserEvent,
 } from './types';
-import { advanceTime } from '../../../tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers';
 import { generateMockTxMeta } from '../tests/utils';
 
 type AllActions = MessengerActions<SubscriptionControllerMessenger>;
@@ -434,6 +433,23 @@ describe('SubscriptionController', () => {
         expect(controller.state.subscriptions).toStrictEqual([]);
         expect(mockService.getSubscriptions).toHaveBeenCalledTimes(1);
       });
+    });
+
+    it('should surface triggerAccessTokenRefresh errors', async () => {
+      await withController(
+        async ({ controller, mockService, mockPerformSignOut }) => {
+          mockService.getSubscriptions.mockResolvedValue(
+            MOCK_GET_SUBSCRIPTIONS_RESPONSE,
+          );
+          mockPerformSignOut.mockImplementation(() => {
+            throw new Error('Wallet is locked');
+          });
+
+          await expect(controller.getSubscriptions()).rejects.toThrow(
+            'Wallet is locked',
+          );
+        },
+      );
     });
 
     it('should update state when subscription is fetched', async () => {
@@ -1030,21 +1046,19 @@ describe('SubscriptionController', () => {
   });
 
   describe('startPolling', () => {
-    let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      // eslint-disable-next-line import-x/namespace
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('should call getSubscriptions with the correct interval', async () => {
       await withController(async ({ controller }) => {
         const getSubscriptionsSpy = jest.spyOn(controller, 'getSubscriptions');
         controller.startPolling({});
-        await advanceTime({ clock, duration: 0 });
+        await jestAdvanceTime({ duration: 0 });
         expect(getSubscriptionsSpy).toHaveBeenCalledTimes(1);
       });
     });
@@ -1059,7 +1073,7 @@ describe('SubscriptionController', () => {
           'triggerAccessTokenRefresh',
         );
         controller.startPolling({});
-        await advanceTime({ clock, duration: 0 });
+        await jestAdvanceTime({ duration: 0 });
         expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
       });
     });
@@ -1405,8 +1419,8 @@ describe('SubscriptionController', () => {
             'includeInDebugSnapshot',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "trialedProducts": Array [],
+          {
+            "trialedProducts": [],
           }
         `);
       });
@@ -1421,10 +1435,10 @@ describe('SubscriptionController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-        Object {
-          "trialedProducts": Array [],
-        }
-      `);
+          {
+            "trialedProducts": [],
+          }
+        `);
       });
     });
 
@@ -1437,11 +1451,11 @@ describe('SubscriptionController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-        Object {
-          "subscriptions": Array [],
-          "trialedProducts": Array [],
-        }
-      `);
+          {
+            "subscriptions": [],
+            "trialedProducts": [],
+          }
+        `);
       });
     });
 
@@ -1454,11 +1468,11 @@ describe('SubscriptionController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-        Object {
-          "subscriptions": Array [],
-          "trialedProducts": Array [],
-        }
-      `);
+          {
+            "subscriptions": [],
+            "trialedProducts": [],
+          }
+        `);
       });
     });
   });
