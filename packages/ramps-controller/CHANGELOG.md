@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Replace `startQuotePolling()`/`stopQuotePolling()` with `fetchQuotesForSelection()` — quotes are now fetched once per call instead of polling on a 15-second interval
+
+### Removed
+
+- Remove `stopQuotePolling()` method (no interval to stop)
+- Remove internal polling restart logic (`#restartPollingIfActive`) from `setSelectedProvider`, `setSelectedToken`, and `setSelectedPaymentMethod`
+
 ## [8.1.0]
 
 ### Added
