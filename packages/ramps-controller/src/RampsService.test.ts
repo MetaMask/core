@@ -2433,7 +2433,11 @@ describe('RampsService', () => {
         jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
-      const orderPromise = service.getOrder('transak-staging', 'abc-123', '0xabc');
+      const orderPromise = service.getOrder(
+        'transak-staging',
+        'abc-123',
+        '0xabc',
+      );
       await jest.runAllTimersAsync();
       await flushPromises();
 
@@ -2449,7 +2453,7 @@ describe('RampsService', () => {
           context: 'mobile-ios',
           wallet: '0xabc',
         })
-        .reply(200, null);
+        .reply(200, '');
       const { rootMessenger } = getService();
 
       const orderPromise = rootMessenger.call(

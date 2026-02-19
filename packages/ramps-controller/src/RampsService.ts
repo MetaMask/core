@@ -1392,7 +1392,8 @@ export class RampsService {
     // Extract just the order code (last segment) so getOrder doesn't
     // build a doubled path.
     const lastSlash = rawOrderId.lastIndexOf('/');
-    const orderCode = lastSlash >= 0 ? rawOrderId.slice(lastSlash + 1) : rawOrderId;
+    const orderCode =
+      lastSlash >= 0 ? rawOrderId.slice(lastSlash + 1) : rawOrderId;
 
     // Step 2: Fetch the full order using the extracted order code.
     return this.getOrder(providerCode, orderCode, wallet);

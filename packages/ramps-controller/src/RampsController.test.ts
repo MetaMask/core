@@ -30,6 +30,7 @@ import type {
   Quote,
   RampsToken,
 } from './RampsService';
+import { RampsOrderStatus } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -6526,7 +6527,15 @@ describe('RampsController', () => {
     const mockOrder = {
       id: '/providers/transak-staging/orders/abc-123',
       isOnlyLink: false,
-      provider: { id: '/providers/transak-staging', name: 'Transak (Staging)' },
+      provider: {
+        id: '/providers/transak-staging',
+        name: 'Transak (Staging)',
+        environmentType: 'STAGING',
+        description: 'Test provider description',
+        hqAddress: '123 Test St',
+        links: [],
+        logos: { light: '', dark: '', height: 24, width: 77 },
+      },
       success: true,
       cryptoAmount: 0.05,
       fiatAmount: 100,
@@ -6539,7 +6548,7 @@ describe('RampsController', () => {
       totalFeesFiat: 5,
       txHash: '',
       walletAddress: '0xabc',
-      status: 'COMPLETED' as const,
+      status: RampsOrderStatus.Completed,
       network: '1',
       canBeUpdated: false,
       idHasExpired: false,
@@ -6556,7 +6565,11 @@ describe('RampsController', () => {
           async () => mockOrder,
         );
 
-        const order = await controller.getOrder('transak-staging', 'abc-123', '0xabc');
+        const order = await controller.getOrder(
+          'transak-staging',
+          'abc-123',
+          '0xabc',
+        );
 
         expect(order).toStrictEqual(mockOrder);
       });
@@ -6567,7 +6580,15 @@ describe('RampsController', () => {
     const mockOrder = {
       id: '/providers/transak-staging/orders/abc-123',
       isOnlyLink: false,
-      provider: { id: '/providers/transak-staging', name: 'Transak (Staging)' },
+      provider: {
+        id: '/providers/transak-staging',
+        name: 'Transak (Staging)',
+        environmentType: 'STAGING',
+        description: 'Test provider description',
+        hqAddress: '123 Test St',
+        links: [],
+        logos: { light: '', dark: '', height: 24, width: 77 },
+      },
       success: true,
       cryptoAmount: 0.05,
       fiatAmount: 100,
@@ -6580,7 +6601,7 @@ describe('RampsController', () => {
       totalFeesFiat: 5,
       txHash: '',
       walletAddress: '0xabc',
-      status: 'COMPLETED' as const,
+      status: RampsOrderStatus.Completed,
       network: '1',
       canBeUpdated: false,
       idHasExpired: false,
