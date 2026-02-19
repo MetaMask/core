@@ -5,7 +5,6 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import { useFakeTimers } from 'sinon';
 
 import {
   Cryptocurrency,
@@ -13,7 +12,7 @@ import {
   name as ratesControllerName,
 } from './RatesController';
 import type { RatesControllerMessenger, RatesControllerState } from './types';
-import { advanceTime } from '../../../../tests/helpers';
+import { jestAdvanceTime } from '../../../../tests/helpers';
 import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 
 type AllActions = MessengerActions<RatesControllerMessenger>;
@@ -93,8 +92,6 @@ function setupRatesController({
 }
 
 describe('RatesController', () => {
-  let clock: sinon.SinonFakeTimers;
-
   describe('construct', () => {
     it('constructs the RatesController with default values', () => {
       const { ratesController } = setupRatesController({
@@ -118,11 +115,11 @@ describe('RatesController', () => {
 
   describe('start', () => {
     beforeEach(() => {
-      clock = useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('starts the polling process with default values', async () => {
@@ -174,7 +171,7 @@ describe('RatesController', () => {
         `${ratesControllerName}:pollingStarted`,
       );
 
-      await advanceTime({ clock, duration: 200 });
+      await jestAdvanceTime({ duration: 200 });
 
       const ratesPosUpdate = ratesController.state.rates;
 
@@ -238,7 +235,7 @@ describe('RatesController', () => {
 
       await ratesController.start();
 
-      await advanceTime({ clock, duration: 200 });
+      await jestAdvanceTime({ duration: 200 });
 
       const { rates } = ratesController.state;
       expect(fetchExchangeRateStub).toHaveBeenCalled();
@@ -264,11 +261,11 @@ describe('RatesController', () => {
 
   describe('stop', () => {
     beforeEach(() => {
-      clock = useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('stops the polling process', async () => {
@@ -291,7 +288,7 @@ describe('RatesController', () => {
         `${ratesControllerName}:pollingStarted`,
       );
 
-      await advanceTime({ clock, duration: 200 });
+      await jestAdvanceTime({ duration: 200 });
 
       expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
@@ -304,7 +301,7 @@ describe('RatesController', () => {
         `${ratesControllerName}:pollingStopped`,
       );
 
-      await advanceTime({ clock, duration: 200 });
+      await jestAdvanceTime({ duration: 200 });
 
       expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 

@@ -47,6 +47,7 @@ import type {
   ProxyWithAccessibleTarget,
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
+import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
@@ -516,6 +517,8 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
  * @param payload.error - The last error produced by the endpoint (or
  * `undefined` if the request was slow).
  * @param payload.networkClientId - The target network's client ID.
+ * @param payload.rpcMethodName - The JSON-RPC method that was being executed
+ * when the chain became degraded.
  */
 export type NetworkControllerRpcEndpointChainDegradedEvent = {
   type: 'NetworkController:rpcEndpointChainDegraded';
@@ -524,6 +527,9 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
       chainId: Hex;
       error: unknown;
       networkClientId: NetworkClientId;
+      retryReason?: RetryReason;
+      rpcMethodName: string;
+      type: DegradedEventType;
     },
   ];
 };
@@ -550,6 +556,8 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
  * `undefined` if the request was slow).
  * @param payload.networkClientId - The target network's client ID.
  * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
+ * @param payload.rpcMethodName - The JSON-RPC method that was being executed
+ * when the endpoint became degraded.
  */
 export type NetworkControllerRpcEndpointDegradedEvent = {
   type: 'NetworkController:rpcEndpointDegraded';
@@ -560,6 +568,9 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
+      retryReason?: RetryReason;
+      rpcMethodName: string;
+      type: DegradedEventType;
     },
   ];
 };
