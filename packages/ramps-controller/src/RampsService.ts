@@ -541,18 +541,38 @@ export type RampsOrderPaymentMethod = {
 };
 
 /**
+ * Fiat currency information associated with an order.
+ */
+export type RampsOrderFiatCurrency = {
+  id?: string;
+  symbol: string;
+  name?: string;
+  decimals?: number;
+  denomSymbol?: string;
+};
+
+/**
+ * Provider information associated with an order.
+ */
+export type RampsOrderProvider = {
+  id?: string;
+  name?: string;
+  links?: Array<{ name: string; url: string }>;
+};
+
+/**
  * A unified order type returned from the V2 API.
  * The V2 endpoint normalizes all provider responses into this shape.
  */
 export type RampsOrder = {
   id?: string;
   isOnlyLink: boolean;
-  provider?: string;
+  provider?: string | RampsOrderProvider;
   success: boolean;
   cryptoAmount: string | number;
   fiatAmount: number;
   cryptoCurrency?: string | RampsOrderCryptoCurrency;
-  fiatCurrency?: string;
+  fiatCurrency?: string | RampsOrderFiatCurrency;
   providerOrderId: string;
   providerOrderLink: string;
   createdAt: number;
@@ -1367,14 +1387,22 @@ export class RampsService {
       return fetchResponse.json() as Promise<{ id: string }>;
     });
 
-    const orderId = callbackResponse?.id;
-    if (!orderId) {
+    const rawOrderId = callbackResponse?.id;
+    if (!rawOrderId) {
       throw new Error(
         'Could not extract order ID from callback URL via provider',
       );
     }
 
-    // Step 2: Fetch the full order using the extracted order ID.
-    return this.getOrder(providerCode, orderId, wallet);
+    // The callback response id may be a full resource path like
+    // "/providers/transak-staging/orders/3ec2e8ac-...".
+    // Extract just the order code (last segment) so getOrder doesn't
+    // build a doubled path.
+    const orderCode = rawOrderId.includes('/')
+      ? rawOrderId.split('/').pop()!
+      : rawOrderId;
+
+    // Step 2: Fetch the full order using the extracted order code.
+    return this.getOrder(providerCode, orderCode, wallet);
   }
 }
