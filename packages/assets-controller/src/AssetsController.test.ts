@@ -169,6 +169,7 @@ describe('AssetsController', () => {
         assetsPrice: {},
         customAssets: {},
         assetPreferences: {},
+        currentCurrency: 'usd',
       });
     });
   });
@@ -182,6 +183,7 @@ describe('AssetsController', () => {
           assetsPrice: {},
           customAssets: {},
           assetPreferences: {},
+          currentCurrency: 'usd',
         });
       });
     });
@@ -254,6 +256,7 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
+        currentCurrency: 'usd',
       });
 
       // Action handlers should NOT be registered when disabled
@@ -275,6 +278,7 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
+          currentCurrency: 'usd',
         });
 
         // Action handlers should be registered
@@ -721,6 +725,29 @@ describe('AssetsController', () => {
             .price,
         ).toBe(1.0);
       });
+    });
+  });
+
+  describe('setCurrentCurrency', () => {
+    it('updates currentCurrency in state', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.currentCurrency).toBe('usd');
+
+        controller.setCurrentCurrency('eur');
+        expect(controller.state.currentCurrency).toBe('eur');
+
+        controller.setCurrentCurrency('gbp');
+        expect(controller.state.currentCurrency).toBe('gbp');
+      });
+    });
+
+    it('initializes with provided currentCurrency when in state', async () => {
+      await withController(
+        { state: { currentCurrency: 'eur' } },
+        ({ controller }) => {
+          expect(controller.state.currentCurrency).toBe('eur');
+        },
+      );
     });
   });
 

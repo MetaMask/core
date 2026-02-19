@@ -1,3 +1,4 @@
+import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { PriceDataSourceOptions } from './PriceDataSource';
@@ -108,14 +109,14 @@ function setupController(
   options: {
     priceResponse?: Record<string, unknown>;
     balanceState?: Record<string, Record<string, unknown>>;
-    currency?: 'usd' | 'eur';
+    getCurrentCurrency?: () => SupportedCurrency;
     pollInterval?: number;
   } = {},
 ): SetupResult {
   const {
     priceResponse = {},
     balanceState = {},
-    currency,
+    getCurrentCurrency = (): SupportedCurrency => 'usd',
     pollInterval,
   } = options;
 
@@ -124,11 +125,9 @@ function setupController(
   const controllerOptions: PriceDataSourceOptions = {
     queryApiClient:
       apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
+    getCurrentCurrency,
   };
 
-  if (currency) {
-    controllerOptions.currency = currency;
-  }
   if (pollInterval) {
     controllerOptions.pollInterval = pollInterval;
   }
@@ -254,7 +253,7 @@ describe('PriceDataSource', () => {
 
   it('fetch uses custom currency', async () => {
     const { controller, apiClient, getAssetsState } = setupController({
-      currency: 'eur',
+      getCurrentCurrency: (): 'eur' => 'eur',
       balanceState: {
         'mock-account-id': {
           [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
