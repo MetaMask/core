@@ -253,7 +253,7 @@ describe('PriceDataSource', () => {
 
   it('fetch uses custom currency', async () => {
     const { controller, apiClient, getAssetsState } = setupController({
-      getCurrentCurrency: (): 'eur' => 'eur',
+      getCurrentCurrency: () => 'eur',
       balanceState: {
         'mock-account-id': {
           [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
