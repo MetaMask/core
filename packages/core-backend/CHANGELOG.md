@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.0.0]
 
-### Uncategorized
-
-- chore: remove unused `sinon` `devDependency` from 4 packages ([#7915](https://github.com/MetaMask/core/pull/7915))
-
 ### Added
 
 - Add `ApiPlatformClientService` to expose `ApiPlatformClient` via the messenger without a controller ([#7928](https://github.com/MetaMask/core/pull/7928))
@@ -35,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Query options now include: `startTimestamp`, `endTimestamp`, `limit`, `after`, `before`, `maxLogsPerTx`, `lang` in addition to `networks`, `cursor`, `sortDirection`, `includeLogs`, `includeTxMetadata`
   - `includeValueTransfers` has been removed from the options (not in API spec)
 - Accounts, prices, and tokens clients: `fetch*` and `get*QueryOptions` now short-circuit on empty required inputs (e.g. empty address, empty account IDs or asset lists) and return empty results without calling the API ([#7928](https://github.com/MetaMask/core/pull/7928))
+
+### Removed
+
+- chore: remove unused `sinon` `devDependency` from 4 packages ([#7915](https://github.com/MetaMask/core/pull/7915))
 
 ## [5.1.1]
 
