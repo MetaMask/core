@@ -1,6 +1,6 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "41.0.2",
+  "version": "42.0.0",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "MetaMask",
@@ -60,7 +60,7 @@
     "@metamask/polling-controller": "^16.0.2",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^62.17.0",
+    "@metamask/transaction-controller": "^63.0.0",
     "@metamask/utils": "^11.9.0",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
