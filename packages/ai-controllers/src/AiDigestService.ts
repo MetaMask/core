@@ -1,8 +1,45 @@
+import type { CaipAssetType } from '@metamask/utils';
+
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
-import type { DigestService, DigestData } from './ai-digest-types';
+import type { DigestService, MarketInsightsReport } from './ai-digest-types';
 
 export type AiDigestServiceConfig = {
   baseUrl: string;
+};
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isMarketInsightsReport = (
+  value: unknown,
+): value is MarketInsightsReport => {
+  if (!isObject(value)) {
+    return false;
+  }
+
+  return (
+    (value.version === undefined || typeof value.version === 'string') &&
+    typeof value.asset === 'string' &&
+    typeof value.generatedAt === 'string' &&
+    typeof value.headline === 'string' &&
+    typeof value.summary === 'string' &&
+    Array.isArray(value.trends) &&
+    Array.isArray(value.sources)
+  );
+};
+
+const getNormalizedMarketInsightsReport = (
+  value: unknown,
+): MarketInsightsReport | null => {
+  if (isMarketInsightsReport(value)) {
+    return value;
+  }
+
+  if (isObject(value) && isMarketInsightsReport(value.digest)) {
+    return value.digest;
+  }
+
+  return null;
 };
 
 export class AiDigestService implements DigestService {
@@ -12,10 +49,24 @@ export class AiDigestService implements DigestService {
     this.#baseUrl = config.baseUrl;
   }
 
-  async fetchDigest(assetId: string): Promise<DigestData> {
+  /**
+   * Search for market insights by CAIP-19 asset identifier.
+   *
+   * Calls `GET ${this.#baseUrl}/digests?caipAssetType=${encodeURIComponent(caip19Id)}`.
+   *
+   * @param caip19Id - The CAIP-19 identifier of the asset.
+   * @returns The market insights report, or `null` if none exists (404).
+   */
+  async searchDigest(
+    caip19Id: CaipAssetType,
+  ): Promise<MarketInsightsReport | null> {
     const response = await fetch(
-      `${this.#baseUrl}/digests/assets/${encodeURIComponent(assetId)}/latest`,
+      `${this.#baseUrl}/digests?caipAssetType=${encodeURIComponent(caip19Id)}`,
     );
+
+    if (response.status === 404) {
+      return null;
+    }
 
     if (!response.ok) {
       throw new Error(
@@ -23,14 +74,12 @@ export class AiDigestService implements DigestService {
       );
     }
 
-    const data: DigestData = await response.json();
+    const report = getNormalizedMarketInsightsReport(await response.json());
 
-    if (!data.success) {
-      throw new Error(
-        data.error ?? AiDigestControllerErrorMessage.API_RETURNED_ERROR,
-      );
+    if (!report) {
+      throw new Error(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     }
 
-    return data;
+    return report;
   }
 }

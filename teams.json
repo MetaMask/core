@@ -24,6 +24,7 @@
   "metamask/eip-7702-internal-rpc-middleware": "team-delegation",
   "metamask/earn-controller": "team-earn",
   "metamask/notification-services-controller": "team-assets",
+  "metamask/compliance-controller": "team-perps",
   "metamask/perps-controller": "team-perps",
   "metamask/phishing-controller": "team-product-safety",
   "metamask/bridge-controller": "team-swaps-and-bridge",

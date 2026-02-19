@@ -86,13 +86,13 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         isOffline: (): boolean => false,
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId }) => {
+                    async ({ makeRpcCall, chainId }) => {
                       messenger.subscribe(
                         'NetworkController:rpcEndpointRetried',
                         () => {
                           // Ensure that we advance to the next RPC request
                           // retry, not the next block tracker request.
-                          clock.tick(backoffDuration);
+                          jest.advanceTimersByTime(backoffDuration);
                         },
                       );
 
@@ -203,13 +203,13 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         isOffline: (): boolean => false,
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    async ({ makeRpcCall, chainId, rpcUrl }) => {
                       messenger.subscribe(
                         'NetworkController:rpcEndpointRetried',
                         () => {
                           // Ensure that we advance to the next RPC request
                           // retry, not the next block tracker request.
-                          clock.tick(backoffDuration);
+                          jest.advanceTimersByTime(backoffDuration);
                         },
                       );
 
@@ -407,13 +407,13 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         isOffline: (): boolean => false,
                       }),
                     },
-                    async ({ makeRpcCall, clock }) => {
+                    async ({ makeRpcCall }) => {
                       rootMessenger.subscribe(
                         'NetworkController:rpcEndpointRetried',
                         () => {
                           // Ensure that we advance to the next RPC request
                           // retry, not the next block tracker request.
-                          clock.tick(backoffDuration);
+                          jest.advanceTimersByTime(backoffDuration);
                         },
                       );
 
@@ -483,7 +483,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         isOffline: (): boolean => false,
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId }) => {
+                    async ({ makeRpcCall, chainId }) => {
                       // The first time a block-cacheable request is made, the
                       // latest block number is retrieved through the block
                       // tracker first.
@@ -513,7 +513,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         () => {
                           // Ensure that we advance to the next RPC request
                           // retry, not the next block tracker request.
-                          clock.tick(backoffDuration);
+                          jest.advanceTimersByTime(backoffDuration);
                         },
                       );
 
@@ -541,6 +541,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         chainId,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );
@@ -591,7 +592,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         isOffline: (): boolean => false,
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId }) => {
+                    async ({ makeRpcCall, chainId }) => {
                       // The first time a block-cacheable request is made, the
                       // latest block number is retrieved through the block
                       // tracker first.
@@ -611,7 +612,9 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           params: [],
                         },
                         response: () => {
-                          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                          jest.advanceTimersByTime(
+                            DEFAULT_DEGRADED_THRESHOLD + 1,
+                          );
                           return {
                             result: '0x1',
                           };
@@ -620,7 +623,9 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       failoverComms.mockRpcCall({
                         request,
                         response: () => {
-                          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                          jest.advanceTimersByTime(
+                            DEFAULT_DEGRADED_THRESHOLD + 1,
+                          );
                           return {
                             result: 'ok',
                           };
@@ -632,7 +637,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         () => {
                           // Ensure that we advance to the next RPC request
                           // retry, not the next block tracker request.
-                          clock.tick(backoffDuration);
+                          jest.advanceTimersByTime(backoffDuration);
                         },
                       );
 
@@ -657,6 +662,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         chainId,
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );
@@ -707,7 +713,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         isOffline: (): boolean => false,
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    async ({ makeRpcCall, chainId, rpcUrl }) => {
                       // The first time a block-cacheable request is made, the
                       // latest block number is retrieved through the block
                       // tracker first.
@@ -737,7 +743,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         () => {
                           // Ensure that we advance to the next RPC request
                           // retry, not the next block tracker request.
-                          clock.tick(backoffDuration);
+                          jest.advanceTimersByTime(backoffDuration);
                         },
                       );
 
@@ -767,6 +773,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -776,6 +783,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -785,6 +793,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                     },
                   );
@@ -835,7 +844,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         isOffline: (): boolean => false,
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                    async ({ makeRpcCall, chainId, rpcUrl }) => {
                       // The first time a block-cacheable request is made, the
                       // latest block number is retrieved through the block
                       // tracker first.
@@ -855,7 +864,9 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           params: [],
                         },
                         response: () => {
-                          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                          jest.advanceTimersByTime(
+                            DEFAULT_DEGRADED_THRESHOLD + 1,
+                          );
                           return {
                             result: '0x1',
                           };
@@ -864,7 +875,9 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       failoverComms.mockRpcCall({
                         request,
                         response: () => {
-                          clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                          jest.advanceTimersByTime(
+                            DEFAULT_DEGRADED_THRESHOLD + 1,
+                          );
                           return {
                             result: 'ok',
                           };
@@ -876,7 +889,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         () => {
                           // Ensure that we advance to the next RPC request
                           // retry, not the next block tracker request.
-                          clock.tick(backoffDuration);
+                          jest.advanceTimersByTime(backoffDuration);
                         },
                       );
 
@@ -903,6 +916,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -912,6 +926,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: expectedDegradedError,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -921,6 +936,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: undefined,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_blockNumber',
                       });
                       expect(
                         rpcEndpointDegradedEventHandler,
@@ -930,6 +946,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         error: undefined,
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         primaryEndpointUrl: rpcUrl,
+                        rpcMethodName: 'eth_gasPrice',
                       });
                     },
                   );
@@ -1008,13 +1025,13 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         isOffline: (): boolean => false,
                       }),
                     },
-                    async ({ makeRpcCall, clock, chainId }) => {
+                    async ({ makeRpcCall, chainId }) => {
                       messenger.subscribe(
                         'NetworkController:rpcEndpointRetried',
                         () => {
                           // Ensure that we advance to the next RPC request
                           // retry, not the next block tracker request.
-                          clock.tick(backoffDuration);
+                          jest.advanceTimersByTime(backoffDuration);
                         },
                       );
 
@@ -1095,13 +1112,13 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     isOffline: (): boolean => false,
                   }),
                 },
-                async ({ makeRpcCall, clock, chainId }) => {
+                async ({ makeRpcCall, chainId }) => {
                   messenger.subscribe(
                     'NetworkController:rpcEndpointRetried',
                     () => {
                       // Ensure that we advance to the next RPC request
                       // retry, not the next block tracker request.
-                      clock.tick(backoffDuration);
+                      jest.advanceTimersByTime(backoffDuration);
                     },
                   );
 
@@ -1128,6 +1145,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     chainId,
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    rpcMethodName: 'eth_blockNumber',
                   });
                 },
               );
@@ -1165,7 +1183,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     isOffline: (): boolean => false,
                   }),
                 },
-                async ({ makeRpcCall, clock, chainId }) => {
+                async ({ makeRpcCall, chainId }) => {
                   // The first time a block-cacheable request is made, the
                   // latest block number is retrieved through the block
                   // tracker first.
@@ -1175,7 +1193,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       params: [],
                     },
                     response: () => {
-                      clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                      jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
                       return {
                         result: '0x1',
                       };
@@ -1184,7 +1202,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   comms.mockRpcCall({
                     request,
                     response: () => {
-                      clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                      jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
                       return {
                         result: 'ok',
                       };
@@ -1204,6 +1222,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     chainId,
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    rpcMethodName: 'eth_blockNumber',
                   });
                 },
               );
@@ -1257,13 +1276,13 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     isOffline: (): boolean => false,
                   }),
                 },
-                async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                async ({ makeRpcCall, chainId, rpcUrl }) => {
                   messenger.subscribe(
                     'NetworkController:rpcEndpointRetried',
                     () => {
                       // Ensure that we advance to the next RPC request
                       // retry, not the next block tracker request.
-                      clock.tick(backoffDuration);
+                      jest.advanceTimersByTime(backoffDuration);
                     },
                   );
 
@@ -1290,6 +1309,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
+                    rpcMethodName: 'eth_blockNumber',
                   });
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
@@ -1297,6 +1317,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     error: expectedDegradedError,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
+                    rpcMethodName: 'eth_blockNumber',
                   });
                 },
               );
@@ -1423,13 +1444,13 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     isOffline: (): boolean => false,
                   }),
                 },
-                async ({ makeRpcCall, clock }) => {
+                async ({ makeRpcCall }) => {
                   rootMessenger.subscribe(
                     'NetworkController:rpcEndpointRetried',
                     () => {
                       // Ensure that we advance to the next RPC request
                       // retry, not the next block tracker request.
-                      clock.tick(backoffDuration);
+                      jest.advanceTimersByTime(backoffDuration);
                     },
                   );
 
@@ -1489,7 +1510,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     isOffline: (): boolean => false,
                   }),
                 },
-                async ({ makeRpcCall, clock, chainId, rpcUrl }) => {
+                async ({ makeRpcCall, chainId, rpcUrl }) => {
                   // The first time a block-cacheable request is made, the
                   // latest block number is retrieved through the block
                   // tracker first.
@@ -1499,7 +1520,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       params: [],
                     },
                     response: () => {
-                      clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                      jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
                       return {
                         result: '0x1',
                       };
@@ -1508,7 +1529,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   comms.mockRpcCall({
                     request,
                     response: () => {
-                      clock.tick(DEFAULT_DEGRADED_THRESHOLD + 1);
+                      jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
                       return {
                         result: 'ok',
                       };
@@ -1526,6 +1547,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
+                    rpcMethodName: 'eth_blockNumber',
                   });
                   expect(rpcEndpointDegradedEventHandler).toHaveBeenCalledWith({
                     chainId,
@@ -1533,6 +1555,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     error: undefined,
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     primaryEndpointUrl: rpcUrl,
+                    rpcMethodName: 'eth_gasPrice',
                   });
                 },
               );

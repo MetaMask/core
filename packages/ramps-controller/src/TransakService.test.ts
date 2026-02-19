@@ -5,8 +5,6 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock, { cleanAll, isDone } from 'nock';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import type {
   TransakServiceMessenger,
@@ -282,14 +280,12 @@ function nockTranslation(
 // === Tests ===
 
 describe('TransakService', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ now: 0, doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
     cleanAll();
   });
 
@@ -318,7 +314,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       await promise;
       expect(isDone()).toBe(true);
@@ -336,7 +332,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       await promise;
       expect(isDone()).toBe(true);
@@ -492,7 +488,7 @@ describe('TransakService', () => {
       service.setAccessToken(validToken);
 
       const promise = service.getUserDetails();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_USER_DETAILS);
@@ -519,7 +515,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('test@example.com');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -544,7 +540,7 @@ describe('TransakService', () => {
         'TransakService:sendUserOtp',
         'user@test.com',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -557,7 +553,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('invalid');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '400'");
@@ -590,7 +586,7 @@ describe('TransakService', () => {
         '123456',
         'state-token',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -616,7 +612,7 @@ describe('TransakService', () => {
       expect(service.getAccessToken()).toBeNull();
 
       const promise = service.verifyUserOtp('a@b.com', '000000', 'st');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       await promise;
 
@@ -629,7 +625,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.verifyUserOtp('a@b.com', 'wrong', 'st');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '401'");
@@ -646,7 +642,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.logout();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -661,7 +657,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.logout();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -681,7 +677,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.logout();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '500'");
@@ -700,7 +696,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -718,7 +714,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -753,7 +749,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.patchUser(patchData);
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -783,7 +779,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.patchUser(patchData);
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual({ success: true });
@@ -801,7 +797,7 @@ describe('TransakService', () => {
       const promise = service.patchUser({
         personalDetails: { firstName: 'Fail' },
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '500'");
@@ -843,7 +839,7 @@ describe('TransakService', () => {
         'credit_debit_card',
         '100',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -870,7 +866,7 @@ describe('TransakService', () => {
         '/payments/debit-credit-card',
         '100',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -893,7 +889,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getBuyQuote('USD', 'ETH', 'eip155:1', '', '100');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -921,7 +917,7 @@ describe('TransakService', () => {
         chainId: 'eip155:1',
         fiatCurrencyId: 'USD',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -939,7 +935,7 @@ describe('TransakService', () => {
       });
 
       const promise = service.getTranslation({ fiatCurrencyId: 'USD' });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_TRANSLATION);
@@ -963,7 +959,7 @@ describe('TransakService', () => {
         paymentMethod: undefined,
         cryptoCurrencyId: undefined,
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -985,7 +981,7 @@ describe('TransakService', () => {
         fiatCurrencyId: 'USD',
         paymentMethod: '/payments/debit-credit-card',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_TRANSLATION);
@@ -1007,7 +1003,7 @@ describe('TransakService', () => {
         fiatCurrencyId: 'USD',
         paymentMethod: 'credit_debit_card',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_TRANSLATION);
@@ -1023,7 +1019,7 @@ describe('TransakService', () => {
 
       const promise = service.getTranslation({ fiatCurrencyId: 'USD' });
       promise.catch(() => undefined);
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '500'");
@@ -1045,7 +1041,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getKycRequirement('quote-123');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1071,7 +1067,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getAdditionalRequirements('quote-456');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1099,7 +1095,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.submitSsnDetails('123-45-6789', 'quote-123');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual({ success: true });
@@ -1131,7 +1127,7 @@ describe('TransakService', () => {
         'investment',
         'payments',
       ]);
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeUndefined();
@@ -1162,7 +1158,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getIdProofStatus('wfr-123');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(mockStatus);
@@ -1196,7 +1192,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1217,7 +1213,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '400'");
@@ -1246,7 +1242,7 @@ describe('TransakService', () => {
         '0x1234',
         '/payments/debit-credit-card',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -1278,14 +1274,14 @@ describe('TransakService', () => {
         '0x1234',
         '/payments/debit-credit-card',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
     });
 
     it('retries order creation when the first attempt fails with an existing order error', async () => {
-      clock.restore();
+      jest.useRealTimers();
 
       nockTranslation();
 
@@ -1324,9 +1320,6 @@ describe('TransakService', () => {
 
       expect(result.id).toBe(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`);
       expect(result.orderType).toBe('DEPOSIT');
-
-      // eslint-disable-next-line require-atomic-updates
-      clock = useFakeTimers();
     }, 10000);
 
     it('throws without retrying when a 409 response does not contain the order-exists error code', async () => {
@@ -1347,7 +1340,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '409'");
@@ -1370,7 +1363,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow(
@@ -1406,7 +1399,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1426,7 +1419,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getOrder('raw-order-id', '0x1234');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1455,7 +1448,7 @@ describe('TransakService', () => {
         '0x1234',
         paymentDetails,
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1483,7 +1476,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1507,7 +1500,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1525,7 +1518,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '503'");
@@ -1552,7 +1545,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1579,7 +1572,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserLimits('USD', 'credit_debit_card', 'L2');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1601,7 +1594,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserLimits('USD', '', 'L2');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual(MOCK_USER_LIMITS);
@@ -1625,7 +1618,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.requestOtt();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1772,7 +1765,7 @@ describe('TransakService', () => {
         depositOrderId,
         'credit_debit_card',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -1796,7 +1789,7 @@ describe('TransakService', () => {
         'raw-order-id',
         'credit_debit_card',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual({ success: true });
@@ -1822,7 +1815,7 @@ describe('TransakService', () => {
         'order-1',
         '/payments/debit-credit-card',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual({ success: true });
@@ -1853,7 +1846,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder(depositOrderId);
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeUndefined();
@@ -1869,7 +1862,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder('raw-cancel-id');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeUndefined();
@@ -1892,7 +1885,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder('bad-order');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(promise).rejects.toThrow("failed with status '404'");
@@ -1925,7 +1918,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelAllActiveOrders();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual([]);
@@ -1957,7 +1950,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelAllActiveOrders();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       const errors = await promise;
@@ -1982,7 +1975,7 @@ describe('TransakService', () => {
         .mockRejectedValue('string error value');
 
       const promise = service.cancelAllActiveOrders();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       const errors = await promise;
@@ -2001,7 +1994,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelAllActiveOrders();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toStrictEqual([]);
@@ -2019,7 +2012,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const result = await promise;
 
@@ -2051,7 +2044,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getActiveOrders();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();
@@ -2074,7 +2067,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('a@b.com');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       expect(await promise).toBeDefined();

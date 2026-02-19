@@ -38,6 +38,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/client-controller`](packages/client-controller)
+- [`@metamask/compliance-controller`](packages/compliance-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
@@ -117,6 +118,7 @@ linkStyle default opacity:0.5
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
   claims_controller(["@metamask/claims-controller"]);
   client_controller(["@metamask/client-controller"]);
+  compliance_controller(["@metamask/compliance-controller"]);
   composable_controller(["@metamask/composable-controller"]);
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
@@ -257,6 +259,9 @@ linkStyle default opacity:0.5
   claims_controller --> profile_sync_controller;
   client_controller --> base_controller;
   client_controller --> messenger;
+  compliance_controller --> base_controller;
+  compliance_controller --> controller_utils;
+  compliance_controller --> messenger;
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;

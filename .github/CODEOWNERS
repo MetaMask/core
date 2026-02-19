@@ -49,6 +49,7 @@
 /packages/notification-services-controller     @MetaMask/notifications
 
 ## Perps Team
+/packages/compliance-controller             @MetaMask/perps
 /packages/perps-controller                  @MetaMask/perps
 
 ## Product Safety Team
@@ -159,6 +160,8 @@
 /packages/name-controller/CHANGELOG.md            @MetaMask/confirmations @MetaMask/core-platform
 /packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/core-platform
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/core-platform
+/packages/compliance-controller/package.json   @MetaMask/perps @MetaMask/core-platform
+/packages/compliance-controller/CHANGELOG.md   @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/package.json       @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/CHANGELOG.md       @MetaMask/perps @MetaMask/core-platform
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/core-platform
