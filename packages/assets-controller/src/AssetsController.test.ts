@@ -742,6 +742,21 @@ describe('AssetsController', () => {
         expect(controller.state.currentCurrency).toBe('gbp');
       });
     });
+
+    it('returns early when new currency is same as current', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.currentCurrency).toBe('usd');
+
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+        controller.setCurrentCurrency('usd');
+
+        expect(controller.state.currentCurrency).toBe('usd');
+        expect(subscribeSpy).not.toHaveBeenCalled();
+
+        subscribeSpy.mockRestore();
+      });
+    });
   });
 
   describe('events', () => {

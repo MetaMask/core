@@ -1156,6 +1156,10 @@ export class AssetsController extends BaseController<
   setCurrentCurrency(currentCurrency: SupportedCurrency): void {
     const previousCurrency = this.state.currentCurrency;
 
+    if (previousCurrency === currentCurrency) {
+      return;
+    }
+
     this.update((state) => {
       state.currentCurrency = currentCurrency;
     });
