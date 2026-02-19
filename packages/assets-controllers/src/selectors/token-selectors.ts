@@ -14,6 +14,7 @@ import {
   parseBalanceWithDecimals,
   stringifyBalanceWithDecimals,
 } from './stringify-balance';
+import { shouldIncludeNativeToken } from '../constants';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
@@ -44,31 +45,19 @@ export const TRON_RESOURCE_SYMBOLS_SET: ReadonlySet<TronResourceSymbol> =
   new Set(TRON_RESOURCE_SYMBOLS);
 
 /**
- * Determines if a native token should be hidden on Tempo networks.
+ * Determines if a native token should be hidden.
+ * Returns true if the token is native and should be excluded for the given chain.
  *
- * @param chainId - The hex chain ID (e.g., "0xa5bd").
+ * @param chainId - The chain ID in hex format (e.g., "0xa5bf") or CAIP-2 format (e.g., "eip155:42431").
  * @param isNative - Whether the token is a native token.
- * @param symbol - The token symbol.
  * @returns True if the token should be hidden, false otherwise.
  */
 function shouldHideNativeToken(
   chainId: Hex | string,
   isNative: boolean,
-  symbol?: string,
 ): boolean {
-  const TEMPO_CHAIN_IDS = ['0xa5bf', '0x1079']; // Tempo Testnet (42431) and Mainnet (4217)
-
-  // Check if it's a Tempo network
-  if (!TEMPO_CHAIN_IDS.includes(chainId.toLowerCase())) {
-    return false;
-  }
-
-  // Hide native tokens on Tempo
-  if (isNative) {
-    return true;
-  }
-
-  return false;
+  // Only hide native tokens on chains that should skip native token fetching
+  return isNative && !shouldIncludeNativeToken(chainId);
 }
 
 export type AssetsByAccountGroup = {
@@ -419,17 +408,7 @@ const selectAllMultichainAssets = createAssetListSelector(
 
         // Skip native tokens on Tempo networks
         const isNative = caipAsset.assetNamespace === 'slip44';
-        // Convert CAIP-2 chain ID to hex for comparison
-        const chainIdHex = chainId.startsWith('eip155:')
-          ? `0x${parseInt(chainId.split(':')[1], 10).toString(16)}`
-          : chainId;
-        if (
-          shouldHideNativeToken(
-            chainIdHex,
-            isNative,
-            assetMetadata.symbol,
-          )
-        ) {
+        if (shouldHideNativeToken(chainId, isNative)) {
           continue;
         }
 

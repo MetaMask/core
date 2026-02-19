@@ -1456,10 +1456,19 @@ export class AssetsController extends BaseController<
     assetId: Caip19AssetId,
     metadata: AssetMetadata,
   ): boolean {
-    const TEMPO_CHAIN_IDS = ['eip155:42431', 'eip155:4217']; // Tempo Testnet (42431) and Mainnet (4217)
+    // Chain IDs where native tokens should be skipped (Tempo networks)
+    // These networks return arbitrary large numbers for native token balances via eth_getBalance
+    const CHAIN_IDS_TO_SKIP_NATIVE_TOKEN = [
+      'eip155:42431', // Tempo Testnet
+      'eip155:4217', // Tempo Mainnet
+    ] as const;
 
-    // Check if it's a Tempo network
-    if (!TEMPO_CHAIN_IDS.includes(chainId)) {
+    // Check if it's a chain that should skip native tokens
+    if (
+      !CHAIN_IDS_TO_SKIP_NATIVE_TOKEN.includes(
+        chainId as (typeof CHAIN_IDS_TO_SKIP_NATIVE_TOKEN)[number],
+      )
+    ) {
       return false;
     }
 
@@ -1467,12 +1476,7 @@ export class AssetsController extends BaseController<
     const isNative =
       metadata.type === 'native' || assetId.includes('/slip44:');
 
-    if (isNative) {
-      return true;
-    }
-
-
-    return false;
+    return isNative;
   }
 
   /**
