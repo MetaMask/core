@@ -198,11 +198,47 @@ function isNockError(message: string): boolean {
  * @param error - The error object to test.
  * @returns True if the error indicates a JSON parse error, false otherwise.
  */
-function isJsonParseError(error: unknown): boolean {
+export function isJsonParseError(error: unknown): boolean {
   return (
     error instanceof SyntaxError ||
     /invalid json/iu.test(getErrorMessage(error))
   );
+}
+
+/**
+ * Determines whether the given error represents a HTTP server error
+ * (502, 503, or 504) that should be retried.
+ *
+ * @param error - The error object to test.
+ * @returns True if the error has an httpStatus of 502, 503, or 504.
+ */
+export function isHttpServerError(error: Error): boolean {
+  return (
+    'httpStatus' in error &&
+    (error.httpStatus === 502 ||
+      error.httpStatus === 503 ||
+      error.httpStatus === 504)
+  );
+}
+
+/**
+ * Determines whether the given error has a `code` property of `ETIMEDOUT`.
+ *
+ * @param error - The error object to test.
+ * @returns True if the error code is `ETIMEDOUT`.
+ */
+export function isTimeoutError(error: Error): boolean {
+  return hasProperty(error, 'code') && error.code === 'ETIMEDOUT';
+}
+
+/**
+ * Determines whether the given error has a `code` property of `ECONNRESET`.
+ *
+ * @param error - The error object to test.
+ * @returns True if the error code is `ECONNRESET`.
+ */
+export function isConnectionResetError(error: Error): boolean {
+  return hasProperty(error, 'code') && error.code === 'ECONNRESET';
 }
 
 /**
@@ -324,12 +360,11 @@ export class RpcService implements AbstractRpcService {
           // Ignore server sent HTML error pages or truncated JSON responses
           isJsonParseError(error) ||
           // Ignore server overload errors
-          ('httpStatus' in error &&
-            (error.httpStatus === 502 ||
-              error.httpStatus === 503 ||
-              error.httpStatus === 504)) ||
-          (hasProperty(error, 'code') &&
-            (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET'))
+          isHttpServerError(error) ||
+          // Ignore timeout errors
+          isTimeoutError(error) ||
+          // Ignore connection reset errors
+          isConnectionResetError(error)
         );
       }),
     });
@@ -408,11 +443,18 @@ export class RpcService implements AbstractRpcService {
     listener: Parameters<AbstractRpcService['onDegraded']>[0],
   ): IDisposable {
     return this.#policy.onDegraded((data) => {
-      listener({
-        ...(data ?? {}),
-        endpointUrl: this.endpointUrl.toString(),
-        rpcMethodName: this.#currentRpcMethodName,
-      });
+      if (data === undefined) {
+        listener({
+          endpointUrl: this.endpointUrl.toString(),
+          rpcMethodName: this.#currentRpcMethodName,
+        });
+      } else {
+        listener({
+          ...data,
+          endpointUrl: this.endpointUrl.toString(),
+          rpcMethodName: this.#currentRpcMethodName,
+        });
+      }
     });
   }
 

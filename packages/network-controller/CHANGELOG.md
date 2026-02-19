@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `rpcMethodName` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7954](https://github.com/MetaMask/core/pull/7954))
   - This field contains the JSON-RPC method name (e.g. `eth_blockNumber`) that was being processed when the event fired, enabling identification of which methods produce the most slow requests or retry exhaustions.
+- Add `type` and `retryReason` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7988](https://github.com/MetaMask/core/pull/7988))
+  - `type` (`DegradedEventType`) is `'slow_success'` when the request succeeded but was slow, or `'retries_exhausted'` when retries ran out.
+  - `retryReason` (`RetryReason`, only present when `type` is `'retries_exhausted'`) classifies the error that was retried (e.g. `'non_successful_http_status'`, `'timed_out'`, `'connection_failed'`).
 
 ### Changed
 
