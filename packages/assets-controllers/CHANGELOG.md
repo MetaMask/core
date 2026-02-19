@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: fix assets controllers changelog ([#7990](https://github.com/MetaMask/core/pull/7990))
+- chore(assets-controllers): replace `Sinon` with `Jest` fake timers and mocks ([#7981](https://github.com/MetaMask/core/pull/7981))
+
 ### Added
 
 - **BREAKING:** `MultichainAssetsControllerMessenger` now requires the `PhishingController:bulkScanTokens` action to be allowed ([#7923](https://github.com/MetaMask/core/pull/7923))
