@@ -546,10 +546,9 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-    // Same request (e.g. currency changed via getCurrentCurrency); update triggers immediate fetch
     await controller.subscribe({
       subscriptionId: 'sub-1',
-      request: createDataRequest(),
+      request: createDataRequest({ chainIds: [CHAIN_POLYGON] }),
       isUpdate: true,
       onAssetsUpdate: jest.fn(),
       getAssetsState,
