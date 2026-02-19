@@ -63,20 +63,20 @@ export type DegradedEventType = 'slow_success' | 'retries_exhausted';
 export type RetryReason =
   | 'connection_failed'
   | 'response_not_json'
-  | 'non_successful_response'
+  | 'non_successful_http_status'
   | 'timed_out'
-  | 'connection_reset';
+  | 'connection_reset'
+  | 'unknown';
 
 /**
  * Classifies the error that was being retried when retries were exhausted.
  *
  * @param error - The error from the last retry attempt.
- * @returns A classification string, or `undefined` if the error doesn't match
- * any known category.
+ * @returns A classification string.
  */
-function classifyRetryReason(error: unknown): RetryReason | undefined {
+export function classifyRetryReason(error: unknown): RetryReason {
   if (!(error instanceof Error)) {
-    return undefined;
+    return 'unknown';
   }
   if (isConnectionError(error)) {
     return 'connection_failed';
@@ -85,7 +85,7 @@ function classifyRetryReason(error: unknown): RetryReason | undefined {
     return 'response_not_json';
   }
   if (isHttpServerError(error)) {
-    return 'non_successful_response';
+    return 'non_successful_http_status';
   }
   if (isTimeoutError(error)) {
     return 'timed_out';
@@ -93,7 +93,7 @@ function classifyRetryReason(error: unknown): RetryReason | undefined {
   if (isConnectionResetError(error)) {
     return 'connection_reset';
   }
-  return undefined;
+  return 'unknown';
 }
 
 /**
