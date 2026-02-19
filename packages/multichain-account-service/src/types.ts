@@ -70,6 +70,11 @@ export type MultichainAccountServiceCreateMultichainAccountGroupAction = {
   handler: MultichainAccountService['createMultichainAccountGroup'];
 };
 
+export type MultichainAccountServiceCreateMultichainAccountGroupsAction = {
+  type: `${typeof serviceName}:createMultichainAccountGroups`;
+  handler: MultichainAccountService['createMultichainAccountGroups'];
+};
+
 export type MultichainAccountServiceSetBasicFunctionalityAction = {
   type: `${typeof serviceName}:setBasicFunctionality`;
   handler: MultichainAccountService['setBasicFunctionality'];
@@ -116,6 +121,7 @@ export type MultichainAccountServiceActions =
   | MultichainAccountServiceGetMultichainAccountWalletsAction
   | MultichainAccountServiceCreateNextMultichainAccountGroupAction
   | MultichainAccountServiceCreateMultichainAccountGroupAction
+  | MultichainAccountServiceCreateMultichainAccountGroupsAction
   | MultichainAccountServiceSetBasicFunctionalityAction
   | MultichainAccountServiceAlignWalletAction
   | MultichainAccountServiceAlignWalletsAction

@@ -500,14 +500,34 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service } = await setup({ accounts: [mockEvmAccount] });
+      const { service, mocks } = await setup({ accounts: [mockEvmAccount] });
+
+      // Groups cannot be empty, we need mock the next account creation too.
+      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withUuid()
+        .withGroupIndex(1)
+        .get();
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockNextEvmAccount,
+      ]);
 
       const nextGroup = await service.createNextMultichainAccountGroup({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
       });
       expect(nextGroup.groupIndex).toBe(1);
-      // NOTE: There won't be any account for this group, since we're not
-      // mocking the providers.
+
+      // We always fetch account objects from the provider, so we also have
+      // to mock this.
+      mocks.EvmAccountProvider.getAccount.mockReturnValueOnce(
+        mockNextEvmAccount,
+      );
+      const accounts = nextGroup.getAccounts();
+      expect(mocks.EvmAccountProvider.getAccount).toHaveBeenCalledWith(
+        mockNextEvmAccount.id,
+      );
+      expect(accounts).toHaveLength(1);
+      expect(accounts[0]).toStrictEqual(mockNextEvmAccount);
     });
 
     it('emits multichainAccountGroupCreated event when creating next group', async () => {
@@ -516,10 +536,20 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service, messenger } = await setup({
+      const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount],
       });
       const publishSpy = jest.spyOn(messenger, 'publish');
+
+      // Groups cannot be empty, we need mock the next account creation too.
+      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withUuid()
+        .withGroupIndex(1)
+        .get();
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockNextEvmAccount,
+      ]);
 
       const nextGroup = await service.createNextMultichainAccountGroup({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -572,10 +602,20 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service, messenger } = await setup({
+      const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount],
       });
       const publishSpy = jest.spyOn(messenger, 'publish');
+
+      // Groups cannot be empty, we need mock the next account creation too.
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withUuid()
+        .withGroupIndex(1)
+        .get();
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockEvmAccount1,
+      ]);
 
       const group = await service.createMultichainAccountGroup({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -585,6 +625,153 @@ describe('MultichainAccountService', () => {
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainAccountService:multichainAccountGroupCreated',
         group,
+      );
+    });
+  });
+
+  describe('createMultichainAccountGroups', () => {
+    it('creates multiple multichain account groups up to maxGroupIndex', async () => {
+      // Start with group 0 existing to initialize the wallet.
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount0 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service, mocks } = await setup({
+        accounts: [mockEvmAccount0, mockSolAccount0],
+      });
+
+      // Mock accounts that will be returned when creating groups 1, 2.
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockEvmAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .get();
+
+      const mockSolAccount1 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockSolAccount2 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .get();
+
+      // Mock EVM provider to return new accounts for range 1-2.
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockEvmAccount1,
+        mockEvmAccount2,
+      ]);
+
+      // Mock SOL provider for new groups.
+      mocks.SolAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockSolAccount1,
+      ]);
+      mocks.SolAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockSolAccount2,
+      ]);
+
+      const groups = await service.createMultichainAccountGroups({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        maxGroupIndex: 2,
+      });
+
+      expect(groups).toHaveLength(3);
+      expect(groups[0].groupIndex).toBe(0); // Existing group.
+      expect(groups[1].groupIndex).toBe(1); // New group.
+      expect(groups[2].groupIndex).toBe(2); // New group.
+
+      // Verify EVM provider was called with range for new groups.
+      expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: {
+          from: 1,
+          to: 2,
+        },
+      });
+    });
+
+    it('creates multiple groups via messenger action handler', async () => {
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+
+      const { messenger } = await setup({
+        accounts: [mockEvmAccount0, mockEvmAccount1],
+      });
+
+      const groups = await messenger.call(
+        'MultichainAccountService:createMultichainAccountGroups',
+        {
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          maxGroupIndex: 1,
+        },
+      );
+
+      expect(groups).toHaveLength(2);
+      expect(groups[0].groupIndex).toBe(0);
+      expect(groups[1].groupIndex).toBe(1);
+    });
+
+    it('publishes multichainAccountGroupCreated events for each new group', async () => {
+      // Start with group 0 existing to initialize the wallet.
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount0 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service, messenger, mocks } = await setup({
+        accounts: [mockEvmAccount0, mockSolAccount0],
+      });
+
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockSolAccount1 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+
+      // Mock EVM provider to return account for group 1.
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockEvmAccount1,
+      ]);
+
+      // Mock SOL provider for group 1.
+      mocks.SolAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockSolAccount1,
+      ]);
+
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      await service.createMultichainAccountGroups({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        maxGroupIndex: 1,
+      });
+
+      // Should publish event for the new group (group 1).
+      // Group 0 already existed, so it shouldn't publish an event for it.
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        expect.objectContaining({ groupIndex: 1 }),
       );
     });
   });
@@ -723,15 +910,23 @@ describe('MultichainAccountService', () => {
 
     it('create the next multichain account group with MultichainAccountService:createNextMultichainAccountGroup', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger } = await setup({ accounts });
+      const { messenger, mocks } = await setup({ accounts });
+
+      // Groups cannot be empty, we need mock the next account creation too.
+      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withUuid()
+        .withGroupIndex(1)
+        .get();
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockNextEvmAccount,
+      ]);
 
       const nextGroup = await messenger.call(
         'MultichainAccountService:createNextMultichainAccountGroup',
         { entropySource: MOCK_HD_KEYRING_1.metadata.id },
       );
       expect(nextGroup.groupIndex).toBe(1);
-      // NOTE: There won't be any account for this group, since we're not
-      // mocking the providers.
     });
 
     it('creates a multichain account group with MultichainAccountService:createMultichainAccountGroup', async () => {
@@ -836,6 +1031,10 @@ describe('MultichainAccountService', () => {
         id: 'abc',
         name: '',
       }));
+
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        MOCK_HD_ACCOUNT_1,
+      ]);
 
       const wallet = await messenger.call(
         'MultichainAccountService:createMultichainAccountWallet',
@@ -1108,6 +1307,10 @@ describe('MultichainAccountService', () => {
           name: '',
         }));
 
+        mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+          MOCK_HD_ACCOUNT_1,
+        ]);
+
         const wallet = await service.createMultichainAccountWallet({
           mnemonic,
           type: 'import',
@@ -1170,6 +1373,10 @@ describe('MultichainAccountService', () => {
           },
         );
 
+        mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+          MOCK_HD_ACCOUNT_1,
+        ]);
+
         const newWallet = await service.createMultichainAccountWallet({
           password,
           type: 'create',
@@ -1208,6 +1415,10 @@ describe('MultichainAccountService', () => {
             });
           },
         );
+
+        mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+          MOCK_HD_ACCOUNT_1,
+        ]);
 
         const newWallet = await service.createMultichainAccountWallet({
           password,
