@@ -244,7 +244,9 @@ export type Quote = {
     providerFee?: number | string;
     /**
      * Buy URL endpoint that returns the actual provider widget URL.
+     *
      * This is a MetaMask-hosted endpoint that, when fetched, returns JSON with the provider's widget URL.
+     *
      * @deprecated Use buyWidget instead - it's embedded in the quote response.
      */
     buyURL?: string;
@@ -1390,7 +1392,7 @@ export class RampsService {
     // Extract just the order code (last segment) so getOrder doesn't
     // build a doubled path.
     const orderCode = rawOrderId.includes('/')
-      ? rawOrderId.split('/').pop()!
+      ? (rawOrderId.split('/').pop() ?? rawOrderId)
       : rawOrderId;
 
     // Step 2: Fetch the full order using the extracted order code.
