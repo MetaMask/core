@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `PriceDataSourceOptions` now requires `getCurrentCurrency: () => SupportedCurrency` instead of optional `currency?: SupportedCurrency`. The controller passes a getter so price fetches use the active currency from controller state. Update any code that constructs `PriceDataSource` to pass `getCurrentCurrency` (e.g. a function returning the desired currency) ([#7991](https://github.com/MetaMask/core/pull/7991))
+- `PriceDataSourceOptions` now requires `getCurrentCurrency: () => SupportedCurrency` instead of optional `currency?: SupportedCurrency` ([#7991](https://github.com/MetaMask/core/pull/7991))
 - Refactor data source tests to use shared `MockAssetControllerMessenger` fixture ([#7958](https://github.com/MetaMask/core/pull/7958))
   - Export `STAKING_INTERFACE` from the staked balance fetcher for use with the staking contract ABI.
   - `StakedBalanceDataSource` teardown now uses the messenger's `clearEventSubscriptions`; custom messenger implementations must support it for correct cleanup.
