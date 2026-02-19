@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: remove unused `sinon` `devDependency` from 4 packages ([#7915](https://github.com/MetaMask/core/pull/7915))
+
 ### Added
 
 - Add `ApiPlatformClientService` to expose `ApiPlatformClient` via the messenger without a controller ([#7928](https://github.com/MetaMask/core/pull/7928))
