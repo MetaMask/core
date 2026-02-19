@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(phishing-controller): replace `Sinon` with `Jest` mocks and fake timers ([#7972](https://github.com/MetaMask/core/pull/7972))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
