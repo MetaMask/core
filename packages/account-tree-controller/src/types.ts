@@ -23,10 +23,8 @@ import type {
 } from '@metamask/profile-sync-controller';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
-import type {
-  AccountTreeController,
-  controllerName,
-} from './AccountTreeController';
+import type { controllerName } from './AccountTreeController';
+import { AccountTreeControllerMethodActions } from './AccountTreeController-method-action-types';
 import type {
   BackupAndSyncAnalyticsEventPayload,
   BackupAndSyncEmitAnalyticsEventParams,
@@ -79,76 +77,6 @@ export type AccountTreeControllerGetStateAction = ControllerGetStateAction<
   AccountTreeControllerState
 >;
 
-export type AccountTreeControllerSetSelectedAccountGroupAction = {
-  type: `${typeof controllerName}:setSelectedAccountGroup`;
-  handler: AccountTreeController['setSelectedAccountGroup'];
-};
-
-export type AccountTreeControllerGetSelectedAccountGroupAction = {
-  type: `${typeof controllerName}:getSelectedAccountGroup`;
-  handler: AccountTreeController['getSelectedAccountGroup'];
-};
-
-export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
-  type: `${typeof controllerName}:getAccountsFromSelectedAccountGroup`;
-  handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
-};
-
-export type AccountTreeControllerGetAccountContextAction = {
-  type: `${typeof controllerName}:getAccountContext`;
-  handler: AccountTreeController['getAccountContext'];
-};
-
-export type AccountTreeControllerSetAccountWalletNameAction = {
-  type: `${typeof controllerName}:setAccountWalletName`;
-  handler: AccountTreeController['setAccountWalletName'];
-};
-
-export type AccountTreeControllerSetAccountGroupNameAction = {
-  type: `${typeof controllerName}:setAccountGroupName`;
-  handler: AccountTreeController['setAccountGroupName'];
-};
-
-export type AccountTreeControllerSetAccountGroupHiddenAction = {
-  type: `${typeof controllerName}:setAccountGroupHidden`;
-  handler: AccountTreeController['setAccountGroupHidden'];
-};
-
-export type AccountTreeControllerSetAccountGroupPinnedAction = {
-  type: `${typeof controllerName}:setAccountGroupPinned`;
-  handler: AccountTreeController['setAccountGroupPinned'];
-};
-
-export type AccountTreeControllerGetAccountWalletObjectAction = {
-  type: `${typeof controllerName}:getAccountWalletObject`;
-  handler: AccountTreeController['getAccountWalletObject'];
-};
-
-export type AccountTreeControllerGetAccountWalletObjectsAction = {
-  type: `${typeof controllerName}:getAccountWalletObjects`;
-  handler: AccountTreeController['getAccountWalletObjects'];
-};
-
-export type AccountTreeControllerGetAccountGroupObjectAction = {
-  type: `${typeof controllerName}:getAccountGroupObject`;
-  handler: AccountTreeController['getAccountGroupObject'];
-};
-
-export type AccountTreeControllerClearStateAction = {
-  type: `${typeof controllerName}:clearState`;
-  handler: AccountTreeController['clearState'];
-};
-
-export type AccountTreeControllerSyncWithUserStorageAction = {
-  type: `${typeof controllerName}:syncWithUserStorage`;
-  handler: AccountTreeController['syncWithUserStorage'];
-};
-
-export type AccountTreeControllerSyncWithUserStorageAtLeastOnceAction = {
-  type: `${typeof controllerName}:syncWithUserStorageAtLeastOnce`;
-  handler: AccountTreeController['syncWithUserStorageAtLeastOnce'];
-};
-
 export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedMultichainAccountAction
@@ -166,20 +94,7 @@ export type AllowedActions =
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
-  | AccountTreeControllerSetSelectedAccountGroupAction
-  | AccountTreeControllerGetSelectedAccountGroupAction
-  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
-  | AccountTreeControllerGetAccountContextAction
-  | AccountTreeControllerSetAccountWalletNameAction
-  | AccountTreeControllerSetAccountGroupNameAction
-  | AccountTreeControllerSetAccountGroupPinnedAction
-  | AccountTreeControllerSetAccountGroupHiddenAction
-  | AccountTreeControllerGetAccountWalletObjectAction
-  | AccountTreeControllerGetAccountWalletObjectsAction
-  | AccountTreeControllerGetAccountGroupObjectAction
-  | AccountTreeControllerClearStateAction
-  | AccountTreeControllerSyncWithUserStorageAction
-  | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction;
+  | AccountTreeControllerMethodActions;
 
 export type AccountTreeControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,

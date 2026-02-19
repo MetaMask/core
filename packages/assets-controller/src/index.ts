@@ -30,7 +30,7 @@ export type {
   AssetsControllerHideAssetAction,
   AssetsControllerUnhideAssetAction,
   AssetsControllerMethodActions,
-} from './AssetsController-method-action-types';
+} from './AssetsController-';
 
 // Core types
 export type {
