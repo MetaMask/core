@@ -49,6 +49,17 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
     fix,
     path: controllerPath,
   } = await yargs(process.argv.slice(2))
+    .command(
+      '$0 [path]',
+      'Generate method action types for a controller messenger',
+      (yargsInstance) => {
+        yargsInstance.positional('path', {
+          type: 'string',
+          description: 'Path to the folder where controllers are located',
+          default: 'src',
+        });
+      },
+    )
     .option('check', {
       type: 'boolean',
       description: 'Check if generated action type files are up to date',
@@ -59,12 +70,6 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
       description: 'Generate/update action type files',
       default: false,
     })
-    .positional('path', {
-      type: 'string',
-      description:
-        'Optional path to a specific folder where a controller is located (defaults to src/)',
-      default: 'src',
-    })
     .help()
     .check((argv) => {
       if (!argv.check && !argv.fix) {
@@ -73,7 +78,12 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
       return true;
     }).argv;
 
-  return { check, fix, controllerPath };
+  return {
+    check,
+    fix,
+    // TypeScript doesn't narrow the type of `controllerPath` even though we defined it as a string in yargs, so we need to cast it here.
+    controllerPath: controllerPath as string,
+  };
 }
 
 /**
