@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.3]
+
 ### Uncategorized
 
 - chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
@@ -368,7 +370,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.3...HEAD
+[19.0.3]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.2...@metamask/ens-controller@19.0.3
 [19.0.2]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.1...@metamask/ens-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@19.0.0...@metamask/ens-controller@19.0.1
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@18.0.0...@metamask/ens-controller@19.0.0

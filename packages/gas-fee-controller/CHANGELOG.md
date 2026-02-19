@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.3]
+
 ### Uncategorized
 
 - chore(gas-fee-controller): replace `Sinon` with `Jest` fake timers ([#7968](https://github.com/MetaMask/core/pull/7968))
@@ -499,7 +501,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.3...HEAD
+[26.0.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.2...@metamask/gas-fee-controller@26.0.3
 [26.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.1...@metamask/gas-fee-controller@26.0.2
 [26.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.0...@metamask/gas-fee-controller@26.0.1
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@25.0.0...@metamask/gas-fee-controller@26.0.0
