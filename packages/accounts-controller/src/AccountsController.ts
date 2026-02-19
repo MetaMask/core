@@ -38,6 +38,7 @@ import type { CaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 
+import { AccountsControllerMethodActions } from './AccountsController-method-action-types';
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
@@ -79,123 +80,6 @@ export type AccountsControllerGetStateAction = ControllerGetStateAction<
   AccountsControllerState
 >;
 
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerSetSelectedAccountAction = {
-  type: `${typeof controllerName}:setSelectedAccount`;
-  handler: AccountsController['setSelectedAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerSetAccountNameAction = {
-  type: `${typeof controllerName}:setAccountName`;
-  handler: AccountsController['setAccountName'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerSetAccountNameAndSelectAccountAction = {
-  type: `${typeof controllerName}:setAccountNameAndSelectAccount`;
-  handler: AccountsController['setAccountNameAndSelectAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerListAccountsAction = {
-  type: `${typeof controllerName}:listAccounts`;
-  handler: AccountsController['listAccounts'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerListMultichainAccountsAction = {
-  type: `${typeof controllerName}:listMultichainAccounts`;
-  handler: AccountsController['listMultichainAccounts'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerUpdateAccountsAction = {
-  type: `${typeof controllerName}:updateAccounts`;
-  handler: AccountsController['updateAccounts'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetSelectedAccountAction = {
-  type: `${typeof controllerName}:getSelectedAccount`;
-  handler: AccountsController['getSelectedAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetSelectedMultichainAccountAction = {
-  type: `${typeof controllerName}:getSelectedMultichainAccount`;
-  handler: AccountsController['getSelectedMultichainAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetAccountByAddressAction = {
-  type: `${typeof controllerName}:getAccountByAddress`;
-  handler: AccountsController['getAccountByAddress'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetAccountAction = {
-  type: `${typeof controllerName}:getAccount`;
-  handler: AccountsController['getAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetAccountsAction = {
-  type: `${typeof controllerName}:getAccounts`;
-  handler: AccountsController['getAccounts'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerUpdateAccountMetadataAction = {
-  type: `${typeof controllerName}:updateAccountMetadata`;
-  handler: AccountsController['updateAccountMetadata'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerLoadBackupAction = {
-  type: `${typeof controllerName}:loadBackup`;
-  handler: AccountsController['loadBackup'];
-};
-
 const MESSENGER_EXPOSED_METHODS = [
   'setSelectedAccount',
   'setAccountName',
@@ -222,19 +106,7 @@ export type AllowedActions =
  */
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
-  | AccountsControllerSetSelectedAccountAction
-  | AccountsControllerListAccountsAction
-  | AccountsControllerListMultichainAccountsAction
-  | AccountsControllerSetAccountNameAction
-  | AccountsControllerSetAccountNameAndSelectAccountAction
-  | AccountsControllerUpdateAccountsAction
-  | AccountsControllerGetAccountByAddressAction
-  | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetAccountAction
-  | AccountsControllerGetAccountsAction
-  | AccountsControllerGetSelectedMultichainAccountAction
-  | AccountsControllerUpdateAccountMetadataAction
-  | AccountsControllerLoadBackupAction;
+  | AccountsControllerMethodActions;
 
 /**
  * @deprecated This type is deprecated and will be removed in a future version.
