@@ -2141,13 +2141,15 @@ export class SeedlessOnboardingController<
       connection: this.state.authConnection,
       refreshToken,
     }).catch((error) => {
-      log('Error refreshing JWT tokens', error);
       // Distinguish a server-side token rejection (401) from transient
       // failures so callers can apply the appropriate recovery strategy.
+      const httpStatusCode = (error as Error & { statusCode?: number })
+        .statusCode;
+      log('Error refreshing JWT tokens', error, { httpStatusCode });
       const isTokenRevoked =
         error instanceof Error &&
         error.name === 'RefreshTokenHttpError' &&
-        (error as Error & { statusCode?: number }).statusCode === 401;
+        httpStatusCode === 401;
       throw new SeedlessOnboardingError(
         isTokenRevoked
           ? SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken

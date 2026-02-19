@@ -43,14 +43,17 @@ import {
   AuthConnection,
   SecretType,
   SecretMetadataVersion,
+  PENDING_REVOKE_TOKEN_DELAY_MS,
 } from './constants';
 import { PasswordSyncError, RecoveryError } from './errors';
 import { SecretMetadata } from './SecretMetadata';
+import type {
+  SeedlessOnboardingControllerMessenger,
+  SeedlessOnboardingControllerOptions,
+} from './SeedlessOnboardingController';
 import {
   getInitialSeedlessOnboardingControllerStateWithDefaults,
   SeedlessOnboardingController,
-  SeedlessOnboardingControllerMessenger,
-  SeedlessOnboardingControllerOptions,
 } from './SeedlessOnboardingController';
 import type {
   SeedlessOnboardingControllerState,
@@ -640,6 +643,7 @@ function getMockInitialControllerState(options?: {
     | {
         refreshToken: string;
         revokeToken: string;
+        queuedAt?: number;
       }[]
     | undefined;
 }): Partial<SeedlessOnboardingControllerState> {
@@ -5248,6 +5252,50 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
+      it('should throw InvalidRefreshToken when the HTTP response is 401', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, mockRefreshJWTToken }) => {
+            // Simulate a RefreshTokenHttpError with statusCode 401 (token revoked).
+            const httpError = Object.assign(new Error('Unauthorized'), {
+              name: 'RefreshTokenHttpError',
+              statusCode: 401,
+            });
+            mockRefreshJWTToken.mockRejectedValueOnce(httpError);
+
+            await expect(controller.refreshAuthTokens()).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken,
+            );
+          },
+        );
+      });
+
+      it('should throw FailedToRefreshJWTTokens when the HTTP response is non-401', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, mockRefreshJWTToken }) => {
+            // Simulate a RefreshTokenHttpError with a transient status code (503).
+            const httpError = Object.assign(new Error('Service Unavailable'), {
+              name: 'RefreshTokenHttpError',
+              statusCode: 503,
+            });
+            mockRefreshJWTToken.mockRejectedValueOnce(httpError);
+
+            await expect(controller.refreshAuthTokens()).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+            );
+          },
+        );
+      });
+
       it('should throw error when re-authentication fails after token refresh', async () => {
         await withController(
           {
@@ -5398,6 +5446,178 @@ describe('SeedlessOnboardingController', () => {
             // Should throw AuthenticationError (which wraps MissingCredentials)
             await expect(controller.refreshAuthTokens()).rejects.toThrow(
               SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+            );
+          },
+        );
+      });
+
+      it('should coalesce concurrent calls into a single HTTP request', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, mockRefreshJWTToken, toprfClient }) => {
+            // Gate the first HTTP call behind a manually-resolved promise so we
+            // can start a second call while the first is still in-flight.
+            let resolveRefresh!: () => void;
+            const refreshBarrier = new Promise<void>((resolve) => {
+              resolveRefresh = resolve;
+            });
+
+            mockRefreshJWTToken.mockImplementation(async () => {
+              await refreshBarrier;
+              return {
+                idTokens: ['newIdToken'],
+                metadataAccessToken: 'mock-metadata-access-token',
+                accessToken,
+              };
+            });
+
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            // Start two concurrent calls before the first HTTP request completes.
+            const call1 = controller.refreshAuthTokens();
+            const call2 = controller.refreshAuthTokens();
+
+            // Unblock the HTTP call.
+            resolveRefresh();
+            await Promise.all([call1, call2]);
+
+            // Despite two callers, only one HTTP request should have been made.
+            expect(mockRefreshJWTToken).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('should clear the in-flight promise after failure, allowing subsequent calls to succeed', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, mockRefreshJWTToken, toprfClient }) => {
+            // First call fails — #pendingRefreshPromise is set then cleared by .finally().
+            mockRefreshJWTToken.mockRejectedValueOnce(
+              new Error('Network error'),
+            );
+
+            await expect(controller.refreshAuthTokens()).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+            );
+
+            // After failure the field must be cleared so the next independent
+            // call starts a fresh HTTP request rather than re-returning the
+            // already-rejected promise.
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            expect(await controller.refreshAuthTokens()).toBeUndefined();
+
+            expect(mockRefreshJWTToken).toHaveBeenCalledTimes(2);
+          },
+        );
+      });
+
+      it('should propagate rejection to all concurrent callers when the in-flight request fails', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, mockRefreshJWTToken }) => {
+            let rejectRefresh!: (error: Error) => void;
+            const refreshBarrier = new Promise<never>((_resolve, reject) => {
+              rejectRefresh = reject;
+            });
+
+            mockRefreshJWTToken.mockReturnValue(refreshBarrier);
+
+            // Both callers share the same in-flight promise.
+            const call1 = controller.refreshAuthTokens();
+            const call2 = controller.refreshAuthTokens();
+
+            // Reject the shared HTTP request.
+            rejectRefresh(new Error('Network failure'));
+
+            // Both callers should receive the same rejection.
+            await expect(call1).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+            );
+            await expect(call2).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+            );
+
+            // Only one HTTP request was fired despite two waiters.
+            expect(mockRefreshJWTToken).toHaveBeenCalledTimes(1);
+          },
+        );
+      });
+
+      it('should use live state.refreshToken in authenticate when token was rotated concurrently', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, mockRefreshJWTToken }) => {
+            const originalRefreshToken = controller.state.refreshToken;
+            const rotatedRefreshToken = 'rotated-refresh-token-from-renew';
+
+            let resolveRefresh!: () => void;
+            const refreshBarrier = new Promise<void>((resolve) => {
+              resolveRefresh = resolve;
+            });
+
+            mockRefreshJWTToken.mockImplementation(async () => {
+              await refreshBarrier;
+              return {
+                idTokens: ['newIdToken'],
+                metadataAccessToken: 'mock-metadata-access-token',
+                accessToken,
+              };
+            });
+
+            // Spy on the controller's own authenticate method — this is the
+            // call that receives the refreshToken parameter. The inner
+            // toprfClient.authenticate call does not carry refreshToken.
+            const authenticateSpy = jest
+              .spyOn(controller, 'authenticate')
+              .mockResolvedValue();
+
+            // Start the refresh — it is now blocked at the HTTP call.
+            const refreshPromise = controller.refreshAuthTokens();
+
+            // Simulate renewRefreshToken writing a new token to state while the
+            // HTTP call is in-flight. refreshAuthTokens holds no controller lock,
+            // so these two can genuinely overlap in production.
+            // @ts-expect-error Accessing protected method for testing
+            controller.update((state) => {
+              state.refreshToken = rotatedRefreshToken;
+            });
+
+            // Release the HTTP call and let refreshAuthTokens complete.
+            resolveRefresh();
+            await refreshPromise;
+
+            // authenticate must have received the live state value, not the
+            // value captured at the start of the method. Using the stale
+            // captured value would overwrite the newer token in state, causing
+            // all subsequent refreshes to 401 once the old token is revoked.
+            expect(authenticateSpy).toHaveBeenCalledWith(
+              expect.objectContaining({ refreshToken: rotatedRefreshToken }),
+            );
+            expect(authenticateSpy).not.toHaveBeenCalledWith(
+              expect.objectContaining({ refreshToken: originalRefreshToken }),
             );
           },
         );
@@ -6000,6 +6220,50 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should not queue old token for revocation when vault creation fails', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENC_KEY = mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PW_ENC_KEY = mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENC_KEY,
+        MOCK_PW_ENC_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_REVOKE_TOKEN,
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
+          }),
+        },
+        async ({ controller, encryptor }) => {
+          // Force vault re-encryption to fail so #createNewVaultWithAuthData throws.
+          jest
+            .spyOn(encryptor, 'encryptWithKey')
+            .mockRejectedValueOnce(new Error('Storage full'));
+
+          await expect(
+            controller.renewRefreshToken(MOCK_PASSWORD),
+          ).rejects.toThrow('Storage full');
+
+          // The old token must NOT be in pendingToBeRevokedTokens. Queueing it
+          // before confirming the new vault was persisted would schedule the
+          // user's only valid refresh token for revocation.
+          expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(
+            0,
+          );
+        },
+      );
+    });
   });
 
   describe('revokePendingRefreshTokens', () => {
@@ -6090,6 +6354,60 @@ describe('SeedlessOnboardingController', () => {
           // The first one was removed in the catch block (line 1911)
           // The second one was removed after successful revocation
           expect(controller.state.pendingToBeRevokedTokens?.length).toBe(1);
+        },
+      );
+    });
+
+    it('should skip tokens that were queued less than PENDING_REVOKE_TOKEN_DELAY_MS ago', async () => {
+      const recentQueuedAt = Date.now(); // just now — not yet eligible
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            pendingToBeRevokedTokens: [
+              {
+                refreshToken: 'recent-refresh-token',
+                revokeToken: 'recent-revoke-token',
+                queuedAt: recentQueuedAt,
+              },
+            ],
+          }),
+        },
+        async ({ controller, mockRevokeRefreshToken }) => {
+          await controller.revokePendingRefreshTokens();
+
+          // Token is too recent — should not have been revoked.
+          expect(mockRevokeRefreshToken).not.toHaveBeenCalled();
+          // Token should remain in the pending list.
+          expect(controller.state.pendingToBeRevokedTokens).toHaveLength(1);
+        },
+      );
+    });
+
+    it('should revoke tokens whose queuedAt is older than PENDING_REVOKE_TOKEN_DELAY_MS', async () => {
+      const oldQueuedAt = Date.now() - PENDING_REVOKE_TOKEN_DELAY_MS - 1000; // 1s past the threshold
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            pendingToBeRevokedTokens: [
+              {
+                refreshToken: 'old-refresh-token',
+                revokeToken: 'old-revoke-token',
+                queuedAt: oldQueuedAt,
+              },
+            ],
+          }),
+        },
+        async ({ controller, mockRevokeRefreshToken }) => {
+          await controller.revokePendingRefreshTokens();
+
+          expect(mockRevokeRefreshToken).toHaveBeenCalledTimes(1);
+          expect(mockRevokeRefreshToken).toHaveBeenCalledWith({
+            connection: controller.state.authConnection,
+            revokeToken: 'old-revoke-token',
+          });
+          expect(controller.state.pendingToBeRevokedTokens).toHaveLength(0);
         },
       );
     });
