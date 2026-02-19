@@ -51,7 +51,7 @@
     "@metamask/accounts-controller": "^36.0.0",
     "@metamask/approval-controller": "^8.0.0",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/gator-permissions-controller": "^2.0.0",
     "@metamask/keyring-controller": "^25.1.0",
