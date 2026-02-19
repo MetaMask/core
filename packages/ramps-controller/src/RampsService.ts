@@ -552,22 +552,13 @@ export type RampsOrderFiatCurrency = {
 };
 
 /**
- * Provider information associated with an order.
- */
-export type RampsOrderProvider = {
-  id?: string;
-  name?: string;
-  links?: Array<{ name: string; url: string }>;
-};
-
-/**
  * A unified order type returned from the V2 API.
  * The V2 endpoint normalizes all provider responses into this shape.
  */
 export type RampsOrder = {
   id?: string;
   isOnlyLink: boolean;
-  provider?: string | RampsOrderProvider;
+  provider?: string | Provider;
   success: boolean;
   cryptoAmount: string | number;
   fiatAmount: number;

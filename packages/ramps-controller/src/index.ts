@@ -48,7 +48,6 @@ export type {
   RampsOrderCryptoCurrency,
   RampsOrderFiatCurrency,
   RampsOrderPaymentMethod,
-  RampsOrderProvider,
 } from './RampsService';
 export {
   RampsService,
