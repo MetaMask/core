@@ -1,6 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';
 import type { BalanceUpdate } from '@metamask/core-backend';
+import { WebSocketState } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -68,10 +69,13 @@ const setupController = ({
   config,
   tokens = { allTokens: {}, allDetectedTokens: {}, allIgnoredTokens: {} },
   listAccounts = [],
+  backendWebSocketState = WebSocketState.DISCONNECTED,
 }: {
   config?: Partial<ConstructorParameters<typeof TokenBalancesController>[0]>;
   tokens?: Partial<TokensControllerState>;
   listAccounts?: InternalAccount[];
+  /** Initial WebSocket state reported by BackendWebSocketService:getConnectionInfo (default: DISCONNECTED) */
+  backendWebSocketState?: WebSocketState;
 } = {}): {
   controller: TokenBalancesController;
   updateSpy: jest.SpyInstance;
@@ -94,6 +98,7 @@ const setupController = ({
   messenger.delegate({
     messenger: tokenBalancesControllerMessenger,
     actions: [
+      'BackendWebSocketService:getConnectionInfo',
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       'PreferencesController:getState',
@@ -150,6 +155,11 @@ const setupController = ({
         },
       },
     })),
+  );
+
+  messenger.registerActionHandler(
+    'BackendWebSocketService:getConnectionInfo',
+    jest.fn().mockReturnValue({ state: backendWebSocketState }),
   );
 
   messenger.registerActionHandler(
@@ -1846,6 +1856,59 @@ describe('TokenBalancesController', () => {
       expect(controller).toBeDefined();
       // Verify interval was set correctly
       expect(controller.getIntervalLength()).toBe(customInterval);
+    });
+  });
+
+  describe('getIsWebSocketActive and Accounts API fetcher', () => {
+    it('getIsWebSocketActive() returns false when BackendWebSocketService reports DISCONNECTED', () => {
+      const { controller } = setupController({
+        backendWebSocketState: WebSocketState.DISCONNECTED,
+      });
+      expect(controller.getIsWebSocketActive()).toBe(false);
+    });
+
+    it('getIsWebSocketActive() returns true when BackendWebSocketService reports CONNECTED', () => {
+      const { controller } = setupController({
+        backendWebSocketState: WebSocketState.CONNECTED,
+      });
+      expect(controller.getIsWebSocketActive()).toBe(true);
+    });
+
+    it('passes getIsWebSocketActive getter to AccountsApiBalanceFetcher that reflects controller state', () => {
+      const apiBalanceFetcherModule = jest.requireActual(
+        './multi-chain-accounts-service/api-balance-fetcher',
+      );
+      const OriginalFetcher = apiBalanceFetcherModule.AccountsApiBalanceFetcher;
+      let capturedGetIsWebSocketActive: (() => boolean) | undefined;
+      const constructorSpy = jest
+        .spyOn(apiBalanceFetcherModule, 'AccountsApiBalanceFetcher')
+        .mockImplementation(
+          (
+            ...args: Parameters<
+              typeof apiBalanceFetcherModule.AccountsApiBalanceFetcher
+            >
+          ) => {
+            capturedGetIsWebSocketActive = args[3] as
+              | (() => boolean)
+              | undefined;
+            return new OriginalFetcher(...args);
+          },
+        );
+
+      const { controller } = setupController({
+        config: {
+          accountsApiChainIds: () => ['0x1'],
+          allowExternalServices: () => true,
+        },
+        backendWebSocketState: WebSocketState.DISCONNECTED,
+      });
+
+      expect(capturedGetIsWebSocketActive).toBeDefined();
+      expect(typeof capturedGetIsWebSocketActive).toBe('function');
+      expect(capturedGetIsWebSocketActive?.()).toBe(false);
+      expect(controller.getIsWebSocketActive()).toBe(false);
+
+      constructorSpy.mockRestore();
     });
   });
 

@@ -17,10 +17,12 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type {
+  BackendWebSocketServiceActions,
   BalanceUpdate,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent,
 } from '@metamask/core-backend';
+import { WebSocketState } from '@metamask/core-backend';
 import type {
   KeyringControllerAccountRemovedEvent,
   KeyringControllerGetStateAction,
@@ -138,6 +140,7 @@ export type TokenBalancesControllerEvents =
   | NativeBalanceEvent;
 
 export type AllowedActions =
+  | BackendWebSocketServiceActions
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | TokensControllerGetStateAction
@@ -304,6 +307,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /** Track if the keyring is unlocked */
   #isUnlocked = false;
 
+  /** Track if the WebSocket for real-time balance updates is connected */
+  readonly #isWebSocketActive: boolean = false;
+
   /** Store original chainIds from startPolling to preserve intent */
   #requestedChainIds: ChainIdHex[] = [];
 
@@ -359,6 +365,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
       this.messenger.call('TokensController:getState');
+
+    const connectionInfo = this.messenger.call(
+      'BackendWebSocketService:getConnectionInfo',
+    );
+    this.#isWebSocketActive = connectionInfo.state === WebSocketState.CONNECTED;
+
     this.#allTokens = allTokens;
     this.#detectedTokens = allDetectedTokens;
     this.#allIgnoredTokens = allIgnoredTokens;
@@ -543,6 +555,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.#platform,
       this.#getProvider,
       () => this.state.tokenBalances, // list of existing user tokens
+      () => this.getIsWebSocketActive(),
     );
 
     return {
@@ -675,6 +688,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     queryAllAccounts?: boolean;
   }): Promise<void> {
     await this.updateBalances({ chainIds, queryAllAccounts });
+  }
+
+  /**
+   * Returns whether the WebSocket for real-time balance updates is currently connected.
+   *
+   * @returns True if the WebSocket is connected, false otherwise.
+   */
+  getIsWebSocketActive(): boolean {
+    return this.#isWebSocketActive;
   }
 
   updateChainPollingConfigs(
