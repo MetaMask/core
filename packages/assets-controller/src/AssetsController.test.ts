@@ -200,6 +200,7 @@ describe('AssetsController', () => {
         },
         assetsBalance: {},
         customAssets: {},
+        currentCurrency: 'eur',
       };
 
       await withController({ state: initialState }, ({ controller }) => {
@@ -209,6 +210,7 @@ describe('AssetsController', () => {
           name: 'USD Coin',
           decimals: 6,
         });
+        expect(controller.state.currentCurrency).toBe('eur');
       });
     });
 
@@ -739,15 +741,6 @@ describe('AssetsController', () => {
         controller.setCurrentCurrency('gbp');
         expect(controller.state.currentCurrency).toBe('gbp');
       });
-    });
-
-    it('initializes with provided currentCurrency when in state', async () => {
-      await withController(
-        { state: { currentCurrency: 'eur' } },
-        ({ controller }) => {
-          expect(controller.state.currentCurrency).toBe('eur');
-        },
-      );
     });
   });
 
