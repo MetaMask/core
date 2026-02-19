@@ -143,10 +143,17 @@ export type SeedlessOnboardingControllerState =
       /**
        * The refresh token and revoke token to be revoked.
        * This is persisted in state to revoke old refresh token when possible.
+       *
+       * `queuedAt` is the epoch ms timestamp when the entry was added.  It is
+       * used to enforce a per-token grace period before revocation so that
+       * in-flight `refreshAuthTokens` calls using the old token can finish.
+       * Entries persisted before this field was introduced omit `queuedAt` and
+       * are treated as immediately eligible for revocation (they are old enough).
        */
       pendingToBeRevokedTokens?: {
         refreshToken: string;
         revokeToken: string;
+        queuedAt?: number;
       }[];
 
       /**

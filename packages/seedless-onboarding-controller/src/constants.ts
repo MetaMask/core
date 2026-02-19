@@ -2,6 +2,14 @@ export const controllerName = 'SeedlessOnboardingController';
 
 export const PASSWORD_OUTDATED_CACHE_TTL_MS = 10_000; // 10 seconds
 
+/**
+ * The minimum time in ms a token must sit in `pendingToBeRevokedTokens` before
+ * it is eligible for revocation.  This gives in-flight `refreshAuthTokens`
+ * calls that captured the old refresh token enough time to complete before the
+ * server marks that token as revoked.
+ */
+export const PENDING_REVOKE_TOKEN_DELAY_MS = 15_000;
+
 export enum Web3AuthNetwork {
   Mainnet = 'sapphire_mainnet',
   Devnet = 'sapphire_devnet',
