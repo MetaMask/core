@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `accountIdByAddress` mapping to state and update `getAccountByAddress` function ([#7893](https://github.com/MetaMask/core/pull/7893))
+- Add `accountIdByAddress` mapping to state and update `getAccountByAddress` function ([#7893](https://github.com/MetaMask/core/pull/7893))
   - This state was added to improve lookup times for an account by address from O(n) to O(1).
 
 ## [36.0.1]
