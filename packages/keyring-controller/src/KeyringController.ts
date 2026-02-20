@@ -292,6 +292,10 @@ export type KeyringObject = {
    */
   type: string;
   /**
+   * Keyring serialized data.
+   */
+  data: Json;
+  /**
    * Additional data associated with the keyring.
    */
   metadata: KeyringMetadata;
@@ -662,6 +666,7 @@ async function displayForKeyring({
     // Cast to `string[]` here is safe here because `accounts` has no nullish
     // values, and `normalize` returns `string` unless given a nullish value
     accounts: accounts.map(normalize) as string[],
+    data: cloneDeep(await keyring.serialize()),
     metadata,
   };
 }
@@ -770,7 +775,7 @@ export class KeyringController<
           usedInUi: true,
         },
         keyrings: {
-          includeInStateLogs: true,
+          includeInStateLogs: false,
           persist: false,
           includeInDebugSnapshot: false,
           usedInUi: true,
