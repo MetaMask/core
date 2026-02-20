@@ -2308,6 +2308,7 @@ export class KeyringController<
       const updatedKeyrings = await this.#getUpdatedKeyrings();
 
       this.update((state) => {
+        // @ts-expect-error The `Json` type causes the error `Type instantiation is excessively deep and possibly infinite`
         state.keyrings = updatedKeyrings;
         state.encryptionKey = encryptionKey;
         state.encryptionSalt = this.#encryptionKey?.salt;
