@@ -9,7 +9,7 @@ import { mockEndpointUpdatePushNotificationLinks } from '../__fixtures__/mockSer
 import type { PushNotificationEnv } from '../types/firebase';
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = (): jest.SpyInstance =>
+const mockErrorLog = (): jest.SpiedFunction =>
   jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';

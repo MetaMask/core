@@ -69,6 +69,8 @@ export class PollingBlockTracker<
 
   #pendingFetch?: Omit<DeferredPromise<string>, 'resolve'>;
 
+  #pendingCheckForLatestBlock?: Promise<string>;
+
   readonly #onNewListener: (eventName: string | symbol) => void;
 
   readonly #onRemoveListener: () => void;
@@ -316,9 +318,15 @@ export class PollingBlockTracker<
    * @deprecated Use {@link getLatestBlock} instead.
    * @returns A promise that resolves to the latest block number.
    */
-  async checkForLatestBlock(): Promise<string> {
-    await this.#updateLatestBlock();
-    return await this.getLatestBlock();
+  checkForLatestBlock(): Promise<string> {
+    if (!this.#pendingCheckForLatestBlock) {
+      this.#pendingCheckForLatestBlock = this.#updateLatestBlock()
+        .then(() => this.getLatestBlock())
+        .finally(() => {
+          this.#pendingCheckForLatestBlock = undefined;
+        });
+    }
+    return this.#pendingCheckForLatestBlock;
   }
 
   #start(): void {

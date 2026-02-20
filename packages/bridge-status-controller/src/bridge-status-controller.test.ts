@@ -764,7 +764,7 @@ describe('BridgeStatusController', () => {
 
   describe('startPolling - error handling', () => {
     const consoleFn = console.warn;
-    let consoleFnSpy: jest.SpyInstance;
+    let consoleFnSpy: jest.SpiedFunction;
 
     beforeEach(() => {
       jest.clearAllMocks();
@@ -4123,7 +4123,7 @@ describe('BridgeStatusController', () => {
 
     let mockFetchFn: jest.Mock;
     const consoleFn = console.warn;
-    let consoleFnSpy: jest.SpyInstance;
+    let consoleFnSpy: jest.SpiedFunction;
 
     beforeEach(() => {
       jest.useFakeTimers();
