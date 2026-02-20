@@ -1,4 +1,3 @@
-import type { CaipAssetType } from '@metamask/utils';
 import {
   array,
   is,
@@ -6,6 +5,7 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
+import type { CaipAssetType } from '@metamask/utils';
 
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 import type { DigestService, MarketInsightsReport } from './ai-digest-types';
