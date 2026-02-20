@@ -110,11 +110,18 @@ export type ConfigRegistryControllerGetStateAction = ControllerGetStateAction<
   ConfigRegistryControllerState
 >;
 
+/**
+ * Starts polling the config registry API. Returns a polling token that can be
+ * used to stop this polling session.
+ */
 export type ConfigRegistryControllerStartPollingAction = {
   type: `${typeof controllerName}:startPolling`;
   handler: (input: null) => string;
 };
 
+/**
+ * Stops all config registry polling.
+ */
 export type ConfigRegistryControllerStopPollingAction = {
   type: `${typeof controllerName}:stopPolling`;
   handler: () => void;
@@ -126,7 +133,13 @@ export type ConfigRegistryControllerStopPollingAction = {
 export type ConfigRegistryControllerActions =
   | ConfigRegistryControllerGetStateAction
   | ConfigRegistryControllerStartPollingAction
-  | ConfigRegistryControllerStopPollingAction
+  | ConfigRegistryControllerStopPollingAction;
+
+/**
+ * Actions from other messengers that {@link ConfigRegistryControllerMessenger}
+ * calls.
+ */
+type AllowedActions =
   | RemoteFeatureFlagControllerGetStateAction
   | {
       type: 'ConfigRegistryApiService:fetchConfig';
@@ -137,15 +150,26 @@ export type ConfigRegistryControllerActions =
  * Events that {@link ConfigRegistryControllerMessenger} exposes to other consumers.
  */
 export type ConfigRegistryControllerEvents =
-  | KeyringControllerUnlockEvent
-  | KeyringControllerLockEvent
-  | ConfigRegistryControllerStateChangeEvent;
+  ConfigRegistryControllerStateChangeEvent;
 
-export type ConfigRegistryMessenger = Messenger<
+/**
+ * Events from other messengers that {@link ConfigRegistryControllerMessenger}
+ * subscribes to.
+ */
+type AllowedEvents = KeyringControllerUnlockEvent | KeyringControllerLockEvent;
+
+/**
+ * The messenger restricted to actions and events accessed by
+ * {@link ConfigRegistryController}.
+ */
+export type ConfigRegistryControllerMessenger = Messenger<
   typeof controllerName,
-  ConfigRegistryControllerActions,
-  ConfigRegistryControllerEvents
+  ConfigRegistryControllerActions | AllowedActions,
+  ConfigRegistryControllerEvents | AllowedEvents
 >;
+
+/** @deprecated Use {@link ConfigRegistryControllerMessenger} instead. */
+export type ConfigRegistryMessenger = ConfigRegistryControllerMessenger;
 
 export type ConfigRegistryControllerOptions = {
   messenger: ConfigRegistryMessenger;

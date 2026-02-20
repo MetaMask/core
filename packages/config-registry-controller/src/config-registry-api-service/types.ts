@@ -69,6 +69,11 @@ export type FetchConfigResult =
   | {
       modified: false;
       etag?: string;
+      /**
+       * Cached data from the service when available (e.g. after a previous
+       * successful fetch). Omitted when the service has no cache yet.
+       */
+      data?: RegistryConfigApiResponse;
     }
   | {
       modified: true;

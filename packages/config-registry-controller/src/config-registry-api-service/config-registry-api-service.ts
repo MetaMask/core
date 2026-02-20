@@ -5,8 +5,12 @@ import type {
 } from '@metamask/controller-utils';
 import { SDK } from '@metamask/profile-sync-controller';
 
+import type {
+  FetchConfigOptions,
+  FetchConfigResult,
+  RegistryConfigApiResponse,
+} from './types';
 import { validateRegistryConfigApiResponse } from './types';
-import type { FetchConfigOptions, FetchConfigResult } from './types';
 
 const ENDPOINT_PATH = '/config/networks';
 
@@ -38,6 +42,9 @@ export class ConfigRegistryApiService {
 
   readonly #fetch: typeof fetch;
 
+  /** Cached response from the last successful fetch. Used when server returns 304. */
+  #cachedResponse: RegistryConfigApiResponse | null = null;
+
   /**
    * Construct a Config Registry API Service.
    *
@@ -57,12 +64,40 @@ export class ConfigRegistryApiService {
     this.#policy = createServicePolicy(policyOptions);
   }
 
+  /**
+   * Registers a handler that will be called after a set number of retry rounds
+   * prove that requests to the API endpoint consistently return a 5xx response.
+   *
+   * @param args - The arguments passed to the underlying policy's onBreak method
+   * (e.g. the listener to be called).
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   * @see {@link createServicePolicy}
+   */
   onBreak(
     ...args: Parameters<ServicePolicy['onBreak']>
   ): ReturnType<ServicePolicy['onBreak']> {
     return this.#policy.onBreak(...args);
   }
 
+  /**
+   * Registers a handler that will be called under one of two circumstances:
+   *
+   * 1. After a set number of retries prove that requests to the API
+   * consistently result in one of the following failures:
+   *    1. A connection initiation error
+   *    2. A connection reset error
+   *    3. A timeout error
+   *    4. A non-JSON response
+   *    5. A 502, 503, or 504 response
+   * 2. After a successful request is made to the API, but the response takes
+   * longer than a set duration to return.
+   *
+   * @param args - The arguments passed to the underlying policy's onDegraded
+   * method (e.g. the listener to be called).
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   */
   onDegraded(
     ...args: Parameters<ServicePolicy['onDegraded']>
   ): ReturnType<ServicePolicy['onDegraded']> {
@@ -103,6 +138,7 @@ export class ConfigRegistryApiService {
       return {
         modified: false,
         etag,
+        ...(this.#cachedResponse !== null && { data: this.#cachedResponse }),
       };
     }
 
@@ -110,6 +146,8 @@ export class ConfigRegistryApiService {
     const jsonData = await response.json();
 
     validateRegistryConfigApiResponse(jsonData);
+
+    this.#cachedResponse = jsonData;
 
     return {
       data: jsonData,

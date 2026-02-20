@@ -7,6 +7,7 @@ export type {
   ConfigRegistryControllerStopPollingAction,
   ConfigRegistryControllerEvents,
   ConfigRegistryControllerStateChangeEvent,
+  ConfigRegistryControllerMessenger,
   ConfigRegistryMessenger,
 } from './ConfigRegistryController';
 export {

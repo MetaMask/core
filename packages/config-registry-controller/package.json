@@ -1,6 +1,6 @@
 {
   "name": "@metamask/config-registry-controller",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Manages configuration registry for MetaMask",
   "keywords": [
     "MetaMask",

@@ -1,10 +1,11 @@
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
-import type {
-  JsonRpcMiddleware,
-  MiddlewareContext,
-  ResultConstraint,
+import {
+  JsonRpcEngineV2,
+  type JsonRpcMiddleware,
+  type MiddlewareContext,
+  type ResultConstraint,
 } from '@metamask/json-rpc-engine/v2';
+import type { Provider } from '@metamask/network-controller';
 import type {
   Json,
   JsonRpcId,
@@ -14,12 +15,6 @@ import type {
   JsonRpcVersion2,
 } from '@metamask/utils';
 import { inspect, isDeepStrictEqual } from 'util';
-
-type Provider = InternalProvider<
-  MiddlewareContext<
-    { origin: string; skipCache: boolean } & Record<string, unknown>
-  >
->;
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
@@ -144,7 +139,7 @@ export class FakeProvider
     super({
       engine: JsonRpcEngineV2.create<Middleware>({
         middleware: [
-          (): never => {
+          () => {
             throw new Error('FakeProvider received unstubbed method call');
           },
         ],
@@ -161,8 +156,6 @@ export class FakeProvider
     return new Promise((resolve, reject) => {
       this.#handleSend(payload, (error, providerRes) => {
         if (error) {
-          // Error is `unknown`.
-          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
           reject(error);
         } else {
           resolve(providerRes.result);
@@ -176,7 +169,7 @@ export class FakeProvider
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ): void => {
+  ) => {
     return this.#handleSend(payload, callback);
   };
 
@@ -185,7 +178,7 @@ export class FakeProvider
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ): void => {
+  ) => {
     return this.#handleSend(req, callback);
   };
 
@@ -194,7 +187,7 @@ export class FakeProvider
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ): void {
+  ) {
     if (Array.isArray(req)) {
       throw new Error("Arrays aren't supported");
     }
@@ -226,36 +219,37 @@ export class FakeProvider
       }
 
       throw new Error(message);
-    }
+    } else {
+      // We are already checking that this stub exists above.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const stub = this.#stubs[index]!;
 
-    const stub = this.#stubs[index];
-    if (stub === undefined) {
-      throw new Error('Stub not found at index');
-    }
+      if (stub.discardAfterMatching !== false) {
+        this.#stubs.splice(index, 1);
+      }
 
-    if (stub.discardAfterMatching !== false) {
-      this.#stubs.splice(index, 1);
-    }
-
-    if (stub.delay) {
-      originalSetTimeout(() => {
+      if (stub.delay) {
+        originalSetTimeout(() => {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.#handleRequest(stub, callback);
+        }, stub.delay);
+      } else {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.#handleRequest(stub, callback);
-      }, stub.delay);
-    } else {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#handleRequest(stub, callback);
-    }
+      }
 
-    this.calledStubs.push(stub);
+      this.calledStubs.push({ ...stub });
+    }
   }
 
   async #handleRequest(
     stub: FakeProviderStub,
-    callback: (error: unknown, response?: JsonRpcResponse) => void,
-  ): Promise<void> {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
+  ) {
     if (stub.beforeCompleting) {
       await stub.beforeCompleting();
     }
