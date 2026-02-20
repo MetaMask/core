@@ -10,7 +10,14 @@ import {
 } from '../utils/token';
 import { getTransaction } from '../utils/transaction';
 
-jest.mock('../utils/token');
+jest.mock('../utils/token', () => ({
+  ...jest.createMockFromModule<typeof import('../utils/token')>(
+    '../utils/token',
+  ),
+  computeTokenAmounts:
+    jest.requireActual<typeof import('../utils/token')>('../utils/token')
+      .computeTokenAmounts,
+}));
 jest.mock('../utils/transaction');
 
 const TOKEN_ADDRESS_MOCK = '0x123';
