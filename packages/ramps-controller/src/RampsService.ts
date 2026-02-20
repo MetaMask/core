@@ -560,21 +560,21 @@ export type RampsOrderFiatCurrency = {
 export type RampsOrder = {
   id?: string;
   isOnlyLink: boolean;
-  provider?: string | Provider;
+  provider?: Provider;
   success: boolean;
   cryptoAmount: string | number;
   fiatAmount: number;
-  cryptoCurrency?: string | RampsOrderCryptoCurrency;
-  fiatCurrency?: string | RampsOrderFiatCurrency;
+  cryptoCurrency?: RampsOrderCryptoCurrency;
+  fiatCurrency?: RampsOrderFiatCurrency;
   providerOrderId: string;
   providerOrderLink: string;
   createdAt: number;
-  paymentMethod?: string | RampsOrderPaymentMethod;
+  paymentMethod?: RampsOrderPaymentMethod;
   totalFeesFiat: number;
   txHash: string;
   walletAddress: string;
   status: RampsOrderStatus;
-  network: string | RampsOrderNetwork;
+  network: RampsOrderNetwork;
   canBeUpdated: boolean;
   idHasExpired: boolean;
   idExpirationDate?: number;
