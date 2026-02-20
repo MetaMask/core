@@ -36,7 +36,7 @@ import type {
 } from '@metamask/snaps-controllers';
 
 import type { serviceName } from './MultichainAccountService';
-import { MultichainAccountServiceMethodActions } from './MultichainAccountService-method-action-types';
+import type { MultichainAccountServiceMethodActions } from './MultichainAccountService-method-action-types';
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.

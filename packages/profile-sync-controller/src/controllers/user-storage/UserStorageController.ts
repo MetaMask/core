@@ -29,7 +29,7 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
 import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
-import { UserStorageControllerMethodActions } from './UserStorageController-method-action-types';
+import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,

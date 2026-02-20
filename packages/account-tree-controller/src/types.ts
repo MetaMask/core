@@ -24,7 +24,7 @@ import type {
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import type { controllerName } from './AccountTreeController';
-import { AccountTreeControllerMethodActions } from './AccountTreeController-method-action-types';
+import type { AccountTreeControllerMethodActions } from './AccountTreeController-method-action-types';
 import type {
   BackupAndSyncAnalyticsEventPayload,
   BackupAndSyncEmitAnalyticsEventParams,
