@@ -553,6 +553,7 @@ export class AssetsController extends BaseController<
   readonly #priceDataSource: PriceDataSource;
 
   readonly #detectionMiddleware: DetectionMiddleware;
+
   readonly #tokenDataSource: TokenDataSource;
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
@@ -1980,10 +1981,13 @@ export class AssetsController extends BaseController<
     // Run through enrichment middlewares (Detection, then Token + Price in parallel)
     // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
     const { response: enrichedResponse } = await this.#executeMiddlewares(
-      [this.#detectionMiddleware, createParallelMiddleware([
-        this.#tokenDataSource,
-        this.#priceDataSource,
-      ])],
+      [
+        this.#detectionMiddleware,
+        createParallelMiddleware([
+          this.#tokenDataSource,
+          this.#priceDataSource,
+        ]),
+      ],
       request ?? {
         accountsWithSupportedChains: [],
         chainIds: [],
