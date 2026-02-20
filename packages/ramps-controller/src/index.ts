@@ -43,7 +43,6 @@ export type {
   TokensResponse,
   BuyWidget,
   RampsOrder,
-  RampsOrderStatus,
   RampsOrderNetwork,
   RampsOrderCryptoCurrency,
   RampsOrderFiatCurrency,
@@ -53,6 +52,7 @@ export {
   RampsService,
   RampsEnvironment,
   RampsApiService,
+  RampsOrderStatus,
   RAMPS_SDK_VERSION,
 } from './RampsService';
 export type {
