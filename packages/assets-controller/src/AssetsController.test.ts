@@ -574,7 +574,7 @@ describe('AssetsController', () => {
       await withController(
         {
           state: {
-            assetsMetadata: {
+            assetsInfo: {
               'eip155:42431/slip44:60': {
                 type: 'native',
                 symbol: 'ETH',
@@ -631,7 +631,7 @@ describe('AssetsController', () => {
       await withController(
         {
           state: {
-            assetsMetadata: {
+            assetsInfo: {
               'eip155:4217/slip44:60': {
                 type: 'native',
                 symbol: 'ETH',
@@ -670,7 +670,7 @@ describe('AssetsController', () => {
       await withController(
         {
           state: {
-            assetsMetadata: {
+            assetsInfo: {
               'eip155:1/slip44:60': {
                 type: 'native',
                 symbol: 'ETH',
@@ -710,7 +710,7 @@ describe('AssetsController', () => {
       await withController(
         {
           state: {
-            assetsMetadata: {
+            assetsInfo: {
               'eip155:42431/some:other': {
                 type: 'native',
                 symbol: 'ETH',
