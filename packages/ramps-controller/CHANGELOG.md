@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
 ### Added
 
 - Add `getOrder` and `getOrderFromCallback` methods to `RampsService` and `RampsController` for V2 unified order polling, along with new `RampsOrder`, `RampsOrderFiatCurrency`, `RampsOrderCryptoCurrency`, `RampsOrderPaymentMethod`, and `RampsOrderStatus` types ([#7934](https://github.com/MetaMask/core/pull/7934))
@@ -162,7 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.1.0...@metamask/ramps-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.0.0...@metamask/ramps-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.1.0...@metamask/ramps-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.0.0...@metamask/ramps-controller@7.1.0
