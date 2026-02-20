@@ -5719,9 +5719,23 @@ describe('RampsController', () => {
   });
 
   describe('destroy', () => {
-    it('calls super.destroy without errors', async () => {
-      await withController(({ controller }) => {
-        expect(() => controller.destroy()).not.toThrow();
+    it('clears stateChange subscriptions so listeners stop firing', async () => {
+      await withController(({ controller, messenger }) => {
+        const listener = jest.fn();
+        messenger.subscribe('RampsController:stateChange', listener);
+
+        controller.destroy();
+
+        controller.setSelectedQuote({
+          provider: '/providers/moonpay',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+          },
+        });
+
+        expect(listener).not.toHaveBeenCalled();
       });
     });
   });
