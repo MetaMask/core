@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `accountIdByAddress` mapping to state and update `getAccountByAddress` function ([#7893](https://github.com/MetaMask/core/pull/7893))
   - This state was added to improve lookup times for an account by address from O(n) to O(1).
 
+## [36.0.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+
 ## [36.0.0]
 
 ### Changed
@@ -698,7 +704,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.1...HEAD
+[36.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.0...@metamask/accounts-controller@36.0.1
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.2...@metamask/accounts-controller@36.0.0
 [35.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.1...@metamask/accounts-controller@35.0.2
 [35.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.0...@metamask/accounts-controller@35.0.1
