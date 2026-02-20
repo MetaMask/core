@@ -12,8 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hide native tokens on Tempo networks (testnet and mainnet) in asset selectors ([#7882](https://github.com/MetaMask/core/pull/7882))
 - Bump `@metamask/phishing-controller` from `^16.2.0` to `^16.3.0` ([#7979](https://github.com/MetaMask/core/pull/7979))
 - Bump `@metamask/network-enablement-controller` from `^4.1.0` to `^4.1.1` ([#7984](https://github.com/MetaMask/core/pull/7984))
+- Blockaid token filtering in `MultichainAssetsController` now only removes tokens flagged as `Malicious` ([#8003](https://github.com/MetaMask/core/pull/8003))
+  - `Spam`, `Warning`, and `Benign` tokens are no longer filtered out
 
-## [99.4.0]
+## [100.0.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/network-enablement-controller` from `^4.1.1` to `^4.1.2` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/polling-controller` from `^16.0.2` to `^16.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/transaction-controller` from `^62.17.0` to `^62.17.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+
+## [100.0.0]
 
 ### Added
 
@@ -25,6 +37,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The filter fails open: if the scan is unreachable or returns an error, all tokens are kept
   - Filtering applies to account-added and asset-list-updated events; `addAssets` (curated list) is not filtered
   - Token addresses are batched into groups of 100 to stay within the `bulkScanTokens` per-request limit
+
+### Changed
+
+- Bump `@metamask/phishing-controller` from `^16.2.0` to `^16.3.0` ([#7979](https://github.com/MetaMask/core/pull/7979))
+- Bump `@metamask/network-enablement-controller` from `^4.1.0` to `^4.1.1` ([#7984](https://github.com/MetaMask/core/pull/7984))
+- Bump `@metamask/core-backend` from `^5.0.0` to `^6.0.0` ([#7993](https://github.com/MetaMask/core/pull/7993))
+- Change MegaETH mainnet occurences filtering for getTokensURL ([#7994](https://github.com/MetaMask/core/pull/7994))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [99.4.0]
+
+### Added
+
 - `CodefiTokenPricesServiceV2` now supports fetching prices of ETH on Ink Mainnet (chain `0xdef1`) ([#7688](https://github.com/MetaMask/core/pull/7688))
 - Added Chiliz Chain native token ([#7939](https://github.com/MetaMask/core/pull/7939))
 
@@ -2694,7 +2719,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.1...HEAD
+[100.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.0...@metamask/assets-controllers@100.0.1
+[100.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.4.0...@metamask/assets-controllers@100.0.0
 [99.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.2...@metamask/assets-controllers@99.4.0
 [99.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.1...@metamask/assets-controllers@99.3.2
 [99.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.0...@metamask/assets-controllers@99.3.1

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [6.0.0]
+
 ### Added
 
 - Add `ApiPlatformClientService` to expose `ApiPlatformClient` via the messenger without a controller ([#7928](https://github.com/MetaMask/core/pull/7928))
@@ -216,7 +223,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.1...@metamask/core-backend@6.0.0
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.0...@metamask/core-backend@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.0.0...@metamask/core-backend@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@4.1.0...@metamask/core-backend@5.0.0
