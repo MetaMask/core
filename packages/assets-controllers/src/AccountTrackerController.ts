@@ -44,7 +44,6 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 
-import type { AccountTrackerControllerMethodActions } from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import type {
   AssetsContractController,
@@ -888,16 +887,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     // Skip native token fetching for chains that return arbitrary large numbers
     if (!shouldIncludeNativeToken(chainId)) {
       // Return empty balances for chains that skip native token fetching
-      return addresses.reduce(
-        (acc, address) => {
-          acc[address] = { balance: '0x0' };
-          return acc;
-        },
-        {} as Record<
-          string,
-          { balance: string; stakedBalance?: StakedBalance }
-        >,
-      );
+      return addresses.reduce<
+        Record<string, { balance: string; stakedBalance?: StakedBalance }>
+      >((acc, address) => {
+        acc[address] = { balance: '0x0' };
+        return acc;
+      }, {});
     }
 
     // TODO: This should use multicall when enabled by the user.
