@@ -790,7 +790,13 @@ export class AccountsApiClient extends BaseApiClient {
       lang?: string;
     },
     options?: FetchOptions,
-  ): FetchQueryOptions<V4MultiAccountTransactionsResponse> {
+  ): FetchQueryOptions<
+    V4MultiAccountTransactionsResponse,
+    Error,
+    V4MultiAccountTransactionsResponse,
+    readonly unknown[],
+    string | undefined
+  > {
     return {
       queryKey: [
         'accounts',
