@@ -5,6 +5,11 @@ import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { getStrategy, getStrategyByName } from './strategy';
+import {
+  computeTokenAmounts,
+  getLiveTokenBalance,
+  getTokenFiatRate,
+} from './token';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
 import { projectLogger } from '../logger';
@@ -55,24 +60,39 @@ export async function updateQuotes(
 
   log('Updating quotes', { transactionId });
 
-  const { isMaxAmount, isPostQuote, paymentToken, sourceAmounts, tokens } =
-    transactionData;
-
-  const requests = buildQuoteRequests({
-    from: transaction.txParams.from as Hex,
-    isMaxAmount: isMaxAmount ?? false,
+  const {
+    isMaxAmount,
     isPostQuote,
-    paymentToken,
+    paymentToken: originalPaymentToken,
     sourceAmounts,
     tokens,
-    transactionId,
-  });
+  } = transactionData;
+
+  const from = transaction.txParams.from as Hex;
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
   });
 
   try {
+    const paymentToken = await refreshPaymentTokenBalance({
+      from,
+      messenger,
+      paymentToken: originalPaymentToken,
+      transactionId,
+      updateTransactionData,
+    });
+
+    const requests = buildQuoteRequests({
+      from,
+      isMaxAmount: isMaxAmount ?? false,
+      isPostQuote,
+      paymentToken,
+      sourceAmounts,
+      tokens,
+      transactionId,
+    });
+
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
       requests,
@@ -351,6 +371,69 @@ function buildPostQuoteRequests({
   // Currently only single token post-quote flows are supported.
   // Multiple token support would require multiple quotes for each required token.
   return [request];
+}
+
+async function refreshPaymentTokenBalance({
+  from,
+  messenger,
+  paymentToken,
+  transactionId,
+  updateTransactionData,
+}: {
+  from: Hex;
+  messenger: TransactionPayControllerMessenger;
+  paymentToken: TransactionPaymentToken | undefined;
+  transactionId: string;
+  updateTransactionData: UpdateTransactionDataCallback;
+}): Promise<TransactionPaymentToken | undefined> {
+  if (!paymentToken) {
+    return undefined;
+  }
+
+  try {
+    const fiatRates = getTokenFiatRate(
+      messenger,
+      paymentToken.address,
+      paymentToken.chainId,
+    );
+
+    if (!fiatRates) {
+      return paymentToken;
+    }
+
+    const liveBalance = await getLiveTokenBalance(
+      messenger,
+      from,
+      paymentToken.chainId,
+      paymentToken.address,
+    );
+
+    const {
+      raw: balanceRaw,
+      human: balanceHuman,
+      usd: balanceUsd,
+      fiat: balanceFiat,
+    } = computeTokenAmounts(liveBalance, paymentToken.decimals, fiatRates);
+
+    const updatedToken = {
+      ...paymentToken,
+      balanceFiat,
+      balanceHuman,
+      balanceRaw,
+      balanceUsd,
+    };
+
+    updateTransactionData(transactionId, (data) => {
+      data.paymentToken = updatedToken;
+    });
+
+    log('Refreshed payment token balance', { transactionId, balanceRaw });
+
+    return updatedToken;
+  } catch (error) {
+    log('Failed to refresh payment token balance', { transactionId, error });
+    return paymentToken;
+  }
 }
 
 /**

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.18.0` ([#8005](https://github.com/MetaMask/core/pull/8005))
+
+## [100.0.2]
+
+### Changed
+
+- Blockaid token filtering in `MultichainAssetsController` now only removes tokens flagged as `Malicious` ([#8003](https://github.com/MetaMask/core/pull/8003))
+  - `Spam`, `Warning`, and `Benign` tokens are no longer filtered out
+
 ## [100.0.1]
 
 ### Changed
@@ -2711,7 +2722,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.2...HEAD
+[100.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.1...@metamask/assets-controllers@100.0.2
 [100.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.0...@metamask/assets-controllers@100.0.1
 [100.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.4.0...@metamask/assets-controllers@100.0.0
 [99.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.3.2...@metamask/assets-controllers@99.4.0
