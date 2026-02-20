@@ -1473,8 +1473,7 @@ export class AssetsController extends BaseController<
     }
 
     // Check if it's a native token (either by metadata type or assetId format)
-    const isNative =
-      metadata.type === 'native' || assetId.includes('/slip44:');
+    const isNative = metadata.type === 'native' || assetId.includes('/slip44:');
 
     return isNative;
   }
