@@ -797,6 +797,11 @@ export enum TransactionType {
   perpsDepositAndOrder = 'perpsDepositAndOrder',
 
   /**
+   * Deposit funds for a Relay quote when the parent transaction is a Perps deposit.
+   */
+  perpsRelayDeposit = 'perpsRelayDeposit',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
@@ -829,6 +834,11 @@ export enum TransactionType {
    * Withdraw funds from Predict.
    */
   predictWithdraw = 'predictWithdraw',
+
+  /**
+   * Deposit funds for a Relay quote when the parent transaction is a Predict deposit.
+   */
+  predictRelayDeposit = 'predictRelayDeposit',
 
   /**
    * Deposit funds for Relay quote.
@@ -2095,6 +2105,12 @@ export type MetamaskPayMetadata = {
 
   /** Chain ID of the payment token. */
   chainId?: Hex;
+
+  /**
+   * Whether this is a post-quote transaction (e.g., withdrawal flow).
+   * When true, the token represents the destination rather than source.
+   */
+  isPostQuote?: boolean;
 
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;

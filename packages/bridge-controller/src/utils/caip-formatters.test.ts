@@ -266,5 +266,16 @@ describe('CAIP Formatters', () => {
         `eip155:43114/erc20:${tokenAddress}`,
       );
     });
+
+    it('should return undefined when chainId is not provided', () => {
+      expect(formatAddressToAssetId('invalid-address')).toBeUndefined();
+    });
+
+    it('should handle Tron addresses', () => {
+      const tokenAddress = 'TJ1234567890123456789012345678901234567890';
+      expect(formatAddressToAssetId(tokenAddress, ChainId.TRON)).toBe(
+        'tron:728126428/trc20:TJ1234567890123456789012345678901234567890',
+      );
+    });
   });
 });
