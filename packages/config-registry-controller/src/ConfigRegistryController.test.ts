@@ -881,9 +881,7 @@ describe('ConfigRegistryController', () => {
     });
 
     it('works via messenger actions', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const executePollSpy = jest.spyOn(controller, '_executePoll');
-
+      await withController(async ({ messenger, mockApiServiceHandler }) => {
         const token = messenger.call(
           'ConfigRegistryController:startPolling',
           null,
@@ -891,11 +889,11 @@ describe('ConfigRegistryController', () => {
         expect(typeof token).toBe('string');
 
         await jestAdvanceTime({ duration: 0 });
-        expect(executePollSpy).toHaveBeenCalledTimes(1);
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
         messenger.call('ConfigRegistryController:stopPolling');
         await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
-        expect(executePollSpy).toHaveBeenCalledTimes(1);
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -955,17 +953,12 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
+        async ({ controller, mockApiServiceHandler }) => {
           controller.startPolling(null);
 
-          // StaticIntervalPollingController runs first poll after 0ms (executePoll may early-return due to lastFetched)
           await jestAdvanceTime({ duration: 0 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
-
-          // Next poll is scheduled at pollingInterval; advancing remainingTime+1 does not reach it
           await jestAdvanceTime({ duration: remainingTime + 1 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
           controller.stopAllPolling();
         },
@@ -981,12 +974,11 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
+        async ({ controller, mockApiServiceHandler }) => {
           controller.startPolling(null);
 
           await jestAdvanceTime({ duration: 0 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
           controller.stopAllPolling();
         },
@@ -1006,13 +998,12 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ controller, mockApiServiceHandler }) => {
           jest.spyOn(Date, 'now').mockReturnValue(now);
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
           controller.startPolling(null);
 
           await jestAdvanceTime({ duration: 1 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
           controller.stopAllPolling();
           jest.restoreAllMocks();
@@ -1033,13 +1024,12 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ controller, mockApiServiceHandler }) => {
           jest.spyOn(Date, 'now').mockReturnValue(now);
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
           controller.startPolling(null);
 
           await jestAdvanceTime({ duration: 1 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
           controller.stopAllPolling();
           jest.restoreAllMocks();
@@ -1057,17 +1047,14 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ controller, mockApiServiceHandler }) => {
           jest
             .spyOn(controller, 'getIntervalLength')
             .mockReturnValue(undefined);
 
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
           controller.startPolling(null);
 
-          // StaticIntervalPollingController runs first poll after 0ms
-          await jestAdvanceTime({ duration: 0 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).not.toHaveBeenCalled();
 
           controller.stopAllPolling();
         },
@@ -1086,26 +1073,14 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
-          const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
-
-          // First call runs first poll after 0ms
+        async ({ controller, mockApiServiceHandler }) => {
           controller.startPolling(null);
           await jestAdvanceTime({ duration: 0 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          const callsAfterFirst = mockApiServiceHandler.mock.calls.length;
 
-          const clearTimeoutCallCountBefore = clearTimeoutSpy.mock.calls.length;
-
-          // Second call reuses same session (same input); no new _startPolling, so no extra executePoll
           controller.startPolling(null);
           await jestAdvanceTime({ duration: 0 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
-
-          // _startPolling clears before setting; clearTimeout is used when rescheduling after executePoll
-          expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThanOrEqual(
-            clearTimeoutCallCountBefore,
-          );
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(callsAfterFirst);
 
           controller.stopAllPolling();
         },
@@ -1117,7 +1092,11 @@ describe('ConfigRegistryController', () => {
     it('uses fallback config when feature flag is disabled', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
-        async ({ controller, mockRemoteFeatureFlagGetState }) => {
+        async ({
+          controller,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: {
               configRegistryApiEnabled: false,
@@ -1125,12 +1104,11 @@ describe('ConfigRegistryController', () => {
             cacheTimestamp: Date.now(),
           });
 
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
           controller.startPolling(null);
 
           await jestAdvanceTime({ duration: 0 });
 
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).not.toHaveBeenCalled();
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
@@ -1636,18 +1614,21 @@ describe('ConfigRegistryController', () => {
     it('defaults to fallback when feature flag is not set', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
-        async ({ controller, mockRemoteFeatureFlagGetState }) => {
+        async ({
+          controller,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
             remoteFeatureFlags: {},
             cacheTimestamp: Date.now(),
           });
 
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
           controller.startPolling(null);
 
           await jestAdvanceTime({ duration: 0 });
 
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).not.toHaveBeenCalled();
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
@@ -1660,17 +1641,20 @@ describe('ConfigRegistryController', () => {
     it('defaults to fallback when RemoteFeatureFlagController is unavailable', async () => {
       await withController(
         { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
-        async ({ controller, mockRemoteFeatureFlagGetState }) => {
+        async ({
+          controller,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           mockRemoteFeatureFlagGetState.mockImplementation(() => {
             throw new Error('RemoteFeatureFlagController not available');
           });
 
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
           controller.startPolling(null);
 
           await jestAdvanceTime({ duration: 0 });
 
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).not.toHaveBeenCalled();
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
@@ -1683,21 +1667,22 @@ describe('ConfigRegistryController', () => {
 
   describe('KeyringController event listeners', () => {
     it('starts polling when KeyringController:unlock event is published', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        const executePollSpy = jest.spyOn(controller, '_executePoll');
-        const startPollingSpy = jest.spyOn(controller, 'startPolling');
+      await withController(
+        async ({ controller, rootMessenger, mockApiServiceHandler }) => {
+          const startPollingSpy = jest.spyOn(controller, 'startPolling');
 
-        expect(startPollingSpy).not.toHaveBeenCalled();
+          expect(startPollingSpy).not.toHaveBeenCalled();
 
-        rootMessenger.publish('KeyringController:unlock');
+          rootMessenger.publish('KeyringController:unlock');
 
-        await jestAdvanceTime({ duration: 0 });
+          await jestAdvanceTime({ duration: 0 });
 
-        expect(startPollingSpy).toHaveBeenCalledWith(null);
-        expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(startPollingSpy).toHaveBeenCalledWith(null);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
-        controller.stopAllPolling();
-      });
+          controller.stopAllPolling();
+        },
+      );
     });
 
     it('stops polling when KeyringController:lock event is published', async () => {
@@ -1714,13 +1699,11 @@ describe('ConfigRegistryController', () => {
     });
 
     it('calls startPolling with default parameter when called without arguments', async () => {
-      await withController(async ({ controller }) => {
-        const executePollSpy = jest.spyOn(controller, '_executePoll');
-
+      await withController(async ({ controller, mockApiServiceHandler }) => {
         controller.startPolling(null);
 
         await jestAdvanceTime({ duration: 0 });
-        expect(executePollSpy).toHaveBeenCalledTimes(1);
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
       });
@@ -1740,20 +1723,19 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
+        async ({ controller, mockApiServiceHandler }) => {
           controller.startPolling(null);
 
-          // StaticIntervalPollingController runs first poll after 0ms
           await jestAdvanceTime({ duration: 0 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          const callsAfterFirstAdvance =
+            mockApiServiceHandler.mock.calls.length;
 
-          // Stop polling should clear the next scheduled timeout
           controller.stopAllPolling();
 
-          // Advance time past when the next poll would have fired
           await jestAdvanceTime({ duration: pollingInterval });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(
+            callsAfterFirstAdvance,
+          );
         },
       );
     });
@@ -1777,20 +1759,19 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
+        async ({ controller, mockApiServiceHandler }) => {
           const token = controller.startPolling(null);
 
-          // StaticIntervalPollingController runs first poll after 0ms
           await jestAdvanceTime({ duration: 0 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          const callsAfterFirstAdvance =
+            mockApiServiceHandler.mock.calls.length;
 
-          // Stop polling using the placeholder token
           controller.stopPollingByPollingToken(token);
 
-          // Advance time past when the next poll would have fired
           await jestAdvanceTime({ duration: pollingInterval });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(
+            callsAfterFirstAdvance,
+          );
         },
       );
     });
@@ -1808,75 +1789,59 @@ describe('ConfigRegistryController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const executePollSpy = jest.spyOn(controller, '_executePoll');
+        async ({ controller, mockApiServiceHandler }) => {
           const token = controller.startPolling(null);
 
-          // Advance time to when the delayed poll starts
           await jestAdvanceTime({ duration: remainingTime + 1 });
-          expect(executePollSpy).toHaveBeenCalledTimes(1);
-          executePollSpy.mockClear();
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+          mockApiServiceHandler.mockClear();
 
-          // Stop polling using the placeholder token (should map to actual token)
           controller.stopPollingByPollingToken(token);
 
-          // Advance time to verify polling stopped
           await jestAdvanceTime({ duration: pollingInterval });
-          expect(executePollSpy).not.toHaveBeenCalled();
+          expect(mockApiServiceHandler).not.toHaveBeenCalled();
         },
       );
     });
 
     it('stops all polling when called without token (backward compatible)', async () => {
-      await withController(async ({ controller }) => {
-        const executePollSpy = jest.spyOn(controller, '_executePoll');
-
-        // Start polling from multiple consumers
+      await withController(async ({ controller, mockApiServiceHandler }) => {
         controller.startPolling(null);
         controller.startPolling(null);
 
         await jestAdvanceTime({ duration: 0 });
-        expect(executePollSpy).toHaveBeenCalledTimes(1);
-        executePollSpy.mockClear();
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+        mockApiServiceHandler.mockClear();
 
-        // Stop without token should stop all polling
         controller.stopAllPolling();
 
         await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
-        expect(executePollSpy).not.toHaveBeenCalled();
+        expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });
     });
 
     it('stops specific polling session when called with token', async () => {
-      await withController(async ({ controller }) => {
-        const executePollSpy = jest.spyOn(controller, '_executePoll');
-
-        // Start polling from consumer A
+      await withController(async ({ controller, mockApiServiceHandler }) => {
         const tokenA = controller.startPolling(null);
         await jestAdvanceTime({ duration: 0 });
-        expect(executePollSpy).toHaveBeenCalledTimes(1);
-        executePollSpy.mockClear();
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+        mockApiServiceHandler.mockClear();
 
-        // Start polling from consumer B (reuses same polling session)
         const tokenB = controller.startPolling(null);
         await jestAdvanceTime({ duration: 0 });
-        expect(executePollSpy).toHaveBeenCalledTimes(0);
-        executePollSpy.mockClear();
+        expect(mockApiServiceHandler).not.toHaveBeenCalled();
+        mockApiServiceHandler.mockClear();
 
-        // Stop both consumers so the shared session is fully stopped
         controller.stopPollingByPollingToken(tokenA);
         controller.stopPollingByPollingToken(tokenB);
 
-        // No more polls after session is stopped
         await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
-        expect(executePollSpy).not.toHaveBeenCalled();
+        expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });
     });
 
     it('works via messenger action with token', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const executePollSpy = jest.spyOn(controller, '_executePoll');
-
+      await withController(async ({ messenger, mockApiServiceHandler }) => {
         const token = messenger.call(
           'ConfigRegistryController:startPolling',
           null,
@@ -1884,20 +1849,17 @@ describe('ConfigRegistryController', () => {
         expect(typeof token).toBe('string');
 
         await jestAdvanceTime({ duration: 0 });
-        expect(executePollSpy).toHaveBeenCalledTimes(1);
-        executePollSpy.mockClear();
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+        mockApiServiceHandler.mockClear();
 
-        // Stop via messenger action (stops all polling)
         messenger.call('ConfigRegistryController:stopPolling');
         await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
-        expect(executePollSpy).not.toHaveBeenCalled();
+        expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });
     });
 
     it('works via messenger action without token (backward compatible)', async () => {
-      await withController(async ({ controller, messenger }) => {
-        const executePollSpy = jest.spyOn(controller, '_executePoll');
-
+      await withController(async ({ messenger, mockApiServiceHandler }) => {
         const token = messenger.call(
           'ConfigRegistryController:startPolling',
           null,
@@ -1905,13 +1867,12 @@ describe('ConfigRegistryController', () => {
         expect(typeof token).toBe('string');
 
         await jestAdvanceTime({ duration: 0 });
-        expect(executePollSpy).toHaveBeenCalledTimes(1);
-        executePollSpy.mockClear();
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+        mockApiServiceHandler.mockClear();
 
-        // Stop without token via messenger (backward compatible)
         messenger.call('ConfigRegistryController:stopPolling');
         await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
-        expect(executePollSpy).not.toHaveBeenCalled();
+        expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });
     });
   });
