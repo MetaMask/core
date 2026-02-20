@@ -1397,6 +1397,11 @@ export class AssetsController extends BaseController<
 
         const assetChainId = extractChainId(typedAssetId);
 
+        // Skip native tokens on Tempo networks
+        if (this.#shouldHideNativeToken(assetChainId, typedAssetId, metadata)) {
+          continue;
+        }
+
         if (!chainIdSet.has(assetChainId)) {
           continue;
         }
@@ -1436,6 +1441,41 @@ export class AssetsController extends BaseController<
     }
 
     return result;
+  }
+
+  /**
+   * Determines if a native token should be hidden on specific networks.
+   *
+   * @param chainId - The CAIP-2 chain ID (e.g., "eip155:42431").
+   * @param assetId - The CAIP-19 asset ID (e.g., "eip155:42431/slip44:60").
+   * @param metadata - The asset metadata.
+   * @returns True if the token should be hidden, false otherwise.
+   */
+  #shouldHideNativeToken(
+    chainId: ChainId,
+    assetId: Caip19AssetId,
+    metadata: AssetMetadata,
+  ): boolean {
+    // Chain IDs where native tokens should be skipped (Tempo networks)
+    // These networks return arbitrary large numbers for native token balances via eth_getBalance
+    const CHAIN_IDS_TO_SKIP_NATIVE_TOKEN = [
+      'eip155:42431', // Tempo Testnet
+      'eip155:4217', // Tempo Mainnet
+    ] as const;
+
+    // Check if it's a chain that should skip native tokens
+    if (
+      !CHAIN_IDS_TO_SKIP_NATIVE_TOKEN.includes(
+        chainId as (typeof CHAIN_IDS_TO_SKIP_NATIVE_TOKEN)[number],
+      )
+    ) {
+      return false;
+    }
+
+    // Check if it's a native token (either by metadata type or assetId format)
+    const isNative = metadata.type === 'native' || assetId.includes('/slip44:');
+
+    return isNative;
   }
 
   /**

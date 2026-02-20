@@ -11,7 +11,10 @@ import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
-import { selectAssetsBySelectedAccountGroup } from './token-selectors';
+import {
+  AssetListState,
+  selectAssetsBySelectedAccountGroup,
+} from './token-selectors';
 import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
@@ -1110,6 +1113,132 @@ describe('token-selectors', () => {
 
       // Should have undefined fiat since there's no currency rate for 'INK'
       expect(inkNativeToken?.fiat).toBeUndefined();
+    });
+
+    it('hides native tokens on Tempo testnet (0xa5bf)', () => {
+      const tempoTestnetChainId = '0xa5bf' as Hex; // 42431 in decimal
+      const stateWithTempoTestnet = {
+        ...mockedMergedState,
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [tempoTestnetChainId]: {
+            nativeCurrency: 'ETH',
+          },
+        },
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [tempoTestnetChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000', // 1 ETH
+            },
+          },
+        },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(stateWithTempoTestnet);
+
+      // Native token should be hidden on Tempo testnet
+      const nativeToken = result[tempoTestnetChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeUndefined();
+    });
+
+    it('hides native tokens on Tempo mainnet (0x1079)', () => {
+      const tempoMainnetChainId = '0x1079' as Hex; // 4217 in decimal
+      const stateWithTempoMainnet = {
+        ...mockedMergedState,
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [tempoMainnetChainId]: {
+            nativeCurrency: 'ETH',
+          },
+        },
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [tempoMainnetChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000', // 1 ETH
+            },
+          },
+        },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(stateWithTempoMainnet);
+
+      // Native token should be hidden on Tempo mainnet
+      const nativeToken = result[tempoMainnetChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeUndefined();
+    });
+
+    it('does not hide native tokens on non-Tempo networks', () => {
+      const ethereumChainId = '0x1' as Hex;
+      const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
+
+      // Native token should still be visible on Ethereum
+      const nativeToken = result[ethereumChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeDefined();
+      expect(nativeToken?.symbol).toBe('ETH');
+    });
+
+    it('hides native multichain tokens on Tempo networks', () => {
+      const tempoCaipChainId = 'eip155:42431';
+      const tempoNativeAssetId = `${tempoCaipChainId}/slip44:60` as const;
+
+      const stateWithTempoMultichain: AssetListState = {
+        ...mockedMergedState,
+        accountsAssets: {
+          ...mockMultichainAssetsControllerState.accountsAssets,
+          '2d89e6a0-b4e6-45a8-a707-f10cef143b42': [
+            ...mockMultichainAssetsControllerState.accountsAssets[
+              '2d89e6a0-b4e6-45a8-a707-f10cef143b42'
+            ],
+            tempoNativeAssetId,
+          ],
+        },
+        assetsMetadata: {
+          ...mockMultichainAssetsControllerState.assetsMetadata,
+          [tempoNativeAssetId]: {
+            fungible: true,
+            iconUrl: '',
+            name: 'Ethereum',
+            symbol: 'ETH',
+            units: [
+              {
+                decimals: 18,
+                name: 'Ethereum',
+                symbol: 'ETH',
+              },
+            ],
+          },
+        },
+        balances: {
+          ...mockMultichainBalancesControllerState.balances,
+          '2d89e6a0-b4e6-45a8-a707-f10cef143b42': {
+            ...mockMultichainBalancesControllerState.balances[
+              '2d89e6a0-b4e6-45a8-a707-f10cef143b42'
+            ],
+            [tempoNativeAssetId]: {
+              amount: '1',
+              unit: 'ETH',
+            },
+          },
+        },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(
+        stateWithTempoMultichain,
+      );
+
+      // Native token should be hidden on Tempo testnet
+      const nativeToken = result[tempoCaipChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeUndefined();
     });
   });
 });

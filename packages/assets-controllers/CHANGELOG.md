@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Hide native tokens on Tempo networks (testnet and mainnet) in asset selectors ([#7882](https://github.com/MetaMask/core/pull/7882))
 - Blockaid token filtering in `MultichainAssetsController` now only removes tokens flagged as `Malicious` ([#8003](https://github.com/MetaMask/core/pull/8003))
   - `Spam`, `Warning`, and `Benign` tokens are no longer filtered out
 
