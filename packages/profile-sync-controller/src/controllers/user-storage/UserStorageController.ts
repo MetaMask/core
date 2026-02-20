@@ -503,7 +503,7 @@ export class UserStorageController extends BaseController<
    *
    * @returns A promise that resolves to an array of HD keyring metadata IDs.
    */
-  async listEntropySources() {
+  async listEntropySources(): Promise<string[]> {
     if (!this.#isUnlocked) {
       throw new Error(
         'listEntropySources - unable to list entropy sources, wallet is locked',
