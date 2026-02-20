@@ -1,4 +1,7 @@
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
@@ -232,6 +235,35 @@ export function getTokenFiatRate(
 }
 
 /**
+ * Calculate the human-readable, raw, USD, and fiat representations of a token amount.
+ *
+ * @param rawInput - Raw token amount (decimal string, hex, or BigNumber).
+ * @param decimals - Number of decimals for the token.
+ * @param fiatRates - Fiat rates for the token.
+ * @returns Object containing the amount in raw, human-readable, USD, and fiat formats.
+ */
+export function computeTokenAmounts(
+  rawInput: BigNumber.Value,
+  decimals: number,
+  fiatRates: FiatRates,
+): {
+  raw: string;
+  human: string;
+  usd: string;
+  fiat: string;
+} {
+  const rawValue = new BigNumber(rawInput);
+  const humanValue = rawValue.shiftedBy(-decimals);
+
+  return {
+    raw: rawValue.toFixed(0),
+    human: humanValue.toString(10),
+    usd: humanValue.multipliedBy(fiatRates.usdRate).toString(10),
+    fiat: humanValue.multipliedBy(fiatRates.fiatRate).toString(10),
+  };
+}
+
+/**
  * Get the native token address for a given chain ID.
  *
  * @param chainId - Chain ID.
@@ -247,12 +279,48 @@ export function getNativeToken(chainId: Hex): Hex {
 }
 
 /**
- * Get the ticker for a given chain ID.
+ * Get the live on-chain token balance via an RPC `eth_call` to the ERC-20
+ * `balanceOf` function, or `eth_getBalance` for native tokens.
  *
+ * Unlike {@link getTokenBalance}, this bypasses the cached state in
+ * `TokenBalancesController` and reads directly from the chain.
+ *
+ * @param messenger - Controller messenger.
+ * @param account - Address of the account.
  * @param chainId - Chain ID.
- * @param messenger - Messenger instance.
- * @returns Ticker symbol for the given chain ID or undefined if not found.
+ * @param tokenAddress - Address of the token contract.
+ * @returns Raw token balance as a decimal string.
  */
+export async function getLiveTokenBalance(
+  messenger: TransactionPayControllerMessenger,
+  account: Hex,
+  chainId: Hex,
+  tokenAddress: Hex,
+): Promise<string> {
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    chainId,
+  );
+
+  const { provider } = messenger.call(
+    'NetworkController:getNetworkClientById',
+    networkClientId,
+  );
+
+  const ethersProvider = new Web3Provider(provider);
+  const isNative =
+    tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
+
+  if (isNative) {
+    const balance = await ethersProvider.getBalance(account);
+    return balance.toString();
+  }
+
+  const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
+  const balance = await contract.balanceOf(account);
+  return balance.toString();
+}
+
 function getTicker(
   chainId: Hex,
   messenger: TransactionPayControllerMessenger,

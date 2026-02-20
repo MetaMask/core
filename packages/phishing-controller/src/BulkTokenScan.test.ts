@@ -6,7 +6,6 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
-import sinon from 'sinon';
 
 import {
   PhishingController,
@@ -118,7 +117,6 @@ describe('PhishingController - Bulk Token Scanning', () => {
   });
 
   afterEach(() => {
-    sinon.restore();
     cleanAll();
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();

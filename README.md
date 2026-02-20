@@ -37,6 +37,8 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/claims-controller`](packages/claims-controller)
+- [`@metamask/client-controller`](packages/client-controller)
+- [`@metamask/compliance-controller`](packages/compliance-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
@@ -115,6 +117,8 @@ linkStyle default opacity:0.5
   build_utils(["@metamask/build-utils"]);
   chain_agnostic_permission(["@metamask/chain-agnostic-permission"]);
   claims_controller(["@metamask/claims-controller"]);
+  client_controller(["@metamask/client-controller"]);
+  compliance_controller(["@metamask/compliance-controller"]);
   composable_controller(["@metamask/composable-controller"]);
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
@@ -181,31 +185,48 @@ linkStyle default opacity:0.5
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   address_book_controller --> messenger;
+  ai_controllers --> base_controller;
+  ai_controllers --> messenger;
   analytics_controller --> base_controller;
   analytics_controller --> messenger;
+  analytics_data_regulation_controller --> base_controller;
+  analytics_data_regulation_controller --> controller_utils;
+  analytics_data_regulation_controller --> messenger;
   announcement_controller --> base_controller;
   announcement_controller --> messenger;
   app_metadata_controller --> base_controller;
   app_metadata_controller --> messenger;
   approval_controller --> base_controller;
   approval_controller --> messenger;
+  assets_controller --> account_tree_controller;
+  assets_controller --> assets_controllers;
   assets_controller --> base_controller;
+  assets_controller --> controller_utils;
+  assets_controller --> core_backend;
+  assets_controller --> keyring_controller;
   assets_controller --> messenger;
+  assets_controller --> network_controller;
+  assets_controller --> network_enablement_controller;
+  assets_controller --> permission_controller;
+  assets_controller --> polling_controller;
+  assets_controller --> preferences_controller;
+  assets_controller --> transaction_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
-  assets_controllers --> core_backend;
   assets_controllers --> keyring_controller;
   assets_controllers --> messenger;
   assets_controllers --> multichain_account_service;
   assets_controllers --> network_controller;
+  assets_controllers --> network_enablement_controller;
   assets_controllers --> permission_controller;
   assets_controllers --> phishing_controller;
   assets_controllers --> polling_controller;
   assets_controllers --> preferences_controller;
   assets_controllers --> profile_sync_controller;
+  assets_controllers --> storage_service;
   assets_controllers --> transaction_controller;
   base_controller --> messenger;
   base_controller --> json_rpc_engine;
@@ -236,6 +257,11 @@ linkStyle default opacity:0.5
   claims_controller --> messenger;
   claims_controller --> keyring_controller;
   claims_controller --> profile_sync_controller;
+  client_controller --> base_controller;
+  client_controller --> messenger;
+  compliance_controller --> base_controller;
+  compliance_controller --> controller_utils;
+  compliance_controller --> messenger;
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
@@ -412,8 +438,6 @@ linkStyle default opacity:0.5
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
   subscription_controller --> transaction_controller;
-  token_search_discovery_controller --> base_controller;
-  token_search_discovery_controller --> messenger;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;

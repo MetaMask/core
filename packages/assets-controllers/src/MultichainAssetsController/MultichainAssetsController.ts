@@ -715,14 +715,14 @@ export class MultichainAssetsController extends BaseController<
   }
 
   /**
-   * Filters out tokens flagged as non-benign by Blockaid via the
+   * Filters out tokens flagged as malicious by Blockaid via the
    * `PhishingController:bulkScanTokens` messenger action. Only tokens with
    * an `assetNamespace` of "token" are scanned (native assets like slip44 are
    * passed through unfiltered). If the scan fails, all tokens are kept
    * (fail open).
    *
    * @param assets - The CAIP asset type list to filter.
-   * @returns The filtered list with malicious/spam/warning tokens removed.
+   * @returns The filtered list with malicious tokens removed.
    */
   async #filterBlockaidSpamTokens(
     assets: CaipAssetType[],
@@ -791,11 +791,7 @@ export class MultichainAssetsController extends BaseController<
 
       for (const entry of tokenEntries) {
         const result = scanResponse[entry.address];
-        // Reject the token only if we have a definitive non-benign result
-        if (
-          result?.result_type &&
-          result.result_type !== TokenScanResultType.Benign
-        ) {
+        if (result?.result_type === TokenScanResultType.Malicious) {
           rejectedAssets.add(entry.asset);
         }
       }

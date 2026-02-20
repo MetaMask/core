@@ -18,9 +18,10 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
+  BuyWidget,
   RampsToken,
   RampsServiceActions,
-  BuyWidget,
+  RampsOrder,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -30,6 +31,8 @@ import type {
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -48,6 +51,49 @@ import {
   createErrorState,
   RequestStatus,
 } from './RequestCache';
+import type {
+  TransakAccessToken,
+  TransakUserDetails,
+  TransakBuyQuote,
+  TransakKycRequirement,
+  TransakAdditionalRequirementsResponse,
+  TransakDepositOrder,
+  TransakUserLimits,
+  TransakOttResponse,
+  TransakQuoteTranslation,
+  TransakTranslationRequest,
+  TransakIdProofStatus,
+  TransakOrderPaymentMethod,
+  PatchUserRequestBody,
+  TransakOrder,
+} from './TransakService';
+import type { TransakServiceActions } from './TransakService';
+import type {
+  TransakServiceSetApiKeyAction,
+  TransakServiceSetAccessTokenAction,
+  TransakServiceClearAccessTokenAction,
+  TransakServiceSendUserOtpAction,
+  TransakServiceVerifyUserOtpAction,
+  TransakServiceLogoutAction,
+  TransakServiceGetUserDetailsAction,
+  TransakServiceGetBuyQuoteAction,
+  TransakServiceGetKycRequirementAction,
+  TransakServiceGetAdditionalRequirementsAction,
+  TransakServiceCreateOrderAction,
+  TransakServiceGetOrderAction,
+  TransakServiceGetUserLimitsAction,
+  TransakServiceRequestOttAction,
+  TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceSubmitPurposeOfUsageFormAction,
+  TransakServicePatchUserAction,
+  TransakServiceSubmitSsnDetailsAction,
+  TransakServiceConfirmPaymentAction,
+  TransakServiceGetTranslationAction,
+  TransakServiceGetIdProofStatusAction,
+  TransakServiceCancelOrderAction,
+  TransakServiceCancelAllActiveOrdersAction,
+  TransakServiceGetActiveOrdersAction,
+} from './TransakService-method-action-types';
 
 // === GENERAL ===
 
@@ -63,16 +109,44 @@ export const controllerName = 'RampsController';
  * Any host (e.g. mobile) that creates a RampsController messenger must delegate
  * these actions from the root messenger so the controller can function.
  */
-export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly RampsServiceActions['type'][] =
-  [
-    'RampsService:getGeolocation',
-    'RampsService:getCountries',
-    'RampsService:getTokens',
-    'RampsService:getProviders',
-    'RampsService:getPaymentMethods',
-    'RampsService:getQuotes',
-    'RampsService:getBuyWidgetUrl',
-  ];
+export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
+  | RampsServiceActions['type']
+  | TransakServiceActions['type']
+)[] = [
+  'RampsService:getGeolocation',
+  'RampsService:getCountries',
+  'RampsService:getTokens',
+  'RampsService:getProviders',
+  'RampsService:getPaymentMethods',
+  'RampsService:getQuotes',
+  'RampsService:getBuyWidgetUrl',
+  'RampsService:getOrder',
+  'RampsService:getOrderFromCallback',
+  'TransakService:setApiKey',
+  'TransakService:setAccessToken',
+  'TransakService:clearAccessToken',
+  'TransakService:sendUserOtp',
+  'TransakService:verifyUserOtp',
+  'TransakService:logout',
+  'TransakService:getUserDetails',
+  'TransakService:getBuyQuote',
+  'TransakService:getKycRequirement',
+  'TransakService:getAdditionalRequirements',
+  'TransakService:createOrder',
+  'TransakService:getOrder',
+  'TransakService:getUserLimits',
+  'TransakService:requestOtt',
+  'TransakService:generatePaymentWidgetUrl',
+  'TransakService:submitPurposeOfUsageForm',
+  'TransakService:patchUser',
+  'TransakService:submitSsnDetails',
+  'TransakService:confirmPayment',
+  'TransakService:getTranslation',
+  'TransakService:getIdProofStatus',
+  'TransakService:cancelOrder',
+  'TransakService:cancelAllActiveOrders',
+  'TransakService:getActiveOrders',
+];
 
 /**
  * Default TTL for quotes requests (15 seconds).
@@ -126,6 +200,25 @@ export type ResourceState<TData, TSelected = null> = {
 };
 
 /**
+ * Describes the transak-specific state managed by the RampsController.
+ * This state is used by the unified V2 native flow.
+ */
+export type TransakState = {
+  isAuthenticated: boolean;
+  userDetails: ResourceState<TransakUserDetails | null>;
+  buyQuote: ResourceState<TransakBuyQuote | null>;
+  kycRequirement: ResourceState<TransakKycRequirement | null>;
+};
+
+/**
+ * Describes the state for all native providers managed by the RampsController.
+ * Each native provider has its own nested state object.
+ */
+export type NativeProvidersState = {
+  transak: TransakState;
+};
+
+/**
  * Describes the shape of the state object for {@link RampsController}.
  */
 export type RampsControllerState = {
@@ -171,6 +264,12 @@ export type RampsControllerState = {
    * This stores loading, success, and error states for API requests.
    */
   requests: RequestCacheType;
+  /**
+   * State for native providers in the unified V2 flow.
+   * Each provider has its own nested state containing authentication,
+   * user details, quote, and KYC data.
+   */
+  nativeProviders: NativeProvidersState;
 };
 
 /**
@@ -220,6 +319,12 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   requests: {
+    persist: false,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: false,
+    usedInUi: true,
+  },
+  nativeProviders: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: false,
@@ -278,6 +383,17 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     ),
     widgetUrl: createDefaultResourceState<BuyWidget | null>(null),
     requests: {},
+    nativeProviders: {
+      transak: {
+        isAuthenticated: false,
+        userDetails: createDefaultResourceState<TransakUserDetails | null>(
+          null,
+        ),
+        buyQuote: createDefaultResourceState<TransakBuyQuote | null>(null),
+        kycRequirement:
+          createDefaultResourceState<TransakKycRequirement | null>(null),
+      },
+    },
   };
 }
 
@@ -366,7 +482,33 @@ type AllowedActions =
   | RampsServiceGetProvidersAction
   | RampsServiceGetPaymentMethodsAction
   | RampsServiceGetQuotesAction
-  | RampsServiceGetBuyWidgetUrlAction;
+  | RampsServiceGetBuyWidgetUrlAction
+  | RampsServiceGetOrderAction
+  | RampsServiceGetOrderFromCallbackAction
+  | TransakServiceSetApiKeyAction
+  | TransakServiceSetAccessTokenAction
+  | TransakServiceClearAccessTokenAction
+  | TransakServiceSendUserOtpAction
+  | TransakServiceVerifyUserOtpAction
+  | TransakServiceLogoutAction
+  | TransakServiceGetUserDetailsAction
+  | TransakServiceGetBuyQuoteAction
+  | TransakServiceGetKycRequirementAction
+  | TransakServiceGetAdditionalRequirementsAction
+  | TransakServiceCreateOrderAction
+  | TransakServiceGetOrderAction
+  | TransakServiceGetUserLimitsAction
+  | TransakServiceRequestOttAction
+  | TransakServiceGeneratePaymentWidgetUrlAction
+  | TransakServiceSubmitPurposeOfUsageFormAction
+  | TransakServicePatchUserAction
+  | TransakServiceSubmitSsnDetailsAction
+  | TransakServiceConfirmPaymentAction
+  | TransakServiceGetTranslationAction
+  | TransakServiceGetIdProofStatusAction
+  | TransakServiceCancelOrderAction
+  | TransakServiceCancelAllActiveOrdersAction
+  | TransakServiceGetActiveOrdersAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -1530,11 +1672,14 @@ export class RampsController extends BaseController<
    * If the response contains exactly one quote, it is auto-selected.
    * If multiple quotes are returned, the existing selection is preserved if still valid.
    *
+   * Returns early (no-op) if the selected payment method is not yet set,
+   * allowing callers to invoke this before payment-method selection is finalized.
+   *
    * @param options - Parameters for fetching quotes.
    * @param options.walletAddress - The destination wallet address.
    * @param options.amount - The amount (in fiat for buy, crypto for sell).
    * @param options.redirectUrl - Optional redirect URL after order completion.
-   * @throws If required dependencies (region, token, provider, payment method) are not set.
+   * @throws If required dependencies (region, token, provider) are not set.
    */
   startQuotePolling(options: {
     walletAddress: string;
@@ -1722,9 +1867,586 @@ export class RampsController extends BaseController<
         buyUrl,
       );
       return buyWidget.url ?? null;
-    } catch (error) {
-      console.error('Error fetching widget URL:', error);
+    } catch {
       return null;
+    }
+  }
+
+  /**
+   * Fetches an order from the unified V2 API endpoint.
+   * Returns a normalized RampsOrder for all provider types (aggregator and native).
+   *
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param orderCode - The order identifier.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrder(
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    return await this.messenger.call(
+      'RampsService:getOrder',
+      providerCode,
+      orderCode,
+      wallet,
+    );
+  }
+
+  /**
+   * Extracts an order from a provider callback URL.
+   * Sends the callback URL to the V2 backend for provider-specific parsing,
+   * then fetches the full order. This is the V2 equivalent of the aggregator
+   * SDK's `getOrderFromCallback`.
+   *
+   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param callbackUrl - The full callback URL the provider redirected to.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrderFromCallback(
+    providerCode: string,
+    callbackUrl: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    return await this.messenger.call(
+      'RampsService:getOrderFromCallback',
+      providerCode,
+      callbackUrl,
+      wallet,
+    );
+  }
+
+  // === TRANSAK METHODS ===
+  //
+  // Auth state is managed at two levels:
+  // - TransakService stores the access token (needed for API calls)
+  // - RampsController stores isAuthenticated (needed for UI state)
+  // Both are kept in sync by the controller methods below.
+
+  /**
+   * Checks whether an error is a 401 HTTP error (expired/missing token) and,
+   * if so, marks the Transak session as unauthenticated so the UI stays in
+   * sync with the cleared token inside TransakService.
+   *
+   * @param error - The caught error to inspect.
+   */
+  #syncTransakAuthOnError(error: unknown): void {
+    if (
+      error instanceof Error &&
+      'httpStatus' in error &&
+      (error as Error & { httpStatus: number }).httpStatus === 401
+    ) {
+      this.transakSetAuthenticated(false);
+    }
+  }
+
+  /**
+   * Sets the Transak API key used for all Transak API requests.
+   *
+   * @param apiKey - The Transak API key.
+   */
+  transakSetApiKey(apiKey: string): void {
+    this.messenger.call('TransakService:setApiKey', apiKey);
+  }
+
+  /**
+   * Sets the Transak access token and marks the user as authenticated.
+   *
+   * @param token - The access token received from Transak auth.
+   */
+  transakSetAccessToken(token: TransakAccessToken): void {
+    this.messenger.call('TransakService:setAccessToken', token);
+    this.transakSetAuthenticated(true);
+  }
+
+  /**
+   * Clears the Transak access token and marks the user as unauthenticated.
+   */
+  transakClearAccessToken(): void {
+    this.messenger.call('TransakService:clearAccessToken');
+    this.transakSetAuthenticated(false);
+  }
+
+  /**
+   * Updates the Transak authentication flag in controller state.
+   *
+   * @param isAuthenticated - Whether the user is authenticated with Transak.
+   */
+  transakSetAuthenticated(isAuthenticated: boolean): void {
+    this.update((state) => {
+      state.nativeProviders.transak.isAuthenticated = isAuthenticated;
+    });
+  }
+
+  /**
+   * Resets all Transak state back to defaults (unauthenticated, no data).
+   */
+  transakResetState(): void {
+    this.messenger.call('TransakService:clearAccessToken');
+    this.update((state) => {
+      state.nativeProviders.transak =
+        getDefaultRampsControllerState().nativeProviders.transak;
+    });
+  }
+
+  /**
+   * Sends a one-time password to the user's email for Transak authentication.
+   *
+   * @param email - The user's email address.
+   * @returns The OTP response containing a state token for verification.
+   */
+  async transakSendUserOtp(email: string): Promise<{
+    isTncAccepted: boolean;
+    stateToken: string;
+    email: string;
+    expiresIn: number;
+  }> {
+    return this.messenger.call('TransakService:sendUserOtp', email);
+  }
+
+  /**
+   * Verifies a one-time password and authenticates the user with Transak.
+   * Updates the controller's authentication state on success.
+   *
+   * @param email - The user's email address.
+   * @param verificationCode - The OTP code entered by the user.
+   * @param stateToken - The state token from the sendUserOtp response.
+   * @returns The access token for subsequent authenticated requests.
+   */
+  async transakVerifyUserOtp(
+    email: string,
+    verificationCode: string,
+    stateToken: string,
+  ): Promise<TransakAccessToken> {
+    const token = await this.messenger.call(
+      'TransakService:verifyUserOtp',
+      email,
+      verificationCode,
+      stateToken,
+    );
+    this.transakSetAuthenticated(true);
+    return token;
+  }
+
+  /**
+   * Logs the user out of Transak. Clears authentication state and user details
+   * regardless of whether the API call succeeds or fails.
+   *
+   * @returns A message indicating the logout result.
+   */
+  async transakLogout(): Promise<string> {
+    try {
+      const result = await this.messenger.call('TransakService:logout');
+      return result;
+    } finally {
+      this.transakClearAccessToken();
+      this.update((state) => {
+        state.nativeProviders.transak.userDetails.data = null;
+      });
+    }
+  }
+
+  /**
+   * Fetches the authenticated user's details from Transak.
+   * Updates the userDetails resource state with loading/success/error states.
+   *
+   * @returns The user's profile and KYC details.
+   */
+  async transakGetUserDetails(): Promise<TransakUserDetails> {
+    this.update((state) => {
+      state.nativeProviders.transak.userDetails.isLoading = true;
+      state.nativeProviders.transak.userDetails.error = null;
+    });
+    try {
+      const details = await this.messenger.call(
+        'TransakService:getUserDetails',
+      );
+      this.update((state) => {
+        state.nativeProviders.transak.userDetails.data = details;
+        state.nativeProviders.transak.userDetails.isLoading = false;
+      });
+      return details;
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      this.update((state) => {
+        state.nativeProviders.transak.userDetails.isLoading = false;
+        state.nativeProviders.transak.userDetails.error = errorMessage;
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches a buy quote from Transak for the given parameters.
+   * Updates the buyQuote resource state with loading/success/error states.
+   *
+   * @param fiatCurrency - The fiat currency code (e.g., "USD").
+   * @param cryptoCurrency - The cryptocurrency identifier.
+   * @param network - The blockchain network identifier.
+   * @param paymentMethod - The payment method identifier.
+   * @param fiatAmount - The fiat amount as a string.
+   * @returns The buy quote with pricing and fee details.
+   */
+  async transakGetBuyQuote(
+    fiatCurrency: string,
+    cryptoCurrency: string,
+    network: string,
+    paymentMethod: string,
+    fiatAmount: string,
+  ): Promise<TransakBuyQuote> {
+    this.update((state) => {
+      state.nativeProviders.transak.buyQuote.isLoading = true;
+      state.nativeProviders.transak.buyQuote.error = null;
+    });
+    try {
+      const quote = await this.messenger.call(
+        'TransakService:getBuyQuote',
+        fiatCurrency,
+        cryptoCurrency,
+        network,
+        paymentMethod,
+        fiatAmount,
+      );
+      this.update((state) => {
+        state.nativeProviders.transak.buyQuote.data = quote;
+        state.nativeProviders.transak.buyQuote.isLoading = false;
+      });
+      return quote;
+    } catch (error) {
+      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      this.update((state) => {
+        state.nativeProviders.transak.buyQuote.isLoading = false;
+        state.nativeProviders.transak.buyQuote.error = errorMessage;
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches the KYC requirement for a given quote.
+   * Updates the kycRequirement resource state with loading/success/error states.
+   *
+   * @param quoteId - The quote ID to check KYC requirements for.
+   * @returns The KYC requirement status and whether the user can place an order.
+   */
+  async transakGetKycRequirement(
+    quoteId: string,
+  ): Promise<TransakKycRequirement> {
+    this.update((state) => {
+      state.nativeProviders.transak.kycRequirement.isLoading = true;
+      state.nativeProviders.transak.kycRequirement.error = null;
+    });
+    try {
+      const requirement = await this.messenger.call(
+        'TransakService:getKycRequirement',
+        quoteId,
+      );
+      this.update((state) => {
+        state.nativeProviders.transak.kycRequirement.data = requirement;
+        state.nativeProviders.transak.kycRequirement.isLoading = false;
+      });
+      return requirement;
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      this.update((state) => {
+        state.nativeProviders.transak.kycRequirement.isLoading = false;
+        state.nativeProviders.transak.kycRequirement.error = errorMessage;
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches additional KYC requirements (e.g., ID proof, address proof) for a quote.
+   *
+   * @param quoteId - The quote ID to check additional requirements for.
+   * @returns The list of additional forms required.
+   */
+  async transakGetAdditionalRequirements(
+    quoteId: string,
+  ): Promise<TransakAdditionalRequirementsResponse> {
+    try {
+      return await this.messenger.call(
+        'TransakService:getAdditionalRequirements',
+        quoteId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Creates a new order on Transak. If an existing order conflicts (HTTP 409),
+   * active orders are cancelled and the creation is retried.
+   *
+   * @param quoteId - The quote ID to create an order from.
+   * @param walletAddress - The destination wallet address.
+   * @param paymentMethodId - The payment method to use.
+   * @returns The created deposit order.
+   */
+  async transakCreateOrder(
+    quoteId: string,
+    walletAddress: string,
+    paymentMethodId: string,
+  ): Promise<TransakDepositOrder> {
+    try {
+      return await this.messenger.call(
+        'TransakService:createOrder',
+        quoteId,
+        walletAddress,
+        paymentMethodId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches an existing order from Transak by order ID.
+   *
+   * @param orderId - The order ID (deposit format or raw Transak format).
+   * @param wallet - The wallet address associated with the order.
+   * @param paymentDetails - Optional payment details to attach to the order.
+   * @returns The deposit order details.
+   */
+  async transakGetOrder(
+    orderId: string,
+    wallet: string,
+    paymentDetails?: TransakOrderPaymentMethod[],
+  ): Promise<TransakDepositOrder> {
+    return this.messenger.call(
+      'TransakService:getOrder',
+      orderId,
+      wallet,
+      paymentDetails,
+    );
+  }
+
+  /**
+   * Fetches the user's spending limits for a given currency and payment method.
+   *
+   * @param fiatCurrency - The fiat currency code.
+   * @param paymentMethod - The payment method identifier.
+   * @param kycType - The KYC level type.
+   * @returns The user's limits, spending, and remaining amounts.
+   */
+  async transakGetUserLimits(
+    fiatCurrency: string,
+    paymentMethod: string,
+    kycType: string,
+  ): Promise<TransakUserLimits> {
+    try {
+      return await this.messenger.call(
+        'TransakService:getUserLimits',
+        fiatCurrency,
+        paymentMethod,
+        kycType,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Requests a one-time token (OTT) for the Transak payment widget.
+   *
+   * @returns The OTT response containing the token.
+   */
+  async transakRequestOtt(): Promise<TransakOttResponse> {
+    try {
+      return await this.messenger.call('TransakService:requestOtt');
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generates a URL for the Transak payment widget with pre-filled parameters.
+   *
+   * @param ottToken - The one-time token for widget authentication.
+   * @param quote - The buy quote to pre-fill in the widget.
+   * @param walletAddress - The destination wallet address.
+   * @param extraParams - Optional additional URL parameters.
+   * @returns The fully constructed widget URL string.
+   */
+  transakGeneratePaymentWidgetUrl(
+    ottToken: string,
+    quote: TransakBuyQuote,
+    walletAddress: string,
+    extraParams?: Record<string, string>,
+  ): string {
+    return this.messenger.call(
+      'TransakService:generatePaymentWidgetUrl',
+      ottToken,
+      quote,
+      walletAddress,
+      extraParams,
+    );
+  }
+
+  /**
+   * Submits the user's purpose of usage form for KYC compliance.
+   *
+   * @param purpose - Array of purpose strings selected by the user.
+   * @returns A promise that resolves when the form is submitted.
+   */
+  async transakSubmitPurposeOfUsageForm(purpose: string[]): Promise<void> {
+    try {
+      return await this.messenger.call(
+        'TransakService:submitPurposeOfUsageForm',
+        purpose,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates the user's personal or address details on Transak.
+   *
+   * @param data - The user data fields to update.
+   * @returns The API response data.
+   */
+  async transakPatchUser(data: PatchUserRequestBody): Promise<unknown> {
+    try {
+      return await this.messenger.call('TransakService:patchUser', data);
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submits the user's SSN for identity verification.
+   *
+   * @param ssn - The Social Security Number.
+   * @param quoteId - The quote ID associated with the order requiring SSN.
+   * @returns The API response data.
+   */
+  async transakSubmitSsnDetails(
+    ssn: string,
+    quoteId: string,
+  ): Promise<unknown> {
+    try {
+      return await this.messenger.call(
+        'TransakService:submitSsnDetails',
+        ssn,
+        quoteId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Confirms payment for an order after the user has completed payment.
+   *
+   * @param orderId - The order ID to confirm payment for.
+   * @param paymentMethodId - The payment method used.
+   * @returns Whether the payment confirmation was successful.
+   */
+  async transakConfirmPayment(
+    orderId: string,
+    paymentMethodId: string,
+  ): Promise<{ success: boolean }> {
+    try {
+      return await this.messenger.call(
+        'TransakService:confirmPayment',
+        orderId,
+        paymentMethodId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Translates generic ramps identifiers to Transak-specific identifiers.
+   *
+   * @param request - The translation request with optional identifiers to translate.
+   * @returns The translated Transak-specific identifiers.
+   */
+  async transakGetTranslation(
+    request: TransakTranslationRequest,
+  ): Promise<TransakQuoteTranslation> {
+    return this.messenger.call('TransakService:getTranslation', request);
+  }
+
+  /**
+   * Checks the status of an ID proof submission for KYC.
+   *
+   * @param workFlowRunId - The workflow run ID to check status for.
+   * @returns The current ID proof status.
+   */
+  async transakGetIdProofStatus(
+    workFlowRunId: string,
+  ): Promise<TransakIdProofStatus> {
+    try {
+      return await this.messenger.call(
+        'TransakService:getIdProofStatus',
+        workFlowRunId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancels a specific Transak order.
+   *
+   * @param depositOrderId - The deposit order ID to cancel.
+   * @returns A promise that resolves when the order is cancelled.
+   */
+  async transakCancelOrder(depositOrderId: string): Promise<void> {
+    try {
+      return await this.messenger.call(
+        'TransakService:cancelOrder',
+        depositOrderId,
+      );
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancels all active Transak orders. Individual cancellation failures
+   * are collected and returned rather than thrown.
+   *
+   * @returns An array of errors from any failed cancellations (empty if all succeeded).
+   */
+  async transakCancelAllActiveOrders(): Promise<Error[]> {
+    try {
+      return await this.messenger.call('TransakService:cancelAllActiveOrders');
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches all active Transak orders for the authenticated user.
+   *
+   * @returns The list of active orders.
+   */
+  async transakGetActiveOrders(): Promise<TransakOrder[]> {
+    try {
+      return await this.messenger.call('TransakService:getActiveOrders');
+    } catch (error) {
+      this.#syncTransakAuthOnError(error);
+      throw error;
     }
   }
 }

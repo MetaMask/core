@@ -1,11 +1,11 @@
-import type { Address, ChainId } from './core';
+import type { ChainId } from './core';
 
 /**
  * Single token entry from token list.
  */
 export type TokenListEntry = {
   /** Contract address */
-  address: Address;
+  address: string;
   /** Token symbol */
   symbol: string;
   /** Token name */
@@ -27,7 +27,7 @@ export type TokenChainsCacheEntry = {
   /** Timestamp when the cache was last updated */
   timestamp: number;
   /** Token list data: address -> TokenListEntry */
-  data: Record<Address, TokenListEntry>;
+  data: Record<string, TokenListEntry>;
 };
 
 /**

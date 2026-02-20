@@ -65,7 +65,7 @@ const STAKING_CONTRACT_ABI = [
   },
 ];
 
-const STAKING_INTERFACE = new Interface(STAKING_CONTRACT_ABI);
+export const STAKING_INTERFACE = new Interface(STAKING_CONTRACT_ABI);
 
 const STAKING_DECIMALS = 18;
 
