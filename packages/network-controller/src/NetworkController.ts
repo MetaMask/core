@@ -47,6 +47,7 @@ import type {
   ProxyWithAccessibleTarget,
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
+import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
 import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
@@ -526,7 +527,9 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
       chainId: Hex;
       error: unknown;
       networkClientId: NetworkClientId;
+      retryReason?: RetryReason;
       rpcMethodName: string;
+      type: DegradedEventType;
     },
   ];
 };
@@ -565,7 +568,9 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
+      retryReason?: RetryReason;
       rpcMethodName: string;
+      type: DegradedEventType;
     },
   ];
 };

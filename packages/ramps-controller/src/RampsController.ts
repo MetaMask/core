@@ -18,9 +18,10 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
+  BuyWidget,
   RampsToken,
   RampsServiceActions,
-  BuyWidget,
+  RampsOrder,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -30,6 +31,8 @@ import type {
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -117,6 +120,8 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'RampsService:getPaymentMethods',
   'RampsService:getQuotes',
   'RampsService:getBuyWidgetUrl',
+  'RampsService:getOrder',
+  'RampsService:getOrderFromCallback',
   'TransakService:setApiKey',
   'TransakService:setAccessToken',
   'TransakService:clearAccessToken',
@@ -478,6 +483,8 @@ type AllowedActions =
   | RampsServiceGetPaymentMethodsAction
   | RampsServiceGetQuotesAction
   | RampsServiceGetBuyWidgetUrlAction
+  | RampsServiceGetOrderAction
+  | RampsServiceGetOrderFromCallbackAction
   | TransakServiceSetApiKeyAction
   | TransakServiceSetAccessTokenAction
   | TransakServiceClearAccessTokenAction
@@ -1781,6 +1788,52 @@ export class RampsController extends BaseController<
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Fetches an order from the unified V2 API endpoint.
+   * Returns a normalized RampsOrder for all provider types (aggregator and native).
+   *
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param orderCode - The order identifier.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrder(
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    return await this.messenger.call(
+      'RampsService:getOrder',
+      providerCode,
+      orderCode,
+      wallet,
+    );
+  }
+
+  /**
+   * Extracts an order from a provider callback URL.
+   * Sends the callback URL to the V2 backend for provider-specific parsing,
+   * then fetches the full order. This is the V2 equivalent of the aggregator
+   * SDK's `getOrderFromCallback`.
+   *
+   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param callbackUrl - The full callback URL the provider redirected to.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrderFromCallback(
+    providerCode: string,
+    callbackUrl: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    return await this.messenger.call(
+      'RampsService:getOrderFromCallback',
+      providerCode,
+      callbackUrl,
+      wallet,
+    );
   }
 
   // === TRANSAK METHODS ===
