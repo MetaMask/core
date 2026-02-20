@@ -19,7 +19,11 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(chainId: Hex): string {
-  const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
+  const occurrenceFloor =
+    chainId === ChainId['linea-mainnet'] ||
+    chainId === ChainId['megaeth-mainnet']
+      ? 1
+      : 3;
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,

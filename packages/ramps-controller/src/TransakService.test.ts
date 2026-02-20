@@ -789,6 +789,7 @@ describe('TransakService', () => {
       nock(STAGING_TRANSAK_BASE)
         .patch('/api/v2/kyc/user')
         .query(true)
+        .times(4)
         .reply(500);
 
       const { service } = getService();
@@ -797,6 +798,7 @@ describe('TransakService', () => {
       const promise = service.patchUser({
         personalDetails: { firstName: 'Fail' },
       });
+      promise.catch(() => undefined);
       await jest.runAllTimersAsync();
       await flushPromises();
 
@@ -1513,11 +1515,13 @@ describe('TransakService', () => {
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/orders/order-abc-123`)
         .query(true)
+        .times(4)
         .reply(503);
 
       const { service } = getService();
 
       const promise = service.getOrder(depositOrderId, '0x1234');
+      promise.catch(() => undefined);
       await jest.runAllTimersAsync();
       await flushPromises();
 
