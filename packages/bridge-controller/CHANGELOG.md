@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.18.0` ([#8005](https://github.com/MetaMask/core/pull/8005))
 - Bump `@metamask/assets-controllers` from `^100.0.1` to `^100.0.2` ([#8004](https://github.com/MetaMask/core/pull/8004))
 - Replace `PERCENT_90` with `PERCENT_75` in `InputAmountPreset` enum ([#7997](https://github.com/MetaMask/core/pull/7997))
+- Add optional `typedData` validation to intent quotes for backend-provided EIP-712 signing payload compatibility.
 
 ## [67.1.1]
 
