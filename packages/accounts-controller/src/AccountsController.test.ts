@@ -2893,6 +2893,24 @@ describe('AccountsController', () => {
         EMPTY_ACCOUNT,
       );
     });
+
+    it('throws an error if the selected account ID does not exist in the accounts list', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockOlderEvmAccount.id]: mockOlderEvmAccount,
+              [mockNewerEvmAccount.id]: mockNewerEvmAccount,
+            },
+            selectedAccount: 'non-existent-account-id',
+          },
+        },
+      });
+
+      expect(() => accountsController.getSelectedAccount()).toThrow(
+        'Account Id "non-existent-account-id" not found',
+      );
+    });
   });
 
   describe('getSelectedMultichainAccount', () => {
@@ -2978,6 +2996,25 @@ describe('AccountsController', () => {
 
       expect(accountsController.getSelectedMultichainAccount()).toStrictEqual(
         EMPTY_ACCOUNT,
+      );
+    });
+
+    it('throws an error if the selected account ID does not exist in the accounts list', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockOlderEvmAccount.id]: mockOlderEvmAccount,
+              [mockNewerEvmAccount.id]: mockNewerEvmAccount,
+              [mockBtcAccount.id]: mockBtcAccount,
+            },
+            selectedAccount: 'non-existent-account-id',
+          },
+        },
+      });
+
+      expect(() => accountsController.getSelectedMultichainAccount()).toThrow(
+        'Account Id "non-existent-account-id" not found',
       );
     });
   });
@@ -3145,6 +3182,24 @@ describe('AccountsController', () => {
       expect(
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockAccount2.id);
+    });
+
+    it('throws an error if the account ID does not exist in the accounts list', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+            },
+            selectedAccount: 'non-existent-account-id',
+          },
+        },
+      });
+
+      expect(() =>
+        accountsController.setSelectedAccount('non-existent-account-id'),
+      ).toThrow('Account Id "non-existent-account-id" not found');
     });
 
     it('does not emit setSelectedEvmAccountChange if the account is non-EVM', () => {
