@@ -244,6 +244,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   async _executePoll(_input: null): Promise<void> {
     const isApiEnabled = this.#isConfigRegistryApiEnabled(this.messenger);
 
+    // Skip fetch when API is disabled; client uses static config.
     if (!isApiEnabled) {
       return;
     }
