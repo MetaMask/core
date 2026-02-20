@@ -229,8 +229,8 @@ type AllowedActions =
   | KeyringControllerGetStateAction
   // Auth Controller Requests
   | AuthenticationController.AuthenticationControllerGetBearerTokenAction
-  | AuthenticationController.AuthenticationControllerIsSignedIn
-  | AuthenticationController.AuthenticationControllerPerformSignIn
+  | AuthenticationController.AuthenticationControllerIsSignedInAction
+  | AuthenticationController.AuthenticationControllerPerformSignInAction
   // Push Notifications Controller Requests
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction

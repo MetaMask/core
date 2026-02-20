@@ -155,7 +155,7 @@ export type SubscriptionControllerActions =
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerTokenAction
-  | AuthenticationController.AuthenticationControllerPerformSignOut;
+  | AuthenticationController.AuthenticationControllerPerformSignOutAction;
 
 // Events
 export type SubscriptionControllerStateChangeEvent = ControllerStateChangeEvent<
