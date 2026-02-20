@@ -874,11 +874,9 @@ describe('MultichainAccountService', () => {
     });
 
     it('checks for Snap platform readiness with MultichainAccountService:ensureCanUseSnapPlatform', async () => {
-      const { rootMessenger, service, spies } = await setup({
+      const { rootMessenger, spies } = await setup({
         accounts: [],
       });
-
-      await service.ensureCanUseSnapPlatform();
 
       await rootMessenger.call(
         'MultichainAccountService:ensureCanUseSnapPlatform',
