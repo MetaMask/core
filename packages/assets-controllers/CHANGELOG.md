@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Blockaid token filtering in `MultichainAssetsController` now only removes tokens flagged as `Malicious`
+  - `Spam`, `Warning`, and `Benign` tokens are no longer filtered out
+
 ## [100.0.1]
 
 ### Changed
