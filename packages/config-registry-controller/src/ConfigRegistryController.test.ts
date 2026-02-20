@@ -768,10 +768,12 @@ describe('ConfigRegistryController', () => {
     });
 
     it('uses DEFAULT_POLLING_INTERVAL when getIntervalLength returns undefined', async () => {
+      const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 1000;
       await withController(
         {
           options: {
+            pollingInterval,
             state: {
               lastFetched: recentTimestamp,
             },
@@ -794,6 +796,7 @@ describe('ConfigRegistryController', () => {
             .mockReturnValue(undefined);
 
           controller.startPolling(null);
+          await jestAdvanceTime({ duration: pollingInterval });
 
           expect(mockApiServiceHandler).not.toHaveBeenCalled();
         },
@@ -931,7 +934,6 @@ describe('ConfigRegistryController', () => {
     it('delays first poll when lastFetched is recent', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
-      const remainingTime = pollingInterval - 2000;
       await withController(
         {
           options: {
@@ -945,7 +947,7 @@ describe('ConfigRegistryController', () => {
           controller.startPolling(null);
 
           await jestAdvanceTime({ duration: 0 });
-          await jestAdvanceTime({ duration: remainingTime + 1 });
+          await jestAdvanceTime({ duration: pollingInterval });
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
           controller.stopAllPolling();
@@ -1026,10 +1028,12 @@ describe('ConfigRegistryController', () => {
     });
 
     it('uses DEFAULT_POLLING_INTERVAL when getIntervalLength returns undefined', async () => {
+      const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 1000;
       await withController(
         {
           options: {
+            pollingInterval,
             state: {
               lastFetched: recentTimestamp,
             },
@@ -1041,6 +1045,7 @@ describe('ConfigRegistryController', () => {
             .mockReturnValue(undefined);
 
           controller.startPolling(null);
+          await jestAdvanceTime({ duration: pollingInterval });
 
           expect(mockApiServiceHandler).not.toHaveBeenCalled();
 
@@ -1764,7 +1769,6 @@ describe('ConfigRegistryController', () => {
     it('stops delayed poll using placeholder token after timeout fires', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
-      const remainingTime = pollingInterval - 2000;
       await withController(
         {
           options: {
@@ -1777,7 +1781,7 @@ describe('ConfigRegistryController', () => {
         async ({ controller, mockApiServiceHandler }) => {
           const token = controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: remainingTime + 1 });
+          await jestAdvanceTime({ duration: pollingInterval });
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
           mockApiServiceHandler.mockClear();
 

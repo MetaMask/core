@@ -248,7 +248,11 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       return;
     }
 
-    if (this.state.lastFetched && Date.now() < this.state.lastFetched) {
+    const interval = this.getIntervalLength() ?? DEFAULT_POLLING_INTERVAL;
+    if (
+      this.state.lastFetched !== null &&
+      Date.now() - this.state.lastFetched < interval
+    ) {
       return;
     }
 
