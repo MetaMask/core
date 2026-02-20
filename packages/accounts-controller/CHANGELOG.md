@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Mark `AccountsController`, all of its public methods, and all exported types as deprecated in favor of `AccountTreeController`, `MultichainAccountService`, and Keyring API v2 ([#8027](https://github.com/MetaMask/core/pull/8027))
 
+### Changed
+
+- Refactor the controller's messenger action registration ([#7976](https://github.com/MetaMask/core/pull/7976/))
+  - The controller's methods are now exposed to the messenger through `registerMethodActionHandlers` and `MESSENGER_EXPOSED_METHODS`.
+  - The action types are now generated using `generate-method-action-types`.
+  - Exposes the missing public methods in the messenger.
+
 ## [36.0.1]
 
 ### Changed
