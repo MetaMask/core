@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Improve `TransakService` error handling ([#8010](https://github.com/MetaMask/core/pull/8010))
 - **BREAKING:** Replace `startQuotePolling()`/`stopQuotePolling()` with `fetchQuotesForSelection()` — quotes are now fetched once per call instead of polling on a 15-second interval ([#7999](https://github.com/MetaMask/core/pull/7999))
 
 ### Removed
