@@ -797,6 +797,11 @@ export enum TransactionType {
   perpsDepositAndOrder = 'perpsDepositAndOrder',
 
   /**
+   * Deposit funds for a Relay quote when the parent transaction is a Perps deposit.
+   */
+  perpsRelayDeposit = 'perpsRelayDeposit',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
@@ -829,6 +834,11 @@ export enum TransactionType {
    * Withdraw funds from Predict.
    */
   predictWithdraw = 'predictWithdraw',
+
+  /**
+   * Deposit funds for a Relay quote when the parent transaction is a Predict deposit.
+   */
+  predictRelayDeposit = 'predictRelayDeposit',
 
   /**
    * Deposit funds for Relay quote.
