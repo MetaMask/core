@@ -1,10 +1,15 @@
 import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
-import { useFakeTimers } from 'sinon';
 
 import { ConfigRegistryApiService } from './config-registry-api-service';
 import type { RegistryConfigApiResponse } from './types';
+import { jestAdvanceTime } from '../../../../tests/helpers';
 import { createMockNetworkConfig } from '../test-helpers';
+
+const CONFIG_PATH = '/v1/config/networks';
+const UAT_ORIGIN = 'https://client-config.uat-api.cx.metamask.io';
+const DEV_ORIGIN = 'https://client-config.dev-api.cx.metamask.io';
+const PRD_ORIGIN = 'https://client-config.api.cx.metamask.io';
 
 const MOCK_API_RESPONSE: RegistryConfigApiResponse = {
   data: {
@@ -18,8 +23,8 @@ describe('ConfigRegistryApiService', () => {
   describe('fetchConfig', () => {
     describe('URL by env', () => {
       it('uses UAT URL when env is UAT', async () => {
-        const scope = nock('https://client-config.uat-api.cx.metamask.io')
-          .get('/v1/config/networks')
+        const scope = nock(UAT_ORIGIN)
+          .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
         const service = new ConfigRegistryApiService({ env: SDK.Env.UAT });
@@ -28,8 +33,8 @@ describe('ConfigRegistryApiService', () => {
       });
 
       it('uses DEV URL when env is DEV', async () => {
-        const scope = nock('https://client-config.dev-api.cx.metamask.io')
-          .get('/v1/config/networks')
+        const scope = nock(DEV_ORIGIN)
+          .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
         const service = new ConfigRegistryApiService({ env: SDK.Env.DEV });
@@ -38,8 +43,8 @@ describe('ConfigRegistryApiService', () => {
       });
 
       it('uses PRD URL when env is PRD', async () => {
-        const scope = nock('https://client-config.api.cx.metamask.io')
-          .get('/v1/config/networks')
+        const scope = nock(PRD_ORIGIN)
+          .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
         const service = new ConfigRegistryApiService({ env: SDK.Env.PRD });
@@ -48,8 +53,8 @@ describe('ConfigRegistryApiService', () => {
       });
 
       it('defaults to UAT environment', async () => {
-        const scope = nock('https://client-config.uat-api.cx.metamask.io')
-          .get('/v1/config/networks')
+        const scope = nock(UAT_ORIGIN)
+          .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
         const service = new ConfigRegistryApiService();
@@ -61,8 +66,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('fetches config from API successfully', async () => {
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(200, MOCK_API_RESPONSE, {
           ETag: '"test-etag-123"',
         });
@@ -79,8 +84,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('fetches config from API without ETag header', async () => {
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService();
@@ -93,8 +98,8 @@ describe('ConfigRegistryApiService', () => {
 
     it('handles 304 Not Modified response', async () => {
       const etag = '"test-etag-123"';
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .matchHeader('If-None-Match', etag)
         .reply(304);
 
@@ -108,16 +113,16 @@ describe('ConfigRegistryApiService', () => {
 
     it('returns cached data when 304 is received and service has prior successful response', async () => {
       const etag = '"test-etag-123"';
-      const firstScope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const firstScope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(200, MOCK_API_RESPONSE, { ETag: etag });
 
       const service = new ConfigRegistryApiService();
       await service.fetchConfig();
       expect(firstScope.isDone()).toBe(true);
 
-      const secondScope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const secondScope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .matchHeader('If-None-Match', etag)
         .reply(304);
 
@@ -129,9 +134,7 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('handles 304 Not Modified response without ETag header', async () => {
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
-        .reply(304);
+      const scope = nock(UAT_ORIGIN).get(CONFIG_PATH).reply(304);
 
       const service = new ConfigRegistryApiService();
       const result = await service.fetchConfig();
@@ -143,8 +146,8 @@ describe('ConfigRegistryApiService', () => {
 
     it('includes If-None-Match header when etag is provided', async () => {
       const etag = '"test-etag-123"';
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .matchHeader('If-None-Match', etag)
         .reply(200, MOCK_API_RESPONSE);
 
@@ -155,8 +158,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('does not include If-None-Match header when etag is undefined', async () => {
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .matchHeader('If-None-Match', (val) => val === undefined)
         .reply(200, MOCK_API_RESPONSE);
 
@@ -167,8 +170,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('handles fetchConfig called with undefined options', async () => {
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService();
@@ -179,8 +182,8 @@ describe('ConfigRegistryApiService', () => {
 
     it('throws error on invalid response structure', async () => {
       const invalidResponse = { invalid: 'data' };
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(200, invalidResponse);
 
       const service = new ConfigRegistryApiService();
@@ -192,9 +195,7 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('throws error when data is null', async () => {
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
-        .reply(200, 'null');
+      const scope = nock(UAT_ORIGIN).get(CONFIG_PATH).reply(200, 'null');
 
       const service = new ConfigRegistryApiService();
 
@@ -205,8 +206,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('throws error when data.data is null', async () => {
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(200, { data: null });
 
       const service = new ConfigRegistryApiService();
@@ -218,8 +219,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('throws error when data.data.networks is not an array', async () => {
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(200, { data: { networks: 'not-an-array' } });
 
       const service = new ConfigRegistryApiService();
@@ -231,8 +232,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('throws error on HTTP error status', async () => {
-      const scope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      const scope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(500, 'Internal Server Error');
 
       const service = new ConfigRegistryApiService({
@@ -262,14 +263,10 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('retries on failure', async () => {
-      nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
-        .replyWithError('Network error');
-      nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
-        .replyWithError('Network error');
-      const successScope = nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      nock(UAT_ORIGIN).get(CONFIG_PATH).replyWithError('Network error');
+      nock(UAT_ORIGIN).get(CONFIG_PATH).replyWithError('Network error');
+      const successScope = nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(200, MOCK_API_RESPONSE);
 
       const service = new ConfigRegistryApiService({
@@ -284,14 +281,12 @@ describe('ConfigRegistryApiService', () => {
   });
 
   describe('onBreak', () => {
-    let clock: sinon.SinonFakeTimers;
-
     beforeEach(() => {
-      clock = useFakeTimers({ now: Date.now() });
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('registers and calls onBreak handler', async () => {
@@ -299,9 +294,7 @@ describe('ConfigRegistryApiService', () => {
       const retries = 0;
 
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
-        nock('https://client-config.uat-api.cx.metamask.io')
-          .get('/v1/config/networks')
-          .replyWithError('Network error');
+        nock(UAT_ORIGIN).get(CONFIG_PATH).replyWithError('Network error');
       }
 
       const onBreakHandler = jest.fn();
@@ -319,14 +312,14 @@ describe('ConfigRegistryApiService', () => {
         await expect(service.fetchConfig()).rejects.toMatchObject(
           expect.objectContaining({ message: expect.any(String) }),
         );
-        await clock.tickAsync(100);
+        await jestAdvanceTime({ duration: 100 });
       }
 
       const finalPromise = service.fetchConfig();
       finalPromise.catch(() => {
         // Expected rejection
       });
-      await clock.tickAsync(100);
+      await jestAdvanceTime({ duration: 100 });
 
       await expect(finalPromise).rejects.toMatchObject(
         expect.objectContaining({ message: expect.any(String) }),
@@ -336,22 +329,20 @@ describe('ConfigRegistryApiService', () => {
   });
 
   describe('onDegraded', () => {
-    let clock: sinon.SinonFakeTimers;
-
     beforeEach(() => {
-      clock = useFakeTimers({ now: Date.now() });
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('calls onDegraded handler when service becomes degraded', async () => {
       const degradedThreshold = 2000; // 2 seconds
-      nock('https://client-config.uat-api.cx.metamask.io')
-        .get('/v1/config/networks')
+      nock(UAT_ORIGIN)
+        .get(CONFIG_PATH)
         .reply(200, () => {
-          clock.tick(degradedThreshold + 100);
+          jest.advanceTimersByTime(degradedThreshold + 100);
           return MOCK_API_RESPONSE;
         });
 

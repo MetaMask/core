@@ -2933,9 +2933,9 @@ __metadata:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/controller-utils": "npm:^11.18.0"
+    "@metamask/controller-utils": "npm:^11.19.0"
     "@metamask/messenger": "npm:^0.3.0"
-    "@metamask/polling-controller": "npm:^16.0.2"
+    "@metamask/polling-controller": "npm:^16.0.3"
     "@metamask/profile-sync-controller": "npm:^27.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^4.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
@@ -2946,9 +2946,8 @@ __metadata:
     jest: "npm:^29.7.0"
     nock: "npm:^13.3.1"
     reselect: "npm:^5.1.1"
-    sinon: "npm:^9.2.4"
     ts-jest: "npm:^29.2.5"
-    typedoc: "npm:^0.24.8"
+    typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
   languageName: unknown
@@ -2980,7 +2979,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.18.0, @metamask/controller-utils@npm:^11.19.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@npm:^11.19.0, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -4431,7 +4430,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/polling-controller@npm:^16.0.2, @metamask/polling-controller@npm:^16.0.3, @metamask/polling-controller@workspace:packages/polling-controller":
+"@metamask/polling-controller@npm:^16.0.3, @metamask/polling-controller@workspace:packages/polling-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/polling-controller@workspace:packages/polling-controller"
   dependencies:
@@ -5550,15 +5549,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sinonjs/commons@npm:^1.6.0, @sinonjs/commons@npm:^1.7.0, @sinonjs/commons@npm:^1.8.1":
-  version: 1.8.6
-  resolution: "@sinonjs/commons@npm:1.8.6"
-  dependencies:
-    type-detect: "npm:4.0.8"
-  checksum: 10/51987338fd8b4d1e135822ad593dd23a3288764aa41d83c695124d512bc38b87eece859078008651ecc7f1df89a7e558a515dc6f02d21a93be4ba50b39a28914
-  languageName: node
-  linkType: hard
-
 "@sinonjs/commons@npm:^3.0.0":
   version: 3.0.1
   resolution: "@sinonjs/commons@npm:3.0.1"
@@ -5574,33 +5564,6 @@ __metadata:
   dependencies:
     "@sinonjs/commons": "npm:^3.0.0"
   checksum: 10/78155c7bd866a85df85e22028e046b8d46cf3e840f72260954f5e3ed5bd97d66c595524305a6841ffb3f681a08f6e5cef572a2cce5442a8a232dc29fb409b83e
-  languageName: node
-  linkType: hard
-
-"@sinonjs/fake-timers@npm:^6.0.0, @sinonjs/fake-timers@npm:^6.0.1":
-  version: 6.0.1
-  resolution: "@sinonjs/fake-timers@npm:6.0.1"
-  dependencies:
-    "@sinonjs/commons": "npm:^1.7.0"
-  checksum: 10/c7ee19f62bd0ca52553dd5fca9b3921373218c9fed0f02af2f8e5261f65ce9ff0a5e55ca612ded6daf4088a243e905d61bd6dce1c6d325794283b55c71708395
-  languageName: node
-  linkType: hard
-
-"@sinonjs/samsam@npm:^5.3.1":
-  version: 5.3.1
-  resolution: "@sinonjs/samsam@npm:5.3.1"
-  dependencies:
-    "@sinonjs/commons": "npm:^1.6.0"
-    lodash.get: "npm:^4.4.2"
-    type-detect: "npm:^4.0.8"
-  checksum: 10/6850b9980f042a844072a34ce3ca80b098d4550c8c7a83b2b2e7beb1e06ad19608699544b7a8b0c7db882528d8b74321dfd185d0651cff08cbe793cb73dd39d3
-  languageName: node
-  linkType: hard
-
-"@sinonjs/text-encoding@npm:^0.7.1":
-  version: 0.7.3
-  resolution: "@sinonjs/text-encoding@npm:0.7.3"
-  checksum: 10/f0cc89bae36e7ce159187dece7800b78831288f1913e9ae8cf8a878da5388232d2049740f6f4a43ec4b43b8ad1beb55f919f45eb9a577adb4a2a6eacb27b25fc
   languageName: node
   linkType: hard
 
@@ -7878,13 +7841,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"diff@npm:^4.0.2":
-  version: 4.0.4
-  resolution: "diff@npm:4.0.4"
-  checksum: 10/5019b3f5ae124ea9e95137119e1a83a59c252c75ddac873cc967832fd7a834570a58a4d58b941bdbd07832ebf98dcb232b27c561b7f5584357da6dae59bcac62
-  languageName: node
-  linkType: hard
-
 "diff@npm:^5.0.0":
   version: 5.2.0
   resolution: "diff@npm:5.2.0"
@@ -9992,13 +9948,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"isarray@npm:0.0.1":
-  version: 0.0.1
-  resolution: "isarray@npm:0.0.1"
-  checksum: 10/49191f1425681df4a18c2f0f93db3adb85573bcdd6a4482539d98eac9e705d8961317b01175627e860516a2fc45f8f9302db26e5a380a97a520e272e2a40a8d4
-  languageName: node
-  linkType: hard
-
 "isarray@npm:~1.0.0":
   version: 1.0.0
   resolution: "isarray@npm:1.0.0"
@@ -10828,13 +10777,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"just-extend@npm:^4.0.2":
-  version: 4.2.1
-  resolution: "just-extend@npm:4.2.1"
-  checksum: 10/375389c0847d56300873fa622fbc5c5e208933e372bbedb39c82f583299cdad4fe9c4773bc35fcd9c42cd85744f07474ca4163aa0f9125dd5be37bc09075eb49
-  languageName: node
-  linkType: hard
-
 "keccak@npm:^3.0.0":
   version: 3.0.4
   resolution: "keccak@npm:3.0.4"
@@ -10923,13 +10865,6 @@ __metadata:
   version: 4.3.0
   resolution: "lodash.camelcase@npm:4.3.0"
   checksum: 10/c301cc379310441dc73cd6cebeb91fb254bea74e6ad3027f9346fc43b4174385153df420ffa521654e502fd34c40ef69ca4e7d40ee7129a99e06f306032bfc65
-  languageName: node
-  linkType: hard
-
-"lodash.get@npm:^4.4.2":
-  version: 4.4.2
-  resolution: "lodash.get@npm:4.4.2"
-  checksum: 10/2a4925f6e89bc2c010a77a802d1ba357e17ed1ea03c2ddf6a146429f2856a216663e694a6aa3549a318cbbba3fd8b7decb392db457e6ac0b83dc745ed0a17380
   languageName: node
   linkType: hard
 
@@ -11285,7 +11220,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^9.0.0, minimatch@npm:^9.0.3, minimatch@npm:^9.0.4, minimatch@npm:^9.0.5":
+"minimatch@npm:^9.0.3, minimatch@npm:^9.0.4, minimatch@npm:^9.0.5":
   version: 9.0.5
   resolution: "minimatch@npm:9.0.5"
   dependencies:
@@ -11491,19 +11426,6 @@ __metadata:
   version: 2.6.2
   resolution: "neo-async@npm:2.6.2"
   checksum: 10/1a7948fea86f2b33ec766bc899c88796a51ba76a4afc9026764aedc6e7cde692a09067031e4a1bf6db4f978ccd99e7f5b6c03fe47ad9865c3d4f99050d67e002
-  languageName: node
-  linkType: hard
-
-"nise@npm:^4.0.4":
-  version: 4.1.0
-  resolution: "nise@npm:4.1.0"
-  dependencies:
-    "@sinonjs/commons": "npm:^1.7.0"
-    "@sinonjs/fake-timers": "npm:^6.0.0"
-    "@sinonjs/text-encoding": "npm:^0.7.1"
-    just-extend: "npm:^4.0.2"
-    path-to-regexp: "npm:^1.7.0"
-  checksum: 10/ff7c2e316c8ae8327573417fefcc84070d9dcfa423b123d014d21db5f7de07580f76a85143c2f91eaf5f1a979f3f9a3721e3652753e58ddaa703aa8d65539b0b
   languageName: node
   linkType: hard
 
@@ -11961,15 +11883,6 @@ __metadata:
   version: 0.1.12
   resolution: "path-to-regexp@npm:0.1.12"
   checksum: 10/2e30f6a0144679c1f95c98e166b96e6acd1e72be9417830fefc8de7ac1992147eb9a4c7acaa59119fb1b3c34eec393b2129ef27e24b2054a3906fc4fb0d1398e
-  languageName: node
-  linkType: hard
-
-"path-to-regexp@npm:^1.7.0":
-  version: 1.9.0
-  resolution: "path-to-regexp@npm:1.9.0"
-  dependencies:
-    isarray: "npm:0.0.1"
-  checksum: 10/67f0f4823f7aab356523d93a83f9f8222bdd119fa0b27a8f8b587e8e6c9825294bb4ccd16ae619def111ff3fe5d15ff8f658cdd3b0d58b9c882de6fd15bc1b76
   languageName: node
   linkType: hard
 
@@ -12853,7 +12766,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shiki@npm:^0.14.1, shiki@npm:^0.14.7":
+"shiki@npm:^0.14.7":
   version: 0.14.7
   resolution: "shiki@npm:0.14.7"
   dependencies:
@@ -12904,20 +12817,6 @@ __metadata:
   version: 1.0.0
   resolution: "single-call-balance-checker-abi@npm:1.0.0"
   checksum: 10/d68fd83e58c42e6ccd4951d30cacffad01b4ca46595766b51ca09346f715027eac3a1d9e80e6147c7c20181ac6aca5d5330f9d1b131c91cbac3a16c1f3efbc3a
-  languageName: node
-  linkType: hard
-
-"sinon@npm:^9.2.4":
-  version: 9.2.4
-  resolution: "sinon@npm:9.2.4"
-  dependencies:
-    "@sinonjs/commons": "npm:^1.8.1"
-    "@sinonjs/fake-timers": "npm:^6.0.1"
-    "@sinonjs/samsam": "npm:^5.3.1"
-    diff: "npm:^4.0.2"
-    nise: "npm:^4.0.4"
-    supports-color: "npm:^7.1.0"
-  checksum: 10/4597c12e2490b22aaae5fb1edca169a10e71dee73c13d2d12d6d9fa7f3bdbdb53ec5ad52c631c301fb3eab79471a30b05be65155c30ca415169470ea4789eae6
   languageName: node
   linkType: hard
 
@@ -13581,13 +13480,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"type-detect@npm:^4.0.8":
-  version: 4.1.0
-  resolution: "type-detect@npm:4.1.0"
-  checksum: 10/e363bf0352427a79301f26a7795a27718624c49c576965076624eb5495d87515030b207217845f7018093adcbe169b2d119bb9b7f1a31a92bfbb1ab9639ca8dd
-  languageName: node
-  linkType: hard
-
 "type-fest@npm:^0.18.0":
   version: 0.18.1
   resolution: "type-fest@npm:0.18.1"
@@ -13646,22 +13538,6 @@ __metadata:
   peerDependencies:
     typedoc: 0.24.x || 0.25.x
   checksum: 10/83ff8affd82fa39a81931e825ef31b51b7470613c71601fde6ff413a5c7571e30734698092a38a437f12c5d3264010696ce9ca806d43485aa11e8208cb4cb323
-  languageName: node
-  linkType: hard
-
-"typedoc@npm:^0.24.8":
-  version: 0.24.8
-  resolution: "typedoc@npm:0.24.8"
-  dependencies:
-    lunr: "npm:^2.3.9"
-    marked: "npm:^4.3.0"
-    minimatch: "npm:^9.0.0"
-    shiki: "npm:^0.14.1"
-  peerDependencies:
-    typescript: 4.6.x || 4.7.x || 4.8.x || 4.9.x || 5.0.x || 5.1.x
-  bin:
-    typedoc: bin/typedoc
-  checksum: 10/4f2f92ddde3f70a1a9666507f6bdf6620023599bd2c2a3ed3f8f909f9c28d92594c30ee6ee68f5a248ff70e09623acf1323bad633cb713b9f2e36bbd4fccf683
   languageName: node
   linkType: hard
 
