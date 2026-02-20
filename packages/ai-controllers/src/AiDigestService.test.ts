@@ -133,6 +133,66 @@ describe('AiDigestService', () => {
       });
     });
 
+    it('accepts additional unknown fields in nested payloads', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockMarketInsightsReport,
+            extraTopLevelField: true,
+            trends: [
+              {
+                ...mockMarketInsightsReport.trends[0],
+                extraTrendField: 'ignored',
+                articles: [
+                  {
+                    ...mockMarketInsightsReport.trends[0].articles[0],
+                    extraArticleField: 'ignored',
+                  },
+                ],
+              },
+            ],
+            sources: [
+              {
+                ...mockMarketInsightsReport.sources[0],
+                extraSourceField: 'ignored',
+              },
+            ],
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.searchDigest(
+        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' as CaipAssetType,
+      );
+
+      expect(result).toStrictEqual({
+        ...mockMarketInsightsReport,
+        extraTopLevelField: true,
+        trends: [
+          {
+            ...mockMarketInsightsReport.trends[0],
+            extraTrendField: 'ignored',
+            articles: [
+              {
+                ...mockMarketInsightsReport.trends[0].articles[0],
+                extraArticleField: 'ignored',
+              },
+            ],
+          },
+        ],
+        sources: [
+          {
+            ...mockMarketInsightsReport.sources[0],
+            extraSourceField: 'ignored',
+          },
+        ],
+      });
+    });
+
     it('returns null when API returns 404', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 404 });
 

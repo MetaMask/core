@@ -1,5 +1,11 @@
 import type { CaipAssetType } from '@metamask/utils';
-import { array, is, object, optional, string } from '@metamask/superstruct';
+import {
+  array,
+  is,
+  optional,
+  string,
+  type as structType,
+} from '@metamask/superstruct';
 
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 import type { DigestService, MarketInsightsReport } from './ai-digest-types';
@@ -8,21 +14,21 @@ export type AiDigestServiceConfig = {
   baseUrl: string;
 };
 
-const MarketInsightsArticleStruct = object({
+const MarketInsightsArticleStruct = structType({
   title: string(),
   url: string(),
   source: string(),
   date: string(),
 });
 
-const MarketInsightsTweetStruct = object({
+const MarketInsightsTweetStruct = structType({
   contentSummary: string(),
   url: string(),
   author: string(),
   date: string(),
 });
 
-const MarketInsightsTrendStruct = object({
+const MarketInsightsTrendStruct = structType({
   title: string(),
   description: string(),
   category: string(),
@@ -31,13 +37,13 @@ const MarketInsightsTrendStruct = object({
   tweets: array(MarketInsightsTweetStruct),
 });
 
-const MarketInsightsSourceStruct = object({
+const MarketInsightsSourceStruct = structType({
   name: string(),
   url: string(),
   type: string(),
 });
 
-const MarketInsightsReportStruct = object({
+const MarketInsightsReportStruct = structType({
   version: optional(string()),
   asset: string(),
   generatedAt: string(),
@@ -48,7 +54,7 @@ const MarketInsightsReportStruct = object({
   sources: array(MarketInsightsSourceStruct),
 });
 
-const MarketInsightsDigestEnvelopeStruct = object({
+const MarketInsightsDigestEnvelopeStruct = structType({
   digest: MarketInsightsReportStruct,
 });
 

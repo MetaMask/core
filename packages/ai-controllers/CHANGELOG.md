@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Strengthen `AiDigestService` response validation using nested `superstruct` schemas for market insights payloads, including deep validation of `trends`/`sources` items and support for optional top-level `social` entries ([#8006](https://github.com/MetaMask/core/pull/8006)).
+- Strengthen `AiDigestService` response validation using nested `superstruct` schemas for market insights payloads, including deep validation of `trends`/`sources` items and support for optional top-level `social` entries while allowing additional unknown API fields for forward compatibility ([#8006](https://github.com/MetaMask/core/pull/8006)).
 
 ## [0.1.0]
 
