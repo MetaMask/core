@@ -12,6 +12,7 @@
  */
 
 import type {
+  FetchInfiniteQueryOptions,
   FetchQueryOptions,
   QueryFunctionContext,
 } from '@tanstack/query-core';
@@ -761,7 +762,6 @@ export class AccountsApiClient extends BaseApiClient {
    * Returns TanStack Query options for v4 multi-account transactions,
    * designed for use with `useInfiniteQuery`.
    *
-   *
    * @param params - API endpoint parameters (excluding pagination cursors).
    * @param params.accountAddresses - Array of CAIP-10 account addresses.
    * @param params.networks - CAIP-2 network IDs to filter by.
@@ -790,7 +790,7 @@ export class AccountsApiClient extends BaseApiClient {
       lang?: string;
     },
     options?: FetchOptions,
-  ): FetchQueryOptions<
+  ): FetchInfiniteQueryOptions<
     V4MultiAccountTransactionsResponse,
     Error,
     V4MultiAccountTransactionsResponse,
@@ -844,7 +844,7 @@ export class AccountsApiClient extends BaseApiClient {
         ),
       getNextPageParam: ({ pageInfo }: V4MultiAccountTransactionsResponse) =>
         pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
-      initialPageParam: undefined as string | undefined,
+      initialPageParam: options?.initialPageParam,
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
