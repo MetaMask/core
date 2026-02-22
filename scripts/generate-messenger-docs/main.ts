@@ -1,6 +1,4 @@
-/* eslint-disable n/no-sync */
-
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import * as path from 'path';
 
 import { findDtsFiles, findTsFiles } from './discovery';
@@ -32,9 +30,24 @@ function deduplicationScore(item: MessengerItemDoc): number {
 }
 
 /**
+ * Check whether a path exists.
+ *
+ * @param targetPath - The path to check.
+ * @returns A promise that resolves to true if the path exists.
+ */
+async function pathExists(targetPath: string): Promise<boolean> {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Main entry point: scans packages, extracts messenger types, and generates docs.
  */
-export function main(): void {
+export async function main(): Promise<void> {
   // Parse --client flag
   const clientIdx = process.argv.indexOf('--client');
   const clientPath = clientIdx === -1 ? undefined : process.argv[clientIdx + 1];
@@ -49,13 +62,13 @@ export function main(): void {
     );
 
     const nmDir = path.join(clientPath as string, 'node_modules', '@metamask');
-    if (!fs.existsSync(nmDir)) {
+    if (!(await pathExists(nmDir))) {
       throw new Error(`${nmDir} does not exist.`);
     }
 
     // Find @metamask packages that contain "controller" or "service" in name
-    const pkgDirs = fs
-      .readdirSync(nmDir, { withFileTypes: true })
+    const entries = await fs.readdir(nmDir, { withFileTypes: true });
+    const pkgDirs = entries
       .filter(
         (dirent) =>
           dirent.isDirectory() &&
@@ -65,14 +78,14 @@ export function main(): void {
       .map((dirent) => path.join(nmDir, dirent.name, 'dist'));
 
     for (const distDir of pkgDirs) {
-      if (!fs.existsSync(distDir)) {
+      if (!(await pathExists(distDir))) {
         continue;
       }
 
-      const dtsFiles = findDtsFiles(distDir);
+      const dtsFiles = await findDtsFiles(distDir);
       for (const file of dtsFiles) {
         try {
-          const items = extractFromFile(file, clientPath as string);
+          const items = await extractFromFile(file, clientPath as string);
           allItems.push(...items);
         } catch (error) {
           console.warn(
@@ -85,20 +98,20 @@ export function main(): void {
     console.log('Scanning packages for Messenger action/event types...');
 
     const packagesDir = path.join(ROOT, 'packages');
-    const packageDirs = fs
-      .readdirSync(packagesDir, { withFileTypes: true })
+    const entries = await fs.readdir(packagesDir, { withFileTypes: true });
+    const packageDirs = entries
       .filter((dirent) => dirent.isDirectory())
       .map((dirent) => path.join(packagesDir, dirent.name, 'src'));
 
     for (const srcDir of packageDirs) {
-      if (!fs.existsSync(srcDir)) {
+      if (!(await pathExists(srcDir))) {
         continue;
       }
 
-      const tsFiles = findTsFiles(srcDir);
+      const tsFiles = await findTsFiles(srcDir);
       for (const file of tsFiles) {
         try {
-          const items = extractFromFile(file, ROOT);
+          const items = await extractFromFile(file, ROOT);
           allItems.push(...items);
         } catch (error) {
           console.warn(
@@ -169,25 +182,25 @@ export function main(): void {
   const docsDir = path.join(ROOT, 'docs-site', 'docs');
 
   // Clean existing generated docs
-  if (fs.existsSync(docsDir)) {
-    fs.rmSync(docsDir, { recursive: true });
+  if (await pathExists(docsDir)) {
+    await fs.rm(docsDir, { recursive: true });
   }
-  fs.mkdirSync(docsDir, { recursive: true });
+  await fs.mkdir(docsDir, { recursive: true });
 
   // Generate namespace pages
   for (const ns of namespaces) {
     const nsDir = path.join(docsDir, ns.namespace);
-    fs.mkdirSync(nsDir, { recursive: true });
+    await fs.mkdir(nsDir, { recursive: true });
 
     if (ns.actions.length > 0) {
-      fs.writeFileSync(
+      await fs.writeFile(
         path.join(nsDir, 'actions.md'),
         generateNamespacePage(ns, 'action', clientMode),
       );
     }
 
     if (ns.events.length > 0) {
-      fs.writeFileSync(
+      await fs.writeFile(
         path.join(nsDir, 'events.md'),
         generateNamespacePage(ns, 'event', clientMode),
       );
@@ -195,13 +208,13 @@ export function main(): void {
   }
 
   // Generate index page
-  fs.writeFileSync(
+  await fs.writeFile(
     path.join(docsDir, 'index.md'),
     generateIndexPage(namespaces, clientName),
   );
 
   // Generate sidebars
-  fs.writeFileSync(
+  await fs.writeFile(
     path.join(ROOT, 'docs-site', 'sidebars.ts'),
     generateSidebars(namespaces),
   );

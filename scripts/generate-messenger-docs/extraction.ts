@@ -1,10 +1,23 @@
-/* eslint-disable n/no-sync */
-
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as ts from 'typescript';
 
 import type { MessengerItemDoc, MethodInfo } from './types';
+
+/**
+ * Check whether a file exists.
+ *
+ * @param filePath - The path to check.
+ * @returns A promise that resolves to true if the file exists.
+ */
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Extract string constants from top-level variable declarations in a source file.
@@ -60,12 +73,12 @@ function extractStringConstants(
  *
  * @param sourceFile - The TypeScript source file to search.
  * @param filePath - The absolute path of the source file on disk.
- * @returns A map of constant name to resolved string value.
+ * @returns A promise that resolves to a map of constant name to resolved string value.
  */
-function resolveControllerName(
+async function resolveControllerName(
   sourceFile: ts.SourceFile,
   filePath: string,
-): Map<string, string> {
+): Promise<Map<string, string>> {
   const names = extractStringConstants(sourceFile);
 
   // Chase single-hop local imports (no further recursion):
@@ -98,11 +111,11 @@ function resolveControllerName(
       : [path.join(dir, `${spec}.ts`), path.join(dir, spec, 'index.ts')];
 
     for (const candidate of candidates) {
-      if (!fs.existsSync(candidate)) {
+      if (!(await fileExists(candidate))) {
         continue;
       }
 
-      const content = fs.readFileSync(candidate, 'utf8');
+      const content = await fs.readFile(candidate, 'utf8');
       const sf = ts.createSourceFile(
         candidate,
         content,
@@ -463,14 +476,14 @@ function getPropertyText(
  * Extract messenger action/event type definitions from a single TypeScript file.
  *
  * @param filePath - The absolute path to the TypeScript file.
- * @param relBase - Optional base path for computing relative source paths (defaults to ROOT).
- * @returns An array of extracted messenger item docs.
+ * @param relBase - Base path for computing relative source paths.
+ * @returns A promise that resolves to an array of extracted messenger item docs.
  */
-export function extractFromFile(
+export async function extractFromFile(
   filePath: string,
   relBase: string,
-): MessengerItemDoc[] {
-  const content = fs.readFileSync(filePath, 'utf8');
+): Promise<MessengerItemDoc[]> {
+  const content = await fs.readFile(filePath, 'utf8');
   const sourceFile = ts.createSourceFile(
     filePath,
     content,
@@ -478,7 +491,7 @@ export function extractFromFile(
     true,
   );
 
-  const constants = resolveControllerName(sourceFile, filePath);
+  const constants = await resolveControllerName(sourceFile, filePath);
   const classMethods = collectClassMethods(sourceFile);
   const items: MessengerItemDoc[] = [];
   const relPath = path.relative(relBase, filePath);
