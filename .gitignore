@@ -37,6 +37,14 @@ scripts/coverage
 # typescript
 packages/*/*.tsbuildinfo
 
+# Messenger API docs site (generated)
+docs-site/docs/
+docs-site/sidebars.ts
+docs-site/build/
+docs-site/.docusaurus/
+docs-site/node_modules/
+docs-site/package-lock.json
+
 # Emacs
 \#*\#
 .#*
