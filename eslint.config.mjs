@@ -15,6 +15,12 @@ const config = createConfig([
       'merged-packages/**',
       '.yarn/**',
       'scripts/create-package/package-template/**',
+      'docs-site/docs/**',
+      'docs-site/sidebars.ts',
+      'docs-site/build/**',
+      'docs-site/.docusaurus/**',
+      'docs-site/node_modules/**',
+      'docs-site/.yarn/**',
     ],
   },
   {
@@ -41,8 +47,7 @@ const config = createConfig([
       '**/*.test.{js,ts}',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
-      'scripts/*.ts',
-      'scripts/create-package/**/*.ts',
+      'scripts/**/*.ts',
     ],
     extends: [nodejs],
   },
@@ -125,7 +130,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['scripts/*.ts'],
+    files: ['scripts/**/*.ts'],
     rules: {
       // Scripts may be self-executable and thus have hashbangs.
       'n/hashbang': 'off',
