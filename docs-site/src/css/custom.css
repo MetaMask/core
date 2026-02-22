@@ -1,0 +1,344 @@
+/*
+ * MetaMask-themed Docusaurus styles.
+ * Adapted from the MetaMask developer documentation template.
+ */
+
+/* ── Fonts ──────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Euclid Circular B';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/EuclidCircularB/EuclidCircularB-Regular-WebXL.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Euclid Circular B';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/EuclidCircularB/EuclidCircularB-Medium.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Euclid Circular B';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/EuclidCircularB/EuclidCircularB-Bold-WebXL.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Euclid Circular B';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/EuclidCircularB/EuclidCircularB-RegularItalic-WebXL.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'MM Sans Mono';
+  src: url('/fonts/MM-Sans/MM_Sans_Mono-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── MetaMask color palette ─────────────────────────────────────────── */
+
+:root {
+  /* General */
+  --general-white: #fff;
+  --general-white-off: #f7f9fc;
+  --general-gray-light: #e9edf6;
+  --general-gray: #c8ceda;
+  --general-gray-mid: #a1a8b7;
+  --general-gray-dark: #393d46;
+  --general-black-light: #242628;
+  --general-black-mid: #1b1b1b;
+  --general-black: #0a0a0a;
+
+  /* Developer */
+  --developer-purple-light: #eac2ff;
+  --developer-purple: #d075ff;
+  --developer-purple-dark: #3d065f;
+  --developer-green-light: #e5ffc3;
+  --developer-green: #baf24a;
+  --developer-green-dark: #013330;
+  --developer-blue-light: #cce7ff;
+  --developer-blue: #89b0ff;
+  --developer-orange-light: #ffa680;
+  --developer-orange: #ff5c16;
+  --developer-orange-dark: #661800;
+
+  /* Institution */
+  --institution-purple-dark-2: #25043a;
+  --institution-green-dark: #013330;
+  --institution-green-dark-2: #012321;
+
+  /* Consumer */
+  --consumer-blue-dark: #190066;
+  --consumer-blue-light: #cce7ff;
+  --consumer-green-dark: #013330;
+  --consumer-green-light: #e5ffc3;
+  --consumer-orange-dark: #661800;
+  --consumer-orange-light: #ffa680;
+}
+
+/* ── Light mode Infima overrides ────────────────────────────────────── */
+
+:root {
+  /* Primary: purple */
+  --ifm-color-primary: #d075ff;
+  --ifm-color-primary-dark: #3d065f;
+  --ifm-color-primary-darker: #25043a;
+  --ifm-color-primary-darkest: #25043a;
+  --ifm-color-primary-light: #eac2ff;
+  --ifm-color-primary-lighter: #eac2ff;
+  --ifm-color-primary-lightest: #eac2ff;
+
+  --ifm-heading-color: var(--general-black);
+  --ifm-font-family-monospace: 'MM Sans Mono', 'Andale Mono', AndaleMono, monospace;
+  --ifm-heading-font-family: var(--ifm-font-family-monospace);
+  --ifm-font-family-base: 'Euclid Circular B', Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  --ifm-code-font-size: 90%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Links */
+  --ifm-link-color: var(--general-black);
+  --ifm-link-hover-color: var(--ifm-color-primary);
+
+  /* Sidebar */
+  --ifm-hover-overlay: var(--general-gray-light);
+  --ifm-menu-color-active: var(--general-black);
+  --ifm-menu-color: var(--general-gray-dark);
+
+  /* TOC */
+  --ifm-toc-border-color: var(--general-gray-light);
+  --ifm-toc-link-color: var(--general-gray-dark);
+  --ifm-code-background: #e6e6e6;
+
+  /* Admonitions */
+  --ifm-color-success: var(--developer-green-light);
+  --ifm-color-info: var(--developer-blue-light);
+  --ifm-color-warning: var(--developer-purple-light);
+  --ifm-color-danger: var(--developer-orange-light);
+
+  --ifm-color-secondary-contrast-background: var(--general-gray-light);
+  --ifm-color-secondary-contrast-foreground: var(--general-black);
+  --ifm-color-info-contrast-background: var(--developer-blue-light);
+  --ifm-color-info-contrast-foreground: var(--consumer-blue-dark);
+  --ifm-color-success-contrast-background: var(--developer-green-light);
+  --ifm-color-success-contrast-foreground: var(--consumer-green-dark);
+  --ifm-color-warning-contrast-background: var(--developer-orange-light);
+  --ifm-color-warning-contrast-foreground: var(--consumer-orange-dark);
+  --ifm-color-danger-contrast-background: var(--developer-orange-light);
+  --ifm-color-danger-contrast-foreground: var(--consumer-orange-dark);
+
+  --ifm-color-white: var(--general-white);
+  --ifm-color-black: var(--general-black);
+  --ifm-background-color: var(--general-white);
+
+  /* Buttons */
+  --ifm-button-border-radius: 10rem;
+
+  /* Header */
+  --ifm-navbar-link-hover-color: var(--developer-purple);
+
+  /* Footer */
+  --ifm-footer-background-color: var(--general-white);
+
+  /* Code Block */
+  --ifm-code-border-radius: 0;
+  --prism-background-color: var(--general-black-light);
+
+  /* Tables */
+  --ifm-table-border-color: var(--general-gray-light);
+  --ifm-table-head-background: var(--general-white-off);
+  --ifm-table-stripe-background: var(--general-white-off);
+}
+
+/* ── Dark mode Infima overrides ─────────────────────────────────────── */
+
+[data-theme='dark'] {
+  /* Primary: green */
+  --ifm-color-primary: #baf24a;
+  --ifm-color-primary-dark: #013330;
+  --ifm-color-primary-darker: #012321;
+  --ifm-color-primary-darkest: #012321;
+  --ifm-color-primary-light: #e5ffc3;
+  --ifm-color-primary-lighter: #e5ffc3;
+  --ifm-color-primary-lightest: #e5ffc3;
+
+  --ifm-background-surface-color: var(--general-black-light) !important;
+
+  /* Links */
+  --ifm-link-color: var(--general-white);
+  --ifm-link-hover-color: var(--ifm-color-primary);
+
+  /* Sidebar */
+  --ifm-hover-overlay: var(--general-black-light) !important;
+  --ifm-menu-color-active: var(--general-white) !important;
+  --ifm-menu-color: var(--general-white) !important;
+
+  /* TOC */
+  --ifm-toc-border-color: var(--general-gray) !important;
+  --ifm-code-background: #4d5059;
+  --ifm-toc-link-color: var(--general-gray);
+
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+
+  /* Admonitions */
+  --ifm-color-success: var(--developer-green);
+  --ifm-color-info: var(--developer-blue);
+  --ifm-color-warning: var(--developer-purple);
+  --ifm-color-danger: var(--developer-orange);
+
+  --ifm-color-secondary-contrast-background: var(--general-black-light) !important;
+  --ifm-color-info-contrast-background: var(--consumer-blue-dark) !important;
+  --ifm-color-info-contrast-foreground: var(--consumer-blue-light) !important;
+  --ifm-color-success-contrast-background: var(--consumer-green-dark) !important;
+  --ifm-color-success-contrast-foreground: var(--consumer-green-light) !important;
+  --ifm-color-warning-contrast-background: var(--consumer-orange-dark) !important;
+  --ifm-color-warning-contrast-foreground: var(--consumer-orange-light) !important;
+  --ifm-color-danger-contrast-background: var(--consumer-orange-dark) !important;
+  --ifm-color-danger-contrast-foreground: var(--consumer-orange-light) !important;
+
+  --ifm-background-color: var(--general-gray-dark);
+  --ifm-heading-color: var(--general-white);
+
+  /* Header */
+  --ifm-navbar-link-hover-color: var(--developer-green);
+
+  /* Footer */
+  --ifm-footer-background-color: var(--general-black-light);
+
+  /* Tables */
+  --ifm-table-border-color: var(--general-black-light);
+  --ifm-table-head-background: var(--general-black-mid);
+  --ifm-table-stripe-background: var(--general-black-light) !important;
+}
+
+/* ── Body & Dark mode ───────────────────────────────────────────────── */
+
+body {
+  height: auto !important;
+  -webkit-text-size-adjust: 100%;
+}
+
+[data-theme='dark'] body {
+  background: var(--general-gray-dark);
+  color: var(--general-white);
+}
+
+/* ── Typography ─────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--ifm-font-family-base);
+  font-weight: 500;
+}
+
+.alert {
+  border: none;
+}
+
+/* ── Navbar ──────────────────────────────────────────────────────────── */
+
+.navbar {
+  box-shadow: none;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  height: 5rem; /* 80px */
+}
+
+.navbar > .navbar__inner {
+  height: 100%;
+}
+
+.navbar__brand {
+  margin-right: 4rem;
+}
+
+.navbar__logo {
+  height: 3.2rem;
+  width: 6.5rem;
+}
+
+.navbar__title {
+  display: none;
+}
+
+.navbar__link {
+  font-size: 1.6rem;
+  font-weight: 500;
+}
+
+.navbar__link:hover {
+  text-decoration: none !important;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+
+.footer {
+  border-top: 1px solid var(--general-gray-light);
+  padding: 4.6rem 3rem 3rem;
+}
+
+[data-theme='dark'] .footer {
+  border-top: 1px solid transparent;
+}
+
+.footer__logo {
+  max-width: 6.4rem;
+  margin-bottom: 1rem;
+}
+
+@media screen and (min-width: 997px) {
+  .footer__logo {
+    max-width: 12.4rem;
+    margin-bottom: 2rem;
+  }
+}
+
+.footer__copyright {
+  font-size: 1.2rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.8rem;
+}
+
+[data-theme='dark'] .footer__copyright {
+  color: var(--general-gray);
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+
+html {
+  scroll-padding-top: 5rem;
+}
+
+/* ── Code blocks ─────────────────────────────────────────────────────── */
+
+article h3 code {
+  font-size: 1rem;
+}
+
+/* ── Search ──────────────────────────────────────────────────────────── */
+
+:root {
+  --search-local-highlight-color: var(--developer-purple);
+  --search-local-hit-active-color: var(--general-white);
+  --search-local-hit-background: var(--general-white);
+  --search-local-modal-background: var(--general-white-off);
+  --search-local-hit-shadow: 0 1px 3px 0 var(--general-gray);
+  --search-local-muted-color: var(--general-gray-mid);
+}
+
+[data-theme='dark'] {
+  --search-local-highlight-color: var(--developer-purple-light);
+  --search-local-hit-active-color: var(--general-black);
+  --search-local-hit-background: var(--general-black-light);
+  --search-local-modal-background: var(--general-gray-dark);
+  --search-local-hit-shadow: none;
+  --search-local-muted-color: var(--general-gray-mid);
+}
