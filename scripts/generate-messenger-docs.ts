@@ -49,18 +49,30 @@ function extractStringConstants(
       continue;
     }
     for (const decl of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(decl.name) || !decl.initializer) {
+      if (!ts.isIdentifier(decl.name)) {
         continue;
       }
 
-      const init = decl.initializer;
-      if (ts.isStringLiteral(init)) {
-        names.set(decl.name.text, init.text);
-      } else if (
-        ts.isAsExpression(init) &&
-        ts.isStringLiteral(init.expression)
+      if (decl.initializer) {
+        const init = decl.initializer;
+        if (ts.isStringLiteral(init)) {
+          names.set(decl.name.text, init.text);
+        } else if (
+          ts.isAsExpression(init) &&
+          ts.isStringLiteral(init.expression)
+        ) {
+          names.set(decl.name.text, init.expression.text);
+        }
+      }
+
+      // Handle `declare const x: "value"` (common in .d.cts files)
+      if (
+        !decl.initializer &&
+        decl.type &&
+        ts.isLiteralTypeNode(decl.type) &&
+        ts.isStringLiteral(decl.type.literal)
       ) {
-        names.set(decl.name.text, init.expression.text);
+        names.set(decl.name.text, decl.type.literal.text);
       }
     }
   }
@@ -99,10 +111,17 @@ function resolveControllerName(
     }
 
     const dir = path.dirname(filePath);
-    const candidates = [
-      path.join(dir, `${spec}.ts`),
-      path.join(dir, spec, 'index.ts'),
-    ];
+    const isDts = filePath.endsWith('.d.cts') || filePath.endsWith('.d.ts');
+    // Strip .cjs/.js extension from specifier for .d.cts resolution
+    const bareSpec = spec.replace(/\.(c|m)?js$/u, '');
+    const candidates = isDts
+      ? [
+          path.join(dir, `${bareSpec}.d.cts`),
+          path.join(dir, bareSpec, 'index.d.cts'),
+          path.join(dir, `${bareSpec}.d.ts`),
+          path.join(dir, bareSpec, 'index.d.ts'),
+        ]
+      : [path.join(dir, `${spec}.ts`), path.join(dir, spec, 'index.ts')];
 
     for (const candidate of candidates) {
       if (!fs.existsSync(candidate)) {
@@ -478,9 +497,13 @@ function getPropertyText(
  * Extract messenger action/event type definitions from a single TypeScript file.
  *
  * @param filePath - The absolute path to the TypeScript file.
+ * @param relBase - Optional base path for computing relative source paths (defaults to ROOT).
  * @returns An array of extracted messenger item docs.
  */
-function extractFromFile(filePath: string): MessengerItemDoc[] {
+function extractFromFile(
+  filePath: string,
+  relBase?: string,
+): MessengerItemDoc[] {
   const content = fs.readFileSync(filePath, 'utf8');
   const sourceFile = ts.createSourceFile(
     filePath,
@@ -492,7 +515,7 @@ function extractFromFile(filePath: string): MessengerItemDoc[] {
   const constants = resolveControllerName(sourceFile, filePath);
   const classMethods = collectClassMethods(sourceFile);
   const items: MessengerItemDoc[] = [];
-  const relPath = path.relative(ROOT, filePath);
+  const relPath = path.relative(relBase ?? ROOT, filePath);
 
   // Type aliases are always top-level statements — no need for deep recursion
   for (const statement of sourceFile.statements) {
@@ -699,6 +722,34 @@ function findTsFiles(dir: string): string[] {
   return results;
 }
 
+/**
+ * Recursively find all `.d.cts` declaration files in a directory.
+ * Skips nested `node_modules` subdirectories.
+ *
+ * @param dir - The directory to search.
+ * @returns An array of absolute file paths.
+ */
+function findDtsFiles(dir: string): string[] {
+  const results: string[] = [];
+
+  function walk(directory: string): void {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const full = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules') {
+          continue;
+        }
+        walk(full);
+      } else if (entry.name.endsWith('.d.cts')) {
+        results.push(full);
+      }
+    }
+  }
+
+  walk(dir);
+  return results;
+}
+
 // ---------------------------------------------------------------------------
 // Markdown generation
 // ---------------------------------------------------------------------------
@@ -707,9 +758,13 @@ function findTsFiles(dir: string): string[] {
  * Generate markdown documentation for a single messenger item.
  *
  * @param item - The messenger item to document.
+ * @param clientMode - Whether we are generating docs from a client's dependency tree.
  * @returns The generated markdown string.
  */
-function generateItemMarkdown(item: MessengerItemDoc): string {
+function generateItemMarkdown(
+  item: MessengerItemDoc,
+  clientMode: boolean,
+): string {
   const parts: string[] = [];
 
   parts.push(`### \`${item.typeString}\``);
@@ -720,8 +775,15 @@ function generateItemMarkdown(item: MessengerItemDoc): string {
     parts.push('');
   }
 
-  const ghUrl = `https://github.com/MetaMask/core/blob/main/${item.sourceFile}#L${item.line}`;
-  parts.push(`**Source**: [${item.sourceFile}:${item.line}](${ghUrl})`);
+  if (clientMode) {
+    const pkgMatch = item.sourceFile.match(/node_modules\/(@metamask\/[^/]+)/u);
+    const pkgName = pkgMatch ? pkgMatch[1] : item.sourceFile;
+    const npmUrl = `https://www.npmjs.com/package/${pkgName}`;
+    parts.push(`**Package**: [\`${pkgName}\`](${npmUrl})`);
+  } else {
+    const ghUrl = `https://github.com/MetaMask/core/blob/main/${item.sourceFile}#L${item.line}`;
+    parts.push(`**Source**: [${item.sourceFile}:${item.line}](${ghUrl})`);
+  }
   parts.push('');
 
   if (item.jsDoc) {
@@ -753,11 +815,13 @@ function generateItemMarkdown(item: MessengerItemDoc): string {
  *
  * @param ns - The namespace group to generate a page for.
  * @param kind - Whether to generate the actions or events page.
+ * @param clientMode - Whether we are generating docs from a client's dependency tree.
  * @returns The generated markdown string.
  */
 function generateNamespacePage(
   ns: NamespaceGroup,
   kind: 'action' | 'event',
+  clientMode: boolean,
 ): string {
   const items = kind === 'action' ? ns.actions : ns.events;
   const title = kind === 'action' ? 'Actions' : 'Events';
@@ -797,7 +861,7 @@ function generateNamespacePage(
   parts.push('');
 
   for (const item of items) {
-    parts.push(generateItemMarkdown(item));
+    parts.push(generateItemMarkdown(item, clientMode));
     parts.push('---');
     parts.push('');
   }
@@ -809,9 +873,13 @@ function generateNamespacePage(
  * Generate the index/overview page listing all namespaces.
  *
  * @param namespaces - All namespace groups sorted alphabetically.
+ * @param clientName - Optional client name for client-mode docs.
  * @returns The generated markdown string.
  */
-function generateIndexPage(namespaces: NamespaceGroup[]): string {
+function generateIndexPage(
+  namespaces: NamespaceGroup[],
+  clientName?: string,
+): string {
   const totalActions = namespaces.reduce(
     (sum, ns) => sum + ns.actions.length,
     0,
@@ -819,16 +887,29 @@ function generateIndexPage(namespaces: NamespaceGroup[]): string {
   const totalEvents = namespaces.reduce((sum, ns) => sum + ns.events.length, 0);
 
   const parts: string[] = [];
-  parts.push('---');
-  parts.push('title: "Messenger API Reference"');
-  parts.push('slug: "/"');
-  parts.push('---');
-  parts.push('');
-  parts.push('# MetaMask Core Messenger API');
-  parts.push('');
-  parts.push(
-    'This site documents every action and event registered on the Messenger — the type-safe message bus used across all controllers in `@metamask/core`.',
-  );
+  if (clientName) {
+    parts.push('---');
+    parts.push(`title: "${clientName} Messenger API Reference"`);
+    parts.push('slug: "/"');
+    parts.push('---');
+    parts.push('');
+    parts.push(`# ${clientName} Messenger API`);
+    parts.push('');
+    parts.push(
+      `This site documents every action and event available in the \`${clientName}\` dependency tree — the type-safe message bus used across all controllers.`,
+    );
+  } else {
+    parts.push('---');
+    parts.push('title: "Messenger API Reference"');
+    parts.push('slug: "/"');
+    parts.push('---');
+    parts.push('');
+    parts.push('# MetaMask Core Messenger API');
+    parts.push('');
+    parts.push(
+      'This site documents every action and event registered on the Messenger — the type-safe message bus used across all controllers in `@metamask/core`.',
+    );
+  }
   parts.push('');
   parts.push(`- **${namespaces.length}** namespaces`);
   parts.push(`- **${totalActions}** actions`);
@@ -905,30 +986,77 @@ function deduplicationScore(item: MessengerItemDoc): number {
  * Main entry point: scans packages, extracts messenger types, and generates docs.
  */
 function main(): void {
-  console.log('Scanning packages for Messenger action/event types...');
-
-  const packagesDir = path.join(ROOT, 'packages');
-  const packageDirs = fs
-    .readdirSync(packagesDir, { withFileTypes: true })
-    .filter((dirent) => dirent.isDirectory())
-    .map((dirent) => path.join(packagesDir, dirent.name, 'src'));
+  // Parse --client flag
+  const clientIdx = process.argv.indexOf('--client');
+  const clientPath = clientIdx !== -1 ? process.argv[clientIdx + 1] : undefined;
+  const clientMode = Boolean(clientPath);
+  const clientName = clientPath ? path.basename(clientPath) : undefined;
 
   const allItems: MessengerItemDoc[] = [];
 
-  for (const srcDir of packageDirs) {
-    if (!fs.existsSync(srcDir)) {
-      continue;
+  if (clientMode) {
+    console.log(
+      `Scanning ${clientName} dependencies for Messenger action/event types...`,
+    );
+
+    const nmDir = path.join(clientPath as string, 'node_modules', '@metamask');
+    if (!fs.existsSync(nmDir)) {
+      console.error(`Error: ${nmDir} does not exist.`);
+      process.exit(1);
     }
 
-    const tsFiles = findTsFiles(srcDir);
-    for (const file of tsFiles) {
-      try {
-        const items = extractFromFile(file);
-        allItems.push(...items);
-      } catch (error) {
-        console.warn(
-          `Warning: failed to parse ${path.relative(ROOT, file)}: ${String(error)}`,
-        );
+    // Find @metamask packages that contain "controller" or "service" in name
+    const pkgDirs = fs
+      .readdirSync(nmDir, { withFileTypes: true })
+      .filter(
+        (dirent) =>
+          dirent.isDirectory() &&
+          (dirent.name.includes('controller') ||
+            dirent.name.includes('service')),
+      )
+      .map((dirent) => path.join(nmDir, dirent.name, 'dist'));
+
+    for (const distDir of pkgDirs) {
+      if (!fs.existsSync(distDir)) {
+        continue;
+      }
+
+      const dtsFiles = findDtsFiles(distDir);
+      for (const file of dtsFiles) {
+        try {
+          const items = extractFromFile(file, clientPath);
+          allItems.push(...items);
+        } catch (error) {
+          console.warn(
+            `Warning: failed to parse ${path.relative(clientPath as string, file)}: ${String(error)}`,
+          );
+        }
+      }
+    }
+  } else {
+    console.log('Scanning packages for Messenger action/event types...');
+
+    const packagesDir = path.join(ROOT, 'packages');
+    const packageDirs = fs
+      .readdirSync(packagesDir, { withFileTypes: true })
+      .filter((dirent) => dirent.isDirectory())
+      .map((dirent) => path.join(packagesDir, dirent.name, 'src'));
+
+    for (const srcDir of packageDirs) {
+      if (!fs.existsSync(srcDir)) {
+        continue;
+      }
+
+      const tsFiles = findTsFiles(srcDir);
+      for (const file of tsFiles) {
+        try {
+          const items = extractFromFile(file);
+          allItems.push(...items);
+        } catch (error) {
+          console.warn(
+            `Warning: failed to parse ${path.relative(ROOT, file)}: ${String(error)}`,
+          );
+        }
       }
     }
   }
@@ -1006,14 +1134,14 @@ function main(): void {
     if (ns.actions.length > 0) {
       fs.writeFileSync(
         path.join(nsDir, 'actions.md'),
-        generateNamespacePage(ns, 'action'),
+        generateNamespacePage(ns, 'action', clientMode),
       );
     }
 
     if (ns.events.length > 0) {
       fs.writeFileSync(
         path.join(nsDir, 'events.md'),
-        generateNamespacePage(ns, 'event'),
+        generateNamespacePage(ns, 'event', clientMode),
       );
     }
   }
@@ -1021,7 +1149,7 @@ function main(): void {
   // Generate index page
   fs.writeFileSync(
     path.join(docsDir, 'index.md'),
-    generateIndexPage(namespaces),
+    generateIndexPage(namespaces, clientName),
   );
 
   // Generate sidebars
