@@ -48,6 +48,7 @@ jobs:
           include-hidden-files: true
           retention-days: 4
           path: |
+            ./yarn.lock
             ./packages/*/
             !./packages/*/node_modules/
             !./packages/*/src/
@@ -70,7 +71,6 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: preview-build-artifacts
-          path: packages
       # The artifact package.json files come from the PR branch.
       # A malicious PR could inject lifecycle scripts (prepack/postpack) that
       # execute during `yarn npm publish` with the NPM token in the environment
