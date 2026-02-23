@@ -152,7 +152,7 @@ export class IntentManager {
       );
       if (!existingTxMeta) {
         console.warn(
-          '[Intent polling] Skipping update; transaction not found',
+          '[Intent polling] Skipping update, transaction not found',
           { originalTxId, bridgeHistoryKey: bridgeTxMetaId },
         );
         return;
