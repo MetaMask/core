@@ -1,6 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
 import {
+  DEFAULT_ACROSS_API_BASE,
   DEFAULT_GAS_BUFFER,
   DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
   DEFAULT_RELAY_FALLBACK_GAS_MAX,
@@ -10,6 +11,7 @@ import {
   getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
+  getPayStrategiesConfig,
   getSlippage,
   getStrategyOrder,
 } from './feature-flags';
@@ -29,6 +31,9 @@ const CHAIN_ID_DIFFERENT_MOCK = '0x89' as Hex;
 const TOKEN_ADDRESS_MOCK = '0xabc123def456' as Hex;
 const TOKEN_ADDRESS_DIFFERENT_MOCK = '0xdef789abc012' as Hex;
 const TOKEN_SPECIFIC_SLIPPAGE_MOCK = 0.02;
+const METAMASK_FEE_RECIPIENT_MOCK =
+  '0x1234567890123456789012345678901234567890' as Hex;
+const METAMASK_FEE_MOCK = '0.001';
 
 describe('Feature Flags Utils', () => {
   const { messenger, getRemoteFeatureFlagControllerStateMock } =
@@ -85,6 +90,118 @@ describe('Feature Flags Utils', () => {
         relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
         slippage: SLIPPAGE_MOCK,
       });
+    });
+
+    it('returns normalized metaMaskFee when fee config is valid', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            metaMaskFee: {
+              recipient: METAMASK_FEE_RECIPIENT_MOCK,
+              fee: METAMASK_FEE_MOCK,
+            },
+          },
+        },
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags.metaMaskFee).toStrictEqual({
+        recipient: METAMASK_FEE_RECIPIENT_MOCK,
+        fee: METAMASK_FEE_MOCK,
+      });
+    });
+
+    it('omits metaMaskFee when recipient is missing', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            metaMaskFee: {
+              fee: METAMASK_FEE_MOCK,
+            },
+          },
+        },
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags.metaMaskFee).toBeUndefined();
+    });
+
+    it('omits metaMaskFee when fee is missing', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            metaMaskFee: {
+              recipient: METAMASK_FEE_RECIPIENT_MOCK,
+            },
+          },
+        },
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags.metaMaskFee).toBeUndefined();
+    });
+
+    it('omits metaMaskFee when fee is not numeric', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            metaMaskFee: {
+              recipient: METAMASK_FEE_RECIPIENT_MOCK,
+              fee: 'abc',
+            },
+          },
+        },
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags.metaMaskFee).toBeUndefined();
+    });
+
+    it.each(['0', '-0.1', '1', '1.1'])(
+      'omits metaMaskFee when fee is out of bounds: %s',
+      (fee) => {
+        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+          ...getDefaultRemoteFeatureFlagControllerState(),
+          remoteFeatureFlags: {
+            confirmations_pay: {
+              metaMaskFee: {
+                recipient: METAMASK_FEE_RECIPIENT_MOCK,
+                fee,
+              },
+            },
+          },
+        });
+
+        const featureFlags = getFeatureFlags(messenger);
+
+        expect(featureFlags.metaMaskFee).toBeUndefined();
+      },
+    );
+
+    it('omits metaMaskFee when recipient is not a valid EVM address', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            metaMaskFee: {
+              recipient: '0x1234' as Hex,
+              fee: METAMASK_FEE_MOCK,
+            },
+          },
+        },
+      });
+
+      const featureFlags = getFeatureFlags(messenger);
+
+      expect(featureFlags.metaMaskFee).toBeUndefined();
     });
   });
 
@@ -386,6 +503,65 @@ describe('Feature Flags Utils', () => {
       const supportedChains = getEIP7702SupportedChains(messenger);
 
       expect(supportedChains).toStrictEqual([]);
+    });
+  });
+
+  describe('getPayStrategiesConfig', () => {
+    it('returns defaults when pay strategies config is missing', () => {
+      const config = getPayStrategiesConfig(messenger);
+
+      expect(config.across).toStrictEqual(
+        expect.objectContaining({
+          allowSameChain: false,
+          apiBase: DEFAULT_ACROSS_API_BASE,
+          enabled: false,
+          postActionsEnabled: false,
+        }),
+      );
+      expect(config.relay).toStrictEqual(
+        expect.objectContaining({
+          enabled: true,
+        }),
+      );
+    });
+
+    it('returns feature-flag values when provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: {
+                allowSameChain: true,
+                apiBase: 'https://across.test',
+                enabled: false,
+                integratorId: 'metamask-test',
+                postActionsEnabled: true,
+              },
+              relay: {
+                enabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      const config = getPayStrategiesConfig(messenger);
+
+      expect(config.across).toStrictEqual(
+        expect.objectContaining({
+          allowSameChain: true,
+          apiBase: 'https://across.test',
+          enabled: false,
+          integratorId: 'metamask-test',
+          postActionsEnabled: true,
+        }),
+      );
+      expect(config.relay).toStrictEqual(
+        expect.objectContaining({
+          enabled: false,
+        }),
+      );
     });
   });
 

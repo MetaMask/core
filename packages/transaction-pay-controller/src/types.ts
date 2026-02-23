@@ -501,12 +501,29 @@ export type UpdatePaymentTokenRequest = {
   chainId: Hex;
 };
 
+/** Structured destination action for pay strategy quote APIs. */
+export type TransactionPayActionArg = {
+  balanceSourceToken?: string;
+  populateDynamically: boolean;
+  value: string | string[] | string[][];
+};
+
+export type TransactionPayAction = {
+  args: TransactionPayActionArg[];
+  functionSignature: string;
+  isNativeTransfer: boolean;
+  populateCallValueDynamically?: boolean;
+  target: Hex;
+  value: string;
+};
+
 /** Callback to convert a transaction to a redeem delegation. */
 export type GetDelegationTransactionCallback = ({
   transaction,
 }: {
   transaction: TransactionMeta;
 }) => Promise<{
+  action?: TransactionPayAction;
   authorizationList?: AuthorizationList;
   data: Hex;
   to: Hex;

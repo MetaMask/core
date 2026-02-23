@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Across pay strategy support, including Across quote retrieval/normalization and Across submission flow with approval + deposit execution paths ([#7886](https://github.com/MetaMask/core/pull/7886))
+
 ## [16.1.0]
 
 ### Added
