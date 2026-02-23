@@ -92,7 +92,7 @@ export class IntentApiImpl implements IntentApi {
   }
 }
 
-export type IntentStatusTranslation = {
+export type IntentBridgeStatusTranslation = {
   status: StatusResponse;
   txHash?: string;
   transactionStatus: TransactionStatus;
@@ -102,7 +102,7 @@ export const translateIntentOrderToBridgeStatus = (
   intentOrder: IntentOrder,
   srcChainId: number,
   fallbackTxHash?: string,
-): IntentStatusTranslation => {
+): IntentBridgeStatusTranslation => {
   let statusType: StatusTypes;
   switch (intentOrder.status) {
     case IntentOrderStatus.CONFIRMED:

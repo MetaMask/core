@@ -2,31 +2,133 @@ import { StatusTypes } from '@metamask/bridge-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import { TransactionMeta } from '@metamask/transaction-controller';
 
-import type { BridgeStatusControllerMessenger } from './types';
+import type { BridgeStatusControllerMessenger, FetchFunction } from './types';
 import type { BridgeHistoryItem } from './types';
-import { IntentStatusTranslation } from './utils/intent-api';
+import {
+  IntentApi,
+  IntentApiImpl,
+  IntentBridgeStatusTranslation,
+  translateIntentOrderToBridgeStatus,
+} from './utils/intent-api';
+import { IntentOrder, IntentOrderStatus } from './utils/validators';
 
-export class IntentStatusManager {
+type IntentStatuses = {
+  orderStatus: IntentOrderStatus;
+  bridgeStatus: IntentBridgeStatusTranslation | null;
+};
+
+export class IntentManager {
   readonly #messenger: BridgeStatusControllerMessenger;
 
   readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
 
+  readonly #intentApi: IntentApi;
+
+  #intentStatuses: IntentStatuses;
+
   constructor({
     messenger,
     updateTransactionFn,
+    customBridgeApiBaseUrl,
+    fetchFn,
   }: {
     messenger: BridgeStatusControllerMessenger;
     updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
+    customBridgeApiBaseUrl: string;
+    fetchFn: FetchFunction;
   }) {
     this.#messenger = messenger;
     this.#updateTransactionFn = updateTransactionFn;
+    this.#intentApi = new IntentApiImpl(customBridgeApiBaseUrl, fetchFn);
+    this.#intentStatuses = {
+      orderStatus: IntentOrderStatus.PENDING,
+      bridgeStatus: null,
+    };
   }
+
+  /**
+   * Set the intent statuses.
+   *
+   * @param orderStatus - The intent order status.
+   * @param srcChainId - The source chain ID.
+  /**
+   * Set the intent statuses.
+   *
+   * @param order - The intent order.
+   * @param srcChainId - The source chain ID.
+   * @param txHash - The transaction hash.
+   * @returns The intent statuses.
+   */
+
+  #setIntentStatuses(
+    order: IntentOrder,
+    srcChainId: number,
+    txHash: string,
+  ): IntentStatuses {
+    const bridgeStatus = translateIntentOrderToBridgeStatus(
+      order,
+      srcChainId,
+      txHash.toString(),
+    );
+    this.#intentStatuses = {
+      orderStatus: order.status,
+      bridgeStatus,
+    };
+
+    return this.#intentStatuses;
+  }
+
+  /**
+   * Get the status of an intent order.
+   *
+   * @param bridgeTxMetaId - The bridge transaction meta ID.
+   * @param protocol - The protocol of the intent.
+   * @param clientId - The client ID.
+   * @returns The intent order mapped status.
+   */
+
+  getIntentTransactionStatus = async (
+    bridgeTxMetaId: string,
+    historyItem: BridgeHistoryItem,
+    clientId: string,
+  ): Promise<IntentStatuses | undefined> => {
+    const {
+      status: { srcChain: { chainId: txHash } = {} } = {},
+      quote: { srcChainId, intent: { protocol = '' } = {} },
+    } = historyItem;
+    try {
+      const orderStatus = await this.#intentApi.getOrderStatus(
+        bridgeTxMetaId,
+        protocol,
+        srcChainId.toString(),
+        clientId,
+      );
+
+      return this.#setIntentStatuses(
+        orderStatus,
+        srcChainId,
+        txHash?.toString() ?? '',
+      );
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(
+          `[Intent polling] Failed to get intent order status from API: ${error.message}`,
+        );
+      }
+      return undefined;
+    }
+  };
+
+  /**
+   * Sync the transaction status from the intent status.
+   *
+   * @param bridgeTxMetaId - The bridge transaction meta ID.
+   * @param historyItem - The history item.
+   */
 
   syncTransactionFromIntentStatus = (
     bridgeTxMetaId: string,
     historyItem: BridgeHistoryItem,
-    intentTranslation: IntentStatusTranslation,
-    intentOrderStatus: string,
   ): void => {
     // Update the actual transaction in TransactionController to sync with intent status
     // Use the original transaction ID (not the bridge history key)
@@ -46,15 +148,14 @@ export class IntentStatusManager {
       );
       if (!existingTxMeta) {
         console.warn(
-          '📝 [Intent polling] Skipping update; transaction not found',
+          '[Intent polling] Skipping update; transaction not found',
           { originalTxId, bridgeHistoryKey: bridgeTxMetaId },
         );
         return;
       }
-
-      const { txHash } = intentTranslation;
-      const isComplete =
-        intentTranslation.status.status === StatusTypes.COMPLETE;
+      const { bridgeStatus, orderStatus } = this.#intentStatuses;
+      const txHash = bridgeStatus?.txHash;
+      const isComplete = bridgeStatus?.status.status === StatusTypes.COMPLETE;
       const existingTxReceipt = (
         existingTxMeta as { txReceipt?: Record<string, unknown> }
       ).txReceipt;
@@ -70,17 +171,17 @@ export class IntentStatusManager {
 
       const updatedTxMeta: TransactionMeta = {
         ...existingTxMeta,
-        status: intentTranslation.transactionStatus,
+        status: bridgeStatus?.transactionStatus,
         ...(txHash ? { hash: txHash } : {}),
         ...txReceiptUpdate,
       } as TransactionMeta;
 
       this.#updateTransactionFn(
         updatedTxMeta,
-        `BridgeStatusController - Intent order status updated: ${intentOrderStatus}`,
+        `BridgeStatusController - Intent order status updated: ${orderStatus}`,
       );
     } catch (error) {
-      console.error('📝 [Intent polling] Failed to update transaction status', {
+      console.error('[Intent polling] Failed to update transaction status', {
         originalTxId,
         bridgeHistoryKey: bridgeTxMetaId,
         error,

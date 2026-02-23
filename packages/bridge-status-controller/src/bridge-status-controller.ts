@@ -39,7 +39,7 @@ import type {
 import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { IntentStatusManager } from './bridge-status-controller.intent';
+import { IntentManager } from './bridge-status-controller.intent';
 import {
   BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
@@ -119,7 +119,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 > {
   #pollingTokensByTxMetaId: Record<SrcTxMetaId, string> = {};
 
-  readonly #intentStatusManager: IntentStatusManager;
+  readonly #intentManager: IntentManager;
 
   readonly #clientId: BridgeClientId;
 
@@ -186,9 +186,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     };
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
-    this.#intentStatusManager = new IntentStatusManager({
+    this.#intentManager = new IntentManager({
       messenger: this.messenger,
       updateTransactionFn: this.#updateTransactionFn,
+      customBridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
+      fetchFn: this.#fetchFn,
     });
 
     // Register action handlers
@@ -754,32 +756,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     try {
       let status: BridgeHistoryItem['status'];
       let validationFailures: string[] = [];
-      let intentTranslation: IntentStatusTranslation | null = null;
-      let intentOrderStatus: string | undefined;
 
       const isIntent = Boolean(historyItem.quote.intent);
 
       if (isIntent) {
-        const { srcChainId } = historyItem.quote;
+        const intentTxStatus =
+          await this.#intentManager.getIntentTransactionStatus(
+            bridgeTxMetaId,
+            historyItem,
+            this.#clientId,
+          );
 
-        const intentApi = new IntentApiImpl(
-          this.#config.customBridgeApiBaseUrl,
-          this.#fetchFn,
-        );
-        const intentOrder = await intentApi.getOrderStatus(
-          bridgeTxMetaId,
-          historyItem.quote.intent?.protocol ?? '',
-          srcChainId.toString(),
-          this.#clientId,
-        );
-
-        intentOrderStatus = intentOrder.status;
-        intentTranslation = translateIntentOrderToBridgeStatus(
-          intentOrder,
-          srcChainId,
-          historyItem.status.srcChain.txHash,
-        );
-        status = intentTranslation.status;
+        if (
+          intentTxStatus?.bridgeStatus === null ||
+          intentTxStatus?.bridgeStatus === undefined
+        ) {
+          return;
+        }
+        status = intentTxStatus.bridgeStatus.status;
       } else {
         // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
         // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
@@ -839,12 +833,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         state.txHistory[bridgeTxMetaId] = newBridgeHistoryItem;
       });
 
-      if (isIntent && intentTranslation && intentOrderStatus) {
-        this.#intentStatusManager.syncTransactionFromIntentStatus(
+      if (isIntent) {
+        this.#intentManager.syncTransactionFromIntentStatus(
           bridgeTxMetaId,
           historyItem,
-          intentTranslation,
-          intentOrderStatus,
         );
       }
 
