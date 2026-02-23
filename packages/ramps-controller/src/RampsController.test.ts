@@ -1135,11 +1135,11 @@ describe('RampsController', () => {
         { options: { requestCacheMaxSize: 3 } },
         async ({ controller }) => {
           await controller.executeRequest('key1', async () => 'data1');
-          await new Promise((resolve) => setTimeout(resolve, 5));
+          await new Promise((resolve) => setTimeout(resolve, 20));
           await controller.executeRequest('key2', async () => 'data2');
-          await new Promise((resolve) => setTimeout(resolve, 5));
+          await new Promise((resolve) => setTimeout(resolve, 20));
           await controller.executeRequest('key3', async () => 'data3');
-          await new Promise((resolve) => setTimeout(resolve, 5));
+          await new Promise((resolve) => setTimeout(resolve, 20));
           await controller.executeRequest('key4', async () => 'data4');
 
           const keys = Object.keys(controller.state.requests);
