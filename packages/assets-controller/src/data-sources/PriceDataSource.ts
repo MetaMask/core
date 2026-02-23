@@ -156,27 +156,33 @@ export class PriceDataSource {
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
       // Extract response from context
-      const { response } = ctx;
+      const { response, request } = ctx;
 
       // Only fetch prices for detected assets (assets without metadata)
       // The subscription handles fetching prices for all existing assets
-      if (!response.detectedAssets) {
+      if (!response.detectedAssets && !request.assetsForPriceUpdate?.length) {
         return next(ctx);
       }
 
-      const detectedAssetIds = new Set<Caip19AssetId>();
-      for (const detectedIds of Object.values(response.detectedAssets)) {
-        for (const assetId of detectedIds) {
-          detectedAssetIds.add(assetId);
+      const assetIds = new Set<Caip19AssetId>();
+      for (const detectedAccountAssets of Object.values(
+        response.detectedAssets ?? {},
+      )) {
+        for (const assetId of detectedAccountAssets) {
+          assetIds.add(assetId);
         }
       }
 
-      if (detectedAssetIds.size === 0) {
+      for (const assetId of request.assetsForPriceUpdate ?? []) {
+        assetIds.add(assetId);
+      }
+
+      if (assetIds.size === 0) {
         return next(ctx);
       }
 
       // Filter to only priceable assets
-      const priceableAssetIds = [...detectedAssetIds].filter(isPriceableAsset);
+      const priceableAssetIds = [...assetIds].filter(isPriceableAsset);
 
       if (priceableAssetIds.length === 0) {
         return next(ctx);

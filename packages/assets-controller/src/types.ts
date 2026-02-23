@@ -344,6 +344,8 @@ export type DataRequest = {
   forceUpdate?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */
   updateInterval?: number;
+  /** Specific CAIP-19 asset IDs for price update */
+  assetsForPriceUpdate?: Caip19AssetId[];
 };
 
 /**

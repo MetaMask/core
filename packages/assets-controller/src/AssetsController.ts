@@ -895,6 +895,7 @@ export class AssetsController extends BaseController<
       assetTypes?: AssetType[];
       forceUpdate?: boolean;
       dataTypes?: DataType[];
+      assetsForPriceUpdate?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -915,6 +916,7 @@ export class AssetsController extends BaseController<
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
+        assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
       const sources = this.#isBasicFunctionality()
         ? [
@@ -1172,6 +1174,9 @@ export class AssetsController extends BaseController<
     this.getAssets(this.#selectedAccounts, {
       forceUpdate: true,
       dataTypes: ['price'],
+      assetsForPriceUpdate: Object.values(this.state.assetsBalance).flatMap(
+        (balances) => Object.keys(balances) as Caip19AssetId[],
+      ),
     }).catch((error) => {
       log('Failed to fetch asset prices after current currency change', error);
     });
