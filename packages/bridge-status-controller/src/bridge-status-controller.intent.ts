@@ -5,16 +5,17 @@ import { TransactionMeta } from '@metamask/transaction-controller';
 import type { BridgeStatusControllerMessenger, FetchFunction } from './types';
 import type { BridgeHistoryItem } from './types';
 import {
+  GetJwtFn,
   IntentApi,
   IntentApiImpl,
-  IntentBridgeStatusTranslation,
+  IntentBridgeStatus,
   translateIntentOrderToBridgeStatus,
 } from './utils/intent-api';
 import { IntentOrder, IntentOrderStatus } from './utils/validators';
 
 type IntentStatuses = {
   orderStatus: IntentOrderStatus;
-  bridgeStatus: IntentBridgeStatusTranslation | null;
+  bridgeStatus: IntentBridgeStatus | null;
 };
 
 export class IntentManager {
@@ -31,15 +32,21 @@ export class IntentManager {
     updateTransactionFn,
     customBridgeApiBaseUrl,
     fetchFn,
+    getJwt,
   }: {
     messenger: BridgeStatusControllerMessenger;
     updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
     customBridgeApiBaseUrl: string;
     fetchFn: FetchFunction;
+    getJwt: GetJwtFn;
   }) {
     this.#messenger = messenger;
     this.#updateTransactionFn = updateTransactionFn;
-    this.#intentApi = new IntentApiImpl(customBridgeApiBaseUrl, fetchFn);
+    this.#intentApi = new IntentApiImpl(
+      customBridgeApiBaseUrl,
+      fetchFn,
+      getJwt,
+    );
     this.#intentStatuses = {
       orderStatus: IntentOrderStatus.PENDING,
       bridgeStatus: null,

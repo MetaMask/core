@@ -28,26 +28,30 @@ export type IntentApi = {
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-    jwt: string,
   ): Promise<IntentOrder>;
 };
+
+export type GetJwtFn = () => Promise<string | undefined>;
 
 export class IntentApiImpl implements IntentApi {
   readonly #baseUrl: string;
 
   readonly #fetchFn: FetchFunction;
 
-  constructor(baseUrl: string, fetchFn: FetchFunction) {
+  readonly #getJwt: GetJwtFn;
+
+  constructor(baseUrl: string, fetchFn: FetchFunction, getJwt: GetJwtFn) {
     this.#baseUrl = baseUrl;
     this.#fetchFn = fetchFn;
+    this.#getJwt = getJwt;
   }
 
   async submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-    jwt: string | undefined,
   ): Promise<IntentOrder> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
+    const jwt = await this.#getJwt();
     try {
       const response = await this.#fetchFn(endpoint, {
         method: 'POST',
@@ -74,10 +78,10 @@ export class IntentApiImpl implements IntentApi {
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-    jwt: string | undefined,
   ): Promise<IntentOrder> {
     const endpoint = `${this.#baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {
+      const jwt = await this.#getJwt();
       const response = await this.#fetchFn(endpoint, {
         method: 'GET',
         headers: getClientHeaders({ clientId, jwt }),
@@ -95,7 +99,7 @@ export class IntentApiImpl implements IntentApi {
   }
 }
 
-export type IntentBridgeStatusTranslation = {
+export type IntentBridgeStatus = {
   status: StatusResponse;
   txHash?: string;
   transactionStatus: TransactionStatus;
@@ -105,7 +109,7 @@ export const translateIntentOrderToBridgeStatus = (
   intentOrder: IntentOrder,
   srcChainId: number,
   fallbackTxHash?: string,
-): IntentBridgeStatusTranslation => {
+): IntentBridgeStatus => {
   let statusType: StatusTypes;
   switch (intentOrder.status) {
     case IntentOrderStatus.CONFIRMED:

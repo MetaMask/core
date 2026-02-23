@@ -66,9 +66,7 @@ import {
 import { getTxGasEstimates } from './utils/gas';
 import {
   IntentApiImpl,
-  IntentStatusTranslation,
   mapIntentOrderStatusToTransactionStatus,
-  translateIntentOrderToBridgeStatus,
 } from './utils/intent-api';
 import {
   getFinalizedTxProperties,
@@ -768,7 +766,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             bridgeTxMetaId,
             historyItem,
             this.#clientId,
-            (await this.#getJwt()) ?? '',
           );
 
         if (
@@ -1665,11 +1662,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const intentApi = new IntentApiImpl(
         this.#config.customBridgeApiBaseUrl,
         this.#fetchFn,
+        this.#getJwt,
       );
       const intentOrder = await intentApi.submitIntent(
         submissionParams,
         this.#clientId,
-        await this.#getJwt(),
       );
 
       const orderUid = intentOrder.id;
