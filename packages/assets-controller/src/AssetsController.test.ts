@@ -758,20 +758,28 @@ describe('AssetsController', () => {
       });
     });
 
-    it('calls getAssets with forceUpdate and price dataType to refresh prices', async () => {
-      await withController(({ controller }) => {
+    it('calls getAssets with forceUpdate, price dataType, and assetsForPriceUpdate to refresh prices', async () => {
+      const mockAssetId2 =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+            [mockAssetId2]: { amount: '2000000' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
         const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
         controller.setSelectedCurrency('eur');
 
-        expect(getAssetsSpy).toHaveBeenCalledTimes(1);
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          expect.any(Array),
-          expect.objectContaining({
-            forceUpdate: true,
-            dataTypes: ['price'],
-          }),
-        );
+        expect(getAssetsSpy).toHaveBeenCalledWith(expect.any(Array), {
+          forceUpdate: true,
+          dataTypes: ['price'],
+          assetsForPriceUpdate: [MOCK_ASSET_ID, mockAssetId2],
+        });
 
         getAssetsSpy.mockRestore();
       });
