@@ -28,6 +28,9 @@ The mechanism by which the tokens are provided on the target chain is abstracted
 
 Each `PayStrategy` dictates how the `quotes` are retrieved, which detail the associated fees and strategy specific data, and how those quotes are actioned or "submitted".
 
+`TransactionPayController` provides an ordered strategy list via internal `getStrategies` callback configuration.
+The quote flow iterates strategies in order, applies `supports(...)` compatibility checks when present, and falls back to the next compatible strategy if quote retrieval fails or returns no quotes.
+
 ### Bridge
 
 The `BridgeStrategy` bridges tokens from the payment our source token to the target chain.
@@ -54,11 +57,11 @@ The high level interaction with the `TransactionPayController` is as follows:
 4. Controller identifies any required tokens and adds them to its state.
 5. If a client confirmation is using `MetaMask Pay`, the user selects a payment token (or it is done automatically) which invokes the `updatePaymentToken` action.
    - The below steps are also triggered if the transaction `data` is updated.
-6. Controller selects an appropriate `PayStrategy` using the `getStrategy` action.
-7. Controller requests quotes from the `PayStrategy` and persists them in state, including associated totals.
+6. Controller resolves an ordered set of `PayStrategy` implementations using internal callback configuration.
+7. Controller requests quotes from each compatible strategy in order until one returns quotes, then persists those quotes and associated totals.
 8. Resulting fees and totals are presented in the client transaction confirmation.
 9. If approved by the user, the target transaction is signed and published.
-10. The `TransactionPayPublishHook` is invoked and submits the relevant quotes via the same `PayStrategy`.
+10. The `TransactionPayPublishHook` is invoked and submits the relevant quotes via the strategy encoded in the quote.
 11. The hook waits for any transactions and quotes to complete.
 12. Depending on the pay strategy and required tokens, the original target transaction is also published as the required funds are now in place on the user's account on the target chain.
 13. Target transaction is finalized and any related controller state is removed.

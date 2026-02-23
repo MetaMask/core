@@ -37,3 +37,17 @@ export enum TransactionPayStrategy {
   Relay = 'relay',
   Test = 'test',
 }
+
+const VALID_STRATEGIES = new Set(Object.values(TransactionPayStrategy));
+
+/**
+ * Checks if a value is a valid transaction pay strategy.
+ *
+ * @param strategy - Candidate strategy value.
+ * @returns True if the value is a valid strategy.
+ */
+export function isTransactionPayStrategy(
+  strategy: unknown,
+): strategy is TransactionPayStrategy {
+  return VALID_STRATEGIES.has(strategy as TransactionPayStrategy);
+}
