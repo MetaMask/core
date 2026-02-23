@@ -399,7 +399,10 @@ export class PriceDataSource {
           fetchResponse.assetsPrice &&
           Object.keys(fetchResponse.assetsPrice).length > 0
         ) {
-          await subscription.onAssetsUpdate(fetchResponse);
+          await subscription.onAssetsUpdate({
+            ...fetchResponse,
+            updateMode: 'merge',
+          });
         }
       } catch (error) {
         log('Subscription poll failed', { subscriptionId, error });

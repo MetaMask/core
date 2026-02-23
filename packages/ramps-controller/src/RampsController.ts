@@ -18,9 +18,10 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
+  BuyWidget,
   RampsToken,
   RampsServiceActions,
-  BuyWidget,
+  RampsOrder,
 } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
@@ -30,6 +31,8 @@ import type {
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
 } from './RampsService-method-action-types';
 import type {
   RequestCache as RequestCacheType,
@@ -117,6 +120,8 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
   'RampsService:getPaymentMethods',
   'RampsService:getQuotes',
   'RampsService:getBuyWidgetUrl',
+  'RampsService:getOrder',
+  'RampsService:getOrderFromCallback',
   'TransakService:setApiKey',
   'TransakService:setAccessToken',
   'TransakService:clearAccessToken',
@@ -478,6 +483,8 @@ type AllowedActions =
   | RampsServiceGetPaymentMethodsAction
   | RampsServiceGetQuotesAction
   | RampsServiceGetBuyWidgetUrlAction
+  | RampsServiceGetOrderAction
+  | RampsServiceGetOrderFromCallbackAction
   | TransakServiceSetApiKeyAction
   | TransakServiceSetAccessTokenAction
   | TransakServiceClearAccessTokenAction
@@ -640,22 +647,6 @@ export class RampsController extends BaseController<
    * Used so isLoading is only cleared when the last request for that resource finishes.
    */
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
-
-  /**
-   * Interval ID for automatic quote polling.
-   * Set when startQuotePolling() is called, cleared when stopQuotePolling() is called.
-   */
-  #quotePollingInterval: ReturnType<typeof setInterval> | null = null;
-
-  /**
-   * Options used for quote polling (walletAddress, amount, redirectUrl).
-   * Stored so polling can be restarted when dependencies change.
-   */
-  #quotePollingOptions: {
-    walletAddress: string;
-    amount: number;
-    redirectUrl?: string;
-  } | null = null;
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -898,7 +889,6 @@ export class RampsController extends BaseController<
   }
 
   #cleanupState(): void {
-    this.stopQuotePolling();
     this.#abortDependentRequests();
     this.#clearPendingResourceCountForDependentResources();
     this.update((state) =>
@@ -914,24 +904,6 @@ export class RampsController extends BaseController<
    */
   #fireAndForget<Result>(promise: Promise<Result>): void {
     promise.catch((_error: unknown) => undefined);
-  }
-
-  /**
-   * Restarts quote polling if it's currently active.
-   * Used when dependencies change (token, provider, payment method).
-   * Will only restart if all dependencies are still met (startQuotePolling validates this).
-   */
-  #restartPollingIfActive(): void {
-    if (this.#quotePollingInterval !== null && this.#quotePollingOptions) {
-      const options = this.#quotePollingOptions;
-      this.stopQuotePolling();
-      try {
-        this.startQuotePolling(options);
-      } catch {
-        // Dependencies not met yet, polling will need to be manually restarted
-        // when dependencies are available
-      }
-    }
   }
 
   #requireRegion(): string {
@@ -1093,7 +1065,6 @@ export class RampsController extends BaseController<
       if (regionChanged) {
         this.#abortDependentRequests();
         this.#clearPendingResourceCountForDependentResources();
-        this.stopQuotePolling();
       }
       this.update((state) => {
         if (regionChanged) {
@@ -1136,7 +1107,6 @@ export class RampsController extends BaseController<
    */
   setSelectedProvider(providerId: string | null): void {
     if (providerId === null) {
-      this.stopQuotePolling();
       this.update((state) => {
         state.providers.selected = null;
         resetResource(state, 'paymentMethods');
@@ -1167,11 +1137,7 @@ export class RampsController extends BaseController<
     });
 
     this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { provider: provider.id }).then(() => {
-        // Restart quote polling after payment methods are fetched
-        this.#restartPollingIfActive();
-        return undefined;
-      }),
+      this.getPaymentMethods(regionCode, { provider: provider.id }),
     );
   }
 
@@ -1299,7 +1265,6 @@ export class RampsController extends BaseController<
    */
   setSelectedToken(assetId?: string): void {
     if (!assetId) {
-      this.stopQuotePolling();
       this.update((state) => {
         state.tokens.selected = null;
         resetResource(state, 'paymentMethods');
@@ -1333,12 +1298,7 @@ export class RampsController extends BaseController<
     });
 
     this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { assetId: token.assetId }).then(
-        () => {
-          this.#restartPollingIfActive();
-          return undefined;
-        },
-      ),
+      this.getPaymentMethods(regionCode, { assetId: token.assetId }),
     );
   }
 
@@ -1530,9 +1490,6 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.paymentMethods.selected = paymentMethod;
     });
-
-    // Restart quote polling if active
-    this.#restartPollingIfActive();
   }
 
   /**
@@ -1660,8 +1617,7 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Starts automatic quote polling with a 15-second refresh interval.
-   * Fetches quotes immediately and then every 15 seconds.
+   * Fetches quotes for the currently selected token, provider, and payment method.
    * If the response contains exactly one quote, it is auto-selected.
    * If multiple quotes are returned, the existing selection is preserved if still valid.
    *
@@ -1674,7 +1630,7 @@ export class RampsController extends BaseController<
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @throws If required dependencies (region, token, provider) are not set.
    */
-  startQuotePolling(options: {
+  fetchQuotesForSelection(options: {
     walletAddress: string;
     amount: number;
     redirectUrl?: string;
@@ -1686,13 +1642,13 @@ export class RampsController extends BaseController<
 
     if (!token) {
       throw new Error(
-        'Token is required. Cannot start quote polling without a selected token.',
+        'Token is required. Cannot fetch quotes without a selected token.',
       );
     }
 
     if (!provider) {
       throw new Error(
-        'Provider is required. Cannot start quote polling without a selected provider.',
+        'Provider is required. Cannot fetch quotes without a selected provider.',
       );
     }
 
@@ -1700,70 +1656,41 @@ export class RampsController extends BaseController<
       return;
     }
 
-    // Stop any existing polling first
-    this.stopQuotePolling();
+    this.#fireAndForget(
+      this.getQuotes({
+        assetId: token.assetId,
+        amount: options.amount,
+        walletAddress: options.walletAddress,
+        redirectUrl: options.redirectUrl,
+        paymentMethods: [paymentMethod.id],
+        providers: [provider.id],
+        forceRefresh: true,
+      }).then((response) => {
+        let newSelectedQuote: Quote | null = null;
 
-    // Store options for restarts (must be after stop to avoid being cleared)
-    this.#quotePollingOptions = options;
-
-    // Define the fetch function
-    const fetchQuotes = (): void => {
-      this.#fireAndForget(
-        this.getQuotes({
-          assetId: token.assetId,
-          amount: options.amount,
-          walletAddress: options.walletAddress,
-          redirectUrl: options.redirectUrl,
-          paymentMethods: [paymentMethod.id],
-          providers: [provider.id],
-          forceRefresh: true,
-        }).then((response) => {
-          let newSelectedQuote: Quote | null = null;
-
-          // Auto-select logic: only when exactly one quote is returned
-          this.update((state) => {
-            if (response.success.length === 1) {
-              newSelectedQuote = response.success[0];
+        this.update((state) => {
+          if (response.success.length === 1) {
+            newSelectedQuote = response.success[0];
+            state.quotes.selected = newSelectedQuote;
+          } else {
+            const currentSelection = state.quotes.selected;
+            if (currentSelection) {
+              const freshQuote = response.success.find(
+                (quote) =>
+                  quote.provider === currentSelection.provider &&
+                  quote.quote.paymentMethod ===
+                    currentSelection.quote.paymentMethod,
+              );
+              newSelectedQuote = freshQuote ?? null;
               state.quotes.selected = newSelectedQuote;
-            } else {
-              // Keep existing selection if still valid, but update with fresh data
-              const currentSelection = state.quotes.selected;
-              if (currentSelection) {
-                const freshQuote = response.success.find(
-                  (quote) =>
-                    quote.provider === currentSelection.provider &&
-                    quote.quote.paymentMethod ===
-                      currentSelection.quote.paymentMethod,
-                );
-                newSelectedQuote = freshQuote ?? null;
-                state.quotes.selected = newSelectedQuote;
-              }
             }
-          });
+          }
+        });
 
-          this.#syncWidgetUrl(newSelectedQuote);
-          return undefined;
-        }),
-      );
-    };
-
-    // Fetch immediately
-    fetchQuotes();
-
-    // Set up 15-second polling
-    this.#quotePollingInterval = setInterval(fetchQuotes, 15000);
-  }
-
-  /**
-   * Stops automatic quote polling.
-   * Does not clear quotes data or selection, only stops the interval.
-   */
-  stopQuotePolling(): void {
-    if (this.#quotePollingInterval !== null) {
-      clearInterval(this.#quotePollingInterval);
-      this.#quotePollingInterval = null;
-    }
-    this.#quotePollingOptions = null;
+        this.#syncWidgetUrl(newSelectedQuote);
+        return undefined;
+      }),
+    );
   }
 
   /**
@@ -1781,11 +1708,9 @@ export class RampsController extends BaseController<
 
   /**
    * Cleans up controller resources.
-   * Stops any active quote polling to prevent memory leaks.
    * Should be called when the controller is no longer needed.
    */
   override destroy(): void {
-    this.stopQuotePolling();
     super.destroy();
   }
 
@@ -1863,6 +1788,52 @@ export class RampsController extends BaseController<
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Fetches an order from the unified V2 API endpoint.
+   * Returns a normalized RampsOrder for all provider types (aggregator and native).
+   *
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param orderCode - The order identifier.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrder(
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    return await this.messenger.call(
+      'RampsService:getOrder',
+      providerCode,
+      orderCode,
+      wallet,
+    );
+  }
+
+  /**
+   * Extracts an order from a provider callback URL.
+   * Sends the callback URL to the V2 backend for provider-specific parsing,
+   * then fetches the full order. This is the V2 equivalent of the aggregator
+   * SDK's `getOrderFromCallback`.
+   *
+   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param callbackUrl - The full callback URL the provider redirected to.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrderFromCallback(
+    providerCode: string,
+    callbackUrl: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    return await this.messenger.call(
+      'RampsService:getOrderFromCallback',
+      providerCode,
+      callbackUrl,
+      wallet,
+    );
   }
 
   // === TRANSAK METHODS ===
