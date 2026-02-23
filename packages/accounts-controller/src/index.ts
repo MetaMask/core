@@ -31,7 +31,6 @@ export type {
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerUpdateAccountsAction,
   AccountsControllerLoadBackupAction,
-  AccountsControllerMethodActions,
 } from './AccountsController-method-action-types';
 export { EMPTY_ACCOUNT, AccountsController } from './AccountsController';
 export {

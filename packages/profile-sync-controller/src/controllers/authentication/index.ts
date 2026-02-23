@@ -12,5 +12,4 @@ export type {
   AuthenticationControllerGetSessionProfileAction,
   AuthenticationControllerGetUserProfileLineageAction,
   AuthenticationControllerIsSignedInAction,
-  AuthenticationControllerMethodActions,
 } from './AuthenticationController-method-action-types';

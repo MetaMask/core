@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Refactor the controller's messenger action registration ([#7976](https://github.com/MetaMask/core/pull/7976/))
-  - The controller's methods are now exposed to the messenger through `registerMethodActionHandlers` and `MESSENGER_EXPOSED_METHODS`.
-  - The action types are now generated using `generate-method-action-types`.
-  - Exposes the missing public methods in the messenger.
 - Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
 
 ## [7.0.0]

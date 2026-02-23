@@ -7,12 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `UserStorageController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
+  - The following actions are now available:
+    - `UserStorageController:performDeleteStorageAllFeatureEntries`
+    - `UserStorageController:listEntropySources`
+    - `UserStorageController:setIsBackupAndSyncFeatureEnabled`
+    - `UserStorageController:setIsContactSyncingInProgress`
+    - `UserStorageController:syncContactsWithUserStorage`
+  - Corresponding action types (e.g. `UserStorageControllerPerformDeleteStorageAllFeatureEntriesAction`) are available as well.
+
 ### Changed
 
-- **BREAKING:** Refactor the controller's messenger action registration ([#7976](https://github.com/MetaMask/core/pull/7976/))
-  - The controller's methods are now exposed to the messenger through `registerMethodActionHandlers` and `MESSENGER_EXPOSED_METHODS`.
-  - The action types are now generated using `generate-method-action-types`.
-  - Exposes the missing public methods in the messenger.
+- **BREAKING:** Standardize names of `AuthenticationController` and `UserStorageController` messenger action types ([#7976](https://github.com/MetaMask/core/pull/7976/))
+  - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `AuthenticationControllerPerformSignIn` -> `AuthenticationControllerPerformSignInAction`). You will need to update imports appropriately.
+  - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AuthenticationController` and `UserStorageController` messengers.
 
 ## [27.1.0]
 

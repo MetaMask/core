@@ -20,5 +20,4 @@ export type {
   UserStorageControllerSetIsBackupAndSyncFeatureEnabledAction,
   UserStorageControllerSetIsContactSyncingInProgressAction,
   UserStorageControllerSyncContactsWithUserStorageAction,
-  UserStorageControllerMethodActions,
 } from './UserStorageController-method-action-types';

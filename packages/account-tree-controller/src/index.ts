@@ -33,7 +33,6 @@ export type {
   AccountTreeControllerClearStateAction,
   AccountTreeControllerSyncWithUserStorageAction,
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
-  AccountTreeControllerMethodActions,
 } from './AccountTreeController-method-action-types';
 
 export type { AccountContext } from './AccountTreeController';
