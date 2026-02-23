@@ -25,6 +25,11 @@ import type {
   SubjectPermissions,
 } from '@metamask/permission-controller';
 import type {
+  BulkTokenScanResponse,
+  PhishingControllerBulkScanTokensAction,
+} from '@metamask/phishing-controller';
+import { TokenScanResultType } from '@metamask/phishing-controller';
+import type {
   GetAllSnaps,
   HandleSnapRequest,
 } from '@metamask/snaps-controllers';
@@ -139,7 +144,8 @@ type AllowedActions =
   | HandleSnapRequest
   | GetAllSnaps
   | GetPermissions
-  | AccountsControllerListMultichainAccountsAction;
+  | AccountsControllerListMultichainAccountsAction
+  | PhishingControllerBulkScanTokensAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -412,11 +418,16 @@ export class MultichainAssetsController extends BaseController<
 
         // In case accountsAndAssetsToUpdate event is fired with "added" assets that already exist, we don't want to add them again
         // Also filter out ignored assets
-        const filteredToBeAddedAssets = added.filter(
+        const preFilteredToBeAddedAssets = added.filter(
           (asset) =>
             !existing.includes(asset) &&
             isCaipAssetType(asset) &&
             !this.#isAssetIgnored(asset, accountId),
+        );
+
+        // Filter out tokens flagged by Blockaid as non-benign
+        const filteredToBeAddedAssets = await this.#filterBlockaidSpamTokens(
+          preFilteredToBeAddedAssets,
         );
 
         // In case accountsAndAssetsToUpdate event is fired with "removed" assets that don't exist, we don't want to remove them
@@ -498,10 +509,11 @@ export class MultichainAssetsController extends BaseController<
 
     // Get assets list
     if (account.metadata.snap) {
-      const assets = await this.#getAssetsList(
+      const allAssets = await this.#getAssetsList(
         account.id,
         account.metadata.snap.id,
       );
+      const assets = await this.#filterBlockaidSpamTokens(allAssets);
       await this.#refreshAssetsMetadata(assets);
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
@@ -700,6 +712,93 @@ export class MultichainAssetsController extends BaseController<
       console.error(error);
       return undefined;
     }
+  }
+
+  /**
+   * Filters out tokens flagged as malicious by Blockaid via the
+   * `PhishingController:bulkScanTokens` messenger action. Only tokens with
+   * an `assetNamespace` of "token" are scanned (native assets like slip44 are
+   * passed through unfiltered). If the scan fails, all tokens are kept
+   * (fail open).
+   *
+   * @param assets - The CAIP asset type list to filter.
+   * @returns The filtered list with malicious tokens removed.
+   */
+  async #filterBlockaidSpamTokens(
+    assets: CaipAssetType[],
+  ): Promise<CaipAssetType[]> {
+    // Group scannable token assets by chain namespace
+    const tokensByChain: Record<
+      string,
+      { asset: CaipAssetType; address: string }[]
+    > = {};
+
+    for (const asset of assets) {
+      const { assetNamespace, assetReference, chain } =
+        parseCaipAssetType(asset);
+
+      // Only scan fungible token assets (e.g. SPL tokens), skip native (slip44)
+      if (assetNamespace === 'token') {
+        const chainName = chain.namespace;
+        if (!tokensByChain[chainName]) {
+          tokensByChain[chainName] = [];
+        }
+        tokensByChain[chainName].push({ asset, address: assetReference });
+      }
+    }
+
+    // If there are no token assets to scan, return as-is
+    if (Object.keys(tokensByChain).length === 0) {
+      return assets;
+    }
+
+    // Build a set of assets to reject (non-benign tokens)
+    const rejectedAssets = new Set<CaipAssetType>();
+
+    // PhishingController:bulkScanTokens rejects requests with more than
+    // 100 tokens (returning {}). Batch addresses into chunks to stay within
+    // the limit.
+    const BATCH_SIZE = 100;
+
+    for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {
+      const addresses = tokenEntries.map((entry) => entry.address);
+
+      // Create batches of BATCH_SIZE
+      const batches: string[][] = [];
+      for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
+        batches.push(addresses.slice(i, i + BATCH_SIZE));
+      }
+
+      // Scan all batches in parallel. Using Promise.allSettled so that a
+      // single batch failure doesn't discard results from successful batches
+      // (fail open at the batch level, not the chain level).
+      const batchResults = await Promise.allSettled(
+        batches.map((batch) =>
+          this.messenger.call('PhishingController:bulkScanTokens', {
+            chainId: chainName,
+            tokens: batch,
+          }),
+        ),
+      );
+
+      // Merge results from fulfilled batches (rejected batches fail open)
+      const scanResponse: BulkTokenScanResponse = {};
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          Object.assign(scanResponse, result.value);
+        }
+      }
+
+      for (const entry of tokenEntries) {
+        const result = scanResponse[entry.address];
+        if (result?.result_type === TokenScanResultType.Malicious) {
+          rejectedAssets.add(entry.asset);
+        }
+      }
+    }
+
+    // Filter while preserving original order
+    return assets.filter((asset) => !rejectedAssets.has(asset));
   }
 
   /**

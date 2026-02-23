@@ -1,7 +1,6 @@
-import { StatusTypes } from '@metamask/bridge-controller';
+import { getClientHeaders, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
-import { getClientIdHeader } from './bridge-status';
 import {
   IntentOrder,
   IntentOrderStatus,
@@ -22,12 +21,14 @@ export type IntentApi = {
   submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
+    jwt: string,
   ): Promise<IntentOrder>;
   getOrderStatus(
     orderId: string,
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
+    jwt: string,
   ): Promise<IntentOrder>;
 };
 
@@ -44,6 +45,7 @@ export class IntentApiImpl implements IntentApi {
   async submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
+    jwt: string | undefined,
   ): Promise<IntentOrder> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
     try {
@@ -51,7 +53,7 @@ export class IntentApiImpl implements IntentApi {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getClientIdHeader(clientId),
+          ...getClientHeaders({ clientId, jwt }),
         },
         body: JSON.stringify(params),
       });
@@ -72,12 +74,13 @@ export class IntentApiImpl implements IntentApi {
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
+    jwt: string | undefined,
   ): Promise<IntentOrder> {
     const endpoint = `${this.#baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {
       const response = await this.#fetchFn(endpoint, {
         method: 'GET',
-        headers: getClientIdHeader(clientId),
+        headers: getClientHeaders({ clientId, jwt }),
       });
       if (!validateIntentOrderResponse(response)) {
         throw new Error('Invalid getOrderStatus response');

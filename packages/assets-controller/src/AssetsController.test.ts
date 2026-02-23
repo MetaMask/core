@@ -17,6 +17,7 @@ import type {
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import type { Caip19AssetId, AccountId } from './types';
 
 function createMockQueryApiClient(): ApiPlatformClient {
@@ -57,11 +58,17 @@ function createMockInternalAccount(
 type WithControllerOptions = {
   state?: Partial<AssetsControllerState>;
   isBasicFunctionality?: () => boolean;
+  /**
+   * When set, registers ClientController:getState so the controller sees this UI state.
+   * Required for tests that rely on asset tracking running (e.g. trackMetaMetricsEvent on unlock).
+   */
+  clientControllerState?: { isUiOpen: boolean };
   /** Extra options passed to AssetsController constructor (e.g. trackMetaMetricsEvent). */
   controllerOptions?: Partial<{
     trackMetaMetricsEvent: (
       payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
     ) => void;
+    priceDataSourceConfig: PriceDataSourceConfig;
   }>;
 };
 
@@ -89,6 +96,7 @@ async function withController<ReturnValue>(
     {
       state = {},
       isBasicFunctionality = (): boolean => true,
+      clientControllerState,
       controllerOptions = {},
     },
     fn,
@@ -141,6 +149,17 @@ async function withController<ReturnValue>(
   ).registerActionHandler('TokenListController:getState', () => ({
     tokensChainsCache: {},
   }));
+
+  if (clientControllerState !== undefined) {
+    (
+      messenger as {
+        registerActionHandler: (a: string, h: () => unknown) => void;
+      }
+    ).registerActionHandler(
+      'ClientController:getState',
+      () => clientControllerState,
+    );
+  }
 
   const controller = new AssetsController({
     messenger: messenger as unknown as AssetsControllerMessenger,
@@ -812,8 +831,15 @@ describe('AssetsController', () => {
       const trackMetaMetricsEvent = jest.fn();
 
       await withController(
-        { controllerOptions: { trackMetaMetricsEvent } },
+        {
+          clientControllerState: { isUiOpen: true },
+          controllerOptions: { trackMetaMetricsEvent },
+        },
         async ({ messenger }) => {
+          // UI must be open and keyring unlocked for asset tracking to run
+          (
+            messenger as { publish: (topic: string, payload?: unknown) => void }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
 
           // Allow #start() -> getAssets() to resolve so the callback runs
@@ -840,8 +866,15 @@ describe('AssetsController', () => {
       const trackMetaMetricsEvent = jest.fn();
 
       await withController(
-        { controllerOptions: { trackMetaMetricsEvent } },
+        {
+          clientControllerState: { isUiOpen: true },
+          controllerOptions: { trackMetaMetricsEvent },
+        },
         async ({ messenger }) => {
+          // UI must be open and keyring unlocked for asset tracking to run
+          (
+            messenger as { publish: (topic: string, payload?: unknown) => void }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 

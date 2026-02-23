@@ -5,7 +5,9 @@
   },
   "references": [
     { "path": "../account-tree-controller" },
+    { "path": "../assets-controllers" },
     { "path": "../base-controller" },
+    { "path": "../client-controller" },
     { "path": "../core-backend" },
     { "path": "../keyring-controller" },
     { "path": "../messenger" },

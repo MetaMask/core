@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "11.18.0",
+  "version": "11.19.0",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
@@ -70,7 +70,6 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "nock": "^13.3.1",
-    "sinon": "^9.2.4",
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

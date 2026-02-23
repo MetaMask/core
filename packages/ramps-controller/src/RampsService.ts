@@ -132,6 +132,10 @@ export type PaymentMethod = {
    * Localized pending order description (optional).
    */
   pendingOrderDescription?: string;
+  /**
+   * Whether this payment method is a manual bank transfer.
+   */
+  isManualBankTransfer?: boolean;
 };
 
 /**
@@ -240,9 +244,17 @@ export type Quote = {
     providerFee?: number | string;
     /**
      * Buy URL endpoint that returns the actual provider widget URL.
+     *
      * This is a MetaMask-hosted endpoint that, when fetched, returns JSON with the provider's widget URL.
+     *
+     * @deprecated Use buyWidget instead - it's embedded in the quote response.
      */
     buyURL?: string;
+    /**
+     * Widget information embedded in the quote response.
+     * Contains the widget URL, browser type, and optional pre-order tracking ID.
+     */
+    buyWidget?: BuyWidget;
   };
   /**
    * Metadata about the quote.
@@ -482,6 +494,103 @@ export type TokensResponse = {
   allTokens: RampsToken[];
 };
 
+// === ORDER TYPES ===
+
+/**
+ * Possible statuses for a ramps order.
+ */
+export enum RampsOrderStatus {
+  Unknown = 'UNKNOWN',
+  Precreated = 'PRECREATED',
+  Created = 'CREATED',
+  Pending = 'PENDING',
+  Failed = 'FAILED',
+  Completed = 'COMPLETED',
+  Cancelled = 'CANCELLED',
+  IdExpired = 'ID_EXPIRED',
+}
+
+/**
+ * Network information associated with an order.
+ */
+export type RampsOrderNetwork = {
+  name: string;
+  chainId: string;
+};
+
+/**
+ * Crypto currency information associated with an order.
+ */
+export type RampsOrderCryptoCurrency = {
+  assetId?: string;
+  name?: string;
+  chainId?: string;
+  decimals?: number;
+  iconUrl?: string;
+  symbol: string;
+};
+
+/**
+ * Payment method information associated with an order.
+ */
+export type RampsOrderPaymentMethod = {
+  id: string;
+  name?: string;
+  shortName?: string;
+  duration?: string;
+  icon?: string;
+  isManualBankTransfer?: boolean;
+};
+
+/**
+ * Fiat currency information associated with an order.
+ */
+export type RampsOrderFiatCurrency = {
+  id?: string;
+  symbol: string;
+  name?: string;
+  decimals?: number;
+  denomSymbol?: string;
+};
+
+/**
+ * A unified order type returned from the V2 API.
+ * The V2 endpoint normalizes all provider responses into this shape.
+ */
+export type RampsOrder = {
+  id?: string;
+  isOnlyLink: boolean;
+  provider?: Provider;
+  success: boolean;
+  cryptoAmount: string | number;
+  fiatAmount: number;
+  cryptoCurrency?: RampsOrderCryptoCurrency;
+  fiatCurrency?: RampsOrderFiatCurrency;
+  providerOrderId: string;
+  providerOrderLink: string;
+  createdAt: number;
+  paymentMethod?: RampsOrderPaymentMethod;
+  totalFeesFiat: number;
+  txHash: string;
+  walletAddress: string;
+  status: RampsOrderStatus;
+  network: RampsOrderNetwork;
+  canBeUpdated: boolean;
+  idHasExpired: boolean;
+  idExpirationDate?: number;
+  excludeFromPurchases: boolean;
+  timeDescriptionPending: string;
+  fiatAmountInUsd?: number;
+  feesInUsd?: number;
+  region?: string;
+  orderType: string;
+  exchangeRate?: number;
+  pollingSecondsMinimum?: number;
+  statusDescription?: string;
+  partnerFees?: number;
+  networkFees?: number;
+};
+
 /**
  * The SDK version to send with API requests. (backwards-compatibility)
  */
@@ -529,6 +638,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPaymentMethods',
   'getQuotes',
   'getBuyWidgetUrl',
+  'getOrder',
+  'getOrderFromCallback',
 ] as const;
 
 /**
@@ -1189,5 +1300,102 @@ export class RampsService {
     }
 
     return response;
+  }
+
+  /**
+   * Fetches an order from the unified V2 API endpoint.
+   * This endpoint returns a normalized `RampsOrder` (DepositOrder shape)
+   * for all provider types, including both aggregator and native providers.
+   *
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param orderCode - The order identifier.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrder(
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    const url = new URL(
+      getApiPath(`providers/${providerCode}/orders/${orderCode}`),
+      this.#getBaseUrl(RampsApiService.Orders),
+    );
+    this.#addCommonParams(url);
+    url.searchParams.set('wallet', wallet);
+
+    const response = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(url);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<RampsOrder>;
+    });
+
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from order API');
+    }
+
+    return response;
+  }
+
+  /**
+   * Extracts an order from a provider callback URL.
+   * Sends the callback URL to the V2 API backend, which knows how to parse
+   * each provider's callback format and extract the order ID. Then fetches
+   * the full order using that ID.
+   *
+   * This is the V2 equivalent of the aggregator SDK's `getOrderFromCallback`.
+   *
+   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param callbackUrl - The full callback URL the provider redirected to.
+   * @param wallet - The wallet address associated with the order.
+   * @returns The unified order data.
+   */
+  async getOrderFromCallback(
+    providerCode: string,
+    callbackUrl: string,
+    wallet: string,
+  ): Promise<RampsOrder> {
+    // Step 1: Send the callback URL to the backend to extract the order ID.
+    // The backend parses it using provider-specific logic.
+    const callbackApiUrl = new URL(
+      getApiPath(`providers/${providerCode}/callback`),
+      this.#getBaseUrl(RampsApiService.Orders),
+    );
+    this.#addCommonParams(callbackApiUrl);
+    callbackApiUrl.searchParams.set('url', callbackUrl);
+
+    const callbackResponse = await this.#policy.execute(async () => {
+      const fetchResponse = await this.#fetch(callbackApiUrl);
+      if (!fetchResponse.ok) {
+        throw new HttpError(
+          fetchResponse.status,
+          `Fetching '${callbackApiUrl.toString()}' failed with status '${fetchResponse.status}'`,
+        );
+      }
+      return fetchResponse.json() as Promise<{ id: string }>;
+    });
+
+    const rawOrderId = callbackResponse?.id;
+    if (!rawOrderId) {
+      throw new Error(
+        'Could not extract order ID from callback URL via provider',
+      );
+    }
+
+    // The callback response id may be a full resource path like
+    // "/providers/transak-staging/orders/3ec2e8ac-...".
+    // Extract just the order code (last segment) so getOrder doesn't
+    // build a doubled path.
+    const lastSlash = rawOrderId.lastIndexOf('/');
+    const orderCode =
+      lastSlash >= 0 ? rawOrderId.slice(lastSlash + 1) : rawOrderId;
+
+    // Step 2: Fetch the full order using the extracted order code.
+    return this.getOrder(providerCode, orderCode, wallet);
   }
 }
