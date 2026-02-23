@@ -92,7 +92,12 @@ jobs:
           done
           exit "$bad"
       - name: Publish preview builds
-        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
+        run: |
+          for dir in packages/*/; do
+            if jq -e '.private | not' "$dir/package.json" > /dev/null 2>&1; then
+              (cd "$dir" && yarn npm publish --tag preview)
+            fi
+          done
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
       - name: Generate preview build message
