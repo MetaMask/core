@@ -50,8 +50,6 @@ export type GenerateOptions = {
   projectPath: string;
   /** Absolute path to the output directory for generated docs. */
   outputDir: string;
-  /** Scan .ts source files instead of .d.cts declaration files. */
-  source?: boolean;
 };
 
 /**
@@ -72,21 +70,17 @@ export type GenerateResult = {
 export async function generate(
   options: GenerateOptions,
 ): Promise<GenerateResult> {
-  const { projectPath, outputDir, source } = options;
-  const clientMode = !source;
+  const { projectPath, outputDir } = options;
 
   const allItems: MessengerItemDoc[] = [];
 
-  if (source) {
-    // Source mode: scan packages/*/src for .ts files
+  // Scan packages/*/src for .ts source files (monorepo)
+  const packagesDir = path.join(projectPath, 'packages');
+  const hasPackages = await pathExists(packagesDir);
+
+  if (hasPackages) {
     console.log('Scanning packages for Messenger action/event types...');
 
-    const packagesDir = path.join(projectPath, 'packages');
-    if (!(await pathExists(packagesDir))) {
-      throw new Error(
-        `${packagesDir} does not exist. The --source flag requires a monorepo with a packages/ directory.`,
-      );
-    }
     const entries = await fs.readdir(packagesDir, { withFileTypes: true });
     const packageDirs = entries
       .filter((dirent) => dirent.isDirectory())
@@ -112,17 +106,14 @@ export async function generate(
         }
       }
     }
-  } else {
-    // Client mode: scan node_modules/@metamask/*/dist for .d.cts files
-    const clientName = path.basename(projectPath);
-    console.log(
-      `Scanning ${clientName} dependencies for Messenger action/event types...`,
-    );
+  }
 
-    const nmDir = path.join(projectPath, 'node_modules', '@metamask');
-    if (!(await pathExists(nmDir))) {
-      throw new Error(`${nmDir} does not exist.`);
-    }
+  // Scan node_modules/@metamask/*/dist for .d.cts declaration files
+  const nmDir = path.join(projectPath, 'node_modules', '@metamask');
+  const hasNodeModules = await pathExists(nmDir);
+
+  if (hasNodeModules) {
+    console.log('Scanning node_modules for Messenger action/event types...');
 
     const entries = await fs.readdir(nmDir, { withFileTypes: true });
     const pkgDirs = entries
@@ -149,6 +140,12 @@ export async function generate(
         }
       }
     }
+  }
+
+  if (!hasPackages && !hasNodeModules) {
+    throw new Error(
+      `No packages/ or node_modules/@metamask/ found in ${projectPath}.`,
+    );
   }
 
   console.log(`Found ${allItems.length} messenger items total.`);
@@ -216,9 +213,6 @@ export async function generate(
   }
   await fs.mkdir(docsDir, { recursive: true });
 
-  // Determine client name for index page
-  const clientName = source ? undefined : path.basename(projectPath);
-
   // Generate namespace pages
   for (const ns of namespaces) {
     const nsDir = path.join(docsDir, ns.namespace);
@@ -227,14 +221,14 @@ export async function generate(
     if (ns.actions.length > 0) {
       await fs.writeFile(
         path.join(nsDir, 'actions.md'),
-        generateNamespacePage(ns, 'action', clientMode),
+        generateNamespacePage(ns, 'action'),
       );
     }
 
     if (ns.events.length > 0) {
       await fs.writeFile(
         path.join(nsDir, 'events.md'),
-        generateNamespacePage(ns, 'event', clientMode),
+        generateNamespacePage(ns, 'event'),
       );
     }
   }
@@ -242,7 +236,7 @@ export async function generate(
   // Generate index page
   await fs.writeFile(
     path.join(docsDir, 'index.md'),
-    generateIndexPage(namespaces, clientName),
+    generateIndexPage(namespaces),
   );
 
   // Generate sidebars

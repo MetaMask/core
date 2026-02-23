@@ -83,7 +83,6 @@ async function main(): Promise<void> {
   let build = false;
   let serve = false;
   let dev = false;
-  let source = false;
   let outputDir: string | undefined;
   let projectPath: string | undefined;
 
@@ -98,9 +97,6 @@ async function main(): Promise<void> {
         break;
       case '--dev':
         dev = true;
-        break;
-      case '--source':
-        source = true;
         break;
       case '--output':
         i += 1;
@@ -136,7 +132,6 @@ async function main(): Promise<void> {
   await generate({
     projectPath: resolvedProjectPath,
     outputDir: resolvedOutputDir,
-    source,
   });
 
   // Step 2: If --build, --serve, or --dev, set up and run Docusaurus
@@ -228,6 +223,7 @@ function printHelp(): void {
 Usage: messenger-docs [project-path] [options]
 
 Generate Messenger API documentation for MetaMask controller packages.
+Automatically scans both packages/*/src (.ts) and node_modules/@metamask (.d.cts).
 
 Arguments:
   project-path    Path to the project to scan (default: current directory)
@@ -236,14 +232,13 @@ Options:
   --build         Generate docs and build static site
   --serve         Generate docs, build, and serve static site
   --dev           Generate docs and start dev server with hot reload
-  --source        Scan .ts source files instead of .d.cts declarations
   --output <dir>  Output directory (default: <project-path>/.messenger-docs)
   --help          Show this help message
 
 Examples:
   messenger-docs                           # Scan cwd for controller packages
   messenger-docs /path/to/project          # Scan a specific project
-  messenger-docs --source --dev            # Monorepo dev mode with hot reload
+  messenger-docs --dev                     # Dev server with hot reload
   messenger-docs --build                   # Generate and build static site
   messenger-docs --serve                   # Generate, build, and serve
   messenger-docs --output ./my-docs        # Custom output directory

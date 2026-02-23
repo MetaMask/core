@@ -1,15 +1,54 @@
 import type { MessengerItemDoc, NamespaceGroup } from './types';
 
 /**
+ * Convert backtick-quoted action/event names in text into links when they
+ * match a known item in the same namespace. For example, `` `setActiveNetwork` ``
+ * becomes a link to `#networkcontrollersetactivenetwork` on the actions page.
+ *
+ * @param text - The markdown text to process.
+ * @param namespace - The current namespace (e.g. "NetworkController").
+ * @param knownNames - Map from short name (e.g. "setActiveNetwork") to the page-relative path and anchor.
+ * @returns The text with backtick references replaced by links.
+ */
+function linkifyReferences(
+  text: string,
+  namespace: string,
+  knownNames: Map<string, string>,
+): string {
+  return text.replace(/`([a-zA-Z]\w*)`/gu, (match, name: string) => {
+    const link = knownNames.get(name);
+    if (link) {
+      return `[\`${name}\`](${link})`;
+    }
+    // Also try with namespace prefix (e.g. "NetworkController:setActiveNetwork")
+    const fullName = `${namespace}:${name}`;
+    const anchor = fullName.toLowerCase().replace(/[^a-z0-9]/gu, '');
+    const linkFull = knownNames.get(fullName);
+    if (linkFull) {
+      return `[\`${name}\`](${linkFull})`;
+    }
+    // Check if the anchor exists anywhere in known names values
+    for (const [, href] of knownNames) {
+      if (href.includes(anchor)) {
+        return `[\`${name}\`](${href})`;
+      }
+    }
+    return match;
+  });
+}
+
+/**
  * Generate markdown documentation for a single messenger item.
  *
  * @param item - The messenger item to document.
- * @param clientMode - Whether we are generating docs from a client's dependency tree.
+ * @param namespace - The current namespace.
+ * @param knownNames - Map from short/full names to their link paths.
  * @returns The generated markdown string.
  */
 export function generateItemMarkdown(
   item: MessengerItemDoc,
-  clientMode: boolean,
+  namespace: string,
+  knownNames: Map<string, string>,
 ): string {
   const parts: string[] = [];
 
@@ -21,7 +60,7 @@ export function generateItemMarkdown(
     parts.push('');
   }
 
-  if (clientMode) {
+  if (item.sourceFile.includes('node_modules/')) {
     const pkgMatch = item.sourceFile.match(/node_modules\/(@metamask\/[^/]+)/u);
     const pkgName = pkgMatch ? pkgMatch[1] : item.sourceFile;
     const npmUrl = `https://www.npmjs.com/package/${pkgName}`;
@@ -33,17 +72,8 @@ export function generateItemMarkdown(
   parts.push('');
 
   if (item.jsDoc) {
-    // Strip deprecated text from displayed doc (already shown as badge above).
-    // extractJsDocText converts @deprecated to **Deprecated:** format.
-    const docText = item.jsDoc
-      .split('\n')
-      .filter((line) => !line.trim().startsWith('**Deprecated:**'))
-      .join('\n')
-      .trim();
-    if (docText) {
-      parts.push(docText);
-      parts.push('');
-    }
+    parts.push(linkifyReferences(item.jsDoc, namespace, knownNames));
+    parts.push('');
   }
 
   const label = item.kind === 'action' ? 'Handler' : 'Payload';
@@ -62,13 +92,11 @@ export function generateItemMarkdown(
  *
  * @param ns - The namespace group to generate a page for.
  * @param kind - Whether to generate the actions or events page.
- * @param clientMode - Whether we are generating docs from a client's dependency tree.
  * @returns The generated markdown string.
  */
 export function generateNamespacePage(
   ns: NamespaceGroup,
   kind: 'action' | 'event',
-  clientMode: boolean,
 ): string {
   const items = kind === 'action' ? ns.actions : ns.events;
   const title = kind === 'action' ? 'Actions' : 'Events';
@@ -93,6 +121,24 @@ export function generateNamespacePage(
   );
   parts.push('');
 
+  // Build a map of known names → link paths for cross-referencing.
+  // Actions on same page get #anchor, actions/events on sibling page get relative path.
+  const knownNames = new Map<string, string>();
+  for (const action of ns.actions) {
+    const shortName = action.typeString.split(':')[1];
+    const anchor = action.typeString.toLowerCase().replace(/[^a-z0-9]/gu, '');
+    const href = kind === 'action' ? `#${anchor}` : `./actions#${anchor}`;
+    knownNames.set(shortName, href);
+    knownNames.set(action.typeString, href);
+  }
+  for (const event of ns.events) {
+    const shortName = event.typeString.split(':')[1];
+    const anchor = event.typeString.toLowerCase().replace(/[^a-z0-9]/gu, '');
+    const href = kind === 'event' ? `#${anchor}` : `./events#${anchor}`;
+    knownNames.set(shortName, href);
+    knownNames.set(event.typeString, href);
+  }
+
   // Table of contents
   parts.push('| Name | Deprecated |');
   parts.push('|------|-----------|');
@@ -108,7 +154,7 @@ export function generateNamespacePage(
   parts.push('');
 
   for (const item of items) {
-    parts.push(generateItemMarkdown(item, clientMode));
+    parts.push(generateItemMarkdown(item, ns.namespace, knownNames));
     parts.push('---');
     parts.push('');
   }
@@ -120,13 +166,9 @@ export function generateNamespacePage(
  * Generate the index/overview page listing all namespaces.
  *
  * @param namespaces - All namespace groups sorted alphabetically.
- * @param clientName - Optional client name for client-mode docs.
  * @returns The generated markdown string.
  */
-export function generateIndexPage(
-  namespaces: NamespaceGroup[],
-  clientName?: string,
-): string {
+export function generateIndexPage(namespaces: NamespaceGroup[]): string {
   const totalActions = namespaces.reduce(
     (sum, ns) => sum + ns.actions.length,
     0,
@@ -134,29 +176,16 @@ export function generateIndexPage(
   const totalEvents = namespaces.reduce((sum, ns) => sum + ns.events.length, 0);
 
   const parts: string[] = [];
-  if (clientName) {
-    parts.push('---');
-    parts.push(`title: "${clientName} Messenger API Reference"`);
-    parts.push('slug: "/"');
-    parts.push('---');
-    parts.push('');
-    parts.push(`# ${clientName} Messenger API`);
-    parts.push('');
-    parts.push(
-      `This site documents every action and event available in the \`${clientName}\` dependency tree — the type-safe message bus used across all controllers.`,
-    );
-  } else {
-    parts.push('---');
-    parts.push('title: "Messenger API Reference"');
-    parts.push('slug: "/"');
-    parts.push('---');
-    parts.push('');
-    parts.push('# MetaMask Core Messenger API');
-    parts.push('');
-    parts.push(
-      'This site documents every action and event registered on the Messenger — the type-safe message bus used across all controllers in `@metamask/core`.',
-    );
-  }
+  parts.push('---');
+  parts.push('title: "Messenger API Reference"');
+  parts.push('slug: "/"');
+  parts.push('---');
+  parts.push('');
+  parts.push('# Messenger API');
+  parts.push('');
+  parts.push(
+    'This site documents every action and event registered on the Messenger — the type-safe message bus used across all controllers.',
+  );
   parts.push('');
   parts.push(`- **${namespaces.length}** namespaces`);
   parts.push(`- **${totalActions}** actions`);
