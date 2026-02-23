@@ -51,6 +51,7 @@ export const DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS = {
     extensionReturnTxHashAsapBatch: false,
     mobileReturnTxHashAsap: false,
     extensionSkipSmartTransactionStatusPage: false,
+    gaslessBridgeWith7702Enabled: false,
     batchStatusPollingInterval: 1000,
   },
 } as const;

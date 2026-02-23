@@ -48,6 +48,8 @@ export const SmartTransactionsNetworkConfigSchema = type({
   extensionSkipSmartTransactionStatusPage: optional(boolean()),
   /** Polling interval in milliseconds for batch status updates */
   batchStatusPollingInterval: optional(number()),
+  /** Whether gasless bridge with 7702 is enabled for the network */
+  gaslessBridgeWith7702Enabled: optional(boolean()),
   /** Custom sentinel URL for the network */
   sentinelUrl: optional(string()),
 });
