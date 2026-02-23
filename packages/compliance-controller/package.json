@@ -1,6 +1,6 @@
 {
   "name": "@metamask/compliance-controller",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Manages OFAC compliance checks for wallet addresses",
   "keywords": [
     "MetaMask",

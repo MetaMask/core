@@ -67,6 +67,7 @@ export type {
   DataType,
   DataRequest,
   DataResponse,
+  AssetsUpdateMode,
   // Middleware types
   Context,
   NextFunction,

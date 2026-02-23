@@ -1,3 +1,10 @@
+import {
+  array,
+  is,
+  optional,
+  string,
+  type as structType,
+} from '@metamask/superstruct';
 import type { CaipAssetType } from '@metamask/utils';
 
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
@@ -7,35 +14,58 @@ export type AiDigestServiceConfig = {
   baseUrl: string;
 };
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+const MarketInsightsArticleStruct = structType({
+  title: string(),
+  url: string(),
+  source: string(),
+  date: string(),
+});
 
-const isMarketInsightsReport = (
-  value: unknown,
-): value is MarketInsightsReport => {
-  if (!isObject(value)) {
-    return false;
-  }
+const MarketInsightsTweetStruct = structType({
+  contentSummary: string(),
+  url: string(),
+  author: string(),
+  date: string(),
+});
 
-  return (
-    (value.version === undefined || typeof value.version === 'string') &&
-    typeof value.asset === 'string' &&
-    typeof value.generatedAt === 'string' &&
-    typeof value.headline === 'string' &&
-    typeof value.summary === 'string' &&
-    Array.isArray(value.trends) &&
-    Array.isArray(value.sources)
-  );
-};
+const MarketInsightsTrendStruct = structType({
+  title: string(),
+  description: string(),
+  category: string(),
+  impact: string(),
+  articles: array(MarketInsightsArticleStruct),
+  tweets: array(MarketInsightsTweetStruct),
+});
+
+const MarketInsightsSourceStruct = structType({
+  name: string(),
+  url: string(),
+  type: string(),
+});
+
+const MarketInsightsReportStruct = structType({
+  version: optional(string()),
+  asset: string(),
+  generatedAt: string(),
+  headline: string(),
+  summary: string(),
+  trends: array(MarketInsightsTrendStruct),
+  social: optional(array(MarketInsightsTweetStruct)),
+  sources: array(MarketInsightsSourceStruct),
+});
+
+const MarketInsightsDigestEnvelopeStruct = structType({
+  digest: MarketInsightsReportStruct,
+});
 
 const getNormalizedMarketInsightsReport = (
   value: unknown,
 ): MarketInsightsReport | null => {
-  if (isMarketInsightsReport(value)) {
+  if (is(value, MarketInsightsReportStruct)) {
     return value;
   }
 
-  if (isObject(value) && isMarketInsightsReport(value.digest)) {
+  if (is(value, MarketInsightsDigestEnvelopeStruct)) {
     return value.digest;
   }
 

@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+<<<<<<< HEAD
 - Add `PendingTokenMetadata` type and optional `pendingMetadata` parameter to `addCustomAsset(accountId, assetId, pendingMetadata?)`. When provided (e.g. from the extension's pending-tokens flow), token metadata is written to `assetsInfo` immediately so the UI can render the token without waiting for the pipeline ([#8021](https://github.com/MetaMask/core/pull/8021))
+=======
+- Add `currentCurrency` state (ISO 4217 code, default `'usd'`) and `setCurrentCurrency(currentCurrency)` to `AssetsController`. Changing the currency updates state and triggers a one-off price refetch so displayed prices use the new currency ([#7991](https://github.com/MetaMask/core/pull/7991))
+- Add support for forcibly updating prices ([#7991](https://github.com/MetaMask/core/pull/7991))
+- Add parallel middlewares in `ParallelMiddleware.ts`: `createParallelBalanceMiddleware` runs balance data sources (Accounts API, Snap, RPC) in parallel with chain partitioning and a fallback round for failed chains; `createParallelMiddleware` runs TokenDataSource and PriceDataSource in parallel (same request, merged response). Both use `mergeDataResponses` and limited concurrency via `p-limit` ([#7950](https://github.com/MetaMask/core/pull/7950))
+- Add `@metamask/client-controller` dependency and subscribe to `ClientController:stateChange`. Asset tracking runs only when the UI is open (ClientController) and the keyring is unlocked (KeyringController), and stops when either the UI closes or the keyring locks (Client + Keyring lifecycle) ([#7950](https://github.com/MetaMask/core/pull/7950))
+- Add full and merge update modes: `DataResponse.updateMode` and type `AssetsUpdateMode` (`'full'` | `'merge'`). Fetch uses `'full'` (response is authoritative for scope; custom assets not in response are preserved). Subscriptions could use `'merge'` or `'full'` depending on data sources. Default is `'merge'` when omitted ([#7950](https://github.com/MetaMask/core/pull/7950))
+>>>>>>> main
 
 ### Changed
 
