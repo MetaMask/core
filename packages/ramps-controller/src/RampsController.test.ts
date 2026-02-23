@@ -1720,6 +1720,7 @@ describe('RampsController', () => {
             async () => mockTokens,
           );
           const providersPromise = new Promise<{ providers: Provider[] }>(
+            // eslint-disable-next-line no-empty-function -- intentionally never resolves to simulate hanging API
             () => {},
           );
           rootMessenger.registerActionHandler(
