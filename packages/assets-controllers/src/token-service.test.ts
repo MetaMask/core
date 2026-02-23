@@ -844,10 +844,9 @@ describe('Token service', () => {
         pageInfo: { hasNextPage: false, endCursor: null },
       };
 
-      // Expect no first parameter when limit is > 50 and not Ondo
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=50&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -888,7 +887,7 @@ describe('Token service', () => {
       });
     });
 
-    it('should ignore very large limits even for Ondo queries', async () => {
+    it('should clamp very large limits to 50 even for Ondo queries', async () => {
       const searchQuery = 'Ondo Token';
       const veryLargeLimit = 1000;
       const mockResponse = {
@@ -897,10 +896,9 @@ describe('Token service', () => {
         pageInfo: { hasNextPage: false, endCursor: null },
       };
 
-      // Should not include first parameter when limit > 500 even for Ondo
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${encodeURIComponent(searchQuery)}&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${encodeURIComponent(searchQuery)}&first=50&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();

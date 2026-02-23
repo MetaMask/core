@@ -89,6 +89,8 @@ function getTokenSearchURL(options: {
     } else if (query.includes('Ondo') && limit <= 500) {
       // There is an exception on the API side https://github.com/consensys-vertical-apps/va-mmcx-token-api/pull/287
       numberOfItems = limit;
+    } else {
+      numberOfItems = 50;
     }
   }
 
