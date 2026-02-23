@@ -9,16 +9,7 @@ import {
   type,
 } from '@metamask/superstruct';
 
-const NativeAssetSchema = type({
-  assetId: string(),
-  imageUrl: string(),
-  name: string(),
-  symbol: string(),
-  decimals: number(),
-  coingeckoCoinId: string(),
-});
-
-const GovernanceAssetSchema = type({
+const AssetSchema = type({
   assetId: string(),
   imageUrl: string(),
   name: string(),
@@ -29,8 +20,8 @@ const GovernanceAssetSchema = type({
 
 const AssetsSchema = type({
   listUrl: string(),
-  native: NativeAssetSchema,
-  governance: optional(GovernanceAssetSchema),
+  native: AssetSchema,
+  governance: optional(AssetSchema),
 });
 
 const RpcProviderSchema = type({
