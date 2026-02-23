@@ -48,6 +48,7 @@ jobs:
           include-hidden-files: true
           retention-days: 4
           path: |
+            ./yarn.lock
             ./packages/*/
             !./packages/*/node_modules/
             !./packages/*/src/
@@ -70,7 +71,6 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: preview-build-artifacts
-          path: packages
       # The artifact package.json files come from the PR branch.
       # A malicious PR could inject lifecycle scripts (prepack/postpack) that
       # execute during `yarn npm publish` with the NPM token in the environment
@@ -92,12 +92,7 @@ jobs:
           done
           exit "$bad"
       - name: Publish preview builds
-        run: |
-          for dir in packages/*/; do
-            if jq -e '.private | not' "$dir/package.json" > /dev/null 2>&1; then
-              (cd "$dir" && yarn npm publish --tag preview)
-            fi
-          done
+        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
       - name: Generate preview build message
