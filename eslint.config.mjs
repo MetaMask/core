@@ -15,12 +15,7 @@ const config = createConfig([
       'merged-packages/**',
       '.yarn/**',
       'scripts/create-package/package-template/**',
-      'docs-site/docs/**',
-      'docs-site/sidebars.ts',
-      'docs-site/build/**',
-      'docs-site/.docusaurus/**',
-      'docs-site/node_modules/**',
-      'docs-site/.yarn/**',
+      '.messenger-docs/**',
     ],
   },
   {
@@ -48,8 +43,17 @@ const config = createConfig([
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
       'scripts/**/*.ts',
+      'packages/messenger-docs/src/**/*.ts',
     ],
     extends: [nodejs],
+  },
+  {
+    files: ['packages/messenger-docs/src/cli.ts'],
+    rules: {
+      // The bin field points to dist/cli.mjs but the source is src/cli.ts.
+      // Without convertPath, n/hashbang cannot correlate the two.
+      'n/hashbang': 'off',
+    },
   },
   {
     files: ['**/*.{js,cjs}'],

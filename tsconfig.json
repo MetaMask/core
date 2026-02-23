@@ -126,6 +126,9 @@
       "path": "./packages/messenger"
     },
     {
+      "path": "./packages/messenger-docs"
+    },
+    {
       "path": "./packages/multichain-account-service"
     },
     {
