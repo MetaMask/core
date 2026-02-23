@@ -71,6 +71,8 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: preview-build-artifacts
+      - name: Reconcile workspace state
+        run: yarn install --no-immutable
       # The artifact package.json files come from the PR branch.
       # A malicious PR could inject lifecycle scripts (prepack/postpack) that
       # execute during `yarn npm publish` with the NPM token in the environment
