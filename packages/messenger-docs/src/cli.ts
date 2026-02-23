@@ -85,6 +85,7 @@ async function main(): Promise<void> {
   let dev = false;
   let outputDir: string | undefined;
   let projectPath: string | undefined;
+  const scanDirs: string[] = [];
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
@@ -106,6 +107,15 @@ async function main(): Promise<void> {
           process.exitCode = 1;
           return;
         }
+        break;
+      case '--scan-dir':
+        i += 1;
+        if (!args[i] || args[i].startsWith('-')) {
+          console.error('Error: --scan-dir requires a path argument');
+          process.exitCode = 1;
+          return;
+        }
+        scanDirs.push(args[i]);
         break;
       case '--help':
         printHelp();
@@ -132,6 +142,7 @@ async function main(): Promise<void> {
   await generate({
     projectPath: resolvedProjectPath,
     outputDir: resolvedOutputDir,
+    ...(scanDirs.length > 0 ? { scanDirs } : {}),
   });
 
   // Step 2: If --build, --serve, or --dev, set up and run Docusaurus
@@ -139,25 +150,6 @@ async function main(): Promise<void> {
     await setupSite(resolvedOutputDir);
 
     const { bin: docusaurus, nodeModules } = resolveDocusaurus();
-
-    // Symlink node_modules into the output directory so Docusaurus resolves
-    // React 18 and other deps from this package, not the host project.
-    const nmLink = path.join(resolvedOutputDir, 'node_modules');
-    try {
-      await fs.lstat(nmLink);
-      // Already exists — remove only if it's a symlink we previously created.
-      const target = await fs.readlink(nmLink).catch(() => null);
-      if (target !== null) {
-        await fs.unlink(nmLink);
-      }
-    } catch {
-      // Doesn't exist yet — nothing to remove.
-    }
-    try {
-      await fs.access(nmLink);
-    } catch {
-      await fs.symlink(nodeModules, nmLink);
-    }
 
     if (dev) {
       console.log('\nStarting dev server...');
@@ -242,25 +234,27 @@ function printHelp(): void {
 Usage: messenger-docs [project-path] [options]
 
 Generate Messenger API documentation for MetaMask controller packages.
-Automatically scans both packages/*/src (.ts) and node_modules/@metamask (.d.cts).
+Scans packages/*/src (.ts), configured source dirs, and node_modules/@metamask (.d.cts).
 
 Arguments:
-  project-path    Path to the project to scan (default: current directory)
+  project-path      Path to the project to scan (default: current directory)
 
 Options:
-  --build         Generate docs and build static site
-  --serve         Generate docs, build, and serve static site
-  --dev           Generate docs and start dev server with hot reload
-  --output <dir>  Output directory (default: <project-path>/.messenger-docs)
-  --help          Show this help message
+  --build           Generate docs and build static site
+  --serve           Generate docs, build, and serve static site
+  --dev             Generate docs and start dev server with hot reload
+  --scan-dir <dir>  Extra source directory to scan (repeatable, default: src)
+  --output <dir>    Output directory (default: <project-path>/.messenger-docs)
+  --help            Show this help message
+
+Source directories can also be configured in package.json:
+  "messenger-docs": { "scanDirs": ["app", "src"] }
 
 Examples:
-  messenger-docs                           # Scan cwd for controller packages
-  messenger-docs /path/to/project          # Scan a specific project
-  messenger-docs --dev                     # Dev server with hot reload
-  messenger-docs --build                   # Generate and build static site
-  messenger-docs --serve                   # Generate, build, and serve
-  messenger-docs --output ./my-docs        # Custom output directory
+  messenger-docs                                   # Scan cwd
+  messenger-docs --serve                           # Generate, build, and serve
+  messenger-docs --scan-dir app --scan-dir shared  # Scan app/ and shared/
+  messenger-docs --output ./my-docs                # Custom output directory
 `);
 }
 

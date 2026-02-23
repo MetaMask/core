@@ -16,6 +16,7 @@ const config = createConfig([
       '.yarn/**',
       'scripts/create-package/package-template/**',
       '.messenger-docs/**',
+      'packages/messenger-docs/template/**',
     ],
   },
   {

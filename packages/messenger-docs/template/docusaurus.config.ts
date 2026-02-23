@@ -1,8 +1,21 @@
+import * as path from 'node:path';
+
 import type * as Preset from '@docusaurus/preset-classic';
 import type { Config } from '@docusaurus/types';
 import { themes } from 'prism-react-renderer';
 
 const codeTheme = themes.dracula;
+
+// When running inside a host project (e.g. metamask-extension) whose React
+// version differs from Docusaurus's, we alias react/react-dom to the copies
+// installed alongside this package.
+const extraNodeModules = process.env.NODE_PATH; // eslint-disable-line no-process-env
+const reactAlias: Record<string, string> = {};
+if (extraNodeModules) {
+  for (const pkg of ['react', 'react-dom', '@mdx-js/react']) {
+    reactAlias[pkg] = path.join(extraNodeModules, pkg);
+  }
+}
 
 const config: Config = {
   title: 'Messenger API',
@@ -23,6 +36,22 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  plugins: [
+    function resolvePlugin() {
+      return {
+        name: 'resolve-deps',
+        configureWebpack() {
+          if (Object.keys(reactAlias).length === 0) {
+            return {};
+          }
+          return {
+            resolve: { alias: reactAlias },
+          };
+        },
+      };
+    },
+  ],
 
   themes: [
     [

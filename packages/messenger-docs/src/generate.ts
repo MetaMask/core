@@ -50,6 +50,12 @@ export type GenerateOptions = {
   projectPath: string;
   /** Absolute path to the output directory for generated docs. */
   outputDir: string;
+  /**
+   * Extra directories (relative to projectPath) to scan for .ts source files.
+   * When omitted, falls back to `"messenger-docs".scanDirs` in the project's
+   * package.json, then to `["src"]`.
+   */
+  scanDirs?: string[];
 };
 
 /**
@@ -70,21 +76,47 @@ export type GenerateResult = {
 export async function generate(
   options: GenerateOptions,
 ): Promise<GenerateResult> {
-  const { projectPath, outputDir } = options;
+  const { projectPath, outputDir, scanDirs: scanDirsOption } = options;
+
+  // Resolve scanDirs: CLI flag → package.json config → default ["src"]
+  let scanDirs = scanDirsOption;
+  if (!scanDirs) {
+    try {
+      const pkgRaw = await fs.readFile(
+        path.join(projectPath, 'package.json'),
+        'utf8',
+      );
+      const pkg = JSON.parse(pkgRaw) as Record<string, unknown>;
+      const config = pkg['messenger-docs'] as
+        | { scanDirs?: string[] }
+        | undefined;
+      if (Array.isArray(config?.scanDirs)) {
+        scanDirs = config.scanDirs;
+      }
+    } catch {
+      // No package.json or invalid — use default.
+    }
+    scanDirs ??= ['src'];
+  }
 
   const allItems: MessengerItemDoc[] = [];
 
   // Check which sources are available
-  const rootSrcDir = path.join(projectPath, 'src');
-  const hasRootSrc = await pathExists(rootSrcDir);
+  const existingScanDirs: string[] = [];
+  for (const dir of scanDirs) {
+    const abs = path.join(projectPath, dir);
+    if (await pathExists(abs)) {
+      existingScanDirs.push(dir);
+    }
+  }
   const packagesDir = path.join(projectPath, 'packages');
   const hasPackages = await pathExists(packagesDir);
   const nmDir = path.join(projectPath, 'node_modules', '@metamask');
   const hasNodeModules = await pathExists(nmDir);
 
   const sources: string[] = [];
-  if (hasRootSrc) {
-    sources.push('src/ (.ts)');
+  for (const dir of existingScanDirs) {
+    sources.push(`${dir}/ (.ts)`);
   }
   if (hasPackages) {
     sources.push('packages/*/src (.ts)');
@@ -96,9 +128,10 @@ export async function generate(
     `Scanning ${sources.join(', ')} for Messenger action/event types...`,
   );
 
-  // Scan project-level src/ for .ts source files
-  if (hasRootSrc) {
-    const tsFiles = await findTsFiles(rootSrcDir);
+  // Scan configured source directories for .ts files
+  for (const dir of existingScanDirs) {
+    const abs = path.join(projectPath, dir);
+    const tsFiles = await findTsFiles(abs);
     for (const file of tsFiles) {
       try {
         const items = await extractFromFile(file, projectPath);
@@ -172,9 +205,10 @@ export async function generate(
     }
   }
 
-  if (!hasRootSrc && !hasPackages && !hasNodeModules) {
+  if (existingScanDirs.length === 0 && !hasPackages && !hasNodeModules) {
     throw new Error(
-      `No src/, packages/, or node_modules/@metamask/ found in ${projectPath}.`,
+      `No scannable directories found in ${projectPath}. ` +
+        `Looked for: ${scanDirs.join(', ')}, packages/, node_modules/@metamask/`,
     );
   }
 
