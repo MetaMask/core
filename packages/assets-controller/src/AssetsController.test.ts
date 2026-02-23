@@ -186,6 +186,7 @@ describe('AssetsController', () => {
         assetsPrice: {},
         customAssets: {},
         assetPreferences: {},
+        selectedCurrency: 'usd',
       });
     });
   });
@@ -199,6 +200,7 @@ describe('AssetsController', () => {
           assetsPrice: {},
           customAssets: {},
           assetPreferences: {},
+          selectedCurrency: 'usd',
         });
       });
     });
@@ -215,6 +217,7 @@ describe('AssetsController', () => {
         },
         assetsBalance: {},
         customAssets: {},
+        selectedCurrency: 'eur',
       };
 
       await withController({ state: initialState }, ({ controller }) => {
@@ -224,6 +227,7 @@ describe('AssetsController', () => {
           name: 'USD Coin',
           decimals: 6,
         });
+        expect(controller.state.selectedCurrency).toBe('eur');
       });
     });
 
@@ -271,6 +275,7 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
+        selectedCurrency: 'usd',
       });
 
       // Action handlers should NOT be registered when disabled
@@ -292,6 +297,7 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
+          selectedCurrency: 'usd',
         });
 
         // Action handlers should be registered
@@ -737,6 +743,62 @@ describe('AssetsController', () => {
           (controller.state.assetsPrice[MOCK_ASSET_ID] as { price: number })
             .price,
         ).toBe(1.0);
+      });
+    });
+  });
+
+  describe('setSelectedCurrency', () => {
+    it('updates selectedCurrency in state', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.selectedCurrency).toBe('usd');
+
+        controller.setSelectedCurrency('eur');
+        expect(controller.state.selectedCurrency).toBe('eur');
+
+        controller.setSelectedCurrency('gbp');
+        expect(controller.state.selectedCurrency).toBe('gbp');
+      });
+    });
+
+    it('returns early when new currency is same as current', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.selectedCurrency).toBe('usd');
+
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        controller.setSelectedCurrency('usd');
+
+        expect(controller.state.selectedCurrency).toBe('usd');
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('calls getAssets with forceUpdate, price dataType, and assetsForPriceUpdate to refresh prices', async () => {
+      const mockAssetId2 =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+            [mockAssetId2]: { amount: '2000000' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        controller.setSelectedCurrency('eur');
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(expect.any(Array), {
+          forceUpdate: true,
+          dataTypes: ['price'],
+          assetsForPriceUpdate: [MOCK_ASSET_ID, mockAssetId2],
+        });
+
+        getAssetsSpy.mockRestore();
       });
     });
   });
