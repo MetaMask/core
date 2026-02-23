@@ -15,7 +15,7 @@ const MOCK_API_RESPONSE: RegistryConfigApiResponse = {
   data: {
     version: '"24952800ba9dafbc5e2c91f57f386d28"',
     timestamp: 1761829548000,
-    networks: [createMockNetworkConfig()],
+    chains: [createMockNetworkConfig()],
   },
 };
 
@@ -194,7 +194,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('throws error when data is null', async () => {
+    it('throws error when response body is null', async () => {
       const scope = nock(UAT_ORIGIN).get(CONFIG_PATH).reply(200, 'null');
 
       const service = new ConfigRegistryApiService();
@@ -205,7 +205,7 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('throws error when data.data is null', async () => {
+    it('throws error when data is null', async () => {
       const scope = nock(UAT_ORIGIN)
         .get(CONFIG_PATH)
         .reply(200, { data: null });
@@ -218,10 +218,12 @@ describe('ConfigRegistryApiService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('throws error when data.data.networks is not an array', async () => {
+    it('throws error when data.chains is not an array', async () => {
       const scope = nock(UAT_ORIGIN)
         .get(CONFIG_PATH)
-        .reply(200, { data: { networks: 'not-an-array' } });
+        .reply(200, {
+          data: { version: '1', timestamp: 0, chains: 'not-an-array' },
+        });
 
       const service = new ConfigRegistryApiService();
 

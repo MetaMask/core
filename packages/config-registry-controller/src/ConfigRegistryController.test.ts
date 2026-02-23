@@ -63,7 +63,7 @@ function getConfigRegistryControllerMessenger(): {
 
 const MOCK_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {
   'fallback-key': createMockNetworkConfig({
-    chainId: '0x2',
+    chainId: 'eip155:2',
     name: 'Fallback Network',
   }),
 };
@@ -84,7 +84,7 @@ function buildMockApiServiceHandler(overrides?: {
         data: {
           version: '1',
           timestamp: Date.now(),
-          networks: [],
+          chains: [],
         },
       },
       modified: true,
@@ -171,7 +171,7 @@ describe('ConfigRegistryController', () => {
     it('sets initial state when provided', async () => {
       const initialNetworks: Record<string, RegistryNetworkConfig> = {
         'test-key': createMockNetworkConfig({
-          chainId: '0x1',
+          chainId: 'eip155:1',
           name: 'Test Network',
         }),
       };
@@ -285,7 +285,7 @@ describe('ConfigRegistryController', () => {
     it('keeps existing configs when fetch fails and configs already exist', async () => {
       const existingNetworks: Record<string, RegistryNetworkConfig> = {
         'existing-key': createMockNetworkConfig({
-          chainId: '0x3',
+          chainId: 'eip155:3',
           name: 'Existing Network',
         }),
       };
@@ -511,7 +511,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('handles validation error when result.data.data is missing', async () => {
+    it('handles validation error when result.data is missing', async () => {
       await withController(
         async ({
           controller,
@@ -527,7 +527,7 @@ describe('ConfigRegistryController', () => {
           });
 
           const validationError = new Error(
-            'Validation error: data.data is missing',
+            'Validation error: data is missing',
           );
           mockApiServiceHandler.mockRejectedValue(validationError);
 
@@ -536,14 +536,14 @@ describe('ConfigRegistryController', () => {
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({
-              message: 'Validation error: data.data is missing',
+              message: 'Validation error: data is missing',
             }),
           );
         },
       );
     });
 
-    it('handles validation error when result.data.data.networks is not an array', async () => {
+    it('handles validation error when result.data.chains is not an array', async () => {
       await withController(
         async ({
           controller,
@@ -559,7 +559,7 @@ describe('ConfigRegistryController', () => {
           });
 
           const validationError = new Error(
-            'Validation error: data.data.networks is not an array',
+            'Validation error: data.chains is not an array',
           );
           mockApiServiceHandler.mockRejectedValue(validationError);
 
@@ -568,14 +568,14 @@ describe('ConfigRegistryController', () => {
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({
-              message: 'Validation error: data.data.networks is not an array',
+              message: 'Validation error: data.chains is not an array',
             }),
           );
         },
       );
     });
 
-    it('handles validation error when result.data.data.version is not a string', async () => {
+    it('handles validation error when result.data.version is not a string', async () => {
       await withController(
         async ({
           controller,
@@ -591,7 +591,7 @@ describe('ConfigRegistryController', () => {
           });
 
           const validationError = new Error(
-            'Validation error: data.data.version is not a string',
+            'Validation error: data.version is not a string',
           );
           mockApiServiceHandler.mockRejectedValue(validationError);
 
@@ -600,7 +600,7 @@ describe('ConfigRegistryController', () => {
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({
-              message: 'Validation error: data.data.version is not a string',
+              message: 'Validation error: data.version is not a string',
             }),
           );
         },
@@ -662,13 +662,14 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockResolvedValue({
             data: {
               data: {
-                networks: [
+                version: '1.0.0',
+                timestamp: Date.now(),
+                chains: [
                   createMockNetworkConfig({
-                    chainId: '0x1',
+                    chainId: 'eip155:1',
                     name: 'Ethereum Mainnet',
                   }),
                 ],
-                version: '1.0.0',
               },
             },
             etag: '"test-etag"',
@@ -712,13 +713,14 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockResolvedValue({
             data: {
               data: {
-                networks: [
+                version: '1.0.0',
+                timestamp: Date.now(),
+                chains: [
                   createMockNetworkConfig({
-                    chainId: '0x1',
+                    chainId: 'eip155:1',
                     name: 'Ethereum Mainnet',
                   }),
                 ],
-                version: '1.0.0',
               },
             },
             etag: '"test-etag"',
@@ -1125,30 +1127,11 @@ describe('ConfigRegistryController', () => {
             cacheTimestamp: Date.now(),
           });
 
-          const mockNetworks = [
-            {
-              chainId: '0x1',
+          const mockChains = [
+            createMockNetworkConfig({
+              chainId: 'eip155:1',
               name: 'Ethereum Mainnet',
-              nativeCurrency: 'ETH',
-              rpcEndpoints: [
-                {
-                  url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
-                  type: 'infura',
-                  networkClientId: 'mainnet',
-                  failoverUrls: [],
-                },
-              ],
-              blockExplorerUrls: ['https://etherscan.io'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: true,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 0,
-              isDeletable: false,
-            },
+            }),
           ];
 
           const fetchConfigSpy = jest.fn().mockResolvedValue({
@@ -1156,7 +1139,7 @@ describe('ConfigRegistryController', () => {
               data: {
                 version: '1.0.0',
                 timestamp: Date.now(),
-                networks: mockNetworks,
+                chains: mockChains,
               },
             },
             modified: true,
@@ -1169,7 +1152,7 @@ describe('ConfigRegistryController', () => {
           await jestAdvanceTime({ duration: 0 });
 
           expect(fetchConfigSpy).toHaveBeenCalled();
-          expect(controller.state.configs.networks['0x1']).toBeDefined();
+          expect(controller.state.configs.networks['eip155:1']).toBeDefined();
           expect(controller.state.version).toBe('1.0.0');
         },
       );
@@ -1189,99 +1172,27 @@ describe('ConfigRegistryController', () => {
             cacheTimestamp: Date.now(),
           });
 
-          const mockNetworks = [
-            {
-              chainId: '0x1',
+          const mockChains = [
+            createMockNetworkConfig({
+              chainId: 'eip155:1',
               name: 'Ethereum Mainnet',
-              nativeCurrency: 'ETH',
-              rpcEndpoints: [
-                {
-                  url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
-                  type: 'infura',
-                  networkClientId: 'mainnet',
-                  failoverUrls: [],
-                },
-              ],
-              blockExplorerUrls: ['https://etherscan.io'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: true,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 0,
-              isDeletable: false,
-            },
-            {
-              chainId: '0x5',
+              config: { isTestnet: false, isFeatured: true, isActive: true },
+            }),
+            createMockNetworkConfig({
+              chainId: 'eip155:5',
               name: 'Goerli',
-              nativeCurrency: 'ETH',
-              rpcEndpoints: [
-                {
-                  url: 'https://goerli.infura.io/v3/{infuraProjectId}',
-                  type: 'infura',
-                  networkClientId: 'goerli',
-                  failoverUrls: [],
-                },
-              ],
-              blockExplorerUrls: ['https://goerli.etherscan.io'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: true,
-              isFeatured: true,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 0,
-              isDeletable: false,
-            },
-            {
-              chainId: '0xa',
+              config: { isTestnet: true, isFeatured: true, isActive: true },
+            }),
+            createMockNetworkConfig({
+              chainId: 'eip155:10',
               name: 'Optimism',
-              nativeCurrency: 'ETH',
-              rpcEndpoints: [
-                {
-                  url: 'https://optimism.infura.io/v3/{infuraProjectId}',
-                  type: 'infura',
-                  networkClientId: 'optimism',
-                  failoverUrls: [],
-                },
-              ],
-              blockExplorerUrls: ['https://optimistic.etherscan.io'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: false,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 0,
-              isDeletable: false,
-            },
-            {
-              chainId: '0x89',
+              config: { isTestnet: false, isFeatured: false, isActive: true },
+            }),
+            createMockNetworkConfig({
+              chainId: 'eip155:137',
               name: 'Polygon',
-              nativeCurrency: 'MATIC',
-              rpcEndpoints: [
-                {
-                  url: 'https://polygon.infura.io/v3/{infuraProjectId}',
-                  type: 'infura',
-                  networkClientId: 'polygon',
-                  failoverUrls: [],
-                },
-              ],
-              blockExplorerUrls: ['https://polygonscan.com'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: true,
-              isActive: false,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 0,
-              isDeletable: false,
-            },
+              config: { isTestnet: false, isFeatured: true, isActive: false },
+            }),
           ];
 
           const fetchConfigSpy = jest.fn().mockResolvedValue({
@@ -1289,7 +1200,7 @@ describe('ConfigRegistryController', () => {
               data: {
                 version: '1.0.0',
                 timestamp: Date.now(),
-                networks: mockNetworks,
+                chains: mockChains,
               },
             },
             modified: true,
@@ -1303,18 +1214,18 @@ describe('ConfigRegistryController', () => {
 
           // All networks stored in state
           const allNetworks = selectNetworks(controller.state);
-          expect(allNetworks['0x1']).toBeDefined();
-          expect(allNetworks['0x5']).toBeDefined();
-          expect(allNetworks['0xa']).toBeDefined();
-          expect(allNetworks['0x89']).toBeDefined();
+          expect(allNetworks['eip155:1']).toBeDefined();
+          expect(allNetworks['eip155:5']).toBeDefined();
+          expect(allNetworks['eip155:10']).toBeDefined();
+          expect(allNetworks['eip155:137']).toBeDefined();
           expect(Object.keys(allNetworks)).toHaveLength(4);
 
           // selectFeaturedNetworks returns only featured, active, non-testnet
           const featuredNetworks = selectFeaturedNetworks(controller.state);
-          expect(featuredNetworks['0x1']).toBeDefined();
-          expect(featuredNetworks['0x5']).toBeUndefined();
-          expect(featuredNetworks['0xa']).toBeUndefined();
-          expect(featuredNetworks['0x89']).toBeUndefined();
+          expect(featuredNetworks['eip155:1']).toBeDefined();
+          expect(featuredNetworks['eip155:5']).toBeUndefined();
+          expect(featuredNetworks['eip155:10']).toBeUndefined();
+          expect(featuredNetworks['eip155:137']).toBeUndefined();
           expect(Object.keys(featuredNetworks)).toHaveLength(1);
         },
       );
@@ -1334,77 +1245,38 @@ describe('ConfigRegistryController', () => {
             cacheTimestamp: Date.now(),
           });
 
-          // Mock API response with duplicate chainIds
-          const mockNetworks = [
-            {
-              chainId: '0x1',
+          // Mock API response with duplicate chainIds (last occurrence wins)
+          const mockChains = [
+            createMockNetworkConfig({
+              chainId: 'eip155:1',
               name: 'Ethereum Mainnet (Low Priority)',
-              nativeCurrency: 'ETH',
-              rpcEndpoints: [
-                {
+              config: { priority: 10 },
+              rpcProviders: {
+                default: {
                   url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
                   type: 'infura',
                   networkClientId: 'mainnet',
-                  failoverUrls: [],
                 },
-              ],
-              blockExplorerUrls: ['https://etherscan.io'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: true,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 10, // Lower priority (higher number)
-              isDeletable: false,
-            },
-            {
-              chainId: '0x1',
+                fallbacks: [],
+              },
+            }),
+            createMockNetworkConfig({
+              chainId: 'eip155:1',
               name: 'Ethereum Mainnet (High Priority)',
-              nativeCurrency: 'ETH',
-              rpcEndpoints: [
-                {
+              config: { priority: 0 },
+              rpcProviders: {
+                default: {
                   url: 'https://mainnet.alchemy.io/v2/{alchemyApiKey}',
                   type: 'alchemy',
                   networkClientId: 'mainnet-alchemy',
-                  failoverUrls: [],
                 },
-              ],
-              blockExplorerUrls: ['https://etherscan.io'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: true,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 0, // Higher priority (lower number)
-              isDeletable: false,
-            },
-            {
-              chainId: '0x89',
+                fallbacks: [],
+              },
+            }),
+            createMockNetworkConfig({
+              chainId: 'eip155:137',
               name: 'Polygon',
-              nativeCurrency: 'MATIC',
-              rpcEndpoints: [
-                {
-                  url: 'https://polygon.infura.io/v3/{infuraProjectId}',
-                  type: 'infura',
-                  networkClientId: 'polygon',
-                  failoverUrls: [],
-                },
-              ],
-              blockExplorerUrls: ['https://polygonscan.com'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: true,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 0,
-              isDeletable: false,
-            },
+            }),
           ];
 
           mockApiServiceHandler.mockResolvedValue({
@@ -1412,7 +1284,7 @@ describe('ConfigRegistryController', () => {
               data: {
                 version: '1.0.0',
                 timestamp: Date.now(),
-                networks: mockNetworks,
+                chains: mockChains,
               },
             },
             modified: true,
@@ -1423,15 +1295,16 @@ describe('ConfigRegistryController', () => {
           await jestAdvanceTime({ duration: 0 });
 
           // Last occurrence overwrites (no grouping/priority)
-          expect(controller.state.configs.networks['0x1']).toBeDefined();
-          expect(controller.state.configs.networks['0x1']?.name).toBe(
+          expect(controller.state.configs.networks['eip155:1']).toBeDefined();
+          expect(controller.state.configs.networks['eip155:1']?.name).toBe(
             'Ethereum Mainnet (High Priority)',
           );
           expect(
-            controller.state.configs.networks['0x1']?.rpcEndpoints[0].type,
+            controller.state.configs.networks['eip155:1']?.rpcProviders.default
+              .type,
           ).toBe('alchemy');
 
-          expect(controller.state.configs.networks['0x89']).toBeDefined();
+          expect(controller.state.configs.networks['eip155:137']).toBeDefined();
         },
       );
     });
@@ -1451,53 +1324,25 @@ describe('ConfigRegistryController', () => {
           });
 
           // Mock API response with duplicate chainIds having same priority
-          const mockNetworks = [
-            {
-              chainId: '0x1',
+          const mockChains = [
+            createMockNetworkConfig({
+              chainId: 'eip155:1',
               name: 'Ethereum Mainnet (First)',
-              nativeCurrency: 'ETH',
-              rpcEndpoints: [
-                {
-                  url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
-                  type: 'infura',
-                  networkClientId: 'mainnet',
-                  failoverUrls: [],
-                },
-              ],
-              blockExplorerUrls: ['https://etherscan.io'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: true,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 5, // Same priority
-              isDeletable: false,
-            },
-            {
-              chainId: '0x1',
+              config: { priority: 5 },
+            }),
+            createMockNetworkConfig({
+              chainId: 'eip155:1',
               name: 'Ethereum Mainnet (Second)',
-              nativeCurrency: 'ETH',
-              rpcEndpoints: [
-                {
+              config: { priority: 5 },
+              rpcProviders: {
+                default: {
                   url: 'https://mainnet.alchemy.io/v2/{alchemyApiKey}',
                   type: 'alchemy',
                   networkClientId: 'mainnet-alchemy',
-                  failoverUrls: [],
                 },
-              ],
-              blockExplorerUrls: ['https://etherscan.io'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: true,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 5, // Same priority
-              isDeletable: false,
-            },
+                fallbacks: [],
+              },
+            }),
           ];
 
           mockApiServiceHandler.mockResolvedValue({
@@ -1505,7 +1350,7 @@ describe('ConfigRegistryController', () => {
               data: {
                 version: '1.0.0',
                 timestamp: Date.now(),
-                networks: mockNetworks,
+                chains: mockChains,
               },
             },
             modified: true,
@@ -1516,8 +1361,8 @@ describe('ConfigRegistryController', () => {
           await jestAdvanceTime({ duration: 0 });
 
           // Last occurrence overwrites
-          expect(controller.state.configs.networks['0x1']).toBeDefined();
-          expect(controller.state.configs.networks['0x1']?.name).toBe(
+          expect(controller.state.configs.networks['eip155:1']).toBeDefined();
+          expect(controller.state.configs.networks['eip155:1']?.name).toBe(
             'Ethereum Mainnet (Second)',
           );
         },
@@ -1533,30 +1378,11 @@ describe('ConfigRegistryController', () => {
           },
         },
         async ({ controller, messenger, mockApiServiceHandler }) => {
-          const mockNetworks = [
-            {
-              chainId: '0x1',
+          const mockChains = [
+            createMockNetworkConfig({
+              chainId: 'eip155:1',
               name: 'Ethereum Mainnet',
-              nativeCurrency: 'ETH',
-              rpcEndpoints: [
-                {
-                  url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
-                  type: 'infura',
-                  networkClientId: 'mainnet',
-                  failoverUrls: [],
-                },
-              ],
-              blockExplorerUrls: ['https://etherscan.io'],
-              defaultRpcEndpointIndex: 0,
-              defaultBlockExplorerUrlIndex: 0,
-              isTestnet: false,
-              isFeatured: true,
-              isActive: true,
-              isDefault: false,
-              isDeprecated: false,
-              priority: 0,
-              isDeletable: false,
-            },
+            }),
           ];
 
           mockApiServiceHandler.mockResolvedValue({
@@ -1564,7 +1390,7 @@ describe('ConfigRegistryController', () => {
               data: {
                 version: '1.0.0',
                 timestamp: Date.now(),
-                networks: mockNetworks,
+                chains: mockChains,
               },
             },
             modified: true,
@@ -1576,7 +1402,7 @@ describe('ConfigRegistryController', () => {
 
           expect(customIsEnabled).toHaveBeenCalledWith(messenger);
           expect(mockApiServiceHandler).toHaveBeenCalled();
-          expect(controller.state.configs.networks['0x1']).toBeDefined();
+          expect(controller.state.configs.networks['eip155:1']).toBeDefined();
           expect(controller.state.version).toBe('1.0.0');
         },
       );

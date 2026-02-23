@@ -275,18 +275,21 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
         return;
       }
 
-      const apiNetworks = result.data.data.networks;
+      const apiChains = result.data.data.chains;
       const newConfigs: Record<string, RegistryNetworkConfig> = {};
-      apiNetworks.forEach((registryConfig) => {
-        const { chainId } = registryConfig;
-        newConfigs[chainId] = registryConfig;
+      // duplicate chainIds from API response are not expected
+      apiChains.forEach((chainConfig) => {
+        const { chainId } = chainConfig;
+        newConfigs[chainId] = chainConfig;
       });
 
       this.update((state) => {
         state.configs.networks = newConfigs;
         state.version = result.data.data.version;
         state.lastFetched = Date.now();
-        state.etag = result.etag ?? null;
+        if (result.etag !== undefined) {
+          state.etag = result.etag;
+        }
       });
     } catch (error) {
       const errorInstance =

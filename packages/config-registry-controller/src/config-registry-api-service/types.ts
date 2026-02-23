@@ -9,43 +9,80 @@ import {
   type,
 } from '@metamask/superstruct';
 
-const RpcEndpointSchema = type({
+const NativeAssetSchema = type({
+  assetId: string(),
+  imageUrl: string(),
+  name: string(),
+  symbol: string(),
+  decimals: number(),
+  coingeckoCoinId: string(),
+});
+
+const GovernanceAssetSchema = type({
+  assetId: string(),
+  imageUrl: string(),
+  name: string(),
+  symbol: string(),
+  decimals: number(),
+  coingeckoCoinId: string(),
+});
+
+const AssetsSchema = type({
+  listUrl: string(),
+  native: NativeAssetSchema,
+  governance: optional(GovernanceAssetSchema),
+});
+
+const RpcProviderSchema = type({
   url: string(),
   type: string(),
   networkClientId: string(),
-  failoverUrls: array(string()),
 });
 
-/**
- * Schema for a single network in the API response.
- * Matches the flat shape returned by the config registry API
- * (all fields at top level, not nested under "network").
- */
-export const RegistryNetworkConfigSchema = type({
-  chainId: string(),
-  name: string(),
-  nativeCurrency: string(),
-  rpcEndpoints: array(RpcEndpointSchema),
-  blockExplorerUrls: array(string()),
-  defaultRpcEndpointIndex: number(),
-  defaultBlockExplorerUrlIndex: number(),
-  lastUpdatedAt: optional(number()),
-  networkImageUrl: optional(string()),
-  nativeTokenImageUrl: optional(string()),
+const RpcProvidersSchema = type({
+  default: RpcProviderSchema,
+  fallbacks: array(string()),
+});
+
+const BlockExplorerUrlsSchema = type({
+  default: string(),
+  fallbacks: array(string()),
+});
+
+const ChainConfigSchema = type({
   isActive: boolean(),
   isTestnet: boolean(),
   isDefault: boolean(),
   isFeatured: boolean(),
   isDeprecated: boolean(),
-  priority: number(),
   isDeletable: boolean(),
+  priority: number(),
 });
 
+/**
+ * Schema for a single chain in the CAIP-2 config registry API response.
+ * chainId is in CAIP-2 format (e.g. "eip155:1", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp").
+ */
+export const RegistryNetworkConfigSchema = type({
+  chainId: string(),
+  name: string(),
+  imageUrl: string(),
+  coingeckoPlatformId: string(),
+  geckoTerminalPlatformId: optional(string()),
+  assets: AssetsSchema,
+  rpcProviders: RpcProvidersSchema,
+  blockExplorerUrls: BlockExplorerUrlsSchema,
+  config: ChainConfigSchema,
+});
+
+/**
+ * Top-level API response shape. Uses `data.chains` (CAIP-2) and `data.version`.
+ */
 export const RegistryConfigApiResponseSchema = type({
   data: type({
     version: string(),
     timestamp: number(),
-    networks: array(RegistryNetworkConfigSchema),
+    chains: array(RegistryNetworkConfigSchema),
   }),
 });
 

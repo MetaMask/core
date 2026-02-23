@@ -17,20 +17,21 @@ const FILTER_KEYS: (keyof NetworkFilterOptions)[] = [
 ];
 
 /**
- * @param networks - Array of network configurations to filter.
- * @param options - Filter options.
- * @returns Filtered array of network configurations.
+ * @param networks - Array of chain configurations to filter.
+ * @param options - Filter options (matched against config.*).
+ * @returns Filtered array of chain configurations.
  */
 export function filterNetworks(
   networks: RegistryNetworkConfig[],
   options: NetworkFilterOptions = {},
 ): RegistryNetworkConfig[] {
   return networks.filter((network) => {
+    const { config } = network;
     for (const key of FILTER_KEYS) {
       const optionValue = options[key];
       if (
         optionValue !== undefined &&
-        network[key as keyof RegistryNetworkConfig] !== optionValue
+        config[key as keyof typeof config] !== optionValue
       ) {
         return false;
       }

@@ -5,9 +5,9 @@ describe('selectors', () => {
   describe('selectNetworks', () => {
     it('returns all networks from state', () => {
       const networks = {
-        '0x1': createMockNetworkConfig({ chainId: '0x1' }),
-        '0x89': createMockNetworkConfig({
-          chainId: '0x89',
+        'eip155:1': createMockNetworkConfig({ chainId: 'eip155:1' }),
+        'eip155:137': createMockNetworkConfig({
+          chainId: 'eip155:137',
           name: 'Polygon',
         }),
       };
@@ -26,32 +26,24 @@ describe('selectors', () => {
   describe('selectFeaturedNetworks', () => {
     it('returns only featured, active, non-testnet networks', () => {
       const networks = {
-        '0x1': createMockNetworkConfig({
-          chainId: '0x1',
-          isFeatured: true,
-          isActive: true,
-          isTestnet: false,
+        'eip155:1': createMockNetworkConfig({
+          chainId: 'eip155:1',
+          config: { isFeatured: true, isActive: true, isTestnet: false },
         }),
-        '0x5': createMockNetworkConfig({
-          chainId: '0x5',
+        'eip155:5': createMockNetworkConfig({
+          chainId: 'eip155:5',
           name: 'Goerli',
-          isFeatured: true,
-          isActive: true,
-          isTestnet: true,
+          config: { isFeatured: true, isActive: true, isTestnet: true },
         }),
-        '0xa': createMockNetworkConfig({
-          chainId: '0xa',
+        'eip155:10': createMockNetworkConfig({
+          chainId: 'eip155:10',
           name: 'Optimism',
-          isFeatured: false,
-          isActive: true,
-          isTestnet: false,
+          config: { isFeatured: false, isActive: true, isTestnet: false },
         }),
-        '0x89': createMockNetworkConfig({
-          chainId: '0x89',
+        'eip155:137': createMockNetworkConfig({
+          chainId: 'eip155:137',
           name: 'Polygon',
-          isFeatured: true,
-          isActive: false,
-          isTestnet: false,
+          config: { isFeatured: true, isActive: false, isTestnet: false },
         }),
       };
       const state = {
@@ -63,17 +55,17 @@ describe('selectors', () => {
 
       const featured = selectFeaturedNetworks(state);
       expect(Object.keys(featured)).toHaveLength(1);
-      expect(featured['0x1']).toBeDefined();
-      expect(featured['0x5']).toBeUndefined();
-      expect(featured['0xa']).toBeUndefined();
-      expect(featured['0x89']).toBeUndefined();
+      expect(featured['eip155:1']).toBeDefined();
+      expect(featured['eip155:5']).toBeUndefined();
+      expect(featured['eip155:10']).toBeUndefined();
+      expect(featured['eip155:137']).toBeUndefined();
     });
 
     it('returns empty object when no networks match', () => {
       const networks = {
-        '0x5': createMockNetworkConfig({
-          chainId: '0x5',
-          isTestnet: true,
+        'eip155:5': createMockNetworkConfig({
+          chainId: 'eip155:5',
+          config: { isTestnet: true },
         }),
       };
       const state = {
