@@ -48,8 +48,11 @@ jobs:
           include-hidden-files: true
           retention-days: 4
           path: |
-            ./packages/**/dist
-            ./packages/**/package.json
+            ./packages/*/
+            !./packages/*/node_modules/
+            !./packages/*/src/
+            !./packages/*/tests/
+            !./packages/**/*.test.*
 
   publish-preview:
     name: Publish preview
