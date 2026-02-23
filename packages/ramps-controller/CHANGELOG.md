@@ -9,16 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Remove `state.quotes` and `state.widgetUrl` from RampsController state. Quote and widget URL data are now managed by consuming components.
-- **BREAKING:** Remove `fetchQuotesForSelection()` and `setSelectedQuote()`. Components call `getQuotes()` directly and manage selection locally.
-- **BREAKING:** Remove `skipStateUpdate` from `getQuotes()`.
-- Simplify `getWidgetUrl()` to a pure fetch-and-return API; it no longer reads or writes controller state.
+- **BREAKING:** Remove `state.quotes` and `state.widgetUrl` from RampsController state. Quote and widget URL data are now managed by consuming components ([#8013](https://github.com/MetaMask/core/pull/8013))
+- **BREAKING:** Remove `fetchQuotesForSelection()` and `setSelectedQuote()`. Components call `getQuotes()` directly and manage selection locally ([#8013](https://github.com/MetaMask/core/pull/8013))
+- Simplify `getWidgetUrl()` to a pure fetch-and-return API; it no longer reads or writes controller state ([#8013](https://github.com/MetaMask/core/pull/8013))
 - Improve `TransakService` error handling ([#8010](https://github.com/MetaMask/core/pull/8010))
 - **BREAKING:** Replace `startQuotePolling()`/`stopQuotePolling()` with `fetchQuotesForSelection()` — quotes are now fetched once per call instead of polling on a 15-second interval ([#7999](https://github.com/MetaMask/core/pull/7999))
-
-### Migration
-
-- **Extension consumers:** Replace `fetchQuotesForSelection()` with direct `getQuotes()` calls using the current token, provider, and payment method. Manage quotes and `selectedQuote` in local component state. Replace `setSelectedQuote()` with local state updates. Remove usage of `state.quotes` and `state.widgetUrl` selectors.
 
 ### Removed
 
