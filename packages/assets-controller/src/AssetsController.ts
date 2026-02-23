@@ -15,6 +15,7 @@ import type {
   ApiPlatformClient,
   BackendWebSocketServiceActions,
   BackendWebSocketServiceEvents,
+  SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
   KeyringControllerLockEvent,
@@ -150,6 +151,8 @@ export type AssetsControllerState = {
   customAssets: { [accountId: string]: Caip19AssetId[] };
   /** UI preferences per asset (e.g. hidden) */
   assetPreferences: { [assetId: string]: AssetPreferences };
+  /** Currently-active ISO 4217 currency code */
+  selectedCurrency: SupportedCurrency;
 };
 
 /**
@@ -164,6 +167,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetsPrice: {},
     customAssets: {},
     assetPreferences: {},
+    selectedCurrency: 'usd',
   };
 }
 
@@ -353,6 +357,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   assetPreferences: {
+    persist: true,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  selectedCurrency: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -625,6 +635,7 @@ export class AssetsController extends BaseController<
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
@@ -931,6 +942,7 @@ export class AssetsController extends BaseController<
       assetTypes?: AssetType[];
       forceUpdate?: boolean;
       dataTypes?: DataType[];
+      assetsForPriceUpdate?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -955,6 +967,7 @@ export class AssetsController extends BaseController<
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
+        assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
       const sources = this.#isBasicFunctionality()
         ? [
@@ -1185,6 +1198,42 @@ export class AssetsController extends BaseController<
           delete state.assetPreferences[normalizedAssetId];
         }
       }
+    });
+  }
+
+  // ============================================================================
+  // CURRENT CURRENCY MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Set the current currency.
+   *
+   * @param selectedCurrency - The ISO 4217 currency code to set.
+   */
+  setSelectedCurrency(selectedCurrency: SupportedCurrency): void {
+    const previousCurrency = this.state.selectedCurrency;
+
+    if (previousCurrency === selectedCurrency) {
+      return;
+    }
+
+    this.update((state) => {
+      state.selectedCurrency = selectedCurrency;
+    });
+
+    log('Current currency changed', {
+      previousCurrency,
+      selectedCurrency,
+    });
+
+    this.getAssets(this.#selectedAccounts, {
+      forceUpdate: true,
+      dataTypes: ['price'],
+      assetsForPriceUpdate: Object.values(this.state.assetsBalance).flatMap(
+        (balances) => Object.keys(balances) as Caip19AssetId[],
+      ),
+    }).catch((error) => {
+      log('Failed to fetch asset prices after current currency change', error);
     });
   }
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+
 ## [1.0.0]
 
 ### Added
@@ -19,5 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@1.0.0...@metamask/compliance-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/compliance-controller@1.0.0
