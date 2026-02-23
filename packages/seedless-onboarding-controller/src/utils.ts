@@ -149,7 +149,6 @@ export function compareAndGetLatestToken(
   return jwtToken2;
 }
 
-
 /**
  * Extract the 60-bit timestamp from a TIMEUUID (version 1 UUID) string.
  *
