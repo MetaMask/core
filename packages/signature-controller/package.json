@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "39.0.1",
+  "version": "39.0.4",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -48,16 +48,16 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^35.0.2",
+    "@metamask/accounts-controller": "^36.0.1",
     "@metamask/approval-controller": "^8.0.0",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/eth-sig-util": "^8.2.0",
-    "@metamask/gator-permissions-controller": "^1.1.0",
+    "@metamask/gator-permissions-controller": "^2.0.0",
     "@metamask/keyring-controller": "^25.1.0",
     "@metamask/logging-controller": "^7.0.1",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/network-controller": "^29.0.0",
+    "@metamask/network-controller": "^30.0.0",
     "@metamask/utils": "^11.9.0",
     "jsonschema": "^1.4.1",
     "lodash": "^4.17.21",
@@ -66,11 +66,11 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
-    "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },

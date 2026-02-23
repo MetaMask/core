@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 export const UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY = 'Unified SwapBridge';
 
 /**
@@ -20,6 +21,12 @@ export enum UnifiedSwapBridgeEventName {
   AssetDetailTooltipClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Detail Tooltip Clicked`,
   QuotesValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Failed Validation`,
   StatusValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Status Failed Validation`,
+  PollingStatusUpdated = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Polling Status Updated`,
+}
+
+export enum PollingStatus {
+  MaxPollingReached = 'max_polling_reached',
+  ManuallyRestarted = 'manually_restarted',
 }
 
 export enum AbortReason {
@@ -30,11 +37,23 @@ export enum AbortReason {
 }
 
 /**
- * @deprecated remove this event property
+ * Identifies the entry point from which the user initiated a swap or bridge flow.
+ * Included as the `location` property on every Unified SwapBridge event so
+ * analytics can trace the user's origin regardless of where they are in the flow.
  */
 export enum MetaMetricsSwapsEventSource {
   MainView = 'Main View',
   TokenView = 'Token View',
+  TrendingExplore = 'Trending Explore',
+  Rewards = 'Rewards',
+}
+
+export enum InputAmountPreset {
+  PERCENT_25 = '25%',
+  PERCENT_50 = '50%',
+  PERCENT_75 = '75%',
+  // "Max" may not equal 100% of balance (e.g. gas reserves are withheld)
+  MAX = 'MAX',
 }
 
 export enum MetricsActionType {

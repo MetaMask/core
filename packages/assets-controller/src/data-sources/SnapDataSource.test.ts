@@ -1,38 +1,40 @@
 /* eslint-disable jest/unbound-method */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 import type {
-  MockAnyNamespace,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
+  PermissionConstraint,
+  SubjectPermissions,
+} from '@metamask/permission-controller';
 
 import type {
-  SnapDataSourceMessenger,
   SnapDataSourceOptions,
-  SnapProvider,
   AccountBalancesUpdatedEventPayload,
+  SnapDataSourceAllowedActions,
+  SnapDataSourceAllowedEvents,
 } from './SnapDataSource';
 import {
   SnapDataSource,
   createSnapDataSource,
-  getSnapTypeForChain,
-  isSnapSupportedChain,
   extractChainFromAssetId,
-  isSolanaChain,
-  isBitcoinChain,
-  isTronChain,
-  SOLANA_MAINNET,
-  SOLANA_SNAP_ID,
-  BITCOIN_MAINNET,
-  BITCOIN_SNAP_ID,
-  TRON_MAINNET,
-  ALL_DEFAULT_NETWORKS,
+  getChainIdsCaveat,
+  KEYRING_PERMISSION,
+  ASSETS_PERMISSION,
 } from './SnapDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import type { ChainId, DataRequest, Context, Caip19AssetId } from '../types';
 
-type AllActions = MessengerActions<SnapDataSourceMessenger>;
-type AllEvents = MessengerEvents<SnapDataSourceMessenger>;
+// Test chain IDs
+const SOLANA_MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
+const BITCOIN_MAINNET = 'bip122:000000000019d6689c085ae165831e93' as ChainId;
+const TRON_MAINNET = 'tron:728126428' as ChainId;
+
+// Test snap IDs
+const SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap';
+const BITCOIN_SNAP_ID = 'npm:@metamask/bitcoin-wallet-snap';
+
+type AllActions = SnapDataSourceAllowedActions;
+type AllEvents = SnapDataSourceAllowedEvents;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
@@ -46,7 +48,9 @@ const CHAIN_MAINNET = 'eip155:1' as ChainId;
 type SetupResult = {
   controller: SnapDataSource;
   messenger: RootMessenger;
-  snapProvider: jest.Mocked<SnapProvider>;
+  mockGetRunnableSnaps: jest.Mock;
+  mockHandleRequest: jest.Mock;
+  mockGetPermissions: jest.Mock;
   assetsUpdateHandler: jest.Mock;
   activeChainsUpdateHandler: jest.Mock;
   triggerBalancesUpdated: (payload: AccountBalancesUpdatedEventPayload) => void;
@@ -68,17 +72,30 @@ function createMockAccount(
       keyring: { type: 'HD Key Tree' },
       importTime: Date.now(),
       lastSelected: Date.now(),
+      snap: {
+        id: SOLANA_SNAP_ID,
+        name: 'Solana Snap',
+        enabled: true,
+      },
     },
     ...overrides,
   } as InternalAccount;
 }
 
-function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
+function createDataRequest(
+  overrides?: Partial<DataRequest> & { accounts?: InternalAccount[] },
+): DataRequest {
+  const chainIds = overrides?.chainIds ?? [SOLANA_MAINNET];
+  const accounts = overrides?.accounts ?? [createMockAccount()];
+  const { accounts: _a, ...rest } = overrides ?? {};
   return {
-    chainIds: [SOLANA_MAINNET],
-    accounts: [createMockAccount()],
+    chainIds,
+    accountsWithSupportedChains: accounts.map((a) => ({
+      account: a,
+      supportedChains: chainIds,
+    })),
     dataTypes: ['balance'],
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -86,49 +103,81 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue({ assetsMetadata: {} }),
+    getAssetsState: jest.fn().mockReturnValue({ assetsInfo: {} }),
     ...overrides,
   };
 }
 
-function createMockSnapProvider(
-  installedSnaps: Record<string, { version: string }> = {},
+/**
+ * Creates mock permissions for PermissionController:getPermissions
+ *
+ * @param chainIds - Chain IDs this snap supports
+ * @returns Mock permissions object with both keyring and assets permissions
+ */
+function createMockPermissions(
+  chainIds: ChainId[] = [],
+): SubjectPermissions<PermissionConstraint> {
+  if (chainIds.length === 0) {
+    return {};
+  }
+
+  return {
+    // Keyring permission indicates this is a keyring snap
+    [KEYRING_PERMISSION]: {
+      id: 'mock-keyring-permission-id',
+      parentCapability: KEYRING_PERMISSION,
+      invoker: 'test',
+      date: Date.now(),
+      caveats: null,
+    },
+    // Assets permission contains the chainIds caveat
+    [ASSETS_PERMISSION]: {
+      id: 'mock-assets-permission-id',
+      parentCapability: ASSETS_PERMISSION,
+      invoker: 'test',
+      date: Date.now(),
+      caveats: [
+        {
+          type: 'chainIds',
+          value: chainIds,
+        },
+      ],
+    },
+  } as unknown as SubjectPermissions<PermissionConstraint>;
+}
+
+/**
+ * Creates a mock handler for SnapController:handleRequest
+ *
+ * @param accountAssets - Assets to return for keyring_listAccountAssets
+ * @param balances - Balances to return for keyring_getAccountBalances
+ * @returns Mock handler function
+ */
+function createMockHandleRequest(
   accountAssets: string[] = [],
   balances: Record<string, { amount: string; unit: string }> = {},
-): jest.Mocked<SnapProvider> {
-  return {
-    request: jest.fn().mockImplementation(({ method, params }) => {
-      if (method === 'wallet_getSnaps') {
-        return Promise.resolve(installedSnaps);
-      }
-      if (method === 'wallet_invokeSnap') {
-        const snapRequest = params?.request;
-        if (snapRequest?.method === 'keyring_listAccountAssets') {
-          return Promise.resolve(accountAssets);
-        }
-        if (snapRequest?.method === 'keyring_getAccountBalances') {
-          return Promise.resolve(balances);
-        }
-      }
-      return Promise.resolve(null);
-    }),
-  };
+): jest.Mock {
+  return jest.fn().mockImplementation((params) => {
+    const { request } = params;
+    if (request?.method === 'keyring_listAccountAssets') {
+      return Promise.resolve(accountAssets);
+    }
+    if (request?.method === 'keyring_getAccountBalances') {
+      return Promise.resolve(balances);
+    }
+    return Promise.resolve(null);
+  });
 }
 
 function setupController(
   options: {
-    installedSnaps?: Record<string, { version: string }>;
+    installedSnaps?: Record<string, { version: string; chainIds?: ChainId[] }>;
     accountAssets?: string[];
     balances?: Record<string, { amount: string; unit: string }>;
     configuredNetworks?: ChainId[];
   } = {},
 ): SetupResult {
-  const {
-    installedSnaps = {},
-    accountAssets = [],
-    balances = {},
-    configuredNetworks,
-  } = options;
+  const { installedSnaps = {}, accountAssets = [], balances = {} } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
     namespace: MOCK_ANY_NAMESPACE,
@@ -136,8 +185,8 @@ function setupController(
 
   const controllerMessenger = new Messenger<
     'SnapDataSource',
-    MessengerActions<SnapDataSourceMessenger>,
-    MessengerEvents<SnapDataSourceMessenger>,
+    AllActions,
+    AllEvents,
     RootMessenger
   >({
     namespace: 'SnapDataSource',
@@ -147,8 +196,9 @@ function setupController(
   rootMessenger.delegate({
     messenger: controllerMessenger,
     actions: [
-      'AssetsController:assetsUpdate',
-      'AssetsController:activeChainsUpdate',
+      'SnapController:getRunnableSnaps',
+      'SnapController:handleRequest',
+      'PermissionController:getPermissions',
     ],
     events: ['AccountsController:accountBalancesUpdated'],
   });
@@ -156,31 +206,69 @@ function setupController(
   const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
   const activeChainsUpdateHandler = jest.fn();
 
-  rootMessenger.registerActionHandler(
-    'AssetsController:assetsUpdate',
-    assetsUpdateHandler,
-  );
-  rootMessenger.registerActionHandler(
-    'AssetsController:activeChainsUpdate',
-    activeChainsUpdateHandler,
+  // Build snaps array for SnapController:getRunnableSnaps
+  // getRunnableSnaps returns only enabled, non-blocked snaps
+  const snapsForGetRunnableSnaps = Object.entries(installedSnaps).map(
+    ([id, { version }]) => ({
+      id,
+      version,
+      enabled: true,
+      blocked: false,
+    }),
   );
 
-  const snapProvider = createMockSnapProvider(
-    installedSnaps,
-    accountAssets,
-    balances,
+  // Register SnapController action handlers
+  const mockGetRunnableSnaps = jest
+    .fn()
+    .mockReturnValue(snapsForGetRunnableSnaps);
+  rootMessenger.registerActionHandler(
+    'SnapController:getRunnableSnaps',
+    mockGetRunnableSnaps,
+  );
+
+  const mockHandleRequest = createMockHandleRequest(accountAssets, balances);
+  rootMessenger.registerActionHandler(
+    'SnapController:handleRequest',
+    mockHandleRequest,
+  );
+
+  // Register PermissionController:getPermissions handler
+  // Returns permissions with chainIds caveat based on installed snaps config
+  const mockGetPermissions = jest.fn().mockImplementation((snapId: string) => {
+    const snapConfig = installedSnaps[snapId];
+    if (snapConfig?.chainIds) {
+      return createMockPermissions(snapConfig.chainIds);
+    }
+    return undefined;
+  });
+  rootMessenger.registerActionHandler(
+    'PermissionController:getPermissions',
+    mockGetPermissions,
   );
 
   const controllerOptions: SnapDataSourceOptions = {
-    messenger: controllerMessenger,
-    snapProvider,
+    messenger: controllerMessenger as unknown as AssetsControllerMessenger,
+    onActiveChainsUpdated: activeChainsUpdateHandler,
   };
 
-  if (configuredNetworks) {
-    controllerOptions.configuredNetworks = configuredNetworks;
-  }
-
   const controller = new SnapDataSource(controllerOptions);
+
+  // Subscribe so that balance updates are reported via onAssetsUpdate
+  const chainIdsFromSnaps = Object.values(installedSnaps).flatMap(
+    (snap) => snap.chainIds ?? [],
+  );
+  if (chainIdsFromSnaps.length > 0) {
+    controller
+      .subscribe({
+        request: createDataRequest({
+          chainIds: [...new Set(chainIdsFromSnaps)],
+        }),
+        subscriptionId: 'test-sub',
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+      })
+      .catch(() => undefined);
+  }
 
   const triggerBalancesUpdated = (
     payload: AccountBalancesUpdatedEventPayload,
@@ -196,7 +284,9 @@ function setupController(
   return {
     controller,
     messenger: rootMessenger,
-    snapProvider,
+    mockGetRunnableSnaps,
+    mockHandleRequest,
+    mockGetPermissions,
     assetsUpdateHandler,
     activeChainsUpdateHandler,
     triggerBalancesUpdated,
@@ -205,32 +295,6 @@ function setupController(
 }
 
 describe('SnapDataSource helper functions', () => {
-  describe('getSnapTypeForChain', () => {
-    it.each([
-      { chainId: SOLANA_MAINNET, expected: 'solana' },
-      { chainId: 'solana:devnet' as ChainId, expected: 'solana' },
-      { chainId: BITCOIN_MAINNET, expected: 'bitcoin' },
-      { chainId: 'bip122:testnet' as ChainId, expected: 'bitcoin' },
-      { chainId: TRON_MAINNET, expected: 'tron' },
-      { chainId: 'tron:0x2b6653dc' as ChainId, expected: 'tron' },
-      { chainId: CHAIN_MAINNET, expected: null },
-      { chainId: 'eip155:137' as ChainId, expected: null },
-    ])('returns $expected for $chainId', ({ chainId, expected }) => {
-      expect(getSnapTypeForChain(chainId)).toBe(expected);
-    });
-  });
-
-  describe('isSnapSupportedChain', () => {
-    it.each([
-      { chainId: SOLANA_MAINNET, expected: true },
-      { chainId: BITCOIN_MAINNET, expected: true },
-      { chainId: TRON_MAINNET, expected: true },
-      { chainId: CHAIN_MAINNET, expected: false },
-    ])('returns $expected for $chainId', ({ chainId, expected }) => {
-      expect(isSnapSupportedChain(chainId)).toBe(expected);
-    });
-  });
-
   describe('extractChainFromAssetId', () => {
     it.each([
       { assetId: MOCK_SOL_ASSET, expected: SOLANA_MAINNET },
@@ -241,20 +305,42 @@ describe('SnapDataSource helper functions', () => {
     });
   });
 
-  describe('chain type helpers', () => {
-    it('isSolanaChain returns true for solana chains', () => {
-      expect(isSolanaChain(SOLANA_MAINNET)).toBe(true);
-      expect(isSolanaChain(BITCOIN_MAINNET)).toBe(false);
+  describe('getChainIdsCaveat', () => {
+    it('returns null when permission has no caveats', () => {
+      const permission = {
+        id: 'test',
+        parentCapability: KEYRING_PERMISSION,
+        invoker: 'test',
+        date: Date.now(),
+        caveats: null,
+      } as unknown as PermissionConstraint;
+
+      expect(getChainIdsCaveat(permission)).toBeNull();
     });
 
-    it('isBitcoinChain returns true for bitcoin chains', () => {
-      expect(isBitcoinChain(BITCOIN_MAINNET)).toBe(true);
-      expect(isBitcoinChain(SOLANA_MAINNET)).toBe(false);
+    it('returns null when no chainIds caveat exists', () => {
+      const permission = {
+        id: 'test',
+        parentCapability: KEYRING_PERMISSION,
+        invoker: 'test',
+        date: Date.now(),
+        caveats: [{ type: 'other', value: [] }],
+      } as unknown as PermissionConstraint;
+
+      expect(getChainIdsCaveat(permission)).toBeNull();
     });
 
-    it('isTronChain returns true for tron chains', () => {
-      expect(isTronChain(TRON_MAINNET)).toBe(true);
-      expect(isTronChain(SOLANA_MAINNET)).toBe(false);
+    it('returns chain IDs from chainIds caveat', () => {
+      const chainIds = [SOLANA_MAINNET, BITCOIN_MAINNET];
+      const permission = {
+        id: 'test',
+        parentCapability: KEYRING_PERMISSION,
+        invoker: 'test',
+        date: Date.now(),
+        caveats: [{ type: 'chainIds', value: chainIds }],
+      } as unknown as PermissionConstraint;
+
+      expect(getChainIdsCaveat(permission)).toStrictEqual(chainIds);
     });
   });
 });
@@ -271,162 +357,85 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
-  it('initializes with default networks', async () => {
+  it('initializes with empty chains when no keyring snaps discovered', async () => {
     const { controller, cleanup } = setupController();
     await new Promise(process.nextTick);
 
     const chains = await controller.getActiveChains();
-    expect(chains).toStrictEqual(ALL_DEFAULT_NETWORKS);
+    expect(chains).toStrictEqual([]);
 
     cleanup();
   });
 
-  it('initializes with configured networks', async () => {
+  it('discovers keyring snaps and populates active chains', async () => {
     const { controller, cleanup } = setupController({
-      configuredNetworks: [SOLANA_MAINNET, BITCOIN_MAINNET],
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        [BITCOIN_SNAP_ID]: { version: '2.0.0', chainIds: [BITCOIN_MAINNET] },
+      },
     });
     await new Promise(process.nextTick);
 
     const chains = await controller.getActiveChains();
-    expect(chains).toStrictEqual([SOLANA_MAINNET, BITCOIN_MAINNET]);
+    expect(chains).toContain(SOLANA_MAINNET);
+    expect(chains).toContain(BITCOIN_MAINNET);
 
     cleanup();
   });
 
-  it('registers action handlers', async () => {
-    const { messenger, cleanup } = setupController();
+  it('exposes assetsMiddleware on instance', async () => {
+    const { controller, cleanup } = setupController();
     await new Promise(process.nextTick);
 
-    const middleware = messenger.call('SnapDataSource:getAssetsMiddleware');
+    const middleware = controller.assetsMiddleware;
     expect(middleware).toBeDefined();
     expect(typeof middleware).toBe('function');
 
     cleanup();
   });
 
-  it('checks snap availability on initialization', async () => {
-    const { controller, snapProvider, cleanup } = setupController({
-      installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
-      },
-    });
+  it('checks snap availability on initialization via PermissionController', async () => {
+    const { mockGetRunnableSnaps, mockGetPermissions, cleanup } =
+      setupController({
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+      });
     await new Promise(process.nextTick);
 
-    expect(snapProvider.request).toHaveBeenCalledWith({
-      method: 'wallet_getSnaps',
-      params: {},
-    });
-    expect(controller.isSnapAvailable('solana')).toBe(true);
-    expect(controller.isSnapAvailable('bitcoin')).toBe(false);
+    expect(mockGetRunnableSnaps).toHaveBeenCalled();
+    expect(mockGetPermissions).toHaveBeenCalledWith(SOLANA_SNAP_ID);
 
     cleanup();
   });
 
-  it('getSnapsInfo returns all snap info', async () => {
+  it('fetch returns empty response for accounts without snap metadata', async () => {
     const { controller, cleanup } = setupController({
       installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
-        [BITCOIN_SNAP_ID]: { version: '2.0.0' },
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
     });
     await new Promise(process.nextTick);
 
-    const info = controller.getSnapsInfo();
-
-    expect(info.solana).toStrictEqual({
-      snapId: SOLANA_SNAP_ID,
-      chainPrefix: 'solana:',
-      pollInterval: 30000,
-      version: '1.0.0',
-      available: true,
+    // Create account without snap metadata (non-snap account)
+    const nonSnapAccount = createMockAccount({
+      metadata: {
+        name: 'Test Account',
+        keyring: { type: 'HD Key Tree' },
+        importTime: Date.now(),
+        lastSelected: Date.now(),
+        // No snap property
+      },
     });
-    expect(info.bitcoin).toStrictEqual({
-      snapId: BITCOIN_SNAP_ID,
-      chainPrefix: 'bip122:',
-      pollInterval: 60000,
-      version: '2.0.0',
-      available: true,
-    });
-    expect(info.tron.available).toBe(false);
-
-    cleanup();
-  });
-
-  it('refreshSnapsStatus updates availability', async () => {
-    const { controller, snapProvider, cleanup } = setupController();
-    await new Promise(process.nextTick);
-
-    expect(controller.isSnapAvailable('solana')).toBe(false);
-
-    snapProvider.request.mockImplementation(({ method }) => {
-      if (method === 'wallet_getSnaps') {
-        return Promise.resolve({
-          [SOLANA_SNAP_ID]: { version: '1.0.0' },
-        });
-      }
-      return Promise.resolve(null);
-    });
-
-    await controller.refreshSnapsStatus();
-
-    expect(controller.isSnapAvailable('solana')).toBe(true);
-
-    cleanup();
-  });
-
-  it('addNetworks adds snap-supported chains', async () => {
-    const { controller, activeChainsUpdateHandler, cleanup } = setupController({
-      configuredNetworks: [SOLANA_MAINNET],
-    });
-    await new Promise(process.nextTick);
-
-    controller.addNetworks([BITCOIN_MAINNET, CHAIN_MAINNET]);
-
-    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
-      'SnapDataSource',
-      expect.arrayContaining([SOLANA_MAINNET, BITCOIN_MAINNET]),
-    );
-
-    cleanup();
-  });
-
-  it('addNetworks ignores non-snap chains', async () => {
-    const { controller, activeChainsUpdateHandler, cleanup } = setupController({
-      configuredNetworks: [SOLANA_MAINNET],
-    });
-    await new Promise(process.nextTick);
-
-    controller.addNetworks([CHAIN_MAINNET]);
-
-    expect(activeChainsUpdateHandler).not.toHaveBeenCalled();
-
-    cleanup();
-  });
-
-  it('removeNetworks removes chains', async () => {
-    const { controller, activeChainsUpdateHandler, cleanup } = setupController({
-      configuredNetworks: [SOLANA_MAINNET, BITCOIN_MAINNET],
-    });
-    await new Promise(process.nextTick);
-
-    controller.removeNetworks([SOLANA_MAINNET]);
-
-    expect(activeChainsUpdateHandler).toHaveBeenCalledWith('SnapDataSource', [
-      BITCOIN_MAINNET,
-    ]);
-
-    cleanup();
-  });
-
-  it('fetch returns empty response for non-snap chains', async () => {
-    const { controller, cleanup } = setupController();
-    await new Promise(process.nextTick);
 
     const response = await controller.fetch(
-      createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+      createDataRequest({ accounts: [nonSnapAccount] }),
     );
 
-    expect(response).toStrictEqual({});
+    expect(response).toStrictEqual({
+      assetsBalance: {},
+      assetsInfo: {},
+    });
 
     cleanup();
   });
@@ -444,23 +453,31 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
-  it('fetch returns error when snap not available', async () => {
+  it('fetch returns empty response when accounts array is empty', async () => {
     const { controller, cleanup } = setupController({
-      installedSnaps: {},
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
     });
     await new Promise(process.nextTick);
 
-    const response = await controller.fetch(createDataRequest());
+    const response = await controller.fetch(
+      createDataRequest({ accounts: [] }),
+    );
 
-    expect(response.errors?.[SOLANA_MAINNET]).toBe('solana snap not available');
+    // No accounts to fetch, so empty balances
+    expect(response).toStrictEqual({
+      assetsBalance: {},
+      assetsInfo: {},
+    });
 
     cleanup();
   });
 
-  it('fetch calls snap keyring methods when snap available', async () => {
-    const { controller, snapProvider, cleanup } = setupController({
+  it('fetch calls snap keyring methods when snap discovered', async () => {
+    const { controller, mockHandleRequest, cleanup } = setupController({
       installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
       accountAssets: [MOCK_SOL_ASSET],
       balances: {
@@ -471,26 +488,30 @@ describe('SnapDataSource', () => {
 
     const response = await controller.fetch(createDataRequest());
 
-    expect(snapProvider.request).toHaveBeenCalledWith({
-      method: 'wallet_invokeSnap',
-      params: {
+    // Verify keyring_listAccountAssets was called
+    expect(mockHandleRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
         snapId: SOLANA_SNAP_ID,
-        request: {
+        origin: 'metamask',
+        handler: 'onKeyringRequest',
+        request: expect.objectContaining({
           method: 'keyring_listAccountAssets',
           params: { id: 'mock-account-id' },
-        },
-      },
-    });
-    expect(snapProvider.request).toHaveBeenCalledWith({
-      method: 'wallet_invokeSnap',
-      params: {
+        }),
+      }),
+    );
+    // Verify keyring_getAccountBalances was called
+    expect(mockHandleRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
         snapId: SOLANA_SNAP_ID,
-        request: {
+        origin: 'metamask',
+        handler: 'onKeyringRequest',
+        request: expect.objectContaining({
           method: 'keyring_getAccountBalances',
           params: { id: 'mock-account-id', assets: [MOCK_SOL_ASSET] },
-        },
-      },
-    });
+        }),
+      }),
+    );
     expect(
       response.assetsBalance?.['mock-account-id']?.[MOCK_SOL_ASSET],
     ).toStrictEqual({ amount: '1000000000' });
@@ -498,41 +519,10 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
-  it('fetch skips accounts without supported scopes', async () => {
-    const { controller, snapProvider, cleanup } = setupController({
-      installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
-      },
-      accountAssets: [MOCK_SOL_ASSET],
-      balances: {
-        [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
-      },
-    });
-    await new Promise(process.nextTick);
-
-    const evmOnlyAccount = createMockAccount({
-      scopes: ['eip155:0'],
-    });
-
-    await controller.fetch(
-      createDataRequest({
-        accounts: [evmOnlyAccount],
-      }),
-    );
-
-    const invokeSnapCalls = snapProvider.request.mock.calls.filter((call) => {
-      const arg = call[0] as { method: string };
-      return arg.method === 'wallet_invokeSnap';
-    });
-    expect(invokeSnapCalls).toHaveLength(0);
-
-    cleanup();
-  });
-
   it('fetch handles empty account assets gracefully', async () => {
-    const { controller, snapProvider, cleanup } = setupController({
+    const { controller, mockHandleRequest, cleanup } = setupController({
       installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
       accountAssets: [],
     });
@@ -540,15 +530,10 @@ describe('SnapDataSource', () => {
 
     const response = await controller.fetch(createDataRequest());
 
-    const getBalancesCalls = snapProvider.request.mock.calls.filter((call) => {
-      const arg = call[0] as {
-        method: string;
-        params?: { request?: { method: string } };
-      };
-      return (
-        arg.method === 'wallet_invokeSnap' &&
-        arg.params?.request?.method === 'keyring_getAccountBalances'
-      );
+    // Check that keyring_getAccountBalances was NOT called (since no assets)
+    const getBalancesCalls = mockHandleRequest.mock.calls.filter((call) => {
+      const params = call[0] as { request?: { method: string } };
+      return params.request?.method === 'keyring_getAccountBalances';
     });
     expect(getBalancesCalls).toHaveLength(0);
     expect(response.assetsBalance).toStrictEqual({});
@@ -559,8 +544,8 @@ describe('SnapDataSource', () => {
   it('fetch merges results from multiple snaps', async () => {
     const { controller, cleanup } = setupController({
       installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
-        [BITCOIN_SNAP_ID]: { version: '1.0.0' },
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        [BITCOIN_SNAP_ID]: { version: '1.0.0', chainIds: [BITCOIN_MAINNET] },
       },
       accountAssets: [MOCK_SOL_ASSET, MOCK_BTC_ASSET],
       balances: {
@@ -583,7 +568,11 @@ describe('SnapDataSource', () => {
 
   it('handles snap balances updated event', async () => {
     const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
-      setupController();
+      setupController({
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+      });
     await new Promise(process.nextTick);
 
     triggerBalancesUpdated({
@@ -604,15 +593,18 @@ describe('SnapDataSource', () => {
           },
         },
       }),
-      'SnapDataSource',
     );
 
     cleanup();
   });
 
-  it('filters non-snap assets from balance update event', async () => {
+  it('filters assets for chains without discovered snaps from balance update event', async () => {
     const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
-      setupController();
+      setupController({
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+      });
     await new Promise(process.nextTick);
 
     const evmAsset = 'eip155:1/slip44:60' as Caip19AssetId;
@@ -636,7 +628,39 @@ describe('SnapDataSource', () => {
           },
         },
       }),
-      'SnapDataSource',
+    );
+
+    cleanup();
+  });
+
+  it('skips malformed asset IDs in balance update and still applies valid balances', async () => {
+    const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
+      setupController({
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+      });
+    await new Promise(process.nextTick);
+
+    triggerBalancesUpdated({
+      balances: {
+        'account-1': {
+          'not-a-valid-caip19': { amount: '999', unit: 'FAKE' },
+          [MOCK_SOL_ASSET]: { amount: '1000000000', unit: 'SOL' },
+        },
+      },
+    });
+
+    await new Promise(process.nextTick);
+
+    expect(assetsUpdateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsBalance: {
+          'account-1': {
+            [MOCK_SOL_ASSET]: { amount: '1000000000' },
+          },
+        },
+      }),
     );
 
     cleanup();
@@ -644,11 +668,16 @@ describe('SnapDataSource', () => {
 
   it('does not report empty balance updates', async () => {
     const { triggerBalancesUpdated, assetsUpdateHandler, cleanup } =
-      setupController();
+      setupController({
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+      });
     await new Promise(process.nextTick);
 
     const evmAsset = 'eip155:1/slip44:60' as Caip19AssetId;
 
+    // Only EVM asset - no discovered snap for EVM
     triggerBalancesUpdated({
       balances: {
         'account-1': {
@@ -667,7 +696,7 @@ describe('SnapDataSource', () => {
   it('subscribe performs initial fetch', async () => {
     const { controller, assetsUpdateHandler, cleanup } = setupController({
       installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
       accountAssets: [MOCK_SOL_ASSET],
       balances: {
@@ -680,6 +709,7 @@ describe('SnapDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     expect(assetsUpdateHandler).toHaveBeenCalled();
@@ -687,7 +717,7 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
-  it('subscribe does nothing for non-snap chains', async () => {
+  it('subscribe does nothing for chains without discovered snaps', async () => {
     const { controller, assetsUpdateHandler, cleanup } = setupController();
     await new Promise(process.nextTick);
 
@@ -695,6 +725,7 @@ describe('SnapDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
@@ -705,7 +736,7 @@ describe('SnapDataSource', () => {
   it('subscribe update fetches data', async () => {
     const { controller, assetsUpdateHandler, cleanup } = setupController({
       installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
       accountAssets: [MOCK_SOL_ASSET],
       balances: {
@@ -718,6 +749,7 @@ describe('SnapDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     assetsUpdateHandler.mockClear();
@@ -728,6 +760,7 @@ describe('SnapDataSource', () => {
         chainIds: [SOLANA_MAINNET, BITCOIN_MAINNET],
       }),
       isUpdate: true,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     await new Promise(process.nextTick);
@@ -739,7 +772,9 @@ describe('SnapDataSource', () => {
 
   it('middleware passes to next when no supported chains', async () => {
     const { controller, cleanup } = setupController({
-      configuredNetworks: [SOLANA_MAINNET],
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+      },
     });
     await new Promise(process.nextTick);
 
@@ -757,9 +792,8 @@ describe('SnapDataSource', () => {
 
   it('middleware merges response into context', async () => {
     const { controller, cleanup } = setupController({
-      configuredNetworks: [SOLANA_MAINNET],
       installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
       accountAssets: [MOCK_SOL_ASSET],
       balances: {
@@ -783,9 +817,8 @@ describe('SnapDataSource', () => {
 
   it('middleware removes handled chains from next request', async () => {
     const { controller, cleanup } = setupController({
-      configuredNetworks: [SOLANA_MAINNET],
       installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
       accountAssets: [MOCK_SOL_ASSET],
       balances: {
@@ -814,9 +847,9 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
-  it('middleware keeps failed chains in request', async () => {
+  it('middleware keeps chains without discovered snaps in request', async () => {
+    // No snaps discovered
     const { controller, cleanup } = setupController({
-      configuredNetworks: [SOLANA_MAINNET],
       installedSnaps: {},
     });
     await new Promise(process.nextTick);
@@ -830,13 +863,8 @@ describe('SnapDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({
-        request: expect.objectContaining({
-          chainIds: expect.arrayContaining([SOLANA_MAINNET, CHAIN_MAINNET]),
-        }),
-      }),
-    );
+    // All chains passed through since no snaps handle any chains
+    expect(next).toHaveBeenCalledWith(context);
 
     cleanup();
   });
@@ -844,7 +872,7 @@ describe('SnapDataSource', () => {
   it('destroy cleans up subscriptions', async () => {
     const { controller, cleanup } = setupController({
       installedSnaps: {
-        [SOLANA_SNAP_ID]: { version: '1.0.0' },
+        [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
       },
       accountAssets: [MOCK_SOL_ASSET],
       balances: {
@@ -857,6 +885,7 @@ describe('SnapDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     cleanup();
@@ -876,8 +905,8 @@ describe('SnapDataSource', () => {
 
     const controllerMessenger = new Messenger<
       'SnapDataSource',
-      MessengerActions<SnapDataSourceMessenger>,
-      MessengerEvents<SnapDataSourceMessenger>,
+      AllActions,
+      AllEvents,
       RootMessenger
     >({
       namespace: 'SnapDataSource',
@@ -887,26 +916,28 @@ describe('SnapDataSource', () => {
     rootMessenger.delegate({
       messenger: controllerMessenger,
       actions: [
-        'AssetsController:assetsUpdate',
-        'AssetsController:activeChainsUpdate',
+        'SnapController:getRunnableSnaps',
+        'SnapController:handleRequest',
+        'PermissionController:getPermissions',
       ],
       events: ['AccountsController:accountBalancesUpdated'],
     });
-
     rootMessenger.registerActionHandler(
-      'AssetsController:assetsUpdate',
+      'SnapController:getRunnableSnaps',
+      jest.fn().mockReturnValue([]),
+    );
+    rootMessenger.registerActionHandler(
+      'SnapController:handleRequest',
       jest.fn(),
     );
     rootMessenger.registerActionHandler(
-      'AssetsController:activeChainsUpdate',
-      jest.fn(),
+      'PermissionController:getPermissions',
+      jest.fn().mockReturnValue(undefined),
     );
-
-    const snapProvider = createMockSnapProvider();
 
     const instance = createSnapDataSource({
-      messenger: controllerMessenger,
-      snapProvider,
+      messenger: controllerMessenger as unknown as AssetsControllerMessenger,
+      onActiveChainsUpdated: jest.fn(),
     });
 
     await new Promise(process.nextTick);

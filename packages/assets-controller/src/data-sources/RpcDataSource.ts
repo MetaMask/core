@@ -1,21 +1,35 @@
 import { Web3Provider } from '@ethersproject/providers';
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-} from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import type { GetTokenListState } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { Messenger } from '@metamask/messenger';
-import type { NetworkState, NetworkStatus } from '@metamask/network-controller';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
+  NetworkState,
+  NetworkStatus,
+} from '@metamask/network-controller';
+import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
+import type {
+  TransactionControllerIncomingTransactionsReceivedEvent,
+  TransactionControllerTransactionConfirmedEvent,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import {
   isStrictHexString,
   isCaipChainId,
+  numberToHex,
+  parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import BigNumberJS from 'bignumber.js';
 
-import type { SubscriptionRequest } from './AbstractDataSource';
+import { AbstractDataSource } from './AbstractDataSource';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
 import {
   BalanceFetcher,
   MulticallClient,
@@ -29,15 +43,19 @@ import type {
   Address,
   Provider as RpcProvider,
   TokenListState,
-  UserTokensState,
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services';
+import type {
+  AssetsControllerGetStateAction,
+  AssetsControllerMessenger,
+} from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
   ChainId,
   Caip19AssetId,
   AssetBalance,
+  AssetMetadata,
   DataRequest,
   DataResponse,
   Middleware,
@@ -49,163 +67,19 @@ const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
-// Action types
-export type RpcDataSourceGetAssetsMiddlewareAction = {
-  type: 'RpcDataSource:getAssetsMiddleware';
-  handler: () => Middleware;
-};
-
-export type RpcDataSourceGetActiveChainsAction = {
-  type: 'RpcDataSource:getActiveChains';
-  handler: () => Promise<ChainId[]>;
-};
-
-export type RpcDataSourceFetchAction = {
-  type: 'RpcDataSource:fetch';
-  handler: (request: DataRequest) => Promise<DataResponse>;
-};
-
-export type RpcDataSourceSubscribeAction = {
-  type: 'RpcDataSource:subscribe';
-  handler: (request: SubscriptionRequest) => Promise<void>;
-};
-
-export type RpcDataSourceUnsubscribeAction = {
-  type: 'RpcDataSource:unsubscribe';
-  handler: (subscriptionId: string) => Promise<void>;
-};
-
-export type RpcDataSourceGetStateAction = ControllerGetStateAction<
-  typeof CONTROLLER_NAME,
-  RpcDataSourceState
->;
-
-export type RpcDataSourceActions =
-  | RpcDataSourceGetStateAction
-  | RpcDataSourceGetAssetsMiddlewareAction
-  | RpcDataSourceGetActiveChainsAction
-  | RpcDataSourceFetchAction
-  | RpcDataSourceSubscribeAction
-  | RpcDataSourceUnsubscribeAction;
-
-// Event types
-export type RpcDataSourceActiveChainsChangedEvent = {
-  type: 'RpcDataSource:activeChainsUpdated';
-  payload: [ChainId[]];
-};
-
-export type RpcDataSourceAssetsUpdatedEvent = {
-  type: 'RpcDataSource:assetsUpdated';
-  payload: [DataResponse, string | undefined];
-};
-
-export type RpcDataSourceStateChangeEvent = ControllerStateChangeEvent<
-  typeof CONTROLLER_NAME,
-  RpcDataSourceState
->;
-
-export type RpcDataSourceEvents =
-  | RpcDataSourceStateChangeEvent
-  | RpcDataSourceActiveChainsChangedEvent
-  | RpcDataSourceAssetsUpdatedEvent;
-
-// NetworkController action to get state
-export type NetworkControllerGetStateAction = {
-  type: 'NetworkController:getState';
-  handler: () => NetworkState;
-};
-
-// NetworkController action to get network client by ID
-export type NetworkControllerGetNetworkClientByIdAction = {
-  type: 'NetworkController:getNetworkClientById';
-  handler: (networkClientId: string) => NetworkClient;
-};
-
-// Network client returned by NetworkController
-export type NetworkClient = {
-  provider: EthereumProvider;
-  configuration: {
-    chainId: string;
-  };
-};
-
-// Ethereum provider interface
-export type EthereumProvider = {
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-};
-
-// NetworkController state change event
-export type NetworkControllerStateChangeEvent = {
-  type: 'NetworkController:stateChange';
-  payload: [NetworkState, Patch[]];
-};
-
-// Patch type for state changes
-type Patch = {
-  op: 'add' | 'remove' | 'replace';
-  path: string[];
-  value?: unknown;
-};
-
-// Actions to report to AssetsController
-type AssetsControllerActiveChainsUpdateAction = {
-  type: 'AssetsController:activeChainsUpdate';
-  handler: (dataSourceId: string, activeChains: ChainId[]) => void;
-};
-
-type AssetsControllerAssetsUpdateAction = {
-  type: 'AssetsController:assetsUpdate';
-  handler: (response: DataResponse, sourceId: string) => Promise<void>;
-};
-
-// TokenListController:getState action
-type TokenListControllerGetStateAction = {
-  type: 'TokenListController:getState';
-  handler: () => {
-    tokensChainsCache: Record<
-      string,
-      { timestamp: number; data: Record<string, unknown> }
-    >;
-  };
-};
-
-// AssetsController:getState action (for user tokens state)
-type AssetsControllerGetStateAction = {
-  type: 'AssetsController:getState';
-  handler: () => {
-    allTokens: Record<string, Record<string, { address: string }[]>>;
-    allDetectedTokens: Record<string, Record<string, { address: string }[]>>;
-    allIgnoredTokens: Record<string, Record<string, string[]>>;
-  };
-};
-
-// NetworkEnablementController:getState action
-type NetworkEnablementControllerGetStateAction = {
-  type: 'NetworkEnablementController:getState';
-  handler: () => {
-    enabledNetworkMap: Record<string, Record<string, boolean>>;
-    nativeAssetIdentifiers: Record<string, string>;
-  };
-};
-
 // Allowed actions that RpcDataSource can call
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AssetsControllerActiveChainsUpdateAction
-  | AssetsControllerAssetsUpdateAction
   | AssetsControllerGetStateAction
-  | TokenListControllerGetStateAction
+  | GetTokenListState
   | NetworkEnablementControllerGetStateAction;
 
 // Allowed events that RpcDataSource can subscribe to
-export type RpcDataSourceAllowedEvents = NetworkControllerStateChangeEvent;
-
-export type RpcDataSourceMessenger = Messenger<
-  typeof CONTROLLER_NAME,
-  RpcDataSourceActions | RpcDataSourceAllowedActions,
-  RpcDataSourceEvents | RpcDataSourceAllowedEvents
->;
+export type RpcDataSourceAllowedEvents =
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent;
 
 /** Network status for each chain */
 export type ChainStatus = {
@@ -220,16 +94,36 @@ export type ChainStatus = {
 /** RpcDataSource is stateless */
 export type RpcDataSourceState = Record<never, never>;
 
+/** Optional configuration for RpcDataSource when the controller instantiates it. */
+export type RpcDataSourceConfig = {
+  balanceInterval?: number;
+  detectionInterval?: number;
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
+  timeout?: number;
+};
+
 export type RpcDataSourceOptions = {
-  messenger: RpcDataSourceMessenger;
+  /** The AssetsController messenger (shared by all data sources). */
+  messenger: AssetsControllerMessenger;
+  /** Called when active chains are updated. Pass dataSourceName so the controller knows the source. */
+  onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
   /** Request timeout in ms */
   timeout?: number;
   /** Balance polling interval in ms (default: 30s) */
   balanceInterval?: number;
   /** Token detection polling interval in ms (default: 180s / 3 min) */
   detectionInterval?: number;
-  /** Whether token detection is enabled */
-  tokenDetectionEnabled?: boolean;
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
 };
 
 /**
@@ -244,6 +138,8 @@ type SubscriptionData = {
   chains: ChainId[];
   /** Accounts being polled */
   accounts: InternalAccount[];
+  /** Callback to report asset updates to the controller */
+  onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
 };
 
 /**
@@ -282,14 +178,23 @@ export const caipChainIdToHex = (chainId: string): Hex => {
  * - RpcDataSource:activeChainsUpdated
  * - RpcDataSource:assetsUpdated
  */
-export class RpcDataSource extends BaseController<
+export class RpcDataSource extends AbstractDataSource<
   typeof CONTROLLER_NAME,
-  RpcDataSourceState,
-  RpcDataSourceMessenger
+  DataSourceState
 > {
+  readonly #messenger: AssetsControllerMessenger;
+
+  readonly #onActiveChainsUpdated: (
+    dataSourceName: string,
+    chains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
+
   readonly #timeout: number;
 
-  readonly #tokenDetectionEnabled: boolean;
+  readonly #tokenDetectionEnabled: () => boolean;
+
+  readonly #useExternalService: () => boolean;
 
   /** Currently active chains */
   #activeChains: ChainId[] = [];
@@ -303,6 +208,10 @@ export class RpcDataSource extends BaseController<
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<string, SubscriptionData> = new Map();
 
+  #unsubscribeTransactionConfirmed: (() => void) | undefined = undefined;
+
+  #unsubscribeIncomingTransactions: (() => void) | undefined = undefined;
+
   // Rpc-datasource components
   readonly #multicallClient: MulticallClient;
 
@@ -311,15 +220,14 @@ export class RpcDataSource extends BaseController<
   readonly #tokenDetector: TokenDetector;
 
   constructor(options: RpcDataSourceOptions) {
-    super({
-      name: CONTROLLER_NAME,
-      metadata: {},
-      state: {},
-      messenger: options.messenger,
-    });
-
+    super(CONTROLLER_NAME, { activeChains: [] });
+    this.#messenger = options.messenger;
+    this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#timeout = options.timeout ?? 10_000;
-    this.#tokenDetectionEnabled = options.tokenDetectionEnabled ?? false;
+    this.#tokenDetectionEnabled =
+      options.tokenDetectionEnabled ?? ((): boolean => true);
+    this.#useExternalService =
+      options.useExternalService ?? ((): boolean => true);
 
     const balanceInterval = options.balanceInterval ?? DEFAULT_BALANCE_INTERVAL;
     const detectionInterval =
@@ -329,7 +237,8 @@ export class RpcDataSource extends BaseController<
       timeout: this.#timeout,
       balanceInterval,
       detectionInterval,
-      tokenDetectionEnabled: this.#tokenDetectionEnabled,
+      tokenDetectionEnabled: this.#tokenDetectionEnabled(),
+      useExternalService: this.#useExternalService(),
     });
 
     // Initialize MulticallClient with a provider getter
@@ -337,40 +246,129 @@ export class RpcDataSource extends BaseController<
       return this.#getMulticallProvider(hexChainId);
     });
 
-    // Create state getters using messenger
-    const getTokenListState = (): TokenListState => {
-      return this.messenger.call(
-        'TokenListController:getState',
-      ) as TokenListState;
+    // Create messenger adapters for BalanceFetcher and TokenDetector
+    const balanceFetcherMessenger = {
+      call: (
+        _action: 'AssetsController:getState',
+      ): {
+        assetsBalance: Record<string, Record<string, { amount: string }>>;
+      } => {
+        const state = this.#messenger.call('AssetsController:getState');
+        return {
+          assetsBalance: (state.assetsBalance ?? {}) as Record<
+            string,
+            Record<string, { amount: string }>
+          >,
+        };
+      },
     };
 
-    const getUserTokensState = (): UserTokensState => {
-      return this.messenger.call(
-        'AssetsController:getState',
-      ) as UserTokensState;
+    const tokenDetectorMessenger = {
+      call: (_action: 'TokenListController:getState'): TokenListState => {
+        return this.#messenger.call('TokenListController:getState');
+      },
     };
 
     // Initialize BalanceFetcher with polling interval
-    this.#balanceFetcher = new BalanceFetcher(this.#multicallClient, {
-      pollingInterval: balanceInterval,
-    });
-    this.#balanceFetcher.setUserTokensStateGetter(getUserTokensState);
+    this.#balanceFetcher = new BalanceFetcher(
+      this.#multicallClient,
+      balanceFetcherMessenger,
+      { pollingInterval: balanceInterval },
+    );
     this.#balanceFetcher.setOnBalanceUpdate(
       this.#handleBalanceUpdate.bind(this),
     );
 
     // Initialize TokenDetector with polling interval
-    this.#tokenDetector = new TokenDetector(this.#multicallClient, {
-      pollingInterval: detectionInterval,
-    });
-    this.#tokenDetector.setTokenListStateGetter(getTokenListState);
+    this.#tokenDetector = new TokenDetector(
+      this.#multicallClient,
+      tokenDetectorMessenger,
+      {
+        pollingInterval: detectionInterval,
+        tokenDetectionEnabled: this.#tokenDetectionEnabled,
+        useExternalService: this.#useExternalService,
+      },
+    );
     this.#tokenDetector.setOnDetectionUpdate(
       this.#handleDetectionUpdate.bind(this),
     );
 
-    this.#registerActionHandlers();
     this.#subscribeToNetworkController();
+    this.#subscribeToTransactionEvents();
     this.#initializeFromNetworkController();
+  }
+
+  /**
+   * Convert a raw balance to human-readable format using decimals.
+   *
+   * @param rawBalance - The raw balance string.
+   * @param decimals - The number of decimals for the token.
+   * @returns The human-readable balance string.
+   */
+  #convertToHumanReadable(rawBalance: string, decimals: number): string {
+    const rawAmount = new BigNumberJS(rawBalance);
+    const divisor = new BigNumberJS(10).pow(decimals);
+    return rawAmount.dividedBy(divisor).toString();
+  }
+
+  /**
+   * Collect metadata for a list of balance entries.
+   * For native tokens, generates metadata from chain status.
+   * For ERC20 tokens, looks up from existing state or token list.
+   *
+   * @param balances - Array of balance entries with assetId.
+   * @param chainId - The CAIP-2 chain ID.
+   * @returns Record of asset metadata keyed by asset ID.
+   */
+  #collectMetadataForBalances(
+    balances: { assetId: Caip19AssetId }[],
+    chainId: ChainId,
+  ): Record<Caip19AssetId, AssetMetadata> {
+    const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
+    const existingMetadata = this.#getExistingAssetsMetadata();
+
+    for (const balance of balances) {
+      const isNative = balance.assetId.includes('/slip44:');
+      if (isNative) {
+        const chainStatus = this.#chainStatuses[chainId];
+
+        if (chainStatus) {
+          assetsInfo[balance.assetId] = {
+            type: 'native',
+            symbol: chainStatus.nativeCurrency,
+            name: chainStatus.nativeCurrency,
+            decimals: 18,
+          };
+        }
+      } else {
+        // For ERC20 tokens, try existing metadata from state first
+        const existingMeta = existingMetadata[balance.assetId];
+
+        if (existingMeta) {
+          assetsInfo[balance.assetId] = existingMeta;
+        } else {
+          // Fallback to token list if not in state
+          const tokenListMeta = this.#getTokenMetadataFromTokenList(
+            balance.assetId,
+          );
+          if (tokenListMeta) {
+            assetsInfo[balance.assetId] = tokenListMeta;
+          } else {
+            // Default metadata for unknown ERC20 tokens.
+            // Use 18 decimals (the standard for most ERC20 tokens)
+            // to ensure consistent human-readable balance format.
+            assetsInfo[balance.assetId] = {
+              type: 'erc20',
+              symbol: '',
+              name: '',
+              decimals: 18,
+            };
+          }
+        }
+      }
+    }
+
+    return assetsInfo;
   }
 
   /**
@@ -379,25 +377,52 @@ export class RpcDataSource extends BaseController<
    * @param result - The balance fetch result.
    */
   #handleBalanceUpdate(result: BalanceFetchResult): void {
-    const accountBalances: Record<string, { amount: string }> = {};
+    const newBalances: Record<string, { amount: string }> = {};
 
+    // Convert hex chain ID to CAIP-2 format
+    const chainIdDecimal = parseInt(result.chainId, 16);
+    const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
+
+    // Collect metadata for all balances
+    const assetsInfo = this.#collectMetadataForBalances(
+      result.balances,
+      caipChainId,
+    );
+
+    // Convert balances to human-readable format using metadata
     for (const balance of result.balances) {
-      accountBalances[balance.assetId] = {
-        amount: balance.balance,
+      const metadata = assetsInfo[balance.assetId];
+      // Default to 18 decimals (ERC20 standard) for consistent human-readable format
+      const decimals = metadata?.decimals ?? 18;
+      const humanReadableAmount = this.#convertToHumanReadable(
+        balance.balance,
+        decimals,
+      );
+
+      newBalances[balance.assetId] = {
+        amount: humanReadableAmount,
       };
     }
 
+    // Only send new data to AssetsController - it handles merging atomically
+    // to avoid race conditions when concurrent updates occur for the same account
     const response: DataResponse = {
       assetsBalance: {
-        [result.accountId]: accountBalances,
+        [result.accountId]: newBalances,
       },
+      assetsInfo,
     };
 
-    this.messenger
-      .call('AssetsController:assetsUpdate', response, CONTROLLER_NAME)
-      .catch((error) => {
+    log('Balance update response', {
+      accountId: result.accountId,
+      newBalanceCount: Object.keys(newBalances).length,
+    });
+
+    for (const subscription of this.#activeSubscriptions.values()) {
+      subscription.onAssetsUpdate(response)?.catch((error) => {
         log('Failed to update assets', { error });
       });
+    }
   }
 
   /**
@@ -410,73 +435,65 @@ export class RpcDataSource extends BaseController<
       count: result.detectedAssets.length,
     });
 
-    const response: DataResponse = {
-      detectedAssets: {
-        [result.accountId]: result.detectedAssets.map((asset) => asset.assetId),
-      },
-    };
+    // Build new metadata from detected assets
+    const newMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+    if (result.detectedAssets.length > 0) {
+      for (const asset of result.detectedAssets) {
+        // Only include if we have metadata (symbol and decimals at minimum)
+        if (asset.symbol && asset.decimals !== undefined) {
+          newMetadata[asset.assetId] = {
+            type: 'erc20',
+            symbol: asset.symbol,
+            name: asset.name ?? asset.symbol,
+            decimals: asset.decimals,
+            image: asset.image,
+          };
+        }
+      }
+    }
 
-    // Add balances for detected tokens
+    // Build new balances from detected tokens
+    const newBalances: Record<string, { amount: string }> = {};
     if (result.detectedBalances.length > 0) {
-      response.assetsBalance = {
-        [result.accountId]: {},
-      };
       for (const balance of result.detectedBalances) {
-        response.assetsBalance[result.accountId][balance.assetId] = {
-          amount: balance.balance,
+        // Get decimals from the detected asset metadata
+        const detectedAsset = result.detectedAssets.find(
+          (asset) => asset.assetId === balance.assetId,
+        );
+        // Default to 18 decimals (ERC20 standard) for consistent human-readable format
+        const decimals = detectedAsset?.decimals ?? 18;
+        const humanReadableAmount = this.#convertToHumanReadable(
+          balance.balance,
+          decimals,
+        );
+
+        newBalances[balance.assetId] = {
+          amount: humanReadableAmount,
         };
       }
     }
 
-    this.messenger
-      .call('AssetsController:assetsUpdate', response, CONTROLLER_NAME)
-      .catch((error) => {
+    // Only send new data to AssetsController - it handles merging atomically
+    // to avoid race conditions when concurrent updates occur for the same account
+    const response: DataResponse = {
+      detectedAssets: {
+        [result.accountId]: result.detectedAssets.map((asset) => asset.assetId),
+      },
+      assetsInfo: newMetadata,
+      assetsBalance: {
+        [result.accountId]: newBalances,
+      },
+    };
+
+    for (const subscription of this.#activeSubscriptions.values()) {
+      subscription.onAssetsUpdate(response)?.catch((error) => {
         log('Failed to update detected assets', { error });
       });
-  }
-
-  #registerActionHandlers(): void {
-    const getAssetsMiddlewareHandler: RpcDataSourceGetAssetsMiddlewareAction['handler'] =
-      () => this.assetsMiddleware;
-
-    const getActiveChainsHandler: RpcDataSourceGetActiveChainsAction['handler'] =
-      async () => this.getActiveChains();
-
-    const fetchHandler: RpcDataSourceFetchAction['handler'] = async (request) =>
-      this.fetch(request);
-
-    const subscribeHandler: RpcDataSourceSubscribeAction['handler'] = async (
-      request,
-    ) => this.subscribe(request);
-
-    const unsubscribeHandler: RpcDataSourceUnsubscribeAction['handler'] =
-      async (subscriptionId) => this.unsubscribe(subscriptionId);
-
-    this.messenger.registerActionHandler(
-      'RpcDataSource:getAssetsMiddleware',
-      getAssetsMiddlewareHandler,
-    );
-
-    this.messenger.registerActionHandler(
-      'RpcDataSource:getActiveChains',
-      getActiveChainsHandler,
-    );
-
-    this.messenger.registerActionHandler('RpcDataSource:fetch', fetchHandler);
-
-    this.messenger.registerActionHandler(
-      'RpcDataSource:subscribe',
-      subscribeHandler,
-    );
-
-    this.messenger.registerActionHandler(
-      'RpcDataSource:unsubscribe',
-      unsubscribeHandler,
-    );
+    }
   }
 
   #subscribeToNetworkController(): void {
-    this.messenger.subscribe(
+    this.#messenger.subscribe(
       'NetworkController:stateChange',
       (networkState: NetworkState) => {
         log('NetworkController state changed');
@@ -486,10 +503,108 @@ export class RpcDataSource extends BaseController<
     );
   }
 
+  #subscribeToTransactionEvents(): void {
+    const unsubConfirmed = this.#messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      this.#onTransactionConfirmed.bind(this),
+    );
+    this.#unsubscribeTransactionConfirmed =
+      typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
+
+    const unsubIncoming = this.#messenger.subscribe(
+      'TransactionController:incomingTransactionsReceived',
+      this.#onIncomingTransactions.bind(this),
+    );
+    this.#unsubscribeIncomingTransactions =
+      typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
+  }
+
+  #onTransactionConfirmed(payload: TransactionMeta): void {
+    const hexChainId = payload?.chainId;
+    if (!hexChainId) {
+      return;
+    }
+    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    this.#refreshBalanceForChains([caipChainId]).catch((error) => {
+      log('Failed to refresh balance after transaction confirmed', { error });
+    });
+  }
+
+  #onIncomingTransactions(payload: TransactionMeta[]): void {
+    const chainIds = Array.from(
+      new Set(
+        (payload ?? [])
+          .map((item) => item?.chainId)
+          .filter((id): id is Hex => Boolean(id)),
+      ),
+    );
+    const caipChainIds = chainIds.map(
+      (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
+    );
+    const toRefresh =
+      caipChainIds.length > 0 ? caipChainIds : [...this.#activeChains];
+    this.#refreshBalanceForChains(toRefresh).catch((error) => {
+      log('Failed to refresh balance after incoming transactions', { error });
+    });
+  }
+
+  /**
+   * Fetch balances for the given chains across all active subscriptions and
+   * push updates to the controller.
+   *
+   * @param chainIds - CAIP-2 chain IDs to refresh.
+   */
+  async #refreshBalanceForChains(chainIds: ChainId[]): Promise<void> {
+    const chainIdsSet = new Set(chainIds);
+    const chainsToFetch = chainIds.filter((chainId) =>
+      this.#activeChains.includes(chainId),
+    );
+    if (chainsToFetch.length === 0) {
+      return;
+    }
+
+    for (const subscription of this.#activeSubscriptions.values()) {
+      const subscriptionChains = subscription.chains.filter((chainId) =>
+        chainIdsSet.has(chainId),
+      );
+      if (subscriptionChains.length === 0) {
+        continue;
+      }
+
+      const request: DataRequest = {
+        accountsWithSupportedChains: subscription.accounts.map((account) => ({
+          account,
+          supportedChains: subscriptionChains,
+        })),
+        chainIds: subscriptionChains,
+        dataTypes: ['balance'],
+      };
+
+      try {
+        const response = await this.fetch(request);
+        if (
+          response.assetsBalance &&
+          Object.keys(response.assetsBalance).length > 0
+        ) {
+          subscription.onAssetsUpdate(response)?.catch((error) => {
+            log('Failed to report balance update after transaction', {
+              error,
+            });
+          });
+        }
+      } catch (error) {
+        log('Failed to fetch balance after transaction', {
+          chains: subscriptionChains,
+          error,
+        });
+      }
+    }
+  }
+
   #initializeFromNetworkController(): void {
     log('Initializing from NetworkController');
     try {
-      const networkState = this.messenger.call('NetworkController:getState');
+      const networkState = this.#messenger.call('NetworkController:getState');
       this.#updateFromNetworkState(networkState);
     } catch (error) {
       log('Failed to initialize from NetworkController', error);
@@ -539,21 +654,21 @@ export class RpcDataSource extends BaseController<
     });
 
     // Check if chains changed
-    const previousChains = new Set(this.#activeChains);
+    const previousChains = [...this.#activeChains];
+    const previousSet = new Set(previousChains);
     const hasChanges =
-      previousChains.size !== activeChains.length ||
-      activeChains.some((chain) => !previousChains.has(chain));
+      previousChains.length !== activeChains.length ||
+      activeChains.some((chain) => !previousSet.has(chain));
 
-    // Update internal state
+    // Update internal state and data source state before notifying, so that
+    // when the controller handles the callback and calls getActiveChainsSync(),
+    // it receives the updated chains (same order as AbstractDataSource.updateActiveChains).
     this.#chainStatuses = chainStatuses;
     this.#activeChains = activeChains;
+    this.state.activeChains = activeChains;
 
     if (hasChanges) {
-      this.messenger.call(
-        'AssetsController:activeChainsUpdate',
-        CONTROLLER_NAME,
-        activeChains,
-      );
+      this.#onActiveChainsUpdated(this.getName(), activeChains, previousChains);
     }
   }
 
@@ -569,11 +684,13 @@ export class RpcDataSource extends BaseController<
     }
 
     try {
-      const networkClient = this.messenger.call(
+      const networkClient = this.#messenger.call(
         'NetworkController:getNetworkClientById',
         chainStatus.networkClientId,
       );
-
+      if (!networkClient?.provider) {
+        return undefined;
+      }
       const web3Provider = new Web3Provider(networkClient.provider);
       this.#providerCache.set(chainId, web3Provider);
 
@@ -618,58 +735,11 @@ export class RpcDataSource extends BaseController<
     this.#providerCache.clear();
   }
 
-  #accountSupportsChain(account: InternalAccount, chainId: ChainId): boolean {
-    const scopes = account.scopes ?? [];
-
-    if (scopes.length === 0) {
-      return true;
-    }
-
-    const [chainNamespace, chainReference] = chainId.split(':');
-
-    for (const scope of scopes) {
-      const [scopeNamespace, scopeReference] = (scope as string).split(':');
-
-      if (scopeNamespace !== chainNamespace) {
-        continue;
-      }
-
-      // Wildcard scope (e.g., eip155:0) matches all chains in the namespace
-      if (scopeReference === '0') {
-        return true;
-      }
-
-      // RpcDataSource only handles eip155 (EVM) chains
-      // Normalize hex chain references (e.g., 0x1 -> 1) for comparison
-      const normalizedScopeRef = scopeReference?.startsWith('0x')
-        ? parseInt(scopeReference, 16).toString()
-        : scopeReference;
-      if (normalizedScopeRef === chainReference) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
   /**
    * Get the data source name.
    *
    * @returns The name of this data source.
    */
-  getName(): string {
-    return this.name;
-  }
-
-  /**
-   * Get currently active chains.
-   *
-   * @returns Promise resolving to array of active chain IDs.
-   */
-  async getActiveChains(): Promise<ChainId[]> {
-    return this.#activeChains;
-  }
-
   /**
    * Get the status of all configured chains.
    *
@@ -735,7 +805,7 @@ export class RpcDataSource extends BaseController<
     );
 
     log('Fetch requested', {
-      accounts: request.accounts.map((a) => a.id),
+      accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
       requestedChains: request.chainIds,
       chainsToFetch,
     });
@@ -749,18 +819,25 @@ export class RpcDataSource extends BaseController<
       string,
       Record<Caip19AssetId, AssetBalance>
     > = {};
+    const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const failedChains: ChainId[] = [];
 
-    // Fetch balances for each chain using BalanceFetcher
-    for (const chainId of chainsToFetch) {
-      const hexChainId = caipChainIdToHex(chainId);
+    // Fetch balances for each account and its supported chains (pre-computed in request)
+    for (const {
+      account,
+      supportedChains,
+    } of request.accountsWithSupportedChains) {
+      const chainsForAccount = chainsToFetch.filter((chain) =>
+        supportedChains.includes(chain),
+      );
+      if (chainsForAccount.length === 0) {
+        continue;
+      }
 
-      for (const account of request.accounts) {
-        if (!this.#accountSupportsChain(account, chainId)) {
-          continue;
-        }
+      const { address, id: accountId } = account;
 
-        const { address, id: accountId } = account;
+      for (const chainId of chainsForAccount) {
+        const hexChainId = caipChainIdToHex(chainId);
 
         try {
           // Use BalanceFetcher for batched balance fetching
@@ -776,10 +853,25 @@ export class RpcDataSource extends BaseController<
             assetsBalance[accountId] = {};
           }
 
-          // Convert balances to response format
+          // Collect metadata for all balances
+          const balanceMetadata = this.#collectMetadataForBalances(
+            result.balances,
+            chainId,
+          );
+          Object.assign(assetsInfo, balanceMetadata);
+
+          // Convert balances to human-readable format
           for (const balance of result.balances) {
+            const metadata = assetsInfo[balance.assetId];
+            // Default to 18 decimals (ERC20 standard) for consistent human-readable format
+            const decimals = metadata?.decimals ?? 18;
+            const humanReadableAmount = this.#convertToHumanReadable(
+              balance.balance,
+              decimals,
+            );
+
             assetsBalance[accountId][balance.assetId] = {
-              amount: balance.balance,
+              amount: humanReadableAmount,
             };
           }
         } catch (error) {
@@ -790,6 +882,17 @@ export class RpcDataSource extends BaseController<
           }
           const nativeAssetId = this.#buildNativeAssetId(chainId);
           assetsBalance[accountId][nativeAssetId] = { amount: '0' };
+
+          // Even on error, include native token metadata
+          const chainStatus = this.#chainStatuses[chainId];
+          if (chainStatus) {
+            assetsInfo[nativeAssetId] = {
+              type: 'native',
+              symbol: chainStatus.nativeCurrency,
+              name: chainStatus.nativeCurrency,
+              decimals: 18,
+            };
+          }
 
           if (!failedChains.includes(chainId)) {
             failedChains.push(chainId);
@@ -819,6 +922,11 @@ export class RpcDataSource extends BaseController<
 
     response.assetsBalance = assetsBalance;
 
+    // Include metadata for native tokens if we have any
+    if (Object.keys(assetsInfo).length > 0) {
+      response.assetsInfo = assetsInfo;
+    }
+
     return response;
   }
 
@@ -833,7 +941,7 @@ export class RpcDataSource extends BaseController<
     chainId: ChainId,
     account: InternalAccount,
   ): Promise<DataResponse> {
-    if (!this.#tokenDetectionEnabled) {
+    if (!this.#tokenDetectionEnabled() || !this.#useExternalService()) {
       return {};
     }
 
@@ -847,6 +955,10 @@ export class RpcDataSource extends BaseController<
         hexChainId,
         accountId,
         address as Address,
+        {
+          tokenDetectionEnabled: this.#tokenDetectionEnabled(),
+          useExternalService: this.#useExternalService(),
+        },
       );
 
       if (result.detectedAssets.length === 0) {
@@ -862,11 +974,35 @@ export class RpcDataSource extends BaseController<
 
       // Convert detected assets to DataResponse format
       const balances: Record<Caip19AssetId, AssetBalance> = {};
+      const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
 
-      // Add balances for detected tokens
+      // Build metadata from detected assets
+      for (const asset of result.detectedAssets) {
+        if (asset.symbol && asset.decimals !== undefined) {
+          assetsInfo[asset.assetId] = {
+            type: 'erc20',
+            symbol: asset.symbol,
+            name: asset.name ?? asset.symbol,
+            decimals: asset.decimals,
+            image: asset.image,
+          };
+        }
+      }
+
+      // Add balances for detected tokens (converted to human-readable format)
       for (const balance of result.detectedBalances) {
+        const detectedAsset = result.detectedAssets.find(
+          (asset) => asset.assetId === balance.assetId,
+        );
+        // Default to 18 decimals (ERC20 standard) for consistent human-readable format
+        const decimals = detectedAsset?.decimals ?? 18;
+        const humanReadableAmount = this.#convertToHumanReadable(
+          balance.balance,
+          decimals,
+        );
+
         balances[balance.assetId] = {
-          amount: balance.balance,
+          amount: humanReadableAmount,
         };
       }
 
@@ -878,6 +1014,11 @@ export class RpcDataSource extends BaseController<
           [accountId]: balances,
         },
       };
+
+      // Include metadata if we have any
+      if (Object.keys(assetsInfo).length > 0) {
+        response.assetsInfo = assetsInfo;
+      }
 
       return response;
     } catch (error) {
@@ -902,7 +1043,7 @@ export class RpcDataSource extends BaseController<
 
       log('Middleware fetching', {
         chains: supportedChains,
-        accounts: request.accounts.map((a) => a.id),
+        accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
       });
 
       const response = await this.fetch({
@@ -921,6 +1062,14 @@ export class RpcDataSource extends BaseController<
             ...accountBalances,
           };
         }
+      }
+
+      if (response.assetsInfo) {
+        context.response.assetsInfo ??= {};
+        context.response.assetsInfo = {
+          ...context.response.assetsInfo,
+          ...response.assetsInfo,
+        };
       }
 
       const failedChains = new Set(Object.keys(response.errors ?? {}));
@@ -962,7 +1111,7 @@ export class RpcDataSource extends BaseController<
     log('Subscribe requested', {
       subscriptionId,
       isUpdate,
-      accounts: request.accounts.map((a) => a.id),
+      accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
       chainsToSubscribe,
     });
 
@@ -971,36 +1120,41 @@ export class RpcDataSource extends BaseController<
       return;
     }
 
-    // Handle subscription update
+    // Handle subscription update - restart polling for new chains
     if (isUpdate) {
       const existing = this.#activeSubscriptions.get(subscriptionId);
       if (existing) {
-        log('Updating existing subscription', {
+        log('Updating existing subscription - restarting polling', {
           subscriptionId,
-          chainsToSubscribe,
+          existingChains: existing.chains,
+          newChains: chainsToSubscribe,
         });
-        existing.chains = chainsToSubscribe;
-        existing.accounts = request.accounts;
-        return;
+        // Don't return early - continue to unsubscribe and restart polling
       }
     }
 
-    // Clean up existing subscription
+    // Clean up existing subscription (stops old polling)
     await this.unsubscribe(subscriptionId);
 
-    // Start polling through BalanceFetcher and TokenDetector
+    // Start polling through BalanceFetcher and TokenDetector (use pre-computed supportedChains per account)
     const balancePollingTokens: string[] = [];
     const detectionPollingTokens: string[] = [];
 
-    for (const chainId of chainsToSubscribe) {
-      const hexChainId = caipChainIdToHex(chainId);
+    for (const {
+      account,
+      supportedChains,
+    } of request.accountsWithSupportedChains) {
+      const chainsForAccount = chainsToSubscribe.filter((chain) =>
+        supportedChains.includes(chain),
+      );
+      if (chainsForAccount.length === 0) {
+        continue;
+      }
 
-      for (const account of request.accounts) {
-        if (!this.#accountSupportsChain(account, chainId)) {
-          continue;
-        }
+      const { address, id: accountId } = account;
 
-        const { address, id: accountId } = account;
+      for (const chainId of chainsForAccount) {
+        const hexChainId = caipChainIdToHex(chainId);
 
         // Start balance polling
         const balanceInput: BalancePollingInput = {
@@ -1011,8 +1165,8 @@ export class RpcDataSource extends BaseController<
         const balanceToken = this.#balanceFetcher.startPolling(balanceInput);
         balancePollingTokens.push(balanceToken);
 
-        // Start detection polling if enabled
-        if (this.#tokenDetectionEnabled) {
+        // Start detection polling if enabled and external services allowed
+        if (this.#tokenDetectionEnabled() && this.#useExternalService()) {
           const detectionInput: DetectionPollingInput = {
             chainId: hexChainId,
             accountId,
@@ -1026,11 +1180,15 @@ export class RpcDataSource extends BaseController<
     }
 
     // Store subscription data
+    const accounts = request.accountsWithSupportedChains.map(
+      (entry) => entry.account,
+    );
     this.#activeSubscriptions.set(subscriptionId, {
       balancePollingTokens,
       detectionPollingTokens,
       chains: chainsToSubscribe,
-      accounts: request.accounts,
+      accounts,
+      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
     log('Subscription SUCCESS', {
@@ -1071,12 +1229,79 @@ export class RpcDataSource extends BaseController<
    * @returns The CAIP-19 native asset ID (e.g., "eip155:1/slip44:60")
    */
   #buildNativeAssetId(chainId: ChainId): Caip19AssetId {
-    const { nativeAssetIdentifiers } = this.messenger.call(
+    const { nativeAssetIdentifiers } = this.#messenger.call(
       'NetworkEnablementController:getState',
     );
 
-    return (nativeAssetIdentifiers[chainId] ??
-      `${chainId}/slip44:60`) as Caip19AssetId;
+    return nativeAssetIdentifiers[chainId] ?? `${chainId}/slip44:60`;
+  }
+
+  /**
+   * Get existing assets metadata from AssetsController state.
+   * Used to include metadata for ERC20 tokens when returning balance updates.
+   *
+   * @returns Record of asset IDs to their metadata.
+   */
+  #getExistingAssetsMetadata(): Record<Caip19AssetId, AssetMetadata> {
+    try {
+      const state = this.#messenger.call('AssetsController:getState');
+      return state.assetsInfo ?? {};
+    } catch {
+      // If AssetsController:getState fails, return empty metadata
+      return {};
+    }
+  }
+
+  /**
+   * Get token metadata from TokenListController for an ERC20 token.
+   * Used as a fallback when metadata is not in AssetsController state.
+   *
+   * @param assetId - The CAIP-19 asset ID (e.g., "eip155:1/erc20:0x...")
+   * @returns Token metadata if found in token list, undefined otherwise.
+   */
+  #getTokenMetadataFromTokenList(
+    assetId: Caip19AssetId,
+  ): AssetMetadata | undefined {
+    try {
+      const parsed = parseCaipAssetType(assetId);
+      if (parsed.assetNamespace !== 'erc20') {
+        return undefined;
+      }
+      const tokenAddress = parsed.assetReference;
+      const { reference } = parseCaipChainId(parsed.chainId);
+      const hexChainId = numberToHex(parseInt(reference, 10));
+
+      const tokenListState = this.#messenger.call(
+        'TokenListController:getState',
+      );
+      const chainCacheEntry = tokenListState?.tokensChainsCache?.[hexChainId];
+      const chainTokenList = chainCacheEntry?.data;
+
+      if (!chainTokenList) {
+        return undefined;
+      }
+
+      // Look up token by address (case-insensitive)
+      const lowerAddress = tokenAddress.toLowerCase();
+      for (const [address, tokenData] of Object.entries(chainTokenList)) {
+        if (address.toLowerCase() === lowerAddress) {
+          const token = tokenData;
+          if (token.symbol && token.decimals !== undefined) {
+            return {
+              type: 'erc20',
+              symbol: token.symbol,
+              name: token.name ?? token.symbol,
+              decimals: token.decimals,
+              image: token.iconUrl,
+            };
+          }
+        }
+      }
+
+      return undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
@@ -1084,6 +1309,9 @@ export class RpcDataSource extends BaseController<
    */
   destroy(): void {
     log('Destroying RpcDataSource');
+
+    this.#unsubscribeTransactionConfirmed?.();
+    this.#unsubscribeIncomingTransactions?.();
 
     // Stop all polling
     this.#balanceFetcher.stopAllPolling();

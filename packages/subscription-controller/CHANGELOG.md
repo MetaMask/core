@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/transaction-controller` from `^62.16.0` to `^62.18.0` ([#7897](https://github.com/MetaMask/core/pull/7897), [#7996](https://github.com/MetaMask/core/pull/7996), [#8005](https://github.com/MetaMask/core/pull/8005))
+- Bump `@metamask/polling-controller` from `^16.0.2` to `^16.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [6.0.0]
+
+### Added
+
+- **BREAKING**: Added two new params, `captureException` and `fetchFunction` to `SubscriptionService` constructor args. ([#7835](https://github.com/MetaMask/core/pull/7835))
+  - `fetchFunction` is to use the client provided `Fetch` API.
+  - `captureException` is to capture the error thrown and report to Sentry.
+
+### Changed
+
+- Updated `SubscriptionServiceError` to include more information for Sentry reporting. ([#7835](https://github.com/MetaMask/core/pull/7835))
+- Bump `@metamask/profile-sync-controller` from `^27.0.0` to `^27.1.0` ([#7849](https://github.com/MetaMask/core/pull/7849))
+- Bump `@metamask/transaction-controller` from `^62.12.0` to `^62.16.0` ([#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872))
+
+## [5.4.2]
+
+### Added
+
+- Added new public method `clearState` to clear/reset the subscription controller state. ([#7780](https://github.com/MetaMask/core/pull/7780))
+- Added SubscriptionController `clearLastSelectedPaymentMethod` method ([#7768](https://github.com/MetaMask/core/pull/7768))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.12.0` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775))
+
+## [5.4.1]
+
+### Added
+
+- Added `CancelType` to `Subscription` and `CancelSubscriptionRequest` for `cancelSubscription` method ([#7720](https://github.com/MetaMask/core/pull/7720))
+- Added `cancelUrl` property to `StartSubscriptionRequest` and `UpdatePaymentMethodCardRequest` ([#7719](https://github.com/MetaMask/core/pull/7719))
+
+### Changed
+
 - Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.2` ([#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
 - Bump `@metamask/transaction-controller` from `^62.4.0` to `^62.9.2` ([#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494), [#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
 - Bump `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
@@ -261,7 +299,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.2...@metamask/subscription-controller@6.0.0
+[5.4.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.1...@metamask/subscription-controller@5.4.2
+[5.4.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.4.0...@metamask/subscription-controller@5.4.1
 [5.4.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.1...@metamask/subscription-controller@5.4.0
 [5.3.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.3.0...@metamask/subscription-controller@5.3.1
 [5.3.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@5.2.0...@metamask/subscription-controller@5.3.0

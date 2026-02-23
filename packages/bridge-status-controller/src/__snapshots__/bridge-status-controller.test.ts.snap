@@ -1,8 +1,8 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`BridgeStatusController constructor rehydrates the tx history state 1`] = `
-Object {
-  "bridgeTxMetaId1": Object {
+{
+  "bridgeTxMetaId1": {
     "account": "0xaccount1",
     "actionId": undefined,
     "approvalTxId": undefined,
@@ -14,20 +14,21 @@ Object {
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
+    "location": undefined,
     "originalTransactionId": "bridgeTxMetaId1",
-    "pricingData": Object {
+    "pricingData": {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
       "quotedGasAmount": ".00055",
       "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
-    "quote": Object {
+    "quote": {
       "bridgeId": "lifi",
-      "bridges": Array [
+      "bridges": [
         "across",
       ],
-      "destAsset": Object {
+      "destAsset": {
         "address": "0x0000000000000000000000000000000000000000",
         "assetId": "eip155:10/slip44:60",
         "chainId": 10,
@@ -41,10 +42,10 @@ Object {
       },
       "destChainId": 10,
       "destTokenAmount": "990654755978612",
-      "feeData": Object {
-        "metabridge": Object {
+      "feeData": {
+        "metabridge": {
           "amount": "8750000000000",
-          "asset": Object {
+          "asset": {
             "address": "0x0000000000000000000000000000000000000000",
             "assetId": "eip155:42161/slip44:60",
             "chainId": 42161,
@@ -60,7 +61,7 @@ Object {
       },
       "minDestTokenAmount": "941000000000000",
       "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-      "srcAsset": Object {
+      "srcAsset": {
         "address": "0x0000000000000000000000000000000000000000",
         "assetId": "eip155:42161/slip44:60",
         "chainId": 42161,
@@ -74,11 +75,11 @@ Object {
       },
       "srcChainId": 42161,
       "srcTokenAmount": "991250000000000",
-      "steps": Array [
-        Object {
+      "steps": [
+        {
           "action": "bridge",
           "destAmount": "990654755978612",
-          "destAsset": Object {
+          "destAsset": {
             "address": "0x0000000000000000000000000000000000000000",
             "assetId": "eip155:10/slip44:60",
             "chainId": 10,
@@ -91,13 +92,13 @@ Object {
             "symbol": "ETH",
           },
           "destChainId": 10,
-          "protocol": Object {
+          "protocol": {
             "displayName": "Across",
             "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
             "name": "across",
           },
           "srcAmount": "991250000000000",
-          "srcAsset": Object {
+          "srcAsset": {
             "address": "0x0000000000000000000000000000000000000000",
             "assetId": "eip155:42161/slip44:60",
             "chainId": 42161,
@@ -115,15 +116,15 @@ Object {
     },
     "slippagePercentage": 0,
     "startTime": 1729964825189,
-    "status": Object {
-      "destChain": Object {
+    "status": {
+      "destChain": {
         "chainId": 10,
-        "token": Object {},
+        "token": {},
       },
-      "srcChain": Object {
+      "srcChain": {
         "amount": "991250000000000",
         "chainId": 42161,
-        "token": Object {
+        "token": {
           "address": "0x0000000000000000000000000000000000000000",
           "chainId": 42161,
           "coinKey": "ETH",
@@ -145,12 +146,12 @@ Object {
 `;
 
 exports[`BridgeStatusController constructor should setup correctly 1`] = `
-Array [
-  Array [
+[
+  [
     "TransactionController:transactionFailed",
     [Function],
   ],
-  Array [
+  [
     "TransactionController:transactionConfirmed",
     [Function],
   ],
@@ -158,18 +159,21 @@ Array [
 `;
 
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
-Array [
-  Array [
+[
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 105213.34261666666,
       "allowance_reset_transaction": undefined,
@@ -181,12 +185,13 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
       "quoted_vs_used_gas_ratio": 0,
-      "security_warnings": Array [],
+      "security_warnings": [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
       "stx_enabled": false,
@@ -206,8 +211,8 @@ Array [
 `;
 
 exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx history state 1`] = `
-Object {
-  "bridgeTxMetaId1": Object {
+{
+  "bridgeTxMetaId1": {
     "account": "0xaccount1",
     "actionId": undefined,
     "approvalTxId": undefined,
@@ -217,20 +222,21 @@ Object {
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
+    "location": undefined,
     "originalTransactionId": "bridgeTxMetaId1",
-    "pricingData": Object {
+    "pricingData": {
       "amountSent": "1.234",
       "amountSentInUsd": undefined,
       "quotedGasAmount": ".00055",
       "quotedGasInUsd": "2.5778",
       "quotedReturnInUsd": undefined,
     },
-    "quote": Object {
+    "quote": {
       "bridgeId": "lifi",
-      "bridges": Array [
+      "bridges": [
         "across",
       ],
-      "destAsset": Object {
+      "destAsset": {
         "address": "0x0000000000000000000000000000000000000000",
         "assetId": "eip155:10/slip44:60",
         "chainId": 10,
@@ -244,10 +250,10 @@ Object {
       },
       "destChainId": 10,
       "destTokenAmount": "990654755978612",
-      "feeData": Object {
-        "metabridge": Object {
+      "feeData": {
+        "metabridge": {
           "amount": "8750000000000",
-          "asset": Object {
+          "asset": {
             "address": "0x0000000000000000000000000000000000000000",
             "assetId": "eip155:42161/slip44:60",
             "chainId": 42161,
@@ -263,7 +269,7 @@ Object {
       },
       "minDestTokenAmount": "941000000000000",
       "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-      "srcAsset": Object {
+      "srcAsset": {
         "address": "0x0000000000000000000000000000000000000000",
         "assetId": "eip155:42161/slip44:60",
         "chainId": 42161,
@@ -277,11 +283,11 @@ Object {
       },
       "srcChainId": 42161,
       "srcTokenAmount": "991250000000000",
-      "steps": Array [
-        Object {
+      "steps": [
+        {
           "action": "bridge",
           "destAmount": "990654755978612",
-          "destAsset": Object {
+          "destAsset": {
             "address": "0x0000000000000000000000000000000000000000",
             "assetId": "eip155:10/slip44:60",
             "chainId": 10,
@@ -294,13 +300,13 @@ Object {
             "symbol": "ETH",
           },
           "destChainId": 10,
-          "protocol": Object {
+          "protocol": {
             "displayName": "Across",
             "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
             "name": "across",
           },
           "srcAmount": "991250000000000",
-          "srcAsset": Object {
+          "srcAsset": {
             "address": "0x0000000000000000000000000000000000000000",
             "assetId": "eip155:42161/slip44:60",
             "chainId": 42161,
@@ -318,8 +324,8 @@ Object {
     },
     "slippagePercentage": 0,
     "startTime": 1729964825189,
-    "status": Object {
-      "srcChain": Object {
+    "status": {
+      "srcChain": {
         "chainId": 42161,
         "txHash": "0xsrcTxHash1",
       },
@@ -332,18 +338,21 @@ Object {
 `;
 
 exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
-Array [
-  Array [
+[
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 105213.34261666666,
       "allowance_reset_transaction": undefined,
@@ -355,12 +364,13 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
       "quoted_vs_used_gas_ratio": 0,
-      "security_warnings": Array [],
+      "security_warnings": [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
       "stx_enabled": true,
@@ -380,20 +390,20 @@ Array [
 `;
 
 exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 2`] = `
-Array [
+[
   "BridgeStatusController:destinationTransactionCompleted",
   "eip155:10/slip44:60",
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -401,7 +411,7 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
-  "txReceipt": Object {
+  "txReceipt": {
     "effectiveGasPrice": "0x1880a",
     "gasUsed": "0x2c92a",
   },
@@ -410,7 +420,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
@@ -420,20 +430,21 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -447,10 +458,10 @@ Object {
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -466,7 +477,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -480,11 +491,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -497,13 +508,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -521,8 +532,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -534,20 +545,20 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 3`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -555,6 +566,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -567,42 +579,42 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHardwareWalletDelay for hardware wallet on mobile 4`] = `
-Array [
-  Array [
-    Object {
-      "data": Object {
+[
+  [
+    {
+      "data": {
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -610,9 +622,9 @@ Array [
     },
     [Function],
   ],
-  Array [
-    Object {
-      "data": Object {
+  [
+    {
+      "data": {
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -624,13 +636,13 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -638,7 +650,7 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
-  "txReceipt": Object {
+  "txReceipt": {
     "effectiveGasPrice": "0x1880a",
     "gasUsed": "0x2c92a",
   },
@@ -647,7 +659,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
@@ -657,20 +669,21 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -684,10 +697,10 @@ Object {
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -703,7 +716,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -717,11 +730,11 @@ Object {
     },
     "srcChainId": 8453,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -734,13 +747,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -758,8 +771,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 8453,
       "txHash": "0xevmTxHash",
     },
@@ -771,20 +784,20 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 3`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "otherAccount",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:8453",
@@ -792,6 +805,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -804,42 +818,42 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 4`] = `
-Array [
-  Array [
-    Object {
-      "data": Object {
+[
+  [
+    {
+      "data": {
         "srcChainId": "eip155:8453",
         "stxEnabled": false,
       },
@@ -847,9 +861,9 @@ Array [
     },
     [Function],
   ],
-  Array [
-    Object {
-      "data": Object {
+  [
+    {
+      "data": {
         "srcChainId": "eip155:8453",
         "stxEnabled": false,
       },
@@ -861,13 +875,13 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -875,7 +889,7 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
-  "txReceipt": Object {
+  "txReceipt": {
     "effectiveGasPrice": "0x1880a",
     "gasUsed": "0x2c92a",
   },
@@ -884,7 +898,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
@@ -894,20 +908,21 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -921,10 +936,10 @@ Object {
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -940,7 +955,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -954,11 +969,11 @@ Object {
     },
     "srcChainId": 59144,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -971,13 +986,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -995,8 +1010,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 59144,
       "txHash": "0xevmTxHash",
     },
@@ -1008,20 +1023,20 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 3`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "otherAccount",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:59144",
@@ -1029,6 +1044,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -1041,42 +1057,42 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 4`] = `
-Array [
-  Array [
-    Object {
-      "data": Object {
+[
+  [
+    {
+      "data": {
         "srcChainId": "eip155:59144",
         "stxEnabled": false,
       },
@@ -1084,9 +1100,9 @@ Array [
     },
     [Function],
   ],
-  Array [
-    Object {
-      "data": Object {
+  [
+    {
+      "data": {
         "srcChainId": "eip155:59144",
         "stxEnabled": false,
       },
@@ -1098,14 +1114,14 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 1`] = `
-Object {
+{
   "batchId": "batchId1",
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -1113,7 +1129,7 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
-  "txReceipt": Object {
+  "txReceipt": {
     "effectiveGasPrice": "0x1880a",
     "gasUsed": "0x2c92a",
   },
@@ -1122,7 +1138,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": undefined,
   "approvalTxId": undefined,
@@ -1132,20 +1148,21 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -1159,10 +1176,10 @@ Object {
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -1178,7 +1195,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -1192,11 +1209,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -1209,13 +1226,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -1233,8 +1250,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -1246,12 +1263,12 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 3`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
-      "transactionParams": Object {
+      "transactionParams": {
         "data": "0xdata",
         "from": "0xaccount1",
         "gas": "21000",
@@ -1264,9 +1281,9 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 4`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "disable7702": true,
       "from": "0xaccount1",
       "isGasFeeIncluded": false,
@@ -1274,13 +1291,13 @@ Array [
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "transactions": Array [
-        Object {
-          "assetsFiatValues": Object {
+      "transactions": [
+        {
+          "assetsFiatValues": {
             "receiving": "2.9999",
             "sending": "2.00",
           },
-          "params": Object {
+          "params": {
             "data": "0xdata",
             "from": "0xaccount1",
             "gas": "0x5208",
@@ -1298,11 +1315,11 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 5`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
-    Object {
+    {
       "best_quote_provider": "lifi_across",
       "can_submit": true,
       "gas_included": false,
@@ -1313,19 +1330,19 @@ Array [
       "usd_balance_source": 0,
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0.134214,
-      "warnings": Array [
+      "warnings": [
         "low_return",
       ],
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -1333,6 +1350,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -1345,31 +1363,31 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -1377,7 +1395,7 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
-  "txReceipt": Object {
+  "txReceipt": {
     "effectiveGasPrice": "0x1880a",
     "gasUsed": "0x2c92a",
   },
@@ -1386,7 +1404,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
@@ -1396,20 +1414,21 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -1423,10 +1442,10 @@ Object {
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -1442,7 +1461,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -1456,11 +1475,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -1473,13 +1492,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -1497,8 +1516,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -1510,20 +1529,20 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 3`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "otherAccount",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -1531,6 +1550,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -1543,42 +1563,42 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 4`] = `
-Array [
-  Array [
-    Object {
-      "data": Object {
+[
+  [
+    {
+      "data": {
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -1586,9 +1606,9 @@ Array [
     },
     [Function],
   ],
-  Array [
-    Object {
-      "data": Object {
+  [
+    {
+      "data": {
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -1600,13 +1620,13 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -1614,7 +1634,7 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
-  "txReceipt": Object {
+  "txReceipt": {
     "effectiveGasPrice": "0x1880a",
     "gasUsed": "0x2c92a",
   },
@@ -1623,7 +1643,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
@@ -1633,20 +1653,21 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -1660,10 +1681,10 @@ Object {
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -1679,7 +1700,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -1693,11 +1714,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -1710,13 +1731,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -1734,8 +1755,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -1747,20 +1768,20 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 3`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -1768,6 +1789,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -1780,42 +1802,42 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 4`] = `
-Array [
-  Array [
-    Object {
-      "data": Object {
+[
+  [
+    {
+      "data": {
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -1823,9 +1845,9 @@ Array [
     },
     [Function],
   ],
-  Array [
-    Object {
-      "data": Object {
+  [
+    {
+      "data": {
         "srcChainId": "eip155:42161",
         "stxEnabled": false,
       },
@@ -1837,13 +1859,13 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -1851,7 +1873,7 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
-  "txReceipt": Object {
+  "txReceipt": {
     "effectiveGasPrice": "0x1880a",
     "gasUsed": "0x2c92a",
   },
@@ -1860,7 +1882,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
@@ -1870,20 +1892,21 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -1897,10 +1920,10 @@ Object {
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -1916,7 +1939,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -1930,11 +1953,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -1947,13 +1970,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -1971,8 +1994,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -1984,12 +2007,12 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 3`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "chainId": "0x1",
       "networkClientId": "arbitrum-client-id",
-      "transactionParams": Object {
+      "transactionParams": {
         "chainId": "0x1",
         "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
         "from": "0xaccount1",
@@ -2000,11 +2023,11 @@ Array [
       },
     },
   ],
-  Array [
-    Object {
+  [
+    {
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
-      "transactionParams": Object {
+      "transactionParams": {
         "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
@@ -2015,11 +2038,11 @@ Array [
       },
     },
   ],
-  Array [
-    Object {
+  [
+    {
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
-      "transactionParams": Object {
+      "transactionParams": {
         "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
@@ -2034,9 +2057,9 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 4`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "chainId": "0x1",
       "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
       "from": "0xaccount1",
@@ -2047,7 +2070,7 @@ Array [
       "to": "0xtokenContract",
       "value": "0x0",
     },
-    Object {
+    {
       "actionId": "1234567890.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -2055,8 +2078,8 @@ Array [
       "type": "bridgeApproval",
     },
   ],
-  Array [
-    Object {
+  [
+    {
       "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
@@ -2067,7 +2090,7 @@ Array [
       "to": "0xtokenContract",
       "value": "0x0",
     },
-    Object {
+    {
       "actionId": "1234567890.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -2075,8 +2098,8 @@ Array [
       "type": "bridgeApproval",
     },
   ],
-  Array [
-    Object {
+  [
+    {
       "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
@@ -2087,7 +2110,7 @@ Array [
       "to": "0xbridgeContract",
       "value": "0x0",
     },
-    Object {
+    {
       "actionId": "1234567890.456",
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -2099,20 +2122,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 5`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2120,6 +2143,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2132,59 +2156,59 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0x1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -2192,7 +2216,7 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
-  "txReceipt": Object {
+  "txReceipt": {
     "effectiveGasPrice": "0x1880a",
     "gasUsed": "0x2c92a",
   },
@@ -2201,7 +2225,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": "test-approval-tx-id",
@@ -2211,20 +2235,21 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -2238,10 +2263,10 @@ Object {
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -2257,7 +2282,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -2271,11 +2296,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -2288,13 +2313,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -2312,8 +2337,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -2325,9 +2350,9 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 3`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
@@ -2338,7 +2363,7 @@ Array [
       "to": "0xtokenContract",
       "value": "0x0",
     },
-    Object {
+    {
       "actionId": "1234567890.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -2346,8 +2371,8 @@ Array [
       "type": "bridgeApproval",
     },
   ],
-  Array [
-    Object {
+  [
+    {
       "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
@@ -2358,7 +2383,7 @@ Array [
       "to": "0xbridgeContract",
       "value": "0x0",
     },
-    Object {
+    {
       "actionId": "1234567890.456",
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -2370,20 +2395,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 4`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "otherAccount",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2391,6 +2416,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2403,45 +2429,45 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -2449,7 +2475,7 @@ Object {
     "to": "0xbridgeContract",
     "value": "0x0",
   },
-  "txReceipt": Object {
+  "txReceipt": {
     "effectiveGasPrice": "0x1880a",
     "gasUsed": "0x2c92a",
   },
@@ -2458,7 +2484,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": undefined,
@@ -2468,20 +2494,21 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000032",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -2495,10 +2522,10 @@ Object {
     },
     "destChainId": 10,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -2514,7 +2541,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -2528,11 +2555,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -2545,13 +2572,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -2569,8 +2596,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -2582,12 +2609,12 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 3`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
-      "transactionParams": Object {
+      "transactionParams": {
         "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
@@ -2602,9 +2629,9 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 4`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
@@ -2615,7 +2642,7 @@ Array [
       "to": "0xbridgeContract",
       "value": "0x0",
     },
-    Object {
+    {
       "actionId": "1234567890.456",
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -2627,20 +2654,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 5`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2648,6 +2675,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2660,27 +2688,27 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx fails 1`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
@@ -2691,7 +2719,7 @@ Array [
       "to": "0xtokenContract",
       "value": "0x0",
     },
-    Object {
+    {
       "actionId": "1234567890.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -2703,20 +2731,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx fails 2`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2724,6 +2752,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2736,24 +2765,24 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta does not exist 1`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
@@ -2764,7 +2793,7 @@ Array [
       "to": "0xtokenContract",
       "value": "0x0",
     },
-    Object {
+    {
       "actionId": "1234567890.456",
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -2776,20 +2805,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta does not exist 2`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
@@ -2797,6 +2826,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2809,31 +2839,31 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should estimate gas when gasIncluded is false and STX is off 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -2846,14 +2876,14 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 1`] = `
-Object {
+{
   "batchId": "batchId1",
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -2866,7 +2896,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": undefined,
   "approvalTxId": undefined,
@@ -2876,20 +2906,21 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -2903,10 +2934,10 @@ Object {
     },
     "destChainId": 42161,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -2922,7 +2953,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -2936,11 +2967,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -2953,13 +2984,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -2977,8 +3008,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -2990,12 +3021,12 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 3`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
-      "transactionParams": Object {
+      "transactionParams": {
         "data": "0xapprovalData",
         "from": "0xaccount1",
         "gas": "21000",
@@ -3004,11 +3035,11 @@ Array [
       },
     },
   ],
-  Array [
-    Object {
+  [
+    {
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
-      "transactionParams": Object {
+      "transactionParams": {
         "data": "0xdata",
         "from": "0xaccount1",
         "gas": "21000",
@@ -3021,9 +3052,9 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 4`] = `
-Array [
-  Array [
-    Object {
+[
+  [
+    {
       "disable7702": true,
       "from": "0xaccount1",
       "isGasFeeIncluded": false,
@@ -3031,9 +3062,9 @@ Array [
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "transactions": Array [
-        Object {
-          "params": Object {
+      "transactions": [
+        {
+          "params": {
             "data": "0xapprovalData",
             "from": "0xaccount1",
             "gas": "0x5208",
@@ -3044,12 +3075,12 @@ Array [
           },
           "type": "swapApproval",
         },
-        Object {
-          "assetsFiatValues": Object {
+        {
+          "assetsFiatValues": {
             "receiving": "2.9999",
             "sending": "2.00",
           },
-          "params": Object {
+          "params": {
             "data": "0xdata",
             "from": "0xaccount1",
             "gas": "0x5208",
@@ -3067,20 +3098,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 5`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
@@ -3088,6 +3119,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0,
@@ -3100,34 +3132,34 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with approval 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -3140,13 +3172,13 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -3159,55 +3191,55 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId 2`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -3220,7 +3252,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": undefined,
@@ -3230,20 +3262,21 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000032",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -3257,10 +3290,10 @@ Object {
     },
     "destChainId": 42161,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -3276,7 +3309,7 @@ Object {
     },
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -3290,11 +3323,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -3307,13 +3340,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -3331,8 +3364,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -3344,20 +3377,20 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 3`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
@@ -3365,6 +3398,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0,
@@ -3377,32 +3411,32 @@ Array [
       "usd_quoted_return": 0,
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
   ],
-  Array [
+  [
     "GasFeeController:getState",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should use batch path when gasIncluded7702 is true regardless of STX setting 1`] = `
-Object {
+{
   "batchId": "batchId1",
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -3415,13 +3449,13 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 1`] = `
-Object {
+{
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
   "id": "test-tx-id",
   "status": "unapproved",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "chainId": "0xa4b1",
     "data": "0xdata",
     "from": "0xaccount1",
@@ -3434,7 +3468,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 2`] = `
-Object {
+{
   "account": "0xaccount1",
   "actionId": "1234567890.456",
   "approvalTxId": undefined,
@@ -3444,20 +3478,21 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "lifi",
-    "bridges": Array [
+    "bridges": [
       "across",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:10/slip44:60",
       "chainId": 10,
@@ -3471,10 +3506,10 @@ Object {
     },
     "destChainId": 42161,
     "destTokenAmount": "990654755978612",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "8750000000000",
-        "asset": Object {
+        "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -3487,7 +3522,7 @@ Object {
           "symbol": "ETH",
         },
       },
-      "txFee": Object {
+      "txFee": {
         "maxFeePerGas": "1395348",
         "maxPriorityFeePerGas": "1000001",
       },
@@ -3496,7 +3531,7 @@ Object {
     "gasIncluded7702": false,
     "minDestTokenAmount": "941000000000000",
     "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -3510,11 +3545,11 @@ Object {
     },
     "srcChainId": 42161,
     "srcTokenAmount": "991250000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "990654755978612",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:10/slip44:60",
           "chainId": 10,
@@ -3527,13 +3562,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 10,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Across",
           "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
           "name": "across",
         },
         "srcAmount": "991250000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
           "chainId": 42161,
@@ -3551,8 +3586,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 42161,
       "txHash": "0xevmTxHash",
     },
@@ -3564,20 +3599,20 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: Solana bridge should handle snap controller errors 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "SOLaccountAddress",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3585,6 +3620,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3597,16 +3633,16 @@ Array [
       "usd_quoted_return": 985,
     },
   ],
-  Array [
+  [
     "SnapController:handleRequest",
-    Object {
+    {
       "handler": "onClientRequest",
       "origin": "metamask",
-      "request": Object {
+      "request": {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
         "method": "signAndSendTransaction",
-        "params": Object {
+        "params": {
           "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
@@ -3615,10 +3651,10 @@ Array [
       "snapId": "test-snap",
     },
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3627,6 +3663,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3643,20 +3680,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "SOLaccountAddress",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3664,6 +3701,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3676,16 +3714,16 @@ Array [
       "usd_quoted_return": 985,
     },
   ],
-  Array [
+  [
     "SnapController:handleRequest",
-    Object {
+    {
       "handler": "onClientRequest",
       "origin": "metamask",
-      "request": Object {
+      "request": {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
         "method": "signAndSendTransaction",
-        "params": Object {
+        "params": {
           "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
@@ -3698,7 +3736,7 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 2`] = `
-Object {
+{
   "approvalTxId": undefined,
   "chainId": "0x416edef1601be",
   "destinationChainId": "0x1",
@@ -3719,7 +3757,7 @@ Object {
   "status": "submitted",
   "swapTokenValue": "1",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "data": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
     "from": "0x123...",
   },
@@ -3728,13 +3766,13 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 3`] = `
-Object {
+{
   "bridgeTxMetaId": "signature",
 }
 `;
 
 exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 4`] = `
-Object {
+{
   "account": "0x123...",
   "actionId": undefined,
   "approvalTxId": undefined,
@@ -3744,20 +3782,21 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "signature",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1",
     "amountSentInUsd": "100",
     "quotedGasAmount": "0.05",
     "quotedGasInUsd": "5",
     "quotedReturnInUsd": "1000",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "test-bridge",
-    "bridges": Array [
+    "bridges": [
       "test-bridge",
     ],
-    "destAsset": Object {
+    "destAsset": {
       "address": "0x...",
       "assetId": "eip155:1/slip44:60",
       "chainId": 1,
@@ -3767,10 +3806,10 @@ Object {
     },
     "destChainId": 1,
     "destTokenAmount": "0.5",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "1000000",
-        "asset": Object {
+        "asset": {
           "address": "native",
           "assetId": "eip155:1399811149/slip44:501",
           "chainId": 1151111081099710,
@@ -3782,7 +3821,7 @@ Object {
     },
     "minDestTokenAmount": "0.475",
     "requestId": "123",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "native",
       "assetId": "eip155:1399811149/slip44:501",
       "chainId": 1151111081099710,
@@ -3792,11 +3831,11 @@ Object {
     },
     "srcChainId": 1151111081099710,
     "srcTokenAmount": "1000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "0.5",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x...",
           "assetId": "eip155:1/slip44:60",
           "chainId": 1,
@@ -3805,13 +3844,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 1,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Test Protocol",
           "icon": "test-icon",
           "name": "test-protocol",
         },
         "srcAmount": "1000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "native",
           "assetId": "eip155:1399811149/slip44:501",
           "chainId": 1151111081099710,
@@ -3825,8 +3864,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 1151111081099710,
       "txHash": "signature",
     },
@@ -3838,20 +3877,20 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: Solana bridge should throw error when snap ID is missing 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "SOLaccountAddress",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3859,6 +3898,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3871,10 +3911,10 @@ Array [
       "usd_quoted_return": 985,
     },
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3883,6 +3923,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3899,20 +3940,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: Solana swap should handle snap controller errors 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "SOLaccountAddress",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3920,6 +3961,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -3932,16 +3974,16 @@ Array [
       "usd_quoted_return": 985,
     },
   ],
-  Array [
+  [
     "SnapController:handleRequest",
-    Object {
+    {
       "handler": "onClientRequest",
       "origin": "metamask",
-      "request": Object {
+      "request": {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
         "method": "signAndSendTransaction",
-        "params": Object {
+        "params": {
           "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
@@ -3950,10 +3992,10 @@ Array [
       "snapId": "test-snap",
     },
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3962,6 +4004,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -3978,20 +4021,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "SOLaccountAddress",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -3999,6 +4042,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -4011,16 +4055,16 @@ Array [
       "usd_quoted_return": 985,
     },
   ],
-  Array [
+  [
     "SnapController:handleRequest",
-    Object {
+    {
       "handler": "onClientRequest",
       "origin": "metamask",
-      "request": Object {
+      "request": {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
         "method": "signAndSendTransaction",
-        "params": Object {
+        "params": {
           "accountId": "solana-account-1",
           "scope": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
           "transaction": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
@@ -4029,18 +4073,18 @@ Array [
       "snapId": "test-snap",
     },
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "0x123...",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 2`] = `
-Object {
+{
   "approvalTxId": undefined,
   "chainId": "0x416edef1601be",
   "destinationChainId": "0x416edef1601be",
@@ -4061,7 +4105,7 @@ Object {
   "status": "submitted",
   "swapTokenValue": "1",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "data": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
     "from": "0x123...",
   },
@@ -4070,7 +4114,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 3`] = `
-Object {
+{
   "account": "0x123...",
   "actionId": undefined,
   "approvalTxId": undefined,
@@ -4080,18 +4124,19 @@ Object {
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "signature",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1",
     "amountSentInUsd": "100",
     "quotedGasAmount": "0.05",
     "quotedGasInUsd": "5",
     "quotedReturnInUsd": "1000",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "test-bridge",
-    "bridges": Array [],
-    "destAsset": Object {
+    "bridges": [],
+    "destAsset": {
       "address": "0x...",
       "assetId": "eip155:1399811149/slip44:501",
       "chainId": 1151111081099710,
@@ -4101,10 +4146,10 @@ Object {
     },
     "destChainId": 1151111081099710,
     "destTokenAmount": "500000000000000000s",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "1000000",
-        "asset": Object {
+        "asset": {
           "address": "native",
           "assetId": "eip155:1399811149/slip44:501",
           "chainId": 1151111081099710,
@@ -4116,7 +4161,7 @@ Object {
     },
     "minDestTokenAmount": "475000000000000000s",
     "requestId": "123",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "native",
       "assetId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
       "chainId": 1151111081099710,
@@ -4126,11 +4171,11 @@ Object {
     },
     "srcChainId": 1151111081099710,
     "srcTokenAmount": "1000000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "bridge",
         "destAmount": "0.5",
-        "destAsset": Object {
+        "destAsset": {
           "address": "0x...",
           "assetId": "eip155:1/slip44:60",
           "chainId": 1,
@@ -4139,13 +4184,13 @@ Object {
           "symbol": "ETH",
         },
         "destChainId": 1,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Test Protocol",
           "icon": "test-icon",
           "name": "test-protocol",
         },
         "srcAmount": "1000000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "native",
           "assetId": "eip155:1399811149/slip44:501",
           "chainId": 1151111081099710,
@@ -4159,8 +4204,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 1151111081099710,
       "txHash": "signature",
     },
@@ -4172,13 +4217,13 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: Solana swap should throw error when account is missing 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "SOLaccountAddress",
   ],
@@ -4186,20 +4231,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: Solana swap should throw error when snap ID is missing 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "SOLaccountAddress",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -4207,6 +4252,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -4219,10 +4265,10 @@ Array [
       "usd_quoted_return": 985,
     },
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -4231,6 +4277,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -4247,20 +4294,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: Tron swap with approval should handle approval transaction errors 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "TRXaccountAddress",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "tron:728126428",
       "chain_id_source": "tron:728126428",
@@ -4268,6 +4315,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 0.5,
@@ -4280,18 +4328,18 @@ Array [
       "usd_quoted_return": 499.99,
     },
   ],
-  Array [
+  [
     "SnapController:handleRequest",
-    Object {
+    {
       "handler": "onClientRequest",
       "origin": "metamask",
-      "request": Object {
+      "request": {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
         "method": "signAndSendTransaction",
-        "params": Object {
+        "params": {
           "accountId": "tron-account-1",
-          "options": Object {
+          "options": {
             "type": undefined,
             "visible": undefined,
           },
@@ -4302,10 +4350,10 @@ Array [
       "snapId": "npm:@metamask/tron-snap",
     },
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "tron:728126428",
       "chain_id_source": "tron:728126428",
@@ -4314,6 +4362,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 0.5,
@@ -4330,20 +4379,20 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "TRXaccountAddress",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "tron:728126428",
@@ -4351,6 +4400,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 0.5,
@@ -4363,18 +4413,18 @@ Array [
       "usd_quoted_return": 499.99,
     },
   ],
-  Array [
+  [
     "SnapController:handleRequest",
-    Object {
+    {
       "handler": "onClientRequest",
       "origin": "metamask",
-      "request": Object {
+      "request": {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
         "method": "signAndSendTransaction",
-        "params": Object {
+        "params": {
           "accountId": "tron-account-1",
-          "options": Object {
+          "options": {
             "type": undefined,
             "visible": undefined,
           },
@@ -4385,18 +4435,18 @@ Array [
       "snapId": "npm:@metamask/tron-snap",
     },
   ],
-  Array [
+  [
     "SnapController:handleRequest",
-    Object {
+    {
       "handler": "onClientRequest",
       "origin": "metamask",
-      "request": Object {
+      "request": {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
         "method": "signAndSendTransaction",
-        "params": Object {
+        "params": {
           "accountId": "tron-account-1",
-          "options": Object {
+          "options": {
             "type": undefined,
             "visible": undefined,
           },
@@ -4411,7 +4461,7 @@ Array [
 `;
 
 exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 2`] = `
-Object {
+{
   "approvalTxId": undefined,
   "chainId": "0x2b6653dc",
   "destinationChainId": "0x1",
@@ -4432,7 +4482,7 @@ Object {
   "status": "submitted",
   "swapTokenValue": "1",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "data": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
     "from": "TRX123...",
   },
@@ -4441,13 +4491,13 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 3`] = `
-Object {
+{
   "bridgeTxMetaId": "bridge-signature",
 }
 `;
 
 exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 4`] = `
-Object {
+{
   "account": "TRX123...",
   "actionId": undefined,
   "approvalTxId": "approval-signature",
@@ -4457,18 +4507,19 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "bridge-signature",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1",
     "amountSentInUsd": "1",
     "quotedGasAmount": "0.005",
     "quotedGasInUsd": "0.005",
     "quotedReturnInUsd": "500",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "test-bridge",
-    "bridges": Array [],
-    "destAsset": Object {
+    "bridges": [],
+    "destAsset": {
       "address": "native",
       "assetId": "tron:728126428/slip44:195",
       "chainId": 728126428,
@@ -4478,10 +4529,10 @@ Object {
     },
     "destChainId": 1,
     "destTokenAmount": "500000000",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "10000",
-        "asset": Object {
+        "asset": {
           "address": "native",
           "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
@@ -4493,7 +4544,7 @@ Object {
     },
     "minDestTokenAmount": "475000000",
     "requestId": "123",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
       "assetId": "tron:728126428/slip44:195",
       "chainId": 728126428,
@@ -4503,11 +4554,11 @@ Object {
     },
     "srcChainId": 728126428,
     "srcTokenAmount": "1000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "swap",
         "destAmount": "500000000",
-        "destAsset": Object {
+        "destAsset": {
           "address": "native",
           "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
@@ -4516,13 +4567,13 @@ Object {
           "symbol": "TRX",
         },
         "destChainId": 728126428,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Test Protocol",
           "icon": "test-icon",
           "name": "test-protocol",
         },
         "srcAmount": "1000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
           "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
@@ -4536,8 +4587,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 728126428,
       "txHash": "bridge-signature",
     },
@@ -4549,20 +4600,20 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
   ],
-  Array [
+  [
     "AccountsController:getAccountByAddress",
     "TRXaccountAddress",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Submitted",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "chain_id_destination": "tron:728126428",
       "chain_id_source": "tron:728126428",
@@ -4570,6 +4621,7 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 0.5,
@@ -4582,18 +4634,18 @@ Array [
       "usd_quoted_return": 499.99,
     },
   ],
-  Array [
+  [
     "SnapController:handleRequest",
-    Object {
+    {
       "handler": "onClientRequest",
       "origin": "metamask",
-      "request": Object {
+      "request": {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
         "method": "signAndSendTransaction",
-        "params": Object {
+        "params": {
           "accountId": "tron-account-1",
-          "options": Object {
+          "options": {
             "type": undefined,
             "visible": undefined,
           },
@@ -4604,18 +4656,18 @@ Array [
       "snapId": "npm:@metamask/tron-snap",
     },
   ],
-  Array [
+  [
     "SnapController:handleRequest",
-    Object {
+    {
       "handler": "onClientRequest",
       "origin": "metamask",
-      "request": Object {
+      "request": {
         "id": "test-uuid-1234",
         "jsonrpc": "2.0",
         "method": "signAndSendTransaction",
-        "params": Object {
+        "params": {
           "accountId": "tron-account-1",
-          "options": Object {
+          "options": {
             "type": undefined,
             "visible": undefined,
           },
@@ -4626,18 +4678,11 @@ Array [
       "snapId": "npm:@metamask/tron-snap",
     },
   ],
-  Array [
-    "AccountsController:getAccountByAddress",
-    "TRX123...",
-  ],
-  Array [
-    "TransactionController:getState",
-  ],
 ]
 `;
 
 exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 2`] = `
-Object {
+{
   "approvalTxId": undefined,
   "chainId": "0x2b6653dc",
   "destinationChainId": "0x2b6653dc",
@@ -4658,7 +4703,7 @@ Object {
   "status": "submitted",
   "swapTokenValue": "1",
   "time": 1234567890,
-  "txParams": Object {
+  "txParams": {
     "data": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
     "from": "TRX123...",
   },
@@ -4667,7 +4712,7 @@ Object {
 `;
 
 exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 3`] = `
-Object {
+{
   "account": "TRX123...",
   "actionId": undefined,
   "approvalTxId": "approval-signature",
@@ -4677,18 +4722,19 @@ Object {
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "swap-signature",
-  "pricingData": Object {
+  "pricingData": {
     "amountSent": "1",
     "amountSentInUsd": "1",
     "quotedGasAmount": "0.005",
     "quotedGasInUsd": "0.005",
     "quotedReturnInUsd": "500",
   },
-  "quote": Object {
+  "quote": {
     "bridgeId": "test-bridge",
-    "bridges": Array [],
-    "destAsset": Object {
+    "bridges": [],
+    "destAsset": {
       "address": "native",
       "assetId": "tron:728126428/slip44:195",
       "chainId": 728126428,
@@ -4698,10 +4744,10 @@ Object {
     },
     "destChainId": 728126428,
     "destTokenAmount": "500000000",
-    "feeData": Object {
-      "metabridge": Object {
+    "feeData": {
+      "metabridge": {
         "amount": "10000",
-        "asset": Object {
+        "asset": {
           "address": "native",
           "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
@@ -4713,7 +4759,7 @@ Object {
     },
     "minDestTokenAmount": "475000000",
     "requestId": "123",
-    "srcAsset": Object {
+    "srcAsset": {
       "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
       "assetId": "tron:728126428/slip44:195",
       "chainId": 728126428,
@@ -4723,11 +4769,11 @@ Object {
     },
     "srcChainId": 728126428,
     "srcTokenAmount": "1000000",
-    "steps": Array [
-      Object {
+    "steps": [
+      {
         "action": "swap",
         "destAmount": "500000000",
-        "destAsset": Object {
+        "destAsset": {
           "address": "native",
           "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
@@ -4736,13 +4782,13 @@ Object {
           "symbol": "TRX",
         },
         "destChainId": 728126428,
-        "protocol": Object {
+        "protocol": {
           "displayName": "Test Protocol",
           "icon": "test-icon",
           "name": "test-protocol",
         },
         "srcAmount": "1000000",
-        "srcAsset": Object {
+        "srcAsset": {
           "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
           "assetId": "tron:728126428/slip44:195",
           "chainId": 728126428,
@@ -4756,8 +4802,8 @@ Object {
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
-  "status": Object {
-    "srcChain": Object {
+  "status": {
+    "srcChain": {
       "chainId": 728126428,
       "txHash": "swap-signature",
     },
@@ -4768,21 +4814,22 @@ Object {
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not start polling for bridge tx if tx is not in txHistory 1`] = `Array []`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not start polling for bridge tx if tx is not in txHistory 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not track completed event for other transaction types 1`] = `Array []`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should not track completed event for other transaction types 1`] = `[]`;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 1`] = `
-Array [
+[
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Status Failed Validation",
-  Object {
+  {
     "action_type": "swapbridge-v1",
     "chain_id_destination": "eip155:10",
     "chain_id_source": "eip155:42161",
-    "failures": Array [
-      "across|status",
+    "failures": [
+      "across|unknown",
     ],
+    "location": "Main View",
     "refresh_count": 0,
     "token_address_destination": "eip155:10/slip44:60",
     "token_address_source": "eip155:42161/slip44:60",
@@ -4791,25 +4838,25 @@ Array [
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for bridge tx if status response is invalid 2`] = `
-Array [
-  Array [
-    "Failed to fetch bridge tx status",
-    [Error: Bridge status validation failed: across|unknown],
-  ],
-  Array [
+[
+  [
     "Failed to fetch bridge tx status",
     [Error: Bridge status validation failed: across|status],
+  ],
+  [
+    "Failed to fetch bridge tx status",
+    [Error: Bridge status validation failed: across|unknown],
   ],
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for completed bridge tx with featureId 1`] = `
-Object {
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for completed bridge tx with featureId 2`] = `
+{
   "bridge": "across",
-  "destChain": Object {
+  "destChain": {
     "amount": "990654755978611",
     "chainId": 10,
-    "token": Object {
+    "token": {
       "address": "0x0000000000000000000000000000000000000000",
       "chainId": 10,
       "coinKey": "ETH",
@@ -4823,10 +4870,10 @@ Object {
     "txHash": "0xdestTxHash1",
   },
   "isExpectedToken": true,
-  "srcChain": Object {
+  "srcChain": {
     "amount": "991250000000000",
     "chainId": 42161,
-    "token": Object {
+    "token": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -4844,17 +4891,17 @@ Object {
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for failed bridge tx with featureId 1`] = `
-Object {
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for failed bridge tx with featureId 2`] = `
+{
   "bridge": "debridge",
-  "destChain": Object {
+  "destChain": {
     "chainId": 10,
-    "token": Object {},
+    "token": {},
   },
-  "srcChain": Object {
+  "srcChain": {
     "amount": "991250000000000",
     "chainId": 42161,
-    "token": Object {
+    "token": {
       "address": "0x0000000000000000000000000000000000000000",
       "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
@@ -4872,18 +4919,18 @@ Object {
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should track completed event for swap transaction 1`] = `
-Array [
-  Array [
+[
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Completed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 0,
       "allowance_reset_transaction": undefined,
@@ -4895,12 +4942,13 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
       "quoted_vs_used_gas_ratio": 0,
-      "security_warnings": Array [],
+      "security_warnings": [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
       "stx_enabled": false,
@@ -4920,10 +4968,10 @@ Array [
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should find history by actionId when txMeta.id not in history (pre-submission failure) 1`] = `
-Array [
+[
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
-  Object {
+  {
     "action_type": "swapbridge-v1",
     "actual_time_minutes": 0,
     "allowance_reset_transaction": undefined,
@@ -4936,12 +4984,13 @@ Array [
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
+    "location": "Main View",
     "price_impact": 0,
     "provider": "lifi_across",
     "quote_vs_execution_ratio": 0,
     "quoted_time_minutes": 0.25,
     "quoted_vs_used_gas_ratio": 0,
-    "security_warnings": Array [],
+    "security_warnings": [],
     "slippage_limit": 0,
     "source_transaction": "COMPLETE",
     "stx_enabled": false,
@@ -4959,17 +5008,17 @@ Array [
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for approved status 1`] = `Array []`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for approved status 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for other transaction types 1`] = `Array []`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for other transaction types 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for signed status 1`] = `Array []`;
+exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should not track failed event for signed status 1`] = `[]`;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction 1`] = `
-Array [
+[
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
-  Object {
+  {
     "action_type": "swapbridge-v1",
     "actual_time_minutes": 0,
     "allowance_reset_transaction": undefined,
@@ -4982,12 +5031,13 @@ Array [
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
+    "location": "Main View",
     "price_impact": 0,
     "provider": "lifi_across",
     "quote_vs_execution_ratio": 0,
     "quoted_time_minutes": 0.25,
     "quoted_vs_used_gas_ratio": 0,
-    "security_warnings": Array [],
+    "security_warnings": [],
     "slippage_limit": 0,
     "source_transaction": "COMPLETE",
     "stx_enabled": false,
@@ -5006,10 +5056,10 @@ Array [
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction if approval is dropped 1`] = `
-Array [
+[
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
-  Object {
+  {
     "action_type": "swapbridge-v1",
     "actual_time_minutes": 0,
     "chain_id_destination": "eip155:42161",
@@ -5019,12 +5069,13 @@ Array [
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
+    "location": "Main View",
     "price_impact": 0,
     "provider": "",
     "quote_vs_execution_ratio": 0,
     "quoted_time_minutes": 0,
     "quoted_vs_used_gas_ratio": 0,
-    "security_warnings": Array [],
+    "security_warnings": [],
     "source_transaction": "FAILED",
     "stx_enabled": false,
     "swap_type": "crosschain",
@@ -5034,7 +5085,7 @@ Array [
     "token_symbol_source": "",
     "usd_actual_gas": 0,
     "usd_actual_return": 0,
-    "usd_amount_source": 100,
+    "usd_amount_source": 0,
     "usd_quoted_gas": 0,
     "usd_quoted_return": 0,
   },
@@ -5042,11 +5093,11 @@ Array [
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for bridge transaction if not in txHistory 1`] = `
-Array [
-  Array [
+[
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 0,
       "chain_id_destination": "eip155:42161",
@@ -5056,12 +5107,13 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "",
       "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0,
       "quoted_vs_used_gas_ratio": 0,
-      "security_warnings": Array [],
+      "security_warnings": [],
       "source_transaction": "FAILED",
       "stx_enabled": false,
       "swap_type": "crosschain",
@@ -5071,7 +5123,7 @@ Array [
       "token_symbol_source": "",
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
-      "usd_amount_source": 100,
+      "usd_amount_source": 0,
       "usd_quoted_gas": 0,
       "usd_quoted_return": 0,
     },
@@ -5080,18 +5132,18 @@ Array [
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction 1`] = `
-Array [
-  Array [
+[
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
-  Array [
+  [
     "TransactionController:getState",
   ],
-  Array [
+  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Failed",
-    Object {
+    {
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 0,
       "allowance_reset_transaction": undefined,
@@ -5104,12 +5156,13 @@ Array [
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quote_vs_execution_ratio": 0,
       "quoted_time_minutes": 0.25,
       "quoted_vs_used_gas_ratio": 0,
-      "security_warnings": Array [],
+      "security_warnings": [],
       "slippage_limit": 0,
       "source_transaction": "COMPLETE",
       "stx_enabled": false,
@@ -5129,10 +5182,10 @@ Array [
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionFailed should track failed event for swap transaction if approval fails 1`] = `
-Array [
+[
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
-  Object {
+  {
     "action_type": "swapbridge-v1",
     "actual_time_minutes": 0,
     "chain_id_destination": "eip155:42161",
@@ -5142,12 +5195,13 @@ Array [
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
+    "location": "Main View",
     "price_impact": 0,
     "provider": "",
     "quote_vs_execution_ratio": 0,
     "quoted_time_minutes": 0,
     "quoted_vs_used_gas_ratio": 0,
-    "security_warnings": Array [],
+    "security_warnings": [],
     "source_transaction": "FAILED",
     "stx_enabled": false,
     "swap_type": "single_chain",
@@ -5157,7 +5211,7 @@ Array [
     "token_symbol_source": "",
     "usd_actual_gas": 0,
     "usd_actual_return": 0,
-    "usd_amount_source": 100,
+    "usd_amount_source": 0,
     "usd_quoted_gas": 0,
     "usd_quoted_return": 0,
   },
@@ -5165,11 +5219,39 @@ Array [
 `;
 
 exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
-Array [
-  Array [
+[
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+  ],
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount2",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+  ],
+  [
     "NetworkController:getState",
   ],
-  Array [
+  [
     "NetworkController:getNetworkClientById",
     "networkClientId",
   ],

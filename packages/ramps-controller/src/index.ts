@@ -7,10 +7,14 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOptions,
   UserRegion,
+  ResourceState,
+  TransakState,
+  NativeProvidersState,
 } from './RampsController';
 export {
   RampsController,
   getDefaultRampsControllerState,
+  RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 export type {
   RampsServiceActions,
@@ -23,26 +27,49 @@ export type {
   Provider,
   ProviderLink,
   ProviderLogos,
+  ProviderBrowserType,
   RampAction,
   PaymentMethod,
   PaymentMethodsResponse,
+  Quote,
+  QuoteError,
+  QuoteSortBy,
+  QuoteSortOrder,
+  QuoteCryptoTranslation,
+  QuoteCustomAction,
+  QuotesResponse,
+  GetQuotesParams,
+  RampsToken,
+  TokensResponse,
+  BuyWidget,
+  RampsOrder,
+  RampsOrderNetwork,
+  RampsOrderCryptoCurrency,
+  RampsOrderFiatCurrency,
+  RampsOrderPaymentMethod,
 } from './RampsService';
 export {
   RampsService,
   RampsEnvironment,
   RampsApiService,
+  RampsOrderStatus,
   RAMPS_SDK_VERSION,
 } from './RampsService';
 export type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
   RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,
   RequestState,
   ExecuteRequestOptions,
   PendingRequest,
+  ResourceType,
 } from './RequestCache';
 export {
   RequestStatus,
@@ -56,3 +83,47 @@ export {
 } from './RequestCache';
 export type { RequestSelectorResult } from './selectors';
 export { createRequestSelector } from './selectors';
+export type {
+  TransakServiceActions,
+  TransakServiceEvents,
+  TransakServiceMessenger,
+  TransakAccessToken,
+  TransakUserDetails,
+  TransakUserDetailsAddress,
+  TransakUserDetailsKycDetails,
+  TransakBuyQuote,
+  TransakKycRequirement,
+  TransakAdditionalRequirement,
+  TransakAdditionalRequirementsResponse,
+  TransakOttResponse,
+  TransakOrderPaymentMethod,
+  TransakDepositOrder,
+  TransakDepositNetwork,
+  TransakDepositCryptoCurrency,
+  TransakDepositPaymentMethod,
+  TransakDepositRegion,
+  TransakOrder,
+  TransakQuoteTranslation,
+  TransakTranslationRequest,
+  TransakUserLimits,
+  TransakIdProofStatus,
+  PatchUserRequestBody as TransakPatchUserRequestBody,
+} from './TransakService';
+export {
+  TransakApiError,
+  TransakService,
+  TransakEnvironment,
+  TransakOrderIdTransformer,
+} from './TransakService';
+export type {
+  TransakServiceMethodActions,
+  TransakServiceSendUserOtpAction,
+  TransakServiceVerifyUserOtpAction,
+  TransakServiceGetUserDetailsAction,
+  TransakServiceGetBuyQuoteAction,
+  TransakServiceGetKycRequirementAction,
+  TransakServiceCreateOrderAction,
+  TransakServiceGetOrderAction,
+  TransakServiceRequestOttAction,
+  TransakServiceGeneratePaymentWidgetUrlAction,
+} from './TransakService-method-action-types';

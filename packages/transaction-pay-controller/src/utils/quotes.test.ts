@@ -7,6 +7,7 @@ import { cloneDeep } from 'lodash';
 import type { UpdateQuotesRequest } from './quotes';
 import { refreshQuotes, updateQuotes } from './quotes';
 import { getStrategy, getStrategyByName } from './strategy';
+import { getLiveTokenBalance, getTokenFiatRate } from './token';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -22,6 +23,11 @@ import type {
 jest.mock('./strategy');
 jest.mock('./transaction');
 jest.mock('./totals');
+jest.mock('./token', () => ({
+  ...jest.createMockFromModule<typeof import('./token')>('./token'),
+  computeTokenAmounts:
+    jest.requireActual<typeof import('./token')>('./token').computeTokenAmounts,
+}));
 
 jest.useFakeTimers();
 
@@ -75,8 +81,6 @@ const TOTALS_MOCK = {
   },
   targetAmount: {
     fiat: '5.67',
-    human: '5.67',
-    raw: '567000',
     usd: '6.78',
   },
   total: {
@@ -97,6 +101,8 @@ describe('Quotes Utils', () => {
   const getTransactionMock = jest.mocked(getTransaction);
   const updateTransactionMock = jest.mocked(updateTransaction);
   const calculateTotalsMock = jest.mocked(calculateTotals);
+  const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
+  const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getQuotesMock = jest.fn();
   const getBatchTransactionsMock = jest.fn();
 
@@ -136,6 +142,12 @@ describe('Quotes Utils', () => {
     getQuotesMock.mockResolvedValue([QUOTE_MOCK]);
     getBatchTransactionsMock.mockResolvedValue([BATCH_TRANSACTION_MOCK]);
     calculateTotalsMock.mockReturnValue(TOTALS_MOCK);
+
+    getLiveTokenBalanceMock.mockResolvedValue('5000000');
+    getTokenFiatRateMock.mockReturnValue({
+      usdRate: '1.0',
+      fiatRate: '0.85',
+    });
   });
 
   describe('updateQuotes', () => {
@@ -230,7 +242,7 @@ describe('Quotes Utils', () => {
           {
             isMaxAmount: false,
             from: TRANSACTION_META_MOCK.txParams.from,
-            sourceBalanceRaw: TRANSACTION_DATA_MOCK.paymentToken?.balanceRaw,
+            sourceBalanceRaw: '5000000',
             sourceTokenAmount:
               TRANSACTION_DATA_MOCK.sourceAmounts?.[0].sourceAmountRaw,
             sourceChainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
@@ -325,6 +337,110 @@ describe('Quotes Utils', () => {
       expect(updateTransactionDataMock).not.toHaveBeenCalled();
       expect(result).toBe(false);
     });
+
+    it('refreshes payment token balance with live on-chain balance after quotes update', async () => {
+      getLiveTokenBalanceMock.mockResolvedValue('9000000');
+
+      await run();
+
+      expect(getLiveTokenBalanceMock).toHaveBeenCalledWith(
+        messenger,
+        TRANSACTION_META_MOCK.txParams.from,
+        TRANSACTION_DATA_MOCK.paymentToken?.chainId,
+        TRANSACTION_DATA_MOCK.paymentToken?.address,
+      );
+
+      const transactionDataMock: Record<string, unknown> = {};
+
+      updateTransactionDataMock.mock.calls.forEach(
+        (call: [string, (data: Record<string, unknown>) => void]) =>
+          call[1](transactionDataMock),
+      );
+
+      expect(
+        (transactionDataMock.paymentToken as TransactionPaymentToken)
+          .balanceRaw,
+      ).toBe('9000000');
+    });
+
+    it('computes correct balanceHuman, balanceUsd, and balanceFiat from live balance', async () => {
+      getLiveTokenBalanceMock.mockResolvedValue('3500000');
+      getTokenFiatRateMock.mockReturnValue({
+        usdRate: '2.0',
+        fiatRate: '1.7',
+      });
+
+      await run();
+
+      const transactionDataMock: Record<string, unknown> = {};
+
+      updateTransactionDataMock.mock.calls.forEach(
+        (call: [string, (data: Record<string, unknown>) => void]) =>
+          call[1](transactionDataMock),
+      );
+
+      const updatedToken =
+        transactionDataMock.paymentToken as TransactionPaymentToken;
+
+      // decimals = 6, so 3500000 / 10^6 = 3.5
+      expect(updatedToken.balanceRaw).toBe('3500000');
+      expect(updatedToken.balanceHuman).toBe('3.5');
+      expect(updatedToken.balanceUsd).toBe('7');
+      expect(updatedToken.balanceFiat).toBe('5.95');
+    });
+
+    it('continues with stale balance if live balance fetch fails', async () => {
+      getLiveTokenBalanceMock.mockRejectedValue(new Error('RPC timeout'));
+
+      await run();
+
+      const transactionDataMock: Record<string, unknown> = {};
+
+      updateTransactionDataMock.mock.calls.forEach(
+        (call: [string, (data: Record<string, unknown>) => void]) =>
+          call[1](transactionDataMock),
+      );
+
+      // Quotes should still be updated
+      expect(transactionDataMock).toMatchObject({
+        quotes: [QUOTE_MOCK],
+      });
+
+      // paymentToken should NOT be overwritten when balance fetch fails
+      expect(transactionDataMock.paymentToken).toBeUndefined();
+    });
+
+    it('does not refresh balance if no payment token', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          paymentToken: undefined,
+        },
+      });
+
+      expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+    });
+
+    it('does not refresh balance if fiat rate unavailable', async () => {
+      getTokenFiatRateMock.mockReturnValue(undefined);
+
+      await run();
+
+      const transactionDataMock: Record<string, unknown> = {};
+
+      updateTransactionDataMock.mock.calls.forEach(
+        (call: [string, (data: Record<string, unknown>) => void]) =>
+          call[1](transactionDataMock),
+      );
+
+      // Quotes should still be updated
+      expect(transactionDataMock).toMatchObject({
+        quotes: [QUOTE_MOCK],
+      });
+
+      // paymentToken should NOT be overwritten when fiat rate is unavailable
+      expect(transactionDataMock.paymentToken).toBeUndefined();
+    });
   });
 
   describe('refreshQuotes', () => {
@@ -342,7 +458,7 @@ describe('Quotes Utils', () => {
 
       await refreshQuotes(messenger, updateTransactionDataMock);
 
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(4);
 
       const transactionDataMock = {};
       updateTransactionDataMock.mock.calls.map((call) =>
@@ -367,7 +483,7 @@ describe('Quotes Utils', () => {
 
       await refreshQuotes(messenger, updateTransactionDataMock);
 
-      expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(4);
 
       const transactionDataMock = {};
       updateTransactionDataMock.mock.calls.map((call) =>
@@ -411,6 +527,141 @@ describe('Quotes Utils', () => {
       await refreshQuotes(messenger, updateTransactionDataMock);
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  describe('post-quote (withdrawal) flow', () => {
+    const DESTINATION_TOKEN_MOCK: TransactionPaymentToken = {
+      address: '0xdef' as Hex,
+      balanceFiat: '100.00',
+      balanceHuman: '1.00',
+      balanceRaw: '1000000000000000000',
+      balanceUsd: '100.00',
+      chainId: '0x38',
+      decimals: 18,
+      symbol: 'BNB',
+    };
+
+    const SOURCE_TOKEN_MOCK: TransactionPayRequiredToken = {
+      address: '0x456' as Hex,
+      amountHuman: '10',
+      amountRaw: '10000000',
+      balanceRaw: '50000000',
+      chainId: '0x89' as Hex,
+      decimals: 6,
+      symbol: 'USDC.e',
+      skipIfBalance: false,
+    } as TransactionPayRequiredToken;
+
+    const POST_QUOTE_TRANSACTION_DATA: TransactionData = {
+      isLoading: false,
+      isPostQuote: true,
+      paymentToken: DESTINATION_TOKEN_MOCK,
+      sourceAmounts: [
+        {
+          sourceAmountHuman: '10',
+          sourceAmountRaw: '10000000',
+          sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
+          sourceChainId: SOURCE_TOKEN_MOCK.chainId,
+          sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
+          targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+        } as TransactionPaySourceAmount,
+      ],
+      tokens: [SOURCE_TOKEN_MOCK],
+    };
+
+    it('builds post-quote request with paymentToken as target', async () => {
+      await run({
+        transactionData: POST_QUOTE_TRANSACTION_DATA,
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith({
+        messenger,
+        requests: [
+          {
+            from: TRANSACTION_META_MOCK.txParams.from,
+            isMaxAmount: false,
+            isPostQuote: true,
+            sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
+            sourceChainId: SOURCE_TOKEN_MOCK.chainId,
+            sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
+            sourceTokenAmount: '10000000',
+            targetAmountMinimum: '0',
+            targetChainId: DESTINATION_TOKEN_MOCK.chainId,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+    });
+
+    it('does not fetch quotes when sourceAmounts is empty (same-token filtered in source-amounts)', async () => {
+      const sameTokenData: TransactionData = {
+        ...POST_QUOTE_TRANSACTION_DATA,
+        // Same-token-same-chain cases are filtered out in source-amounts.ts,
+        // so sourceAmounts would be empty
+        sourceAmounts: [],
+      };
+
+      await run({
+        transactionData: sameTokenData,
+      });
+
+      // When requests array is empty, getQuotes is not called
+      expect(getQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch quotes if sourceAmounts missing required fields', async () => {
+      const noSourceTokenData: TransactionData = {
+        ...POST_QUOTE_TRANSACTION_DATA,
+        sourceAmounts: [
+          {
+            sourceAmountHuman: '10',
+            sourceAmountRaw: '10000000',
+            // Missing sourceTokenAddress, sourceChainId, sourceBalanceRaw
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          } as TransactionPaySourceAmount,
+        ],
+      };
+
+      await run({
+        transactionData: noSourceTokenData,
+      });
+
+      // When sourceAmounts missing required fields, requests array is empty
+      expect(getQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('returns empty requests if no paymentToken', async () => {
+      const noPaymentTokenData: TransactionData = {
+        ...POST_QUOTE_TRANSACTION_DATA,
+        paymentToken: undefined,
+      };
+
+      await run({
+        transactionData: noPaymentTokenData,
+      });
+
+      expect(getQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch quotes when no matching sourceAmount found', async () => {
+      const noMatchingSourceAmountData: TransactionData = {
+        ...POST_QUOTE_TRANSACTION_DATA,
+        sourceAmounts: [
+          {
+            sourceAmountRaw: '99999',
+            targetTokenAddress: '0xdifferent' as Hex,
+          } as TransactionPaySourceAmount,
+        ],
+      };
+
+      await run({
+        transactionData: noMatchingSourceAmountData,
+      });
+
+      // When no matching sourceAmount is found, requests array is empty
+      expect(getQuotesMock).not.toHaveBeenCalled();
     });
   });
 });

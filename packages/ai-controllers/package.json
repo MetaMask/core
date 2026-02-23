@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ai-controllers",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A collection of AI-related controllers",
   "keywords": [
     "MetaMask",
@@ -47,14 +47,20 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
+  "dependencies": {
+    "@metamask/base-controller": "^9.0.0",
+    "@metamask/messenger": "^0.3.0",
+    "@metamask/superstruct": "^3.1.0",
+    "@metamask/utils": "^11.9.0"
+  },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
-    "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },

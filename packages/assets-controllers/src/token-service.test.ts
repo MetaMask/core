@@ -637,7 +637,7 @@ describe('Token service', () => {
       });
     });
 
-    it('should return empty array if the fetch fails with a network error', async () => {
+    it('should return empty array with error if the fetch fails with a network error', async () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
@@ -648,10 +648,14 @@ describe('Token service', () => {
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: expect.stringContaining('Example network error'),
+      });
     });
 
-    it('should return empty array if the fetch fails with 400 error', async () => {
+    it('should return empty array with error if the fetch fails with 400 error', async () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
@@ -662,10 +666,14 @@ describe('Token service', () => {
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: expect.stringContaining("Fetch failed with status '400'"),
+      });
     });
 
-    it('should return empty array if the fetch fails with 500 error', async () => {
+    it('should return empty array with error if the fetch fails with 500 error', async () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
@@ -676,7 +684,35 @@ describe('Token service', () => {
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: expect.stringContaining("Fetch failed with status '500'"),
+      });
+    });
+
+    it('should return error for malformed API response', async () => {
+      const searchQuery = 'USD';
+      const malformedResponse = {
+        count: 5,
+        // Missing 'data' array - this is malformed
+        someOtherField: 'value',
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, malformedResponse)
+        .persist();
+
+      const result = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: 'Unexpected API response format',
+      });
     });
 
     it('should handle empty search results', async () => {
@@ -731,8 +767,12 @@ describe('Token service', () => {
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      // Non-array responses should be converted to empty object with count 0
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      // Non-array responses should be converted to empty object with count 0 and error message
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: 'Unexpected API response format',
+      });
     });
 
     it('should handle supported CAIP format chain IDs', async () => {
@@ -856,7 +896,7 @@ describe('Token service', () => {
       const testMaxMarketCap = 1000000;
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}&includeRwaData=true`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();
@@ -878,7 +918,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();
@@ -895,7 +935,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&excludeLabels=${testExcludeLabels.join(',')}&includeRwaData=true`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&excludeLabels=${testExcludeLabels.join(',')}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();
@@ -912,7 +952,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();

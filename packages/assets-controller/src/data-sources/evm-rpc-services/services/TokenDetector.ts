@@ -19,7 +19,18 @@ import { reduceInBatchesSerially } from '../utils';
 
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
 
+/**
+ * Minimal messenger interface for TokenDetector.
+ */
+export type TokenDetectorMessenger = {
+  call: (action: 'TokenListController:getState') => TokenListState;
+};
+
 export type TokenDetectorConfig = {
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
   /** Polling interval in ms (default: 3 minutes) */
@@ -50,16 +61,24 @@ export type OnDetectionUpdateCallback = (result: TokenDetectionResult) => void;
 export class TokenDetector extends StaticIntervalPollingControllerOnly<DetectionPollingInput>() {
   readonly #multicallClient: MulticallClient;
 
-  readonly #config: Required<Omit<TokenDetectorConfig, 'pollingInterval'>>;
+  readonly #messenger: TokenDetectorMessenger;
 
-  #getTokenListState: (() => TokenListState) | undefined;
+  readonly #config: Required<Omit<TokenDetectorConfig, 'pollingInterval'>>;
 
   #onDetectionUpdate: OnDetectionUpdateCallback | undefined;
 
-  constructor(multicallClient: MulticallClient, config?: TokenDetectorConfig) {
+  constructor(
+    multicallClient: MulticallClient,
+    messenger: TokenDetectorMessenger,
+    config?: TokenDetectorConfig,
+  ) {
     super();
     this.#multicallClient = multicallClient;
+    this.#messenger = messenger;
     this.#config = {
+      tokenDetectionEnabled:
+        config?.tokenDetectionEnabled ?? ((): boolean => true),
+      useExternalService: config?.useExternalService ?? ((): boolean => true),
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
     };
@@ -79,10 +98,6 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     this.#onDetectionUpdate = callback;
   }
 
-  setTokenListStateGetter(getTokenListState: () => TokenListState): void {
-    this.#getTokenListState = getTokenListState;
-  }
-
   /**
    * Execute a poll cycle (required by base class).
    * Detects tokens and calls the update callback.
@@ -90,6 +105,13 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
    * @param input - The polling input.
    */
   async _executePoll(input: DetectionPollingInput): Promise<void> {
+    // Check if token list is available for this chain
+    const tokensToCheck = this.getTokensToCheck(input.chainId);
+    if (tokensToCheck.length === 0) {
+      // No tokens in list for chain, will retry on next poll
+      return;
+    }
+
     const result = await this.detectTokens(
       input.chainId,
       input.accountId,
@@ -102,13 +124,24 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
   }
 
   getTokensToCheck(chainId: ChainId): Address[] {
-    const tokenListState = this.#getTokenListState?.();
+    const tokenListState = this.#messenger.call('TokenListController:getState');
 
-    if (!tokenListState) {
+    // Defensive check for tokensChainsCache
+    if (!tokenListState?.tokensChainsCache) {
       return [];
     }
 
-    const chainCacheEntry = tokenListState.tokensChainsCache[chainId];
+    // Try direct lookup first
+    let chainCacheEntry = tokenListState.tokensChainsCache[chainId];
+
+    // If not found, try normalizing the chain ID (e.g., 0x0a -> 0xa)
+    if (!chainCacheEntry) {
+      const normalizedChainId: ChainId = `0x${parseInt(chainId, 16).toString(
+        16,
+      )}`;
+      chainCacheEntry = tokenListState.tokensChainsCache[normalizedChainId];
+    }
+
     const chainTokenList = chainCacheEntry?.data;
 
     if (!chainTokenList) {
@@ -124,6 +157,22 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     accountAddress: Address,
     options?: TokenDetectionOptions,
   ): Promise<TokenDetectionResult> {
+    const tokenDetectionEnabled =
+      options?.tokenDetectionEnabled ?? this.#config.tokenDetectionEnabled();
+    const useExternalService =
+      options?.useExternalService ?? this.#config.useExternalService();
+    if (!tokenDetectionEnabled || !useExternalService) {
+      return {
+        chainId,
+        accountId,
+        accountAddress,
+        detectedAssets: [],
+        detectedBalances: [],
+        zeroBalanceAddresses: [],
+        failedAddresses: [],
+        timestamp: Date.now(),
+      };
+    }
     const batchSize = options?.batchSize ?? this.#config.defaultBatchSize;
     const timestamp = Date.now();
 
@@ -288,8 +337,8 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     chainId: ChainId,
     tokenAddress: Address,
   ): TokenListEntry | undefined {
-    const tokenListState = this.#getTokenListState?.();
-    if (!tokenListState) {
+    const tokenListState = this.#messenger.call('TokenListController:getState');
+    if (!tokenListState?.tokensChainsCache) {
       return undefined;
     }
 

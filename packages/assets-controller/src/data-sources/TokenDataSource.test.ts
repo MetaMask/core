@@ -1,20 +1,13 @@
 import type { V3AssetResponse } from '@metamask/core-backend';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type {
-  MockAnyNamespace,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 
-import type {
-  TokenDataSourceMessenger,
-  TokenDataSourceOptions,
-} from './TokenDataSource';
+import type { TokenDataSourceOptions } from './TokenDataSource';
 import { TokenDataSource } from './TokenDataSource';
 import type { Context, DataRequest, Caip19AssetId, ChainId } from '../types';
 
-type AllActions = MessengerActions<TokenDataSourceMessenger>;
-type AllEvents = MessengerEvents<TokenDataSourceMessenger>;
+type AllActions = never;
+type AllEvents = never;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
@@ -63,22 +56,39 @@ function createMockAssetResponse(
     symbol: 'TEST',
     decimals: 18,
     iconUrl: 'https://example.com/icon.png',
-    iconUrlThumbnail: 'https://example.com/icon-thumb.png',
+    coingeckoId: 'test-token',
+    occurrences: 5,
+    aggregators: ['metamask'],
+    labels: ['defi'],
+    erc20Permit: true,
+    fees: { avgFee: 0, maxFee: 0, minFee: 0 },
+    honeypotStatus: { honeypotIs: false },
+    storage: { balance: 1, approval: 2 },
+    isContractVerified: true,
     ...overrides,
-  } as V3AssetResponse;
+  };
 }
 
-function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
+const mockAccount = {
+  id: 'mock-account-id',
+  address: MOCK_ADDRESS,
+};
+function createDataRequest(
+  overrides?: Partial<DataRequest> & {
+    accounts?: { id: string; address: string }[];
+  },
+): DataRequest {
+  const chainIds = overrides?.chainIds ?? [CHAIN_MAINNET];
+  const accounts = overrides?.accounts ?? [mockAccount];
+  const { accounts: _a, ...rest } = overrides ?? {};
   return {
-    chainIds: [CHAIN_MAINNET],
-    accounts: [
-      {
-        id: 'mock-account-id',
-        address: MOCK_ADDRESS,
-      },
-    ],
+    chainIds,
+    accountsWithSupportedChains: accounts.map((a) => ({
+      account: a,
+      supportedChains: chainIds,
+    })),
     dataTypes: ['metadata'],
-    ...overrides,
+    ...rest,
   } as DataRequest;
 }
 
@@ -87,7 +97,7 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
     request: createDataRequest(),
     response: {},
     getAssetsState: jest.fn().mockReturnValue({
-      assetsMetadata: {},
+      assetsInfo: {},
     }),
     ...overrides,
   };
@@ -105,26 +115,9 @@ function setupController(
     namespace: MOCK_ANY_NAMESPACE,
   });
 
-  const controllerMessenger = new Messenger<
-    'TokenDataSource',
-    MessengerActions<TokenDataSourceMessenger>,
-    MessengerEvents<TokenDataSourceMessenger>,
-    RootMessenger
-  >({
-    namespace: 'TokenDataSource',
-    parent: rootMessenger,
-  });
-
-  rootMessenger.delegate({
-    messenger: controllerMessenger,
-    actions: [],
-    events: [],
-  });
-
   const apiClient = createMockApiClient(supportedNetworks, assetsResponse);
 
   const controller = new TokenDataSource({
-    messenger: controllerMessenger,
     queryApiClient:
       apiClient as unknown as TokenDataSourceOptions['queryApiClient'],
   });
@@ -146,10 +139,10 @@ describe('TokenDataSource', () => {
     expect(controller.name).toBe('TokenDataSource');
   });
 
-  it('registers action handlers', () => {
-    const { messenger } = setupController();
+  it('exposes assetsMiddleware on instance', () => {
+    const { controller } = setupController();
 
-    const middleware = messenger.call('TokenDataSource:getAssetsMiddleware');
+    const middleware = controller.assetsMiddleware;
     expect(middleware).toBeDefined();
     expect(typeof middleware).toBe('function');
   });
@@ -197,15 +190,32 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
-    expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]).toStrictEqual({
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toStrictEqual({
       type: 'erc20',
       name: 'Test Token',
       symbol: 'TEST',
       decimals: 18,
       image: 'https://example.com/icon.png',
+      coingeckoId: 'test-token',
+      occurrences: 5,
+      aggregators: ['metamask'],
+      labels: ['defi'],
+      erc20Permit: true,
+      fees: { avgFee: 0, maxFee: 0, minFee: 0 },
+      honeypotStatus: { honeypotIs: false },
+      storage: { balance: 1, approval: 2 },
+      isContractVerified: true,
+      description: undefined,
     });
     expect(next).toHaveBeenCalledWith(context);
   });
@@ -221,7 +231,7 @@ describe('TokenDataSource', () => {
         detectedAssets: {
           'mock-account-id': [MOCK_TOKEN_ASSET],
         },
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_TOKEN_ASSET]: {
             type: 'erc20',
             name: 'Existing',
@@ -252,7 +262,7 @@ describe('TokenDataSource', () => {
         },
       },
       getAssetsState: jest.fn().mockReturnValue({
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_TOKEN_ASSET]: {
             type: 'erc20',
             name: 'State Token',
@@ -282,7 +292,7 @@ describe('TokenDataSource', () => {
         detectedAssets: {
           'mock-account-id': [MOCK_TOKEN_ASSET],
         },
-        assetsMetadata: {
+        assetsInfo: {
           [MOCK_TOKEN_ASSET]: {
             type: 'erc20',
             name: 'Existing',
@@ -295,9 +305,16 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 
   it('middleware filters assets by supported networks', async () => {
@@ -320,9 +337,16 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 
   it('middleware passes to next when no assets from supported networks', async () => {
@@ -415,7 +439,7 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(context.response.assetsMetadata?.[MOCK_NATIVE_ASSET]?.type).toBe(
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]?.type).toBe(
       'native',
     );
   });
@@ -443,34 +467,7 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(context.response.assetsMetadata?.[MOCK_SPL_ASSET]?.type).toBe('spl');
-  });
-
-  it('middleware uses iconUrlThumbnail when iconUrl is not available', async () => {
-    const { controller } = setupController({
-      supportedNetworks: ['eip155:1'],
-      assetsResponse: [
-        createMockAssetResponse(MOCK_TOKEN_ASSET, {
-          iconUrl: undefined,
-          iconUrlThumbnail: 'https://example.com/thumb.png',
-        }),
-      ],
-    });
-
-    const next = jest.fn().mockResolvedValue(undefined);
-    const context = createMiddlewareContext({
-      response: {
-        detectedAssets: {
-          'mock-account-id': [MOCK_TOKEN_ASSET],
-        },
-      },
-    });
-
-    await controller.assetsMiddleware(context, next);
-
-    expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]?.image).toBe(
-      'https://example.com/thumb.png',
-    );
+    expect(context.response.assetsInfo?.[MOCK_SPL_ASSET]?.type).toBe('spl');
   });
 
   it('middleware merges metadata into existing response', async () => {
@@ -485,7 +482,7 @@ describe('TokenDataSource', () => {
     const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
-        assetsMetadata: {
+        assetsInfo: {
           [anotherAsset]: {
             type: 'erc20',
             name: 'DAI',
@@ -502,8 +499,8 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(context.response.assetsMetadata?.[anotherAsset]).toBeDefined();
-    expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[anotherAsset]).toBeDefined();
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
   });
 
   it('middleware handles multiple detected assets from multiple accounts', async () => {
@@ -535,9 +532,16 @@ describe('TokenDataSource', () => {
 
     expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
       expect.arrayContaining([MOCK_TOKEN_ASSET, secondAsset]),
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
     );
-    expect(context.response.assetsMetadata?.[MOCK_TOKEN_ASSET]).toBeDefined();
-    expect(context.response.assetsMetadata?.[secondAsset]).toBeDefined();
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[secondAsset]).toBeDefined();
   });
 
   it('middleware deduplicates assets across accounts', async () => {
@@ -558,9 +562,16 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 
   it('middleware includes partial support networks', async () => {
@@ -585,9 +596,16 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 
   it('middleware filters out invalid CAIP asset IDs', async () => {
@@ -610,8 +628,15 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith([
-      MOCK_TOKEN_ASSET,
-    ]);
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      {
+        includeIconUrl: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeMetadata: true,
+        includeRwaData: true,
+      },
+    );
   });
 });

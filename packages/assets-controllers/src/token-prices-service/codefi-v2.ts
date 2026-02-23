@@ -11,6 +11,7 @@ import type { CaipAssetType, Hex } from '@metamask/utils';
 import {
   hexToNumber,
   KnownCaipNamespace,
+  numberToHex,
   toCaipChainId,
 } from '@metamask/utils';
 
@@ -20,6 +21,7 @@ import type {
   EvmAssetWithId,
   EvmAssetWithMarketData,
   ExchangeRatesByCurrency,
+  NativeAssetIdentifiersMap,
 } from './abstract-token-prices-service';
 import type { MarketDataDetails } from '../TokenRatesController';
 
@@ -230,7 +232,6 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
   '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
   '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
-  '0x2611': '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
 };
 
 /**
@@ -275,7 +276,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x150': 'eip155:336/slip44:809', // Shiden - Native symbol: SDN
   '0x169': 'eip155:361/slip44:589', // Theta Mainnet - Native symbol: TFUEL
   '0x2eb': 'eip155:747/slip44:539', // Flow evm - Native symbol: Flow
-  '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: ETH
+  '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: HYPE
   '0x440': 'eip155:1088/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: METIS
   '0x44d': 'eip155:1101/slip44:60', // Polygon zkEVM mainnet - Native symbol: ETH
   '0x504': 'eip155:1284/slip44:1284', // Moonbeam - Native symbol: GLMR
@@ -287,7 +288,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
-  '0x2611': 'eip155:9745/erc20:0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', // Plasma mainnet - native symbol: XPL
+  '0x2611': 'eip155:9745/erc20:0x0000000000000000000000000000000000000000', // Plasma mainnet - native symbol: XPL
   '0x2710': 'eip155:10000/slip44:145', // Smart Bitcoin Cash - Native symbol: BCH
   '0x8173': 'eip155:33139/erc20:0x0000000000000000000000000000000000000000', // Apechain Mainnet - Native symbol: APE
   '0xa3c3': 'eip155:41923/erc20:0x0000000000000000000000000000000000000000', // EDU Chain - Native symbol: EDU
@@ -300,6 +301,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xed88': 'eip155:60808/erc20:0x0000000000000000000000000000000000000000', // BOB - Native symbol: ETH
   '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',
   '0x13c31': 'eip155:81457/slip44:60', // Blast Mainnet - Native symbol: ETH
+  '0x15b38': 'eip155:88888/erc20:0x0000000000000000000000000000000000000000', // Chiliz Chain - Native symbol: CHZ
   '0x17dcd': 'eip155:97741/erc20:0x0000000000000000000000000000000000000000', // Pepe Unchained Mainnet - Native symbol: PEPU
   '0x18232': 'eip155:98866/erc20:0x0000000000000000000000000000000000000000', // Plume Mainnet - Narive symbol: Plume
   '0x28c58': 'eip155:167000/slip44:60', // Taiko Mainnet - Native symbol: ETH
@@ -309,6 +311,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
+  '0xdef1': 'eip155:57073/erc20:0x0000000000000000000000000000000000000000', // Ink Mainnet - Native symbol: ETH
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES
@@ -343,20 +346,162 @@ export const SUPPORTED_CHAIN_IDS = Object.keys(
  */
 type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 
-/**
- * The list of chain IDs that are supported by V3 of the Codefi Price API.
- * Only includes chain IDs from SPOT_PRICES_SUPPORT_INFO that have a non-null CAIP-19 value.
- */
-const SUPPORTED_CHAIN_IDS_V3 = Object.keys(SPOT_PRICES_SUPPORT_INFO).filter(
-  (chainId) =>
-    SPOT_PRICES_SUPPORT_INFO[
-      chainId as keyof typeof SPOT_PRICES_SUPPORT_INFO
-    ] !== null,
-);
-
 const BASE_URL_V1 = 'https://price.api.cx.metamask.io/v1';
 
+const BASE_URL_V2 = 'https://price.api.cx.metamask.io/v2';
+
 const BASE_URL_V3 = 'https://price.api.cx.metamask.io/v3';
+
+/**
+ * Response type for the /v2/supportedNetworks endpoint.
+ */
+type SupportedNetworksResponse = {
+  fullSupport: string[];
+  partialSupport: {
+    spotPricesV2: string[];
+    spotPricesV3: string[];
+  };
+};
+
+/**
+ * In-memory store for the last successfully fetched supported networks.
+ */
+let lastFetchedSupportedNetworks: SupportedNetworksResponse | null = null;
+
+/**
+ * In-flight promise to prevent concurrent requests to the supported networks endpoint.
+ */
+let runningSupportedNetworksRequest: Promise<SupportedNetworksResponse> | null =
+  null;
+
+/**
+ * Converts a CAIP-2 chain ID (e.g., 'eip155:1') to a hex chain ID (e.g., '0x1').
+ *
+ * @param caipChainId - The CAIP-2 chain ID string.
+ * @returns The hex chain ID or null if not an EIP-155 chain.
+ */
+function caipChainIdToHex(caipChainId: string): Hex | null {
+  const match = caipChainId.match(/^eip155:(\d+)$/u);
+  if (!match) {
+    return null;
+  }
+  return numberToHex(parseInt(match[1], 10));
+}
+
+/**
+ * Executes the actual fetch to the supported networks endpoint.
+ * Handles errors internally by falling back to the hardcoded list,
+ * and clears the in-flight promise when done.
+ *
+ * @returns The supported networks response.
+ */
+async function executeSupportedNetworksFetch(): Promise<SupportedNetworksResponse> {
+  try {
+    const url = `${BASE_URL_V2}/supportedNetworks`;
+    const response = await handleFetch(url, {
+      headers: { 'Cache-Control': 'no-cache' },
+    });
+
+    if (
+      response &&
+      typeof response === 'object' &&
+      'fullSupport' in response &&
+      'partialSupport' in response
+    ) {
+      lastFetchedSupportedNetworks = response as SupportedNetworksResponse;
+      return lastFetchedSupportedNetworks;
+    }
+
+    // Invalid response format, fall back to hardcoded list
+    return getSupportedNetworksFallback();
+  } catch {
+    // On any error, fall back to the hardcoded list
+    return getSupportedNetworksFallback();
+  } finally {
+    // Clear the in-flight promise once the request completes
+    runningSupportedNetworksRequest = null;
+  }
+}
+
+/**
+ * Fetches the list of supported networks from the API.
+ * Falls back to the hardcoded list if the fetch fails.
+ * Deduplicates concurrent requests by returning the same promise if a fetch is already in progress.
+ *
+ * @returns The supported networks response.
+ */
+export async function fetchSupportedNetworks(): Promise<SupportedNetworksResponse> {
+  // If a fetch is already in progress, return the same promise
+  if (runningSupportedNetworksRequest) {
+    return runningSupportedNetworksRequest;
+  }
+
+  // Start a new fetch and cache the promise
+  runningSupportedNetworksRequest = executeSupportedNetworksFetch();
+
+  return runningSupportedNetworksRequest;
+}
+
+/**
+ * Synchronously gets the list of supported networks.
+ * Returns the last fetched value if available, otherwise returns the fallback list.
+ *
+ * @returns The supported networks response.
+ */
+export function getSupportedNetworks(): SupportedNetworksResponse {
+  if (lastFetchedSupportedNetworks !== null) {
+    return lastFetchedSupportedNetworks;
+  }
+  return getSupportedNetworksFallback();
+}
+
+/**
+ * Generates a fallback supported networks response from the hardcoded SPOT_PRICES_SUPPORT_INFO.
+ *
+ * @returns A SupportedNetworksResponse derived from hardcoded data.
+ */
+function getSupportedNetworksFallback(): SupportedNetworksResponse {
+  const caipChainIds = Object.keys(SPOT_PRICES_SUPPORT_INFO).map((hexChainId) =>
+    toCaipChainId(
+      KnownCaipNamespace.Eip155,
+      hexToNumber(hexChainId as Hex).toString(),
+    ),
+  );
+
+  return {
+    fullSupport: caipChainIds.slice(0, 11), // First 11 chains as "full support"
+    partialSupport: {
+      spotPricesV2: caipChainIds,
+      spotPricesV3: caipChainIds,
+    },
+  };
+}
+
+/**
+ * Resets the supported networks cache.
+ * This is primarily intended for testing purposes.
+ */
+export function resetSupportedNetworksCache(): void {
+  lastFetchedSupportedNetworks = null;
+  runningSupportedNetworksRequest = null;
+}
+
+/**
+ * Gets the list of supported chain IDs for spot prices v3 as hex values.
+ *
+ * @returns Array of hex chain IDs supported by spot prices v3.
+ */
+function getSupportedChainIdsV3AsHex(): Hex[] {
+  const supportedNetworks = getSupportedNetworks();
+  const allV3Chains = [
+    ...supportedNetworks.fullSupport,
+    ...supportedNetworks.partialSupport.spotPricesV3,
+  ];
+
+  return allV3Chains
+    .map(caipChainIdToHex)
+    .filter((hexChainId): hexChainId is Hex => hexChainId !== null);
+}
 
 /**
  * In-memory store for the last successfully fetched supported currencies.
@@ -421,6 +566,12 @@ export class CodefiTokenPricesServiceV2
   implements AbstractTokenPricesService<SupportedChainId, SupportedCurrency>
 {
   readonly #policy: ServicePolicy;
+
+  /**
+   * Map of CAIP-2 chain IDs to their native asset identifiers.
+   * Updated via setNativeAssetIdentifiers().
+   */
+  #nativeAssetIdentifiers: NativeAssetIdentifiersMap = {};
 
   /**
    * Construct a Codefi Token Price Service.
@@ -527,6 +678,28 @@ export class CodefiTokenPricesServiceV2
   }
 
   /**
+   * Sets the native asset identifiers map for resolving native token CAIP-19 IDs.
+   * This should be called with data from NetworkEnablementController.state.nativeAssetIdentifiers.
+   *
+   * @param nativeAssetIdentifiers - Map of CAIP-2 chain IDs to native asset identifiers.
+   */
+  setNativeAssetIdentifiers(
+    nativeAssetIdentifiers: NativeAssetIdentifiersMap,
+  ): void {
+    this.#nativeAssetIdentifiers = nativeAssetIdentifiers;
+  }
+
+  /**
+   * Updates the supported networks cache by fetching from the API.
+   * This should be called periodically to keep the supported networks list fresh.
+   *
+   * @returns The updated supported networks response.
+   */
+  async updateSupportedNetworks(): Promise<SupportedNetworksResponse> {
+    return fetchSupportedNetworks();
+  }
+
+  /**
    * Retrieves prices in the given currency for the tokens identified by the
    * given addresses which are expected to live on the given chain.
    *
@@ -542,9 +715,20 @@ export class CodefiTokenPricesServiceV2
     assets: EvmAssetAddressWithChain<SupportedChainId>[];
     currency: SupportedCurrency;
   }): Promise<EvmAssetWithMarketData<SupportedChainId, SupportedCurrency>[]> {
+    // Refresh supported networks in background (non-blocking)
+    // This ensures the list stays fresh during normal polling
+    // Note: fetchSupportedNetworks handles errors internally and always resolves
+    if (!lastFetchedSupportedNetworks) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      fetchSupportedNetworks();
+    }
+
+    // Get dynamically fetched supported chain IDs for V3
+    const supportedChainIdsV3 = getSupportedChainIdsV3AsHex();
+
     const assetsWithIds: EvmAssetWithId<SupportedChainId>[] = assets
       // Filter out assets that are not supported by V3 of the Price API.
-      .filter((asset) => SUPPORTED_CHAIN_IDS_V3.includes(asset.chainId))
+      .filter((asset) => supportedChainIdsV3.includes(asset.chainId))
       .map((asset) => {
         const caipChainId = toCaipChainId(
           KnownCaipNamespace.Eip155,
@@ -552,16 +736,34 @@ export class CodefiTokenPricesServiceV2
         );
 
         const nativeAddress = getNativeTokenAddress(asset.chainId);
+        const isNativeToken =
+          nativeAddress.toLowerCase() === asset.tokenAddress.toLowerCase();
+
+        let assetId: string | undefined;
+        if (isNativeToken) {
+          // For native tokens, use nativeAssetIdentifiers from NetworkEnablementController,
+          // falling back to hardcoded SPOT_PRICES_SUPPORT_INFO
+          assetId =
+            this.#nativeAssetIdentifiers[caipChainId] ??
+            SPOT_PRICES_SUPPORT_INFO[asset.chainId];
+        } else {
+          // For ERC20 tokens, construct the CAIP-19 ID dynamically
+          assetId = `${caipChainId}/erc20:${asset.tokenAddress.toLowerCase()}`;
+        }
+
+        if (!assetId) {
+          return undefined;
+        }
 
         return {
           ...asset,
-          assetId: (nativeAddress.toLowerCase() ===
-          asset.tokenAddress.toLowerCase()
-            ? SPOT_PRICES_SUPPORT_INFO[asset.chainId]
-            : `${caipChainId}/erc20:${asset.tokenAddress.toLowerCase()}`) as CaipAssetType,
+          assetId: assetId as CaipAssetType,
         };
       })
-      .filter((asset) => asset.assetId);
+      .filter(
+        (asset): asset is EvmAssetWithId<SupportedChainId> =>
+          asset !== undefined,
+      );
 
     if (assetsWithIds.length === 0) {
       return [];
@@ -622,8 +824,10 @@ export class CodefiTokenPricesServiceV2
     // Refresh supported currencies in background (non-blocking)
     // This ensures the list stays fresh during normal polling
     // Note: fetchSupportedCurrencies handles errors internally and always resolves
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetchSupportedCurrencies();
+    if (!lastFetchedCurrencies) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      fetchSupportedCurrencies();
+    }
 
     const url = new URL(`${BASE_URL_V1}/exchange-rates`);
     url.searchParams.append('baseCurrency', baseCurrency);
@@ -717,8 +921,15 @@ export class CodefiTokenPricesServiceV2
    * @returns True if the API supports the chain ID, false otherwise.
    */
   validateChainIdSupported(chainId: unknown): chainId is SupportedChainId {
-    const supportedChainIds: readonly string[] = SUPPORTED_CHAIN_IDS;
-    return typeof chainId === 'string' && supportedChainIds.includes(chainId);
+    // Use dynamically fetched supported networks
+    const supportedChainIds = getSupportedChainIdsV3AsHex();
+    // Also include the hardcoded fallback list for backwards compatibility
+    const allSupportedChainIds: readonly string[] = [
+      ...new Set([...supportedChainIds, ...SUPPORTED_CHAIN_IDS]),
+    ];
+    return (
+      typeof chainId === 'string' && allSupportedChainIds.includes(chainId)
+    );
   }
 
   /**

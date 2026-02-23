@@ -11,6 +11,7 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
+  MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -19,6 +20,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
@@ -107,13 +109,6 @@ export type BridgeHistoryItem = {
   batchId?: string;
   quote: Quote;
   status: StatusResponse;
-  /**
-   * For intent-based orders (e.g., CoW) that can be partially filled across
-   * multiple on-chain settlements, we keep all discovered source tx hashes here.
-   * The canonical status.srcChain.txHash continues to hold the latest known hash
-   * for backward compatibility with consumers expecting a single hash.
-   */
-  srcTxHashes?: string[];
   startTime?: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
@@ -137,6 +132,11 @@ export type BridgeHistoryItem = {
   approvalTxId?: string;
   featureId?: FeatureId;
   isStxEnabled?: boolean;
+  /**
+   * The location/entry point from which the user initiated the swap or bridge.
+   * Used to attribute swaps to specific flows (e.g. Trending Explore).
+   */
+  location?: MetaMetricsSwapsEventSource;
   /**
    * Attempts tracking for exponential backoff on failed fetches.
    * We track the number of attempts and the last attempt time for each txMetaId that has failed at least once
@@ -205,6 +205,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
+  location?: BridgeHistoryItem['location'];
   accountAddress: string;
 };
 
@@ -302,7 +303,8 @@ type AllowedActions =
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | AuthenticationControllerGetBearerToken;
 
 /**
  * The external events available to the BridgeStatusController.

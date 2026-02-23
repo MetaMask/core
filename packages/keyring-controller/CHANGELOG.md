@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-internal-api` from `^9.0.0` to `^10.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+
 ## [25.1.0]
 
 ### Added
@@ -21,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Prevent the accidental removal of unrelated empty keyrings when deleting an account ([#7670](https://github.com/MetaMask/core/pull/7670))
+  - Empty keyrings were removed during account deletion, regardless of which account was being targeted.
+
+### Fixed
+
+- Fixed a bug where `removeAccount` would not prevent deletion of the primary keyring because of missing address normalization ([#7670](https://github.com/MetaMask/core/pull/7670))
 
 ## [25.0.0]
 

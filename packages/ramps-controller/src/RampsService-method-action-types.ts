@@ -76,6 +76,73 @@ export type RampsServiceGetPaymentMethodsAction = {
 };
 
 /**
+ * Fetches quotes from all providers for a given set of parameters.
+ * Uses the V2 orders API to get quotes for multiple payment methods at once.
+ *
+ * @param params - The parameters for fetching quotes.
+ * @param params.region - User's region code (e.g., "us", "us-ca").
+ * @param params.paymentMethods - Array of payment method IDs.
+ * @param params.assetId - CAIP-19 cryptocurrency identifier.
+ * @param params.fiat - Fiat currency code (e.g., "usd").
+ * @param params.amount - The amount (in fiat for buy, crypto for sell).
+ * @param params.walletAddress - The destination wallet address.
+ * @param params.redirectUrl - Optional redirect URL after order completion.
+ * @param params.providers - Optional provider IDs to filter quotes.
+ * @param params.action - The ramp action type. Defaults to 'buy'.
+ * @returns The quotes response containing success, sorted, error, and customActions.
+ */
+export type RampsServiceGetQuotesAction = {
+  type: `RampsService:getQuotes`;
+  handler: RampsService['getQuotes'];
+};
+
+/**
+ * Fetches the buy widget data from a buy URL endpoint.
+ * Makes a request to the buyURL (as provided in a quote) to get the actual
+ * provider widget URL, browser type, and order ID.
+ *
+ * @param buyUrl - The full buy URL endpoint to fetch from.
+ * @returns The buy widget data containing the provider widget URL.
+ */
+export type RampsServiceGetBuyWidgetUrlAction = {
+  type: `RampsService:getBuyWidgetUrl`;
+  handler: RampsService['getBuyWidgetUrl'];
+};
+
+/**
+ * Fetches an order from the unified V2 API endpoint.
+ * This endpoint returns a normalized `RampsOrder` (DepositOrder shape)
+ * for all provider types, including both aggregator and native providers.
+ *
+ * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+ * @param orderCode - The order identifier.
+ * @param wallet - The wallet address associated with the order.
+ * @returns The unified order data.
+ */
+export type RampsServiceGetOrderAction = {
+  type: `RampsService:getOrder`;
+  handler: RampsService['getOrder'];
+};
+
+/**
+ * Extracts an order from a provider callback URL.
+ * Sends the callback URL to the V2 API backend, which knows how to parse
+ * each provider's callback format and extract the order ID. Then fetches
+ * the full order using that ID.
+ *
+ * This is the V2 equivalent of the aggregator SDK's `getOrderFromCallback`.
+ *
+ * @param providerCode - The provider code (e.g., "transak", "moonpay").
+ * @param callbackUrl - The full callback URL the provider redirected to.
+ * @param wallet - The wallet address associated with the order.
+ * @returns The unified order data.
+ */
+export type RampsServiceGetOrderFromCallbackAction = {
+  type: `RampsService:getOrderFromCallback`;
+  handler: RampsService['getOrderFromCallback'];
+};
+
+/**
  * Union of all RampsService action types.
  */
 export type RampsServiceMethodActions =
@@ -83,4 +150,8 @@ export type RampsServiceMethodActions =
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
   | RampsServiceGetProvidersAction
-  | RampsServiceGetPaymentMethodsAction;
+  | RampsServiceGetPaymentMethodsAction
+  | RampsServiceGetQuotesAction
+  | RampsServiceGetBuyWidgetUrlAction
+  | RampsServiceGetOrderAction
+  | RampsServiceGetOrderFromCallbackAction;

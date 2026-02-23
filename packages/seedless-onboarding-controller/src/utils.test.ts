@@ -2,14 +2,16 @@ import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
-import type { DecodedNodeAuthToken, DecodedBaseJWTToken } from './types';
+import type { DecodedNodeAuthToken } from './types';
 import {
   compareTimeuuid,
-  decodeJWTToken,
   decodeNodeAuthToken,
+  decodeJWTToken,
+  compareAndGetLatestToken,
   getSecretTypeFromDataType,
   getTimestampFromTimeuuid,
 } from './utils';
+import { createMockJWTToken } from '../tests/mocks/utils';
 
 describe('utils', () => {
   describe('decodeNodeAuthToken', () => {
@@ -82,34 +84,6 @@ describe('utils', () => {
   });
 
   describe('decodeJWTToken', () => {
-    /**
-     * Creates a mock JWT token for testing
-     *
-     * @param payload - The payload to encode
-     * @returns The JWT token string
-     */
-    const createMockJWTToken = (
-      payload: Partial<DecodedBaseJWTToken> = {},
-    ): string => {
-      const defaultPayload: DecodedBaseJWTToken = {
-        exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
-        iat: Math.floor(Date.now() / 1000), // issued now
-        aud: 'mock_audience',
-        iss: 'mock_issuer',
-        sub: 'mock_subject',
-        ...payload,
-      };
-      const header = { alg: 'HS256', typ: 'JWT' };
-      const encodedHeader = Buffer.from(JSON.stringify(header)).toString(
-        'base64',
-      );
-      const encodedPayload = Buffer.from(
-        JSON.stringify(defaultPayload),
-      ).toString('base64');
-      const signature = 'mock_signature';
-      return `${encodedHeader}.${encodedPayload}.${signature}`;
-    };
-
     it('should successfully decode a valid JWT token', () => {
       const mockPayload = {
         exp: 1234567890,
@@ -180,6 +154,72 @@ describe('utils', () => {
       expect(result.aud).toBe('https://example.com/audience');
       expect(result.iss).toBe('https://issuer.example.com');
       expect(result.sub).toBe('user-123@example.com');
+    });
+  });
+
+  describe('compareAndGetLatestToken', () => {
+    it('should return the first token when it has a later expiration', () => {
+      const laterToken = createMockJWTToken({ exp: 2000000000 }); // Later expiration
+      const earlierToken = createMockJWTToken({ exp: 1000000000 }); // Earlier expiration
+
+      const result = compareAndGetLatestToken(laterToken, earlierToken);
+
+      expect(result).toBe(laterToken);
+    });
+
+    it('should return the second token when it has a later expiration', () => {
+      const earlierToken = createMockJWTToken({ exp: 1000000000 }); // Earlier expiration
+      const laterToken = createMockJWTToken({ exp: 2000000000 }); // Later expiration
+
+      const result = compareAndGetLatestToken(earlierToken, laterToken);
+
+      expect(result).toBe(laterToken);
+    });
+
+    it('should return the second token when both have the same expiration', () => {
+      const token1 = createMockJWTToken({ exp: 1500000000 });
+      const token2 = createMockJWTToken({ exp: 1500000000 });
+
+      const result = compareAndGetLatestToken(token1, token2);
+
+      expect(result).toBe(token2);
+    });
+
+    it('should return the second token when the first token is invalid', () => {
+      const invalidToken = 'invalid.token'; // Missing signature part
+      const validToken = createMockJWTToken({ exp: 1500000000 });
+
+      const result = compareAndGetLatestToken(invalidToken, validToken);
+
+      expect(result).toBe(validToken);
+    });
+
+    it('should return the first token when the second token is invalid', () => {
+      const validToken = createMockJWTToken({ exp: 1500000000 });
+      const invalidToken = 'not-a-valid-jwt-token';
+
+      const result = compareAndGetLatestToken(validToken, invalidToken);
+
+      expect(result).toBe(validToken);
+    });
+
+    it('should return the second token when both tokens are invalid', () => {
+      const invalidToken1 = 'invalid.token';
+      const invalidToken2 = 'also.invalid';
+
+      const result = compareAndGetLatestToken(invalidToken1, invalidToken2);
+
+      // First token is invalid, so it returns the second token
+      expect(result).toBe(invalidToken2);
+    });
+
+    it('should handle tokens with expiration times close together', () => {
+      const token1 = createMockJWTToken({ exp: 1500000001 });
+      const token2 = createMockJWTToken({ exp: 1500000000 });
+
+      const result = compareAndGetLatestToken(token1, token2);
+
+      expect(result).toBe(token1);
     });
   });
 

@@ -16,6 +16,8 @@ export type {
   SubscriptionControllerOptions,
   SubscriptionControllerStateChangeEvent,
   SubscriptionControllerSubmitSponsorshipIntentsAction,
+  SubscriptionControllerCacheLastSelectedPaymentMethodAction,
+  SubscriptionControllerClearLastSelectedPaymentMethodAction,
   SubscriptionControllerLinkRewardsAction,
   SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction,
   AllowedActions,
@@ -26,8 +28,11 @@ export {
   getDefaultSubscriptionControllerState,
 } from './SubscriptionController';
 export type {
+  SubscriptionApiError,
   Subscription,
   AuthUtils,
+  CancelSubscriptionRequest,
+  CancelType,
   ISubscriptionService,
   StartCryptoSubscriptionRequest,
   StartCryptoSubscriptionResponse,
@@ -70,6 +75,7 @@ export type {
   ModalType,
 } from './types';
 export {
+  CANCEL_TYPES,
   CRYPTO_PAYMENT_METHOD_ERRORS,
   SUBSCRIPTION_STATUSES,
   PRODUCT_TYPES,
@@ -81,6 +87,10 @@ export {
   MODAL_TYPE,
 } from './types';
 export { SubscriptionServiceError } from './errors';
-export { Env, SubscriptionControllerErrorMessage } from './constants';
+export {
+  Env,
+  SubscriptionControllerErrorMessage,
+  SubscriptionServiceErrorMessage,
+} from './constants';
 export type { SubscriptionServiceConfig } from './SubscriptionService';
 export { SubscriptionService } from './SubscriptionService';

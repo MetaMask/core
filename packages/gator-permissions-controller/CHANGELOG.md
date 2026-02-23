@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.17.0` to `^62.18.0` ([#7996](https://github.com/MetaMask/core/pull/7996), [#8005](https://github.com/MetaMask/core/pull/8005))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Refactor `GatorPermissionsController`: simplified config, permission storage, and public API ([#7847](https://github.com/MetaMask/core/pull/7847))
+  - Constructor now requires `config`, internal configuration is removed from controller state
+  - New `initialize()` function performs a syncronisation process if required when the controller is first initialized
+  - Replaces `gatorPermissionsMapSerialized` with `grantedPermissions` property in internal state, replaces related types, and utility functions
+  - `fetchAndUpdateGatorPermissions()` no longer accepts parameters and resolves to `void`
+  - `getPendingRevocations` / `pendingRevocations` getter replaced by `isPendingRevocation(permissionContext)`; list on `state.pendingRevocations`
+- Bump `@metamask/transaction-controller` from `^62.11.0` to `^62.17.0` ([#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+
+## [1.1.2]
+
+### Fixed
+
+- Bump `@metamask/transaction-controller` from `^62.10.0` to `^62.11.0` to resolve mismatching `WebSocketState` enum export in `@metamask/core-backend` transient dependency ([#7760](https://github.com/MetaMask/core/pull/7760))
+
+## [1.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.10.0` ([#7737](https://github.com/MetaMask/core/pull/7737))
+
+### Fixed
+
+- Correctly validate `erc20-token-revocation` terms when decoding permission. ([#7729](https://github.com/MetaMask/core/pull/7729))
+
 ## [1.1.0]
 
 ### Changed
@@ -134,7 +166,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.2...@metamask/gator-permissions-controller@2.0.0
+[1.1.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.1...@metamask/gator-permissions-controller@1.1.2
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.0...@metamask/gator-permissions-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.0.0...@metamask/gator-permissions-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.8.0...@metamask/gator-permissions-controller@1.0.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@0.7.0...@metamask/gator-permissions-controller@0.8.0

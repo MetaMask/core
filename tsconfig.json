@@ -24,6 +24,9 @@
       "path": "./packages/analytics-controller"
     },
     {
+      "path": "./packages/analytics-data-regulation-controller"
+    },
+    {
       "path": "./packages/announcement-controller"
     },
     {
@@ -55,6 +58,9 @@
     },
     {
       "path": "./packages/claims-controller"
+    },
+    {
+      "path": "./packages/client-controller"
     },
     {
       "path": "./packages/composable-controller"
@@ -190,9 +196,6 @@
     },
     {
       "path": "./packages/subscription-controller"
-    },
-    {
-      "path": "./packages/token-search-discovery-controller"
     },
     {
       "path": "./packages/transaction-controller"

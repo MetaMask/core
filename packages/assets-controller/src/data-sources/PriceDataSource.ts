@@ -3,20 +3,18 @@ import type {
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
-import type { Messenger } from '@metamask/messenger';
+import { parseCaipAssetType } from '@metamask/utils';
 
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
   Caip19AssetId,
-  AssetPrice,
-  AssetBalance,
-  AccountId,
-  ChainId,
   DataRequest,
   DataResponse,
+  FungibleAssetPrice,
   Middleware,
+  AssetsControllerStateInternal,
 } from '../types';
 
 // ============================================================================
@@ -29,105 +27,20 @@ const DEFAULT_POLL_INTERVAL = 60_000; // 1 minute for price updates
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // ============================================================================
-// MESSENGER TYPES
-// ============================================================================
-
-/**
- * Action to get balance state (used to determine which assets need prices).
- */
-type GetAssetsBalanceStateAction = {
-  type: 'AssetsController:getState';
-  handler: () => {
-    assetsBalance: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
-  };
-};
-
-/**
- * Action to get the PriceDataSource middleware.
- */
-export type PriceDataSourceGetAssetsMiddlewareAction = {
-  type: `${typeof CONTROLLER_NAME}:getAssetsMiddleware`;
-  handler: () => Middleware;
-};
-
-/**
- * Action to fetch prices for assets.
- */
-export type PriceDataSourceFetchAction = {
-  type: `${typeof CONTROLLER_NAME}:fetch`;
-  handler: (request: DataRequest) => Promise<DataResponse>;
-};
-
-/**
- * Action to subscribe to price updates.
- */
-export type PriceDataSourceSubscribeAction = {
-  type: `${typeof CONTROLLER_NAME}:subscribe`;
-  handler: (request: SubscriptionRequest) => Promise<void>;
-};
-
-/**
- * Action to unsubscribe from price updates.
- */
-export type PriceDataSourceUnsubscribeAction = {
-  type: `${typeof CONTROLLER_NAME}:unsubscribe`;
-  handler: (subscriptionId: string) => Promise<void>;
-};
-
-/**
- * All actions exposed by PriceDataSource.
- */
-export type PriceDataSourceActions =
-  | PriceDataSourceGetAssetsMiddlewareAction
-  | PriceDataSourceFetchAction
-  | PriceDataSourceSubscribeAction
-  | PriceDataSourceUnsubscribeAction;
-
-/**
- * Event emitted when prices are updated.
- */
-export type PriceDataSourceAssetsUpdatedEvent = {
-  type: `${typeof CONTROLLER_NAME}:assetsUpdated`;
-  payload: [DataResponse, string];
-};
-
-/**
- * All events exposed by PriceDataSource.
- */
-export type PriceDataSourceEvents = PriceDataSourceAssetsUpdatedEvent;
-
-// Action to report assets updated to AssetsController
-type AssetsControllerAssetsUpdateAction = {
-  type: 'AssetsController:assetsUpdate';
-  handler: (response: DataResponse, sourceId: string) => Promise<void>;
-};
-
-/**
- * External actions that PriceDataSource needs to call.
- * Note: Uses ApiPlatformClient directly, so no BackendApiClient actions needed.
- */
-export type PriceDataSourceAllowedActions =
-  | GetAssetsBalanceStateAction
-  | AssetsControllerAssetsUpdateAction;
-
-export type PriceDataSourceMessenger = Messenger<
-  typeof CONTROLLER_NAME,
-  PriceDataSourceAllowedActions | PriceDataSourceActions,
-  PriceDataSourceEvents
->;
-
-// ============================================================================
 // OPTIONS
 // ============================================================================
 
-export type PriceDataSourceOptions = {
-  messenger: PriceDataSourceMessenger;
+/** Optional configuration for PriceDataSource. */
+export type PriceDataSourceConfig = {
+  /** Polling interval in ms (default: 60000) */
+  pollInterval?: number;
+};
+
+export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
   /** Currency to fetch prices in (default: 'usd') */
   currency?: SupportedCurrency;
-  /** Polling interval in ms (default: 60000) */
-  pollInterval?: number;
 };
 
 // ============================================================================
@@ -158,13 +71,8 @@ function isPriceableAsset(assetId: Caip19AssetId): boolean {
   return !NON_PRICEABLE_ASSET_PATTERNS.some((pattern) => pattern.test(assetId));
 }
 
-/** Market data item from spot prices response */
-type SpotPriceMarketData = {
-  price: number;
-  pricePercentChange1d?: number;
-  marketCap?: number;
-  totalVolume?: number;
-};
+/** Market data item from spot prices response (same as FungibleAssetPrice without lastUpdated) */
+type SpotPriceMarketData = Omit<FungibleAssetPrice, 'lastUpdated'>;
 
 /**
  * Type guard to check if market data has a valid price
@@ -181,19 +89,6 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
   );
 }
 
-function transformMarketDataToAssetPrice(
-  marketData: SpotPriceMarketData,
-): AssetPrice {
-  return {
-    price: marketData.price,
-    priceChange24h: marketData.pricePercentChange1d,
-    lastUpdated: Date.now(),
-    // Extended market data
-    marketCap: marketData.marketCap,
-    volume24h: marketData.totalVolume,
-  };
-}
-
 // ============================================================================
 // PRICE DATA SOURCE
 // ============================================================================
@@ -204,32 +99,16 @@ function transformMarketDataToAssetPrice(
  * This data source:
  * - Fetches prices from Price API v3 spot-prices endpoint
  * - Supports one-time fetch and subscription-based polling
- * - In subscribe mode, automatically fetches prices for all assets in assetsBalance state
- * - Publishes price updates via messenger events
+ * - In subscribe mode, uses getAssetsState from SubscriptionRequest to read assetsBalance and fetch prices
  *
- * Usage:
- * ```typescript
- * // Create and initialize (registers messenger actions)
- * const priceDataSource = new PriceDataSource({ messenger });
- *
- * // One-time fetch for specific assets
- * const response = await messenger.call('PriceDataSource:fetch', {
- *   customAssets: ['eip155:1/erc20:0x...'],
- * });
- *
- * // Subscribe to price updates (polls all assets in balance state)
- * await messenger.call('PriceDataSource:subscribe', { request, subscriptionId });
- *
- * // Listen for updates
- * messenger.subscribe('PriceDataSource:assetsUpdated', (response) => {
- *   // Handle price updates
- * });
- * ```
+ * Usage: Create with queryApiClient; subscribe() requires getAssetsState in the request for balance-based pricing.
  */
 export class PriceDataSource {
-  readonly name = CONTROLLER_NAME;
+  static readonly controllerName = CONTROLLER_NAME;
 
-  readonly #messenger: PriceDataSourceMessenger;
+  getName(): string {
+    return PriceDataSource.controllerName;
+  }
 
   readonly #currency: SupportedCurrency;
 
@@ -241,42 +120,18 @@ export class PriceDataSource {
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<
     string,
-    { cleanup: () => void; request: DataRequest }
+    {
+      cleanup: () => void;
+      request: DataRequest;
+      onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+      getAssetsState?: () => AssetsControllerStateInternal;
+    }
   > = new Map();
 
   constructor(options: PriceDataSourceOptions) {
-    this.#messenger = options.messenger;
     this.#currency = options.currency ?? 'usd';
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
-
-    this.#registerActionHandlers();
-  }
-
-  #registerActionHandlers(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messenger = this.#messenger as any;
-
-    messenger.registerActionHandler(
-      'PriceDataSource:getAssetsMiddleware',
-      () => this.assetsMiddleware,
-    );
-
-    messenger.registerActionHandler(
-      'PriceDataSource:fetch',
-      (request: DataRequest) => this.fetch(request),
-    );
-
-    messenger.registerActionHandler(
-      'PriceDataSource:subscribe',
-      (subscriptionRequest: SubscriptionRequest) =>
-        this.subscribe(subscriptionRequest),
-    );
-
-    messenger.registerActionHandler(
-      'PriceDataSource:unsubscribe',
-      (subscriptionId: string) => this.unsubscribe(subscriptionId),
-    );
   }
 
   // ============================================================================
@@ -328,10 +183,7 @@ export class PriceDataSource {
       }
 
       try {
-        const priceResponse = await this.#fetchSpotPrices(
-          priceableAssetIds,
-          true, // includeMarketData
-        );
+        const priceResponse = await this.#fetchSpotPrices(priceableAssetIds);
 
         response.assetsPrice ??= {};
 
@@ -341,8 +193,10 @@ export class PriceDataSource {
           }
 
           const caipAssetId = assetId as Caip19AssetId;
-          response.assetsPrice[caipAssetId] =
-            transformMarketDataToAssetPrice(marketData);
+          response.assetsPrice[caipAssetId] = {
+            ...marketData,
+            lastUpdated: Date.now(),
+          };
         }
       } catch (error) {
         log('Failed to fetch prices via middleware', { error });
@@ -361,16 +215,12 @@ export class PriceDataSource {
    * Fetch spot prices with caching and deduplication via query service.
    *
    * @param assetIds - Array of CAIP-19 asset IDs
-   * @param includeMarketData - Whether to include market data
    * @returns Spot prices response
    */
-  async #fetchSpotPrices(
-    assetIds: string[],
-    includeMarketData: boolean,
-  ): Promise<V3SpotPricesResponse> {
+  async #fetchSpotPrices(assetIds: string[]): Promise<V3SpotPricesResponse> {
     return this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
       currency: this.#currency,
-      includeMarketData,
+      includeMarketData: true,
     });
   }
 
@@ -379,14 +229,23 @@ export class PriceDataSource {
    * Filters by accounts and chains from the request.
    *
    * @param request - Data request with accounts and chainIds filters.
+   * @param getAssetsState - State access; when omitted, returns [].
    * @returns Array of CAIP-19 asset IDs from balance state.
    */
-  #getAssetIdsFromBalanceState(request: DataRequest): Caip19AssetId[] {
+  #getAssetIdsFromBalanceState(
+    request: DataRequest,
+    getAssetsState?: () => AssetsControllerStateInternal,
+  ): Caip19AssetId[] {
+    if (!getAssetsState) {
+      return [];
+    }
     try {
-      const state = this.#messenger.call('AssetsController:getState');
+      const state = getAssetsState();
       const assetIds = new Set<Caip19AssetId>();
 
-      const accountIds = request.accounts.map((a) => a.id);
+      const accountIds = request.accountsWithSupportedChains.map(
+        (a) => a.account.id,
+      );
       const accountFilter =
         accountIds.length > 0 ? new Set(accountIds) : undefined;
       const chainFilter =
@@ -404,10 +263,20 @@ export class PriceDataSource {
           for (const assetId of Object.keys(
             accountBalances as Record<string, unknown>,
           )) {
-            // Filter by chain if specified
+            // Filter by chain if specified; skip malformed asset IDs for this entry only
             if (chainFilter) {
-              const chainId = assetId.split('/')[0] as ChainId;
-              if (!chainFilter.has(chainId)) {
+              try {
+                const { chainId } = parseCaipAssetType(
+                  assetId as Caip19AssetId,
+                );
+                if (!chainFilter.has(chainId)) {
+                  continue;
+                }
+              } catch (error) {
+                log('Skipping malformed asset ID in balance state', {
+                  assetId,
+                  error,
+                });
                 continue;
               }
             }
@@ -429,16 +298,23 @@ export class PriceDataSource {
 
   /**
    * Fetch prices for assets held by the accounts and chains in the request.
-   * Gets asset IDs from balance state, filtered by request.accounts and request.chainIds.
+   * When getAssetsState is provided, gets asset IDs from balance state; otherwise returns empty.
    *
    * @param request - The data request specifying accounts and chains.
+   * @param getAssetsState - Optional state access (e.g. from SubscriptionRequest).
    * @returns DataResponse containing asset prices.
    */
-  async fetch(request: DataRequest): Promise<DataResponse> {
+  async fetch(
+    request: DataRequest,
+    getAssetsState?: () => AssetsControllerStateInternal,
+  ): Promise<DataResponse> {
     const response: DataResponse = {};
 
-    // Get asset IDs from balance state, filtered by accounts and chains
-    const rawAssetIds = this.#getAssetIdsFromBalanceState(request);
+    // Get asset IDs from balance state when state access is provided
+    const rawAssetIds = this.#getAssetIdsFromBalanceState(
+      request,
+      getAssetsState,
+    );
 
     // Filter out non-priceable assets (e.g., Tron bandwidth/energy resources)
     const assetIds = rawAssetIds.filter(isPriceableAsset);
@@ -448,10 +324,7 @@ export class PriceDataSource {
     }
 
     try {
-      const priceResponse = await this.#fetchSpotPrices(
-        [...assetIds],
-        true, // includeMarketData
-      );
+      const priceResponse = await this.#fetchSpotPrices([...assetIds]);
 
       response.assetsPrice = {};
 
@@ -462,8 +335,10 @@ export class PriceDataSource {
         }
 
         const caipAssetId = assetId as Caip19AssetId;
-        response.assetsPrice[caipAssetId] =
-          transformMarketDataToAssetPrice(marketData);
+        response.assetsPrice[caipAssetId] = {
+          ...marketData,
+          lastUpdated: Date.now(),
+        };
       }
     } catch (error) {
       log('Failed to fetch prices', { error });
@@ -499,7 +374,7 @@ export class PriceDataSource {
 
     const pollInterval = request.updateInterval ?? this.#pollInterval;
 
-    // Create poll function - fetches prices for all assets in balance state
+    // Create poll function - fetches prices using getAssetsState from subscription
     const pollFn = async (): Promise<void> => {
       try {
         const subscription = this.#activeSubscriptions.get(subscriptionId);
@@ -507,19 +382,18 @@ export class PriceDataSource {
           return;
         }
 
-        // Fetch prices for all assets currently in balance state
-        const fetchResponse = await this.fetch(subscription.request);
+        // Fetch prices for all assets in balance state (uses subscription's getAssetsState)
+        const fetchResponse = await this.fetch(
+          subscription.request,
+          subscription.getAssetsState,
+        );
 
         // Only report if we got prices
         if (
           fetchResponse.assetsPrice &&
           Object.keys(fetchResponse.assetsPrice).length > 0
         ) {
-          await this.#messenger.call(
-            'AssetsController:assetsUpdate',
-            fetchResponse,
-            CONTROLLER_NAME,
-          );
+          await subscription.onAssetsUpdate(fetchResponse);
         }
       } catch (error) {
         log('Subscription poll failed', { subscriptionId, error });
@@ -531,12 +405,14 @@ export class PriceDataSource {
       pollFn().catch(console.error);
     }, pollInterval);
 
-    // Store subscription
+    // Store subscription (getAssetsState from request for balance-based pricing)
     this.#activeSubscriptions.set(subscriptionId, {
       cleanup: () => {
         clearInterval(timer);
       },
       request,
+      onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
+      getAssetsState: subscriptionRequest.getAssetsState,
     });
 
     // Initial fetch

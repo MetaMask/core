@@ -38,6 +38,7 @@ import type {
   LinkRewardsRequest,
   StartCryptoSubscriptionResponse,
   StartSubscriptionResponse,
+  CancelSubscriptionRequest,
 } from './types';
 import type {
   ISubscriptionService,
@@ -110,6 +111,16 @@ export type SubscriptionControllerSubmitSponsorshipIntentsAction = {
   handler: SubscriptionController['submitSponsorshipIntents'];
 };
 
+export type SubscriptionControllerCacheLastSelectedPaymentMethodAction = {
+  type: `${typeof controllerName}:cacheLastSelectedPaymentMethod`;
+  handler: SubscriptionController['cacheLastSelectedPaymentMethod'];
+};
+
+export type SubscriptionControllerClearLastSelectedPaymentMethodAction = {
+  type: `${typeof controllerName}:clearLastSelectedPaymentMethod`;
+  handler: SubscriptionController['clearLastSelectedPaymentMethod'];
+};
+
 export type SubscriptionControllerLinkRewardsAction = {
   type: `${typeof controllerName}:linkRewards`;
   handler: SubscriptionController['linkRewards'];
@@ -138,7 +149,9 @@ export type SubscriptionControllerActions =
   | SubscriptionControllerGetBillingPortalUrlAction
   | SubscriptionControllerSubmitSponsorshipIntentsAction
   | SubscriptionControllerSubmitShieldSubscriptionCryptoApprovalAction
-  | SubscriptionControllerLinkRewardsAction;
+  | SubscriptionControllerLinkRewardsAction
+  | SubscriptionControllerCacheLastSelectedPaymentMethodAction
+  | SubscriptionControllerClearLastSelectedPaymentMethodAction;
 
 export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -352,6 +365,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
       `${controllerName}:linkRewards`,
       this.linkRewards.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:cacheLastSelectedPaymentMethod`,
+      this.cacheLastSelectedPaymentMethod.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:clearLastSelectedPaymentMethod`,
+      this.clearLastSelectedPaymentMethod.bind(this),
+    );
   }
 
   /**
@@ -450,13 +473,11 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     );
   }
 
-  async cancelSubscription(request: { subscriptionId: string }): Promise<void> {
+  async cancelSubscription(request: CancelSubscriptionRequest): Promise<void> {
     this.#assertIsUserSubscribed({ subscriptionId: request.subscriptionId });
 
     const cancelledSubscription =
-      await this.#subscriptionService.cancelSubscription({
-        subscriptionId: request.subscriptionId,
-      });
+      await this.#subscriptionService.cancelSubscription(request);
 
     this.update((state) => {
       state.subscriptions = state.subscriptions.map((subscription) =>
@@ -716,6 +737,21 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Clear the last selected payment method for a specific product.
+   *
+   * @param product - The product to clear the payment method for.
+   */
+  clearLastSelectedPaymentMethod(product: ProductType): void {
+    this.update((state) => {
+      if (state.lastSelectedPaymentMethod) {
+        const { [product]: _, ...rest } = state.lastSelectedPaymentMethod;
+        state.lastSelectedPaymentMethod =
+          rest as typeof state.lastSelectedPaymentMethod;
+      }
+    });
+  }
+
+  /**
    * Submit sponsorship intents to the Subscription Service backend.
    *
    * This is intended to be used together with the crypto subscription flow.
@@ -908,6 +944,16 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   }
 
   /**
+   * Clears the subscription state and resets to default values.
+   */
+  clearState(): void {
+    const defaultState = getDefaultSubscriptionControllerState();
+    this.update(() => {
+      return defaultState;
+    });
+  }
+
+  /**
    * Triggers an access token refresh.
    */
   triggerAccessTokenRefresh(): void {
@@ -995,8 +1041,7 @@ export class SubscriptionController extends StaticIntervalPollingController()<
     value: CachedLastSelectedPaymentMethod | undefined,
   ): asserts value is Required<CachedLastSelectedPaymentMethod> {
     if (
-      !value ||
-      value.type !== PAYMENT_TYPES.byCrypto ||
+      value?.type !== PAYMENT_TYPES.byCrypto ||
       !value.paymentTokenAddress ||
       !value.paymentTokenSymbol
     ) {

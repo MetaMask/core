@@ -1,4 +1,6 @@
 import { publicToAddress } from '@ethereumjs/util';
+import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
+import { AccountCreationType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -25,19 +27,25 @@ import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_ACCOUNT_2,
   MOCK_HD_KEYRING_1,
+  MOCK_SOL_ACCOUNT_1,
   MockAccountBuilder,
+  mockAsInternalAccount,
+  RootMessenger,
 } from '../tests';
-import type { RootMessenger } from '../tests';
 
-jest.mock('@ethereumjs/util', () => ({
-  publicToAddress: jest.fn(),
-}));
+jest.mock('@ethereumjs/util', () => {
+  const actual = jest.requireActual('@ethereumjs/util');
+  return {
+    ...actual,
+    publicToAddress: jest.fn(),
+  };
+});
 
-function mockNextDiscoveryAddress(address: string) {
+function mockNextDiscoveryAddress(address: string): void {
   jest.mocked(publicToAddress).mockReturnValue(createBytes(address as Hex));
 }
 
-function mockNextDiscoveryAddressOnce(address: string) {
+function mockNextDiscoveryAddressOnce(address: string): void {
   jest.mocked(publicToAddress).mockReturnValueOnce(createBytes(address as Hex));
 }
 
@@ -72,11 +80,11 @@ class MockEthKeyring implements EthKeyring {
     this.root = mockHdKey();
   }
 
-  async serialize() {
+  async serialize(): Promise<string> {
     return 'serialized';
   }
 
-  async deserialize(_: string) {
+  async deserialize(_: string): Promise<void> {
     // Not required.
   }
 
@@ -139,22 +147,38 @@ function setup({
   messenger: RootMessenger;
   keyring: MockEthKeyring;
   mocks: {
-    getAccountByAddress: jest.Mock;
     mockProviderRequest: jest.Mock;
+    mockGetAccount: jest.Mock;
   };
 } {
   const keyring = new MockEthKeyring(accounts);
 
   messenger.registerActionHandler(
-    'AccountsController:listMultichainAccounts',
+    'AccountsController:getAccounts',
     () => accounts,
   );
 
-  const mockGetAccountByAddress = jest
-    .fn()
-    .mockImplementation((address: string) =>
-      keyring.accounts.find((account) => account.address === address),
+  const mockGetAccount = jest.fn().mockImplementation((id) => {
+    return keyring.accounts.find(
+      (account) =>
+        account.id === id ||
+        getUUIDFromAddressOfNormalAccount(account.address) === id,
     );
+  });
+
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
+  );
+
+  const mockGetAccountByAddress = jest.fn().mockImplementation((address) => {
+    return keyring.accounts.find((account) => account.address === address);
+  });
+
+  messenger.registerActionHandler(
+    'AccountsController:getAccountByAddress',
+    mockGetAccountByAddress,
+  );
 
   const mockProviderRequest = jest.fn().mockImplementation(({ method }) => {
     if (method === 'eth_getTransactionCount') {
@@ -162,11 +186,6 @@ function setup({
     }
     throw new Error(`Unknown method: ${method}`);
   });
-
-  messenger.registerActionHandler(
-    'AccountsController:getAccountByAddress',
-    mockGetAccountByAddress,
-  );
 
   messenger.registerActionHandler(
     'KeyringController:withKeyring',
@@ -198,13 +217,16 @@ function setup({
     config,
   );
 
+  const accountIds = accounts.map((account) => account.id);
+  provider.init(accountIds);
+
   return {
     provider,
     messenger,
     keyring,
     mocks: {
-      getAccountByAddress: mockGetAccountByAddress,
       mockProviderRequest,
+      mockGetAccount,
     },
   };
 }
@@ -225,12 +247,15 @@ describe('EvmAccountProvider', () => {
   });
 
   it('gets a specific account', () => {
-    const account = MOCK_HD_ACCOUNT_1;
+    const customId = 'custom-id-123';
+    const account = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+      .withId(customId)
+      .get();
     const { provider } = setup({
       accounts: [account],
     });
 
-    expect(provider.getAccount(account.id)).toStrictEqual(account);
+    expect(provider.getAccount(customId)).toStrictEqual(account);
   });
 
   it('throws if account does not exist', () => {
@@ -245,6 +270,22 @@ describe('EvmAccountProvider', () => {
     );
   });
 
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_SOL_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(false);
+  });
+
   it('does not re-create accounts (idempotent)', async () => {
     const accounts = [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2];
     const { provider } = setup({
@@ -252,6 +293,7 @@ describe('EvmAccountProvider', () => {
     });
 
     const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndex,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       groupIndex: 0,
     });
@@ -265,13 +307,14 @@ describe('EvmAccountProvider', () => {
       accounts,
     });
 
-    mocks.getAccountByAddress.mockReturnValue({
-      ...MOCK_HD_ACCOUNT_1,
+    mocks.mockGetAccount.mockReturnValue({
+      ...mockAsInternalAccount(MOCK_HD_ACCOUNT_1),
       options: {}, // No options, so it cannot be BIP-44 compatible.
     });
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       }),
@@ -285,6 +328,7 @@ describe('EvmAccountProvider', () => {
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 10,
       }),
@@ -297,14 +341,32 @@ describe('EvmAccountProvider', () => {
     });
 
     // Simulate an account not found.
-    mocks.getAccountByAddress.mockImplementation(() => undefined);
+    mocks.mockGetAccount.mockImplementation(() => undefined);
 
     await expect(
       provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 1,
       }),
     ).rejects.toThrow('Internal account does not exist');
+  });
+
+  it('throws an error when type is not "bip44:derive-index"', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_HD_ACCOUNT_1],
+    });
+
+    await expect(
+      provider.createAccounts({
+        // @ts-expect-error Testing invalid type handling.
+        type: 'unsupported-type',
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      }),
+    ).rejects.toThrow(
+      'Unsupported create account option type: unsupported-type',
+    );
   });
 
   it('discover accounts at the next group index', async () => {

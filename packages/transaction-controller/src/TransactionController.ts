@@ -3,6 +3,7 @@ import type {
   AccountsController,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetStateAction,
+  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
@@ -22,6 +23,11 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
+import type {
+  AccountActivityServiceStatusChangedEvent,
+  AccountActivityServiceTransactionUpdatedEvent,
+  BackendWebSocketServiceConnectionStateChangedEvent,
+} from '@metamask/core-backend';
 import EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
@@ -602,7 +608,12 @@ export type AllowedActions =
 /**
  * The external events available to the {@link TransactionController}.
  */
-export type AllowedEvents = NetworkControllerStateChangeEvent;
+export type AllowedEvents =
+  | AccountActivityServiceStatusChangedEvent
+  | AccountActivityServiceTransactionUpdatedEvent
+  | AccountsControllerSelectedAccountChangeEvent
+  | BackendWebSocketServiceConnectionStateChangedEvent
+  | NetworkControllerStateChangeEvent;
 
 /**
  * Represents the `TransactionController:stateChange` event.
@@ -1274,6 +1285,7 @@ export class TransactionController extends BaseController<
       origin,
       publishHook,
       requestId,
+      requiredAssets,
       requireApproval,
       securityAlertResponse,
       skipInitialGasEstimate,
@@ -1372,6 +1384,7 @@ export class TransactionController extends BaseController<
           networkClientId,
           origin,
           requestId,
+          requiredAssets,
           securityAlertResponse,
           selectedGasFeeToken: gasFeeToken,
           status: TransactionStatus.unapproved as const,

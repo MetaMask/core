@@ -1,26 +1,27 @@
 /* eslint-disable jest/unbound-method */
 import type {
+  ApiPlatformClient,
   ServerNotificationMessage,
   WebSocketSubscription,
 } from '@metamask/core-backend';
 import { WebSocketState } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type {
-  MockAnyNamespace,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 
-import type { BackendWebsocketDataSourceMessenger } from './BackendWebsocketDataSource';
 import {
   BackendWebsocketDataSource,
   createBackendWebsocketDataSource,
 } from './BackendWebsocketDataSource';
+import type {
+  BackendWebsocketDataSourceAllowedActions,
+  BackendWebsocketDataSourceAllowedEvents,
+} from './BackendWebsocketDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import type { ChainId, DataRequest } from '../types';
 
-type AllActions = MessengerActions<BackendWebsocketDataSourceMessenger>;
-type AllEvents = MessengerEvents<BackendWebsocketDataSourceMessenger>;
+type AllActions = BackendWebsocketDataSourceAllowedActions;
+type AllEvents = BackendWebsocketDataSourceAllowedEvents;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
@@ -60,12 +61,20 @@ function createMockAccount(
   } as InternalAccount;
 }
 
-function createDataRequest(overrides?: Partial<DataRequest>): DataRequest {
+function createDataRequest(
+  overrides?: Partial<DataRequest> & { accounts?: InternalAccount[] },
+): DataRequest {
+  const chainIds = overrides?.chainIds ?? [CHAIN_MAINNET];
+  const accounts = overrides?.accounts ?? [createMockAccount()];
+  const { accounts: _a, ...rest } = overrides ?? {};
   return {
-    chainIds: [CHAIN_MAINNET],
-    accounts: [createMockAccount()],
+    chainIds,
+    accountsWithSupportedChains: accounts.map((a) => ({
+      account: a,
+      supportedChains: chainIds,
+    })),
     dataTypes: ['balance'],
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -106,8 +115,8 @@ function setupController(
 
   const controllerMessenger = new Messenger<
     'BackendWebsocketDataSource',
-    MessengerActions<BackendWebsocketDataSourceMessenger>,
-    MessengerEvents<BackendWebsocketDataSourceMessenger>,
+    AllActions,
+    AllEvents,
     RootMessenger
   >({
     namespace: 'BackendWebsocketDataSource',
@@ -117,16 +126,11 @@ function setupController(
   rootMessenger.delegate({
     messenger: controllerMessenger,
     actions: [
-      'AssetsController:assetsUpdate',
-      'AssetsController:activeChainsUpdate',
       'BackendWebSocketService:subscribe',
       'BackendWebSocketService:getConnectionInfo',
       'BackendWebSocketService:findSubscriptionsByChannelPrefix',
     ],
-    events: [
-      'BackendWebSocketService:connectionStateChanged',
-      'AccountsApiDataSource:activeChainsUpdated',
-    ],
+    events: ['BackendWebSocketService:connectionStateChanged'],
   });
 
   const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
@@ -146,14 +150,6 @@ function setupController(
   const findSubscriptionsMock = jest.fn().mockReturnValue([]);
 
   rootMessenger.registerActionHandler(
-    'AssetsController:assetsUpdate',
-    assetsUpdateHandler,
-  );
-  rootMessenger.registerActionHandler(
-    'AssetsController:activeChainsUpdate',
-    activeChainsUpdateHandler,
-  );
-  rootMessenger.registerActionHandler(
     'BackendWebSocketService:subscribe',
     wsSubscribeMock,
   );
@@ -166,8 +162,22 @@ function setupController(
     findSubscriptionsMock,
   );
 
+  const queryApiClient = {
+    accounts: {
+      fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+        fullSupport: initialActiveChains.map((chainId) => {
+          const [, ref] = chainId.split(':');
+          return parseInt(ref, 10);
+        }),
+      }),
+    },
+  };
+
   const controller = new BackendWebsocketDataSource({
-    messenger: controllerMessenger,
+    messenger: controllerMessenger as unknown as AssetsControllerMessenger,
+    queryApiClient: queryApiClient as unknown as ApiPlatformClient,
+    onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
+      activeChainsUpdateHandler(dataSourceName, chains, previousChains),
     state: { activeChains: initialActiveChains },
   });
 
@@ -184,7 +194,12 @@ function setupController(
   };
 
   const triggerActiveChainsUpdate = (chains: ChainId[]): void => {
-    rootMessenger.publish('AccountsApiDataSource:activeChainsUpdated', chains);
+    controller.setActiveChainsFromAccountsApi(chains);
+    activeChainsUpdateHandler(
+      'BackendWebsocketDataSource',
+      chains,
+      initialActiveChains,
+    );
   };
 
   return {
@@ -211,12 +226,10 @@ describe('BackendWebsocketDataSource', () => {
     controller.destroy();
   });
 
-  it('registers action handlers', async () => {
-    const { controller, messenger } = setupController();
+  it('exposes getActiveChains on instance', async () => {
+    const { controller } = setupController();
 
-    const chains = await messenger.call(
-      'BackendWebsocketDataSource:getActiveChains',
-    );
+    const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([]);
 
     controller.destroy();
@@ -233,6 +246,7 @@ describe('BackendWebsocketDataSource', () => {
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
       'BackendWebsocketDataSource',
       [CHAIN_MAINNET, CHAIN_POLYGON],
+      [],
     );
 
     controller.destroy();
@@ -248,23 +262,34 @@ describe('BackendWebsocketDataSource', () => {
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
       'BackendWebsocketDataSource',
       [CHAIN_MAINNET, CHAIN_BASE],
+      [],
     );
 
     controller.destroy();
   });
 
-  it('subscribe does nothing when no chains match active chains', async () => {
+  it('subscribe creates eip155 channel when no request chains match (eip155 account only)', async () => {
     const { controller, wsSubscribeMock } = setupController({
       initialActiveChains: [CHAIN_MAINNET],
+      connectionState: WebSocketState.CONNECTED,
     });
 
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest({ chainIds: [CHAIN_POLYGON] }),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
-    expect(wsSubscribeMock).not.toHaveBeenCalled();
+    expect(wsSubscribeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channels: [
+          `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`,
+        ],
+        channelType: 'account-activity.v1',
+        callback: expect.any(Function),
+      }),
+    );
 
     controller.destroy();
   });
@@ -279,8 +304,10 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
+    // EIP-155 account only -> eip155 channel with lowercase hex
     expect(wsSubscribeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         channels: [
@@ -309,6 +336,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(wsSubscribeMock).not.toHaveBeenCalled();
@@ -331,7 +359,8 @@ describe('BackendWebsocketDataSource', () => {
     controller.destroy();
   });
 
-  it('subscribe creates channels for multiple namespaces', async () => {
+  it('subscribe creates channels for multiple namespaces with correct address format per namespace', async () => {
+    const solanaAddress = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
     const { controller, wsSubscribeMock } = setupController({
       initialActiveChains: [
         CHAIN_MAINNET,
@@ -347,15 +376,34 @@ describe('BackendWebsocketDataSource', () => {
           CHAIN_MAINNET,
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId,
         ],
+        accountsWithSupportedChains: [
+          {
+            account: createMockAccount(),
+            supportedChains: [CHAIN_MAINNET],
+          },
+          {
+            account: createMockAccount({
+              id: 'solana-account-id',
+              address: solanaAddress,
+              type: 'solana:data-account',
+              scopes: ['solana:0'],
+            }),
+            supportedChains: [
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId,
+            ],
+          },
+        ],
       }),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
+    // EIP-155: lowercase hex; Solana: base58 as-is
     expect(wsSubscribeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         channels: expect.arrayContaining([
           `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`,
-          `account-activity.v1.solana:0:${MOCK_ADDRESS.toLowerCase()}`,
+          `account-activity.v1.solana:0:${solanaAddress}`,
         ]),
       }),
     );
@@ -373,6 +421,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(wsSubscribeMock).toHaveBeenCalledTimes(1);
@@ -381,6 +430,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
       isUpdate: true,
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(wsSubscribeMock).toHaveBeenCalledTimes(1);
@@ -398,6 +448,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(wsSubscribeMock).toHaveBeenCalledTimes(1);
@@ -406,9 +457,16 @@ describe('BackendWebsocketDataSource', () => {
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest({
-        accounts: [createMockAccount({ address: newAddress })],
+        accountsWithSupportedChains: [
+          {
+            account: createMockAccount({ address: newAddress }),
+            supportedChains: [CHAIN_MAINNET],
+          },
+        ],
+        chainIds: [CHAIN_MAINNET],
       }),
       isUpdate: true,
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(wsSubscribeMock).toHaveBeenCalledTimes(2);
@@ -429,6 +487,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     await controller.unsubscribe('sub-1');
@@ -453,6 +512,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(wsSubscribeMock).toHaveBeenCalledTimes(1);
@@ -507,6 +567,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest({ chainIds: [CHAIN_BASE] }),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     const notification = createMockNotification({
@@ -539,7 +600,7 @@ describe('BackendWebsocketDataSource', () => {
             'eip155:8453/slip44:60': { amount: '10000000000000000000' },
           }),
         }),
-        assetsMetadata: expect.objectContaining({
+        assetsInfo: expect.objectContaining({
           'eip155:8453/slip44:60': expect.objectContaining({
             type: 'native',
             symbol: 'ETH',
@@ -547,7 +608,6 @@ describe('BackendWebsocketDataSource', () => {
           }),
         }),
       }),
-      'BackendWebsocketDataSource',
     );
 
     controller.destroy();
@@ -573,6 +633,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
     });
 
     const notification = createMockNotification({
@@ -607,7 +668,7 @@ describe('BackendWebsocketDataSource', () => {
             },
           }),
         }),
-        assetsMetadata: expect.objectContaining({
+        assetsInfo: expect.objectContaining({
           'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48':
             expect.objectContaining({
               type: 'erc20',
@@ -616,7 +677,6 @@ describe('BackendWebsocketDataSource', () => {
             }),
         }),
       }),
-      'BackendWebsocketDataSource',
     );
 
     controller.destroy();
@@ -642,6 +702,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     notificationCallback(
@@ -675,6 +736,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     notificationCallback(
@@ -714,6 +776,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     notificationCallback(
@@ -747,6 +810,7 @@ describe('BackendWebsocketDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
+      onAssetsUpdate: jest.fn(),
     });
 
     controller.destroy();
@@ -765,8 +829,8 @@ describe('BackendWebsocketDataSource', () => {
 
     const controllerMessenger = new Messenger<
       'BackendWebsocketDataSource',
-      MessengerActions<BackendWebsocketDataSourceMessenger>,
-      MessengerEvents<BackendWebsocketDataSourceMessenger>,
+      AllActions,
+      AllEvents,
       RootMessenger
     >({
       namespace: 'BackendWebsocketDataSource',
@@ -776,26 +840,13 @@ describe('BackendWebsocketDataSource', () => {
     rootMessenger.delegate({
       messenger: controllerMessenger,
       actions: [
-        'AssetsController:assetsUpdate',
-        'AssetsController:activeChainsUpdate',
         'BackendWebSocketService:subscribe',
         'BackendWebSocketService:getConnectionInfo',
         'BackendWebSocketService:findSubscriptionsByChannelPrefix',
       ],
-      events: [
-        'BackendWebSocketService:connectionStateChanged',
-        'AccountsApiDataSource:activeChainsUpdated',
-      ],
+      events: ['BackendWebSocketService:connectionStateChanged'],
     });
 
-    rootMessenger.registerActionHandler(
-      'AssetsController:assetsUpdate',
-      jest.fn(),
-    );
-    rootMessenger.registerActionHandler(
-      'AssetsController:activeChainsUpdate',
-      jest.fn(),
-    );
     rootMessenger.registerActionHandler(
       'BackendWebSocketService:subscribe',
       jest.fn(),
@@ -817,8 +868,18 @@ describe('BackendWebsocketDataSource', () => {
       jest.fn(),
     );
 
+    const queryApiClient = {
+      accounts: {
+        fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fullSupport: [],
+        }),
+      },
+    };
+
     const instance = createBackendWebsocketDataSource({
-      messenger: controllerMessenger,
+      messenger: controllerMessenger as unknown as AssetsControllerMessenger,
+      queryApiClient: queryApiClient as unknown as ApiPlatformClient,
+      onActiveChainsUpdated: jest.fn(),
     });
 
     expect(instance).toBeInstanceOf(BackendWebsocketDataSource);

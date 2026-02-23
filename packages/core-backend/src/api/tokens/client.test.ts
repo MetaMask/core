@@ -82,8 +82,16 @@ describe('TokensApiClient', () => {
           name: 'Test Token',
           symbol: 'TKN',
           decimals: 18,
-          address: '0xtoken',
-          chainId: 1,
+          iconUrl: 'https://example.com/icon.png',
+          coingeckoId: 'test-token',
+          occurrences: 5,
+          aggregators: ['metamask'],
+          labels: ['defi'],
+          erc20Permit: true,
+          fees: { avgFee: 0, maxFee: 0, minFee: 0 },
+          honeypotStatus: { honeypotIs: false },
+          storage: { balance: 1, approval: 2 },
+          isContractVerified: true,
         },
       ];
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
@@ -97,6 +105,28 @@ describe('TokensApiClient', () => {
         expect.stringContaining('/v3/assets'),
         expect.any(Object),
       );
+    });
+
+    it('returns empty array for empty assetIds', async () => {
+      const result = await client.tokens.fetchV3Assets([]);
+
+      expect(result).toStrictEqual([]);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV3AssetsQueryOptions queryFn returns [] for empty assetIds without calling fetch', async () => {
+      const options = client.tokens.getV3AssetsQueryOptions([]);
+      if (!options.queryFn) {
+        throw new Error('queryFn is required');
+      }
+      const result = await options.queryFn({
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual([]);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

@@ -56,12 +56,24 @@ export type RelayQuote = {
     relayer: {
       amountUsd: string;
     };
+    subsidized?: {
+      amount: string;
+      amountFormatted: string;
+      amountUsd: string;
+      currency: {
+        address: Hex;
+        chainId: number;
+        decimals: number;
+      };
+      minimumAmount: string;
+    };
   };
   metamask: {
     gasLimits: number[];
   };
   request: RelayQuoteRequest;
   steps: {
+    id: string;
     items: {
       check: {
         endpoint: string;

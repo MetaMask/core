@@ -1,12 +1,17 @@
 import type { V3AssetResponse } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
-import type { Messenger } from '@metamask/messenger';
 import { parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
+import { isStakingContractAssetId } from './evm-rpc-services';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
-import type { Caip19AssetId, AssetMetadata, Middleware } from '../types';
+import type {
+  Caip19AssetId,
+  AssetMetadata,
+  Middleware,
+  FungibleAssetMetadata,
+} from '../types';
 
 // ============================================================================
 // CONSTANTS
@@ -21,36 +26,16 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 // ============================================================================
 
 /**
- * Action to get the TokenDataSource middleware.
- */
-export type TokenDataSourceGetAssetsMiddlewareAction = {
-  type: `${typeof CONTROLLER_NAME}:getAssetsMiddleware`;
-  handler: () => Middleware;
-};
-
-/**
- * All actions exposed by TokenDataSource.
- */
-export type TokenDataSourceActions = TokenDataSourceGetAssetsMiddlewareAction;
-
-/**
- * TokenDataSource no longer needs external BackendApiClient actions.
+ * TokenDataSource does not call external messenger actions.
  * It uses ApiPlatformClient directly.
  */
 export type TokenDataSourceAllowedActions = never;
-
-export type TokenDataSourceMessenger = Messenger<
-  typeof CONTROLLER_NAME,
-  TokenDataSourceActions,
-  never
->;
 
 // ============================================================================
 // OPTIONS
 // ============================================================================
 
 export type TokenDataSourceOptions = {
-  messenger: TokenDataSourceMessenger;
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
 };
@@ -59,6 +44,18 @@ export type TokenDataSourceOptions = {
 // HELPER FUNCTIONS
 // ============================================================================
 
+/**
+ * Transform V3 API response to FungibleAssetMetadata for state storage.
+ *
+ * Mapping:
+ * - assetId → used to derive `type` (native/erc20/spl)
+ * - iconUrl → image
+ * - All other fields map directly
+ *
+ * @param assetId - CAIP-19 asset ID used to derive token type.
+ * @param assetData - V3 API response data.
+ * @returns FungibleAssetMetadata for state storage.
+ */
 function transformV3AssetResponseToMetadata(
   assetId: string,
   assetData: V3AssetResponse,
@@ -72,13 +69,28 @@ function transformV3AssetResponseToMetadata(
     tokenType = 'spl';
   }
 
-  return {
+  const metadata: FungibleAssetMetadata = {
+    // Type derived from assetId
     type: tokenType,
+    // BaseAssetMetadata fields
     name: assetData.name,
     symbol: assetData.symbol,
     decimals: assetData.decimals,
-    image: assetData.iconUrl ?? assetData.iconUrlThumbnail,
+    image: assetData.iconUrl,
+    // Direct mapping fields
+    coingeckoId: assetData.coingeckoId,
+    occurrences: assetData.occurrences,
+    aggregators: assetData.aggregators,
+    labels: assetData.labels,
+    erc20Permit: assetData.erc20Permit,
+    fees: assetData.fees,
+    honeypotStatus: assetData.honeypotStatus,
+    storage: assetData.storage,
+    isContractVerified: assetData.isContractVerified,
+    description: assetData.description,
   };
+
+  return metadata;
 }
 
 // ============================================================================
@@ -93,27 +105,20 @@ function transformV3AssetResponseToMetadata(
  * - Fetches metadata from Tokens API v3 for assets needing enrichment
  * - Merges fetched metadata into the response
  *
- * Usage:
- * ```typescript
- * // Create and initialize (registers messenger actions)
- * const tokenDataSource = new TokenDataSource({ messenger, queryApiClient });
- *
- * // Later, get middleware via messenger
- * const middleware = messenger.call('TokenDataSource:getAssetsMiddleware');
- * ```
+ * Usage: Create with queryApiClient and use assetsMiddleware; no messenger required.
  */
 export class TokenDataSource {
   readonly name = CONTROLLER_NAME;
 
-  readonly #messenger: TokenDataSourceMessenger;
+  getName(): string {
+    return this.name;
+  }
 
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
   constructor(options: TokenDataSourceOptions) {
-    this.#messenger = options.messenger;
     this.#apiClient = options.queryApiClient;
-    this.#registerActionHandlers();
   }
 
   /**
@@ -164,14 +169,6 @@ export class TokenDataSource {
     });
   }
 
-  #registerActionHandlers(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (this.#messenger as any).registerActionHandler(
-      'TokenDataSource:getAssetsMiddleware',
-      () => this.assetsMiddleware,
-    );
-  }
-
   /**
    * Get the middleware for enriching responses with token metadata.
    *
@@ -193,13 +190,13 @@ export class TokenDataSource {
         return next(ctx);
       }
 
-      const { assetsMetadata: stateMetadata } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
 
       for (const detectedIds of Object.values(response.detectedAssets)) {
         for (const assetId of detectedIds) {
           // Skip if response already has metadata with image
-          const responseMetadata = response.assetsMetadata?.[assetId];
+          const responseMetadata = response.assetsInfo?.[assetId];
           if (responseMetadata?.image) {
             continue;
           }
@@ -207,6 +204,11 @@ export class TokenDataSource {
           // Skip if state already has metadata with image
           const existingMetadata = stateMetadata[assetId];
           if (existingMetadata?.image) {
+            continue;
+          }
+
+          // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
+          if (isStakingContractAssetId(assetId)) {
             continue;
           }
 
@@ -232,15 +234,25 @@ export class TokenDataSource {
       try {
         // Use ApiPlatformClient for fetching asset metadata
         // API returns an array with assetId as a property on each item
-        const metadataResponse =
-          await this.#apiClient.tokens.fetchV3Assets(supportedAssetIds);
+        const metadataResponse = await this.#apiClient.tokens.fetchV3Assets(
+          supportedAssetIds,
+          {
+            includeIconUrl: true,
+            includeMarketData: true,
+            includeMetadata: true,
+            includeLabels: true,
+            includeRwaData: true,
+          },
+        );
 
-        response.assetsMetadata ??= {};
+        response.assetsInfo ??= {};
 
         for (const assetData of metadataResponse) {
           const caipAssetId = assetData.assetId as Caip19AssetId;
-          response.assetsMetadata[caipAssetId] =
-            transformV3AssetResponseToMetadata(assetData.assetId, assetData);
+          response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
+            assetData.assetId,
+            assetData,
+          );
         }
       } catch (error) {
         log('Failed to fetch metadata', { error });

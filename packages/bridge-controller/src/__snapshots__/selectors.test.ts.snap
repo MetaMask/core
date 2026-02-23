@@ -1,0 +1,1210 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Bridge Selectors selectBridgeQuotes should return sorted quotes with metadata 1`] = `
+{
+  "activeQuote": {
+    "adjustedReturn": {
+      "usd": "13.099927",
+      "valueInCurrency": "2597.985546",
+    },
+    "approval": {
+      "effectiveGas": "46000",
+      "gasLimit": "49000",
+    },
+    "cost": {
+      "usd": "-2.099927",
+      "valueInCurrency": "-419.985546",
+    },
+    "estimatedProcessingTimeInSeconds": 300,
+    "gasFee": {
+      "effective": {
+        "amount": "0.0000067",
+        "usd": "0.000067",
+        "valueInCurrency": "0.013266",
+      },
+      "max": {
+        "amount": "0.0000146",
+        "usd": "0.000146",
+        "valueInCurrency": "0.028908",
+      },
+      "total": {
+        "amount": "0.0000073",
+        "usd": "0.000073",
+        "valueInCurrency": "0.014454",
+      },
+    },
+    "includedTxFees": null,
+    "minToTokenAmount": {
+      "amount": "1.8",
+      "usd": "1.8",
+      "valueInCurrency": "360",
+    },
+    "quote": {
+      "bridgeId": "bridge1",
+      "bridges": [
+        "bridge1",
+      ],
+      "destAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "destChainId": "137",
+      "destTokenAmount": "2100000000000000000",
+      "feeData": {
+        "metabridge": {
+          "amount": "100000000000000000",
+          "asset": {
+            "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          },
+        },
+      },
+      "minDestTokenAmount": "1800000000000000000",
+      "requestId": "456",
+      "srcAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "srcChainId": "1",
+      "srcTokenAmount": "1000000000000000000",
+      "steps": [
+        "step1",
+      ],
+    },
+    "sentAmount": {
+      "amount": "1.1",
+      "usd": "11",
+      "valueInCurrency": "2178",
+    },
+    "swapRate": "1.90909090909090909091",
+    "toTokenAmount": {
+      "amount": "2.1",
+      "usd": "2.1",
+      "valueInCurrency": "420",
+    },
+    "totalMaxNetworkFee": {
+      "amount": "-1.0999854",
+      "usd": "-10.999854",
+      "valueInCurrency": "-2177.971092",
+    },
+    "totalNetworkFee": {
+      "amount": "-1.0999927",
+      "usd": "-10.999927",
+      "valueInCurrency": "-2177.985546",
+    },
+    "trade": {
+      "effectiveGas": "21000",
+      "gasLimit": "24000",
+      "value": "0x0",
+    },
+  },
+  "isLoading": false,
+  "isQuoteGoingToRefresh": true,
+  "quoteFetchError": null,
+  "quotesRefreshCount": 0,
+  "recommendedQuote": {
+    "adjustedReturn": {
+      "usd": "13.099927",
+      "valueInCurrency": "2597.985546",
+    },
+    "approval": {
+      "effectiveGas": "46000",
+      "gasLimit": "49000",
+    },
+    "cost": {
+      "usd": "-2.099927",
+      "valueInCurrency": "-419.985546",
+    },
+    "estimatedProcessingTimeInSeconds": 300,
+    "gasFee": {
+      "effective": {
+        "amount": "0.0000067",
+        "usd": "0.000067",
+        "valueInCurrency": "0.013266",
+      },
+      "max": {
+        "amount": "0.0000146",
+        "usd": "0.000146",
+        "valueInCurrency": "0.028908",
+      },
+      "total": {
+        "amount": "0.0000073",
+        "usd": "0.000073",
+        "valueInCurrency": "0.014454",
+      },
+    },
+    "includedTxFees": null,
+    "minToTokenAmount": {
+      "amount": "1.8",
+      "usd": "1.8",
+      "valueInCurrency": "360",
+    },
+    "quote": {
+      "bridgeId": "bridge1",
+      "bridges": [
+        "bridge1",
+      ],
+      "destAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "destChainId": "137",
+      "destTokenAmount": "2100000000000000000",
+      "feeData": {
+        "metabridge": {
+          "amount": "100000000000000000",
+          "asset": {
+            "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          },
+        },
+      },
+      "minDestTokenAmount": "1800000000000000000",
+      "requestId": "456",
+      "srcAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "srcChainId": "1",
+      "srcTokenAmount": "1000000000000000000",
+      "steps": [
+        "step1",
+      ],
+    },
+    "sentAmount": {
+      "amount": "1.1",
+      "usd": "11",
+      "valueInCurrency": "2178",
+    },
+    "swapRate": "1.90909090909090909091",
+    "toTokenAmount": {
+      "amount": "2.1",
+      "usd": "2.1",
+      "valueInCurrency": "420",
+    },
+    "totalMaxNetworkFee": {
+      "amount": "-1.0999854",
+      "usd": "-10.999854",
+      "valueInCurrency": "-2177.971092",
+    },
+    "totalNetworkFee": {
+      "amount": "-1.0999927",
+      "usd": "-10.999927",
+      "valueInCurrency": "-2177.985546",
+    },
+    "trade": {
+      "effectiveGas": "21000",
+      "gasLimit": "24000",
+      "value": "0x0",
+    },
+  },
+  "sortedQuotes": [
+    {
+      "adjustedReturn": {
+        "usd": "13.099927",
+        "valueInCurrency": "2597.985546",
+      },
+      "approval": {
+        "effectiveGas": "46000",
+        "gasLimit": "49000",
+      },
+      "cost": {
+        "usd": "-2.099927",
+        "valueInCurrency": "-419.985546",
+      },
+      "estimatedProcessingTimeInSeconds": 300,
+      "gasFee": {
+        "effective": {
+          "amount": "0.0000067",
+          "usd": "0.000067",
+          "valueInCurrency": "0.013266",
+        },
+        "max": {
+          "amount": "0.0000146",
+          "usd": "0.000146",
+          "valueInCurrency": "0.028908",
+        },
+        "total": {
+          "amount": "0.0000073",
+          "usd": "0.000073",
+          "valueInCurrency": "0.014454",
+        },
+      },
+      "includedTxFees": null,
+      "minToTokenAmount": {
+        "amount": "1.8",
+        "usd": "1.8",
+        "valueInCurrency": "360",
+      },
+      "quote": {
+        "bridgeId": "bridge1",
+        "bridges": [
+          "bridge1",
+        ],
+        "destAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "destChainId": "137",
+        "destTokenAmount": "2100000000000000000",
+        "feeData": {
+          "metabridge": {
+            "amount": "100000000000000000",
+            "asset": {
+              "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+            },
+          },
+        },
+        "minDestTokenAmount": "1800000000000000000",
+        "requestId": "456",
+        "srcAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "srcChainId": "1",
+        "srcTokenAmount": "1000000000000000000",
+        "steps": [
+          "step1",
+        ],
+      },
+      "sentAmount": {
+        "amount": "1.1",
+        "usd": "11",
+        "valueInCurrency": "2178",
+      },
+      "swapRate": "1.90909090909090909091",
+      "toTokenAmount": {
+        "amount": "2.1",
+        "usd": "2.1",
+        "valueInCurrency": "420",
+      },
+      "totalMaxNetworkFee": {
+        "amount": "-1.0999854",
+        "usd": "-10.999854",
+        "valueInCurrency": "-2177.971092",
+      },
+      "totalNetworkFee": {
+        "amount": "-1.0999927",
+        "usd": "-10.999927",
+        "valueInCurrency": "-2177.985546",
+      },
+      "trade": {
+        "effectiveGas": "21000",
+        "gasLimit": "24000",
+        "value": "0x0",
+      },
+    },
+    {
+      "adjustedReturn": {
+        "usd": "12.999927",
+        "valueInCurrency": "2577.985546",
+      },
+      "approval": {
+        "effectiveGas": "46000",
+        "gasLimit": "49000",
+      },
+      "cost": {
+        "usd": "-1.999927",
+        "valueInCurrency": "-399.985546",
+      },
+      "estimatedProcessingTimeInSeconds": 300,
+      "gasFee": {
+        "effective": {
+          "amount": "0.0000067",
+          "usd": "0.000067",
+          "valueInCurrency": "0.013266",
+        },
+        "max": {
+          "amount": "0.0000146",
+          "usd": "0.000146",
+          "valueInCurrency": "0.028908",
+        },
+        "total": {
+          "amount": "0.0000073",
+          "usd": "0.000073",
+          "valueInCurrency": "0.014454",
+        },
+      },
+      "includedTxFees": null,
+      "minToTokenAmount": {
+        "amount": "1.8",
+        "usd": "1.8",
+        "valueInCurrency": "360",
+      },
+      "quote": {
+        "bridgeId": "bridge1",
+        "bridges": [
+          "bridge1",
+        ],
+        "destAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "destChainId": "137",
+        "destTokenAmount": "2000000000000000000",
+        "feeData": {
+          "metabridge": {
+            "amount": "100000000000000000",
+            "asset": {
+              "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+            },
+          },
+        },
+        "minDestTokenAmount": "1800000000000000000",
+        "requestId": "123",
+        "srcAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "srcChainId": "1",
+        "srcTokenAmount": "1000000000000000000",
+        "steps": [
+          "step1",
+        ],
+      },
+      "sentAmount": {
+        "amount": "1.1",
+        "usd": "11",
+        "valueInCurrency": "2178",
+      },
+      "swapRate": "1.81818181818181818182",
+      "toTokenAmount": {
+        "amount": "2",
+        "usd": "2",
+        "valueInCurrency": "400",
+      },
+      "totalMaxNetworkFee": {
+        "amount": "-1.0999854",
+        "usd": "-10.999854",
+        "valueInCurrency": "-2177.971092",
+      },
+      "totalNetworkFee": {
+        "amount": "-1.0999927",
+        "usd": "-10.999927",
+        "valueInCurrency": "-2177.985546",
+      },
+      "trade": {
+        "effectiveGas": "21000",
+        "gasLimit": "24000",
+        "value": "0x0",
+      },
+    },
+  ],
+}
+`;
+
+exports[`Bridge Selectors selectBridgeQuotes should use destTokenAmount to sort quotes if exchange rate is not available 1`] = `
+{
+  "activeQuote": {
+    "adjustedReturn": {
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "approval": {
+      "effectiveGas": "46000",
+      "gasLimit": "49000",
+    },
+    "cost": {
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "estimatedProcessingTimeInSeconds": 300,
+    "gasFee": {
+      "effective": {
+        "amount": "0.0000067",
+        "usd": "0.01206",
+        "valueInCurrency": "0.01206",
+      },
+      "max": {
+        "amount": "0.0000146",
+        "usd": "0.02628",
+        "valueInCurrency": "0.02628",
+      },
+      "total": {
+        "amount": "0.0000073",
+        "usd": "0.01314",
+        "valueInCurrency": "0.01314",
+      },
+    },
+    "includedTxFees": null,
+    "minToTokenAmount": {
+      "amount": "1.8",
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "quote": {
+      "bridgeId": "bridge1",
+      "bridges": [
+        "bridge1",
+      ],
+      "destAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "destChainId": "137",
+      "destTokenAmount": "2100000000000000000",
+      "feeData": {
+        "metabridge": {
+          "amount": "100000000000000000",
+          "asset": {
+            "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          },
+        },
+      },
+      "minDestTokenAmount": "1800000000000000000",
+      "requestId": "456",
+      "srcAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "srcChainId": "1",
+      "srcTokenAmount": "1000000000000000000",
+      "steps": [
+        "step1",
+      ],
+    },
+    "sentAmount": {
+      "amount": "1.1",
+      "usd": "1980",
+      "valueInCurrency": "1980",
+    },
+    "swapRate": "1.90909090909090909091",
+    "toTokenAmount": {
+      "amount": "2.1",
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "totalMaxNetworkFee": {
+      "amount": "-1.0999854",
+      "usd": "-1979.97372",
+      "valueInCurrency": "-1979.97372",
+    },
+    "totalNetworkFee": {
+      "amount": "-1.0999927",
+      "usd": "-1979.98686",
+      "valueInCurrency": "-1979.98686",
+    },
+    "trade": {
+      "effectiveGas": "21000",
+      "gasLimit": "24000",
+      "value": "0x0",
+    },
+  },
+  "isLoading": false,
+  "isQuoteGoingToRefresh": true,
+  "quoteFetchError": null,
+  "quotesRefreshCount": 0,
+  "recommendedQuote": {
+    "adjustedReturn": {
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "approval": {
+      "effectiveGas": "46000",
+      "gasLimit": "49000",
+    },
+    "cost": {
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "estimatedProcessingTimeInSeconds": 300,
+    "gasFee": {
+      "effective": {
+        "amount": "0.0000067",
+        "usd": "0.01206",
+        "valueInCurrency": "0.01206",
+      },
+      "max": {
+        "amount": "0.0000146",
+        "usd": "0.02628",
+        "valueInCurrency": "0.02628",
+      },
+      "total": {
+        "amount": "0.0000073",
+        "usd": "0.01314",
+        "valueInCurrency": "0.01314",
+      },
+    },
+    "includedTxFees": null,
+    "minToTokenAmount": {
+      "amount": "1.8",
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "quote": {
+      "bridgeId": "bridge1",
+      "bridges": [
+        "bridge1",
+      ],
+      "destAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "destChainId": "137",
+      "destTokenAmount": "2100000000000000000",
+      "feeData": {
+        "metabridge": {
+          "amount": "100000000000000000",
+          "asset": {
+            "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          },
+        },
+      },
+      "minDestTokenAmount": "1800000000000000000",
+      "requestId": "456",
+      "srcAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "srcChainId": "1",
+      "srcTokenAmount": "1000000000000000000",
+      "steps": [
+        "step1",
+      ],
+    },
+    "sentAmount": {
+      "amount": "1.1",
+      "usd": "1980",
+      "valueInCurrency": "1980",
+    },
+    "swapRate": "1.90909090909090909091",
+    "toTokenAmount": {
+      "amount": "2.1",
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "totalMaxNetworkFee": {
+      "amount": "-1.0999854",
+      "usd": "-1979.97372",
+      "valueInCurrency": "-1979.97372",
+    },
+    "totalNetworkFee": {
+      "amount": "-1.0999927",
+      "usd": "-1979.98686",
+      "valueInCurrency": "-1979.98686",
+    },
+    "trade": {
+      "effectiveGas": "21000",
+      "gasLimit": "24000",
+      "value": "0x0",
+    },
+  },
+  "sortedQuotes": [
+    {
+      "adjustedReturn": {
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "approval": {
+        "effectiveGas": "46000",
+        "gasLimit": "49000",
+      },
+      "cost": {
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "estimatedProcessingTimeInSeconds": 300,
+      "gasFee": {
+        "effective": {
+          "amount": "0.0000067",
+          "usd": "0.01206",
+          "valueInCurrency": "0.01206",
+        },
+        "max": {
+          "amount": "0.0000146",
+          "usd": "0.02628",
+          "valueInCurrency": "0.02628",
+        },
+        "total": {
+          "amount": "0.0000073",
+          "usd": "0.01314",
+          "valueInCurrency": "0.01314",
+        },
+      },
+      "includedTxFees": null,
+      "minToTokenAmount": {
+        "amount": "1.8",
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "quote": {
+        "bridgeId": "bridge1",
+        "bridges": [
+          "bridge1",
+        ],
+        "destAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "destChainId": "137",
+        "destTokenAmount": "2100000000000000000",
+        "feeData": {
+          "metabridge": {
+            "amount": "100000000000000000",
+            "asset": {
+              "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+            },
+          },
+        },
+        "minDestTokenAmount": "1800000000000000000",
+        "requestId": "456",
+        "srcAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "srcChainId": "1",
+        "srcTokenAmount": "1000000000000000000",
+        "steps": [
+          "step1",
+        ],
+      },
+      "sentAmount": {
+        "amount": "1.1",
+        "usd": "1980",
+        "valueInCurrency": "1980",
+      },
+      "swapRate": "1.90909090909090909091",
+      "toTokenAmount": {
+        "amount": "2.1",
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "totalMaxNetworkFee": {
+        "amount": "-1.0999854",
+        "usd": "-1979.97372",
+        "valueInCurrency": "-1979.97372",
+      },
+      "totalNetworkFee": {
+        "amount": "-1.0999927",
+        "usd": "-1979.98686",
+        "valueInCurrency": "-1979.98686",
+      },
+      "trade": {
+        "effectiveGas": "21000",
+        "gasLimit": "24000",
+        "value": "0x0",
+      },
+    },
+    {
+      "adjustedReturn": {
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "approval": {
+        "effectiveGas": "46000",
+        "gasLimit": "49000",
+      },
+      "cost": {
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "estimatedProcessingTimeInSeconds": 300,
+      "gasFee": {
+        "effective": {
+          "amount": "0.0000067",
+          "usd": "0.01206",
+          "valueInCurrency": "0.01206",
+        },
+        "max": {
+          "amount": "0.0000146",
+          "usd": "0.02628",
+          "valueInCurrency": "0.02628",
+        },
+        "total": {
+          "amount": "0.0000073",
+          "usd": "0.01314",
+          "valueInCurrency": "0.01314",
+        },
+      },
+      "includedTxFees": null,
+      "minToTokenAmount": {
+        "amount": "1.8",
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "quote": {
+        "bridgeId": "bridge1",
+        "bridges": [
+          "bridge1",
+        ],
+        "destAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "destChainId": "137",
+        "destTokenAmount": "2000000000000000000",
+        "feeData": {
+          "metabridge": {
+            "amount": "100000000000000000",
+            "asset": {
+              "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+            },
+          },
+        },
+        "minDestTokenAmount": "1800000000000000000",
+        "requestId": "123",
+        "srcAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "srcChainId": "1",
+        "srcTokenAmount": "1000000000000000000",
+        "steps": [
+          "step1",
+        ],
+      },
+      "sentAmount": {
+        "amount": "1.1",
+        "usd": "1980",
+        "valueInCurrency": "1980",
+      },
+      "swapRate": "1.81818181818181818182",
+      "toTokenAmount": {
+        "amount": "2",
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "totalMaxNetworkFee": {
+        "amount": "-1.0999854",
+        "usd": "-1979.97372",
+        "valueInCurrency": "-1979.97372",
+      },
+      "totalNetworkFee": {
+        "amount": "-1.0999927",
+        "usd": "-1979.98686",
+        "valueInCurrency": "-1979.98686",
+      },
+      "trade": {
+        "effectiveGas": "21000",
+        "gasLimit": "24000",
+        "value": "0x0",
+      },
+    },
+  ],
+}
+`;
+
+exports[`Bridge Selectors selectBridgeQuotes should use priceImpact to sort quotes if exchange rate is not available 1`] = `
+{
+  "activeQuote": {
+    "adjustedReturn": {
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "approval": {
+      "effectiveGas": "46000",
+      "gasLimit": "49000",
+    },
+    "cost": {
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "estimatedProcessingTimeInSeconds": 300,
+    "gasFee": {
+      "effective": {
+        "amount": "0.0000067",
+        "usd": "0.01206",
+        "valueInCurrency": "0.01206",
+      },
+      "max": {
+        "amount": "0.0000146",
+        "usd": "0.02628",
+        "valueInCurrency": "0.02628",
+      },
+      "total": {
+        "amount": "0.0000073",
+        "usd": "0.01314",
+        "valueInCurrency": "0.01314",
+      },
+    },
+    "includedTxFees": null,
+    "minToTokenAmount": {
+      "amount": "1.8",
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "quote": {
+      "bridgeId": "bridge1",
+      "bridges": [
+        "bridge1",
+      ],
+      "destAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "destChainId": "137",
+      "destTokenAmount": "2000000000000000000",
+      "feeData": {
+        "metabridge": {
+          "amount": "100000000000000000",
+          "asset": {
+            "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          },
+        },
+      },
+      "minDestTokenAmount": "1800000000000000000",
+      "priceData": {
+        "priceImpact": "-0.02",
+      },
+      "requestId": "123",
+      "srcAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "srcChainId": "1",
+      "srcTokenAmount": "1000000000000000000",
+      "steps": [
+        "step1",
+      ],
+    },
+    "sentAmount": {
+      "amount": "1.1",
+      "usd": "1980",
+      "valueInCurrency": "1980",
+    },
+    "swapRate": "1.81818181818181818182",
+    "toTokenAmount": {
+      "amount": "2",
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "totalMaxNetworkFee": {
+      "amount": "-1.0999854",
+      "usd": "-1979.97372",
+      "valueInCurrency": "-1979.97372",
+    },
+    "totalNetworkFee": {
+      "amount": "-1.0999927",
+      "usd": "-1979.98686",
+      "valueInCurrency": "-1979.98686",
+    },
+    "trade": {
+      "effectiveGas": "21000",
+      "gasLimit": "24000",
+      "value": "0x0",
+    },
+  },
+  "isLoading": false,
+  "isQuoteGoingToRefresh": true,
+  "quoteFetchError": null,
+  "quotesRefreshCount": 0,
+  "recommendedQuote": {
+    "adjustedReturn": {
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "approval": {
+      "effectiveGas": "46000",
+      "gasLimit": "49000",
+    },
+    "cost": {
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "estimatedProcessingTimeInSeconds": 300,
+    "gasFee": {
+      "effective": {
+        "amount": "0.0000067",
+        "usd": "0.01206",
+        "valueInCurrency": "0.01206",
+      },
+      "max": {
+        "amount": "0.0000146",
+        "usd": "0.02628",
+        "valueInCurrency": "0.02628",
+      },
+      "total": {
+        "amount": "0.0000073",
+        "usd": "0.01314",
+        "valueInCurrency": "0.01314",
+      },
+    },
+    "includedTxFees": null,
+    "minToTokenAmount": {
+      "amount": "1.8",
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "quote": {
+      "bridgeId": "bridge1",
+      "bridges": [
+        "bridge1",
+      ],
+      "destAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "destChainId": "137",
+      "destTokenAmount": "2000000000000000000",
+      "feeData": {
+        "metabridge": {
+          "amount": "100000000000000000",
+          "asset": {
+            "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          },
+        },
+      },
+      "minDestTokenAmount": "1800000000000000000",
+      "priceData": {
+        "priceImpact": "-0.02",
+      },
+      "requestId": "123",
+      "srcAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+        "decimals": 18,
+      },
+      "srcChainId": "1",
+      "srcTokenAmount": "1000000000000000000",
+      "steps": [
+        "step1",
+      ],
+    },
+    "sentAmount": {
+      "amount": "1.1",
+      "usd": "1980",
+      "valueInCurrency": "1980",
+    },
+    "swapRate": "1.81818181818181818182",
+    "toTokenAmount": {
+      "amount": "2",
+      "usd": null,
+      "valueInCurrency": null,
+    },
+    "totalMaxNetworkFee": {
+      "amount": "-1.0999854",
+      "usd": "-1979.97372",
+      "valueInCurrency": "-1979.97372",
+    },
+    "totalNetworkFee": {
+      "amount": "-1.0999927",
+      "usd": "-1979.98686",
+      "valueInCurrency": "-1979.98686",
+    },
+    "trade": {
+      "effectiveGas": "21000",
+      "gasLimit": "24000",
+      "value": "0x0",
+    },
+  },
+  "sortedQuotes": [
+    {
+      "adjustedReturn": {
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "approval": {
+        "effectiveGas": "46000",
+        "gasLimit": "49000",
+      },
+      "cost": {
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "estimatedProcessingTimeInSeconds": 300,
+      "gasFee": {
+        "effective": {
+          "amount": "0.0000067",
+          "usd": "0.01206",
+          "valueInCurrency": "0.01206",
+        },
+        "max": {
+          "amount": "0.0000146",
+          "usd": "0.02628",
+          "valueInCurrency": "0.02628",
+        },
+        "total": {
+          "amount": "0.0000073",
+          "usd": "0.01314",
+          "valueInCurrency": "0.01314",
+        },
+      },
+      "includedTxFees": null,
+      "minToTokenAmount": {
+        "amount": "1.8",
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "quote": {
+        "bridgeId": "bridge1",
+        "bridges": [
+          "bridge1",
+        ],
+        "destAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "destChainId": "137",
+        "destTokenAmount": "2000000000000000000",
+        "feeData": {
+          "metabridge": {
+            "amount": "100000000000000000",
+            "asset": {
+              "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+            },
+          },
+        },
+        "minDestTokenAmount": "1800000000000000000",
+        "priceData": {
+          "priceImpact": "-0.02",
+        },
+        "requestId": "123",
+        "srcAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "srcChainId": "1",
+        "srcTokenAmount": "1000000000000000000",
+        "steps": [
+          "step1",
+        ],
+      },
+      "sentAmount": {
+        "amount": "1.1",
+        "usd": "1980",
+        "valueInCurrency": "1980",
+      },
+      "swapRate": "1.81818181818181818182",
+      "toTokenAmount": {
+        "amount": "2",
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "totalMaxNetworkFee": {
+        "amount": "-1.0999854",
+        "usd": "-1979.97372",
+        "valueInCurrency": "-1979.97372",
+      },
+      "totalNetworkFee": {
+        "amount": "-1.0999927",
+        "usd": "-1979.98686",
+        "valueInCurrency": "-1979.98686",
+      },
+      "trade": {
+        "effectiveGas": "21000",
+        "gasLimit": "24000",
+        "value": "0x0",
+      },
+    },
+    {
+      "adjustedReturn": {
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "approval": {
+        "effectiveGas": "46000",
+        "gasLimit": "49000",
+      },
+      "cost": {
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "estimatedProcessingTimeInSeconds": 300,
+      "gasFee": {
+        "effective": {
+          "amount": "0.0000067",
+          "usd": "0.01206",
+          "valueInCurrency": "0.01206",
+        },
+        "max": {
+          "amount": "0.0000146",
+          "usd": "0.02628",
+          "valueInCurrency": "0.02628",
+        },
+        "total": {
+          "amount": "0.0000073",
+          "usd": "0.01314",
+          "valueInCurrency": "0.01314",
+        },
+      },
+      "includedTxFees": null,
+      "minToTokenAmount": {
+        "amount": "1.8",
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "quote": {
+        "bridgeId": "bridge1",
+        "bridges": [
+          "bridge1",
+        ],
+        "destAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "destChainId": "137",
+        "destTokenAmount": "2000000000000000000",
+        "feeData": {
+          "metabridge": {
+            "amount": "100000000000000000",
+            "asset": {
+              "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+            },
+          },
+        },
+        "minDestTokenAmount": "1800000000000000000",
+        "priceData": {
+          "priceImpact": "0.01",
+        },
+        "requestId": "123",
+        "srcAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:1/erc20:0x0000000000000000000000000000000000000000",
+          "decimals": 18,
+        },
+        "srcChainId": "1",
+        "srcTokenAmount": "1000000000000000000",
+        "steps": [
+          "step1",
+        ],
+      },
+      "sentAmount": {
+        "amount": "1.1",
+        "usd": "1980",
+        "valueInCurrency": "1980",
+      },
+      "swapRate": "1.81818181818181818182",
+      "toTokenAmount": {
+        "amount": "2",
+        "usd": null,
+        "valueInCurrency": null,
+      },
+      "totalMaxNetworkFee": {
+        "amount": "-1.0999854",
+        "usd": "-1979.97372",
+        "valueInCurrency": "-1979.97372",
+      },
+      "totalNetworkFee": {
+        "amount": "-1.0999927",
+        "usd": "-1979.98686",
+        "valueInCurrency": "-1979.98686",
+      },
+      "trade": {
+        "effectiveGas": "21000",
+        "gasLimit": "24000",
+        "value": "0x0",
+      },
+    },
+  ],
+}
+`;

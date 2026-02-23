@@ -32,6 +32,10 @@ type CommandLineArguments = {
    * Whether to fix the action types files.
    */
   fix: boolean;
+  /**
+   * Optional path to a specific controller to process.
+   */
+  controllerPath: string;
 };
 
 /**
@@ -40,7 +44,22 @@ type CommandLineArguments = {
  * @returns The command line arguments.
  */
 async function parseCommandLineArguments(): Promise<CommandLineArguments> {
-  const { check, fix } = await yargs(process.argv.slice(2))
+  const {
+    check,
+    fix,
+    path: controllerPath,
+  } = await yargs(process.argv.slice(2))
+    .command(
+      '$0 [path]',
+      'Generate method action types for a controller messenger',
+      (yargsInstance) => {
+        yargsInstance.positional('path', {
+          type: 'string',
+          description: 'Path to the folder where controllers are located',
+          default: 'src',
+        });
+      },
+    )
     .option('check', {
       type: 'boolean',
       description: 'Check if generated action type files are up to date',
@@ -59,7 +78,12 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
       return true;
     }).argv;
 
-  return { check, fix };
+  return {
+    check,
+    fix,
+    // TypeScript doesn't narrow the type of `controllerPath` even though we defined it as a string in yargs, so we need to cast it here.
+    controllerPath: controllerPath as string,
+  };
 }
 
 /**
@@ -181,11 +205,11 @@ async function checkActionTypesFiles(
  * Main entry point for the script.
  */
 async function main(): Promise<void> {
-  const { fix } = await parseCommandLineArguments();
+  const { fix, controllerPath } = await parseCommandLineArguments();
 
   console.log('🔍 Searching for controllers with MESSENGER_EXPOSED_METHODS...');
 
-  const controllers = await findControllersWithExposedMethods();
+  const controllers = await findControllersWithExposedMethods(controllerPath);
 
   if (controllers.length === 0) {
     console.log('⚠️  No controllers found with MESSENGER_EXPOSED_METHODS');
@@ -237,43 +261,33 @@ async function isDirectory(pathValue: string): Promise<boolean> {
 /**
  * Finds all controller files that have MESSENGER_EXPOSED_METHODS constants.
  *
+ * @param controllerPath - Path to the folder where controllers are located.
  * @returns A list of controller information objects.
  */
-async function findControllersWithExposedMethods(): Promise<ControllerInfo[]> {
-  const packagesDir = path.resolve(__dirname, '../packages');
+async function findControllersWithExposedMethods(
+  controllerPath: string,
+): Promise<ControllerInfo[]> {
+  const srcPath = path.resolve(process.cwd(), controllerPath);
   const controllers: ControllerInfo[] = [];
 
-  const packageDirs = await fs.promises.readdir(packagesDir, {
-    withFileTypes: true,
-  });
+  if (!(await isDirectory(srcPath))) {
+    throw new Error(`The specified path is not a directory: ${srcPath}`);
+  }
 
-  for (const packageDir of packageDirs) {
-    if (!packageDir.isDirectory()) {
+  const srcFiles = await fs.promises.readdir(srcPath);
+
+  for (const file of srcFiles) {
+    if (!file.endsWith('.ts') || file.endsWith('.test.ts')) {
       continue;
     }
 
-    const packagePath = path.join(packagesDir, packageDir.name);
-    const srcPath = path.join(packagePath, 'src');
+    const filePath = path.join(srcPath, file);
+    const content = await fs.promises.readFile(filePath, 'utf8');
 
-    if (!(await isDirectory(srcPath))) {
-      continue;
-    }
-
-    const srcFiles = await fs.promises.readdir(srcPath);
-
-    for (const file of srcFiles) {
-      if (!file.endsWith('.ts') || file.endsWith('.test.ts')) {
-        continue;
-      }
-
-      const filePath = path.join(srcPath, file);
-      const content = await fs.promises.readFile(filePath, 'utf8');
-
-      if (content.includes('MESSENGER_EXPOSED_METHODS')) {
-        const controllerInfo = await parseControllerFile(filePath);
-        if (controllerInfo) {
-          controllers.push(controllerInfo);
-        }
+    if (content.includes('MESSENGER_EXPOSED_METHODS')) {
+      const controllerInfo = await parseControllerFile(filePath);
+      if (controllerInfo) {
+        controllers.push(controllerInfo);
       }
     }
   }

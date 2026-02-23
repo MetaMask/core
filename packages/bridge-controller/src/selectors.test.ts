@@ -4,7 +4,7 @@ import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { BigNumber } from 'bignumber.js';
 
-import { DEFAULT_CHAIN_RANKING } from './constants/bridge';
+import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge';
 import type { BridgeAppState } from './selectors';
 import {
   selectExchangeRateByChainIdAndAddress,
@@ -18,12 +18,20 @@ import {
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
 import { isNativeAddress } from './utils/bridge';
+import {
+  formatAddressToAssetId,
+  formatChainIdToHex,
+} from './utils/caip-formatters';
+
+const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
 
 describe('Bridge Selectors', () => {
   describe('selectExchangeRateByChainIdAndAddress', () => {
     const mockExchangeRateSources = {
       assetExchangeRates: {
-        'eip155:1/erc20:0x123': {
+        [formatAddressToAssetId(MOCK_USDC_ADDRESS, '1')?.toLowerCase() ??
+        MOCK_USDC_ADDRESS]: {
           exchangeRate: '2.5',
           usdExchangeRate: '1.5',
         },
@@ -33,13 +41,13 @@ describe('Bridge Selectors', () => {
       },
       currencyRates: {
         ETH: {
-          conversionRate: 2468.12,
-          usdConversionRate: 1800,
+          conversionRate: 2468.12, // ETH rate in the user's selected currency
+          usdConversionRate: 1800, // ETH rate in USD
         },
       },
       marketData: {
         '0x1': {
-          '0xabc': {
+          [MOCK_MUSD_ADDRESS]: {
             price: 50 / 2468.12,
             currency: 'ETH',
           },
@@ -52,7 +60,7 @@ describe('Bridge Selectors', () => {
       },
     } as unknown as BridgeAppState;
 
-    it('should return empty object if chainId or address is missing', () => {
+    it('should return empty object if chainId is missing', () => {
       expect(
         selectExchangeRateByChainIdAndAddress(
           mockExchangeRateSources,
@@ -62,12 +70,15 @@ describe('Bridge Selectors', () => {
       ).toStrictEqual({});
       expect(
         selectExchangeRateByChainIdAndAddress(mockExchangeRateSources, '1'),
-      ).toStrictEqual({});
+      ).toStrictEqual({
+        exchangeRate: '2468.12',
+        usdExchangeRate: '1800',
+      });
       expect(
         selectExchangeRateByChainIdAndAddress(
           mockExchangeRateSources,
           undefined,
-          '0x123',
+          MOCK_USDC_ADDRESS,
         ),
       ).toStrictEqual({});
     });
@@ -76,7 +87,7 @@ describe('Bridge Selectors', () => {
       const result = selectExchangeRateByChainIdAndAddress(
         mockExchangeRateSources,
         '1',
-        '0x123',
+        MOCK_USDC_ADDRESS,
       );
       expect(result).toStrictEqual({
         exchangeRate: '2.5',
@@ -90,9 +101,48 @@ describe('Bridge Selectors', () => {
         SolScope.Mainnet,
         '789',
       );
+      // usdExchangeRate = rate * (usdConversionRate / conversionRate) = 4.0 * (1800 / 2468.12)
+      expect(result).toStrictEqual({
+        exchangeRate: '4.0',
+        usdExchangeRate: new BigNumber('4.0')
+          .times(new BigNumber(1800).div(2468.12))
+          .toString(),
+      });
+    });
+
+    it('should return undefined usdExchangeRate for Solana when currencyRates is empty', () => {
+      const result = selectExchangeRateByChainIdAndAddress(
+        {
+          ...mockExchangeRateSources,
+          currencyRates: {},
+        } as unknown as BridgeAppState,
+        SolScope.Mainnet,
+        '789',
+      );
       expect(result).toStrictEqual({
         exchangeRate: '4.0',
         usdExchangeRate: undefined,
+      });
+    });
+
+    it('should return rate as usdExchangeRate for Solana when user currency is USD', () => {
+      const result = selectExchangeRateByChainIdAndAddress(
+        {
+          ...mockExchangeRateSources,
+          currencyRates: {
+            ETH: {
+              conversionRate: 1800,
+              usdConversionRate: 1800,
+            },
+          },
+        } as unknown as BridgeAppState,
+        SolScope.Mainnet,
+        '789',
+      );
+      // When user currency is USD, conversionRate === usdConversionRate, ratio is 1
+      expect(result).toStrictEqual({
+        exchangeRate: '4.0',
+        usdExchangeRate: '4',
       });
     });
 
@@ -112,7 +162,7 @@ describe('Bridge Selectors', () => {
       const result = selectExchangeRateByChainIdAndAddress(
         mockExchangeRateSources,
         '1',
-        '0xabc',
+        MOCK_MUSD_ADDRESS.toLowerCase(),
       );
       expect(result).toStrictEqual({
         exchangeRate: '50.00000000000000162804',
@@ -122,9 +172,11 @@ describe('Bridge Selectors', () => {
   });
 
   describe('selectIsAssetExchangeRateInState', () => {
+    const assetId =
+      formatAddressToAssetId(MOCK_USDC_ADDRESS, '1')?.toLowerCase() ?? '';
     const mockExchangeRateSources = {
       assetExchangeRates: {
-        'eip155:1/erc20:0x123': {
+        [assetId]: {
           exchangeRate: '2.5',
         },
       },
@@ -140,29 +192,36 @@ describe('Bridge Selectors', () => {
             ...mockExchangeRateSources,
             assetExchangeRates: {
               ...mockExchangeRateSources.assetExchangeRates,
-              'eip155:1/erc20:0x123': {
-                ...mockExchangeRateSources.assetExchangeRates[
-                  'eip155:1/erc20:0x123'
-                ],
+              [assetId]: {
+                // @ts-expect-error - ignore type error
+                ...mockExchangeRateSources.assetExchangeRates[assetId],
                 usdExchangeRate: '1.5',
               },
             },
           },
           '1',
-          '0x123',
+          MOCK_USDC_ADDRESS,
         ),
       ).toBe(true);
     });
 
     it('should return false if USD exchange rate does not exist', () => {
       expect(
-        selectIsAssetExchangeRateInState(mockExchangeRateSources, '1', '0x123'),
+        selectIsAssetExchangeRateInState(
+          mockExchangeRateSources,
+          '1',
+          MOCK_USDC_ADDRESS,
+        ),
       ).toBe(false);
     });
 
     it('should return false if exchange rate does not exist', () => {
       expect(
-        selectIsAssetExchangeRateInState(mockExchangeRateSources, '1', '0x456'),
+        selectIsAssetExchangeRateInState(
+          mockExchangeRateSources,
+          '1',
+          ETH_USDT_ADDRESS,
+        ),
       ).toBe(false);
     });
 
@@ -206,15 +265,19 @@ describe('Bridge Selectors', () => {
       marketData: {},
       conversionRates: {},
       participateInMetaMetrics: true,
-      gasFeeEstimates: {
-        estimatedBaseFee: '50',
-        medium: {
-          suggestedMaxPriorityFeePerGas: '75',
-          suggestedMaxFeePerGas: '77',
-        },
-        high: {
-          suggestedMaxPriorityFeePerGas: '100',
-          suggestedMaxFeePerGas: '102',
+      gasFeeEstimatesByChainId: {
+        '0x1': {
+          gasFeeEstimates: {
+            estimatedBaseFee: '50',
+            medium: {
+              suggestedMaxPriorityFeePerGas: '75',
+              suggestedMaxFeePerGas: '77',
+            },
+            high: {
+              suggestedMaxPriorityFeePerGas: '100',
+              suggestedMaxFeePerGas: '102',
+            },
+          },
         },
       },
     } as unknown as BridgeAppState;
@@ -355,55 +418,69 @@ describe('Bridge Selectors', () => {
       },
     };
 
-    const mockState = {
-      quotes: [
-        mockQuote,
-        { ...mockQuote, quote: { ...mockQuote.quote, requestId: '456' } },
-      ],
-      quoteRequest: {
-        srcChainId: '1',
-        destChainId: '137',
-        srcTokenAddress: '0x0000000000000000000000000000000000000000',
-        destTokenAddress: '0x0000000000000000000000000000000000000000',
-        insufficientBal: false,
-      },
-      quotesLastFetched: Date.now(),
-      quotesLoadingStatus: RequestStatus.FETCHED,
-      quoteFetchError: null,
-      quotesRefreshCount: 0,
-      quotesInitialLoadTime: Date.now(),
-      remoteFeatureFlags: {
-        bridgeConfig: {
-          minimumVersion: '0.0.0',
-          maxRefreshCount: 5,
-          refreshRate: 30000,
-          chainRanking: [],
-          chains: {},
-          support: true,
+    const getMockState = (chainId: string): BridgeAppState =>
+      ({
+        quotes: [
+          mockQuote,
+          {
+            ...mockQuote,
+            quote: {
+              ...mockQuote.quote,
+              requestId: '456',
+              destTokenAmount: '2100000000000000000',
+            },
+          },
+        ],
+        quoteRequest: {
+          srcChainId: '1',
+          destChainId: '137',
+          srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          destTokenAddress: '0x0000000000000000000000000000000000000000',
+          insufficientBal: false,
         },
-      },
-      assetExchangeRates: {},
-      currencyRates: {
-        ETH: {
-          conversionRate: 1800,
-          usdConversionRate: 1800,
+        quotesLastFetched: Date.now(),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteFetchError: null,
+        quotesRefreshCount: 0,
+        quotesInitialLoadTime: Date.now(),
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            minimumVersion: '0.0.0',
+            maxRefreshCount: 5,
+            refreshRate: 30000,
+            chainRanking: [],
+            chains: {},
+            support: true,
+          },
         },
-      },
-      marketData: {},
-      conversionRates: {},
-      participateInMetaMetrics: true,
-      gasFeeEstimates: {
-        estimatedBaseFee: '0',
-        medium: {
-          suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.1',
+        assetExchangeRates: {},
+        currencyRates: {
+          ETH: {
+            conversionRate: 1800,
+            usdConversionRate: 1800,
+          },
         },
-        high: {
-          suggestedMaxPriorityFeePerGas: '.1',
-          suggestedMaxFeePerGas: '.2',
+        marketData: {},
+        conversionRates: {},
+        participateInMetaMetrics: true,
+        gasFeeEstimatesByChainId: {
+          [formatChainIdToHex(chainId)]: {
+            gasFeeEstimates: {
+              estimatedBaseFee: '0',
+              medium: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.1',
+              },
+              high: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.2',
+              },
+            },
+          },
         },
-      },
-    } as unknown as BridgeAppState;
+      }) as unknown as BridgeAppState;
+
+    const mockState = getMockState(mockQuote.quote.srcChainId);
 
     const mockClientParams = {
       sortOrder: SortOrder.COST_ASC,
@@ -411,17 +488,78 @@ describe('Bridge Selectors', () => {
     };
 
     it('should return sorted quotes with metadata', () => {
-      const result = selectBridgeQuotes(mockState, mockClientParams);
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            assetExchangeRates: {
+              [formatAddressToAssetId(
+                mockQuote.quote.srcAsset.address,
+                mockQuote.quote.srcChainId,
+              ) ?? '']: {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              [formatAddressToAssetId(
+                mockQuote.quote.destAsset.address,
+                mockQuote.quote.destChainId,
+              ) ?? '']: {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          mockClientParams,
+        );
 
-      expect(result.sortedQuotes).toHaveLength(2);
-      expect(result.sortedQuotes[0].quote.requestId).toMatchInlineSnapshot(
-        `"123"`,
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result).toMatchSnapshot();
+      expect(result.sortedQuotes[0].cost.valueInCurrency).toBe('-419.985546');
+    });
+
+    it('should use destTokenAmount to sort quotes if exchange rate is not available', () => {
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          { ...mockState, assetExchangeRates: {}, marketData: {} },
+          mockClientParams,
+        );
+
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result).toMatchSnapshot();
+      expect(result.sortedQuotes[0].cost.valueInCurrency).toBeNull();
+      expect(result.recommendedQuote?.quote.destTokenAmount).toBe(
+        '2100000000000000000',
       );
-      expect(result.recommendedQuote).toBeDefined();
-      expect(result.activeQuote).toBeDefined();
-      expect(result.isLoading).toBe(false);
-      expect(result.quoteFetchError).toBeNull();
-      expect(result.isQuoteGoingToRefresh).toBe(true);
+    });
+
+    it('should use priceImpact to sort quotes if exchange rate is not available', () => {
+      const quotesWithPriceImpact = [
+        {
+          ...mockQuote,
+          quote: { ...mockQuote.quote, priceData: { priceImpact: '0.01' } },
+        },
+        {
+          ...mockQuote,
+          quote: { ...mockQuote.quote, priceData: { priceImpact: '-0.02' } },
+        },
+      ];
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            assetExchangeRates: {},
+            marketData: {},
+            quotes: quotesWithPriceImpact as unknown as QuoteResponse[],
+          },
+          mockClientParams,
+        );
+
+      // eslint-disable-next-line jest/no-restricted-matchers
+      expect(result).toMatchSnapshot();
+      expect(result.sortedQuotes[0].cost.valueInCurrency).toBeNull();
+      expect(result.recommendedQuote?.quote.priceData?.priceImpact).toBe(
+        '-0.02',
+      );
     });
 
     describe('returns swap metadata', () => {
@@ -433,6 +571,7 @@ describe('Bridge Selectors', () => {
           asset: Pick<BridgeAsset, 'address' | 'decimals' | 'assetId'>;
         },
         gasIncluded7702?: boolean,
+        gasEstimatesChainId?: number,
       ): BridgeAppState => {
         const chainId = 56;
         const currencyRates = {
@@ -464,7 +603,9 @@ describe('Bridge Selectors', () => {
           .multipliedBy(10 ** srcAsset.decimals)
           .toFixed(0);
         return {
-          ...mockState,
+          ...getMockState(
+            gasEstimatesChainId?.toString() ?? chainId.toString(),
+          ),
           quotes: [
             {
               quote: {
@@ -507,7 +648,7 @@ describe('Bridge Selectors', () => {
                 value: isNativeAddress(srcAsset.address)
                   ? toHex(
                       new BigNumber(srcTokenAmount)
-                        .plus(txFee?.amount || '0')
+                        .plus(txFee?.amount ?? '0')
                         .toString(),
                     )
                   : '0x0',
@@ -554,55 +695,55 @@ describe('Bridge Selectors', () => {
         expect(quote.gasIncluded).toBe(false);
         expect(isNativeAddress(quote.srcAsset.address)).toBe(true);
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.513424894341876155230359150867612640256",
               "valueInCurrency": "8.995536137740000000254299423511757231474",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.173955083193541475489640849132387359744",
               "valueInCurrency": "1.004463862259999726625700576488242768526",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
             "includedTxFees": null,
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "9.994389353314869106",
               "usd": "9.992709880792782347418849595400950831104",
               "valueInCurrency": "8.550000000000000000198810453356610924716",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "0.018116598427479256",
               "usd": "11.68737997753541763072",
               "valueInCurrency": "9.99999999999999972688",
             },
             "swapRate": "580.70558265713069471891",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "10.520409845594599059",
               "usd": "10.518641979781876155230359150867612640256",
               "valueInCurrency": "9.000000000000000000254299423511757231474",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",
@@ -637,58 +778,144 @@ describe('Bridge Selectors', () => {
           ...quoteMetadata
         } = sortedQuotes[0];
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.51342489434187625472",
               "valueInCurrency": "8.99553613774000008538",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.173955083193541695202677292586583974912",
               "valueInCurrency": "1.004463862259999914617394921816007289298",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
             "includedTxFees": null,
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "0.015489691655494764",
               "usd": "9.99270988079278215168",
               "valueInCurrency": "8.54999999999999983272",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
               "valueInCurrency": "9.999999999999999999997394921816007289298",
             },
             "swapRate": "0.00139485485277012214",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "0.016304938584731331",
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",
+            },
+          }
+        `);
+      });
+
+      it('erc20 -> native but gas estimates are not available', () => {
+        const newState = getMockSwapState(
+          {
+            address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+            decimals: 18,
+            assetId:
+              'eip155:1/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+          },
+          {
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            assetId:
+              'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+          },
+          undefined,
+          undefined,
+          1,
+        );
+
+        const { sortedQuotes } = selectBridgeQuotes(newState, mockClientParams);
+
+        const {
+          quote,
+          trade,
+          approval,
+          estimatedProcessingTimeInSeconds,
+          ...quoteMetadata
+        } = sortedQuotes[0];
+        expect(quoteMetadata).toMatchInlineSnapshot(`
+          {
+            "adjustedReturn": {
+              "usd": "10.51864197978187625472",
+              "valueInCurrency": "9.00000000000000008538",
+            },
+            "cost": {
+              "usd": "1.168737997753541695202677292586583974912",
+              "valueInCurrency": "0.999999999999999914617394921816007289298",
+            },
+            "gasFee": {
+              "effective": {
+                "amount": "0",
+                "usd": "0",
+                "valueInCurrency": "0",
+              },
+              "max": {
+                "amount": "0",
+                "usd": "0",
+                "valueInCurrency": "0",
+              },
+              "total": {
+                "amount": "0",
+                "usd": "0",
+                "valueInCurrency": "0",
+              },
+            },
+            "includedTxFees": null,
+            "minToTokenAmount": {
+              "amount": "0.015489691655494764",
+              "usd": "9.99270988079278215168",
+              "valueInCurrency": "8.54999999999999983272",
+            },
+            "sentAmount": {
+              "amount": "11.689344272882887843",
+              "usd": "11.687379977535417949922677292586583974912",
+              "valueInCurrency": "9.999999999999999999997394921816007289298",
+            },
+            "swapRate": "0.00139485485277012214",
+            "toTokenAmount": {
+              "amount": "0.016304938584731331",
+              "usd": "10.51864197978187625472",
+              "valueInCurrency": "9.00000000000000008538",
+            },
+            "totalMaxNetworkFee": {
+              "amount": "0",
+              "usd": "0",
+              "valueInCurrency": "0",
+            },
+            "totalNetworkFee": {
+              "amount": "0",
+              "usd": "0",
+              "valueInCurrency": "0",
             },
           }
         `);
@@ -729,59 +956,59 @@ describe('Bridge Selectors', () => {
           ...quoteMetadata
         } = sortedQuotes[0];
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.168737997753541695202677292586583974912",
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
-            "includedTxFees": Object {
+            "includedTxFees": {
               "amount": "0.001",
               "usd": "0.64512",
               "valueInCurrency": "0.55198",
             },
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "0.015489691655494764",
               "usd": "9.99270988079278215168",
               "valueInCurrency": "8.54999999999999983272",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
               "valueInCurrency": "9.999999999999999999997394921816007289298",
             },
             "swapRate": "0.00139485485277012214",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "0.016304938584731331",
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",
@@ -825,59 +1052,59 @@ describe('Bridge Selectors', () => {
           ...quoteMetadata
         } = sortedQuotes[0];
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.168737997753541695202677292586583974912",
               "valueInCurrency": "0.999999999999999914617394921816007289298",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
-            "includedTxFees": Object {
+            "includedTxFees": {
               "amount": "3",
               "usd": "1935.36",
               "valueInCurrency": "1655.94",
             },
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "0.015489691655494764",
               "usd": "9.99270988079278215168",
               "valueInCurrency": "8.54999999999999983272",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
               "valueInCurrency": "9.999999999999999999997394921816007289298",
             },
             "swapRate": "0.00139485485277012214",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "0.016304938584731331",
               "usd": "10.51864197978187625472",
               "valueInCurrency": "9.00000000000000008538",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",
@@ -923,59 +1150,59 @@ describe('Bridge Selectors', () => {
           ...quoteMetadata
         } = sortedQuotes[0];
         expect(quoteMetadata).toMatchInlineSnapshot(`
-          Object {
-            "adjustedReturn": Object {
+          {
+            "adjustedReturn": {
               "usd": "10.518641979781876096240273601395823616",
               "valueInCurrency": "8.999999999999999949780980627632791914",
             },
-            "cost": Object {
+            "cost": {
               "usd": "1.168737997753541853682403691190760358912",
               "valueInCurrency": "1.000000000000000050216414294183215375298",
             },
-            "gasFee": Object {
-              "effective": Object {
+            "gasFee": {
+              "effective": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
-              "max": Object {
+              "max": {
                 "amount": "0.000016174",
                 "usd": "0.01043417088",
                 "valueInCurrency": "0.00892772452",
               },
-              "total": Object {
+              "total": {
                 "amount": "0.000008087",
                 "usd": "0.00521708544",
                 "valueInCurrency": "0.00446386226",
               },
             },
-            "includedTxFees": Object {
+            "includedTxFees": {
               "amount": "1",
               "usd": "999.831958465623542784",
               "valueInCurrency": "855.479979591168903686",
             },
-            "minToTokenAmount": Object {
+            "minToTokenAmount": {
               "amount": "0.009994389353314869",
               "usd": "9.992709880792782241436661998044855296",
               "valueInCurrency": "8.549999999999999909517932616692707134",
             },
-            "sentAmount": Object {
+            "sentAmount": {
               "amount": "11.689344272882887843",
               "usd": "11.687379977535417949922677292586583974912",
               "valueInCurrency": "9.999999999999999999997394921816007289298",
             },
             "swapRate": "0.00089999999999999999",
-            "toTokenAmount": Object {
+            "toTokenAmount": {
               "amount": "0.010520409845594599",
               "usd": "10.518641979781876096240273601395823616",
               "valueInCurrency": "8.999999999999999949780980627632791914",
             },
-            "totalMaxNetworkFee": Object {
+            "totalMaxNetworkFee": {
               "amount": "0.000016174",
               "usd": "0.01043417088",
               "valueInCurrency": "0.00892772452",
             },
-            "totalNetworkFee": Object {
+            "totalNetworkFee": {
               "amount": "0.000008087",
               "usd": "0.00521708544",
               "valueInCurrency": "0.00446386226",
@@ -1012,8 +1239,20 @@ describe('Bridge Selectors', () => {
         sortOrder: SortOrder.ETA_ASC,
       });
 
-      expect(resultCostAsc.sortedQuotes).toBeDefined();
-      expect(resultEtaAsc.sortedQuotes).toBeDefined();
+      expect(resultCostAsc.sortedQuotes.map((quote) => quote.quote.requestId))
+        .toMatchInlineSnapshot(`
+        [
+          "456",
+          "123",
+        ]
+      `);
+      expect(resultEtaAsc.sortedQuotes.map((quote) => quote.quote.requestId))
+        .toMatchInlineSnapshot(`
+        [
+          "123",
+          "456",
+        ]
+      `);
     });
 
     it('should handle selected quote', () => {
@@ -1280,7 +1519,7 @@ describe('Bridge Selectors', () => {
         '1': {
           isActiveSrc: true,
           isActiveDest: true,
-          stablecoins: ['0x123', '0x456'],
+          stablecoins: [MOCK_USDC_ADDRESS, '0x456'],
         },
         '10': {
           isActiveSrc: true,
@@ -1301,7 +1540,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           srcChainId: '10',
           destChainId: '10',
@@ -1319,7 +1558,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           srcChainId: '1',
           destChainId: ChainId.SOLANA,
@@ -1337,7 +1576,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           destChainId: '1',
           srcChainId: ChainId.SOLANA,
@@ -1355,7 +1594,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           destChainId: ChainId.SOLANA,
           srcChainId: ChainId.SOLANA,
@@ -1373,7 +1612,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x789',
           destChainId: '1',
           srcChainId: '1',
@@ -1409,7 +1648,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           destChainId: '1',
           srcChainId: '1',
@@ -1427,7 +1666,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           destChainId: '1',
         },
@@ -1444,7 +1683,7 @@ describe('Bridge Selectors', () => {
           },
         } as never,
         {
-          srcTokenAddress: '0x123',
+          srcTokenAddress: MOCK_USDC_ADDRESS,
           destTokenAddress: '0x456',
           srcChainId: '1',
         },
