@@ -966,20 +966,13 @@ export class AssetsController extends BaseController<
       assetsForPriceUpdate?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
-    console.log('getAssets ..........', { accounts, options });
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
     const assetTypes = options?.assetTypes ?? ['fungible'];
     const dataTypes = options?.dataTypes ?? ['balance', 'metadata', 'price'];
 
-<<<<<<< HEAD
-    console.log('getAssets chainIds ..........', { chainIds });
-    console.log('getAssets assetTypes ..........', { assetTypes });
-    console.log('getAssets dataTypes ..........', { dataTypes });
-=======
     if (accounts.length === 0 || chainIds.length === 0) {
       return this.#getAssetsFromState(accounts, chainIds, assetTypes);
     }
->>>>>>> main
 
     // Collect custom assets for all requested accounts
     const customAssets: Caip19AssetId[] = [];
@@ -997,7 +990,6 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
         assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
-      console.log('getAssets request ..........', { request });
       const sources = this.#isBasicFunctionality()
         ? [
             createParallelBalanceMiddleware([
@@ -1021,12 +1013,7 @@ export class AssetsController extends BaseController<
         sources,
         request,
       );
-<<<<<<< HEAD
-      console.log('getAssets response ..........', { response });
-      await this.#updateState(response);
-=======
       await this.#updateState({ ...response, updateMode: 'full' });
->>>>>>> main
       if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
         const durationMs = Date.now() - startTime;
@@ -1039,7 +1026,6 @@ export class AssetsController extends BaseController<
     }
 
     const result = this.#getAssetsFromState(accounts, chainIds, assetTypes);
-    console.log('getAssets result ..........', { result });
     return result;
   }
 
