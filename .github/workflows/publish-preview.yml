@@ -91,6 +91,8 @@ jobs:
             fi
           done
           exit "$bad"
+      - name: Reconcile workspace state
+        run: yarn install --no-immutable
       - name: Publish preview builds
         run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
         env:
