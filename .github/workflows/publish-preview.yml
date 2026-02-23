@@ -89,16 +89,7 @@ jobs:
           done
           exit "$bad"
       - name: Publish preview builds
-        run: |
-          failed=0
-          while read -r location; do
-            if ! (cd "$location" && yarn npm publish --tag preview); then
-              echo "::error::Failed to publish from $location"
-              failed=1
-            fi
-          done < <(yarn workspaces list --no-private --json | \
-            jq --slurp --raw-output 'map(select(.location != ".")) | .[].location')
-          exit "$failed"
+        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
       - name: Generate preview build message
