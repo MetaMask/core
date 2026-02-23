@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.18.0` ([#8005](https://github.com/MetaMask/core/pull/8005))
 - Replace `relayDeposit` transaction type with `predictRelayDeposit` or `perpsRelayDeposit` based on the parent transaction type ([#7947](https://github.com/MetaMask/core/pull/7947))
-- Bump `@metamask/assets-controllers` from `^100.0.1` to `^100.0.2` ([#8004](https://github.com/MetaMask/core/pull/8004))
+- Bump `@metamask/assets-controllers` from `^100.0.1` to `^100.0.3` ([#8020](https://github.com/MetaMask/core/pull/8020))
 
 ## [15.1.2]
 
