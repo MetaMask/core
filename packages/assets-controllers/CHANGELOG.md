@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.18.0` ([#8005](https://github.com/MetaMask/core/pull/8005))
 
+### Fixed
+
+- Fix token search API parameter to use `first` instead of `limit` for pagination ([#8019](https://github.com/MetaMask/core/pull/8019))
+  - Clamp limit to a maximum of 50 results for regular queries
+  - Allow up to 500 results for Ondo token queries; limits exceeding 500 are clamped to 50
+
 ## [100.0.2]
 
 ### Changed
