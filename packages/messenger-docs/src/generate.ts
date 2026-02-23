@@ -74,13 +74,48 @@ export async function generate(
 
   const allItems: MessengerItemDoc[] = [];
 
-  // Scan packages/*/src for .ts source files (monorepo)
+  // Check which sources are available
+  const rootSrcDir = path.join(projectPath, 'src');
+  const hasRootSrc = await pathExists(rootSrcDir);
   const packagesDir = path.join(projectPath, 'packages');
   const hasPackages = await pathExists(packagesDir);
+  const nmDir = path.join(projectPath, 'node_modules', '@metamask');
+  const hasNodeModules = await pathExists(nmDir);
 
+  const sources: string[] = [];
+  if (hasRootSrc) {
+    sources.push('src/ (.ts)');
+  }
   if (hasPackages) {
-    console.log('Scanning packages for Messenger action/event types...');
+    sources.push('packages/*/src (.ts)');
+  }
+  if (hasNodeModules) {
+    sources.push('node_modules/@metamask/*/dist (.d.cts)');
+  }
+  console.log(
+    `Scanning ${sources.join(', ')} for Messenger action/event types...`,
+  );
 
+  // Scan project-level src/ for .ts source files
+  if (hasRootSrc) {
+    const tsFiles = await findTsFiles(rootSrcDir);
+    for (const file of tsFiles) {
+      try {
+        const items = await extractFromFile(file, projectPath);
+        allItems.push(...items);
+      } catch (error) {
+        console.warn(
+          `Warning: failed to parse ${path.relative(
+            projectPath,
+            file,
+          )}: ${String(error)}`,
+        );
+      }
+    }
+  }
+
+  // Scan packages/*/src for .ts source files (monorepo)
+  if (hasPackages) {
     const entries = await fs.readdir(packagesDir, { withFileTypes: true });
     const packageDirs = entries
       .filter((dirent) => dirent.isDirectory())
@@ -109,12 +144,7 @@ export async function generate(
   }
 
   // Scan node_modules/@metamask/*/dist for .d.cts declaration files
-  const nmDir = path.join(projectPath, 'node_modules', '@metamask');
-  const hasNodeModules = await pathExists(nmDir);
-
   if (hasNodeModules) {
-    console.log('Scanning node_modules for Messenger action/event types...');
-
     const entries = await fs.readdir(nmDir, { withFileTypes: true });
     const pkgDirs = entries
       .filter((dirent) => dirent.isDirectory() || dirent.isSymbolicLink())
@@ -142,9 +172,9 @@ export async function generate(
     }
   }
 
-  if (!hasPackages && !hasNodeModules) {
+  if (!hasRootSrc && !hasPackages && !hasNodeModules) {
     throw new Error(
-      `No packages/ or node_modules/@metamask/ found in ${projectPath}.`,
+      `No src/, packages/, or node_modules/@metamask/ found in ${projectPath}.`,
     );
   }
 

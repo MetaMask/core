@@ -140,6 +140,25 @@ async function main(): Promise<void> {
 
     const { bin: docusaurus, nodeModules } = resolveDocusaurus();
 
+    // Symlink node_modules into the output directory so Docusaurus resolves
+    // React 18 and other deps from this package, not the host project.
+    const nmLink = path.join(resolvedOutputDir, 'node_modules');
+    try {
+      await fs.lstat(nmLink);
+      // Already exists — remove only if it's a symlink we previously created.
+      const target = await fs.readlink(nmLink).catch(() => null);
+      if (target !== null) {
+        await fs.unlink(nmLink);
+      }
+    } catch {
+      // Doesn't exist yet — nothing to remove.
+    }
+    try {
+      await fs.access(nmLink);
+    } catch {
+      await fs.symlink(nodeModules, nmLink);
+    }
+
     if (dev) {
       console.log('\nStarting dev server...');
       await runDocusaurus(docusaurus, 'start', resolvedOutputDir, nodeModules);
