@@ -1703,6 +1703,40 @@ describe('RampsController', () => {
       );
     });
 
+    it('aborts in-flight dependent requests when user region changes', async () => {
+      const mockTokens: TokensResponse = { topTokens: [], allTokens: [] };
+
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => mockTokens,
+          );
+          const providersPromise = new Promise<{ providers: Provider[] }>(
+            () => {},
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => providersPromise,
+          );
+
+          await controller.setUserRegion('US-ca');
+          await controller.setUserRegion('FR');
+
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          expect(controller.state.userRegion?.regionCode).toBe('fr');
+          expect(controller.state.providers.data).toStrictEqual([]);
+        },
+      );
+    });
+
     it('does not clear persisted state when setting the same region', async () => {
       const mockTokens: TokensResponse = {
         topTokens: [],
