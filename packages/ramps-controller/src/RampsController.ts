@@ -18,7 +18,6 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
-  BuyWidget,
   RampsToken,
   RampsServiceActions,
   RampsOrder,
@@ -1551,7 +1550,6 @@ export class RampsController extends BaseController<
       {
         forceRefresh: options.forceRefresh,
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
-        isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
   }

@@ -4586,7 +4586,6 @@ describe('RampsController', () => {
         },
       );
     });
-
   });
 
   describe('getWidgetUrl', () => {
@@ -6293,13 +6292,4 @@ async function withController<ReturnValue>(
     ...options,
   });
   return await testFunction({ controller, rootMessenger, messenger });
-}
-
-/**
- * Flushes pending microtasks by yielding to the event loop multiple times.
- */
-async function flushPromises(): Promise<void> {
-  for (let i = 0; i < 10; i++) {
-    await Promise.resolve();
-  }
 }
