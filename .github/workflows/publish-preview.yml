@@ -56,7 +56,7 @@ jobs:
     needs: build-preview
     permissions:
       pull-requests: write
-    environment: publish-preview
+    environment: default-branch
     runs-on: ubuntu-latest
     steps:
       - name: Checkout and setup environment
@@ -68,7 +68,7 @@ jobs:
         with:
           name: preview-build-artifacts
           path: packages
-      # The artifact package.json files come from the PR branch (untrusted).
+      # The artifact package.json files come from the PR branch.
       # A malicious PR could inject lifecycle scripts (prepack/postpack) that
       # execute during `yarn npm publish` with the NPM token in the environment
       # (enableScripts: false does NOT prevent pack/publish lifecycle scripts).
