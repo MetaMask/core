@@ -49,6 +49,7 @@ jobs:
           retention-days: 4
           path: |
             ./yarn.lock
+            ./package.json
             ./packages/*/
             !./packages/*/node_modules/
             !./packages/*/src/
@@ -79,7 +80,7 @@ jobs:
       - name: Validate artifact manifests
         run: |
           bad=0
-          for f in packages/**/package.json; do
+          for f in package.json packages/**/package.json; do
             if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)(pack|publish)"))' "$f" > /dev/null 2>&1; then
               echo "::error::Forbidden lifecycle script in $f"
               bad=1
