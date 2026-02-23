@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix token search API parameter to use `first` instead of `limit` for pagination ([#8008](https://github.com/MetaMask/core/pull/8008))
+- Fix token search API parameter to use `first` instead of `limit` for pagination ([#8019](https://github.com/MetaMask/core/pull/8019))
   - Add limit validation with a maximum of 50 results by default
   - Add special exception allowing up to 500 results for Ondo token queries
 
