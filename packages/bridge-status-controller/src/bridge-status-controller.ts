@@ -65,7 +65,7 @@ import {
 } from './utils/bridge-status';
 import { getTxGasEstimates } from './utils/gas';
 import {
-  IntentApiImpl,
+  IntentSubmissionParams,
   mapIntentOrderStatusToTransactionStatus,
 } from './utils/intent-api';
 import {
@@ -190,6 +190,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       updateTransactionFn: this.#updateTransactionFn,
       customBridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
       fetchFn: this.#fetchFn,
+      getJwt: this.#getJwt,
     });
 
     // Register action handlers
@@ -1651,7 +1652,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const { srcChainId: chainId, requestId } = quoteResponse.quote;
 
-      const submissionParams = {
+      const submissionParams: IntentSubmissionParams = {
         srcChainId: chainId.toString(),
         quoteId: requestId,
         signature,
@@ -1659,12 +1660,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         userAddress: accountAddress,
         aggregatorId: intent.protocol,
       };
-      const intentApi = new IntentApiImpl(
-        this.#config.customBridgeApiBaseUrl,
-        this.#fetchFn,
-        this.#getJwt,
-      );
-      const intentOrder = await intentApi.submitIntent(
+
+      const intentOrder = await this.#intentManager.submitIntent(
         submissionParams,
         this.#clientId,
       );

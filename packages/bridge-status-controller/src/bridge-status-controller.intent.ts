@@ -9,6 +9,7 @@ import {
   IntentApi,
   IntentApiImpl,
   IntentBridgeStatus,
+  IntentSubmissionParams,
   translateIntentOrderToBridgeStatus,
 } from './utils/intent-api';
 import { IntentOrder, IntentOrderStatus } from './utils/validators';
@@ -23,7 +24,7 @@ export class IntentManager {
 
   readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
 
-  readonly #intentApi: IntentApi;
+  readonly intentApi: IntentApi;
 
   #intentStatuses: IntentStatuses;
 
@@ -42,11 +43,7 @@ export class IntentManager {
   }) {
     this.#messenger = messenger;
     this.#updateTransactionFn = updateTransactionFn;
-    this.#intentApi = new IntentApiImpl(
-      customBridgeApiBaseUrl,
-      fetchFn,
-      getJwt,
-    );
+    this.intentApi = new IntentApiImpl(customBridgeApiBaseUrl, fetchFn, getJwt);
     this.#intentStatuses = {
       orderStatus: IntentOrderStatus.PENDING,
       bridgeStatus: null,
@@ -104,7 +101,7 @@ export class IntentManager {
       quote: { srcChainId, intent: { protocol = '' } = {} },
     } = historyItem;
     try {
-      const orderStatus = await this.#intentApi.getOrderStatus(
+      const orderStatus = await this.intentApi.getOrderStatus(
         bridgeTxMetaId,
         protocol,
         srcChainId.toString(),
@@ -194,5 +191,19 @@ export class IntentManager {
         error,
       });
     }
+  };
+
+  /**
+   * Submit an intent order.
+   *
+   * @param submissionParams - The submission parameters.
+   * @param clientId - The client ID.
+   * @returns The intent order.
+   */
+  submitIntent = async (
+    submissionParams: IntentSubmissionParams,
+    clientId: string,
+  ): Promise<IntentOrder> => {
+    return this.intentApi.submitIntent(submissionParams, clientId);
   };
 }

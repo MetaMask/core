@@ -21,7 +21,6 @@ export type IntentApi = {
   submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-    jwt: string,
   ): Promise<IntentOrder>;
   getOrderStatus(
     orderId: string,
