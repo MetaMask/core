@@ -8,6 +8,7 @@ import {
   isClassDeclaration,
   isIdentifier,
   isImportDeclaration,
+  isInterfaceDeclaration,
   isJSDoc,
   isLiteralTypeNode,
   isMethodDeclaration,
@@ -27,6 +28,7 @@ import {
 } from 'typescript';
 import type {
   Expression,
+  InterfaceDeclaration,
   Node as TsNode,
   NodeArray,
   SourceFile,
@@ -522,31 +524,37 @@ export async function extractFromFile(
   const items: MessengerItemDoc[] = [];
   const relPath = path.relative(relBase, filePath);
 
-  // Type aliases are always top-level statements — no need for deep recursion
+  // Type aliases and interfaces are always top-level statements
   for (const statement of sourceFile.statements) {
-    // Handle `export type X = ...`
-    let node: TypeAliasDeclaration | undefined;
-    if (isTypeAliasDeclaration(statement)) {
-      node = statement;
+    // ---------------------------------------------------------------
+    // Pattern 1: { type: '...'; handler/payload: ... }
+    // Matches both:
+    //   type X = { type: '...'; handler: ... }   (type alias with literal body)
+    //   interface X { type: '...'; handler: ... } (interface declaration)
+    // ---------------------------------------------------------------
+    let inlineNode: TypeAliasDeclaration | InterfaceDeclaration | undefined;
+    let inlineMembers: NodeArray<TypeElement> | undefined;
+
+    if (
+      isTypeAliasDeclaration(statement) &&
+      isTypeLiteralNode(statement.type)
+    ) {
+      inlineNode = statement;
+      inlineMembers = statement.type.members;
+    } else if (isInterfaceDeclaration(statement)) {
+      inlineNode = statement;
+      inlineMembers = statement.members;
     }
 
-    if (!node) {
-      continue;
-    }
-
-    const typeName = node.name.text;
-    const line =
-      sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
-
-    // -------------------------------------------------------------------
-    // Pattern 1: Inline type literal  { type: '...'; handler/payload: ... }
-    // -------------------------------------------------------------------
-    if (isTypeLiteralNode(node.type)) {
-      const { members } = node.type;
+    if (inlineNode && inlineMembers) {
+      const typeName = inlineNode.name.text;
+      const line =
+        sourceFile.getLineAndCharacterOfPosition(inlineNode.getStart()).line +
+        1;
 
       // Find `type` property
       let typeString: string | null = null;
-      for (const member of members) {
+      for (const member of inlineMembers) {
         if (
           isPropertySignature(member) &&
           member.name &&
@@ -562,43 +570,58 @@ export async function extractFromFile(
         }
       }
 
-      if (!typeString?.includes(':')) {
-        continue;
-      }
+      if (typeString?.includes(':')) {
+        const handlerText = getPropertyText(
+          inlineMembers,
+          'handler',
+          sourceFile,
+        );
+        const payloadText = getPropertyText(
+          inlineMembers,
+          'payload',
+          sourceFile,
+        );
 
-      const handlerText = getPropertyText(members, 'handler', sourceFile);
-      const payloadText = getPropertyText(members, 'payload', sourceFile);
+        if (handlerText || payloadText) {
+          const kind: 'action' | 'event' = handlerText ? 'action' : 'event';
 
-      if (!handlerText && !payloadText) {
-        continue;
-      }
+          // For actions, resolve ClassName['methodName'] to actual signature + JSDoc
+          let resolvedHandler = handlerText || payloadText;
+          let typeAliasJsDoc = extractJsDocText(inlineNode, sourceFile);
 
-      const kind: 'action' | 'event' = handlerText ? 'action' : 'event';
+          if (handlerText) {
+            const resolved = resolveHandler(handlerText, classMethods);
+            resolvedHandler = resolved.signature;
+            // If the type alias has no JSDoc, use the method's JSDoc
+            if (!typeAliasJsDoc && resolved.methodJsDoc) {
+              typeAliasJsDoc = resolved.methodJsDoc;
+            }
+          }
 
-      // For actions, resolve ClassName['methodName'] to actual signature + JSDoc
-      let resolvedHandler = handlerText || payloadText;
-      let typeAliasJsDoc = extractJsDocText(node, sourceFile);
-
-      if (handlerText) {
-        const resolved = resolveHandler(handlerText, classMethods);
-        resolvedHandler = resolved.signature;
-        // If the type alias has no JSDoc, use the method's JSDoc
-        if (!typeAliasJsDoc && resolved.methodJsDoc) {
-          typeAliasJsDoc = resolved.methodJsDoc;
+          items.push({
+            typeName,
+            typeString,
+            kind,
+            jsDoc: typeAliasJsDoc,
+            handlerOrPayload: resolvedHandler,
+            sourceFile: relPath,
+            line,
+            deprecated: isDeprecated(inlineNode),
+          });
         }
       }
-
-      items.push({
-        typeName,
-        typeString,
-        kind,
-        jsDoc: typeAliasJsDoc,
-        handlerOrPayload: resolvedHandler,
-        sourceFile: relPath,
-        line,
-        deprecated: isDeprecated(node),
-      });
     }
+
+    // -------------------------------------------------------------------
+    // Patterns 2 & 3 only apply to type aliases (generic type references)
+    // -------------------------------------------------------------------
+    if (!isTypeAliasDeclaration(statement)) {
+      continue;
+    }
+    const node = statement;
+    const typeName = node.name.text;
+    const line =
+      sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
 
     // -------------------------------------------------------------------
     // Pattern 2: ControllerGetStateAction<typeof cn, State>

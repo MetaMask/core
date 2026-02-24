@@ -43,12 +43,14 @@ function linkifyReferences(
  * @param item - The messenger item to document.
  * @param namespace - The current namespace.
  * @param knownNames - Map from short/full names to their link paths.
+ * @param repoBaseUrl - Optional GitHub blob base URL (e.g. "https://github.com/Owner/Repo/blob/sha/").
  * @returns The generated markdown string.
  */
 export function generateItemMarkdown(
   item: MessengerItemDoc,
   namespace: string,
   knownNames: Map<string, string>,
+  repoBaseUrl: string | null,
 ): string {
   const parts: string[] = [];
 
@@ -65,9 +67,11 @@ export function generateItemMarkdown(
     const pkgName = pkgMatch ? pkgMatch[1] : item.sourceFile;
     const npmUrl = `https://www.npmjs.com/package/${pkgName}`;
     parts.push(`**Package**: [\`${pkgName}\`](${npmUrl})`);
-  } else {
-    const ghUrl = `https://github.com/MetaMask/core/blob/main/${item.sourceFile}#L${item.line}`;
+  } else if (repoBaseUrl) {
+    const ghUrl = `${repoBaseUrl}${item.sourceFile}#L${item.line}`;
     parts.push(`**Source**: [${item.sourceFile}:${item.line}](${ghUrl})`);
+  } else {
+    parts.push(`**Source**: \`${item.sourceFile}:${item.line}\``);
   }
   parts.push('');
 
@@ -92,11 +96,13 @@ export function generateItemMarkdown(
  *
  * @param ns - The namespace group to generate a page for.
  * @param kind - Whether to generate the actions or events page.
+ * @param repoBaseUrl - Optional GitHub blob base URL for source links.
  * @returns The generated markdown string.
  */
 export function generateNamespacePage(
   ns: NamespaceGroup,
   kind: 'action' | 'event',
+  repoBaseUrl: string | null = null,
 ): string {
   const items = kind === 'action' ? ns.actions : ns.events;
   const title = kind === 'action' ? 'Actions' : 'Events';
@@ -154,7 +160,9 @@ export function generateNamespacePage(
   parts.push('');
 
   for (const item of items) {
-    parts.push(generateItemMarkdown(item, ns.namespace, knownNames));
+    parts.push(
+      generateItemMarkdown(item, ns.namespace, knownNames, repoBaseUrl),
+    );
     parts.push('---');
     parts.push('');
   }

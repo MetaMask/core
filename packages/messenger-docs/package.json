@@ -31,9 +31,7 @@
   },
   "main": "./dist/index.cjs",
   "types": "./dist/index.d.cts",
-  "bin": {
-    "messenger-docs": "./dist/cli.mjs"
-  },
+  "bin": "./dist/cli.mjs",
   "files": [
     "dist/",
     "template/"

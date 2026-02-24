@@ -1,5 +1,7 @@
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { promisify } from 'node:util';
 
 import { findDtsFiles, findTsFiles } from './discovery';
 import { extractFromFile } from './extraction';
@@ -39,6 +41,39 @@ async function pathExists(targetPath: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Resolve the GitHub blob base URL for a project by reading its git remote.
+ *
+ * @param projectPath - Absolute path to the project root.
+ * @returns A base URL like "https://github.com/Owner/Repo/blob/main/" or null.
+ */
+async function resolveRepoBaseUrl(projectPath: string): Promise<string | null> {
+  try {
+    const { stdout: remoteRaw } = await execFileAsync(
+      'git',
+      ['remote', 'get-url', 'origin'],
+      { cwd: projectPath },
+    );
+
+    const remote = remoteRaw.trim();
+
+    // Parse owner/repo from SSH or HTTPS remote URLs
+    // Handles aliases like github.com-Org used in SSH configs
+    const match = remote.match(
+      /github\.com[^:/]*[:/]([^/]+\/[^/]+?)(?:\.git)?$/u,
+    );
+    if (!match) {
+      return null;
+    }
+
+    return `https://github.com/${match[1]}/blob/main/`;
+  } catch {
+    return null;
   }
 }
 
@@ -268,6 +303,9 @@ export async function generate(
     ns.events.sort((a, b) => a.typeString.localeCompare(b.typeString));
   }
 
+  // Resolve repository base URL for source links
+  const repoBaseUrl = await resolveRepoBaseUrl(projectPath);
+
   // Write output
   const docsDir = path.join(outputDir, 'docs');
 
@@ -285,14 +323,14 @@ export async function generate(
     if (ns.actions.length > 0) {
       await fs.writeFile(
         path.join(nsDir, 'actions.md'),
-        generateNamespacePage(ns, 'action'),
+        generateNamespacePage(ns, 'action', repoBaseUrl),
       );
     }
 
     if (ns.events.length > 0) {
       await fs.writeFile(
         path.join(nsDir, 'events.md'),
-        generateNamespacePage(ns, 'event'),
+        generateNamespacePage(ns, 'event', repoBaseUrl),
       );
     }
   }
