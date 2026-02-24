@@ -54,7 +54,7 @@
     "@metamask/multichain-network-controller": "^3.0.4",
     "@metamask/network-controller": "^30.0.0",
     "@metamask/slip44": "^4.3.0",
-    "@metamask/transaction-controller": "^62.18.0",
+    "@metamask/transaction-controller": "^62.19.0",
     "@metamask/utils": "^11.9.0",
     "reselect": "^5.1.1"
   },

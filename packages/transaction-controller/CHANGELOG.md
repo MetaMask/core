@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [62.19.0]
+
 ### Uncategorized
 
 - chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
@@ -2188,7 +2190,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.18.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.19.0...HEAD
+[62.19.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.18.0...@metamask/transaction-controller@62.19.0
 [62.18.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.17.1...@metamask/transaction-controller@62.18.0
 [62.17.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.17.0...@metamask/transaction-controller@62.17.1
 [62.17.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.16.0...@metamask/transaction-controller@62.17.0
