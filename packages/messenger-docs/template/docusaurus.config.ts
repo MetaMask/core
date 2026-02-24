@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import type * as Preset from '@docusaurus/preset-classic';
@@ -8,12 +9,17 @@ const codeTheme = themes.dracula;
 
 // When running inside a host project (e.g. metamask-extension) whose React
 // version differs from Docusaurus's, we alias react/react-dom to the copies
-// installed alongside this package.
+// installed alongside this package.  Only create aliases for packages that
+// actually exist at the NODE_PATH location (they may be hoisted when the host
+// already has a compatible version).
 const extraNodeModules = process.env.NODE_PATH; // eslint-disable-line no-process-env
 const reactAlias: Record<string, string> = {};
 if (extraNodeModules) {
   for (const pkg of ['react', 'react-dom', '@mdx-js/react']) {
-    reactAlias[pkg] = path.join(extraNodeModules, pkg);
+    const pkgPath = path.join(extraNodeModules, pkg);
+    if (fs.existsSync(pkgPath)) {
+      reactAlias[pkg] = pkgPath;
+    }
   }
 }
 
