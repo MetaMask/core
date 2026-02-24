@@ -39,8 +39,8 @@ export type PriceDataSourceConfig = {
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
-  /** Currency to fetch prices in (default: 'usd') */
-  currency?: SupportedCurrency;
+  /** Function returning the currently-active ISO 4217 currency code */
+  getSelectedCurrency: () => SupportedCurrency;
 };
 
 // ============================================================================
@@ -110,7 +110,7 @@ export class PriceDataSource {
     return PriceDataSource.controllerName;
   }
 
-  readonly #currency: SupportedCurrency;
+  readonly #getSelectedCurrency: () => SupportedCurrency;
 
   readonly #pollInterval: number;
 
@@ -129,7 +129,7 @@ export class PriceDataSource {
   > = new Map();
 
   constructor(options: PriceDataSourceOptions) {
-    this.#currency = options.currency ?? 'usd';
+    this.#getSelectedCurrency = options.getSelectedCurrency;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
   }
@@ -156,27 +156,33 @@ export class PriceDataSource {
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
       // Extract response from context
-      const { response } = ctx;
+      const { response, request } = ctx;
 
       // Only fetch prices for detected assets (assets without metadata)
       // The subscription handles fetching prices for all existing assets
-      if (!response.detectedAssets) {
+      if (!response.detectedAssets && !request.assetsForPriceUpdate?.length) {
         return next(ctx);
       }
 
-      const detectedAssetIds = new Set<Caip19AssetId>();
-      for (const detectedIds of Object.values(response.detectedAssets)) {
-        for (const assetId of detectedIds) {
-          detectedAssetIds.add(assetId);
+      const assetIds = new Set<Caip19AssetId>();
+      for (const detectedAccountAssets of Object.values(
+        response.detectedAssets ?? {},
+      )) {
+        for (const assetId of detectedAccountAssets) {
+          assetIds.add(assetId);
         }
       }
 
-      if (detectedAssetIds.size === 0) {
+      for (const assetId of request.assetsForPriceUpdate ?? []) {
+        assetIds.add(assetId);
+      }
+
+      if (assetIds.size === 0) {
         return next(ctx);
       }
 
       // Filter to only priceable assets
-      const priceableAssetIds = [...detectedAssetIds].filter(isPriceableAsset);
+      const priceableAssetIds = [...assetIds].filter(isPriceableAsset);
 
       if (priceableAssetIds.length === 0) {
         return next(ctx);
@@ -219,7 +225,7 @@ export class PriceDataSource {
    */
   async #fetchSpotPrices(assetIds: string[]): Promise<V3SpotPricesResponse> {
     return this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-      currency: this.#currency,
+      currency: this.#getSelectedCurrency(),
       includeMarketData: true,
     });
   }
@@ -393,7 +399,10 @@ export class PriceDataSource {
           fetchResponse.assetsPrice &&
           Object.keys(fetchResponse.assetsPrice).length > 0
         ) {
-          await subscription.onAssetsUpdate(fetchResponse);
+          await subscription.onAssetsUpdate({
+            ...fetchResponse,
+            updateMode: 'merge',
+          });
         }
       } catch (error) {
         log('Subscription poll failed', { subscriptionId, error });

@@ -18,7 +18,6 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
-  BuyWidget,
   RampsToken,
   RampsServiceActions,
   RampsOrder,
@@ -248,18 +247,6 @@ export type RampsControllerState = {
    */
   paymentMethods: ResourceState<PaymentMethod[], PaymentMethod | null>;
   /**
-   * Quotes resource state with data, selected, loading, and error.
-   * Data contains quotes from multiple providers for the given parameters.
-   * Selected contains the currently selected quote for the user.
-   */
-  quotes: ResourceState<QuotesResponse | null, Quote | null>;
-  /**
-   * Widget URL resource state with data, loading, and error.
-   * Contains the buy widget data (URL, browser type, order ID) for the currently selected quote.
-   * Automatically fetched whenever a selected quote changes.
-   */
-  widgetUrl: ResourceState<BuyWidget | null>;
-  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
@@ -304,18 +291,6 @@ const rampsControllerMetadata = {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
-    usedInUi: true,
-  },
-  quotes: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  widgetUrl: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
     usedInUi: true,
   },
   requests: {
@@ -377,11 +352,6 @@ export function getDefaultRampsControllerState(): RampsControllerState {
       PaymentMethod[],
       PaymentMethod | null
     >([], null),
-    quotes: createDefaultResourceState<QuotesResponse | null, Quote | null>(
-      null,
-      null,
-    ),
-    widgetUrl: createDefaultResourceState<BuyWidget | null>(null),
     requests: {},
     nativeProviders: {
       transak: {
@@ -401,7 +371,6 @@ const DEPENDENT_RESOURCE_KEYS = [
   'providers',
   'tokens',
   'paymentMethods',
-  'quotes',
 ] as const;
 
 type DependentResourceKey = (typeof DEPENDENT_RESOURCE_KEYS)[number];
@@ -422,21 +391,7 @@ function resetResource(
 }
 
 /**
- * Resets the widgetUrl resource to its default state.
- * Mutates state in place; use from within controller update() for atomic updates.
- *
- * @param state - The state object to mutate.
- */
-function resetWidgetUrl(state: Draft<RampsControllerState>): void {
-  const def = getDefaultRampsControllerState().widgetUrl;
-  state.widgetUrl.data = def.data;
-  state.widgetUrl.selected = def.selected;
-  state.widgetUrl.isLoading = def.isLoading;
-  state.widgetUrl.error = def.error;
-}
-
-/**
- * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods, quotes).
+ * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods).
  * Mutates state in place; use from within controller update() for atomic updates.
  *
  * @param state - The state object to mutate.
@@ -454,7 +409,6 @@ function resetDependentResources(
   for (const key of DEPENDENT_RESOURCE_KEYS) {
     resetResource(state, key, defaultState[key]);
   }
-  resetWidgetUrl(state);
 }
 
 // === MESSENGER ===
@@ -647,22 +601,6 @@ export class RampsController extends BaseController<
    * Used so isLoading is only cleared when the last request for that resource finishes.
    */
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
-
-  /**
-   * Interval ID for automatic quote polling.
-   * Set when startQuotePolling() is called, cleared when stopQuotePolling() is called.
-   */
-  #quotePollingInterval: ReturnType<typeof setInterval> | null = null;
-
-  /**
-   * Options used for quote polling (walletAddress, amount, redirectUrl).
-   * Stored so polling can be restarted when dependencies change.
-   */
-  #quotePollingOptions: {
-    walletAddress: string;
-    amount: number;
-    redirectUrl?: string;
-  } | null = null;
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -905,7 +843,6 @@ export class RampsController extends BaseController<
   }
 
   #cleanupState(): void {
-    this.stopQuotePolling();
     this.#abortDependentRequests();
     this.#clearPendingResourceCountForDependentResources();
     this.update((state) =>
@@ -921,24 +858,6 @@ export class RampsController extends BaseController<
    */
   #fireAndForget<Result>(promise: Promise<Result>): void {
     promise.catch((_error: unknown) => undefined);
-  }
-
-  /**
-   * Restarts quote polling if it's currently active.
-   * Used when dependencies change (token, provider, payment method).
-   * Will only restart if all dependencies are still met (startQuotePolling validates this).
-   */
-  #restartPollingIfActive(): void {
-    if (this.#quotePollingInterval !== null && this.#quotePollingOptions) {
-      const options = this.#quotePollingOptions;
-      this.stopQuotePolling();
-      try {
-        this.startQuotePolling(options);
-      } catch {
-        // Dependencies not met yet, polling will need to be manually restarted
-        // when dependencies are available
-      }
-    }
   }
 
   #requireRegion(): string {
@@ -1100,7 +1019,6 @@ export class RampsController extends BaseController<
       if (regionChanged) {
         this.#abortDependentRequests();
         this.#clearPendingResourceCountForDependentResources();
-        this.stopQuotePolling();
       }
       this.update((state) => {
         if (regionChanged) {
@@ -1143,7 +1061,6 @@ export class RampsController extends BaseController<
    */
   setSelectedProvider(providerId: string | null): void {
     if (providerId === null) {
-      this.stopQuotePolling();
       this.update((state) => {
         state.providers.selected = null;
         resetResource(state, 'paymentMethods');
@@ -1169,16 +1086,10 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.providers.selected = provider;
       resetResource(state, 'paymentMethods');
-      state.quotes.selected = null;
-      resetWidgetUrl(state);
     });
 
     this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { provider: provider.id }).then(() => {
-        // Restart quote polling after payment methods are fetched
-        this.#restartPollingIfActive();
-        return undefined;
-      }),
+      this.getPaymentMethods(regionCode, { provider: provider.id }),
     );
   }
 
@@ -1306,7 +1217,6 @@ export class RampsController extends BaseController<
    */
   setSelectedToken(assetId?: string): void {
     if (!assetId) {
-      this.stopQuotePolling();
       this.update((state) => {
         state.tokens.selected = null;
         resetResource(state, 'paymentMethods');
@@ -1335,17 +1245,10 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.tokens.selected = token;
       resetResource(state, 'paymentMethods');
-      state.quotes.selected = null;
-      resetWidgetUrl(state);
     });
 
     this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { assetId: token.assetId }).then(
-        () => {
-          this.#restartPollingIfActive();
-          return undefined;
-        },
-      ),
+      this.getPaymentMethods(regionCode, { assetId: token.assetId }),
     );
   }
 
@@ -1537,14 +1440,11 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.paymentMethods.selected = paymentMethod;
     });
-
-    // Restart quote polling if active
-    this.#restartPollingIfActive();
   }
 
   /**
    * Fetches quotes from all providers for a given set of parameters.
-   * The quotes are saved in the controller state once fetched.
+   * Uses the controller's request cache; callers manage the response in local state.
    *
    * @param options - The parameters for fetching quotes.
    * @param options.region - User's region code. If not provided, uses userRegion from state.
@@ -1642,7 +1542,7 @@ export class RampsController extends BaseController<
       action,
     };
 
-    const response = await this.executeRequest(
+    return this.executeRequest(
       cacheKey,
       async () => {
         return this.messenger.call('RampsService:getQuotes', params);
@@ -1650,210 +1550,25 @@ export class RampsController extends BaseController<
       {
         forceRefresh: options.forceRefresh,
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
-        resourceType: 'quotes',
-        isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
-
-    this.update((state) => {
-      const userRegionCode = state.userRegion?.regionCode;
-
-      if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.quotes.data = response;
-      }
-    });
-
-    return response;
-  }
-
-  /**
-   * Starts automatic quote polling with a 15-second refresh interval.
-   * Fetches quotes immediately and then every 15 seconds.
-   * If the response contains exactly one quote, it is auto-selected.
-   * If multiple quotes are returned, the existing selection is preserved if still valid.
-   *
-   * Returns early (no-op) if the selected payment method is not yet set,
-   * allowing callers to invoke this before payment-method selection is finalized.
-   *
-   * @param options - Parameters for fetching quotes.
-   * @param options.walletAddress - The destination wallet address.
-   * @param options.amount - The amount (in fiat for buy, crypto for sell).
-   * @param options.redirectUrl - Optional redirect URL after order completion.
-   * @throws If required dependencies (region, token, provider) are not set.
-   */
-  startQuotePolling(options: {
-    walletAddress: string;
-    amount: number;
-    redirectUrl?: string;
-  }): void {
-    this.#requireRegion();
-    const token = this.state.tokens.selected;
-    const provider = this.state.providers.selected;
-    const paymentMethod = this.state.paymentMethods.selected;
-
-    if (!token) {
-      throw new Error(
-        'Token is required. Cannot start quote polling without a selected token.',
-      );
-    }
-
-    if (!provider) {
-      throw new Error(
-        'Provider is required. Cannot start quote polling without a selected provider.',
-      );
-    }
-
-    if (!paymentMethod) {
-      return;
-    }
-
-    // Stop any existing polling first
-    this.stopQuotePolling();
-
-    // Store options for restarts (must be after stop to avoid being cleared)
-    this.#quotePollingOptions = options;
-
-    // Define the fetch function
-    const fetchQuotes = (): void => {
-      this.#fireAndForget(
-        this.getQuotes({
-          assetId: token.assetId,
-          amount: options.amount,
-          walletAddress: options.walletAddress,
-          redirectUrl: options.redirectUrl,
-          paymentMethods: [paymentMethod.id],
-          providers: [provider.id],
-          forceRefresh: true,
-        }).then((response) => {
-          let newSelectedQuote: Quote | null = null;
-
-          // Auto-select logic: only when exactly one quote is returned
-          this.update((state) => {
-            if (response.success.length === 1) {
-              newSelectedQuote = response.success[0];
-              state.quotes.selected = newSelectedQuote;
-            } else {
-              // Keep existing selection if still valid, but update with fresh data
-              const currentSelection = state.quotes.selected;
-              if (currentSelection) {
-                const freshQuote = response.success.find(
-                  (quote) =>
-                    quote.provider === currentSelection.provider &&
-                    quote.quote.paymentMethod ===
-                      currentSelection.quote.paymentMethod,
-                );
-                newSelectedQuote = freshQuote ?? null;
-                state.quotes.selected = newSelectedQuote;
-              }
-            }
-          });
-
-          this.#syncWidgetUrl(newSelectedQuote);
-          return undefined;
-        }),
-      );
-    };
-
-    // Fetch immediately
-    fetchQuotes();
-
-    // Set up 15-second polling
-    this.#quotePollingInterval = setInterval(fetchQuotes, 15000);
-  }
-
-  /**
-   * Stops automatic quote polling.
-   * Does not clear quotes data or selection, only stops the interval.
-   */
-  stopQuotePolling(): void {
-    if (this.#quotePollingInterval !== null) {
-      clearInterval(this.#quotePollingInterval);
-      this.#quotePollingInterval = null;
-    }
-    this.#quotePollingOptions = null;
-  }
-
-  /**
-   * Manually sets the selected quote.
-   * Automatically triggers a widget URL fetch for the new quote.
-   *
-   * @param quote - The quote to select, or null to clear the selection.
-   */
-  setSelectedQuote(quote: Quote | null): void {
-    this.update((state) => {
-      state.quotes.selected = quote;
-    });
-    this.#syncWidgetUrl(quote);
   }
 
   /**
    * Cleans up controller resources.
-   * Stops any active quote polling to prevent memory leaks.
    * Should be called when the controller is no longer needed.
    */
   override destroy(): void {
-    this.stopQuotePolling();
     super.destroy();
-  }
-
-  /**
-   * Syncs the widget URL state with the given quote.
-   * If the quote has a buyURL, fetches the widget URL and stores the result in state.
-   * If the quote is null or has no buyURL, resets the widget URL state.
-   *
-   * When data already exists, skips the loading-state reset so that polling
-   * cycles don't cause visible flicker (stale-while-revalidate).
-   *
-   * @param quote - The quote to fetch the widget URL for, or null to clear.
-   */
-  #syncWidgetUrl(quote: Quote | null): void {
-    const buyUrl = quote?.quote?.buyURL;
-    if (!buyUrl) {
-      this.update((state) => {
-        resetWidgetUrl(state);
-      });
-      return;
-    }
-
-    if (this.state.widgetUrl.data === null) {
-      this.update((state) => {
-        state.widgetUrl.isLoading = true;
-        state.widgetUrl.error = null;
-      });
-    }
-
-    this.#fireAndForget(
-      this.messenger
-        .call('RampsService:getBuyWidgetUrl', buyUrl)
-        .then((buyWidget) => {
-          this.update((state) => {
-            state.widgetUrl.data = buyWidget;
-            state.widgetUrl.isLoading = false;
-            state.widgetUrl.error = null;
-          });
-          return undefined;
-        })
-        .catch((error: unknown) => {
-          this.update((state) => {
-            state.widgetUrl.isLoading = false;
-            state.widgetUrl.error =
-              error instanceof Error
-                ? error.message
-                : 'Failed to fetch widget URL';
-          });
-        }),
-    );
   }
 
   /**
    * Fetches the widget URL from a quote for redirect providers.
    * Makes a request to the buyURL endpoint via the RampsService to get the
-   * actual provider widget URL, using the injected fetch and retry policy.
+   * actual provider widget URL.
    *
    * @param quote - The quote to fetch the widget URL from.
    * @returns Promise resolving to the widget URL string, or null if not available.
-   * @deprecated Read `state.widgetUrl` instead. The widget URL is now automatically
-   * fetched and stored in state whenever the selected quote changes.
    */
   async getWidgetUrl(quote: Quote): Promise<string | null> {
     const buyUrl = quote.quote?.buyURL;

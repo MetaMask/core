@@ -14,7 +14,7 @@ import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 import {
   getIncomingTransactionsPollingInterval,
-  isIncomingTransactionsUseWebsocketsEnabled,
+  isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from '../utils/feature-flags';
 import { caip2ToHex } from '../utils/utils';
 
@@ -73,7 +73,7 @@ export class IncomingTransactionHelper {
 
   readonly #updateTransactions?: boolean;
 
-  readonly #useWebsockets: boolean;
+  readonly #useBackendWebSocketService: boolean;
 
   // Chains that need polling (start with all supported, remove as they come up)
   readonly #chainsToPoll: Hex[] = [...SUPPORTED_CHAIN_IDS];
@@ -140,9 +140,10 @@ export class IncomingTransactionHelper {
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
     this.#updateTransactions = updateTransactions;
-    this.#useWebsockets = isIncomingTransactionsUseWebsocketsEnabled(messenger);
+    this.#useBackendWebSocketService =
+      isIncomingTransactionsUseBackendWebSocketServiceEnabled(messenger);
 
-    if (this.#useWebsockets) {
+    if (this.#useBackendWebSocketService) {
       this.#messenger.subscribe(
         'BackendWebSocketService:connectionStateChanged',
         this.#connectionStateChangedHandler,
@@ -157,7 +158,7 @@ export class IncomingTransactionHelper {
 
   start(): void {
     // When websockets are disabled, allow normal polling (legacy mode)
-    if (this.#useWebsockets) {
+    if (this.#useBackendWebSocketService) {
       return;
     }
 
@@ -274,7 +275,9 @@ export class IncomingTransactionHelper {
 
     try {
       // When websockets enabled, only poll chains that are not confirmed up
-      const chainIds = this.#useWebsockets ? this.#chainsToPoll : undefined;
+      const chainIds = this.#useBackendWebSocketService
+        ? this.#chainsToPoll
+        : undefined;
       await this.update({ chainIds, isInterval: true });
     } catch (error) {
       console.error('Error while checking incoming transactions', error);
@@ -424,7 +427,7 @@ export class IncomingTransactionHelper {
   }
 
   #onNetworkStatusChanged(chainIds: string[], status: 'up' | 'down'): void {
-    if (!this.#useWebsockets) {
+    if (!this.#useBackendWebSocketService) {
       return;
     }
 

@@ -63,7 +63,8 @@ export type InputKeys =
   | 'token_destination'
   | 'chain_source'
   | 'chain_destination'
-  | 'slippage';
+  | 'slippage'
+  | 'token_amount_source';
 
 export type InputValues = {
   token_source: CaipAssetType;
@@ -71,6 +72,7 @@ export type InputValues = {
   chain_source: CaipChainId;
   chain_destination: CaipChainId;
   slippage: number;
+  token_amount_source: string;
 };
 
 export type QuoteWarning =
@@ -100,7 +102,8 @@ type RequiredEventContextFromClientBase = {
       | 'token_destination'
       | 'chain_source'
       | 'chain_destination'
-      | 'slippage';
+      | 'slippage'
+      | 'token_amount_source';
     input_value: InputValues[keyof InputValues];
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {

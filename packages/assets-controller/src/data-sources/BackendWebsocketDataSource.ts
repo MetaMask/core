@@ -624,7 +624,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       };
     }
 
-    const response: DataResponse = {};
+    const response: DataResponse = { updateMode: 'merge' };
     if (Object.keys(assetsBalance[accountId]).length > 0) {
       response.assetsBalance = assetsBalance;
       response.assetsInfo = assetsMetadata;
