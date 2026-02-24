@@ -865,6 +865,7 @@ export class AssetsController extends BaseController<
         this.getAssets(this.#selectedAccounts, {
           chainIds: addedEnabledChains,
           forceUpdate: true,
+          updateMode: 'merge',
         }).catch((error) => {
           log('Failed to fetch balance for added chains', { error });
         });
@@ -1015,7 +1016,13 @@ export class AssetsController extends BaseController<
         sources,
         request,
       );
-      const updateMode = options?.updateMode ?? 'full';
+      // Default to 'merge' when fetching a subset of chains so we don't wipe
+      // balances from chains that weren't included in this fetch.
+      const isPartialChainFetch =
+        options?.chainIds !== undefined &&
+        options.chainIds.length < this.#enabledChains.size;
+      const updateMode =
+        options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
       await this.#updateState({ ...response, updateMode });
       if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
@@ -1165,13 +1172,14 @@ export class AssetsController extends BaseController<
       }
     });
 
-    // Fetch data for the newly added custom asset
+    // Fetch data for the newly added custom asset (merge to preserve other chains)
     const account = this.#selectedAccounts.find((a) => a.id === accountId);
     if (account) {
       const chainId = extractChainId(normalizedAssetId);
       await this.getAssets([account], {
         chainIds: [chainId],
         forceUpdate: true,
+        updateMode: 'merge',
       });
     }
   }
@@ -1358,52 +1366,47 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   /**
-   * Returns native asset IDs (CAIP-19) for all enabled chains from
-   * NetworkEnablementController.nativeAssetIdentifiers.
+   * Resolves native asset IDs (CAIP-19) for the given chains by looking them up
+   * in NetworkEnablementController.nativeAssetIdentifiers.
+   * Chains without a registered native identifier are skipped.
    *
-   * @returns Array of native asset IDs, one per enabled chain.
+   * @param chains - The chain IDs to resolve native assets for.
+   * @returns Array of native asset IDs for the chains that have a registered identifier.
    */
-  #getNativeAssetIdsForEnabledChains(): Caip19AssetId[] {
-    if (this.#enabledChains.size === 0) {
-      return [];
-    }
+  #resolveNativeAssetIds(chains: Iterable<ChainId>): Caip19AssetId[] {
     const { nativeAssetIdentifiers } = this.messenger.call(
       'NetworkEnablementController:getState',
     );
     const ids: Caip19AssetId[] = [];
-    for (const chainId of this.#enabledChains) {
-      const nativeId =
-        nativeAssetIdentifiers?.[chainId] ??
-        (`${chainId}/slip44:60` as Caip19AssetId);
-      ids.push(nativeId);
+    for (const chainId of chains) {
+      const nativeId = nativeAssetIdentifiers?.[chainId];
+      if (nativeId) {
+        ids.push(nativeId as Caip19AssetId);
+      }
     }
     return ids;
   }
 
   /**
-   * Returns native asset IDs (CAIP-19) for the chains that this account supports
-   * (account scopes ∩ enabled chains). Used so we only add default 0 for natives
-   * that belong to chains relevant to this account.
+   * Returns native asset IDs for all enabled chains.
+   *
+   * @returns Array of native asset IDs, one per enabled chain that has a registered identifier.
+   */
+  #getNativeAssetIdsForEnabledChains(): Caip19AssetId[] {
+    return this.#resolveNativeAssetIds(this.#enabledChains);
+  }
+
+  /**
+   * Returns native asset IDs for the chains that this account supports
+   * (account scopes ∩ enabled chains).
    *
    * @param account - The account (scopes determine which chains apply).
-   * @returns Array of native asset IDs, one per supported chain.
+   * @returns Array of native asset IDs, one per supported chain that has a registered identifier.
    */
   #getNativeAssetIdsForAccount(account: InternalAccount): Caip19AssetId[] {
-    const supportedChains = this.#getEnabledChainsForAccount(account);
-    if (supportedChains.length === 0) {
-      return [];
-    }
-    const { nativeAssetIdentifiers } = this.messenger.call(
-      'NetworkEnablementController:getState',
+    return this.#resolveNativeAssetIds(
+      this.#getEnabledChainsForAccount(account),
     );
-    const ids: Caip19AssetId[] = [];
-    for (const chainId of supportedChains) {
-      const nativeId =
-        nativeAssetIdentifiers?.[chainId] ??
-        (`${chainId}/slip44:60` as Caip19AssetId);
-      ids.push(nativeId);
-    }
-    return ids;
   }
 
   /**
@@ -1494,30 +1497,25 @@ export class AssetsController extends BaseController<
                 accountId
               ] ?? [];
 
-            // Full: response is authoritative; preserve custom assets not in response. Merge: response overlays previous.
-            // If a "full" response has fewer assets than state (e.g. single-chain after network switch), treat as merge
-            // so we don't wipe ERC20s from other chains.
-            const responseAssetCount = Object.keys(accountBalances).length;
-            const previousAssetCount = Object.keys(previousBalances).length;
-            const useMergeSemantics =
-              mode === 'merge' ||
-              (mode === 'full' && responseAssetCount < previousAssetCount);
-
-            const effective: Record<string, AssetBalance> = useMergeSemantics
-              ? { ...previousBalances, ...accountBalances }
-              : ((): Record<string, AssetBalance> => {
-                  const next: Record<string, AssetBalance> = {
-                    ...accountBalances,
-                  };
-                  for (const customId of customAssetIds) {
-                    if (!(customId in next)) {
-                      const prev = previousBalances[customId];
-                      next[customId] =
-                        prev ?? ({ amount: '0' } as AssetBalance);
+            // Full: response is authoritative; preserve custom assets not in response.
+            // Merge: response overlays previous balances.
+            // Callers that fetch partial data (e.g. newly added chains) must set updateMode: 'merge'.
+            const effective: Record<string, AssetBalance> =
+              mode === 'merge'
+                ? { ...previousBalances, ...accountBalances }
+                : ((): Record<string, AssetBalance> => {
+                    const next: Record<string, AssetBalance> = {
+                      ...accountBalances,
+                    };
+                    for (const customId of customAssetIds) {
+                      if (!(customId in next)) {
+                        const prev = previousBalances[customId];
+                        next[customId] =
+                          prev ?? ({ amount: '0' } as AssetBalance);
+                      }
                     }
-                  }
-                  return next;
-                })();
+                    return next;
+                  })();
 
             // Ensure native tokens have an entry (0 if missing) for chains this account supports
             const account = this.#selectedAccounts.find(

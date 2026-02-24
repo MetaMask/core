@@ -1,5 +1,4 @@
 /* eslint-disable jest/unbound-method */
-/* Plain imports (no type keyword) so Babel can parse this file in Jest. */
 import { ApiPlatformClient } from '@metamask/core-backend';
 import { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -35,6 +34,7 @@ const MOCK_ASSET_ID =
   'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
+const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
 
 function createMockInternalAccount(
   overrides?: Partial<InternalAccount>,
@@ -124,7 +124,9 @@ async function withController<ReturnValue>(
           '1': true,
         },
       },
-      nativeAssetIdentifiers: {},
+      nativeAssetIdentifiers: {
+        'eip155:1': 'eip155:1/slip44:60',
+      },
     }),
   );
 
@@ -724,9 +726,8 @@ describe('AssetsController', () => {
       });
     });
 
-    it('adds native token balance 0 for enabled chains when missing from response', async () => {
+    it('adds default 0 balance for native tokens when missing from response', async () => {
       await withController(async ({ controller }) => {
-        const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
         await controller.handleAssetsUpdate(
           {
             assetsBalance: {
@@ -742,20 +743,42 @@ describe('AssetsController', () => {
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
         ).toStrictEqual({ amount: '1000000' });
         expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
         ).toStrictEqual({ amount: '0' });
       });
     });
 
-    it('when full response has fewer assets than state, merges and preserves other chains balances', async () => {
-      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
-      const polygonErc20 =
-        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
+    it('does not add default native balance for chains without a registered identifier', async () => {
+      await withController(async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        const accountBalances =
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID] ?? {};
+        const nativeIds = Object.keys(accountBalances).filter((id) =>
+          id.includes('/slip44:'),
+        );
+        expect(nativeIds).toStrictEqual([MOCK_NATIVE_ASSET_ID]);
+      });
+    });
+
+    it('preserves existing balances when merge update adds new chain data', async () => {
+      const polygonNative = 'eip155:137/slip44:966' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: {
             [MOCK_ASSET_ID]: { amount: '1' },
-            [polygonErc20]: { amount: '2' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
           },
         },
       };
@@ -763,10 +786,10 @@ describe('AssetsController', () => {
       await withController({ state: initialState }, async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
-            updateMode: 'full',
+            updateMode: 'merge',
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {
-                [nativeAssetId]: { amount: '0' },
+                [polygonNative]: { amount: '10' },
               },
             },
           },
@@ -777,11 +800,48 @@ describe('AssetsController', () => {
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
         ).toStrictEqual({ amount: '1' });
         expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[polygonErc20],
-        ).toStrictEqual({ amount: '2' });
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '0.5' });
         expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[nativeAssetId],
-        ).toStrictEqual({ amount: '0' });
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[polygonNative],
+        ).toStrictEqual({ amount: '10' });
+      });
+    });
+
+    it('replaces state when full update has authoritative data', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'full',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        // Full update is authoritative — the ERC20 that wasn't in the response is removed
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toBeUndefined();
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '2' });
       });
     });
 
@@ -1078,7 +1138,6 @@ describe('AssetsController', () => {
   describe('network changes', () => {
     it('handles enabled networks change', async () => {
       await withController(async ({ messenger }) => {
-        // Simulate network enablement change with proper payload format
         (messenger.publish as CallableFunction)(
           'NetworkEnablementController:stateChange',
           {
@@ -1088,7 +1147,10 @@ describe('AssetsController', () => {
                 '137': true,
               },
             },
-            nativeAssetIdentifiers: {},
+            nativeAssetIdentifiers: {
+              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:137': 'eip155:137/slip44:966',
+            },
           },
           [],
         );
@@ -1101,7 +1163,6 @@ describe('AssetsController', () => {
 
     it('handles network being disabled', async () => {
       await withController(async ({ messenger }) => {
-        // First enable multiple networks
         (messenger.publish as CallableFunction)(
           'NetworkEnablementController:stateChange',
           {
@@ -1111,14 +1172,16 @@ describe('AssetsController', () => {
                 '137': true,
               },
             },
-            nativeAssetIdentifiers: {},
+            nativeAssetIdentifiers: {
+              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:137': 'eip155:137/slip44:966',
+            },
           },
           [],
         );
 
         await new Promise(process.nextTick);
 
-        // Then disable one
         (messenger.publish as CallableFunction)(
           'NetworkEnablementController:stateChange',
           {
@@ -1128,7 +1191,9 @@ describe('AssetsController', () => {
                 '137': false,
               },
             },
-            nativeAssetIdentifiers: {},
+            nativeAssetIdentifiers: {
+              'eip155:1': MOCK_NATIVE_ASSET_ID,
+            },
           },
           [],
         );
