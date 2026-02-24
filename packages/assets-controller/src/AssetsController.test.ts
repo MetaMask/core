@@ -1,8 +1,9 @@
 /* eslint-disable jest/unbound-method */
-import type { ApiPlatformClient } from '@metamask/core-backend';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
+/* Plain imports (no type keyword) so Babel can parse this file in Jest. */
+import { ApiPlatformClient } from '@metamask/core-backend';
+import { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type {
+import {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
@@ -12,13 +13,13 @@ import {
   AssetsController,
   getDefaultAssetsControllerState,
 } from './AssetsController';
-import type {
+import {
   AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
-import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
-import type { Caip19AssetId, AccountId } from './types';
+import { PriceDataSourceConfig } from './data-sources/PriceDataSource';
+import { Caip19AssetId, AccountId } from './types';
 
 function createMockQueryApiClient(): ApiPlatformClient {
   return { fetch: jest.fn() } as unknown as ApiPlatformClient;
@@ -723,6 +724,67 @@ describe('AssetsController', () => {
       });
     });
 
+    it('adds native token balance 0 for enabled chains when missing from response', async () => {
+      await withController(async ({ controller }) => {
+        const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1000000' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '1000000' });
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+        ).toStrictEqual({ amount: '0' });
+      });
+    });
+
+    it('when full response has fewer assets than state, merges and preserves other chains balances', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const polygonErc20 =
+        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+            [polygonErc20]: { amount: '2' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'full',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [nativeAssetId]: { amount: '0' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '1' });
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[polygonErc20],
+        ).toStrictEqual({ amount: '2' });
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+        ).toStrictEqual({ amount: '0' });
+      });
+    });
+
     it('updates state with price data', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
@@ -900,7 +962,9 @@ describe('AssetsController', () => {
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
           (
-            messenger as { publish: (topic: string, payload?: unknown) => void }
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
           ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
 
@@ -935,7 +999,9 @@ describe('AssetsController', () => {
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
           (
-            messenger as { publish: (topic: string, payload?: unknown) => void }
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
           ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
