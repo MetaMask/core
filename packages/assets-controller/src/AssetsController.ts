@@ -964,6 +964,8 @@ export class AssetsController extends BaseController<
       forceUpdate?: boolean;
       dataTypes?: DataType[];
       assetsForPriceUpdate?: Caip19AssetId[];
+      /** When set to 'merge', fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
+      updateMode?: AssetsUpdateMode;
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -1013,7 +1015,8 @@ export class AssetsController extends BaseController<
         sources,
         request,
       );
-      await this.#updateState({ ...response, updateMode: 'full' });
+      const updateMode = options?.updateMode ?? 'full';
+      await this.#updateState({ ...response, updateMode });
       if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
         const durationMs = Date.now() - startTime;
@@ -2050,11 +2053,12 @@ export class AssetsController extends BaseController<
     // Refresh subscriptions for new chain set
     this.#subscribeAssets();
 
-    // Do one-time fetch for newly enabled chains
+    // Do one-time fetch for newly enabled chains; merge so we keep existing chain balances
     if (addedChains.length > 0 && this.#selectedAccounts.length > 0) {
       await this.getAssets(this.#selectedAccounts, {
         chainIds: addedChains,
         forceUpdate: true,
+        updateMode: 'merge',
       });
     }
   }
