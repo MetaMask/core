@@ -37,8 +37,7 @@ prepare-preview-manifest() {
 echo "Adding workspace resolutions to root manifest..."
 resolutions="{}"
 while IFS=$'\t' read -r location name; do
-  original_name="${name/@metamask\//@metamask/}"
-  resolutions=$(echo "$resolutions" | jq --arg orig "$original_name" --arg loc "$location" '. + {($orig): ("portal:./" + $loc)}')
+  resolutions=$(echo "$resolutions" | jq --arg orig "$name" --arg loc "$location" '. + {($orig): ("portal:./" + $loc)}')
 done < <(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(select(.location != ".")) | map([.location, .name]) | map(@tsv) | .[]')
 jq --argjson resolutions "$resolutions" '.resolutions = ((.resolutions // {}) + $resolutions)' package.json > temp.json
 mv temp.json package.json
