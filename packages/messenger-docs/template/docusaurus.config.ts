@@ -26,8 +26,8 @@ if (extraNodeModules) {
 const config: Config = {
   title: 'Messenger API',
   tagline: 'Action and event reference for MetaMask controller messengers',
-  url: 'https://metamask.github.io',
-  baseUrl: '/',
+  url: process.env.DOCS_URL || 'https://metamask.github.io', // eslint-disable-line no-process-env
+  baseUrl: process.env.DOCS_BASE_URL || '/', // eslint-disable-line no-process-env
   favicon: 'img/favicons/favicon-96x96.png',
 
   onBrokenLinks: 'warn',

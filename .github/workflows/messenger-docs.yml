@@ -25,6 +25,9 @@ jobs:
 
       - name: Generate and build Messenger docs
         run: yarn docs:messenger:build
+        env:
+          DOCS_URL: https://${{ github.repository_owner }}.github.io
+          DOCS_BASE_URL: /${{ github.event.repository.name }}/
 
       - name: Upload build artifact (PR)
         if: github.event_name == 'pull_request'
