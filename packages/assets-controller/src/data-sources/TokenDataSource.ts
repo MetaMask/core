@@ -3,6 +3,7 @@ import { ApiPlatformClient } from '@metamask/core-backend';
 import { parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
+import { isStakingContractAssetId } from './evm-rpc-services';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
@@ -206,6 +207,11 @@ export class TokenDataSource {
             continue;
           }
 
+          // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
+          if (isStakingContractAssetId(assetId)) {
+            continue;
+          }
+
           assetIdsNeedingMetadata.add(assetId);
         }
       }
@@ -236,6 +242,7 @@ export class TokenDataSource {
             includeMetadata: true,
             includeLabels: true,
             includeRwaData: true,
+            includeAggregators: true,
           },
         );
 

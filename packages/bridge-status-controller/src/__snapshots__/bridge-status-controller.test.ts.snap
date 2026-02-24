@@ -14,6 +14,7 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
+    "location": undefined,
     "originalTransactionId": "bridgeTxMetaId1",
     "pricingData": {
       "amountSent": "1.234",
@@ -160,6 +161,9 @@ exports[`BridgeStatusController constructor should setup correctly 1`] = `
 exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
 [
   [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -181,6 +185,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransa
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quote_vs_execution_ratio": 0,
@@ -217,6 +222,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
+    "location": undefined,
     "originalTransactionId": "bridgeTxMetaId1",
     "pricingData": {
       "amountSent": "1.234",
@@ -334,6 +340,9 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
 exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
 [
   [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -355,6 +364,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quote_vs_execution_ratio": 0,
@@ -420,6 +430,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHar
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -555,6 +566,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHar
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -657,6 +669,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -792,6 +805,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -894,6 +908,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -1029,6 +1044,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -1132,6 +1148,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -1333,6 +1350,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -1396,6 +1414,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -1531,6 +1550,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -1633,6 +1653,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -1768,6 +1789,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -1870,6 +1892,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -2120,6 +2143,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2211,6 +2235,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -2391,6 +2416,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2468,6 +2494,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -2648,6 +2675,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2724,6 +2752,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2797,6 +2826,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
@@ -2876,6 +2906,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": true,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -3088,6 +3119,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0,
@@ -3230,6 +3262,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -3365,6 +3398,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0,
@@ -3444,6 +3478,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
     "amountSent": "1.234",
@@ -3585,6 +3620,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3627,6 +3663,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3664,6 +3701,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3744,6 +3782,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "signature",
   "pricingData": {
     "amountSent": "1",
@@ -3859,6 +3898,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3883,6 +3923,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_test-bridge",
       "quoted_time_minutes": 5,
@@ -3920,6 +3961,7 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -3962,6 +4004,7 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -3999,6 +4042,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -4080,6 +4124,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
   "hasApprovalTx": false,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "signature",
   "pricingData": {
     "amountSent": "1",
@@ -4207,6 +4252,7 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -4231,6 +4277,7 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 5,
@@ -4268,6 +4315,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 0.5,
@@ -4314,6 +4362,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 0.5,
@@ -4351,6 +4400,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 0.5,
@@ -4457,6 +4507,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "bridge-signature",
   "pricingData": {
     "amountSent": "1",
@@ -4570,6 +4621,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "test-bridge_undefined",
       "quoted_time_minutes": 0.5,
@@ -4670,6 +4722,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
   "hasApprovalTx": true,
   "initialDestAssetBalance": undefined,
   "isStxEnabled": false,
+  "location": "Main View",
   "originalTransactionId": "swap-signature",
   "pricingData": {
     "amountSent": "1",
@@ -4776,6 +4829,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "failures": [
       "across|unknown",
     ],
+    "location": "Main View",
     "refresh_count": 0,
     "token_address_destination": "eip155:10/slip44:60",
     "token_address_source": "eip155:42161/slip44:60",
@@ -4796,7 +4850,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for completed bridge tx with featureId 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for completed bridge tx with featureId 2`] = `
 {
   "bridge": "across",
   "destChain": {
@@ -4837,7 +4891,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for failed bridge tx with featureId 1`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionConfirmed should start polling for failed bridge tx with featureId 2`] = `
 {
   "bridge": "debridge",
   "destChain": {
@@ -4888,6 +4942,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quote_vs_execution_ratio": 0,
@@ -4929,6 +4984,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
+    "location": "Main View",
     "price_impact": 0,
     "provider": "lifi_across",
     "quote_vs_execution_ratio": 0,
@@ -4975,6 +5031,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
+    "location": "Main View",
     "price_impact": 0,
     "provider": "lifi_across",
     "quote_vs_execution_ratio": 0,
@@ -5012,6 +5069,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
+    "location": "Main View",
     "price_impact": 0,
     "provider": "",
     "quote_vs_execution_ratio": 0,
@@ -5049,6 +5107,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "",
       "quote_vs_execution_ratio": 0,
@@ -5097,6 +5156,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
+      "location": "Main View",
       "price_impact": 0,
       "provider": "lifi_across",
       "quote_vs_execution_ratio": 0,
@@ -5135,6 +5195,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
+    "location": "Main View",
     "price_impact": 0,
     "provider": "",
     "quote_vs_execution_ratio": 0,
@@ -5159,6 +5220,34 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 
 exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
 [
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+  ],
+  [
+    "AuthenticationController:getBearerToken",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount2",
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Completed",
+  ],
   [
     "NetworkController:getState",
   ],

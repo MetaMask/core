@@ -36,4 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add platform-agnostic design via `PerpsPlatformDependencies` injection interface
 - Add generated method action types for messenger-exposed methods ([#7941](https://github.com/MetaMask/core/pull/7941))
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
 [Unreleased]: https://github.com/MetaMask/core/

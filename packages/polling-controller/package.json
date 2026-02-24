@@ -1,6 +1,6 @@
 {
   "name": "@metamask/polling-controller",
-  "version": "16.0.2",
+  "version": "16.0.3",
   "description": "Polling Controller is the base for controllers that polling by networkClientId",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/polling-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/polling-controller",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -49,8 +48,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.18.0",
-    "@metamask/network-controller": "^29.0.0",
+    "@metamask/controller-utils": "^11.19.0",
+    "@metamask/network-controller": "^30.0.0",
     "@metamask/utils": "^11.9.0",
     "@types/uuid": "^8.3.0",
     "fast-json-stable-stringify": "^2.1.0",
@@ -62,7 +61,6 @@
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
-    "sinon": "^9.2.4",
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

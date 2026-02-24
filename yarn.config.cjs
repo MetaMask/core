@@ -24,7 +24,6 @@ const { inspect } = require('util');
  * This should trend towards empty.
  */
 const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  '@metamask/core-backend': ['5.0.0'],
   // '@metamask/json-rpc-engine': ['^9.0.3'],
 };
 
@@ -132,20 +131,6 @@ module.exports = defineConfig({
 
         // All non-root packages must have the same "build:docs" script.
         expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
-
-        if (isPrivate) {
-          // All private, non-root packages must not have a "publish:preview"
-          // script.
-          workspace.unset('scripts.publish:preview');
-        } else {
-          // All non-private, non-root packages must have the same
-          // "publish:preview" script.
-          expectWorkspaceField(
-            workspace,
-            'scripts.publish:preview',
-            'yarn npm publish --tag preview',
-          );
-        }
 
         // No non-root packages may have a "prepack" script.
         workspace.unset('scripts.prepack');

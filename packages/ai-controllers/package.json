@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ai-controllers",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A collection of AI-related controllers",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/ai-controllers",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/ai-controllers",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -49,7 +48,9 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/messenger": "^0.3.0"
+    "@metamask/messenger": "^0.3.0",
+    "@metamask/superstruct": "^3.1.0",
+    "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

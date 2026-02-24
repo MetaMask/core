@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/eip1193-permission-middleware",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eip1193-permission-middleware",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -49,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/chain-agnostic-permission": "^1.4.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/json-rpc-engine": "^10.2.2",
     "@metamask/permission-controller": "^12.2.0",
     "@metamask/utils": "^11.9.0",

@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/multichain-account-service",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/multichain-account-service",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -49,7 +48,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/accounts-controller": "^36.0.0",
+    "@metamask/accounts-controller": "^36.0.1",
     "@metamask/base-controller": "^9.0.0",
     "@metamask/eth-snap-keyring": "^19.0.0",
     "@metamask/key-tree": "^10.1.1",

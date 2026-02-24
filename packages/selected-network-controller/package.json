@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "26.0.2",
+  "version": "26.0.3",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/selected-network-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/selected-network-controller",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -51,7 +50,7 @@
     "@metamask/base-controller": "^9.0.0",
     "@metamask/json-rpc-engine": "^10.2.2",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/network-controller": "^29.0.0",
+    "@metamask/network-controller": "^30.0.0",
     "@metamask/permission-controller": "^12.2.0",
     "@metamask/swappable-obj-proxy": "^2.3.0",
     "@metamask/utils": "^11.9.0"
