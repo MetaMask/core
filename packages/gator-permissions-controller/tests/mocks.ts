@@ -6,7 +6,7 @@ import type {
 } from '@metamask/7715-permission-types';
 import type { Hex } from '@metamask/utils';
 
-import type { StoredGatorPermission } from '../types';
+import type { StoredGatorPermission } from '../src/types';
 
 /**
  * Mock stored gator permission: native-token-stream (as returned by the Snap).

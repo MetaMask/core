@@ -25,10 +25,6 @@ import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import { GatorPermissionsFetchError } from './errors';
 import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
 import GatorPermissionsController from './GatorPermissionsController';
-import {
-  mockGatorPermissionsStorageEntriesFactory,
-  mockNativeTokenStreamStorageEntry,
-} from './test/mocks';
 import type {
   PermissionInfoWithMetadata,
   StoredGatorPermission,
@@ -36,6 +32,10 @@ import type {
   SupportedPermissionType,
 } from './types';
 import { flushPromises } from '../../../tests/helpers';
+import {
+  mockGatorPermissionsStorageEntriesFactory,
+  mockNativeTokenStreamStorageEntry,
+} from '../tests/mocks';
 
 const MOCK_CHAIN_ID_1: Hex = '0xaa36a7';
 const MOCK_CHAIN_ID_2: Hex = '0x1';
