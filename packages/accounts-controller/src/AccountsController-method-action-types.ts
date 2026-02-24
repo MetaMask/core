@@ -8,6 +8,8 @@ import type { AccountsController } from './AccountsController';
 /**
  * Returns the internal account object for the given account ID, if it exists.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param accountId - The ID of the account to retrieve.
  * @returns The internal account object, or undefined if the account does not exist.
  */
@@ -19,6 +21,8 @@ export type AccountsControllerGetAccountAction = {
 /**
  * Returns the internal account objects for the given account IDs, if they exist.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param accountIds - The IDs of the accounts to retrieve.
  * @returns The internal account objects, or undefined if the account(s) do not exist.
  */
@@ -30,6 +34,8 @@ export type AccountsControllerGetAccountsAction = {
 /**
  * Returns an array of all evm internal accounts.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @returns An array of InternalAccount objects.
  */
 export type AccountsControllerListAccountsAction = {
@@ -40,6 +46,8 @@ export type AccountsControllerListAccountsAction = {
 /**
  * Returns an array of all internal accounts.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param chainId - The chain ID.
  * @returns An array of InternalAccount objects.
  */
@@ -51,6 +59,8 @@ export type AccountsControllerListMultichainAccountsAction = {
 /**
  * Returns the last selected EVM account.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @returns The selected internal account.
  */
 export type AccountsControllerGetSelectedAccountAction = {
@@ -63,6 +73,8 @@ export type AccountsControllerGetSelectedAccountAction = {
  *
  * Retrieves the last selected account by chain ID.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param chainId - The chain ID to filter the accounts.
  * @returns The last selected account compatible with the specified chain ID or undefined.
  */
@@ -75,6 +87,8 @@ export type AccountsControllerGetSelectedMultichainAccountAction = {
  * Returns the account with the specified address.
  * ! This method will only return the first account that matches the address
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param address - The address of the account to retrieve.
  * @returns The account with the specified address, or undefined if not found.
  */
@@ -86,6 +100,8 @@ export type AccountsControllerGetAccountByAddressAction = {
 /**
  * Sets the selected account by its ID.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param accountId - The ID of the account to be selected.
  */
 export type AccountsControllerSetSelectedAccountAction = {
@@ -96,6 +112,8 @@ export type AccountsControllerSetSelectedAccountAction = {
 /**
  * Sets the name of the account with the given ID.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param accountId - The ID of the account to set the name for.
  * @param accountName - The new name for the account.
  * @throws An error if an account with the same name already exists.
@@ -108,6 +126,8 @@ export type AccountsControllerSetAccountNameAction = {
 /**
  * Sets the name of the account with the given ID and select it.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param accountId - The ID of the account to set the name for and select.
  * @param accountName - The new name for the account.
  * @throws An error if an account with the same name already exists.
@@ -120,6 +140,8 @@ export type AccountsControllerSetAccountNameAndSelectAccountAction = {
 /**
  * Updates the metadata of the account with the given ID.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param accountId - The ID of the account for which the metadata will be updated.
  * @param metadata - The new metadata for the account.
  */
@@ -132,6 +154,8 @@ export type AccountsControllerUpdateAccountMetadataAction = {
  * Updates the internal accounts list by retrieving normal and snap accounts,
  * removing duplicates, and updating the metadata of each account.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @returns A Promise that resolves when the accounts have been updated.
  */
 export type AccountsControllerUpdateAccountsAction = {
@@ -142,6 +166,8 @@ export type AccountsControllerUpdateAccountsAction = {
 /**
  * Loads the backup state of the accounts controller.
  *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  * @param backup - The backup state to load.
  */
 export type AccountsControllerLoadBackupAction = {
