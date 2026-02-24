@@ -1,6 +1,6 @@
 {
   "name": "@metamask/compliance-controller",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Manages OFAC compliance checks for wallet addresses",
   "keywords": [
     "MetaMask",
@@ -41,7 +41,6 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/compliance-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/compliance-controller",
     "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",

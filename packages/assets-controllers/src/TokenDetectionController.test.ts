@@ -47,7 +47,7 @@ import type {
 } from './TokensController';
 import { getDefaultTokensState } from './TokensController';
 import { jestAdvanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
   buildCustomRpcEndpoint,
   buildInfuraNetworkConfiguration,

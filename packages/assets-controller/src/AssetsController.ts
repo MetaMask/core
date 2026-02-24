@@ -15,6 +15,7 @@ import type {
   ApiPlatformClient,
   BackendWebSocketServiceActions,
   BackendWebSocketServiceEvents,
+  SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
   KeyringControllerLockEvent,
@@ -86,6 +87,7 @@ import type {
   ChainId,
   Caip19AssetId,
   AssetMetadata,
+  FungibleAssetMetadata,
   AssetPrice,
   AssetBalance,
   AccountWithSupportedChains,
@@ -102,6 +104,26 @@ import type {
   AssetsControllerStateInternal,
 } from './types';
 import { normalizeAssetId } from './utils';
+
+// ============================================================================
+// PENDING TOKEN METADATA (UI input format for addCustomAsset)
+// ============================================================================
+
+/**
+ * Metadata format passed from the UI when adding a custom token.
+ * Mirrors the "pendingTokens" shape used by the extension.
+ */
+export type PendingTokenMetadata = {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  iconUrl?: string;
+  aggregators?: string[];
+  occurrences?: number;
+  chainId: string;
+  unlisted?: boolean;
+};
 
 // ============================================================================
 // CONTROLLER CONSTANTS
@@ -150,6 +172,8 @@ export type AssetsControllerState = {
   customAssets: { [accountId: string]: Caip19AssetId[] };
   /** UI preferences per asset (e.g. hidden) */
   assetPreferences: { [assetId: string]: AssetPreferences };
+  /** Currently-active ISO 4217 currency code */
+  selectedCurrency: SupportedCurrency;
 };
 
 /**
@@ -164,6 +188,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetsPrice: {},
     customAssets: {},
     assetPreferences: {},
+    selectedCurrency: 'usd',
   };
 }
 
@@ -353,6 +378,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   assetPreferences: {
+    persist: true,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  selectedCurrency: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -625,6 +656,7 @@ export class AssetsController extends BaseController<
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
@@ -931,6 +963,7 @@ export class AssetsController extends BaseController<
       assetTypes?: AssetType[];
       forceUpdate?: boolean;
       dataTypes?: DataType[];
+      assetsForPriceUpdate?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -955,6 +988,7 @@ export class AssetsController extends BaseController<
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
+        assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
       const sources = this.#isBasicFunctionality()
         ? [
@@ -991,7 +1025,8 @@ export class AssetsController extends BaseController<
       }
     }
 
-    return this.#getAssetsFromState(accounts, chainIds, assetTypes);
+    const result = this.#getAssetsFromState(accounts, chainIds, assetTypes);
+    return result;
   }
 
   async getAssetsBalance(
@@ -1065,12 +1100,18 @@ export class AssetsController extends BaseController<
    * Custom assets are included in subscription and fetch operations.
    * Adding a custom asset also unhides it if it was previously hidden.
    *
+   * When `pendingMetadata` is provided (e.g. from the extension's pending-tokens
+   * flow), the token metadata is persisted immediately into `assetsInfo` so the
+   * UI can render it without waiting for the next pipeline fetch.
+   *
    * @param accountId - The account ID to add the custom asset for.
    * @param assetId - The CAIP-19 asset ID to add.
+   * @param pendingMetadata - Optional token metadata from the UI (pendingTokens format).
    */
   async addCustomAsset(
     accountId: AccountId,
     assetId: Caip19AssetId,
+    pendingMetadata?: PendingTokenMetadata,
   ): Promise<void> {
     const normalizedAssetId = normalizeAssetId(assetId);
 
@@ -1094,6 +1135,30 @@ export class AssetsController extends BaseController<
         if (Object.keys(prefs).length === 0) {
           delete state.assetPreferences[normalizedAssetId];
         }
+      }
+
+      // Persist metadata from the UI so the token is immediately renderable
+      if (pendingMetadata) {
+        const parsed = parseCaipAssetType(normalizedAssetId);
+        let tokenType: FungibleAssetMetadata['type'] = 'erc20';
+        if (parsed.assetNamespace === 'slip44') {
+          tokenType = 'native';
+        } else if (parsed.assetNamespace === 'spl') {
+          tokenType = 'spl';
+        }
+
+        const assetMetadata: FungibleAssetMetadata = {
+          type: tokenType,
+          symbol: pendingMetadata.symbol,
+          name: pendingMetadata.name,
+          decimals: pendingMetadata.decimals,
+          image: pendingMetadata.iconUrl,
+          aggregators: pendingMetadata.aggregators,
+          occurrences: pendingMetadata.occurrences,
+        };
+
+        (state.assetsInfo as Record<string, AssetMetadata>)[normalizedAssetId] =
+          assetMetadata;
       }
     });
 
@@ -1185,6 +1250,42 @@ export class AssetsController extends BaseController<
           delete state.assetPreferences[normalizedAssetId];
         }
       }
+    });
+  }
+
+  // ============================================================================
+  // CURRENT CURRENCY MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Set the current currency.
+   *
+   * @param selectedCurrency - The ISO 4217 currency code to set.
+   */
+  setSelectedCurrency(selectedCurrency: SupportedCurrency): void {
+    const previousCurrency = this.state.selectedCurrency;
+
+    if (previousCurrency === selectedCurrency) {
+      return;
+    }
+
+    this.update((state) => {
+      state.selectedCurrency = selectedCurrency;
+    });
+
+    log('Current currency changed', {
+      previousCurrency,
+      selectedCurrency,
+    });
+
+    this.getAssets(this.#selectedAccounts, {
+      forceUpdate: true,
+      dataTypes: ['price'],
+      assetsForPriceUpdate: Object.values(this.state.assetsBalance).flatMap(
+        (balances) => Object.keys(balances) as Caip19AssetId[],
+      ),
+    }).catch((error) => {
+      log('Failed to fetch asset prices after current currency change', error);
     });
   }
 

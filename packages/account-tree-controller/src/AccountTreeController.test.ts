@@ -4575,21 +4575,18 @@ describe('AccountTreeController', () => {
       });
 
       // Test suffix resolution directly using the public method
-      const wallet = controller.state.accountTree.wallets[walletId];
-      const resolvedName = controller.resolveNameConflict(
-        wallet,
-        groupId,
-        'Suffix Test',
-      );
-      expect(resolvedName).toBe('Suffix Test (3)');
+      controller.setAccountGroupName(groupId, 'Suffix Test', true);
 
-      // Test with no conflicts: should return "Unique Name (2)"
-      const uniqueName = controller.resolveNameConflict(
-        wallet,
-        groupId,
-        'Unique Name',
-      );
-      expect(uniqueName).toBe('Unique Name (2)');
+      const collidingGroupObject = controller.getAccountGroupObject(groupId);
+
+      expect(collidingGroupObject?.metadata.name).toBe('Suffix Test (3)');
+
+      // Test with no conflicts: should return "Unique Name"
+      controller.setAccountGroupName(groupId, 'Unique Name', true);
+
+      const uniqueGroupObject = controller.getAccountGroupObject(groupId);
+
+      expect(uniqueGroupObject?.metadata.name).toBe('Unique Name');
     });
 
     it('throws error when group ID not found in tree', () => {

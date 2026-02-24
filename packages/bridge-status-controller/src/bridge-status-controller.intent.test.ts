@@ -1542,9 +1542,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     expect(controller.state.txHistory['order-1'].status.status).toBe(
       StatusTypes.PENDING,
     );
-    expect(
-      controller.state.txHistory['order-1'].attempts?.counter,
-    ).toBe(1);
+    expect(controller.state.txHistory['order-1'].attempts?.counter).toBe(1);
   });
 
   it('bridge polling: returns early when history item is missing', async () => {
