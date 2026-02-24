@@ -30,7 +30,7 @@ import type {
   TransactionControllerTransactionFailedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { CaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, Json } from '@metamask/utils';
 
 import type { BridgeStatusController } from './bridge-status-controller';
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
@@ -290,6 +290,17 @@ export type BridgeStatusControllerEvents =
   | BridgeStatusControllerStateChangeEvent
   | BridgeStatusControllerDestinationTransactionCompletedEvent;
 
+type KeyringControllerSignTypedMessageAction = {
+  type: 'KeyringController:signTypedMessage';
+  handler: (
+    msgParams: {
+      from: string;
+      data: Json;
+    },
+    version: 'V1' | 'V3' | 'V4',
+  ) => Promise<string>;
+};
+
 /**
  * The external actions available to the BridgeStatusController.
  */
@@ -304,7 +315,8 @@ type AllowedActions =
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
   | RemoteFeatureFlagControllerGetStateAction
-  | AuthenticationControllerGetBearerToken;
+  | AuthenticationControllerGetBearerToken
+  | KeyringControllerSignTypedMessageAction;
 
 /**
  * The external events available to the BridgeStatusController.

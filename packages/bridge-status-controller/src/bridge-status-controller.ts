@@ -38,7 +38,7 @@ import type {
   TransactionParams,
 } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import { IntentStatusManager } from './bridge-status-controller.intent';
 import {
@@ -1601,18 +1601,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    *
    * @param params - Object containing intent submission parameters
    * @param params.quoteResponse - Quote carrying intent data
-   * @param params.signature - Hex signature produced by eth_signTypedData_v4
+   * @param params.signature - Optional precomputed signature (if omitted, it is signed via KeyringController)
    * @param params.accountAddress - The EOA submitting the order
    * @param params.location - The entry point from which the user initiated the swap or bridge
    * @returns A lightweight TransactionMeta-like object for history linking
    */
   submitIntent = async (params: {
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata;
-    signature: string;
+    signature?: string;
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
-    const { quoteResponse, signature, accountAddress, location } = params;
+    const { quoteResponse, signature: precomputedSignature, accountAddress, location } =
+      params;
 
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
@@ -1661,6 +1662,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
 
       const { srcChainId: chainId, requestId } = quoteResponse.quote;
+
+      const signature =
+        precomputedSignature ??
+        (await (() => {
+          if (!intent.typedData) {
+            throw new Error('submitIntent: missing intent typedData');
+          }
+          return this.messenger.call(
+            'KeyringController:signTypedMessage',
+            {
+              from: accountAddress,
+              data: intent.typedData as unknown as Json,
+            },
+            'V4',
+          );
+        })());
 
       const submissionParams = {
         srcChainId: chainId.toString(),
