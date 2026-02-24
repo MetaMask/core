@@ -50,8 +50,8 @@ export class IntentApiImpl implements IntentApi {
     clientId: string,
   ): Promise<IntentOrder> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
-    const jwt = await this.#getJwt();
     try {
+      const jwt = await this.#getJwt();
       const response = await this.#fetchFn(endpoint, {
         method: 'POST',
         headers: {
