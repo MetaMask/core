@@ -554,7 +554,9 @@ describe('BridgeStatusController (intent swaps)', () => {
       message: {},
     };
 
-    const originalCallImpl = (messenger.call as jest.Mock).getMockImplementation();
+    const originalCallImpl = (
+      messenger.call as jest.Mock
+    ).getMockImplementation();
     (messenger.call as jest.Mock).mockImplementation(
       (method: string, ...args: any[]) => {
         if (method === 'KeyringController:signTypedMessage') {
@@ -569,7 +571,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       accountAddress,
     });
 
-    expect((messenger.call as jest.Mock).mock.calls).toEqual(
+    expect((messenger.call as jest.Mock).mock.calls).toStrictEqual(
       expect.arrayContaining([
         [
           'KeyringController:signTypedMessage',

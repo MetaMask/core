@@ -1612,8 +1612,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
-    const { quoteResponse, signature: precomputedSignature, accountAddress, location } =
-      params;
+    const {
+      quoteResponse,
+      signature: precomputedSignature,
+      accountAddress,
+      location,
+    } = params;
 
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
@@ -1665,7 +1669,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const signature =
         precomputedSignature ??
-        (await (() => {
+        (await ((): Promise<string> => {
           if (!intent.typedData) {
             throw new Error('submitIntent: missing intent typedData');
           }
