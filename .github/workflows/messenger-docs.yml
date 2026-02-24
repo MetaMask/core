@@ -23,28 +23,22 @@ jobs:
         with:
           is-high-risk-environment: false
 
-      - name: Generate Messenger docs
-        run: yarn docs:messenger:generate
-
-      - name: Install docs-site dependencies
-        run: npm --prefix docs-site install
-
-      - name: Build Docusaurus site
-        run: npm --prefix docs-site run build
+      - name: Generate and build Messenger docs
+        run: yarn docs:messenger:build
 
       - name: Upload build artifact (PR)
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: messenger-api-docs
-          path: docs-site/build/
+          path: .messenger-docs/build/
           retention-days: 7
 
       - name: Upload Pages artifact (main)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs-site/build/
+          path: .messenger-docs/build/
 
   deploy:
     name: Deploy to GitHub Pages

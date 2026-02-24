@@ -137,6 +137,9 @@
       "path": "./packages/messenger/tsconfig.build.json"
     },
     {
+      "path": "./packages/messenger-docs/tsconfig.build.json"
+    },
+    {
       "path": "./packages/multichain-account-service/tsconfig.build.json"
     },
     {
