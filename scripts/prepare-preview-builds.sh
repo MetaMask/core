@@ -29,6 +29,20 @@ prepare-preview-manifest() {
   mv temp.json "$manifest_file"
 }
 
+# Add resolutions to the root manifest so that @metamask/* imports continue
+# to resolve from the local workspace after packages are renamed to the
+# preview scope. Without this, yarn resolves @metamask/* from the npm
+# registry, which causes build failures when workspace packages contain
+# type changes not yet published.
+echo "Adding workspace resolutions to root manifest..."
+resolutions="{}"
+while IFS=$'\t' read -r location name; do
+  original_name="${name/@metamask\//@metamask/}"
+  resolutions=$(echo "$resolutions" | jq --arg orig "$original_name" --arg loc "$location" '. + {($orig): ("portal:./" + $loc)}')
+done < <(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(select(.location != ".")) | map([.location, .name]) | map(@tsv) | .[]')
+jq --argjson resolutions "$resolutions" '.resolutions = ((.resolutions // {}) + $resolutions)' package.json > temp.json
+mv temp.json package.json
+
 echo "Preparing manifests..."
 while IFS=$'\t' read -r location name; do
   echo "- $name"
