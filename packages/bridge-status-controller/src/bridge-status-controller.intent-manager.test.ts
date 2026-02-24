@@ -59,7 +59,7 @@ describe('IntentManager', () => {
     expect(options.messenger.call).not.toHaveBeenCalled();
   });
 
-  it('logs when TransactionController access throws', () => {
+  it('logs when TransactionController access throws', async () => {
     const updateTransactionFn = jest.fn();
     const manager = new IntentManager(
       createManagerOptions({
@@ -69,6 +69,11 @@ describe('IntentManager', () => {
           }),
         },
         updateTransactionFn,
+        fetchFn: jest.fn().mockResolvedValue({
+          id: 'order-2',
+          status: IntentOrderStatus.SUBMITTED,
+          metadata: {},
+        }),
       }),
     );
 
@@ -76,6 +81,11 @@ describe('IntentManager', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
+    await manager.getIntentTransactionStatus(
+      'order-2',
+      makeHistoryItem({ originalTransactionId: 'tx-1' }),
+      'client-id',
+    );
     manager.syncTransactionFromIntentStatus(
       'order-2',
       makeHistoryItem({ originalTransactionId: 'tx-1' }),

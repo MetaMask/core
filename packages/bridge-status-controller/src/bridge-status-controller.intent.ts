@@ -26,7 +26,8 @@ export class IntentManager {
 
   readonly intentApi: IntentApi;
 
-  #intentStatuses: IntentStatuses;
+  readonly #intentStatusesByBridgeTxMetaId: Map<string, IntentStatuses> =
+    new Map();
 
   constructor({
     messenger,
@@ -44,20 +45,12 @@ export class IntentManager {
     this.#messenger = messenger;
     this.#updateTransactionFn = updateTransactionFn;
     this.intentApi = new IntentApiImpl(customBridgeApiBaseUrl, fetchFn, getJwt);
-    this.#intentStatuses = {
-      orderStatus: IntentOrderStatus.PENDING,
-      bridgeStatus: null,
-    };
   }
 
   /**
-   * Set the intent statuses.
+   * Set the intent statuses for a given bridge transaction.
    *
-   * @param orderStatus - The intent order status.
-   * @param srcChainId - The source chain ID.
-  /**
-   * Set the intent statuses.
-   *
+   * @param bridgeTxMetaId - The bridge transaction meta ID (key for storage).
    * @param order - The intent order.
    * @param srcChainId - The source chain ID.
    * @param txHash - The transaction hash.
@@ -65,6 +58,7 @@ export class IntentManager {
    */
 
   #setIntentStatuses(
+    bridgeTxMetaId: string,
     order: IntentOrder,
     srcChainId: number,
     txHash: string,
@@ -74,12 +68,12 @@ export class IntentManager {
       srcChainId,
       txHash.toString(),
     );
-    this.#intentStatuses = {
+    const intentStatuses: IntentStatuses = {
       orderStatus: order.status,
       bridgeStatus,
     };
-
-    return this.#intentStatuses;
+    this.#intentStatusesByBridgeTxMetaId.set(bridgeTxMetaId, intentStatuses);
+    return intentStatuses;
   }
 
   /**
@@ -97,9 +91,12 @@ export class IntentManager {
     clientId: string,
   ): Promise<IntentStatuses | undefined> => {
     const {
-      status: { srcChain: { chainId: txHash } = {} } = {},
-      quote: { srcChainId, intent: { protocol = '' } = {} },
+      status: statusObj,
+      quote: { srcChainId, intent },
     } = historyItem;
+    const txHash = statusObj?.srcChain?.txHash ?? '';
+    const protocol = intent?.protocol ?? '';
+
     try {
       const orderStatus = await this.intentApi.getOrderStatus(
         bridgeTxMetaId,
@@ -109,9 +106,10 @@ export class IntentManager {
       );
 
       return this.#setIntentStatuses(
+        bridgeTxMetaId,
         orderStatus,
         srcChainId,
-        txHash?.toString() ?? '',
+        txHash.toString(),
       );
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -142,6 +140,12 @@ export class IntentManager {
       return;
     }
 
+    const intentStatuses =
+      this.#intentStatusesByBridgeTxMetaId.get(bridgeTxMetaId);
+    if (!intentStatuses) {
+      return;
+    }
+
     try {
       // Merge with existing TransactionMeta to avoid wiping required fields
       const { transactions } = this.#messenger.call(
@@ -157,7 +161,7 @@ export class IntentManager {
         );
         return;
       }
-      const { bridgeStatus, orderStatus } = this.#intentStatuses;
+      const { bridgeStatus, orderStatus } = intentStatuses;
       const txHash = bridgeStatus?.txHash;
       const isComplete = bridgeStatus?.status.status === StatusTypes.COMPLETE;
       const existingTxReceipt = (
