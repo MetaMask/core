@@ -163,6 +163,30 @@ describe('IntentManager', () => {
     expect(result).toBeUndefined();
   });
 
+  it('getIntentTransactionStatus throws when getOrderStatus rejects with Error', async () => {
+    const apiError = new Error('Network failure');
+    const manager = new IntentManager(
+      createManagerOptions({
+        fetchFn: jest.fn().mockRejectedValue(apiError),
+      }),
+    );
+
+    let thrown: unknown;
+    try {
+      await manager.getIntentTransactionStatus(
+        'order-1',
+        makeHistoryItem(),
+        'client-id',
+      );
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe(
+      '[Intent polling] Failed to get intent order status from API: Failed to get order status: Network failure',
+    );
+  });
+
   it('getIntentTransactionStatus returns intent statuses when getOrderStatus resolves', async () => {
     const order = {
       id: 'order-1',

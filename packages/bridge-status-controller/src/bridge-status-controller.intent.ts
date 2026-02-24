@@ -113,9 +113,7 @@ export class IntentManager {
       );
     } catch (error: unknown) {
       if (error instanceof Error) {
-        throw new Error(
-          `[Intent polling] Failed to get intent order status from API: ${error.message}`,
-        );
+        throw new Error(`[Intent polling] Failed to get intent order status from API: ${error.message}`);
       }
       return undefined;
     }
