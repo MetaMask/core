@@ -491,7 +491,8 @@ export function isIncomingTransactionsUseBackendWebSocketServiceEnabled(
 ): boolean {
   const featureFlags = getFeatureFlags(messenger);
   return (
-    featureFlags?.[FeatureFlag.IncomingTransactions]?.useBackendWebSocketService ?? false
+    featureFlags?.[FeatureFlag.IncomingTransactions]
+      ?.useBackendWebSocketService ?? false
   );
 }
 

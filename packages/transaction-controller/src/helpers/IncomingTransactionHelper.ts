@@ -140,7 +140,8 @@ export class IncomingTransactionHelper {
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#trimTransactions = trimTransactions;
     this.#updateTransactions = updateTransactions;
-    this.#useBackendWebSocketService = isIncomingTransactionsUseBackendWebSocketServiceEnabled(messenger);
+    this.#useBackendWebSocketService =
+      isIncomingTransactionsUseBackendWebSocketServiceEnabled(messenger);
 
     if (this.#useBackendWebSocketService) {
       this.#messenger.subscribe(
@@ -274,7 +275,9 @@ export class IncomingTransactionHelper {
 
     try {
       // When websockets enabled, only poll chains that are not confirmed up
-      const chainIds = this.#useBackendWebSocketService ? this.#chainsToPoll : undefined;
+      const chainIds = this.#useBackendWebSocketService
+        ? this.#chainsToPoll
+        : undefined;
       await this.update({ chainIds, isInterval: true });
     } catch (error) {
       console.error('Error while checking incoming transactions', error);

@@ -877,7 +877,9 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(controllerMessenger),
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
       ).toBe(true);
     });
 
@@ -889,7 +891,9 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(controllerMessenger),
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
       ).toBe(false);
     });
 
@@ -897,7 +901,9 @@ describe('Feature Flags Utils', () => {
       mockFeatureFlags({});
 
       expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(controllerMessenger),
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
       ).toBe(false);
     });
 
@@ -907,7 +913,9 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(controllerMessenger),
+        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
+          controllerMessenger,
+        ),
       ).toBe(false);
     });
   });
