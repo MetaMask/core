@@ -535,6 +535,71 @@ describe('BridgeStatusController (intent swaps)', () => {
     consoleSpy.mockRestore();
   });
 
+  it('submitIntent: signs typedData when signature is not provided', async () => {
+    const { controller, messenger, accountAddress, submitIntentMock } = setup();
+
+    const orderUid = 'order-uid-signed-in-core-1';
+    submitIntentMock.mockResolvedValue({
+      id: orderUid,
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    const quoteResponse = minimalIntentQuoteResponse();
+    quoteResponse.quote.intent.typedData = {
+      types: {},
+      primaryType: 'Order',
+      domain: {},
+      message: {},
+    };
+
+    const originalCallImpl = (messenger.call as jest.Mock).getMockImplementation();
+    (messenger.call as jest.Mock).mockImplementation(
+      (method: string, ...args: any[]) => {
+        if (method === 'KeyringController:signTypedMessage') {
+          return '0xautosigned';
+        }
+        return originalCallImpl?.(method, ...args);
+      },
+    );
+
+    await controller.submitIntent({
+      quoteResponse,
+      accountAddress,
+    });
+
+    expect((messenger.call as jest.Mock).mock.calls).toEqual(
+      expect.arrayContaining([
+        [
+          'KeyringController:signTypedMessage',
+          expect.objectContaining({
+            from: accountAddress,
+            data: quoteResponse.quote.intent.typedData,
+          }),
+          'V4',
+        ],
+      ]),
+    );
+
+    expect(submitIntentMock.mock.calls[0]?.[0]?.signature).toBe('0xautosigned');
+  });
+
+  it('submitIntent: throws when signature and typedData are both missing', async () => {
+    const { controller, accountAddress, submitIntentMock } = setup();
+
+    const quoteResponse = minimalIntentQuoteResponse();
+
+    await expect(
+      controller.submitIntent({
+        quoteResponse,
+        accountAddress,
+      }),
+    ).rejects.toThrow('submitIntent: missing intent typedData');
+
+    expect(submitIntentMock).not.toHaveBeenCalled();
+  });
+
   it('intent polling: updates history, merges tx hashes, updates TC tx, and stops polling on COMPLETED', async () => {
     const {
       controller,
