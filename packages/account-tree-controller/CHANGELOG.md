@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `AccountTreeController:syncWithUserStorageAtLeastOnce`
   - Corresponding action types (e.g. `AccountTreeControllerGetAccountWalletObjectAction`) are available as well.
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+
 ### Removed
 
 - **BREAKING:** Remove `resolveNameConflict` from `AccountTreeController` ([#7976](https://github.com/MetaMask/core/pull/7976))
