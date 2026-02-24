@@ -33,7 +33,7 @@ import {
 } from './TokenBalancesController';
 import type { TokensControllerState } from './TokensController';
 import { jestAdvanceTime, flushPromises } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
 
 type AllTokenBalancesControllerActions =

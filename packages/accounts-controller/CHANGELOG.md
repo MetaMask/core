@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `accountIdByAddress` mapping to state and update `getAccountByAddress` function ([#7893](https://github.com/MetaMask/core/pull/7893))
   - This state was added to improve lookup times for an account by address from O(n) to O(1).
+- Expose missing public `AccountsController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
+  - The following actions are now available:
+    - `AccountController:loadBackupAction`
+  - Corresponding action types (e.g. `AccountControllerLoadBackupAction`) are available as well.
+
+### Deprecated
+
+- Mark `AccountsController`, all of its public methods, and all exported types as deprecated in favor of `AccountTreeController`, `MultichainAccountService`, and Keyring API v2 ([#8027](https://github.com/MetaMask/core/pull/8027))
+
+### Removed
+
+- **BREAKING:** Remove `getAccountExpect` from `AccountsController` ([#7976](https://github.com/MetaMask/core/pull/7976))
+  - This method was only used internally.
 
 ## [36.0.1]
 
