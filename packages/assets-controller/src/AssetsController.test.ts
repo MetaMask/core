@@ -1,8 +1,8 @@
 /* eslint-disable jest/unbound-method */
-import { ApiPlatformClient } from '@metamask/core-backend';
-import { InternalAccount } from '@metamask/keyring-internal-api';
+import type { ApiPlatformClient } from '@metamask/core-backend';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import {
+import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
@@ -12,13 +12,13 @@ import {
   AssetsController,
   getDefaultAssetsControllerState,
 } from './AssetsController';
-import {
+import type {
   AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
-import { PriceDataSourceConfig } from './data-sources/PriceDataSource';
-import { Caip19AssetId, AccountId } from './types';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
+import type { Caip19AssetId, AccountId } from './types';
 
 function createMockQueryApiClient(): ApiPlatformClient {
   return { fetch: jest.fn() } as unknown as ApiPlatformClient;
