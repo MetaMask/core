@@ -747,7 +747,7 @@ describe('BackendWebsocketDataSource', () => {
     controller.destroy();
   });
 
-  it('uses 18 decimals when asset.decimals is missing (fallback)', async () => {
+  it('skips balance update when asset.decimals is missing', async () => {
     const { controller, wsSubscribeMock, assetsUpdateHandler } =
       setupController({
         initialActiveChains: [CHAIN_MAINNET],
@@ -770,7 +770,7 @@ describe('BackendWebsocketDataSource', () => {
       onAssetsUpdate: assetsUpdateHandler,
     });
 
-    // 10^18 raw, no decimals on asset → fallback 18 → human-readable "1"
+    // No decimals on asset → update is skipped (we assume decimals are always present)
     const notification = createMockNotification({
       channel: `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`,
       data: {
@@ -794,17 +794,8 @@ describe('BackendWebsocketDataSource', () => {
     notificationCallback(notification);
     await new Promise(process.nextTick);
 
-    expect(assetsUpdateHandler).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assetsBalance: expect.objectContaining({
-          'mock-account-id': expect.objectContaining({
-            'eip155:1/erc20:0x0000000000000000000000000000000000000001': {
-              amount: '1',
-            },
-          }),
-        }),
-      }),
-    );
+    // No valid updates → response has only updateMode, no assetsBalance
+    expect(assetsUpdateHandler).toHaveBeenCalledWith({ updateMode: 'merge' });
 
     controller.destroy();
   });

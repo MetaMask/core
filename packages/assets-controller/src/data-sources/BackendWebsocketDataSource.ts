@@ -608,15 +608,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const isNative = asset.type.includes('/slip44:');
       const tokenType = isNative ? 'native' : 'erc20';
 
+      // We assume decimals are always present; skip malformed updates
+      if (asset.decimals === undefined) {
+        continue;
+      }
+
       // Parse raw balance (hex like "0x26f0e5" or decimal string)
       const rawBalanceStr = postBalance.amount.startsWith('0x')
         ? BigInt(postBalance.amount).toString()
         : postBalance.amount;
 
       // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
-      const decimals = asset.decimals ?? 18;
       const humanReadableAmount = new BigNumberJS(rawBalanceStr)
-        .dividedBy(new BigNumberJS(10).pow(decimals))
+        .dividedBy(new BigNumberJS(10).pow(asset.decimals))
         .toString();
 
       assetsBalance[accountId][assetId] = {
