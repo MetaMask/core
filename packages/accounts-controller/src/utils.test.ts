@@ -2,13 +2,13 @@ import { toChecksumAddress } from '@ethereumjs/util';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
-import { createMockInternalAccount } from './tests/mocks';
 import {
   constructAccountIdByAddress,
   getEvmGroupIndexFromAddressIndex,
   isNormalKeyringType,
   isSimpleKeyringType,
 } from './utils';
+import { createMockInternalAccount } from '../tests/mocks';
 
 describe('utils', () => {
   describe('isNormalKeyringType', () => {
