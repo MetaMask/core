@@ -7,9 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `AccountTreeController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
+  - The following actions are now available:
+    - `AccountTreeController:getAccountWalletObject`
+    - `AccountTreeController:getAccountWalletObjects`
+    - `AccountTreeController:getAccountGroupObject`
+    - `AccountTreeController:clearState`
+    - `AccountTreeController:syncWithUserStorage`
+    - `AccountTreeController:syncWithUserStorageAtLeastOnce`
+  - Corresponding action types (e.g. `AccountTreeControllerGetAccountWalletObjectAction`) are available as well.
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+
+### Removed
+
+- **BREAKING:** Remove `resolveNameConflict` from `AccountTreeController` ([#7976](https://github.com/MetaMask/core/pull/7976))
+  - This method was only used internally.
 
 ## [4.1.1]
 

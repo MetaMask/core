@@ -35,7 +35,7 @@ import type { NftDetectionControllerMessenger } from './NftDetectionController';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { jestAdvanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
   buildMockFindNetworkClientIdByChainId,
   buildMockGetNetworkClientById,

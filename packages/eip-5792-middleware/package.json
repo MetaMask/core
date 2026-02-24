@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/eip-5792-middleware",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eip-5792-middleware",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -50,7 +49,7 @@
   "dependencies": {
     "@metamask/messenger": "^0.3.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^62.18.0",
+    "@metamask/transaction-controller": "^62.19.0",
     "@metamask/utils": "^11.9.0",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"

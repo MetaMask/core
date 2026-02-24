@@ -151,7 +151,7 @@ describe('DetectionMiddleware', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('does not detect assets that have metadata', async () => {
+  it('includes all balance assets in detectedAssets even when they have metadata', async () => {
     const { middleware } = setupController();
     const context = createMiddlewareContext(
       {
@@ -170,11 +170,14 @@ describe('DetectionMiddleware', () => {
 
     await middleware.assetsMiddleware(context, next);
 
-    expect(context.response.detectedAssets).toBeUndefined();
+    // All assets in balance are included so prices (and metadata when needed) are fetched
+    expect(context.response.detectedAssets).toStrictEqual({
+      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_NATIVE_ASSET],
+    });
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('detects only assets without metadata in mixed scenario', async () => {
+  it('includes all balance assets in mixed scenario (metadata presence is ignored)', async () => {
     const { middleware } = setupController();
     const context = createMiddlewareContext(
       {
@@ -195,7 +198,7 @@ describe('DetectionMiddleware', () => {
     await middleware.assetsMiddleware(context, next);
 
     expect(context.response.detectedAssets).toStrictEqual({
-      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2, MOCK_NATIVE_ASSET],
+      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_ASSET_2, MOCK_NATIVE_ASSET],
     });
     expect(next).toHaveBeenCalledWith(context);
   });
@@ -225,12 +228,12 @@ describe('DetectionMiddleware', () => {
 
     expect(context.response.detectedAssets).toStrictEqual({
       [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
-      [account2Id]: [MOCK_ASSET_2],
+      [account2Id]: [MOCK_ASSET_2, MOCK_NATIVE_ASSET],
     });
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('skips accounts with no detected assets', async () => {
+  it('includes all balance assets per account regardless of metadata', async () => {
     const { middleware } = setupController();
     const account2Id = 'account-2-id';
     const context = createMiddlewareContext(
@@ -252,10 +255,11 @@ describe('DetectionMiddleware', () => {
 
     await middleware.assetsMiddleware(context, next);
 
+    // Both accounts get their balance assets so prices/metadata can be fetched
     expect(context.response.detectedAssets).toStrictEqual({
+      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
       [account2Id]: [MOCK_ASSET_2],
     });
-    expect(context.response.detectedAssets?.[MOCK_ACCOUNT_ID]).toBeUndefined();
     expect(next).toHaveBeenCalledWith(context);
   });
 

@@ -30,8 +30,13 @@ export type AssetsControllerGetAssetsPriceAction = {
  * Custom assets are included in subscription and fetch operations.
  * Adding a custom asset also unhides it if it was previously hidden.
  *
+ * When `pendingMetadata` is provided (e.g. from the extension's pending-tokens
+ * flow), the token metadata is persisted immediately into `assetsInfo` so the
+ * UI can render it without waiting for the next pipeline fetch.
+ *
  * @param accountId - The account ID to add the custom asset for.
  * @param assetId - The CAIP-19 asset ID to add.
+ * @param pendingMetadata - Optional token metadata from the UI (pendingTokens format).
  */
 export type AssetsControllerAddCustomAssetAction = {
   type: `AssetsController:addCustomAsset`;

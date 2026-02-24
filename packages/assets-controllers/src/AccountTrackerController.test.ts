@@ -24,7 +24,7 @@ import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-ba
 import { getTokenBalancesForMultipleAddresses } from './multicall';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { jestAdvanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,

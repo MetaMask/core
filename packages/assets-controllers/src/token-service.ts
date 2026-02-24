@@ -70,7 +70,7 @@ function getTokenSearchURL(options: {
   includeMarketData?: boolean;
   includeRwaData?: boolean;
 }): string {
-  const { chainIds, query, ...optionalParams } = options;
+  const { chainIds, query, limit, ...optionalParams } = options;
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
@@ -81,7 +81,20 @@ function getTokenSearchURL(options: {
       queryParams.append(key, String(value));
     }
   });
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}&${queryParams.toString()}`;
+
+  let numberOfItems;
+  if (limit) {
+    if (limit <= 50) {
+      numberOfItems = limit;
+    } else if (query.includes('Ondo') && limit <= 500) {
+      // There is an exception on the API side https://github.com/consensys-vertical-apps/va-mmcx-token-api/pull/287
+      numberOfItems = limit;
+    } else {
+      numberOfItems = 50;
+    }
+  }
+
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}${numberOfItems ? `&first=${numberOfItems}` : ''}&${queryParams.toString()}`;
 }
 
 /**
