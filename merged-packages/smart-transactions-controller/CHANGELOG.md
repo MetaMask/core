@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.6.0]
+
+### Added
+
+- chore(gasless-bridge): add gaslessBridgeWith7702Enabled feature flag ([#568](https://github.com/MetaMask/smart-transactions-controller/pull/568))
+
 ## [22.5.0]
 
 ### Changed
@@ -722,7 +728,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.6.0...HEAD
+[22.6.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.5.0...v22.6.0
 [22.5.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.4.0...v22.5.0
 [22.4.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.3.0...v22.4.0
 [22.3.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.2.0...v22.3.0
