@@ -21,6 +21,10 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
   },
   estimatedDuration: 123,
   fees: {
+    metaMask: {
+      fiat: '0.50',
+      usd: '0.25',
+    },
     provider: {
       fiat: '1.11',
       usd: '2.22',
@@ -77,6 +81,10 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
   estimatedDuration: 234,
   fees: {
     isSourceGasFeeToken: true,
+    metaMask: {
+      fiat: '1.00',
+      usd: '0.75',
+    },
     provider: {
       fiat: '7.77',
       usd: '8.88',
@@ -189,6 +197,18 @@ describe('Totals Utils', () => {
 
       expect(result.total.fiat).toBe('39.97');
       expect(result.total.usd).toBe('46.64');
+    });
+
+    it('returns metaMask fees', () => {
+      const result = calculateTotals({
+        quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
+        tokens: [],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.fees.metaMask.fiat).toBe('1.5');
+      expect(result.fees.metaMask.usd).toBe('1');
     });
 
     it('returns provider fees', () => {
