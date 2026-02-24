@@ -121,7 +121,7 @@ export type PendingTokenMetadata = {
   iconUrl?: string;
   aggregators?: string[];
   occurrences?: number;
-  chainId?: string;
+  chainId: string;
   unlisted?: boolean;
 };
 
