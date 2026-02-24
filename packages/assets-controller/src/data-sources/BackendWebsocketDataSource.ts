@@ -13,6 +13,7 @@ import {
   KnownCaipNamespace,
   toCaipChainId,
 } from '@metamask/utils';
+import BigNumberJS from 'bignumber.js';
 
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
@@ -607,13 +608,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const isNative = asset.type.includes('/slip44:');
       const tokenType = isNative ? 'native' : 'erc20';
 
-      // Parse balance amount (already in hex format like "0xc350")
-      const balanceAmount = postBalance.amount.startsWith('0x')
+      // Parse raw balance (hex like "0x26f0e5" or decimal string)
+      const rawBalanceStr = postBalance.amount.startsWith('0x')
         ? BigInt(postBalance.amount).toString()
         : postBalance.amount;
 
+      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
+      const decimals = asset.decimals ?? 18;
+      const humanReadableAmount = new BigNumberJS(rawBalanceStr)
+        .dividedBy(new BigNumberJS(10).pow(decimals))
+        .toString();
+
       assetsBalance[accountId][assetId] = {
-        amount: balanceAmount,
+        amount: humanReadableAmount,
       };
 
       assetsMetadata[assetId] = {
