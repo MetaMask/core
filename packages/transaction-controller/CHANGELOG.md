@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- chore: renamed feature flag useWebsockets to useBackendWebSocketService ([#8028](https://github.com/MetaMask/core/pull/8028))
+
 ## [62.18.0]
 
 ### Added
