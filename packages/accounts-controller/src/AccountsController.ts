@@ -96,6 +96,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'loadBackup',
 ] as const;
 
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
 export type AllowedActions =
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetStateAction;
