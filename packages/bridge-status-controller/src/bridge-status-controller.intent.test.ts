@@ -1530,7 +1530,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     );
   });
 
-  it('intent polling: returns early when getIntentTransactionStatus returns undefined (e.g. non-Error rejection)', async () => {
+  it('intent polling: handles fetch failure when getIntentTransactionStatus returns undefined (e.g. non-Error rejection)', async () => {
     const { controller, getOrderStatusMock } = setup();
 
     seedIntentHistory(controller);
@@ -1542,6 +1542,9 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     expect(controller.state.txHistory['order-1'].status.status).toBe(
       StatusTypes.PENDING,
     );
+    expect(
+      controller.state.txHistory['order-1'].attempts?.counter,
+    ).toBe(1);
   });
 
   it('bridge polling: returns early when history item is missing', async () => {

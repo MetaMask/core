@@ -773,7 +773,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           intentTxStatus?.bridgeStatus === null ||
           intentTxStatus?.bridgeStatus === undefined
         ) {
-          return;
+          throw new Error('Intent transaction status not found');
         }
         status = intentTxStatus.bridgeStatus.status;
       } else {

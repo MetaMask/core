@@ -228,6 +228,35 @@ describe('IntentApiImpl', () => {
       );
     });
 
+    it('uses fallbackTxHash for txHash when intentOrder.txHash is absent', () => {
+      const translation = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-fallback',
+          status: IntentOrderStatus.SUBMITTED,
+          metadata: {},
+        },
+        1,
+        '0xfallback',
+      );
+
+      expect(translation.txHash).toBe('0xfallback');
+      expect(translation.status.srcChain.txHash).toBe('0xfallback');
+    });
+
+    it('returns empty txHash when neither intentOrder.txHash nor fallback exist', () => {
+      const translation = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-nohash',
+          status: IntentOrderStatus.SUBMITTED,
+          metadata: {},
+        },
+        1,
+      );
+
+      expect(translation.txHash).toBe('');
+      expect(translation.status.srcChain.txHash).toBe('');
+    });
+
     it('maps confirmed intent to COMPLETE status', () => {
       const translation = translateIntentOrderToBridgeStatus(
         {

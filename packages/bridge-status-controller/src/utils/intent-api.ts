@@ -141,7 +141,7 @@ export const translateIntentOrderToBridgeStatus = (
 
   return {
     status,
-    txHash: intentOrder.txHash,
+    txHash,
     transactionStatus: mapIntentOrderStatusToTransactionStatus(
       intentOrder.status,
     ),

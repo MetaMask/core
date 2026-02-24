@@ -113,7 +113,9 @@ export class IntentManager {
       );
     } catch (error: unknown) {
       if (error instanceof Error) {
-        throw new Error(`[Intent polling] Failed to get intent order status from API: ${error.message}`);
+        throw new Error(
+          `[Intent polling] Failed to get intent order status from API: ${error.message}`,
+        );
       }
       return undefined;
     }
@@ -186,6 +188,10 @@ export class IntentManager {
         updatedTxMeta,
         `BridgeStatusController - Intent order status updated: ${orderStatus}`,
       );
+
+      if (isComplete) {
+        this.#intentStatusesByBridgeTxMetaId.delete(bridgeTxMetaId);
+      }
     } catch (error) {
       console.error('[Intent polling] Failed to update transaction status', {
         originalTxId,

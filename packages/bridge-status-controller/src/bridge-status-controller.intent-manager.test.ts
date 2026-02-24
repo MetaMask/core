@@ -178,8 +178,8 @@ describe('IntentManager', () => {
         makeHistoryItem(),
         'client-id',
       );
-    } catch (err) {
-      thrown = err;
+    } catch (error) {
+      thrown = error;
     }
     expect(thrown).toBeInstanceOf(Error);
     expect((thrown as Error).message).toBe(
@@ -239,6 +239,50 @@ describe('IntentManager', () => {
 
     expect(result).toBeDefined();
     expect(result?.bridgeStatus?.status.srcChain.txHash).toBe('');
+  });
+
+  it('syncTransactionFromIntentStatus cleans up intent statuses map when order is complete', async () => {
+    const existingTxMeta = {
+      id: 'tx-2',
+      status: TransactionStatus.submitted,
+      txReceipt: { status: '0x0' },
+    };
+    const updateTransactionFn = jest.fn();
+    const completedOrder = {
+      id: 'order-3',
+      status: IntentOrderStatus.COMPLETED,
+      txHash: '0xhash',
+      metadata: {},
+    };
+    const manager = new IntentManager(
+      createManagerOptions({
+        messenger: {
+          call: jest.fn(() => ({ transactions: [existingTxMeta] })),
+        },
+        updateTransactionFn,
+        fetchFn: jest.fn().mockResolvedValue(completedOrder),
+      }),
+    );
+
+    const historyItem = makeHistoryItem({
+      originalTransactionId: 'tx-2',
+      status: {
+        status: StatusTypes.PENDING,
+        srcChain: { chainId: 1, txHash: '0xhash' },
+      },
+    });
+    await manager.getIntentTransactionStatus(
+      'order-3',
+      historyItem,
+      'client-id',
+    );
+    manager.syncTransactionFromIntentStatus('order-3', historyItem);
+
+    expect(updateTransactionFn).toHaveBeenCalledTimes(1);
+
+    manager.syncTransactionFromIntentStatus('order-3', historyItem);
+
+    expect(updateTransactionFn).toHaveBeenCalledTimes(1);
   });
 
   it('syncTransactionFromIntentStatus logs warn when transaction is not found', async () => {
@@ -413,5 +457,28 @@ describe('IntentManager', () => {
       }),
     );
     errorSpy.mockRestore();
+  });
+
+  it('submitIntent delegates to intentApi.submitIntent', async () => {
+    const expectedOrder = {
+      id: 'order-1',
+      status: IntentOrderStatus.SUBMITTED,
+      metadata: {},
+    };
+    const fetchFn = jest.fn().mockResolvedValue(expectedOrder);
+    const manager = new IntentManager(createManagerOptions({ fetchFn }));
+
+    const params = {
+      srcChainId: '1',
+      quoteId: 'quote-1',
+      signature: '0xsig',
+      order: { some: 'order' },
+      userAddress: '0xuser',
+      aggregatorId: 'cowswap',
+    };
+
+    const result = await manager.submitIntent(params, 'client-id');
+
+    expect(result).toStrictEqual(expectedOrder);
   });
 });
