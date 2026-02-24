@@ -370,6 +370,9 @@ async function normalizeQuote(
 
   const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
 
+  const appFeeUsd = new BigNumber(quote.fees?.app?.amountUsd ?? '0');
+  const metaMaskFee = getFiatValueFromUsd(appFeeUsd, usdToFiatRate);
+
   const metamask = {
     gasLimits,
   };
@@ -379,6 +382,7 @@ async function normalizeQuote(
     estimatedDuration: details.timeEstimate,
     fees: {
       isSourceGasFeeToken,
+      metaMask: metaMaskFee,
       provider,
       sourceNetwork,
       targetNetwork,

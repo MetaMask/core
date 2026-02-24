@@ -542,6 +542,7 @@ function normalizeQuote(
         .toString(10),
     },
     fees: {
+      metaMask: { usd: '0', fiat: '0' },
       provider: {
         fiat: new BigNumber(sourceAmount.fiat)
           .minus(targetAmountMinimumFiat.fiat)
