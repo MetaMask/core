@@ -37,15 +37,15 @@ import type {
 } from './AccountsController';
 import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
 import {
+  getUUIDOptionsFromAddressOfNormalAccount,
+  keyringTypeToName,
+} from './utils';
+import {
   createExpectedInternalAccount,
   createMockInternalAccount,
   createMockInternalAccountOptions,
   ETH_EOA_METHODS,
-} from './tests/mocks';
-import {
-  getUUIDOptionsFromAddressOfNormalAccount,
-  keyringTypeToName,
-} from './utils';
+} from '../tests/mocks';
 
 type AllAccountsControllerActions =
   MessengerActions<AccountsControllerMessenger>;
