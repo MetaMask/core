@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added optional `ab_tests` property to `RequiredEventContextFromClient` and `CrossChainSwapsEventProperties` types for A/B test experiment attribution
+- Added optional `ab_tests` property to `RequiredEventContextFromClient` and `CrossChainSwapsEventProperties` types for A/B test experiment attribution ([#8007](https://github.com/MetaMask/core/pull/8007))
 
 ### Changed
 

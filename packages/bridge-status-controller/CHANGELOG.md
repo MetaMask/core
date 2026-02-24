@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added optional `abTests` property to `BridgeHistoryItem` to persist A/B test context across the transaction lifecycle
-- Added optional `abTests` parameter to `StartPollingForBridgeTxStatusArgs`
-- Added optional `abTests` parameter to `submitTx` and `submitIntent` methods for A/B test experiment attribution
-- `trackUnifiedSwapBridgeEvent` now resolves `ab_tests` from event properties or transaction history and includes it in emitted events
+- Added optional `abTests` property to `BridgeHistoryItem` to persist A/B test context across the transaction lifecycle ([#8007](https://github.com/MetaMask/core/pull/8007))
+- Added optional `abTests` parameter to `StartPollingForBridgeTxStatusArgs` ([#8007](https://github.com/MetaMask/core/pull/8007))
+- Added optional `abTests` parameter to `submitTx` and `submitIntent` methods for A/B test experiment attribution ([#8007](https://github.com/MetaMask/core/pull/8007))
+- `trackUnifiedSwapBridgeEvent` now resolves `ab_tests` from event properties or transaction history and includes it in emitted events ([#8007](https://github.com/MetaMask/core/pull/8007))
 
 ### Changed
 
