@@ -70,6 +70,7 @@ type WithControllerOptions = {
       payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
     ) => void;
     priceDataSourceConfig: PriceDataSourceConfig;
+    isEnabled: () => boolean;
   }>;
 };
 
@@ -620,36 +621,62 @@ describe('AssetsController', () => {
   });
 
   describe('handleActiveChainsUpdate', () => {
-    it('updates data source chains', async () => {
-      await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
-
-        // Should not throw
-        expect(controller.state).toBeDefined();
-      });
-    });
-
-    it('handles empty chains array', async () => {
-      await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', [], []);
-
-        expect(controller.state).toBeDefined();
-      });
-    });
-
-    it('triggers fetch when chains are added', async () => {
+    it('calls getAssets with added enabled chains when chains are added', async () => {
       await withController(async ({ controller }) => {
-        // First set no chains
-        controller.handleActiveChainsUpdate('TestDataSource', [], []);
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
-        // Then add chains - this should trigger fetch for added chains
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
 
-        // Allow async operations to complete
-        await new Promise(process.nextTick);
-
-        expect(controller.state).toBeDefined();
+        expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.objectContaining({
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+            updateMode: 'merge',
+          }),
+        );
       });
+    });
+
+    it('does not call getAssets when no chains are added', async () => {
+      await withController(async ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], []);
+        onActiveChainsUpdated('TestDataSource', ['eip155:1'], ['eip155:1']);
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not call getAssets when only chains are removed', async () => {
+      await withController(async ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does nothing when controller is disabled', async () => {
+      await withController(
+        {
+          controllerOptions: { isEnabled: (): boolean => false },
+        },
+        async ({ controller }) => {
+          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+
+          onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
+
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 
