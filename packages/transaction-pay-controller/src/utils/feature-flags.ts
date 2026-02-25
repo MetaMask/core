@@ -16,8 +16,10 @@ export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
   TransactionPayStrategy.Relay,
+  TransactionPayStrategy.Across,
 ];
 
 type FeatureFlagsRaw = {
@@ -31,6 +33,10 @@ type FeatureFlagsRaw = {
       }
     >;
   };
+  metaMaskFee?: {
+    recipient?: Hex;
+    fee?: string;
+  };
   relayDisabledGasStationChains?: Hex[];
   relayFallbackGas?: {
     estimate?: number;
@@ -40,9 +46,14 @@ type FeatureFlagsRaw = {
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
   strategyOrder?: string[];
+  payStrategies?: PayStrategiesConfigRaw;
 };
 
 export type FeatureFlags = {
+  metaMaskFee?: {
+    recipient: Hex;
+    fee: string;
+  };
   relayDisabledGasStationChains: Hex[];
   relayFallbackGas: {
     estimate: number;
@@ -50,6 +61,33 @@ export type FeatureFlags = {
   };
   relayQuoteUrl: string;
   slippage: number;
+};
+
+export type AcrossConfigRaw = {
+  allowSameChain?: boolean;
+  apiBase?: string;
+  enabled?: boolean;
+  integratorId?: string;
+  postActionsEnabled?: boolean;
+};
+
+export type PayStrategiesConfigRaw = {
+  across?: AcrossConfigRaw;
+  relay?: {
+    enabled?: boolean;
+  };
+};
+
+export type PayStrategiesConfig = {
+  across: AcrossConfigRaw & {
+    allowSameChain: boolean;
+    apiBase: string;
+    enabled: boolean;
+    postActionsEnabled: boolean;
+  };
+  relay: {
+    enabled: boolean;
+  };
 };
 
 /**
@@ -90,6 +128,7 @@ export function getFeatureFlags(
   messenger: TransactionPayControllerMessenger,
 ): FeatureFlags {
   const featureFlags = getFeatureFlagsRaw(messenger);
+  const metaMaskFee = getMetaMaskFee(featureFlags.metaMaskFee);
 
   const estimate =
     featureFlags.relayFallbackGas?.estimate ??
@@ -105,7 +144,8 @@ export function getFeatureFlags(
 
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
 
-  const result = {
+  const result: FeatureFlags = {
+    ...(metaMaskFee ? { metaMaskFee } : {}),
     relayDisabledGasStationChains,
     relayFallbackGas: {
       estimate,
@@ -118,6 +158,74 @@ export function getFeatureFlags(
   log('Feature flags:', { raw: featureFlags, result });
 
   return result;
+}
+
+function getMetaMaskFee(
+  rawMetaMaskFee: FeatureFlagsRaw['metaMaskFee'],
+): FeatureFlags['metaMaskFee'] {
+  if (!rawMetaMaskFee?.recipient || !rawMetaMaskFee.fee) {
+    return undefined;
+  }
+
+  if (!/^0x[a-fA-F0-9]{40}$/u.test(rawMetaMaskFee.recipient)) {
+    return undefined;
+  }
+
+  const parsedFee = Number(rawMetaMaskFee.fee);
+
+  if (!Number.isFinite(parsedFee) || parsedFee <= 0 || parsedFee >= 1) {
+    return undefined;
+  }
+
+  return {
+    recipient: rawMetaMaskFee.recipient,
+    fee: rawMetaMaskFee.fee,
+  };
+}
+
+/**
+ * Get Pay Strategies configuration.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Pay Strategies configuration.
+ */
+export function getPayStrategiesConfig(
+  messenger: TransactionPayControllerMessenger,
+): PayStrategiesConfig {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  const payStrategies = featureFlags.payStrategies ?? {};
+
+  const acrossRaw = payStrategies.across ?? {};
+  const relayRaw = payStrategies.relay ?? {};
+
+  const across = {
+    allowSameChain: acrossRaw.allowSameChain ?? false,
+    apiBase: acrossRaw.apiBase ?? DEFAULT_ACROSS_API_BASE,
+    enabled: acrossRaw.enabled ?? false,
+    integratorId: acrossRaw.integratorId,
+    postActionsEnabled: acrossRaw.postActionsEnabled ?? false,
+  };
+
+  const relay = {
+    enabled: relayRaw.enabled ?? true,
+  };
+
+  return {
+    across,
+    relay,
+  };
+}
+
+/**
+ * Get fallback gas limits for quote/submit flows.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Fallback gas limits.
+ */
+export function getRelayFallbackGas(
+  messenger: TransactionPayControllerMessenger,
+): FeatureFlags['relayFallbackGas'] {
+  return getFeatureFlags(messenger).relayFallbackGas;
 }
 
 /**
