@@ -837,6 +837,28 @@ describe('relay-max-gas-station', () => {
     expect(result).toBe(phase1Quote);
   });
 
+  it('returns phase-1 quote when probe quote is unexpectedly undefined', async () => {
+    const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(
+        undefined as unknown as TransactionPayQuote<RelayQuote>,
+      );
+
+    getGasFeeTokensMock.mockResolvedValue([]);
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
+    expect(result).toBe(phase1Quote);
+  });
+
   it('returns phase-1 quote when probe quote has no executable step params', async () => {
     const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
     const probeQuote = makeQuote({

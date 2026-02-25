@@ -65,7 +65,10 @@ describe('gas-station', () => {
   });
 
   it('returns eligible gas-station status for enabled supported chain', () => {
-    const result = getGasStationEligibility(messenger, REQUEST_MOCK.sourceChainId);
+    const result = getGasStationEligibility(
+      messenger,
+      REQUEST_MOCK.sourceChainId,
+    );
 
     expect(result).toStrictEqual({
       chainSupportsGasStation: true,
@@ -87,7 +90,10 @@ describe('gas-station', () => {
       },
     });
 
-    const result = getGasStationEligibility(messenger, REQUEST_MOCK.sourceChainId);
+    const result = getGasStationEligibility(
+      messenger,
+      REQUEST_MOCK.sourceChainId,
+    );
 
     expect(result).toStrictEqual({
       chainSupportsGasStation: true,
