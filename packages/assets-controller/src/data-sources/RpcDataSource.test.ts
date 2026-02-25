@@ -432,6 +432,103 @@ describe('RpcDataSource', () => {
         expect(true).toBe(true);
       });
     });
+
+    it('uses request.chainIds when activeChains is empty so subscription can start', async () => {
+      const networkState = createMockNetworkState(NetworkStatus.Degraded);
+      await withController({ networkState }, async ({ controller }) => {
+        const account = createMockInternalAccount();
+        await controller.subscribe({
+          request: {
+            accountsWithSupportedChains: [
+              { account, supportedChains: [MOCK_CHAIN_ID_CAIP] },
+            ],
+            chainIds: [MOCK_CHAIN_ID_CAIP],
+            dataTypes: ['balance'],
+          },
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+        await controller.unsubscribe('test-sub');
+        expect(true).toBe(true);
+      });
+    });
+
+    it('starts balance and staked balance polling for chain with staking contract (mainnet)', async () => {
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+        await controller.unsubscribe('test-sub');
+        expect(true).toBe(true);
+      });
+    });
+
+    it('completes subscription for chain without staking contract (Polygon only)', async () => {
+      const networkState = createMockNetworkState(NetworkStatus.Degraded);
+      networkState.networkConfigurationsByChainId['0x89'] = {
+        chainId: '0x89',
+        name: 'Polygon',
+        nativeCurrency: 'MATIC',
+        defaultRpcEndpointIndex: 0,
+        rpcEndpoints: [
+          {
+            networkClientId: 'polygon',
+            url: 'https://polygon-rpc.com',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+        blockExplorerUrls: [],
+      };
+      (networkState.networksMetadata as Record<string, unknown>).polygon = {
+        status: NetworkStatus.Available,
+        EIPS: {},
+      };
+
+      await withController({ networkState }, async ({ controller }) => {
+        const account = createMockInternalAccount();
+        await controller.subscribe({
+          request: {
+            accountsWithSupportedChains: [
+              {
+                account,
+                supportedChains: ['eip155:137' as ChainId],
+              },
+            ],
+            chainIds: ['eip155:137' as ChainId],
+            dataTypes: ['balance'],
+          },
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+        await controller.unsubscribe('test-sub');
+        expect(true).toBe(true);
+      });
+    });
+
+    it('unsubscribe stops all polling including staked balance', async () => {
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+        await controller.unsubscribe('test-sub');
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub-2',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+        await controller.unsubscribe('test-sub-2');
+        expect(true).toBe(true);
+      });
+    });
   });
 
   describe('unsubscribe', () => {

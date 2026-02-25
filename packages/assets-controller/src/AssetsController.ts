@@ -1983,7 +1983,8 @@ export class AssetsController extends BaseController<
       }),
       subscriptionId: subscriptionKey,
       isUpdate,
-      onAssetsUpdate: (response) => this.handleAssetsUpdate(response, sourceId),
+      onAssetsUpdate: (response, request) =>
+        this.handleAssetsUpdate(response, sourceId, request),
       getAssetsState: () => this.state,
     };
 
