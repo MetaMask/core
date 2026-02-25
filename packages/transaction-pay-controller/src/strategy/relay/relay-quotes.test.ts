@@ -973,6 +973,65 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].estimatedDuration).toBe(300);
     });
 
+    it('includes zero metaMask fee when app fee is absent', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.metaMask).toStrictEqual({
+        usd: '0',
+        fiat: '0',
+      });
+    });
+
+    it('includes metaMask fee from app fee in quote', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.details.totalImpact.usd = '1.86';
+      quoteMock.fees.app = { amountUsd: '0.75' };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.metaMask).toStrictEqual({
+        usd: '0.75',
+        fiat: '1.5',
+      });
+    });
+
+    it('subtracts app fee from provider fee', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.details.totalImpact.usd = '1.86';
+      quoteMock.fees.app = { amountUsd: '0.75' };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        usd: '1.11',
+        fiat: '2.22',
+      });
+    });
+
     it('includes provider fee', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
