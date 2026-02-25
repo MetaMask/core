@@ -65,11 +65,7 @@ describe('gas-station', () => {
   });
 
   it('returns eligible gas-station status for enabled supported chain', () => {
-    const result = getGasStationEligibility(
-      messenger,
-      REQUEST_MOCK.sourceChainId,
-      [],
-    );
+    const result = getGasStationEligibility(messenger, REQUEST_MOCK.sourceChainId);
 
     expect(result).toStrictEqual({
       chainSupportsGasStation: true,
@@ -79,11 +75,19 @@ describe('gas-station', () => {
   });
 
   it('returns ineligible status when chain is disabled', () => {
-    const result = getGasStationEligibility(
-      messenger,
-      REQUEST_MOCK.sourceChainId,
-      [REQUEST_MOCK.sourceChainId],
-    );
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        confirmations_eip_7702: {
+          supportedChains: [REQUEST_MOCK.sourceChainId],
+        },
+        confirmations_pay: {
+          relayDisabledGasStationChains: [REQUEST_MOCK.sourceChainId],
+        },
+      },
+    });
+
+    const result = getGasStationEligibility(messenger, REQUEST_MOCK.sourceChainId);
 
     expect(result).toStrictEqual({
       chainSupportsGasStation: true,

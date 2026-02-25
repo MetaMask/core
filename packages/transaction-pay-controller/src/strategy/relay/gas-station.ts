@@ -10,7 +10,10 @@ import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
 } from '../../types';
-import { getEIP7702SupportedChains } from '../../utils/feature-flags';
+import {
+  getEIP7702SupportedChains,
+  getFeatureFlags,
+} from '../../utils/feature-flags';
 import { calculateGasFeeTokenCost } from '../../utils/gas';
 
 const log = createModuleLogger(projectLogger, 'relay-gas-station');
@@ -36,8 +39,8 @@ export type GasStationEligibility = {
 export function getGasStationEligibility(
   messenger: TransactionPayControllerMessenger,
   sourceChainId: QuoteRequest['sourceChainId'],
-  relayDisabledGasStationChains: readonly QuoteRequest['sourceChainId'][],
 ): GasStationEligibility {
+  const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
   const supportedChains = getEIP7702SupportedChains(messenger);
   const chainSupportsGasStation = supportedChains.some(
     (supportedChainId) =>
@@ -141,11 +144,11 @@ function getNormalizedGasFeeTokenAmount({
   totalGasEstimate: number;
   totalItemCount: number;
 }): string {
-  let amount = parseGasValue(gasFeeToken.amount);
+  let amount = new BigNumber(gasFeeToken.amount);
 
   if (totalItemCount > 1) {
-    const gas = parseGasValue(gasFeeToken.gas);
-    const gasFeeAmount = parseGasValue(gasFeeToken.amount);
+    const gas = new BigNumber(gasFeeToken.gas);
+    const gasFeeAmount = new BigNumber(gasFeeToken.amount);
 
     if (totalGasEstimate > 0 && gas.isGreaterThan(0)) {
       const gasRate = gasFeeAmount.dividedBy(gas);
@@ -154,12 +157,4 @@ function getNormalizedGasFeeTokenAmount({
   }
 
   return amount.integerValue(BigNumber.ROUND_CEIL).toFixed(0);
-}
-
-function parseGasValue(value: string): BigNumber {
-  if (value.toLowerCase().startsWith('0x')) {
-    return new BigNumber(value.slice(2), 16);
-  }
-
-  return new BigNumber(value);
 }

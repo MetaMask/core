@@ -522,8 +522,6 @@ async function calculateSourceNetworkCost(
     .flatMap((step) => step.items)
     .map((item) => item.data);
 
-  const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
-
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     relayParams[0];
 
@@ -570,20 +568,18 @@ async function calculateSourceNetworkCost(
     return result;
   }
 
-  if (relayDisabledGasStationChains.includes(sourceChainId)) {
+  const gasStationEligibility = getGasStationEligibility(
+    messenger,
+    sourceChainId,
+  );
+
+  if (gasStationEligibility.isDisabledChain) {
     log('Skipping gas station as disabled chain', {
       sourceChainId,
-      disabledChainIds: relayDisabledGasStationChains,
     });
 
     return result;
   }
-
-  const gasStationEligibility = getGasStationEligibility(
-    messenger,
-    sourceChainId,
-    relayDisabledGasStationChains,
-  );
 
   if (!gasStationEligibility.chainSupportsGasStation) {
     log('Skipping gas station as chain does not support EIP-7702', {

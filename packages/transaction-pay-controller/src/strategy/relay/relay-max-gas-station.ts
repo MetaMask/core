@@ -13,7 +13,6 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   getNativeToken,
   getTokenBalance,
@@ -53,6 +52,22 @@ type MaxAmountQuoteContext = {
   request: QuoteRequest;
 };
 
+/**
+ * Returns a Relay max-amount quote using a two-phase gas-station fallback.
+ *
+ * It first requests a standard max quote (phase 1), then when needed estimates
+ * gas in source-token units (directly or via a probe quote), requests an
+ * adjusted max quote (phase 2), and accepts phase 2 only if validation passes
+ * (source gas fee token selected, gas-limit checks, affordability).
+ *
+ * If any step fails or validation is unsafe, it safely falls back to phase 1.
+ * Successful phase-2 quotes are tagged with `metamask.isMaxGasStation = true`.
+ *
+ * @param request - Relay quote request for a max-amount flow.
+ * @param fullRequest - Full quote request context including messenger and transaction.
+ * @param getSingleQuote - Quote fetcher used for phase-1, phase-2, and probe quotes.
+ * @returns The validated adjusted phase-2 quote, or the original phase-1 quote on fallback.
+ */
 export async function getRelayMaxGasStationQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
@@ -66,8 +81,6 @@ export async function getRelayMaxGasStationQuote(
     messenger,
     request,
   };
-
-  const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
   const phase1Quote = await getSingleQuote(request, fullRequest);
 
@@ -91,7 +104,6 @@ export async function getRelayMaxGasStationQuote(
   const gasStationEligibility = getGasStationEligibility(
     messenger,
     sourceChainId,
-    relayDisabledGasStationChains,
   );
 
   if (!gasStationEligibility.isEligible) {
@@ -401,38 +413,17 @@ async function getProbeGasCostInSourceTokenRaw(
     return undefined;
   }
 
-  if (probeQuote.fees.isSourceGasFeeToken) {
-    return new BigNumber(probeQuote.fees.sourceNetwork.max.raw);
-  }
-
-  const firstStepData = probeQuote.original.steps[0]?.items[0]?.data;
-
-  if (!firstStepData) {
+  if (!probeQuote) {
     return undefined;
   }
 
-  const totalItemCount = probeQuote.original.steps.reduce(
-    (count, step) => count + step.items.length,
-    0,
+  const probeEstimate = await getGasCostFromQuoteOrGasStation(
+    probeQuote,
+    messenger,
+    request,
   );
 
-  const totalGasEstimate = (
-    probeQuote.original.metamask.gasLimits ?? []
-  ).reduce((acc, gasLimit) => acc + gasLimit, 0);
-
-  const probeGasCost = await getGasStationCostInSourceTokenRaw({
-    firstStepData,
-    messenger,
-    request: {
-      from: request.from,
-      sourceChainId: request.sourceChainId,
-      sourceTokenAddress: request.sourceTokenAddress,
-    },
-    totalGasEstimate,
-    totalItemCount,
-  });
-
-  return probeGasCost ? new BigNumber(probeGasCost.raw) : undefined;
+  return probeEstimate?.amount;
 }
 
 function getProbeSourceAmountRaw(
