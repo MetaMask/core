@@ -991,15 +991,9 @@ describe('Relay Quotes Utils', () => {
     });
 
     it('includes metaMask fee from app fee in quote', async () => {
-      const quoteMock = {
-        ...QUOTE_MOCK,
-        fees: {
-          ...QUOTE_MOCK.fees,
-          app: {
-            amountUsd: '0.75',
-          },
-        },
-      } as RelayQuote;
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.details.totalImpact.usd = '1.86';
+      quoteMock.fees.app = { amountUsd: '0.75' };
 
       successfulFetchMock.mockResolvedValue({
         json: async () => quoteMock,
@@ -1018,15 +1012,9 @@ describe('Relay Quotes Utils', () => {
     });
 
     it('subtracts app fee from provider fee', async () => {
-      const quoteMock = {
-        ...QUOTE_MOCK,
-        fees: {
-          ...QUOTE_MOCK.fees,
-          app: {
-            amountUsd: '0.75',
-          },
-        },
-      } as RelayQuote;
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.details.totalImpact.usd = '1.86';
+      quoteMock.fees.app = { amountUsd: '0.75' };
 
       successfulFetchMock.mockResolvedValue({
         json: async () => quoteMock,
@@ -1039,8 +1027,8 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(result[0].fees.provider).toStrictEqual({
-        usd: '0.36',
-        fiat: '0.72',
+        usd: '1.11',
+        fiat: '2.22',
       });
     });
 
