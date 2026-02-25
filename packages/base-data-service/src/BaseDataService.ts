@@ -18,7 +18,31 @@ import {
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
-type SubscriptionCallback = (payload: Json) => void;
+export type SubscriptionPayload = { hash: string, state: DehydratedState };
+export type SubscriptionCallback = (payload: SubscriptionPayload) => void;
+
+export type DataServiceSubscribeAction<ServiceName extends string> = {
+  type: `${ServiceName}:subscribe`;
+  handler: (queryKey: QueryKey, callback: SubscriptionCallback) => DehydratedState;
+};
+
+export type DataServiceUnsubscribeAction<ServiceName extends string> = {
+  type: `${ServiceName}:unsubscribe`;
+  handler: (queryKey: QueryKey, callback: SubscriptionCallback) => void;
+};
+
+export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
+  type: `${ServiceName}:invalidateQueries`;
+  handler: (
+    filters?: InvalidateQueryFilters<Json>,
+    options?: InvalidateOptions,
+  ) => Promise<void>
+};
+
+export type DataServiceActions<ServiceName extends string> =
+  DataServiceSubscribeAction<ServiceName> |
+  DataServiceUnsubscribeAction<ServiceName> |
+  DataServiceInvalidateQueriesAction<ServiceName>
 
 export class BaseDataService<
   ServiceName extends string,
@@ -32,9 +56,13 @@ export class BaseDataService<
     any
   >,
 > {
-  name: string;
+  public readonly name: ServiceName;
 
-  #messenger: ServiceMessenger;
+  #messenger: Messenger<
+    ServiceName,
+    DataServiceActions<ServiceName>,
+    never
+  >;
 
   #client = new QueryClient();
 
@@ -48,14 +76,54 @@ export class BaseDataService<
     messenger: ServiceMessenger;
   }) {
     this.name = name;
-    this.#messenger = messenger;
+
+    this.#messenger = messenger as unknown as Messenger<
+      ServiceName,
+      DataServiceActions<ServiceName>,
+      never
+    >;
 
     this.#registerMessageHandlers();
     this.#setupCacheListener();
   }
 
+  #registerMessageHandlers() {
+    this.#messenger.registerActionHandler(
+      `${this.name}:subscribe`,
+      // @ts-expect-error TODO.
+      (queryKey: QueryKey, callback: SubscriptionCallback) => this.#handleSubscribe(queryKey, callback),
+    );
+
+    this.#messenger.registerActionHandler(
+      `${this.name}:unsubscribe`,
+      // @ts-expect-error TODO.
+      (queryKey: QueryKey, callback: SubscriptionCallback) => this.#handleUnsubscribe(queryKey, callback),
+    );
+
+    this.#messenger.registerActionHandler(
+      `${this.name}:invalidateQueries`,
+      // @ts-expect-error TODO.
+      (filters?: InvalidateQueryFilters<Json>,
+        options?: InvalidateOptions) => this.invalidateQueries(filters, options),
+    );
+  }
+
+  #setupCacheListener() {
+    this.#client.getQueryCache().subscribe((event) => {
+      if (!event.query) {
+        return;
+      }
+
+      const queryKeyHash = event.query.queryHash;
+
+      if (this.#subscriptions.has(queryKeyHash)) {
+        this.#broadcastQueryState(event.query.queryKey);
+      }
+    });
+  }
+
   protected async fetchQuery<
-    TQueryFnData = unknown,
+    TQueryFnData extends Json,
     TError = unknown,
     TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
@@ -69,7 +137,7 @@ export class BaseDataService<
   }
 
   protected async fetchInfiniteQuery<
-    TQueryFnData = unknown,
+    TQueryFnData extends Json,
     TError = unknown,
     TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
@@ -112,51 +180,14 @@ export class BaseDataService<
     return result.pages[0];
   }
 
-  protected async invalidateQueries<TPageData = unknown>(
+  protected async invalidateQueries<TPageData extends Json>(
     filters?: InvalidateQueryFilters<TPageData>,
     options?: InvalidateOptions,
   ): Promise<void> {
     return this.#client.invalidateQueries(filters, options);
   }
 
-  #registerMessageHandlers() {
-    this.#messenger.registerActionHandler(
-      // @ts-expect-error TODO.
-      `${this.name}:subscribe`,
-      (queryKey: QueryKey, callback: SubscriptionCallback) => {
-        return this.#handleSubscribe(queryKey, callback);
-      },
-    );
-
-    this.#messenger.registerActionHandler(
-      // @ts-expect-error TODO.
-      `${this.name}:unsubscribe`,
-      (queryKey: QueryKey, callback: SubscriptionCallback) => {
-        return this.#handleUnsubscribe(queryKey, callback);
-      },
-    );
-
-    this.#messenger.registerActionHandler(
-      // @ts-expect-error TODO.
-      `${this.name}:invalidateQueries`,
-      this.invalidateQueries.bind(this),
-    );
-  }
-
-  #setupCacheListener() {
-    this.#client.getQueryCache().subscribe((event) => {
-      if (!event.query) {
-        return;
-      }
-
-      const queryKeyHash = event.query.queryHash;
-
-      if (this.#subscriptions.has(queryKeyHash)) {
-        this.#broadcastQueryState(event.query.queryKey);
-      }
-    });
-  }
-
+  // TODO: Determine if this has a better fit with `messenger.publish`.
   #handleSubscribe(
     queryKey: QueryKey,
     subscription: SubscriptionCallback,
@@ -203,9 +234,9 @@ export class BaseDataService<
     const subscribers = this.#subscriptions.get(hash)!;
     subscribers.forEach((subscriber) =>
       subscriber({
-        queryKeyHash: hash,
+        hash,
         state,
-      } as unknown as Json),
+      }),
     );
   }
 }
