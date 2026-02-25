@@ -5,6 +5,7 @@ export type {
   RampsControllerMessenger,
   RampsControllerState,
   RampsControllerStateChangeEvent,
+  RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
   UserRegion,
   ResourceState,
