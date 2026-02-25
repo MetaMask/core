@@ -80,9 +80,9 @@ describe('GeolocationController', () => {
         );
 
       const saved = globalThis.fetch;
-      globalThis.fetch = mockGlobalFetch;
 
       try {
+        globalThis.fetch = mockGlobalFetch;
         await withController(
           { options: { fetch: undefined } },
           async ({ controller }) => {
@@ -92,6 +92,7 @@ describe('GeolocationController', () => {
           },
         );
       } finally {
+        // eslint-disable-next-line require-atomic-updates
         globalThis.fetch = saved;
       }
     });
@@ -771,7 +772,7 @@ async function withController<ReturnValue>(
 
   const controller = new GeolocationController({
     messenger: controllerMessenger,
-    getGeolocationUrl: () => MOCK_URL,
+    getGeolocationUrl: (): string => MOCK_URL,
     fetch: defaultFetch,
     ...options,
   });
