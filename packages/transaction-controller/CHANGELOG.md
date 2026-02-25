@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Allow `updateTransactionGasFees` to be called for transactions with status submitted in addition to unapproved.
+
 ## [62.19.0]
 
 ### Changed
