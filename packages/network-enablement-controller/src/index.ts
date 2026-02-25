@@ -14,6 +14,16 @@ export type {
   NetworkConfig,
 } from './NetworkEnablementController';
 
+export type {
+  NetworkEnablementControllerEnableNetworkAction,
+  NetworkEnablementControllerEnableNetworkInNamespaceAction,
+  NetworkEnablementControllerEnableAllPopularNetworksAction,
+  NetworkEnablementControllerInitAction,
+  NetworkEnablementControllerInitNativeAssetIdentifiersAction,
+  NetworkEnablementControllerDisableNetworkAction,
+  NetworkEnablementControllerIsNetworkEnabledAction,
+} from './NetworkEnablementController-method-action-types';
+
 export {
   selectEnabledNetworkMap,
   selectIsNetworkEnabled,
