@@ -115,8 +115,7 @@ export type GeolocationControllerStateChangeEvent = ControllerStateChangeEvent<
 /**
  * Events that {@link GeolocationControllerMessenger} exposes to other consumers.
  */
-export type GeolocationControllerEvents =
-  GeolocationControllerStateChangeEvent;
+export type GeolocationControllerEvents = GeolocationControllerStateChangeEvent;
 
 /**
  * Events from other messengers that {@link GeolocationControllerMessenger}
@@ -294,8 +293,7 @@ export class GeolocationController extends BaseController<
 
       return location;
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
 
       if (generation === this.#fetchGeneration) {
         this.update((draft) => {
