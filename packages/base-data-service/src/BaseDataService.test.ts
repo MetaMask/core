@@ -4,7 +4,19 @@ import { Json } from '@metamask/utils';
 
 const serviceName = 'ExampleDataService';
 
-type ExampleMessenger = Messenger<typeof serviceName, any, any>;
+type ExampleDataServiceGetAssetsAction = {
+  type: `${typeof serviceName}:getAssets`;
+  handler: ExampleDataService['getAssets'];
+};
+
+type ExampleDataServiceGetActivityAction = {
+  type: `${typeof serviceName}:getActivity`;
+  handler: ExampleDataService['getActivity']
+};
+
+export type ExampleDataServiceActions = ExampleDataServiceGetAssetsAction | ExampleDataServiceGetActivityAction;
+
+type ExampleMessenger = Messenger<typeof serviceName, ExampleDataServiceActions, any>;
 
 class ExampleDataService extends BaseDataService<
   typeof serviceName,
@@ -21,13 +33,11 @@ class ExampleDataService extends BaseDataService<
 
     messenger.registerActionHandler(
       `${this.name}:getAssets`,
-      // @ts-expect-error TODO.
       this.getAssets.bind(this),
     );
 
     messenger.registerActionHandler(
       `${this.name}:getActivity`,
-      // @ts-expect-error TODO.
       this.getActivity.bind(this),
     );
   }
