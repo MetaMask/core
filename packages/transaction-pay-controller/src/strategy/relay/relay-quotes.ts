@@ -319,9 +319,14 @@ async function normalizeQuote(
 
   const subsidizedFeeUsd = getSubsidizedFeeAmountUsd(quote);
 
+  const appFeeUsd = new BigNumber(quote.fees?.app?.amountUsd ?? '0');
+  const metaMaskFee = getFiatValueFromUsd(appFeeUsd, usdToFiatRate);
+
+  // Subtract app fee from provider fee since totalImpact.usd already includes it
+  const providerFeeUsd = calculateProviderFee(quote).minus(appFeeUsd);
   const provider = subsidizedFeeUsd.gt(0)
     ? { usd: '0', fiat: '0' }
-    : getFiatValueFromUsd(calculateProviderFee(quote), usdToFiatRate);
+    : getFiatValueFromUsd(providerFeeUsd, usdToFiatRate);
 
   const {
     gasLimits,
@@ -369,9 +374,6 @@ async function normalizeQuote(
   const targetAmountUsd = baseTargetAmountUsd.plus(additionalTargetAmountUsd);
 
   const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
-
-  const appFeeUsd = new BigNumber(quote.fees?.app?.amountUsd ?? '0');
-  const metaMaskFee = getFiatValueFromUsd(appFeeUsd, usdToFiatRate);
 
   const metamask = {
     gasLimits,

@@ -1017,6 +1017,33 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
+    it('subtracts app fee from provider fee', async () => {
+      const quoteMock = {
+        ...QUOTE_MOCK,
+        fees: {
+          ...QUOTE_MOCK.fees,
+          app: {
+            amountUsd: '0.75',
+          },
+        },
+      } as RelayQuote;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.provider).toStrictEqual({
+        usd: '0.36',
+        fiat: '0.72',
+      });
+    });
+
     it('includes provider fee', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,

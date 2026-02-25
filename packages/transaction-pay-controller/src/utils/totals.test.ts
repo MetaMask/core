@@ -162,8 +162,8 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.total.fiat).toBe('43.3');
-      expect(result.total.usd).toBe('51.08');
+      expect(result.total.fiat).toBe('44.8');
+      expect(result.total.usd).toBe('52.08');
     });
 
     it('returns adjusted total when isMaxAmount is true', () => {
@@ -175,8 +175,8 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.total.fiat).toBe('64');
-      expect(result.total.usd).toBe('70.68');
+      expect(result.total.fiat).toBe('65.5');
+      expect(result.total.usd).toBe('71.68');
     });
 
     it('returns total excluding token amount not in quote', () => {
@@ -195,8 +195,8 @@ describe('Totals Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result.total.fiat).toBe('39.97');
-      expect(result.total.usd).toBe('46.64');
+      expect(result.total.fiat).toBe('41.47');
+      expect(result.total.usd).toBe('47.64');
     });
 
     it('returns metaMask fees', () => {

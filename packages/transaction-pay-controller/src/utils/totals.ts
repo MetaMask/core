@@ -70,12 +70,14 @@ export function calculateTotals({
   const hasQuotes = quotes.length > 0;
 
   const totalFiat = new BigNumber(providerFee.fiat)
+    .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
     .plus(isMaxAmount && hasQuotes ? targetAmount.fiat : amountFiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
+    .plus(metaMaskFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
     .plus(isMaxAmount && hasQuotes ? targetAmount.usd : amountUsd)
