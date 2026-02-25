@@ -111,6 +111,9 @@
       "path": "./packages/gator-permissions-controller"
     },
     {
+      "path": "./packages/geolocation-controller"
+    },
+    {
       "path": "./packages/json-rpc-engine"
     },
     {
