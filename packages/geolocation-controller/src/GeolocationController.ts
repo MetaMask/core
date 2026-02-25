@@ -168,6 +168,8 @@ export class GeolocationController extends BaseController<
 > {
   #fetchPromise: Promise<string> | null = null;
 
+  #fetchGeneration = 0;
+
   readonly #ttlMs: number;
 
   readonly #getGeolocationUrl: () => string;
@@ -223,11 +225,14 @@ export class GeolocationController extends BaseController<
       return this.#fetchPromise;
     }
 
-    this.#fetchPromise = this.#performFetch();
+    const promise = this.#performFetch();
+    this.#fetchPromise = promise;
     try {
-      return await this.#fetchPromise;
+      return await promise;
     } finally {
-      this.#fetchPromise = null;
+      if (this.#fetchPromise === promise) {
+        this.#fetchPromise = null;
+      }
     }
   }
 
@@ -237,6 +242,7 @@ export class GeolocationController extends BaseController<
    * @returns The ISO country code string.
    */
   async refreshGeolocation(): Promise<string> {
+    this.#fetchGeneration += 1;
     this.#fetchPromise = null;
     this.update((draft) => {
       draft.lastFetchedAt = null;
@@ -260,6 +266,8 @@ export class GeolocationController extends BaseController<
    * @returns The ISO country code string.
    */
   async #performFetch(): Promise<string> {
+    const generation = this.#fetchGeneration;
+
     this.update((draft) => {
       draft.status = 'loading';
       draft.error = null;
@@ -275,22 +283,26 @@ export class GeolocationController extends BaseController<
 
       const location = (await response.text()).trim() || 'UNKNOWN';
 
-      this.update((draft) => {
-        draft.location = location;
-        draft.status = 'complete';
-        draft.lastFetchedAt = Date.now();
-        draft.error = null;
-      });
+      if (generation === this.#fetchGeneration) {
+        this.update((draft) => {
+          draft.location = location;
+          draft.status = 'complete';
+          draft.lastFetchedAt = Date.now();
+          draft.error = null;
+        });
+      }
 
       return location;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : String(error);
 
-      this.update((draft) => {
-        draft.status = 'error';
-        draft.error = message;
-      });
+      if (generation === this.#fetchGeneration) {
+        this.update((draft) => {
+          draft.status = 'error';
+          draft.error = message;
+        });
+      }
 
       return this.state.location;
     }

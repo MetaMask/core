@@ -474,6 +474,112 @@ describe('GeolocationController', () => {
         },
       );
     });
+
+    it('does not let a stale in-flight fetch overwrite refreshed data', async () => {
+      let resolveOldFetch: (value: Response) => void;
+      let resolveNewFetch: (value: Response) => void;
+
+      const mockFetch = jest
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<Response>((resolve) => {
+              resolveOldFetch = resolve;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise<Response>((resolve) => {
+              resolveNewFetch = resolve;
+            }),
+        );
+
+      await withController(
+        { options: { fetch: mockFetch } },
+        async ({ controller }) => {
+          const oldPromise = controller.getGeolocation();
+
+          const refreshPromise = controller.refreshGeolocation();
+          expect(mockFetch).toHaveBeenCalledTimes(2);
+
+          resolveNewFetch!(new Response('GB', { status: 200 }));
+          await refreshPromise;
+          expect(controller.state.location).toBe('GB');
+
+          resolveOldFetch!(new Response('US', { status: 200 }));
+          await oldPromise;
+
+          expect(controller.state.location).toBe('GB');
+          expect(controller.state.status).toBe('complete');
+        },
+      );
+    });
+
+    it('preserves deduplication for the refresh fetch after old finally runs', async () => {
+      let resolveOldFetch: (value: Response) => void;
+
+      const mockFetch = jest
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<Response>((resolve) => {
+              resolveOldFetch = resolve;
+            }),
+        )
+        .mockImplementation(
+          () => Promise.resolve(new Response('FR', { status: 200 })),
+        );
+
+      await withController(
+        { options: { fetch: mockFetch } },
+        async ({ controller }) => {
+          const oldPromise = controller.getGeolocation();
+
+          const refreshPromise = controller.refreshGeolocation();
+
+          resolveOldFetch!(new Response('US', { status: 200 }));
+          await oldPromise;
+          await refreshPromise;
+
+          expect(mockFetch).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it('does not let a stale in-flight error overwrite refreshed state', async () => {
+      let rejectOldFetch: (reason: Error) => void;
+
+      const mockFetch = jest
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<Response>((_resolve, reject) => {
+              rejectOldFetch = reject;
+            }),
+        )
+        .mockImplementation(
+          () => Promise.resolve(new Response('DE', { status: 200 })),
+        );
+
+      await withController(
+        { options: { fetch: mockFetch } },
+        async ({ controller }) => {
+          const oldPromise = controller.getGeolocation();
+
+          const refreshPromise = controller.refreshGeolocation();
+          await refreshPromise;
+          expect(controller.state.location).toBe('DE');
+          expect(controller.state.status).toBe('complete');
+
+          rejectOldFetch!(new Error('Network timeout'));
+          await oldPromise;
+
+          expect(controller.state.status).toBe('complete');
+          expect(controller.state.error).toBeNull();
+          expect(controller.state.location).toBe('DE');
+        },
+      );
+    });
   });
 
   describe('messenger integration', () => {

@@ -11,4 +11,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 
-[Unreleased]: https://github.com/MetaMask/core/releases/tag/@metamask/geolocation-controller@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/
