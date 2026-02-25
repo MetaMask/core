@@ -7,6 +7,7 @@ import type {
   GasPriceValue,
   TransactionParams,
 } from '../types';
+import { TransactionStatus } from '../types';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -376,6 +377,60 @@ describe('utils', () => {
 
     it('returns undefined for malformed CAIP-2 format', () => {
       expect(util.caip2ToHex('not:valid:format')).toBeUndefined();
+    });
+  });
+
+  describe('validateIfTransactionUnapprovedOrSubmitted', () => {
+    const fnName = 'testFn';
+
+    it('does not throw when transaction status is unapproved', () => {
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(
+          { status: TransactionStatus.unapproved },
+          fnName,
+        ),
+      ).not.toThrow();
+    });
+
+    it('does not throw when transaction status is submitted', () => {
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(
+          { status: TransactionStatus.submitted },
+          fnName,
+        ),
+      ).not.toThrow();
+    });
+
+    it('throws when transactionMeta is undefined', () => {
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(undefined, fnName),
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: undefined`,
+      );
+    });
+
+    it('throws when transaction status is not unapproved or submitted', () => {
+      const status = TransactionStatus.failed;
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(
+          { status },
+          fnName,
+        ),
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
+      );
+    });
+
+    it('throws when transaction status is confirmed', () => {
+      const status = TransactionStatus.confirmed;
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(
+          { status },
+          fnName,
+        ),
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
+      );
     });
   });
 });

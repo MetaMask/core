@@ -5093,7 +5093,7 @@ describe('TransactionController', () => {
       ).toThrow('Cannot update transaction as no transaction metadata found');
     });
 
-    it('throws if transaction not unapproved status', async () => {
+    it('throws if transaction not unapproved or submitted status', async () => {
       const transactionId = '123';
       const fnName = 'updateTransactionGasFees';
       const status = TransactionStatus.failed;
@@ -5118,9 +5118,45 @@ describe('TransactionController', () => {
         controller.updateTransactionGasFees(transactionId, {
           gasPrice: '0x1',
         }),
-      )
-        .toThrow(`TransactionsController: Can only call ${fnName} on an unapproved transaction.
-      Current tx status: ${status}`);
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
+      );
+    });
+
+    it('allows update when transaction status is submitted', async () => {
+      const transactionId = '123';
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                chainId: '0x1',
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                time: 123456789,
+                status: TransactionStatus.submitted as const,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const gasPrice = '0x12';
+      expect(() =>
+        controller.updateTransactionGasFees(transactionId, {
+          gasPrice,
+        }),
+      ).not.toThrow();
+
+      const transaction = controller.state.transactions.find(
+        ({ id }) => id === transactionId,
+      );
+      expect(transaction?.txParams?.gasPrice).toBe(gasPrice);
     });
 
     it('updates provided legacy gas values', async () => {
