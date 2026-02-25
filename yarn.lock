@@ -2721,7 +2721,7 @@ __metadata:
   resolution: "@metamask/base-data-service@workspace:packages/base-data-service"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/messenger": "workspace:^"
+    "@metamask/messenger": "npm:^0.3.0"
     "@metamask/utils": "npm:^11.9.0"
     "@tanstack/query-core": "npm:^4.43.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -4005,7 +4005,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/messenger@npm:^0.3.0, @metamask/messenger@workspace:^, @metamask/messenger@workspace:packages/messenger":
+"@metamask/messenger@npm:^0.3.0, @metamask/messenger@workspace:packages/messenger":
   version: 0.0.0-use.local
   resolution: "@metamask/messenger@workspace:packages/messenger"
   dependencies:
