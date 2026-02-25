@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Default `assetsBalance` to `0` for native tokens of each account's supported chains using `NetworkEnablementController.nativeAssetIdentifiers`, so native entries are always present in state even before data sources respond ([#8036](https://github.com/MetaMask/core/pull/8036))
+- Auto-select `'merge'` update mode in `getAssets` when `chainIds` is a subset of enabled chains, preventing partial-chain fetches (e.g. after a swap, adding a custom asset, or data-source chain changes) from wiping balances of other chains ([#8036](https://github.com/MetaMask/core/pull/8036))
 - Convert WebSocket balance updates in `BackendWebsocketDataSource` from raw smallest-units to human-readable amounts using asset decimals (same behavior as RPC/Accounts API), so `assetsBalance` remains consistent across data sources ([#8032](https://github.com/MetaMask/core/pull/8032))
 - Include all assets from balance and each account's custom assets from state in `detectedAssets`, so prices and metadata are fetched for existing assets and custom tokens (previously only assets without metadata were included, so existing assets did not get prices) ([#8021](https://github.com/MetaMask/core/pull/8021))
 - Request `includeAggregators: true` when fetching token metadata from the v3 assets API so aggregator data is returned and stored in `assetsInfo` ([#8021](https://github.com/MetaMask/core/pull/8021))
