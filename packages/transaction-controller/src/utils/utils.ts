@@ -133,10 +133,7 @@ export function validateIfTransactionUnapprovedOrSubmitted(
     TransactionStatus.unapproved,
     TransactionStatus.submitted,
   ];
-  if (
-    !transactionMeta ||
-    !allowedStatuses.includes(transactionMeta.status)
-  ) {
+  if (!transactionMeta || !allowedStatuses.includes(transactionMeta.status)) {
     throw new Error(
       `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${transactionMeta?.status}`,
     );

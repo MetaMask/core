@@ -412,10 +412,7 @@ describe('utils', () => {
     it('throws when transaction status is not unapproved or submitted', () => {
       const status = TransactionStatus.failed;
       expect(() =>
-        util.validateIfTransactionUnapprovedOrSubmitted(
-          { status },
-          fnName,
-        ),
+        util.validateIfTransactionUnapprovedOrSubmitted({ status }, fnName),
       ).toThrow(
         `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
       );
@@ -424,10 +421,7 @@ describe('utils', () => {
     it('throws when transaction status is confirmed', () => {
       const status = TransactionStatus.confirmed;
       expect(() =>
-        util.validateIfTransactionUnapprovedOrSubmitted(
-          { status },
-          fnName,
-        ),
+        util.validateIfTransactionUnapprovedOrSubmitted({ status }, fnName),
       ).toThrow(
         `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
       );
