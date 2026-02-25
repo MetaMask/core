@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0]
 
+### Added
+
+- Add optional `prevClientVersion` constructor argument to invalidate cached flags when the client version changes ([#7827](https://github.com/MetaMask/core/pull/7827))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^11.17.0` to `^11.19.0` ([#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995))
-
-### Fixed
-
-- Add optional `prevClientVersion` constructor argument to invalidate cached flags when the client version changes ([#7827](https://github.com/MetaMask/core/pull/7827))
 
 ## [4.0.0]
 
