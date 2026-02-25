@@ -198,6 +198,7 @@ describe('TokenDataSource', () => {
         includeMarketData: true,
         includeMetadata: true,
         includeRwaData: true,
+        includeAggregators: true,
       },
     );
     expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toStrictEqual({
@@ -313,6 +314,7 @@ describe('TokenDataSource', () => {
         includeMarketData: true,
         includeMetadata: true,
         includeRwaData: true,
+        includeAggregators: true,
       },
     );
   });
@@ -345,6 +347,7 @@ describe('TokenDataSource', () => {
         includeMarketData: true,
         includeMetadata: true,
         includeRwaData: true,
+        includeAggregators: true,
       },
     );
   });
@@ -538,6 +541,7 @@ describe('TokenDataSource', () => {
         includeMarketData: true,
         includeMetadata: true,
         includeRwaData: true,
+        includeAggregators: true,
       },
     );
     expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
@@ -570,6 +574,7 @@ describe('TokenDataSource', () => {
         includeMarketData: true,
         includeMetadata: true,
         includeRwaData: true,
+        includeAggregators: true,
       },
     );
   });
@@ -604,6 +609,7 @@ describe('TokenDataSource', () => {
         includeMarketData: true,
         includeMetadata: true,
         includeRwaData: true,
+        includeAggregators: true,
       },
     );
   });
@@ -636,6 +642,7 @@ describe('TokenDataSource', () => {
         includeMarketData: true,
         includeMetadata: true,
         includeRwaData: true,
+        includeAggregators: true,
       },
     );
   });

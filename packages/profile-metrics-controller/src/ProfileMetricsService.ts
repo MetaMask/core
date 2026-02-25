@@ -48,7 +48,7 @@ export type ProfileMetricsServiceActions = ProfileMetricsServiceMethodActions;
  * Actions from other messengers that {@link ProfileMetricsService} calls.
  */
 type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Events that {@link ProfileMetricsService} exposes to other consumers.

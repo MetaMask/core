@@ -55,7 +55,7 @@
     "@metamask/snaps-controllers": "^17.2.0",
     "@metamask/snaps-sdk": "^10.3.0",
     "@metamask/snaps-utils": "^11.7.0",
-    "@metamask/transaction-controller": "^62.18.0",
+    "@metamask/transaction-controller": "^62.19.0",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {

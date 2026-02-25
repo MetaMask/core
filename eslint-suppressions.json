@@ -1415,7 +1415,7 @@
   },
   "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 13
+      "count": 12
     },
     "id-length": {
       "count": 1

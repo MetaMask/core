@@ -49,6 +49,7 @@ jobs:
           retention-days: 4
           path: |
             ./yarn.lock
+            ./package.json
             ./packages/*/
             !./packages/*/node_modules/
             !./packages/*/src/

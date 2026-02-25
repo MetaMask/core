@@ -44,6 +44,23 @@ import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'getSelectedAccountGroup',
+  'setSelectedAccountGroup',
+  'getAccountsFromSelectedAccountGroup',
+  'getAccountContext',
+  'setAccountWalletName',
+  'setAccountGroupName',
+  'setAccountGroupPinned',
+  'setAccountGroupHidden',
+  'getAccountWalletObject',
+  'getAccountWalletObjects',
+  'getAccountGroupObject',
+  'clearState',
+  'syncWithUserStorage',
+  'syncWithUserStorageAtLeastOnce',
+] as const;
+
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
     accountTree: {
@@ -246,7 +263,10 @@ export class AccountTreeController extends BaseController<
       },
     );
 
-    this.#registerMessageHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -507,7 +527,7 @@ export class AccountTreeController extends BaseController<
       proposedName.length &&
       !isAccountGroupNameUniqueFromWallet(wallet, group.id, proposedName)
     ) {
-      proposedName = this.resolveNameConflict(wallet, group.id, proposedName);
+      proposedName = this.#resolveNameConflict(wallet, group.id, proposedName);
     }
 
     return proposedName;
@@ -1324,7 +1344,7 @@ export class AccountTreeController extends BaseController<
    * @param name - The desired name that has a conflict.
    * @returns A unique name with suffix added if necessary.
    */
-  resolveNameConflict(
+  #resolveNameConflict(
     wallet: AccountWalletObject,
     groupId: AccountGroupId,
     name: string,
@@ -1371,7 +1391,7 @@ export class AccountTreeController extends BaseController<
       autoHandleConflict &&
       !isAccountGroupNameUniqueFromWallet(wallet, groupId, name)
     ) {
-      finalName = this.resolveNameConflict(wallet, groupId, name);
+      finalName = this.#resolveNameConflict(wallet, groupId, name);
     } else {
       // Validate that the name is unique
       this.#assertAccountGroupNameIsUnique(groupId, finalName);
@@ -1536,51 +1556,6 @@ export class AccountTreeController extends BaseController<
 
     // So we know we have to call `init` again.
     this.#initialized = false;
-  }
-
-  /**
-   * Registers message handlers for the AccountTreeController.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:getSelectedAccountGroup`,
-      this.getSelectedAccountGroup.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setSelectedAccountGroup`,
-      this.setSelectedAccountGroup.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getAccountsFromSelectedAccountGroup`,
-      this.getAccountsFromSelectedAccountGroup.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getAccountContext`,
-      this.getAccountContext.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountWalletName`,
-      this.setAccountWalletName.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountGroupName`,
-      this.setAccountGroupName.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountGroupPinned`,
-      this.setAccountGroupPinned.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountGroupHidden`,
-      this.setAccountGroupHidden.bind(this),
-    );
   }
 
   /**
