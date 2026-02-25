@@ -1,5 +1,10 @@
 import type { V5BalanceItem } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
+import {
+  isCaipChainId,
+  KnownCaipNamespace,
+  toCaipChainId,
+} from '@metamask/utils';
 
 import type {
   DataSourceState,
@@ -80,30 +85,27 @@ export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
 function decimalToChainId(decimalChainId: number | string): ChainId {
   // Handle both decimal numbers and already-formatted CAIP chain IDs
   if (typeof decimalChainId === 'string') {
-    // If already a CAIP chain ID (e.g., "eip155:1"), return as-is
-    if (decimalChainId.startsWith('eip155:')) {
-      return decimalChainId as ChainId;
+    if (isCaipChainId(decimalChainId)) {
+      return decimalChainId;
     }
-    // If it's a string number, convert
-    return `eip155:${decimalChainId}` as ChainId;
+    return toCaipChainId(KnownCaipNamespace.Eip155, decimalChainId);
   }
-  return `eip155:${decimalChainId}` as ChainId;
+  return toCaipChainId(KnownCaipNamespace.Eip155, String(decimalChainId));
 }
 
 /**
  * Convert a CAIP-2 chain ID from the API response to our ChainId type.
  * Handles both formats: "eip155:1" or just "1" (decimal).
+ * Uses @metamask/utils for CAIP parsing.
  *
  * @param chainIdStr - The chain ID string to convert.
  * @returns The normalized ChainId.
  */
 function caipChainIdToChainId(chainIdStr: string): ChainId {
-  // If already in CAIP-2 format, return as-is
-  if (chainIdStr.includes(':')) {
-    return chainIdStr as ChainId;
+  if (isCaipChainId(chainIdStr)) {
+    return chainIdStr;
   }
-  // If decimal number, convert to CAIP-2
-  return `eip155:${chainIdStr}` as ChainId;
+  return toCaipChainId(KnownCaipNamespace.Eip155, chainIdStr);
 }
 
 /**
@@ -323,6 +325,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       );
 
       response.assetsBalance = assetsBalance;
+      response.updateMode = 'full';
     } catch (error) {
       log('Fetch FAILED', { error, chains: chainsToFetch });
 

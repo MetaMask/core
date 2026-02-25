@@ -13,6 +13,7 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType, SnapCaveatType } from '@metamask/snaps-utils';
+import { parseCaipAssetType } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { AbstractDataSource } from './AbstractDataSource';
@@ -101,15 +102,16 @@ export function getChainIdsCaveat(
 }
 
 /**
- * Extract chain ID from a CAIP-19 asset ID.
+ * Extracts the CAIP-2 chain ID from a CAIP-19 asset ID.
  * e.g., "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501" -> "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+ * Uses @metamask/utils parseCaipAssetType for CAIP parsing.
  *
  * @param assetId - The CAIP-19 asset ID to extract chain from.
  * @returns The CAIP-2 chain ID portion of the asset ID.
  */
 export function extractChainFromAssetId(assetId: string): ChainId {
-  const parts = assetId.split('/');
-  return parts[0] as ChainId;
+  const parsed = parseCaipAssetType(assetId as CaipAssetType);
+  return parsed.chainId;
 }
 
 // ============================================================================
@@ -270,7 +272,16 @@ export class SnapDataSource extends AbstractDataSource<
       let accountAssets: Record<Caip19AssetId, AssetBalance> | undefined;
 
       for (const [assetId, balance] of Object.entries(assets)) {
-        const chainId = extractChainFromAssetId(assetId);
+        let chainId: ChainId;
+        try {
+          chainId = extractChainFromAssetId(assetId);
+        } catch (error) {
+          log('Skipping snap balance for malformed asset ID', {
+            assetId,
+            error,
+          });
+          continue;
+        }
         if (this.#isChainSupportedBySnap(chainId)) {
           accountAssets ??= {};
           accountAssets[assetId as Caip19AssetId] = {
@@ -287,7 +298,7 @@ export class SnapDataSource extends AbstractDataSource<
 
     // Only report if we have snap-related updates
     if (assetsBalance) {
-      const response: DataResponse = { assetsBalance };
+      const response: DataResponse = { assetsBalance, updateMode: 'merge' };
       for (const subscription of this.activeSubscriptions.values()) {
         subscription.onAssetsUpdate(response)?.catch(console.error);
       }
@@ -428,12 +439,13 @@ export class SnapDataSource extends AbstractDataSource<
       return {};
     }
     if (!request?.accountsWithSupportedChains?.length) {
-      return { assetsBalance: {}, assetsInfo: {} };
+      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'full' };
     }
 
     const results: DataResponse = {
       assetsBalance: {},
       assetsInfo: {},
+      updateMode: 'full',
     };
 
     // Fetch balances for each account using its snap ID from metadata

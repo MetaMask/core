@@ -201,7 +201,7 @@ describe('Slip44Service', () => {
       ]);
 
       // Request a chainId not in the response
-      const result = await Slip44Service.getEvmSlip44(999);
+      const result = await Slip44Service.getEvmSlip44(12345);
 
       expect(result).toBe(60); // Defaults to 60 (Ethereum)
     });
@@ -236,6 +236,24 @@ describe('Slip44Service', () => {
       const result = await Slip44Service.getEvmSlip44(1);
 
       expect(result).toBe(60);
+    });
+
+    it('returns override value for HyperEVM (chain 999) instead of chainid.network data', async () => {
+      // chainid.network returns slip44:1 for chain 999 (Wanchain collision)
+      mockFetchWithErrorHandling.mockResolvedValueOnce([
+        { chainId: 999, slip44: 1 },
+      ]);
+
+      const result = await Slip44Service.getEvmSlip44(999);
+
+      expect(result).toBe(2457);
+    });
+
+    it('returns override value for HyperEVM without fetching chainid.network', async () => {
+      const result = await Slip44Service.getEvmSlip44(999);
+
+      expect(result).toBe(2457);
+      expect(mockFetchWithErrorHandling).not.toHaveBeenCalled();
     });
 
     it('filters out entries without slip44 field and defaults to 60', async () => {

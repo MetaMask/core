@@ -5,8 +5,6 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import type { RampsServiceMessenger } from './RampsService';
 import { RampsService, RampsEnvironment } from './RampsService';
@@ -16,14 +14,12 @@ import packageJson from '../package.json';
 const CONTROLLER_VERSION = packageJson.version;
 
 describe('RampsService', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   describe('RampsService:getGeolocation', () => {
@@ -41,7 +37,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const geolocationResponse = await geolocationPromise;
 
@@ -64,7 +60,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const geolocationResponse = await geolocationPromise;
 
@@ -87,7 +83,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const geolocationResponse = await geolocationPromise;
 
@@ -110,7 +106,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const geolocationResponse = await geolocationPromise;
 
@@ -133,7 +129,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const geolocationResponse = await geolocationPromise;
 
@@ -154,7 +150,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       await expect(geolocationPromise).rejects.toThrow(
         'Malformed response received from geolocation API',
@@ -173,13 +169,13 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       await expect(geolocationPromise).rejects.toThrow(
         `Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
@@ -208,9 +204,9 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await clock.tickAsync(6000);
+      await jest.advanceTimersByTimeAsync(6000);
       await flushPromises();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const geolocationResponse = await geolocationPromise;
 
@@ -230,13 +226,13 @@ describe('RampsService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       await expect(geolocationPromise).rejects.toThrow(
         `Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
@@ -260,7 +256,7 @@ describe('RampsService', () => {
         },
       });
       service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
       await expect(
@@ -282,7 +278,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const geolocationPromise = service.getGeolocation();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const geolocationResponse = await geolocationPromise;
 
@@ -331,7 +327,7 @@ describe('RampsService', () => {
       const { rootMessenger } = getService();
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
@@ -386,7 +382,7 @@ describe('RampsService', () => {
       });
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
@@ -441,7 +437,7 @@ describe('RampsService', () => {
       });
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
@@ -519,7 +515,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
@@ -567,7 +563,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
@@ -587,11 +583,11 @@ describe('RampsService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
         `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/countries?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
@@ -610,7 +606,7 @@ describe('RampsService', () => {
       const { rootMessenger } = getService();
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
         'Malformed response received from countries API',
@@ -629,7 +625,7 @@ describe('RampsService', () => {
       const { rootMessenger } = getService();
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
         'Malformed response received from countries API',
@@ -660,7 +656,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
@@ -726,7 +722,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
@@ -775,7 +771,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
@@ -820,7 +816,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const countriesResponse = await countriesPromise;
 
@@ -879,7 +875,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const tokensResponse = await tokensPromise;
 
@@ -936,7 +932,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const tokensResponse = await tokensPromise;
 
@@ -969,7 +965,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('US', 'buy');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const tokensResponse = await tokensPromise;
 
@@ -1002,7 +998,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'sell');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const tokensResponse = await tokensPromise;
 
@@ -1031,7 +1027,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(tokensPromise).rejects.toThrow(
@@ -1060,7 +1056,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(tokensPromise).rejects.toThrow(
@@ -1089,7 +1085,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(tokensPromise).rejects.toThrow(
@@ -1118,7 +1114,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(tokensPromise).rejects.toThrow(
@@ -1154,7 +1150,7 @@ describe('RampsService', () => {
       const tokensPromise = service.getTokens('us', 'buy', {
         provider: 'provider-id',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const tokensResponse = await tokensPromise;
 
@@ -1190,7 +1186,7 @@ describe('RampsService', () => {
       const tokensPromise = service.getTokens('us', 'buy', {
         provider: ['provider-id-1', 'provider-id-2'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const tokensResponse = await tokensPromise;
 
@@ -1211,11 +1207,11 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
       const tokensPromise = service.getTokens('us', 'buy');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(tokensPromise).rejects.toThrow(
@@ -1255,7 +1251,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const providersResponse = await providersPromise;
 
@@ -1280,7 +1276,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('US');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const providersResponse = await providersPromise;
 
@@ -1311,7 +1307,7 @@ describe('RampsService', () => {
         fiat: 'USD',
         payments: 'card',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const providersResponse = await providersPromise;
 
@@ -1338,7 +1334,7 @@ describe('RampsService', () => {
         provider: ['paypal', 'ramp'],
         crypto: ['ETH', 'BTC'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const providersResponse = await providersPromise;
 
@@ -1365,7 +1361,7 @@ describe('RampsService', () => {
         fiat: 'USD',
         payments: 'card',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const providersResponse = await providersPromise;
 
@@ -1392,7 +1388,7 @@ describe('RampsService', () => {
         fiat: ['USD', 'EUR'],
         payments: ['card', 'bank'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const providersResponse = await providersPromise;
 
@@ -1411,7 +1407,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(providersPromise).rejects.toThrow(
@@ -1431,7 +1427,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(providersPromise).rejects.toThrow(
@@ -1451,7 +1447,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(providersPromise).rejects.toThrow(
@@ -1471,11 +1467,11 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
       const providersPromise = service.getProviders('us');
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(providersPromise).rejects.toThrow(
@@ -1537,7 +1533,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const paymentMethodsResponse = await paymentMethodsPromise;
 
@@ -1572,7 +1568,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const paymentMethodsResponse = await paymentMethodsPromise;
 
@@ -1600,7 +1596,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
@@ -1629,7 +1625,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
@@ -1658,7 +1654,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
@@ -1682,7 +1678,7 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
       const paymentMethodsPromise = service.getPaymentMethods({
@@ -1691,7 +1687,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
@@ -1776,7 +1772,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;
 
@@ -1812,7 +1808,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;
 
@@ -1848,7 +1844,7 @@ describe('RampsService', () => {
           '/payments/bank-transfer',
         ],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;
 
@@ -1883,7 +1879,7 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
         providers: ['/providers/moonpay'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;
 
@@ -1918,7 +1914,7 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
         providers: ['/providers/moonpay', '/providers/transak'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;
 
@@ -1953,7 +1949,7 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
         redirectUrl: 'https://example.com/callback',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;
 
@@ -1987,7 +1983,7 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/bank-transfer'],
         action: 'sell',
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;
 
@@ -2020,7 +2016,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(quotesPromise).rejects.toThrow(
@@ -2054,7 +2050,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(quotesPromise).rejects.toThrow(
@@ -2088,7 +2084,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(quotesPromise).rejects.toThrow(
@@ -2127,7 +2123,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(quotesPromise).rejects.toThrow(
@@ -2166,7 +2162,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(quotesPromise).rejects.toThrow(
@@ -2205,7 +2201,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(quotesPromise).rejects.toThrow(
@@ -2232,7 +2228,7 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
       const quotesPromise = service.getQuotes({
@@ -2243,7 +2239,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(quotesPromise).rejects.toThrow("failed with status '500'");
@@ -2277,7 +2273,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const quotesResponse = await quotesPromise;
 
@@ -2305,7 +2301,7 @@ describe('RampsService', () => {
         'RampsService:getBuyWidgetUrl',
         'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
       const buyWidget = await buyWidgetPromise;
 
@@ -2328,13 +2324,13 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        clock.nextAsync().catch(() => undefined);
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
       });
 
       const buyWidgetPromise = service.getBuyWidgetUrl(
         'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(buyWidgetPromise).rejects.toThrow(
@@ -2360,12 +2356,267 @@ describe('RampsService', () => {
         'RampsService:getBuyWidgetUrl',
         'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
       );
-      await clock.runAllAsync();
+      await jest.runAllTimersAsync();
       await flushPromises();
 
       await expect(buyWidgetPromise).rejects.toThrow(
         'Malformed response received from buy widget URL API',
       );
+    });
+  });
+
+  describe('RampsService:getOrder', () => {
+    const mockOrder = {
+      id: '/providers/transak-staging/orders/abc-123',
+      isOnlyLink: false,
+      provider: { id: '/providers/transak-staging', name: 'Transak (Staging)' },
+      success: true,
+      cryptoAmount: 0.05,
+      fiatAmount: 100,
+      cryptoCurrency: { symbol: 'ETH', decimals: 18 },
+      fiatCurrency: { symbol: 'USD', decimals: 2, denomSymbol: '$' },
+      providerOrderId: 'abc-123',
+      providerOrderLink: 'https://transak.com/order/abc-123',
+      createdAt: 1700000000000,
+      paymentMethod: { id: '/payments/debit-credit-card', name: 'Card' },
+      totalFeesFiat: 5,
+      txHash: '',
+      walletAddress: '0xabc',
+      status: 'COMPLETED' as const,
+      network: { chainId: '1', name: 'Ethereum Mainnet' },
+      canBeUpdated: false,
+      idHasExpired: false,
+      excludeFromPurchases: false,
+      timeDescriptionPending: '',
+      orderType: 'BUY',
+      exchangeRate: 2000,
+    };
+
+    it('returns order data from the V2 unified order endpoint', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, mockOrder);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrder',
+        'transak-staging',
+        'abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const order = await orderPromise;
+
+      expect(order).toStrictEqual(mockOrder);
+    });
+
+    it('throws when the response is not ok', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .times(4)
+        .reply(404, 'Not Found');
+      const { service } = getService();
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
+      });
+
+      const orderPromise = service.getOrder(
+        'transak-staging',
+        'abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(orderPromise).rejects.toThrow("failed with status '404'");
+    });
+
+    it('throws when the response is malformed', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, 'false');
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrder',
+        'transak-staging',
+        'abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(orderPromise).rejects.toThrow(
+        'Malformed response received from order API',
+      );
+    });
+  });
+
+  describe('RampsService:getOrderFromCallback', () => {
+    const mockOrder = {
+      id: '/providers/transak-staging/orders/abc-123',
+      isOnlyLink: false,
+      provider: { id: '/providers/transak-staging', name: 'Transak (Staging)' },
+      success: true,
+      cryptoAmount: 0.05,
+      fiatAmount: 100,
+      cryptoCurrency: { symbol: 'ETH', decimals: 18 },
+      fiatCurrency: { symbol: 'USD', decimals: 2, denomSymbol: '$' },
+      providerOrderId: 'abc-123',
+      providerOrderLink: 'https://transak.com/order/abc-123',
+      createdAt: 1700000000000,
+      paymentMethod: { id: '/payments/debit-credit-card', name: 'Card' },
+      totalFeesFiat: 5,
+      txHash: '',
+      walletAddress: '0xabc',
+      status: 'COMPLETED' as const,
+      network: { chainId: '1', name: 'Ethereum Mainnet' },
+      canBeUpdated: false,
+      idHasExpired: false,
+      excludeFromPurchases: false,
+      timeDescriptionPending: '',
+      orderType: 'BUY',
+      exchangeRate: 2000,
+    };
+
+    it('parses the callback URL and returns the full order', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/callback')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          url: 'https://metamask.app.link/on-ramp?orderId=abc-123',
+        })
+        .reply(200, { id: 'abc-123' });
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, mockOrder);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrderFromCallback',
+        'transak-staging',
+        'https://metamask.app.link/on-ramp?orderId=abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const order = await orderPromise;
+
+      expect(order).toStrictEqual(mockOrder);
+    });
+
+    it('extracts the order code from a full resource path id', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/callback')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          url: 'https://metamask.app.link/on-ramp?orderId=abc-123',
+        })
+        .reply(200, { id: '/providers/transak-staging/orders/abc-123' });
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, mockOrder);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrderFromCallback',
+        'transak-staging',
+        'https://metamask.app.link/on-ramp?orderId=abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const order = await orderPromise;
+
+      expect(order).toStrictEqual(mockOrder);
+    });
+
+    it('throws when the callback response does not contain an id', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/callback')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          url: 'https://metamask.app.link/on-ramp?orderId=abc-123',
+        })
+        .reply(200, {});
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrderFromCallback',
+        'transak-staging',
+        'https://metamask.app.link/on-ramp?orderId=abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(orderPromise).rejects.toThrow(
+        'Could not extract order ID from callback URL via provider',
+      );
+    });
+
+    it('throws when the callback request fails', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/callback')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          url: 'https://metamask.app.link/on-ramp?orderId=abc-123',
+        })
+        .times(4)
+        .reply(500, 'Internal Server Error');
+      const { service } = getService();
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimerAsync().catch(() => undefined);
+      });
+
+      const orderPromise = service.getOrderFromCallback(
+        'transak-staging',
+        'https://metamask.app.link/on-ramp?orderId=abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(orderPromise).rejects.toThrow("failed with status '500'");
     });
   });
 });

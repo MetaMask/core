@@ -8,6 +8,8 @@ export type {
   RampsControllerOptions,
   UserRegion,
   ResourceState,
+  TransakState,
+  NativeProvidersState,
 } from './RampsController';
 export {
   RampsController,
@@ -40,11 +42,17 @@ export type {
   RampsToken,
   TokensResponse,
   BuyWidget,
+  RampsOrder,
+  RampsOrderNetwork,
+  RampsOrderCryptoCurrency,
+  RampsOrderFiatCurrency,
+  RampsOrderPaymentMethod,
 } from './RampsService';
 export {
   RampsService,
   RampsEnvironment,
   RampsApiService,
+  RampsOrderStatus,
   RAMPS_SDK_VERSION,
 } from './RampsService';
 export type {
@@ -53,6 +61,8 @@ export type {
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,
@@ -73,3 +83,47 @@ export {
 } from './RequestCache';
 export type { RequestSelectorResult } from './selectors';
 export { createRequestSelector } from './selectors';
+export type {
+  TransakServiceActions,
+  TransakServiceEvents,
+  TransakServiceMessenger,
+  TransakAccessToken,
+  TransakUserDetails,
+  TransakUserDetailsAddress,
+  TransakUserDetailsKycDetails,
+  TransakBuyQuote,
+  TransakKycRequirement,
+  TransakAdditionalRequirement,
+  TransakAdditionalRequirementsResponse,
+  TransakOttResponse,
+  TransakOrderPaymentMethod,
+  TransakDepositOrder,
+  TransakDepositNetwork,
+  TransakDepositCryptoCurrency,
+  TransakDepositPaymentMethod,
+  TransakDepositRegion,
+  TransakOrder,
+  TransakQuoteTranslation,
+  TransakTranslationRequest,
+  TransakUserLimits,
+  TransakIdProofStatus,
+  PatchUserRequestBody as TransakPatchUserRequestBody,
+} from './TransakService';
+export {
+  TransakApiError,
+  TransakService,
+  TransakEnvironment,
+  TransakOrderIdTransformer,
+} from './TransakService';
+export type {
+  TransakServiceMethodActions,
+  TransakServiceSendUserOtpAction,
+  TransakServiceVerifyUserOtpAction,
+  TransakServiceGetUserDetailsAction,
+  TransakServiceGetBuyQuoteAction,
+  TransakServiceGetKycRequirementAction,
+  TransakServiceCreateOrderAction,
+  TransakServiceGetOrderAction,
+  TransakServiceRequestOttAction,
+  TransakServiceGeneratePaymentWidgetUrlAction,
+} from './TransakService-method-action-types';

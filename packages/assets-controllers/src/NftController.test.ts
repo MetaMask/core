@@ -39,7 +39,6 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
-import * as sinon from 'sinon';
 import { v4 } from 'uuid';
 
 import type {
@@ -61,7 +60,7 @@ import type {
 } from './NftController';
 import { NftController } from './NftController';
 import type { Collection } from './NftDetectionController';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockFindNetworkClientIdByChainId,
@@ -468,10 +467,6 @@ describe('NftController', () => {
     });
   });
 
-  afterEach(() => {
-    sinon.restore();
-  });
-
   it('should set default state', () => {
     const { nftController } = setupController();
 
@@ -748,7 +743,7 @@ describe('NftController', () => {
 
       const requestId = 'approval-request-id-1';
 
-      const clock = sinon.useFakeTimers(1);
+      jest.spyOn(Date, 'now').mockReturnValue(1);
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
@@ -837,7 +832,7 @@ describe('NftController', () => {
         true,
       );
 
-      clock.restore();
+      jest.restoreAllMocks();
     });
 
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled and IPFS gateway enabled', async function () {
@@ -874,7 +869,7 @@ describe('NftController', () => {
 
       const requestId = 'approval-request-id-1';
 
-      const clock = sinon.useFakeTimers(1);
+      jest.spyOn(Date, 'now').mockReturnValue(1);
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
@@ -963,7 +958,7 @@ describe('NftController', () => {
         true,
       );
 
-      clock.restore();
+      jest.restoreAllMocks();
     });
 
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled and IPFS gateway disabled', async function () {
@@ -1000,7 +995,7 @@ describe('NftController', () => {
 
       const requestId = 'approval-request-id-1';
 
-      const clock = sinon.useFakeTimers(1);
+      jest.spyOn(Date, 'now').mockReturnValue(1);
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
@@ -1089,7 +1084,7 @@ describe('NftController', () => {
         true,
       );
 
-      clock.restore();
+      jest.restoreAllMocks();
     });
 
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled and IPFS gateway disabled', async function () {
@@ -1127,7 +1122,7 @@ describe('NftController', () => {
 
       const requestId = 'approval-request-id-1';
 
-      const clock = sinon.useFakeTimers(1);
+      jest.spyOn(Date, 'now').mockReturnValue(1);
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
@@ -1216,7 +1211,7 @@ describe('NftController', () => {
         true,
       );
 
-      clock.restore();
+      jest.restoreAllMocks();
     });
 
     it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API disabled', async function () {
@@ -1258,7 +1253,7 @@ describe('NftController', () => {
       });
       const requestId = 'approval-request-id-1';
 
-      const clock = sinon.useFakeTimers(1);
+      jest.spyOn(Date, 'now').mockReturnValue(1);
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
@@ -1351,7 +1346,7 @@ describe('NftController', () => {
         true,
       );
 
-      clock.restore();
+      jest.restoreAllMocks();
     });
 
     it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API enabled', async function () {
@@ -1390,7 +1385,7 @@ describe('NftController', () => {
       });
       const requestId = 'approval-request-id-1';
 
-      const clock = sinon.useFakeTimers(1);
+      jest.spyOn(Date, 'now').mockReturnValue(1);
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
@@ -1484,7 +1479,7 @@ describe('NftController', () => {
         true,
       );
 
-      clock.restore();
+      jest.restoreAllMocks();
     });
 
     it('should add the NFT to the correct chainId/selectedAddress in state when passed a userAddress in the options argument', async function () {
@@ -1516,7 +1511,7 @@ describe('NftController', () => {
 
       const requestId = 'approval-request-id-1';
 
-      sinon.useFakeTimers(1);
+      jest.spyOn(Date, 'now').mockReturnValue(1);
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
@@ -1619,7 +1614,7 @@ describe('NftController', () => {
 
       const requestId = 'approval-request-id-1';
 
-      const clock = sinon.useFakeTimers(1);
+      jest.spyOn(Date, 'now').mockReturnValue(1);
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
@@ -1700,7 +1695,7 @@ describe('NftController', () => {
         },
       });
 
-      clock.restore();
+      jest.restoreAllMocks();
     });
 
     it('should throw an error when calls to `ownerOf` and `balanceOf` revert', async function () {

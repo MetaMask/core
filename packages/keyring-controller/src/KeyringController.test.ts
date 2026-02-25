@@ -23,7 +23,6 @@ import type {
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import sinon from 'sinon';
 
 import { KeyringControllerErrorMessage } from './constants';
 import { KeyringControllerError } from './errors';
@@ -135,7 +134,6 @@ function createVault(keyrings: SerializedKeyring[] = defaultKeyrings): string {
 
 describe('KeyringController', () => {
   afterEach(() => {
-    sinon.restore();
     jest.resetAllMocks();
   });
 
@@ -838,10 +836,10 @@ describe('KeyringController', () => {
 
     it('should emit KeyringController:lock event', async () => {
       await withController(async ({ controller, messenger }) => {
-        const listener = sinon.spy();
+        const listener = jest.fn();
         messenger.subscribe('KeyringController:lock', listener);
         await controller.setLocked();
-        expect(listener.called).toBe(true);
+        expect(listener).toHaveBeenCalled();
       });
     });
 
@@ -1617,13 +1615,13 @@ describe('KeyringController', () => {
             AccountImportStrategy.privateKey,
             [privateKey],
           );
-          const listener = sinon.spy();
+          const listener = jest.fn();
           messenger.subscribe('KeyringController:accountRemoved', listener);
 
           const removedAccount = '0x51253087e6f8358b5f10c0a94315d69db3357859';
           await controller.removeAccount(removedAccount);
 
-          expect(listener.calledWith(removedAccount)).toBe(true);
+          expect(listener).toHaveBeenCalledWith(removedAccount);
         });
       });
 
@@ -2785,10 +2783,10 @@ describe('KeyringController', () => {
 
     it('should emit KeyringController:unlock event', async () => {
       await withController(async ({ controller, messenger }) => {
-        const listener = sinon.spy();
+        const listener = jest.fn();
         messenger.subscribe('KeyringController:unlock', listener);
         await controller.submitPassword(password);
-        expect(listener.called).toBe(true);
+        expect(listener).toHaveBeenCalled();
       });
     });
 
@@ -3533,9 +3531,9 @@ describe('KeyringController', () => {
     describe('when wrong password is provided', () => {
       it('should throw an error', async () => {
         await withController(async ({ controller, encryptor }) => {
-          sinon
-            .stub(encryptor, 'decrypt')
-            .rejects(new Error('Incorrect password'));
+          jest
+            .spyOn(encryptor, 'decrypt')
+            .mockRejectedValue(new Error('Incorrect password'));
 
           await expect(controller.verifyPassword('12341234')).rejects.toThrow(
             'Incorrect password',

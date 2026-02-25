@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "811.0.0",
+  "version": "833.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -21,7 +21,7 @@
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
     "create-package": "tsx scripts/create-package",
-    "generate-method-action-types": "tsx scripts/generate-method-action-types.ts",
+    "generate-method-action-types": "yarn workspaces foreach --all --parallel --interlaced --verbose run generate-method-action-types",
     "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn generate-method-action-types --check",
     "lint:dependencies": "depcheck && yarn dedupe --check",
     "lint:dependencies:fix": "depcheck && yarn dedupe",
@@ -31,7 +31,6 @@
     "lint:teams": "tsx scripts/lint-teams-json.ts",
     "prepack": "./scripts/prepack.sh",
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
-    "publish-previews": "yarn workspaces foreach --all --no-private --parallel --verbose run publish:preview",
     "setup": "yarn install",
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
@@ -60,7 +59,7 @@
     "@metamask/eth-block-tracker": "^15.0.1",
     "@metamask/eth-json-rpc-provider": "^6.0.0",
     "@metamask/json-rpc-engine": "^10.2.2",
-    "@metamask/network-controller": "^29.0.0",
+    "@metamask/network-controller": "^30.0.0",
     "@metamask/utils": "^11.9.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",

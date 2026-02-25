@@ -1,22 +1,17 @@
 /* eslint-disable jest/unbound-method */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { MockAnyNamespace } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 
-import type {
-  RpcDataSourceOptions,
-  RpcDataSourceAllowedActions,
-  RpcDataSourceAllowedEvents,
-} from './RpcDataSource';
-import { RpcDataSource, createRpcDataSource } from './RpcDataSource';
+import type { RpcDataSourceOptions } from './RpcDataSource';
+import { RpcDataSource } from './RpcDataSource';
+import {
+  createMockAssetControllerMessenger,
+  MockRootMessenger,
+  registerRpcDataSourceActions,
+} from '../__fixtures__/MockAssetControllerMessenger';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import type { ChainId, DataRequest, Context } from '../types';
-
-type AllActions = RpcDataSourceAllowedActions;
-type AllEvents = RpcDataSourceAllowedEvents;
-type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const MOCK_CHAIN_ID_HEX = '0x1';
 const MOCK_CHAIN_ID_CAIP = 'eip155:1' as ChainId;
@@ -25,12 +20,6 @@ const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 type EthereumProvider = {
   request: jest.Mock;
 };
-
-function createMockProvider(): EthereumProvider {
-  return {
-    request: jest.fn().mockResolvedValue('0x0'),
-  };
-}
 
 function createMockInternalAccount(
   overrides?: Partial<InternalAccount>,
@@ -119,7 +108,8 @@ type WithControllerCallback<ReturnValue> = ({
   onActiveChainsUpdated,
 }: {
   controller: RpcDataSource;
-  messenger: RootMessenger;
+  rootMessenger: MockRootMessenger;
+  messenger: AssetsControllerMessenger;
   onActiveChainsUpdated: (
     dataSourceName: string,
     chains: ChainId[],
@@ -140,98 +130,27 @@ async function withController<ReturnValue>(
     | [WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
   const [controllerOptions, fn] = args.length === 2 ? args : [{}, args[0]];
-  const {
-    options = {},
-    networkState = createMockNetworkState(),
-    actionHandlerOverrides = {},
-  } = controllerOptions;
+  const { options = {}, networkState = createMockNetworkState() } =
+    controllerOptions;
 
-  const messenger: RootMessenger = new Messenger({
-    namespace: MOCK_ANY_NAMESPACE,
-  });
+  const { rootMessenger, assetsControllerMessenger } =
+    createMockAssetControllerMessenger();
+  registerRpcDataSourceActions(rootMessenger, { networkState });
 
-  const rpcDataSourceMessenger = new Messenger<
-    'RpcDataSource',
-    AllActions,
-    AllEvents,
-    RootMessenger
-  >({
-    namespace: 'RpcDataSource',
-    parent: messenger,
-  });
-
-  messenger.delegate({
-    messenger: rpcDataSourceMessenger,
-    actions: [
-      'NetworkController:getState',
-      'NetworkController:getNetworkClientById',
-      'AssetsController:getState',
-      'TokenListController:getState',
-      'NetworkEnablementController:getState',
-    ],
-    events: ['NetworkController:stateChange'],
-  });
-
-  // Mock NetworkController:getState
-  messenger.registerActionHandler(
-    'NetworkController:getState',
-    actionHandlerOverrides['NetworkController:getState'] ??
-      ((): NetworkState => networkState),
-  );
-
-  // Mock NetworkController:getNetworkClientById
-  messenger.registerActionHandler(
-    'NetworkController:getNetworkClientById',
-    actionHandlerOverrides['NetworkController:getNetworkClientById'] ??
-      ((): {
-        provider: EthereumProvider;
-        configuration: { chainId: string };
-      } => ({
-        provider: createMockProvider(),
-        configuration: { chainId: MOCK_CHAIN_ID_HEX },
-      })),
-  );
-
-  // Mock AssetsController:getState
-  messenger.registerActionHandler('AssetsController:getState', () => ({
-    assetsInfo: {},
-    assetsBalance: {},
-  }));
-
-  // Mock TokenListController:getState
-  messenger.registerActionHandler('TokenListController:getState', () => ({
-    tokensChainsCache: {},
-  }));
-
-  // Mock NetworkEnablementController:getState
-  messenger.registerActionHandler(
-    'NetworkEnablementController:getState',
-    () => ({
-      enabledNetworkMap: {},
-      nativeAssetIdentifiers: {
-        [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
-      },
-    }),
-  );
-
-  const onActiveChainsUpdated =
-    (
-      options as {
-        onActiveChainsUpdated?: (
-          dataSourceName: string,
-          chains: ChainId[],
-          previousChains: ChainId[],
-        ) => void;
-      }
-    ).onActiveChainsUpdated ?? jest.fn();
+  const onActiveChainsUpdated = options.onActiveChainsUpdated ?? jest.fn();
   const controller = new RpcDataSource({
-    messenger: rpcDataSourceMessenger as unknown as AssetsControllerMessenger,
+    messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
     ...options,
   });
 
   try {
-    return await fn({ controller, messenger, onActiveChainsUpdated });
+    return await fn({
+      controller,
+      messenger: assetsControllerMessenger,
+      rootMessenger,
+      onActiveChainsUpdated,
+    });
   } finally {
     controller.destroy();
   }
@@ -329,24 +248,28 @@ describe('RpcDataSource', () => {
             },
           },
         },
-        async ({ controller, messenger }) => {
+        async ({ controller, rootMessenger }) => {
           source = controller;
           // Trigger callback via network state change (first call is during construction, before source is set).
           const newNetworkState = createMockNetworkState(
             NetworkStatus.Available,
           );
-          (messenger.publish as CallableFunction)(
+          rootMessenger.publish(
             'NetworkController:stateChange',
             newNetworkState,
             [],
           );
           await new Promise(process.nextTick);
           expect(callbackResult).not.toBeNull();
-          const result = callbackResult as {
-            syncChains: ChainId[];
-            newChains: ChainId[];
+          const assertNotNull: <Val>(
+            value: Val | null,
+          ) => asserts value is Val = (value) => {
+            expect(value).not.toBeNull();
           };
-          expect(result.syncChains).toStrictEqual(result.newChains);
+          assertNotNull(callbackResult);
+          expect(callbackResult.syncChains).toStrictEqual(
+            callbackResult.newChains,
+          );
           const chains = await controller.getActiveChains();
           expect(chains).toContain(MOCK_CHAIN_ID_CAIP);
         },
@@ -375,7 +298,7 @@ describe('RpcDataSource', () => {
         selectedNetworkClientId: 'mainnet',
         networkConfigurationsByChainId: {},
         networksMetadata: {},
-      } as unknown as NetworkState;
+      };
 
       await withController(
         { networkState: emptyNetworkState },
@@ -408,7 +331,7 @@ describe('RpcDataSource', () => {
 
     it('returns undefined for non-existent chain', async () => {
       await withController(({ controller }) => {
-        const status = controller.getChainStatus('eip155:999' as ChainId);
+        const status = controller.getChainStatus('eip155:999');
         expect(status).toBeUndefined();
       });
     });
@@ -438,10 +361,10 @@ describe('RpcDataSource', () => {
           accountsWithSupportedChains: [
             {
               account,
-              supportedChains: ['eip155:999' as ChainId],
+              supportedChains: ['eip155:999'],
             },
           ],
-          chainIds: ['eip155:999' as ChainId],
+          chainIds: ['eip155:999'],
           dataTypes: ['balance'],
         };
 
@@ -551,7 +474,7 @@ describe('RpcDataSource', () => {
         const middleware = controller.assetsMiddleware;
         const context: Context = {
           request: createDataRequest({
-            chainIds: ['eip155:999' as ChainId],
+            chainIds: ['eip155:999'],
           }),
           response: {},
           getAssetsState: jest.fn(),
@@ -597,7 +520,7 @@ describe('RpcDataSource', () => {
 
   describe('network state changes', () => {
     it('updates chains when network state changes', async () => {
-      await withController(async ({ controller, messenger }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         const newNetworkState = createMockNetworkState(NetworkStatus.Available);
         newNetworkState.networkConfigurationsByChainId['0x89'] = {
           chainId: '0x89',
@@ -618,7 +541,7 @@ describe('RpcDataSource', () => {
           EIPS: {},
         };
 
-        (messenger.publish as CallableFunction)(
+        rootMessenger.publish(
           'NetworkController:stateChange',
           newNetworkState,
           [],
@@ -629,57 +552,6 @@ describe('RpcDataSource', () => {
         const chains = await controller.getActiveChains();
         expect(chains).toContain('eip155:137');
       });
-    });
-  });
-
-  describe('createRpcDataSource', () => {
-    it('creates an RpcDataSource instance', async () => {
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-
-      const rpcDataSourceMessenger = new Messenger<
-        'RpcDataSource',
-        AllActions,
-        AllEvents,
-        RootMessenger
-      >({
-        namespace: 'RpcDataSource',
-        parent: messenger,
-      });
-
-      messenger.delegate({
-        messenger: rpcDataSourceMessenger,
-        actions: [
-          'NetworkController:getState',
-          'NetworkController:getNetworkClientById',
-        ],
-        events: ['NetworkController:stateChange'],
-      });
-
-      messenger.registerActionHandler('NetworkController:getState', () =>
-        createMockNetworkState(),
-      );
-      messenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        () => ({
-          provider: createMockProvider(),
-          configuration: { chainId: MOCK_CHAIN_ID_HEX },
-        }),
-      );
-
-      const controller = createRpcDataSource({
-        messenger:
-          rpcDataSourceMessenger as unknown as AssetsControllerMessenger,
-        onActiveChainsUpdated: jest.fn(),
-      });
-
-      try {
-        expect(controller).toBeInstanceOf(RpcDataSource);
-        expect(controller.getName()).toBe('RpcDataSource');
-      } finally {
-        controller.destroy();
-      }
     });
   });
 

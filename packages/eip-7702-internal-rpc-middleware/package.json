@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/eip-7702-internal-rpc-middleware",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/eip-7702-internal-rpc-middleware",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -48,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.9.0"

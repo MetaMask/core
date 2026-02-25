@@ -17,6 +17,7 @@ import type {
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import type { Caip19AssetId, AccountId } from './types';
 
 function createMockQueryApiClient(): ApiPlatformClient {
@@ -57,11 +58,17 @@ function createMockInternalAccount(
 type WithControllerOptions = {
   state?: Partial<AssetsControllerState>;
   isBasicFunctionality?: () => boolean;
+  /**
+   * When set, registers ClientController:getState so the controller sees this UI state.
+   * Required for tests that rely on asset tracking running (e.g. trackMetaMetricsEvent on unlock).
+   */
+  clientControllerState?: { isUiOpen: boolean };
   /** Extra options passed to AssetsController constructor (e.g. trackMetaMetricsEvent). */
   controllerOptions?: Partial<{
     trackMetaMetricsEvent: (
       payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
     ) => void;
+    priceDataSourceConfig: PriceDataSourceConfig;
   }>;
 };
 
@@ -89,6 +96,7 @@ async function withController<ReturnValue>(
     {
       state = {},
       isBasicFunctionality = (): boolean => true,
+      clientControllerState,
       controllerOptions = {},
     },
     fn,
@@ -142,6 +150,17 @@ async function withController<ReturnValue>(
     tokensChainsCache: {},
   }));
 
+  if (clientControllerState !== undefined) {
+    (
+      messenger as {
+        registerActionHandler: (a: string, h: () => unknown) => void;
+      }
+    ).registerActionHandler(
+      'ClientController:getState',
+      () => clientControllerState,
+    );
+  }
+
   const controller = new AssetsController({
     messenger: messenger as unknown as AssetsControllerMessenger,
     state,
@@ -167,6 +186,7 @@ describe('AssetsController', () => {
         assetsPrice: {},
         customAssets: {},
         assetPreferences: {},
+        selectedCurrency: 'usd',
       });
     });
   });
@@ -180,6 +200,7 @@ describe('AssetsController', () => {
           assetsPrice: {},
           customAssets: {},
           assetPreferences: {},
+          selectedCurrency: 'usd',
         });
       });
     });
@@ -196,6 +217,7 @@ describe('AssetsController', () => {
         },
         assetsBalance: {},
         customAssets: {},
+        selectedCurrency: 'eur',
       };
 
       await withController({ state: initialState }, ({ controller }) => {
@@ -205,6 +227,7 @@ describe('AssetsController', () => {
           name: 'USD Coin',
           decimals: 6,
         });
+        expect(controller.state.selectedCurrency).toBe('eur');
       });
     });
 
@@ -252,6 +275,7 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
+        selectedCurrency: 'usd',
       });
 
       // Action handlers should NOT be registered when disabled
@@ -273,6 +297,7 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
+          selectedCurrency: 'usd',
         });
 
         // Action handlers should be registered
@@ -722,6 +747,62 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('setSelectedCurrency', () => {
+    it('updates selectedCurrency in state', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.selectedCurrency).toBe('usd');
+
+        controller.setSelectedCurrency('eur');
+        expect(controller.state.selectedCurrency).toBe('eur');
+
+        controller.setSelectedCurrency('gbp');
+        expect(controller.state.selectedCurrency).toBe('gbp');
+      });
+    });
+
+    it('returns early when new currency is same as current', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.selectedCurrency).toBe('usd');
+
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        controller.setSelectedCurrency('usd');
+
+        expect(controller.state.selectedCurrency).toBe('usd');
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('calls getAssets with forceUpdate, price dataType, and assetsForPriceUpdate to refresh prices', async () => {
+      const mockAssetId2 =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+            [mockAssetId2]: { amount: '2000000' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        controller.setSelectedCurrency('eur');
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(expect.any(Array), {
+          forceUpdate: true,
+          dataTypes: ['price'],
+          assetsForPriceUpdate: [MOCK_ASSET_ID, mockAssetId2],
+        });
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+  });
+
   describe('events', () => {
     it('publishes balanceChanged event when balance updates', async () => {
       await withController(async ({ controller, messenger }) => {
@@ -812,8 +893,15 @@ describe('AssetsController', () => {
       const trackMetaMetricsEvent = jest.fn();
 
       await withController(
-        { controllerOptions: { trackMetaMetricsEvent } },
+        {
+          clientControllerState: { isUiOpen: true },
+          controllerOptions: { trackMetaMetricsEvent },
+        },
         async ({ messenger }) => {
+          // UI must be open and keyring unlocked for asset tracking to run
+          (
+            messenger as { publish: (topic: string, payload?: unknown) => void }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
 
           // Allow #start() -> getAssets() to resolve so the callback runs
@@ -840,8 +928,15 @@ describe('AssetsController', () => {
       const trackMetaMetricsEvent = jest.fn();
 
       await withController(
-        { controllerOptions: { trackMetaMetricsEvent } },
+        {
+          clientControllerState: { isUiOpen: true },
+          controllerOptions: { trackMetaMetricsEvent },
+        },
         async ({ messenger }) => {
+          // UI must be open and keyring unlocked for asset tracking to run
+          (
+            messenger as { publish: (topic: string, payload?: unknown) => void }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 

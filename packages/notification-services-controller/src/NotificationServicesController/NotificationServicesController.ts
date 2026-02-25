@@ -19,6 +19,7 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import { assert } from '@metamask/utils';
+import { debounce } from 'lodash';
 import log from 'loglevel';
 
 import type { NormalisedAPINotification } from '.';
@@ -51,6 +52,8 @@ import type {
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';
+
+export const ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS = 1000;
 
 /**
  * State shape for NotificationServicesController
@@ -225,9 +228,9 @@ type AllowedActions =
   // Keyring Controller Requests
   | KeyringControllerGetStateAction
   // Auth Controller Requests
-  | AuthenticationController.AuthenticationControllerGetBearerToken
-  | AuthenticationController.AuthenticationControllerIsSignedIn
-  | AuthenticationController.AuthenticationControllerPerformSignIn
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerIsSignedInAction
+  | AuthenticationController.AuthenticationControllerPerformSignInAction
   // Push Notifications Controller Requests
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
@@ -478,11 +481,11 @@ export default class NotificationServicesController extends BaseController<
      * And call effects to subscribe/unsubscribe to notifications.
      */
     subscribe: (): void => {
-      this.messenger.subscribe(
-        'KeyringController:stateChange',
-        // Using void return for async callback - result is intentionally ignored
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async (totalAccounts, prevTotalAccounts): Promise<void> => {
+      const debouncedUpdateAccountNotifications = debounce(
+        async (
+          totalAccounts?: number,
+          prevTotalAccounts?: number,
+        ): Promise<void> => {
           const hasTotalAccountsChanged = totalAccounts !== prevTotalAccounts;
           if (
             !this.state.isNotificationServicesEnabled ||
@@ -503,7 +506,15 @@ export default class NotificationServicesController extends BaseController<
           }
           await Promise.allSettled(promises);
         },
-        (state: KeyringControllerState) => {
+        ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
+      );
+
+      this.messenger.subscribe(
+        'KeyringController:stateChange',
+        // Using void return for async callback - result is intentionally ignored
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        debouncedUpdateAccountNotifications,
+        (state: KeyringControllerState): number => {
           return (
             state?.keyrings?.flatMap?.((keyring) => keyring.accounts)?.length ??
             0

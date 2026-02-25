@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable jest/no-restricted-matchers */
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
@@ -364,6 +365,7 @@ const MockTxHistory = {
       }),
       hasApprovalTx: false,
       approvalTxId: undefined,
+      location: undefined,
     },
   }),
   getInit: ({
@@ -389,6 +391,7 @@ const MockTxHistory = {
         srcChainId,
       }),
       hasApprovalTx: false,
+      location: undefined,
     },
   }),
   getPending: ({
@@ -431,6 +434,7 @@ const MockTxHistory = {
       completionTime: undefined,
       attempts: undefined,
       featureId,
+      location: undefined,
     },
   }),
   getUnknown: ({
@@ -468,6 +472,7 @@ const MockTxHistory = {
       approvalTxId: undefined,
       hasApprovalTx: false,
       completionTime: undefined,
+      location: undefined,
     },
   }),
   getPendingSwap: ({
@@ -505,6 +510,7 @@ const MockTxHistory = {
       hasApprovalTx: false,
       completionTime: undefined,
       featureId,
+      location: undefined,
     },
   }),
   getComplete: ({
@@ -542,6 +548,7 @@ const MockTxHistory = {
       isStxEnabled: true,
       hasApprovalTx: false,
       attempts: undefined,
+      location: undefined,
     },
   }),
 };
@@ -1407,6 +1414,11 @@ describe('BridgeStatusController', () => {
   });
 
   describe('wipeBridgeStatus', () => {
+    beforeEach(() => {
+      jest.clearAllTimers();
+      jest.clearAllMocks();
+    });
+
     it('wipes the bridge status for the given address', async () => {
       // Setup
       jest.useFakeTimers();
@@ -1440,6 +1452,8 @@ describe('BridgeStatusController', () => {
             return {
               transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
             };
+          } else if (method === 'AuthenticationController:getBearerToken') {
+            return 'AUTH_TOKEN';
           }
           return null;
         }),
@@ -1475,10 +1489,11 @@ describe('BridgeStatusController', () => {
           };
         });
 
-      // Start polling for 0xaccount1
       bridgeStatusController.startPollingForBridgeTxStatus(
         getMockStartPollingForBridgeTxStatusArgs(),
       );
+      jest.advanceTimersToNextTimer();
+      await flushPromises();
       jest.advanceTimersByTime(10_000);
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
 
@@ -1491,6 +1506,8 @@ describe('BridgeStatusController', () => {
         }),
       );
       jest.advanceTimersByTime(10_000);
+      jest.advanceTimersToNextTimer();
+      await flushPromises();
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
 
       // Check that both accounts have a tx history entry
@@ -1513,14 +1530,18 @@ describe('BridgeStatusController', () => {
       );
       expect(txHistoryItems).toHaveLength(1);
       expect(txHistoryItems[0].account).toBe('0xaccount2');
-      expect(messengerMock.call.mock.calls).toMatchSnapshot();
+      const { calls } = messengerMock.call.mock;
+      expect(calls.map((call) => call.slice(0, 2))).toMatchSnapshot();
     });
 
-    it('wipes the bridge status for all networks if ignoreNetwork is true', () => {
+    it('wipes the bridge status for all networks if ignoreNetwork is true', async () => {
       // Setup
       jest.useFakeTimers();
       const messengerMock = {
         call: jest.fn((method: string) => {
+          if (method === 'AuthenticationController:getBearerToken') {
+            return 'AUTH_TOKEN';
+          }
           if (method === 'AccountsController:getSelectedMultichainAccount') {
             return { address: '0xaccount1' };
           } else if (
@@ -1583,7 +1604,9 @@ describe('BridgeStatusController', () => {
           destChainId: 1,
         }),
       );
-      jest.advanceTimersByTime(10_000);
+      jest.advanceTimersToNextTimer();
+      jest.advanceTimersToNextTimer();
+      await flushPromises();
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
 
       // Start polling for chainId 10 to chainId 123
@@ -1596,7 +1619,8 @@ describe('BridgeStatusController', () => {
           destChainId: 123,
         }),
       );
-      jest.advanceTimersByTime(10_000);
+      jest.advanceTimersToNextTimer();
+      await flushPromises();
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
 
       // Check we have a tx history entry for each chainId
@@ -1628,7 +1652,7 @@ describe('BridgeStatusController', () => {
       expect(txHistoryItems).toHaveLength(0);
     });
 
-    it('wipes the bridge status only for the current network if ignoreNetwork is false', () => {
+    it('wipes the bridge status only for the current network if ignoreNetwork is false', async () => {
       // Setup
       jest.useFakeTimers();
       const messengerMock = {
@@ -1652,6 +1676,9 @@ describe('BridgeStatusController', () => {
             return {
               transactions: [{ id: 'bridgeTxMetaId1', hash: '0xsrcTxHash1' }],
             };
+          }
+          if (method === 'AuthenticationController:getBearerToken') {
+            return 'AUTH_TOKEN';
           }
           return null;
         }),
@@ -1696,6 +1723,8 @@ describe('BridgeStatusController', () => {
           destChainId: 1,
         }),
       );
+      jest.advanceTimersToNextTimer();
+      await flushPromises();
       jest.advanceTimersByTime(10_000);
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
 
@@ -1709,6 +1738,8 @@ describe('BridgeStatusController', () => {
           destChainId: 123,
         }),
       );
+      jest.advanceTimersToNextTimer();
+      await flushPromises();
       jest.advanceTimersByTime(10_000);
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
 
@@ -4546,7 +4577,16 @@ describe('BridgeStatusController', () => {
         bridgeStatusController.stopAllPolling();
         await flushPromises();
 
-        expect(messengerCallSpy).not.toHaveBeenCalled();
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+          ]
+        `);
         expect(mockFetchFn).toHaveBeenCalledWith(
           'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xperpsSrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
           {
@@ -4582,7 +4622,16 @@ describe('BridgeStatusController', () => {
         bridgeStatusController.stopAllPolling();
         await flushPromises();
 
-        expect(messengerCallSpy).not.toHaveBeenCalled();
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+          ]
+        `);
         expect(mockFetchFn).toHaveBeenCalledWith(
           'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xperpsSrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
           {
@@ -4655,6 +4704,51 @@ describe('BridgeStatusController', () => {
         });
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
+      });
+
+      it('should not append auth token to status request when getBearerToken throws an error', async () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+
+        messengerCallSpy.mockImplementation(() => {
+          throw new Error(
+            'AuthenticationController:getBearerToken not implemented',
+          );
+        });
+        mockFetchFn.mockClear();
+        mockFetchFn.mockResolvedValueOnce(
+          MockStatusResponse.getComplete({ srcTxHash: '0xperpsSrcTxHash1' }),
+        );
+        mockMessenger.publish('TransactionController:transactionConfirmed', {
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+          type: TransactionType.bridge,
+          status: TransactionStatus.confirmed,
+          id: 'perpsBridgeTxMetaId1',
+        });
+
+        jest.advanceTimersByTime(30500);
+        bridgeStatusController.stopAllPolling();
+        await flushPromises();
+
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+            [
+              "AuthenticationController:getBearerToken",
+            ],
+          ]
+        `);
+        expect(mockFetchFn).toHaveBeenCalledWith(
+          'https://bridge.api.cx.metamask.io/getTxStatus?bridgeId=lifi&srcTxHash=0xperpsSrcTxHash1&bridge=across&srcChainId=42161&destChainId=10&refuel=false&requestId=197c402f-cb96-4096-9f8c-54aed84ca776',
+          {
+            headers: { 'X-Client-Id': BridgeClientId.EXTENSION },
+          },
+        );
+        expect(consoleFnSpy).not.toHaveBeenCalled();
       });
     });
   });

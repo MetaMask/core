@@ -5,7 +5,11 @@ import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
 import { updatePaymentToken } from './actions/update-payment-token';
-import { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
+import {
+  CONTROLLER_NAME,
+  isTransactionPayStrategy,
+  TransactionPayStrategy,
+} from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import type {
   GetDelegationTransactionCallback,
@@ -16,6 +20,7 @@ import type {
   TransactionPayControllerState,
   UpdatePaymentTokenRequest,
 } from './types';
+import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
@@ -44,9 +49,14 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy;
 
+  readonly #getStrategies?: (
+    transaction: TransactionMeta,
+  ) => TransactionPayStrategy[];
+
   constructor({
     getDelegationTransaction,
     getStrategy,
+    getStrategies,
     messenger,
     state,
   }: TransactionPayControllerOptions) {
@@ -59,6 +69,7 @@ export class TransactionPayController extends BaseController<
 
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
+    this.#getStrategies = getStrategies;
 
     this.#registerActionHandlers();
 
@@ -70,6 +81,7 @@ export class TransactionPayController extends BaseController<
 
     // eslint-disable-next-line no-new
     new QuoteRefresher({
+      getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
@@ -131,7 +143,9 @@ export class TransactionPayController extends BaseController<
       fn(current);
 
       const isPaymentTokenUpdated =
-        current.paymentToken !== originalPaymentToken;
+        current.paymentToken?.address?.toLowerCase() !==
+          originalPaymentToken?.address?.toLowerCase() ||
+        current.paymentToken?.chainId !== originalPaymentToken?.chainId;
 
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
@@ -151,6 +165,7 @@ export class TransactionPayController extends BaseController<
 
     if (shouldUpdateQuotes) {
       updateQuotes({
+        getStrategies: this.#getStrategiesWithFallback.bind(this),
         messenger: this.messenger,
         transactionData: this.state.transactionData[transactionId],
         transactionId,
@@ -167,8 +182,8 @@ export class TransactionPayController extends BaseController<
 
     this.messenger.registerActionHandler(
       'TransactionPayController:getStrategy',
-      this.#getStrategy ??
-        ((): TransactionPayStrategy => TransactionPayStrategy.Relay),
+      (transaction: TransactionMeta): TransactionPayStrategy =>
+        this.#getStrategiesWithFallback(transaction)[0],
     );
 
     this.messenger.registerActionHandler(
@@ -180,5 +195,22 @@ export class TransactionPayController extends BaseController<
       'TransactionPayController:updatePaymentToken',
       this.updatePaymentToken.bind(this),
     );
+  }
+
+  #getStrategiesWithFallback(
+    transaction: TransactionMeta,
+  ): TransactionPayStrategy[] {
+    const strategyCandidates: unknown[] =
+      this.#getStrategies?.(transaction) ??
+      (this.#getStrategy ? [this.#getStrategy(transaction)] : []);
+
+    const validStrategies = strategyCandidates.filter(
+      (strategy): strategy is TransactionPayStrategy =>
+        isTransactionPayStrategy(strategy),
+    );
+
+    return validStrategies.length
+      ? validStrategies
+      : getStrategyOrder(this.messenger);
   }
 }

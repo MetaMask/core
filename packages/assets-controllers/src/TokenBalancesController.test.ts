@@ -15,7 +15,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import type nock from 'nock';
-import { useFakeTimers } from 'sinon';
 
 import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks';
 import * as multicall from './multicall';
@@ -33,8 +32,8 @@ import {
   parseAssetType,
 } from './TokenBalancesController';
 import type { TokensControllerState } from './TokensController';
-import { advanceTime, flushPromises } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import { jestAdvanceTime, flushPromises } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import type { RpcEndpoint } from '../../network-controller/src/NetworkController';
 
 type AllTokenBalancesControllerActions =
@@ -325,10 +324,8 @@ describe('Utility Functions', () => {
 });
 
 describe('TokenBalancesController', () => {
-  let clock: sinon.SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
 
     // Mock safelyExecuteWithTimeout to execute the operation normally by default
     mockedSafelyExecuteWithTimeout.mockImplementation(
@@ -343,7 +340,7 @@ describe('TokenBalancesController', () => {
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
     mockedSafelyExecuteWithTimeout.mockRestore();
     jest.restoreAllMocks();
   });
@@ -537,11 +534,11 @@ describe('TokenBalancesController', () => {
 
     controller.startPolling({ chainIds: ['0x1'] });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
     expect(pollSpy).toHaveBeenCalled();
     expect(pollSpy).not.toHaveBeenCalledTimes(2);
 
-    await advanceTime({ clock, duration: interval * 1.5 });
+    await jestAdvanceTime({ duration: interval * 1.5 });
     expect(pollSpy).toHaveBeenCalledTimes(2);
   });
 
@@ -682,7 +679,7 @@ describe('TokenBalancesController', () => {
       [],
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(controller.state.tokenBalances).toStrictEqual({
       [accountAddress]: {
@@ -759,7 +756,7 @@ describe('TokenBalancesController', () => {
       [],
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // Verify balance was removed
     expect(updateSpy).toHaveBeenCalledTimes(2);
@@ -829,7 +826,7 @@ describe('TokenBalancesController', () => {
       [],
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(updateSpy).toHaveBeenCalledTimes(2);
     expect(controller.state.tokenBalances).toStrictEqual({
@@ -909,7 +906,7 @@ describe('TokenBalancesController', () => {
       [],
     );
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // Verify initial balances are still there
     expect(updateSpy).toHaveBeenCalledTimes(1); // should be called only once when we first updated the balances and not twice
@@ -1603,7 +1600,7 @@ describe('TokenBalancesController', () => {
 
       messenger.publish('KeyringController:accountRemoved', account.address);
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(controller.state.tokenBalances).toStrictEqual({
         [accountAddress2]: {
@@ -2684,13 +2681,13 @@ describe('TokenBalancesController', () => {
         [],
       );
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Verify updateBalances was called
       expect(updateBalancesSpy).toHaveBeenCalled();
 
       // Wait a bit more for the catch block to execute
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Verify the error was logged
       expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -3380,7 +3377,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls should happen immediately for both chains
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
@@ -3388,14 +3385,14 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance by Ethereum interval (1000ms) - only Ethereum should poll
-      await advanceTime({ clock, duration: ethInterval });
+      await jestAdvanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
       pollSpy.mockClear();
 
       // Advance by another 1000ms (total 2000ms) - both should poll
-      await advanceTime({ clock, duration: ethInterval });
+      await jestAdvanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] }); // Ethereum again
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Polygon first repeat
@@ -3439,12 +3436,12 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       pollSpy.mockClear();
 
       // Advance 1500ms - only Ethereum should poll
-      await advanceTime({ clock, duration: ethInterval });
+      await jestAdvanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
@@ -3456,7 +3453,7 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance 1500ms - both should poll now (same interval, grouped together)
-      await advanceTime({ clock, duration: ethInterval });
+      await jestAdvanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1); // Now grouped together
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0x89'] }); // Both chains in one call
 
@@ -3504,7 +3501,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
 
       // Initial polls - should group efficiently
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2); // Two groups: fast (ETH + ARB) and slow (MATIC)
 
       // Verify Ethereum and Arbitrum are grouped together (same interval)
@@ -3515,14 +3512,14 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance by fast interval (1200ms) - only fast group should poll
-      await advanceTime({ clock, duration: fastInterval });
+      await jestAdvanceTime({ duration: fastInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0xa4b1'] });
 
       pollSpy.mockClear();
 
       // Advance by another 1200ms (total 2400ms) - both groups should poll
-      await advanceTime({ clock, duration: fastInterval });
+      await jestAdvanceTime({ duration: fastInterval });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0xa4b1'] }); // Fast group again
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Slow group first repeat
@@ -3567,7 +3564,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
@@ -3575,14 +3572,14 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance 800ms - only Ethereum should poll (configured interval)
-      await advanceTime({ clock, duration: ethInterval });
+      await jestAdvanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
       pollSpy.mockClear();
 
       // Advance another 800ms (total 1600ms) - both should poll
-      await advanceTime({ clock, duration: ethInterval });
+      await jestAdvanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] }); // Ethereum again
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Polygon using default interval
@@ -3623,12 +3620,12 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       pollSpy.mockClear();
 
       // Let some polling happen
-      await advanceTime({ clock, duration: 1000 }); // Ethereum polls
+      await jestAdvanceTime({ duration: 1000 }); // Ethereum polls
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
@@ -3641,7 +3638,7 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Both should now poll every 500ms (regrouped)
-      await advanceTime({ clock, duration: 500 });
+      await jestAdvanceTime({ duration: 500 });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0x89'] }); // Now grouped together
 
@@ -3650,7 +3647,7 @@ describe('TokenBalancesController', () => {
 
     it('should preserve original chainIds across config updates even when chains have no tokens', async () => {
       // Test the design flaw fix: original chainIds should be preserved, not replaced with chainIdsWithTokens
-      const testClock = useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
 
       const tokens = {
         allTokens: {
@@ -3683,7 +3680,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
 
       // Initial polls - all 3 chains should be polled despite only Ethereum having tokens
-      await advanceTime({ clock: testClock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(3); // All three chains polled
 
       // Verify all originally requested chains are being polled
@@ -3700,7 +3697,7 @@ describe('TokenBalancesController', () => {
 
       // All originally requested chains should still be polled (not just chains with tokens)
       // Wait for the longest interval (3000ms) to ensure all interval groups have polled
-      await advanceTime({ clock: testClock, duration: 3000 });
+      await jestAdvanceTime({ duration: 3000 });
 
       // ✅ KEY VERIFICATION: All originally requested chains are still being polled,
       // including Polygon and Arbitrum which have NO tokens!
@@ -3717,12 +3714,12 @@ describe('TokenBalancesController', () => {
       expect(allCalledChains).toContain('0xa4b1'); // Arbitrum (no tokens) - ✅ PRESERVED!
 
       controller.stopAllPolling();
-      testClock.restore();
+      jest.useRealTimers();
     });
 
     it('should preserve original chainIds when tokens are added or removed during polling', async () => {
       // Test that token changes don't affect original polling intent
-      const testClock = useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
 
       const initialTokens = {
         allTokens: {
@@ -3748,7 +3745,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
 
       // Initial state: all 3 chains polled (they use default interval so grouped together)
-      await advanceTime({ clock: testClock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(1); // All chains use same default interval, so grouped
       expect(pollSpy).toHaveBeenCalledWith({
         chainIds: ['0x1', '0x89', '0xa4b1'],
@@ -3779,7 +3776,7 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // After token change, should still poll all originally requested chains
-      await advanceTime({ clock: testClock, duration: 1000 });
+      await jestAdvanceTime({ duration: 1000 });
 
       // ✅ KEY VERIFICATION: All originally requested chains are still being polled
       // even after token state changes (not filtered by chainIdsWithTokens)
@@ -3795,12 +3792,12 @@ describe('TokenBalancesController', () => {
       expect(allCalledChains).toContain('0xa4b1'); // Arbitrum (still no tokens) - ✅ PRESERVED!
 
       controller.stopAllPolling();
-      testClock.restore();
+      jest.useRealTimers();
     });
 
     describe('immediateUpdate option', () => {
       it('should trigger immediate polling by default when updating configs', async () => {
-        const testClock = useFakeTimers();
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
         const chainId = '0x1';
         const accountAddress = '0x0000000000000000000000000000000000000000';
         const tokenAddress = '0x0000000000000000000000000000000000000001';
@@ -3829,7 +3826,7 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: [chainId] });
 
         // Wait for initial poll
-        await advanceTime({ clock: testClock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         pollSpy.mockClear();
 
@@ -3839,22 +3836,22 @@ describe('TokenBalancesController', () => {
         });
 
         // Should trigger immediate polling by default
-        await advanceTime({ clock: testClock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: [chainId] });
 
         pollSpy.mockClear();
 
         // And should continue polling on the new interval
-        await advanceTime({ clock: testClock, duration: 15000 });
+        await jestAdvanceTime({ duration: 15000 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
-        testClock.restore();
+        jest.useRealTimers();
       });
 
       it('should not trigger immediate polling when immediateUpdate is false', async () => {
-        const testClock = useFakeTimers();
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
         const chainId = '0x1';
         const accountAddress = '0x0000000000000000000000000000000000000000';
         const tokenAddress = '0x0000000000000000000000000000000000000001';
@@ -3883,7 +3880,7 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: [chainId] });
 
         // Wait for initial poll
-        await advanceTime({ clock: testClock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         pollSpy.mockClear();
 
@@ -3899,15 +3896,15 @@ describe('TokenBalancesController', () => {
         expect(pollSpy).not.toHaveBeenCalled();
 
         // But should poll on the new interval
-        await advanceTime({ clock: testClock, duration: 15000 });
+        await jestAdvanceTime({ duration: 15000 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
-        testClock.restore();
+        jest.useRealTimers();
       });
 
       it('should trigger immediate polling when immediateUpdate is true', async () => {
-        const testClock = useFakeTimers();
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
         const chainId = '0x1';
         const accountAddress = '0x0000000000000000000000000000000000000000';
         const tokenAddress = '0x0000000000000000000000000000000000000001';
@@ -3936,7 +3933,7 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: [chainId] });
 
         // Wait for initial poll
-        await advanceTime({ clock: testClock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         pollSpy.mockClear();
 
@@ -3949,18 +3946,18 @@ describe('TokenBalancesController', () => {
         );
 
         // Should trigger immediate polling
-        await advanceTime({ clock: testClock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: [chainId] });
 
         pollSpy.mockClear();
 
         // And should continue polling on the new interval
-        await advanceTime({ clock: testClock, duration: 15000 });
+        await jestAdvanceTime({ duration: 15000 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
-        testClock.restore();
+        jest.useRealTimers();
       });
 
       it('should handle immediateUpdate option when polling is not active', () => {
@@ -4008,7 +4005,7 @@ describe('TokenBalancesController', () => {
       });
 
       it('should handle immediateUpdate with multiple chains and different intervals', async () => {
-        const testClock = useFakeTimers();
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
         const accountAddress = '0x0000000000000000000000000000000000000000';
 
         const tokens = {
@@ -4040,7 +4037,7 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
         // Wait for initial polls
-        await advanceTime({ clock: testClock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1); // Both chains use default interval
         pollSpy.mockClear();
 
@@ -4054,13 +4051,13 @@ describe('TokenBalancesController', () => {
         );
 
         // Should trigger immediate polling for all chains
-        await advanceTime({ clock: testClock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(2); // Now different intervals, so separate calls
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
 
         controller.stopAllPolling();
-        testClock.restore();
+        jest.useRealTimers();
       });
     });
   });
@@ -4097,10 +4094,10 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Wait for initial poll and error
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Wait for interval poll and error
-      await advanceTime({ clock, duration: 100 });
+      await jestAdvanceTime({ duration: 100 });
 
       // Should have attempted polls despite errors
       expect(pollSpy).toHaveBeenCalledTimes(2);
@@ -4163,7 +4160,7 @@ describe('TokenBalancesController', () => {
       ]);
 
       // Wait for async error handling
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(updateBalancesSpy).toHaveBeenCalled();
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -4202,7 +4199,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Wait for any immediate polling to complete
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Clean up
       controller.stopAllPolling();
@@ -5702,7 +5699,7 @@ describe('TokenBalancesController', () => {
         chainId: '0x1',
       } as unknown as TransactionMeta);
 
-      await clock.tickAsync(0);
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(updateBalancesSpy).toHaveBeenCalledWith({
         chainIds: ['0x1'],
@@ -5718,7 +5715,7 @@ describe('TokenBalancesController', () => {
         { chainId: '0x89' },
       ] as unknown as TransactionMeta[]);
 
-      await clock.tickAsync(0);
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(updateBalancesSpy).toHaveBeenCalledWith({
         chainIds: ['0x1', '0x89'],
@@ -5748,7 +5745,7 @@ describe('TokenBalancesController', () => {
         [],
       );
 
-      await clock.tickAsync(0);
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(warnSpy).toHaveBeenCalledWith(
         'Error updating balances after token change:',
@@ -5778,7 +5775,7 @@ describe('TokenBalancesController', () => {
         updates: BalanceUpdate[];
       });
 
-      await clock.tickAsync(0);
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Error handling balance update:'),
@@ -5804,7 +5801,7 @@ describe('TokenBalancesController', () => {
       controller.stopAllPolling();
 
       // Wait for poll interval
-      await clock.tickAsync(2000);
+      await jest.advanceTimersByTimeAsync(2000);
 
       // updateBalances should have been called once during startPolling,
       // but not again after stopping
@@ -5863,7 +5860,7 @@ describe('TokenBalancesController', () => {
         [],
       );
 
-      await clock.tickAsync(0);
+      await jest.advanceTimersByTimeAsync(0);
 
       // updateBalances should not be called since tokens haven't changed
       expect(updateBalancesSpy).not.toHaveBeenCalled();
@@ -5882,7 +5879,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Wait for debounce
-      await clock.tickAsync(6000);
+      await jest.advanceTimersByTimeAsync(6000);
 
       // No errors should occur and controller should still be functional
       expect(controller.state.tokenBalances).toBeDefined();
@@ -5921,7 +5918,7 @@ describe('TokenBalancesController', () => {
         [],
       );
 
-      await clock.tickAsync(0);
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Error handling token state change:',
@@ -5946,7 +5943,7 @@ describe('TokenBalancesController', () => {
         updates: [],
       });
 
-      await clock.tickAsync(0);
+      await jest.advanceTimersByTimeAsync(0);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Error'),
@@ -5971,7 +5968,7 @@ describe('TokenBalancesController', () => {
       controller.stopAllPolling();
 
       // Polling should not execute when inactive
-      await clock.tickAsync(35000);
+      await jest.advanceTimersByTimeAsync(35000);
 
       // Controller state should remain unchanged
       expect(controller.state.tokenBalances).toBeDefined();
@@ -5990,12 +5987,12 @@ describe('TokenBalancesController', () => {
       // Start polling twice with same chain - should clear previous timer
       controller.startPolling({ chainIds: ['0x1'] });
 
-      await clock.tickAsync(100);
+      await jest.advanceTimersByTimeAsync(100);
 
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Should not cause double polling
-      await clock.tickAsync(35000);
+      await jest.advanceTimersByTimeAsync(35000);
 
       expect(controller.state.tokenBalances).toBeDefined();
     });
@@ -6046,7 +6043,7 @@ describe('TokenBalancesController', () => {
 
       controller.startPolling({ chainIds: ['0x1'] });
 
-      await clock.tickAsync(100);
+      await jest.advanceTimersByTimeAsync(100);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Polling failed'),
@@ -6091,7 +6088,7 @@ describe('TokenBalancesController', () => {
 
       controller.startPolling({ chainIds: ['0x1'] });
 
-      await clock.tickAsync(100);
+      await jest.advanceTimersByTimeAsync(100);
 
       // Now break the handler to cause errors on subsequent polls
       // Breaking AccountsController:getSelectedAccount causes error before #fetchAllBalances
@@ -6106,7 +6103,7 @@ describe('TokenBalancesController', () => {
       );
 
       // Wait for interval polling to trigger
-      await clock.tickAsync(1500);
+      await jest.advanceTimersByTimeAsync(1500);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Polling failed'),
@@ -6312,7 +6309,7 @@ describe('TokenBalancesController', () => {
     });
 
     it('should clear timers during interval group polling restart (line 620 path)', async () => {
-      const testClock = useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
 
       const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
 
@@ -6322,7 +6319,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Wait for initial poll
-      await advanceTime({ clock: testClock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Start polling again - this goes through #startIntervalGroupPolling
       // which clears existing timers at line 564
@@ -6333,11 +6330,11 @@ describe('TokenBalancesController', () => {
 
       controller.stopAllPolling();
       clearIntervalSpy.mockRestore();
-      testClock.restore();
+      jest.useRealTimers();
     });
 
     it('should log warning when interval polling fails (line 625)', async () => {
-      const testClock = useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
 
       const consoleWarnSpy = jest
         .spyOn(console, 'warn')
@@ -6355,7 +6352,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Advance timer to trigger the interval callback
-      await advanceTime({ clock: testClock, duration: 35000 });
+      await jestAdvanceTime({ duration: 35000 });
 
       // Wait for the promise to reject
       await flushPromises();
@@ -6366,7 +6363,7 @@ describe('TokenBalancesController', () => {
       controller.stopAllPolling();
       multicallSpy.mockRestore();
       consoleWarnSpy.mockRestore();
-      testClock.restore();
+      jest.useRealTimers();
     });
 
     it('should filter balances by token addresses when provided (lines 904-906)', async () => {
@@ -6567,7 +6564,7 @@ describe('TokenBalancesController', () => {
     });
 
     it('should return early from poll function when controller is inactive (line 588)', async () => {
-      const testClock = useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
 
       const { controller, messenger } = setupController();
 
@@ -6579,21 +6576,21 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Wait for immediate poll
-      await advanceTime({ clock: testClock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
       const initialCallCount = multicallSpy.mock.calls.length;
 
       // Lock the controller (sets #isControllerPollingActive to false)
       messenger.publish('KeyringController:lock');
 
       // Advance time to trigger the interval poll
-      await advanceTime({ clock: testClock, duration: 35000 });
+      await jestAdvanceTime({ duration: 35000 });
 
       // The poll function should have returned early without calling multicall
       expect(multicallSpy.mock.calls).toHaveLength(initialCallCount);
 
       controller.stopAllPolling();
       multicallSpy.mockRestore();
-      testClock.restore();
+      jest.useRealTimers();
     });
 
     it('should log warning when poll execution fails (line 603)', async () => {

@@ -1,19 +1,16 @@
-import sinon from 'sinon';
-
 import { CacheManager } from './CacheManager';
 import * as utils from './utils';
 
 describe('CacheManager', () => {
-  let clock: sinon.SinonFakeTimers;
-  let updateStateSpy: sinon.SinonSpy;
+  let updateStateSpy: jest.Mock;
   let cache: CacheManager<{ value: string }>;
 
   beforeEach(() => {
-    clock = sinon.useFakeTimers();
-    sinon
-      .stub(utils, 'fetchTimeNow')
-      .callsFake(() => Math.floor(Date.now() / 1000));
-    updateStateSpy = sinon.spy();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+    jest
+      .spyOn(utils, 'fetchTimeNow')
+      .mockImplementation(() => Math.floor(Date.now() / 1000));
+    updateStateSpy = jest.fn();
     cache = new CacheManager<{ value: string }>({
       cacheTTL: 300, // 5 minutes
       maxCacheSize: 3,
@@ -22,7 +19,8 @@ describe('CacheManager', () => {
   });
 
   afterEach(() => {
-    sinon.restore();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -69,7 +67,7 @@ describe('CacheManager', () => {
       cache.set('key1', { value: 'value1' });
 
       // Fast forward time past TTL
-      clock.tick(301 * 1000);
+      jest.advanceTimersByTime(301 * 1000);
 
       expect(cache.get('key1')).toBeUndefined();
     });
@@ -89,7 +87,7 @@ describe('CacheManager', () => {
 
     it('should call updateState when adding entries', () => {
       cache.set('key1', { value: 'value1' });
-      expect(updateStateSpy.calledOnce).toBe(true);
+      expect(updateStateSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should evict oldest entries when cache exceeds max size', () => {
@@ -118,9 +116,9 @@ describe('CacheManager', () => {
 
     it('should call updateState when deleting entries', () => {
       cache.set('key1', { value: 'value1' });
-      updateStateSpy.resetHistory();
+      updateStateSpy.mockClear();
       cache.delete('key1');
-      expect(updateStateSpy.calledOnce).toBe(true);
+      expect(updateStateSpy).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -135,9 +133,9 @@ describe('CacheManager', () => {
 
     it('should call updateState', () => {
       cache.set('key1', { value: 'value1' });
-      updateStateSpy.resetHistory();
+      updateStateSpy.mockClear();
       cache.clear();
-      expect(updateStateSpy.calledOnce).toBe(true);
+      expect(updateStateSpy).toHaveBeenCalledTimes(1);
     });
   });
 

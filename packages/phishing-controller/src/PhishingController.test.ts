@@ -7,7 +7,6 @@ import type {
 } from '@metamask/messenger';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
-import sinon from 'sinon';
 
 import {
   ListNames,
@@ -116,7 +115,7 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>) {
 
 describe('PhishingController', () => {
   afterEach(() => {
-    sinon.restore();
+    jest.useRealTimers();
     cleanAll();
   });
 
@@ -225,7 +224,7 @@ describe('PhishingController', () => {
   });
 
   it('should not re-request when an update is in progress', async () => {
-    const clock = sinon.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     const nockScope = nock(PHISHING_CONFIG_BASE_URL)
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
@@ -263,7 +262,7 @@ describe('PhishingController', () => {
         ],
       },
     });
-    clock.tick(1000 * 10);
+    jest.advanceTimersByTime(1000 * 10);
     const pendingUpdate = controller.updateHotlist();
 
     expect(controller.isHotlistOutOfDate()).toBe(true);
@@ -318,11 +317,11 @@ describe('PhishingController', () => {
     });
 
     it('should not have stalelist be out of date immediately after maybeUpdateState is called', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       expect(controller.isStalelistOutOfDate()).toBe(true);
       await controller.maybeUpdateState();
       expect(controller.isStalelistOutOfDate()).toBe(false);
@@ -330,36 +329,36 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date after maybeUpdateStalelist is called but before refresh interval has passed', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       expect(controller.isStalelistOutOfDate()).toBe(true);
       await controller.maybeUpdateState();
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
       expect(controller.isStalelistOutOfDate()).toBe(false);
       expect(nockScope.isDone()).toBe(true);
     });
 
     it('should still be out of date while update is in progress', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       // do not wait
       const maybeUpdatePhisingListPromise = controller.maybeUpdateState();
       expect(controller.isStalelistOutOfDate()).toBe(true);
       await maybeUpdatePhisingListPromise;
       expect(controller.isStalelistOutOfDate()).toBe(false);
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       expect(controller.isStalelistOutOfDate()).toBe(true);
       expect(nockScope.isDone()).toBe(true);
     });
 
     it('should call update only if it is out of date, otherwise it should not call update', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
@@ -383,7 +382,7 @@ describe('PhishingController', () => {
         type: PhishingDetectorResultType.All,
       });
 
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       await controller.maybeUpdateState();
 
       expect(
@@ -425,12 +424,15 @@ describe('PhishingController', () => {
             },
           ],
         });
-      const clock = sinon.useFakeTimers(50);
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+        now: 50,
+      });
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
         stalelistRefreshInterval: 50,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       expect(controller.isHotlistOutOfDate()).toBe(true);
       await controller.maybeUpdateState();
       expect(controller.isHotlistOutOfDate()).toBe(false);
@@ -444,11 +446,11 @@ describe('PhishingController', () => {
           recentlyRemoved: [],
           lastFetchedAt: 1,
         });
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
       await controller.maybeUpdateState();
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
@@ -509,8 +511,8 @@ describe('PhishingController', () => {
         });
 
       // Force the stalelist to be out of date and trigger update
-      const clock = sinon.useFakeTimers();
-      clock.tick(1000 * 10);
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      jest.advanceTimersByTime(1000 * 10);
 
       await controller.maybeUpdateState();
 
@@ -532,13 +534,13 @@ describe('PhishingController', () => {
         },
       ]);
 
-      clock.restore();
+      jest.useRealTimers();
     });
   });
 
   describe('isStalelistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
-      sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
@@ -547,31 +549,31 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date after some of the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isStalelistOutOfDate()).toBe(false);
     });
 
     it('should be out of date after the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isStalelistOutOfDate()).toBe(true);
     });
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       const pendingUpdate = controller.updateStalelist();
 
       expect(controller.isStalelistOutOfDate()).toBe(true);
@@ -581,7 +583,7 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the phishing lists were just updated', async () => {
-      sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
@@ -591,23 +593,23 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the phishing lists were recently updated', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isStalelistOutOfDate()).toBe(false);
     });
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isStalelistOutOfDate()).toBe(true);
     });
@@ -615,7 +617,7 @@ describe('PhishingController', () => {
 
   describe('isHotlistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
-      sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
@@ -624,27 +626,27 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date after some of the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
 
     it('should be out of date after the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isHotlistOutOfDate()).toBe(true);
     });
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
         state: {
@@ -663,7 +665,7 @@ describe('PhishingController', () => {
           ],
         },
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       const pendingUpdate = controller.updateHotlist();
 
       expect(controller.isHotlistOutOfDate()).toBe(true);
@@ -673,7 +675,7 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the phishing lists were just updated', async () => {
-      sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
@@ -683,23 +685,23 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the phishing lists were recently updated', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isHotlistOutOfDate()).toBe(true);
     });
@@ -707,7 +709,7 @@ describe('PhishingController', () => {
 
   describe('isC2DomainBlocklistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
-      sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
@@ -716,31 +718,31 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date after some of the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
     });
 
     it('should be out of date after the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
     });
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       const pendingUpdate = controller.updateC2DomainBlocklist();
 
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
@@ -750,7 +752,7 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the C2 domain blocklist was just updated', async () => {
-      sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
@@ -760,30 +762,30 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the C2 domain blocklist was recently updated', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       await controller.updateC2DomainBlocklist();
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
     });
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
-      const clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       await controller.updateC2DomainBlocklist();
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
     });
   });
 
   it('should be able to change the stalelistRefreshInterval', async () => {
-    sinon.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     const controller = getPhishingController({ stalelistRefreshInterval: 10 });
     controller.setStalelistRefreshInterval(0);
 
@@ -791,7 +793,7 @@ describe('PhishingController', () => {
   });
 
   it('should be able to change the hotlistRefreshInterval', async () => {
-    sinon.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     const controller = getPhishingController({
       hotlistRefreshInterval: 10,
     });
@@ -801,7 +803,7 @@ describe('PhishingController', () => {
   });
 
   it('should be able to change the c2DomainBlocklistRefreshInterval', async () => {
-    sinon.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     const controller = getPhishingController({
       c2DomainBlocklistRefreshInterval: 10,
     });
@@ -1425,7 +1427,7 @@ describe('PhishingController', () => {
 
   describe('updateStalelist', () => {
     it('should update lists with addition to hotlist', async () => {
-      sinon.useFakeTimers(2);
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 2 });
       const exampleBlockedUrl = 'example-blocked-website.com';
       const exampleRequestBlockedHash =
         '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
@@ -1482,7 +1484,7 @@ describe('PhishingController', () => {
     });
 
     it('should update lists with removal diff from hotlist', async () => {
-      sinon.useFakeTimers(2);
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 2 });
       const exampleBlockedUrl = 'example-blocked-website.com';
       const exampleRequestBlockedHash =
         '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
@@ -1693,7 +1695,10 @@ describe('PhishingController', () => {
 
     describe('an update is in progress', () => {
       it('should not fetch phishing lists again', async () => {
-        const clock = sinon.useFakeTimers();
+        jest.useFakeTimers({
+          doNotFake: ['nextTick', 'queueMicrotask'],
+          now: 0,
+        });
         const nockScope = nock(PHISHING_CONFIG_BASE_URL)
           .get(METAMASK_STALELIST_FILE)
           .delay(100)
@@ -1715,7 +1720,7 @@ describe('PhishingController', () => {
         const firstPromise = controller.updateStalelist();
         const secondPromise = controller.updateStalelist();
 
-        clock.tick(1000 * 100);
+        jest.advanceTimersByTime(1000 * 100);
 
         await firstPromise;
         await secondPromise;
@@ -1726,7 +1731,10 @@ describe('PhishingController', () => {
       });
 
       it('should wait until the in-progress update has completed', async () => {
-        const clock = sinon.useFakeTimers();
+        jest.useFakeTimers({
+          doNotFake: ['nextTick', 'queueMicrotask'],
+          now: 0,
+        });
         nock(PHISHING_CONFIG_BASE_URL)
           .get(METAMASK_STALELIST_FILE)
           .delay(100)
@@ -1747,7 +1755,7 @@ describe('PhishingController', () => {
         const controller = getPhishingController();
         const firstPromise = controller.updateStalelist();
         const secondPromise = controller.updateStalelist();
-        clock.tick(1000 * 99);
+        jest.advanceTimersByTime(1000 * 99);
 
         await expect(secondPromise).toNeverResolve();
 
@@ -2619,7 +2627,7 @@ describe('PhishingController', () => {
 
   describe('scanUrl', () => {
     let controller: PhishingController;
-    let clock: sinon.SinonFakeTimers;
+
     const testUrl: string = 'https://example.com';
     const mockResponse: PhishingDetectionScanResult = {
       hostname: 'example.com',
@@ -2628,7 +2636,7 @@ describe('PhishingController', () => {
 
     beforeEach(() => {
       controller = getPhishingController();
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     });
 
     it('should return the scan result', async () => {
@@ -2677,7 +2685,7 @@ describe('PhishingController', () => {
         .reply(200, {});
 
       const promise = controller.scanUrl(testUrl);
-      clock.tick(8000);
+      jest.advanceTimersByTime(8000);
       const response = await promise;
       expect(response).toMatchObject({
         hostname: '',
@@ -2783,7 +2791,7 @@ describe('PhishingController', () => {
 
   describe('bulkScanUrls', () => {
     let controller: PhishingController;
-    let clock: sinon.SinonFakeTimers;
+
     const testUrls: string[] = [
       'https://example1.com',
       'https://example2.com',
@@ -2809,11 +2817,11 @@ describe('PhishingController', () => {
 
     beforeEach(() => {
       controller = getPhishingController();
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('should return the scan results for multiple URLs', async () => {
@@ -2896,7 +2904,7 @@ describe('PhishingController', () => {
         .reply(200, {});
 
       const promise = controller.bulkScanUrls(testUrls);
-      clock.tick(15000);
+      jest.advanceTimersByTime(15000);
       const response = await promise;
       expect(response).toStrictEqual({
         results: {},
@@ -3224,7 +3232,7 @@ describe('PhishingController', () => {
 
   describe('scanAddress', () => {
     let controller: PhishingController;
-    let clock: sinon.SinonFakeTimers;
+
     const testChainId = '0x1';
     const testAddress = '0x1234567890123456789012345678901234567890';
     const mockResponse: AddressScanResult = {
@@ -3234,11 +3242,11 @@ describe('PhishingController', () => {
 
     beforeEach(() => {
       controller = getPhishingController();
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('will return the scan result for a valid address', async () => {
@@ -3292,7 +3300,7 @@ describe('PhishingController', () => {
         .reply(200, {});
 
       const promise = controller.scanAddress(testChainId, testAddress);
-      clock.tick(5000);
+      jest.advanceTimersByTime(5000);
       const response = await promise;
       expect(response).toMatchObject({
         result_type: AddressScanResultType.ErrorResult,
@@ -3423,13 +3431,11 @@ describe('PhishingController', () => {
 });
 
 describe('URL Scan Cache', () => {
-  let clock: sinon.SinonFakeTimers;
-
   beforeEach(() => {
-    clock = sinon.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
   });
   afterEach(() => {
-    sinon.restore();
+    jest.useRealTimers();
     cleanAll();
   });
 
@@ -3498,12 +3504,12 @@ describe('URL Scan Cache', () => {
     await controller.scanUrl(`https://${testDomain}`);
 
     // Before TTL expires, should use cache
-    clock.tick((cacheTTL - 10) * 1000);
+    jest.advanceTimersByTime((cacheTTL - 10) * 1000);
     await controller.scanUrl(`https://${testDomain}`);
     expect(pendingMocks()).toHaveLength(1); // One mock remaining
 
     // After TTL expires, should fetch again
-    clock.tick(11 * 1000);
+    jest.advanceTimersByTime(11 * 1000);
     await controller.scanUrl(`https://${testDomain}`);
     expect(pendingMocks()).toHaveLength(0); // All mocks used
   });
@@ -3542,11 +3548,11 @@ describe('URL Scan Cache', () => {
 
     // Fill the cache
     await controller.scanUrl(`https://${domains[0]}`);
-    clock.tick(1000); // Ensure different timestamps
+    jest.advanceTimersByTime(1000); // Ensure different timestamps
     await controller.scanUrl(`https://${domains[1]}`);
 
     // This should evict the oldest entry (domain1)
-    clock.tick(1000);
+    jest.advanceTimersByTime(1000);
     await controller.scanUrl(`https://${domains[2]}`);
 
     // Now domain1 should not be in cache and require a new fetch
@@ -3626,12 +3632,12 @@ describe('URL Scan Cache', () => {
     controller.setUrlScanCacheTTL(newTTL);
 
     // Before new TTL expires, should use cache
-    clock.tick((newTTL - 10) * 1000);
+    jest.advanceTimersByTime((newTTL - 10) * 1000);
     await controller.scanUrl(`https://${testDomain}`);
     expect(pendingMocks()).toHaveLength(1); // One mock remaining
 
     // After new TTL expires, should fetch again
-    clock.tick(11 * 1000);
+    jest.advanceTimersByTime(11 * 1000);
     await controller.scanUrl(`https://${testDomain}`);
     expect(pendingMocks()).toHaveLength(0); // All mocks used
   });
@@ -3665,9 +3671,9 @@ describe('URL Scan Cache', () => {
 
     // Fill the cache to initial size
     await controller.scanUrl(`https://${domains[0]}`);
-    clock.tick(1000); // Ensure different timestamps
+    jest.advanceTimersByTime(1000); // Ensure different timestamps
     await controller.scanUrl(`https://${domains[1]}`);
-    clock.tick(1000);
+    jest.advanceTimersByTime(1000);
     await controller.scanUrl(`https://${domains[2]}`);
 
     // Verify initial cache size

@@ -60,3 +60,9 @@ export {
   type SnapDataSourceAllowedActions,
   type SnapDataSourceAllowedEvents,
 } from './SnapDataSource';
+
+export {
+  StakedBalanceDataSource,
+  type StakedBalanceDataSourceConfig,
+  type StakedBalanceDataSourceOptions,
+} from './StakedBalanceDataSource';

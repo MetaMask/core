@@ -3,13 +3,13 @@ import type {
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
+import { parseCaipAssetType } from '@metamask/utils';
 
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
   Caip19AssetId,
-  ChainId,
   DataRequest,
   DataResponse,
   FungibleAssetPrice,
@@ -39,8 +39,8 @@ export type PriceDataSourceConfig = {
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
-  /** Currency to fetch prices in (default: 'usd') */
-  currency?: SupportedCurrency;
+  /** Function returning the currently-active ISO 4217 currency code */
+  getSelectedCurrency: () => SupportedCurrency;
 };
 
 // ============================================================================
@@ -110,7 +110,7 @@ export class PriceDataSource {
     return PriceDataSource.controllerName;
   }
 
-  readonly #currency: SupportedCurrency;
+  readonly #getSelectedCurrency: () => SupportedCurrency;
 
   readonly #pollInterval: number;
 
@@ -129,7 +129,7 @@ export class PriceDataSource {
   > = new Map();
 
   constructor(options: PriceDataSourceOptions) {
-    this.#currency = options.currency ?? 'usd';
+    this.#getSelectedCurrency = options.getSelectedCurrency;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
   }
@@ -156,27 +156,33 @@ export class PriceDataSource {
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
       // Extract response from context
-      const { response } = ctx;
+      const { response, request } = ctx;
 
       // Only fetch prices for detected assets (assets without metadata)
       // The subscription handles fetching prices for all existing assets
-      if (!response.detectedAssets) {
+      if (!response.detectedAssets && !request.assetsForPriceUpdate?.length) {
         return next(ctx);
       }
 
-      const detectedAssetIds = new Set<Caip19AssetId>();
-      for (const detectedIds of Object.values(response.detectedAssets)) {
-        for (const assetId of detectedIds) {
-          detectedAssetIds.add(assetId);
+      const assetIds = new Set<Caip19AssetId>();
+      for (const detectedAccountAssets of Object.values(
+        response.detectedAssets ?? {},
+      )) {
+        for (const assetId of detectedAccountAssets) {
+          assetIds.add(assetId);
         }
       }
 
-      if (detectedAssetIds.size === 0) {
+      for (const assetId of request.assetsForPriceUpdate ?? []) {
+        assetIds.add(assetId);
+      }
+
+      if (assetIds.size === 0) {
         return next(ctx);
       }
 
       // Filter to only priceable assets
-      const priceableAssetIds = [...detectedAssetIds].filter(isPriceableAsset);
+      const priceableAssetIds = [...assetIds].filter(isPriceableAsset);
 
       if (priceableAssetIds.length === 0) {
         return next(ctx);
@@ -219,7 +225,7 @@ export class PriceDataSource {
    */
   async #fetchSpotPrices(assetIds: string[]): Promise<V3SpotPricesResponse> {
     return this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-      currency: this.#currency,
+      currency: this.#getSelectedCurrency(),
       includeMarketData: true,
     });
   }
@@ -263,10 +269,20 @@ export class PriceDataSource {
           for (const assetId of Object.keys(
             accountBalances as Record<string, unknown>,
           )) {
-            // Filter by chain if specified
+            // Filter by chain if specified; skip malformed asset IDs for this entry only
             if (chainFilter) {
-              const chainId = assetId.split('/')[0] as ChainId;
-              if (!chainFilter.has(chainId)) {
+              try {
+                const { chainId } = parseCaipAssetType(
+                  assetId as Caip19AssetId,
+                );
+                if (!chainFilter.has(chainId)) {
+                  continue;
+                }
+              } catch (error) {
+                log('Skipping malformed asset ID in balance state', {
+                  assetId,
+                  error,
+                });
                 continue;
               }
             }
@@ -383,7 +399,10 @@ export class PriceDataSource {
           fetchResponse.assetsPrice &&
           Object.keys(fetchResponse.assetsPrice).length > 0
         ) {
-          await subscription.onAssetsUpdate(fetchResponse);
+          await subscription.onAssetsUpdate({
+            ...fetchResponse,
+            updateMode: 'merge',
+          });
         }
       } catch (error) {
         log('Subscription poll failed', { subscriptionId, error });

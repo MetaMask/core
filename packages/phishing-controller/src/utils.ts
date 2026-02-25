@@ -423,10 +423,18 @@ export const generateParentDomains = (
  *
  * @param chainId - The chain ID.
  * @param address - The token address.
+ * @param caseSensitive - When `true`, the address is kept as-is (for chains
+ * like Solana where addresses are case-sensitive). When `false` (default),
+ * the address is lowercased (appropriate for EVM).
  * @returns The cache key.
  */
-export const buildCacheKey = (chainId: string, address: string) => {
-  return `${chainId.toLowerCase()}:${address.toLowerCase()}`;
+export const buildCacheKey = (
+  chainId: string,
+  address: string,
+  caseSensitive = false,
+) => {
+  const normalizedAddress = caseSensitive ? address : address.toLowerCase();
+  return `${chainId.toLowerCase()}:${normalizedAddress}`;
 };
 
 /**
@@ -450,12 +458,16 @@ export const resolveChainName = (
  * @param cache.get - Method to retrieve cached data by key.
  * @param chainId - The chain ID.
  * @param tokens - Array of token addresses.
+ * @param caseSensitive - When `true`, token addresses are kept as-is (for
+ * chains like Solana where addresses are case-sensitive). When `false`
+ * (default), addresses are lowercased (appropriate for EVM).
  * @returns Object containing cached results and tokens to fetch.
  */
 export const splitCacheHits = (
   cache: { get: (key: string) => TokenScanCacheData | undefined },
   chainId: string,
   tokens: string[],
+  caseSensitive = false,
 ): {
   cachedResults: Record<string, TokenScanResult>;
   tokensToFetch: string[];
@@ -463,18 +475,18 @@ export const splitCacheHits = (
   const cachedResults: Record<string, TokenScanResult> = {};
   const tokensToFetch: string[] = [];
 
-  for (const addr of tokens) {
-    const normalizedAddr = addr.toLowerCase();
-    const key = buildCacheKey(chainId, normalizedAddr);
+  for (const address of tokens) {
+    const normalizedAddress = caseSensitive ? address : address.toLowerCase();
+    const key = buildCacheKey(chainId, normalizedAddress, caseSensitive);
     const hit = cache.get(key);
     if (hit) {
-      cachedResults[normalizedAddr] = {
+      cachedResults[normalizedAddress] = {
         result_type: hit.result_type,
         chain: chainId,
-        address: normalizedAddr,
+        address: normalizedAddress,
       };
     } else {
-      tokensToFetch.push(normalizedAddr);
+      tokensToFetch.push(normalizedAddress);
     }
   }
 

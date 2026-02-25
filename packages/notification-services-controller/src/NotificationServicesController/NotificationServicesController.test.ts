@@ -15,7 +15,7 @@ import { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 import type nock from 'nock';
 
-import { ADDRESS_1, ADDRESS_2 } from './__fixtures__/mockAddresses';
+import { ADDRESS_1, ADDRESS_2, ADDRESS_3 } from './__fixtures__/mockAddresses';
 import {
   mockGetOnChainNotificationsConfig,
   mockUpdateOnChainNotifications,
@@ -33,6 +33,7 @@ import {
 } from './mocks/mock-feature-announcements';
 import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
 import NotificationServicesController, {
+  ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
   defaultState,
 } from './NotificationServicesController';
 import type {
@@ -118,57 +119,34 @@ describe('NotificationServicesController', () => {
       );
     };
 
-    const arrangeActAssertKeyringTest = async (
-      controllerState?: Partial<NotificationServicesControllerState>,
-    ): Promise<{
-      act: (addresses: string[], assertion: () => void) => Promise<void>;
-      mockEnable: jest.SpyInstance;
-      mockDisable: jest.SpyInstance;
-    }> => {
-      const mocks = arrangeMocks();
-      const { messenger, globalMessenger, mockKeyringControllerGetState } =
-        mocks;
-      mockKeyringControllerGetState.mockReturnValue({
-        isUnlocked: true,
-        keyrings: [
-          {
-            accounts: [],
-            type: KeyringTypes.hd,
-            metadata: {
-              id: '123',
-              name: '',
-            },
-          },
-        ],
+    describe('KeyringController:stateChange (debounced)', () => {
+      beforeEach(() => {
+        jest.useFakeTimers();
       });
 
-      const controller = new NotificationServicesController({
-        messenger,
-        env: { featureAnnouncements: featureAnnouncementsEnv },
-        state: {
-          isNotificationServicesEnabled: true,
-          subscriptionAccountsSeen: [],
-          ...controllerState,
-        },
+      afterEach(() => {
+        jest.useRealTimers();
       });
-      controller.init();
 
-      const mockEnable = jest
-        .spyOn(controller, 'enableAccounts')
-        .mockResolvedValue();
-      const mockDisable = jest
-        .spyOn(controller, 'disableAccounts')
-        .mockResolvedValue();
-
-      const act = async (
-        addresses: string[],
-        assertion: () => void,
-      ): Promise<void> => {
+      const arrangeActAssertKeyringTest = async (
+        controllerState?: Partial<NotificationServicesControllerState>,
+      ): Promise<{
+        act: (addresses: string[], assertion: () => void) => Promise<void>;
+        actMultiple: (
+          addressesEvents: string[][],
+          assertion: () => void,
+        ) => Promise<void>;
+        mockEnable: jest.SpyInstance;
+        mockDisable: jest.SpyInstance;
+      }> => {
+        const mocks = arrangeMocks();
+        const { messenger, globalMessenger, mockKeyringControllerGetState } =
+          mocks;
         mockKeyringControllerGetState.mockReturnValue({
           isUnlocked: true,
           keyrings: [
             {
-              accounts: addresses,
+              accounts: [],
               type: KeyringTypes.hd,
               metadata: {
                 id: '123',
@@ -178,77 +156,161 @@ describe('NotificationServicesController', () => {
           ],
         });
 
-        await actPublishKeyringStateChange(globalMessenger, addresses);
-        await waitFor(() => {
-          assertion();
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+          state: {
+            isNotificationServicesEnabled: true,
+            subscriptionAccountsSeen: [],
+            ...controllerState,
+          },
         });
+        controller.init();
+        await jest.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
 
-        // Clear mocks for next act/assert
-        mockEnable.mockClear();
-        mockDisable.mockClear();
+        const mockEnable = jest
+          .spyOn(controller, 'enableAccounts')
+          .mockResolvedValue();
+        const mockDisable = jest
+          .spyOn(controller, 'disableAccounts')
+          .mockResolvedValue();
+
+        const mockKeyringState = (addresses: string[]): void => {
+          mockKeyringControllerGetState.mockReturnValue({
+            isUnlocked: true,
+            keyrings: [
+              {
+                accounts: addresses,
+                type: KeyringTypes.hd,
+              },
+            ],
+          });
+        };
+
+        const cleanup = (): void => {
+          mockEnable.mockClear();
+          mockDisable.mockClear();
+        };
+
+        const act = async (
+          addresses: string[],
+          assertion: () => void,
+        ): Promise<void> => {
+          mockKeyringState(addresses);
+
+          await actPublishKeyringStateChange(globalMessenger, addresses);
+          await jest.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
+          assertion();
+
+          // Cleanup mocks for next act/assert
+          cleanup();
+        };
+
+        const actMultiple = async (
+          addressesEvents: string[][],
+          assertion: () => void,
+        ): Promise<void> => {
+          for (const addresses of addressesEvents) {
+            mockKeyringState(addresses);
+            await actPublishKeyringStateChange(globalMessenger, addresses);
+          }
+
+          await jest.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
+          assertion();
+
+          // Cleanup mocks for next act/assert
+          cleanup();
+        };
+
+        return { act, actMultiple, mockEnable, mockDisable };
       };
 
-      return { act, mockEnable, mockDisable };
-    };
+      it('event KeyringController:stateChange will not add or remove triggers when feature is disabled', async () => {
+        const { act, mockEnable, mockDisable } =
+          await arrangeActAssertKeyringTest({
+            isNotificationServicesEnabled: false,
+          });
 
-    it('event KeyringController:stateChange will not add or remove triggers when feature is disabled', async () => {
-      const { act, mockEnable, mockDisable } =
-        await arrangeActAssertKeyringTest({
-          isNotificationServicesEnabled: false,
+        // listAccounts has a new address
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).not.toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
+        });
+      });
+
+      it('event KeyringController:stateChange will update notification triggers when keyring accounts change', async () => {
+        const { act, mockEnable, mockDisable } =
+          await arrangeActAssertKeyringTest({
+            subscriptionAccountsSeen: [ADDRESS_1],
+          });
+
+        // Act - if list accounts has been seen, then will not update
+        await act([ADDRESS_1], () => {
+          expect(mockEnable).not.toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
         });
 
-      // listAccounts has a new address
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).not.toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
-      });
-    });
-
-    it('event KeyringController:stateChange will update notification triggers when keyring accounts change', async () => {
-      const { act, mockEnable, mockDisable } =
-        await arrangeActAssertKeyringTest({
-          subscriptionAccountsSeen: [ADDRESS_1],
+        // Act - if a new address in list, then will update
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
         });
 
-      // Act - if list accounts has been seen, then will not update
-      await act([ADDRESS_1], () => {
-        expect(mockEnable).not.toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
+        // Act - if the list doesn't have an address, then we need to delete
+        await act([ADDRESS_2], () => {
+          expect(mockEnable).not.toHaveBeenCalled();
+          expect(mockDisable).toHaveBeenCalled();
+        });
+
+        // If the address is added back to the list, we will perform an update
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
+        });
       });
 
-      // Act - if a new address in list, then will update
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
+      it('event KeyringController:stateChange will update only once when if the number of keyring accounts do not change', async () => {
+        const { act, mockEnable, mockDisable } =
+          await arrangeActAssertKeyringTest();
+
+        // Act - First list of items, so will update
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
+        });
+
+        // Act - Since number of addresses in keyring has not changed, will not update
+        await act([ADDRESS_1, ADDRESS_2], () => {
+          expect(mockEnable).not.toHaveBeenCalled();
+          expect(mockDisable).not.toHaveBeenCalled();
+        });
       });
 
-      // Act - if the list doesn't have an address, then we need to delete
-      await act([ADDRESS_2], () => {
-        expect(mockEnable).not.toHaveBeenCalled();
-        expect(mockDisable).toHaveBeenCalled();
-      });
+      it('event KeyringController:stateChange will only update notifications once when the number of keyring accounts changes multiple times', async () => {
+        const { actMultiple, mockEnable, mockDisable } =
+          await arrangeActAssertKeyringTest();
 
-      // If the address is added back to the list, we will perform an update
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
-      });
-    });
+        await actMultiple(
+          [
+            // Event 1
+            [ADDRESS_1],
 
-    it('event KeyringController:stateChange will update only once when if the number of keyring accounts do not change', async () => {
-      const { act, mockEnable, mockDisable } =
-        await arrangeActAssertKeyringTest();
+            // Event 2
+            [ADDRESS_1, ADDRESS_2],
 
-      // Act - First list of items, so will update
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
-      });
-
-      // Act - Since number of addresses in keyring has not changed, will not update
-      await act([ADDRESS_1, ADDRESS_2], () => {
-        expect(mockEnable).not.toHaveBeenCalled();
-        expect(mockDisable).not.toHaveBeenCalled();
+            // Event 3
+            [ADDRESS_1, ADDRESS_2, ADDRESS_3],
+          ],
+          () => {
+            expect(mockEnable).toHaveBeenCalledTimes(1);
+            expect(mockEnable).toHaveBeenCalledWith([
+              ADDRESS_1,
+              ADDRESS_2,
+              ADDRESS_3,
+            ]);
+            expect(mockDisable).not.toHaveBeenCalled();
+          },
+        );
       });
     });
 
@@ -1529,7 +1591,7 @@ function mockNotificationMessenger(): {
   });
 
   const mockGetBearerToken =
-    typedMockAction<AuthenticationController.AuthenticationControllerGetBearerToken>().mockResolvedValue(
+    typedMockAction<AuthenticationController.AuthenticationControllerGetBearerTokenAction>().mockResolvedValue(
       AuthenticationController.Mocks.MOCK_OATH_TOKEN_RESPONSE.access_token,
     );
 

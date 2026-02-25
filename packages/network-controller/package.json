@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "29.0.0",
+  "version": "30.0.0",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/network-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -50,7 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
     "@metamask/connectivity-controller": "^0.1.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/eth-block-tracker": "^15.0.1",
     "@metamask/eth-json-rpc-infura": "^10.3.0",
     "@metamask/eth-json-rpc-middleware": "^23.1.0",
@@ -87,7 +86,6 @@
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "node-fetch": "^2.7.0",
-    "sinon": "^9.2.4",
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

@@ -8,6 +8,12 @@ import type {
   BalanceUpdate,
 } from '@metamask/core-backend';
 import type { ApiPlatformClient } from '@metamask/core-backend';
+import {
+  isCaipChainId,
+  KnownCaipNamespace,
+  toCaipChainId,
+} from '@metamask/utils';
+import BigNumberJS from 'bignumber.js';
 
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
@@ -153,20 +159,21 @@ function buildAccountActivityChannel(
 
 /**
  * Normalize API chain identifier to CAIP-2 ChainId.
- * Passes through strings already in namespace:reference form (e.g. eip155:1, solana:5eykt...).
+ * Passes through strings already in CAIP-2 form (e.g. eip155:1, solana:5eykt...).
  * Converts bare decimals to eip155:decimal.
+ * Uses @metamask/utils for CAIP parsing.
  *
  * @param chainIdOrDecimal - Chain ID string (CAIP-2 or decimal) or decimal number.
  * @returns CAIP-2 ChainId.
  */
 function toChainId(chainIdOrDecimal: number | string): ChainId {
   if (typeof chainIdOrDecimal === 'string') {
-    if (chainIdOrDecimal.includes(':')) {
-      return chainIdOrDecimal as ChainId;
+    if (isCaipChainId(chainIdOrDecimal)) {
+      return chainIdOrDecimal;
     }
-    return `eip155:${chainIdOrDecimal}` as ChainId;
+    return toCaipChainId(KnownCaipNamespace.Eip155, chainIdOrDecimal);
   }
-  return `eip155:${chainIdOrDecimal}` as ChainId;
+  return toCaipChainId(KnownCaipNamespace.Eip155, String(chainIdOrDecimal));
 }
 
 // Note: AccountActivityMessage and BalanceUpdate types are imported from @metamask/core-backend
@@ -601,13 +608,23 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const isNative = asset.type.includes('/slip44:');
       const tokenType = isNative ? 'native' : 'erc20';
 
-      // Parse balance amount (already in hex format like "0xc350")
-      const balanceAmount = postBalance.amount.startsWith('0x')
+      // We assume decimals are always present; skip malformed updates
+      if (asset.decimals === undefined) {
+        continue;
+      }
+
+      // Parse raw balance (hex like "0x26f0e5" or decimal string)
+      const rawBalanceStr = postBalance.amount.startsWith('0x')
         ? BigInt(postBalance.amount).toString()
         : postBalance.amount;
 
+      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
+      const humanReadableAmount = new BigNumberJS(rawBalanceStr)
+        .dividedBy(new BigNumberJS(10).pow(asset.decimals))
+        .toString();
+
       assetsBalance[accountId][assetId] = {
-        amount: balanceAmount,
+        amount: humanReadableAmount,
       };
 
       assetsMetadata[assetId] = {
@@ -618,7 +635,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       };
     }
 
-    const response: DataResponse = {};
+    const response: DataResponse = { updateMode: 'merge' };
     if (Object.keys(assetsBalance[accountId]).length > 0) {
       response.assetsBalance = assetsBalance;
       response.assetsInfo = assetsMetadata;

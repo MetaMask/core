@@ -19,6 +19,7 @@ import {
   isEvmTxData,
   isHardwareWallet,
   MetricsActionType,
+  MetaMetricsSwapsEventSource,
   isBitcoinTrade,
   isTronTrade,
   AbortReason,
@@ -519,6 +520,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       targetContractAddress,
       approvalTxId,
       isStxEnabled,
+      location,
       accountAddress: selectedAddress,
     } = startPollingForBridgeTxStatusArgs;
 
@@ -564,6 +566,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       approvalTxId,
       isStxEnabled: isStxEnabled ?? false,
       featureId: quoteResponse.featureId,
+      location,
     };
     this.update((state) => {
       // Use actionId as key for pre-submission, or txMeta.id for post-submission
@@ -771,6 +774,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           historyItem.quote.intent?.protocol ?? '',
           srcChainId.toString(),
           this.#clientId,
+          await this.#getJwt(),
         );
 
         intentOrderStatus = intentOrder.status;
@@ -798,6 +802,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const response = await fetchBridgeTxStatus(
           statusRequest,
           this.#clientId,
+          await this.#getJwt(),
           this.#fetchFn,
           this.#config.customBridgeApiBaseUrl,
         );
@@ -811,6 +816,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           bridgeTxMetaId,
           {
             failures: validationFailures,
+            refresh_count: historyItem.attempts?.counter ?? 0,
           },
         );
         throw new Error(
@@ -885,6 +891,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     } catch (error) {
       console.warn('Failed to fetch bridge tx status', error);
       this.#handleFetchFailure(bridgeTxMetaId);
+    }
+  };
+
+  readonly #getJwt = async (): Promise<string | undefined> => {
+    try {
+      const token = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      return token;
+    } catch (error) {
+      console.error('Error getting JWT token for bridge-api request', error);
+      return undefined;
     }
   };
 
@@ -1297,6 +1315,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param quoteResponse - The quote response
    * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param quotesReceivedContext - The context for the QuotesReceived event
+   * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
    * @returns The transaction meta
    */
   submitTx = async (
@@ -1304,6 +1323,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isStxEnabledOnClient: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
+    location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
@@ -1325,6 +1345,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quoteResponse,
       isStxEnabledOnClient,
       isHardwareAccount,
+      location,
     );
     // Emit Submitted event after submit button is clicked
     !quoteResponse.featureId &&
@@ -1504,6 +1525,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               isStxEnabled: isStxEnabledOnClient,
               startTime,
               approvalTxId,
+              location,
             },
             actionId,
           );
@@ -1552,6 +1574,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           isStxEnabled: isStxEnabledOnClient,
           startTime,
           approvalTxId,
+          location,
         });
       }
 
@@ -1580,14 +1603,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.quoteResponse - Quote carrying intent data
    * @param params.signature - Hex signature produced by eth_signTypedData_v4
    * @param params.accountAddress - The EOA submitting the order
+   * @param params.location - The entry point from which the user initiated the swap or bridge
    * @returns A lightweight TransactionMeta-like object for history linking
    */
   submitIntent = async (params: {
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata;
     signature: string;
     accountAddress: string;
+    location?: MetaMetricsSwapsEventSource;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
-    const { quoteResponse, signature, accountAddress } = params;
+    const { quoteResponse, signature, accountAddress, location } = params;
 
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
@@ -1601,6 +1626,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quoteResponse,
       false,
       isHardwareAccount,
+      location,
     );
 
     try {
@@ -1651,6 +1677,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const intentOrder = await intentApi.submitIntent(
         submissionParams,
         this.#clientId,
+        await this.#getJwt(),
       );
 
       const orderUid = intentOrder.id;
@@ -1743,6 +1770,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           isStxEnabled: false,
           approvalTxId,
           startTime,
+          location,
         });
 
         // Start polling using the orderId key to route to intent manager
@@ -1793,6 +1821,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   ): void => {
     const baseProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,
+      location:
+        eventProperties?.location ??
+        (txMetaId ? this.state.txHistory?.[txMetaId]?.location : undefined) ??
+        MetaMetricsSwapsEventSource.MainView,
       ...(eventProperties ?? {}),
     };
 
@@ -1813,7 +1845,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.messenger.call(
         'BridgeController:trackUnifiedSwapBridgeEvent',
         eventName,
-        eventProperties ?? {},
+        baseProperties,
       );
       return;
     }

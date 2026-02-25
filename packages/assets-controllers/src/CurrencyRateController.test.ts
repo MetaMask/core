@@ -12,12 +12,11 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import { useFakeTimers } from 'sinon';
 
 import type { CurrencyRateMessenger } from './CurrencyRateController';
 import { CurrencyRateController } from './CurrencyRateController';
 import type { AbstractTokenPricesService } from './token-prices-service';
-import { advanceTime } from '../../../tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers';
 
 const namespace = 'CurrencyRateController';
 
@@ -174,13 +173,12 @@ const getStubbedDate = () => {
 };
 
 describe('CurrencyRateController', () => {
-  let clock: sinon.SinonFakeTimers;
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   it('should set default state', () => {
@@ -242,7 +240,7 @@ describe('CurrencyRateController', () => {
       tokenPricesService,
     });
 
-    await advanceTime({ clock, duration: 200 });
+    await jestAdvanceTime({ duration: 200 });
 
     expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
@@ -277,7 +275,7 @@ describe('CurrencyRateController', () => {
     });
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
-    await advanceTime({ clock, duration: 0 });
+    await jestAdvanceTime({ duration: 0 });
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     expect(controller.state.currencyRates).toStrictEqual({
@@ -287,11 +285,11 @@ describe('CurrencyRateController', () => {
         usdConversionRate: null,
       },
     });
-    await advanceTime({ clock, duration: 99 });
+    await jestAdvanceTime({ duration: 99 });
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(2);
     expect(controller.state.currencyRates).toStrictEqual({
@@ -327,14 +325,14 @@ describe('CurrencyRateController', () => {
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
 
-    await advanceTime({ clock, duration: 0 });
+    await jestAdvanceTime({ duration: 0 });
 
     controller.stopAllPolling();
 
     // called once upon initial start
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
-    await advanceTime({ clock, duration: 150, stepSize: 50 });
+    await jestAdvanceTime({ duration: 150, stepSize: 50 });
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
@@ -361,7 +359,7 @@ describe('CurrencyRateController', () => {
       tokenPricesService,
     });
     controller.startPolling({ nativeCurrencies: ['ETH'] });
-    await advanceTime({ clock, duration: 0 });
+    await jestAdvanceTime({ duration: 0 });
 
     controller.stopAllPolling();
 
@@ -369,11 +367,11 @@ describe('CurrencyRateController', () => {
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
-    await advanceTime({ clock, duration: 0 });
+    await jestAdvanceTime({ duration: 0 });
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(2);
 
-    await advanceTime({ clock, duration: 100 });
+    await jestAdvanceTime({ duration: 100 });
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(3);
   });
@@ -530,7 +528,7 @@ describe('CurrencyRateController', () => {
       },
     });
 
-    await advanceTime({ clock, duration: 0 });
+    await jestAdvanceTime({ duration: 0 });
 
     expect(controller.state).toStrictEqual({
       currentCurrency,
@@ -923,11 +921,11 @@ describe('CurrencyRateController', () => {
       });
 
       controller.startPolling({ nativeCurrencies: ['ETH'] });
-      await advanceTime({ clock, duration: 0 });
+      await jestAdvanceTime({ duration: 0 });
 
       expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
-      await advanceTime({ clock, duration: 100 });
+      await jestAdvanceTime({ duration: 100 });
 
       expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 

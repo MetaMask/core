@@ -847,13 +847,14 @@ describe('MultichainAccountService', () => {
     });
 
     it('resync accounts with MultichainAccountService:resyncAccounts', async () => {
-      const { messenger, service } = await setup({
+      const { messenger, mocks } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1],
       });
 
-      const resyncAccountsSpy = jest.spyOn(service, 'resyncAccounts');
       await messenger.call('MultichainAccountService:resyncAccounts');
-      expect(resyncAccountsSpy).toHaveBeenCalled();
+
+      expect(mocks.EvmAccountProvider.resyncAccounts).toHaveBeenCalled();
+      expect(mocks.SolAccountProvider.resyncAccounts).toHaveBeenCalled();
     });
 
     it('removes a multichain account wallet with MultichainAccountService:removeMultichainAccountWallet', async () => {
@@ -873,18 +874,16 @@ describe('MultichainAccountService', () => {
     });
 
     it('checks for Snap platform readiness with MultichainAccountService:ensureCanUseSnapPlatform', async () => {
-      const { messenger, service } = await setup({
+      const { rootMessenger, spies } = await setup({
         accounts: [],
       });
 
-      await service.ensureCanUseSnapPlatform();
-
-      const ensureCanUseSnapPlatformSpy = jest.spyOn(
-        service,
-        'ensureCanUseSnapPlatform',
+      await rootMessenger.call(
+        'MultichainAccountService:ensureCanUseSnapPlatform',
       );
-      await messenger.call('MultichainAccountService:ensureCanUseSnapPlatform');
-      expect(ensureCanUseSnapPlatformSpy).toHaveBeenCalled();
+      expect(
+        spies.SnapPlatformWatcher.ensureCanUseSnapPlatform,
+      ).toHaveBeenCalled();
     });
   });
 

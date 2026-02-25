@@ -181,7 +181,7 @@ export function testsForRpcMethodSupportingBlockParam(
               pollingInterval,
             }),
           },
-          async ({ blockTracker, makeRpcCall, clock }) => {
+          async ({ blockTracker, makeRpcCall }) => {
             const waitForTwoBlocks = new Promise<void>((resolve) => {
               let numberOfBlocks = 0;
 
@@ -197,7 +197,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await makeRpcCall(requests[0]);
             // Proceed to the next iteration of the block tracker so that a new
             // block is fetched and the current block is updated.
-            await clock.tickAsync(pollingInterval);
+            await jest.advanceTimersByTimeAsync(pollingInterval);
             await waitForTwoBlocks;
             const secondResult = await makeRpcCall(requests[1]);
             return [firstResult, secondResult];
@@ -347,7 +347,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await resultPromises[0];
             // The inflight cache middleware uses setTimeout to run the
             // handlers, so run them now
-            client.clock.runAll();
+            jest.runAllTimers();
             const remainingResults = await Promise.all(resultPromises.slice(1));
             return [firstResult, ...remainingResults];
           },
@@ -597,10 +597,9 @@ export function testsForRpcMethodSupportingBlockParam(
             });
             const result = await withNetworkClient(
               { providerType },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                   makeRpcCall(request),
-                  clock,
                 );
               },
             );
@@ -640,10 +639,9 @@ export function testsForRpcMethodSupportingBlockParam(
             });
             const promiseForResult = withNetworkClient(
               { providerType },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                   makeRpcCall(request),
-                  clock,
                 );
               },
             );
@@ -730,10 +728,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
             const result = await withNetworkClient(
               { providerType },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                   makeRpcCall(request),
-                  clock,
                 );
               },
             );
@@ -771,10 +768,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
             const promiseForResult = withNetworkClient(
               { providerType },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                   makeRpcCall(request),
-                  clock,
                 );
               },
             );
@@ -855,10 +851,9 @@ export function testsForRpcMethodSupportingBlockParam(
           });
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -898,10 +893,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -981,10 +975,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -1021,10 +1014,9 @@ export function testsForRpcMethodSupportingBlockParam(
           });
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -1163,7 +1155,7 @@ export function testsForRpcMethodSupportingBlockParam(
         // first block tracker request occurs because of the first RPC
         // request. The second block tracker request, however, does not
         // occur because of the second RPC request, but rather because we
-        // call `clock.runAll()` below.
+        // call `jest.runAllTimers()` below.
         comms.mockNextBlockTrackerRequest({ blockNumber: '0x1' });
         comms.mockRpcCall({
           request: requests[0],
@@ -1181,7 +1173,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await client.makeRpcCall(requests[0]);
             // Proceed to the next iteration of the block tracker so that a
             // new block is fetched and the current block is updated.
-            client.clock.runAll();
+            jest.runAllTimers();
             const secondResult = await client.makeRpcCall(requests[1]);
             return [firstResult, secondResult];
           },
@@ -1386,10 +1378,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
                     const result = await withNetworkClient(
                       { providerType },
-                      ({ makeRpcCall, clock }) =>
+                      ({ makeRpcCall }) =>
                         waitForPromiseToBeFulfilledAfterRunningAllTimers(
                           makeRpcCall(request),
-                          clock,
                         ),
                     );
 
@@ -1422,10 +1413,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
                     const promiseForResult = withNetworkClient(
                       { providerType },
-                      ({ makeRpcCall, clock }) =>
+                      ({ makeRpcCall }) =>
                         waitForPromiseToBeFulfilledAfterRunningAllTimers(
                           makeRpcCall(request),
-                          clock,
                         ),
                     );
 

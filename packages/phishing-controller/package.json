@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "16.2.0",
+  "version": "16.3.0",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/phishing-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/phishing-controller",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -49,9 +48,9 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/transaction-controller": "^62.17.0",
+    "@metamask/transaction-controller": "^62.19.0",
     "@noble/hashes": "^1.8.0",
     "@types/punycode": "^2.1.0",
     "ethereum-cryptography": "^2.1.2",
@@ -65,7 +64,6 @@
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
     "nock": "^13.3.1",
-    "sinon": "^9.2.4",
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

@@ -2,7 +2,6 @@ import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { NetworkClient } from '@metamask/network-controller';
 import EventEmitter from 'events';
-import { useFakeTimers } from 'sinon';
 
 import type { BlockTrackerPollingInput } from './BlockTrackerPollingController';
 import { BlockTrackerPollingController } from './BlockTrackerPollingController';
@@ -43,13 +42,13 @@ class TestBlockTracker extends EventEmitter {
 }
 
 describe('BlockTrackerPollingController', () => {
-  let clock: sinon.SinonFakeTimers;
   let mockMessenger: Messenger<MockAnyNamespace, never, never>;
   let controller: ChildBlockTrackerPollingController;
   let mainnetBlockTracker: TestBlockTracker;
   let goerliBlockTracker: TestBlockTracker;
   let sepoliaBlockTracker: TestBlockTracker;
   beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     mockMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
     controller = new ChildBlockTrackerPollingController({
       messenger: mockMessenger,
@@ -82,10 +81,9 @@ describe('BlockTrackerPollingController', () => {
             throw new Error(`Unknown networkClientId: ${networkClientId}`);
         }
       });
-    clock = useFakeTimers();
   });
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   describe('startPolling', () => {

@@ -2,16 +2,20 @@ import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
 } from '@metamask/account-tree-controller';
+import type { GetTokenListState } from '@metamask/assets-controllers';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
+import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
+import { clientControllerSelectors } from '@metamask/client-controller';
 import type {
   ApiPlatformClient,
   BackendWebSocketServiceActions,
   BackendWebSocketServiceEvents,
+  SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
   KeyringControllerLockEvent,
@@ -20,12 +24,34 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
+} from '@metamask/network-controller';
+import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
+import type {
+  GetPermissions,
+  PermissionControllerStateChange,
+} from '@metamask/permission-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
-import { parseCaipAssetType } from '@metamask/utils';
+import type {
+  GetRunnableSnaps,
+  HandleSnapRequest,
+} from '@metamask/snaps-controllers';
+import type {
+  TransactionControllerIncomingTransactionsReceivedEvent,
+  TransactionControllerTransactionConfirmedEvent,
+} from '@metamask/transaction-controller';
+import {
+  isCaipChainId,
+  isStrictHexString,
+  parseCaipAssetType,
+  parseCaipChainId,
+} from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import BigNumberJS from 'bignumber.js';
 import { isEqual } from 'lodash';
@@ -43,16 +69,25 @@ import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
+import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
+import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
+import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { projectLogger, createModuleLogger } from './logger';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
+import {
+  createParallelBalanceMiddleware,
+  createParallelMiddleware,
+} from './middlewares/ParallelMiddleware';
 import type {
   AccountId,
   AssetPreferences,
+  AssetsUpdateMode,
   ChainId,
   Caip19AssetId,
   AssetMetadata,
+  FungibleAssetMetadata,
   AssetPrice,
   AssetBalance,
   AccountWithSupportedChains,
@@ -69,6 +104,26 @@ import type {
   AssetsControllerStateInternal,
 } from './types';
 import { normalizeAssetId } from './utils';
+
+// ============================================================================
+// PENDING TOKEN METADATA (UI input format for addCustomAsset)
+// ============================================================================
+
+/**
+ * Metadata format passed from the UI when adding a custom token.
+ * Mirrors the "pendingTokens" shape used by the extension.
+ */
+export type PendingTokenMetadata = {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  iconUrl?: string;
+  aggregators?: string[];
+  occurrences?: number;
+  chainId: string;
+  unlisted?: boolean;
+};
 
 // ============================================================================
 // CONTROLLER CONSTANTS
@@ -117,6 +172,8 @@ export type AssetsControllerState = {
   customAssets: { [accountId: string]: Caip19AssetId[] };
   /** UI preferences per asset (e.g. hidden) */
   assetPreferences: { [assetId: string]: AssetPreferences };
+  /** Currently-active ISO 4217 currency code */
+  selectedCurrency: SupportedCurrency;
 };
 
 /**
@@ -131,6 +188,7 @@ export function getDefaultAssetsControllerState(): AssetsControllerState {
     assetsPrice: {},
     customAssets: {},
     assetPreferences: {},
+    selectedCurrency: 'usd',
   };
 }
 
@@ -181,18 +239,39 @@ export type AssetsControllerEvents =
   | AssetsControllerAssetsDetectedEvent;
 
 type AllowedActions =
+  // AssetsController
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  // RpcDataSource
+  | GetTokenListState
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  // RpcDataSource, StakedBalanceDataSource
   | NetworkEnablementControllerGetStateAction
-  // BackendWebsocketDataSource calls BackendWebSocketService
+  // SnapDataSource
+  | GetRunnableSnaps
+  | HandleSnapRequest
+  | GetPermissions
+  // BackendWebsocketDataSource
   | BackendWebSocketServiceActions;
 
 type AllowedEvents =
+  // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
-  | NetworkEnablementControllerEvents
-  | BackendWebSocketServiceEvents
+  | ClientControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | PreferencesControllerStateChangeEvent;
+  | PreferencesControllerStateChangeEvent
+  // RpcDataSource, StakedBalanceDataSource
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent
+  // StakedBalanceDataSource
+  | NetworkEnablementControllerEvents
+  // SnapDataSource
+  | AccountsControllerAccountBalancesUpdatedEvent
+  | PermissionControllerStateChange
+  // BackendWebsocketDataSource
+  | BackendWebSocketServiceEvents;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -265,6 +344,8 @@ export type AssetsControllerOptions = {
   accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
   /** Optional configuration for PriceDataSource. */
   priceDataSourceConfig?: PriceDataSourceConfig;
+  /** Optional configuration for StakedBalanceDataSource. */
+  stakedBalanceDataSourceConfig?: StakedBalanceDataSourceConfig;
 };
 
 // ============================================================================
@@ -297,6 +378,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   assetPreferences: {
+    persist: true,
+    includeInStateLogs: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  selectedCurrency: {
     persist: true,
     includeInStateLogs: false,
     includeInDebugSnapshot: false,
@@ -370,6 +457,10 @@ function normalizeResponse(response: DataResponse): DataResponse {
     normalized.errors = { ...response.errors };
   }
 
+  if (response.updateMode) {
+    normalized.updateMode = response.updateMode;
+  }
+
   return normalized;
 }
 
@@ -393,8 +484,10 @@ function normalizeResponse(response: DataResponse): DataResponse {
  *    based on which chains they support. When active chains change, the controller
  *    dynamically adjusts subscriptions.
  *
- * 4. **Keyring Lifecycle**: Listens to KeyringController unlock/lock events to
- *    start/stop subscriptions when the wallet is unlocked or locked.
+ * 4. **Client + Keyring Lifecycle**: Starts subscriptions only when both the UI is
+ *    open (ClientController) and the wallet is unlocked (KeyringController).
+ *    Stops when either the UI closes or the keyring locks. See client-controller
+ *    README for the combined pattern.
  *
  * ## Architecture
  *
@@ -423,6 +516,12 @@ export class AssetsController extends BaseController<
 
   /** Whether we have already reported first init fetch for this session (reset on #stop). */
   #firstInitFetchReported = false;
+
+  /** Whether the client (UI) is open. Combined with #keyringUnlocked for #updateActive. */
+  #uiOpen = false;
+
+  /** Whether the keyring is unlocked. Combined with #uiOpen for #updateActive. */
+  #keyringUnlocked = false;
 
   readonly #controllerMutex = new Mutex();
 
@@ -458,9 +557,13 @@ export class AssetsController extends BaseController<
 
   readonly #rpcDataSource: RpcDataSource;
 
+  readonly #stakedBalanceDataSource: StakedBalanceDataSource;
+
   /**
    * All balance data sources (used for unsubscription in #stop so we can clean up
    * regardless of current isBasicFunctionality mode).
+   * Note: StakedBalanceDataSource is excluded because it provides supplementary
+   * data and should not participate in chain-claiming.
    *
    * @returns The four balance data source instances in priority order.
    */
@@ -498,6 +601,7 @@ export class AssetsController extends BaseController<
     trackMetaMetricsEvent,
     accountsApiDataSourceConfig,
     priceDataSourceConfig,
+    stakedBalanceDataSourceConfig,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -519,8 +623,9 @@ export class AssetsController extends BaseController<
       dataSourceName: string,
       chains: ChainId[],
       previousChains: ChainId[],
-    ): void =>
+    ): void => {
       this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+    };
 
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
       messenger: this.messenger,
@@ -541,11 +646,17 @@ export class AssetsController extends BaseController<
       onActiveChainsUpdated,
       ...rpcConfig,
     });
+    this.#stakedBalanceDataSource = new StakedBalanceDataSource({
+      messenger: this.messenger,
+      onActiveChainsUpdated,
+      ...stakedBalanceDataSourceConfig,
+    });
     this.#tokenDataSource = new TokenDataSource({
       queryApiClient,
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       ...priceDataSourceConfig,
     });
     this.#detectionMiddleware = new DetectionMiddleware();
@@ -562,6 +673,7 @@ export class AssetsController extends BaseController<
     this.#initializeState();
     this.#subscribeToEvents();
     this.#registerActionHandlers();
+    // Subscriptions start only when both UI is open and keyring unlocked -> #updateActive().
 
     // Subscribe to basic-functionality changes after construction so a synchronous
     // onChange during subscribe cannot run before data sources are initialized.
@@ -636,7 +748,7 @@ export class AssetsController extends BaseController<
    * @returns The normalized chain reference in decimal format.
    */
   #normalizeChainReference(namespace: string, reference: string): string {
-    if (namespace === 'eip155' && reference.startsWith('0x')) {
+    if (namespace === 'eip155' && isStrictHexString(reference)) {
       // Convert hex to decimal for EIP155 chains
       return parseInt(reference, 16).toString();
     }
@@ -662,9 +774,36 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // Keyring lifecycle: start when unlocked, stop when locked
-    this.messenger.subscribe('KeyringController:unlock', () => this.#start());
-    this.messenger.subscribe('KeyringController:lock', () => this.#stop());
+    // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
+    this.messenger.subscribe(
+      'ClientController:stateChange',
+      (isUiOpen: boolean) => {
+        this.#uiOpen = isUiOpen;
+        this.#updateActive();
+      },
+      clientControllerSelectors.selectIsUiOpen,
+    );
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#keyringUnlocked = true;
+      this.#updateActive();
+    });
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.#keyringUnlocked = false;
+      this.#updateActive();
+    });
+  }
+
+  /**
+   * Start or stop asset tracking based on client (UI) open state and keyring
+   * unlock state. Only runs when both UI is open and keyring is unlocked.
+   */
+  #updateActive(): void {
+    const shouldRun = this.#uiOpen && this.#keyringUnlocked;
+    if (shouldRun) {
+      this.#start();
+    } else {
+      this.#stop();
+    }
   }
 
   #registerActionHandlers(): void {
@@ -696,6 +835,9 @@ export class AssetsController extends BaseController<
     activeChains: ChainId[],
     previousChains: ChainId[],
   ): void {
+    if (!this.#isEnabled) {
+      return;
+    }
     log('Data source active chains changed', {
       dataSourceId,
       chainCount: activeChains.length,
@@ -821,11 +963,16 @@ export class AssetsController extends BaseController<
       assetTypes?: AssetType[];
       forceUpdate?: boolean;
       dataTypes?: DataType[];
+      assetsForPriceUpdate?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
     const assetTypes = options?.assetTypes ?? ['fungible'];
     const dataTypes = options?.dataTypes ?? ['balance', 'metadata', 'price'];
+
+    if (accounts.length === 0 || chainIds.length === 0) {
+      return this.#getAssetsFromState(accounts, chainIds, assetTypes);
+    }
 
     // Collect custom assets for all requested accounts
     const customAssets: Caip19AssetId[] = [];
@@ -841,22 +988,32 @@ export class AssetsController extends BaseController<
         dataTypes,
         customAssets: customAssets.length > 0 ? customAssets : undefined,
         forceUpdate: true,
+        assetsForPriceUpdate: options?.assetsForPriceUpdate,
       });
       const sources = this.#isBasicFunctionality()
         ? [
-            this.#accountsApiDataSource,
-            this.#snapDataSource,
-            this.#rpcDataSource,
+            createParallelBalanceMiddleware([
+              this.#accountsApiDataSource,
+              this.#snapDataSource,
+              this.#rpcDataSource,
+              this.#stakedBalanceDataSource,
+            ]),
             this.#detectionMiddleware,
-            this.#tokenDataSource,
-            this.#priceDataSource,
+            createParallelMiddleware([
+              this.#tokenDataSource,
+              this.#priceDataSource,
+            ]),
           ]
-        : [this.#rpcDataSource, this.#detectionMiddleware];
+        : [
+            this.#rpcDataSource,
+            this.#stakedBalanceDataSource,
+            this.#detectionMiddleware,
+          ];
       const { response, durationByDataSource } = await this.#executeMiddlewares(
         sources,
         request,
       );
-      await this.#updateState(response);
+      await this.#updateState({ ...response, updateMode: 'full' });
       if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
         const durationMs = Date.now() - startTime;
@@ -868,7 +1025,8 @@ export class AssetsController extends BaseController<
       }
     }
 
-    return this.#getAssetsFromState(accounts, chainIds, assetTypes);
+    const result = this.#getAssetsFromState(accounts, chainIds, assetTypes);
+    return result;
   }
 
   async getAssetsBalance(
@@ -942,12 +1100,18 @@ export class AssetsController extends BaseController<
    * Custom assets are included in subscription and fetch operations.
    * Adding a custom asset also unhides it if it was previously hidden.
    *
+   * When `pendingMetadata` is provided (e.g. from the extension's pending-tokens
+   * flow), the token metadata is persisted immediately into `assetsInfo` so the
+   * UI can render it without waiting for the next pipeline fetch.
+   *
    * @param accountId - The account ID to add the custom asset for.
    * @param assetId - The CAIP-19 asset ID to add.
+   * @param pendingMetadata - Optional token metadata from the UI (pendingTokens format).
    */
   async addCustomAsset(
     accountId: AccountId,
     assetId: Caip19AssetId,
+    pendingMetadata?: PendingTokenMetadata,
   ): Promise<void> {
     const normalizedAssetId = normalizeAssetId(assetId);
 
@@ -971,6 +1135,30 @@ export class AssetsController extends BaseController<
         if (Object.keys(prefs).length === 0) {
           delete state.assetPreferences[normalizedAssetId];
         }
+      }
+
+      // Persist metadata from the UI so the token is immediately renderable
+      if (pendingMetadata) {
+        const parsed = parseCaipAssetType(normalizedAssetId);
+        let tokenType: FungibleAssetMetadata['type'] = 'erc20';
+        if (parsed.assetNamespace === 'slip44') {
+          tokenType = 'native';
+        } else if (parsed.assetNamespace === 'spl') {
+          tokenType = 'spl';
+        }
+
+        const assetMetadata: FungibleAssetMetadata = {
+          type: tokenType,
+          symbol: pendingMetadata.symbol,
+          name: pendingMetadata.name,
+          decimals: pendingMetadata.decimals,
+          image: pendingMetadata.iconUrl,
+          aggregators: pendingMetadata.aggregators,
+          occurrences: pendingMetadata.occurrences,
+        };
+
+        (state.assetsInfo as Record<string, AssetMetadata>)[normalizedAssetId] =
+          assetMetadata;
       }
     });
 
@@ -1066,6 +1254,42 @@ export class AssetsController extends BaseController<
   }
 
   // ============================================================================
+  // CURRENT CURRENCY MANAGEMENT
+  // ============================================================================
+
+  /**
+   * Set the current currency.
+   *
+   * @param selectedCurrency - The ISO 4217 currency code to set.
+   */
+  setSelectedCurrency(selectedCurrency: SupportedCurrency): void {
+    const previousCurrency = this.state.selectedCurrency;
+
+    if (previousCurrency === selectedCurrency) {
+      return;
+    }
+
+    this.update((state) => {
+      state.selectedCurrency = selectedCurrency;
+    });
+
+    log('Current currency changed', {
+      previousCurrency,
+      selectedCurrency,
+    });
+
+    this.getAssets(this.#selectedAccounts, {
+      forceUpdate: true,
+      dataTypes: ['price'],
+      assetsForPriceUpdate: Object.values(this.state.assetsBalance).flatMap(
+        (balances) => Object.keys(balances) as Caip19AssetId[],
+      ),
+    }).catch((error) => {
+      log('Failed to fetch asset prices after current currency change', error);
+    });
+  }
+
+  // ============================================================================
   // SUBSCRIPTIONS
   // ============================================================================
 
@@ -1075,18 +1299,11 @@ export class AssetsController extends BaseController<
    *
    * @param accounts - Accounts to subscribe price updates for.
    * @param chainIds - Chain IDs to filter prices for.
-   * @param options - Subscription options.
-   * @param options.updateInterval - Polling interval in ms.
    */
-  subscribeAssetsPrice(
-    accounts: InternalAccount[],
-    chainIds: ChainId[],
-    options: { updateInterval?: number } = {},
-  ): void {
+  subscribeAssetsPrice(accounts: InternalAccount[], chainIds: ChainId[]): void {
     if (!this.#isBasicFunctionality()) {
       return;
     }
-    const { updateInterval = this.#defaultUpdateInterval } = options;
     const subscriptionKey = 'ds:PriceDataSource';
 
     const existingSubscription = this.#activeSubscriptions.get(subscriptionKey);
@@ -1095,7 +1312,6 @@ export class AssetsController extends BaseController<
     const subscribeReq: SubscriptionRequest = {
       request: this.#buildDataRequest(accounts, chainIds, {
         dataTypes: ['price'],
-        updateInterval,
       }),
       subscriptionId: subscriptionKey,
       isUpdate,
@@ -1139,8 +1355,8 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   async #updateState(response: DataResponse): Promise<void> {
-    // Normalize asset IDs (checksum EVM addresses) before storing in state
     const normalizedResponse = normalizeResponse(response);
+    const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
 
     const releaseLock = await this.#controllerMutex.acquire();
 
@@ -1188,20 +1404,35 @@ export class AssetsController extends BaseController<
           )) {
             const previousBalances =
               previousState.assetsBalance[accountId] ?? {};
+            const customAssetIds =
+              (state.customAssets as Record<string, Caip19AssetId[]>)[
+                accountId
+              ] ?? [];
 
-            if (!balances[accountId]) {
-              balances[accountId] = {};
-            }
+            // Full: response is authoritative; preserve custom assets not in response. Merge: response overlays previous.
+            const effective: Record<string, AssetBalance> =
+              mode === 'full'
+                ? ((): Record<string, AssetBalance> => {
+                    const next: Record<string, AssetBalance> = {
+                      ...accountBalances,
+                    };
+                    for (const customId of customAssetIds) {
+                      if (!(customId in next)) {
+                        const prev = previousBalances[customId];
+                        next[customId] =
+                          prev ?? ({ amount: '0' } as AssetBalance);
+                      }
+                    }
+                    return next;
+                  })()
+                : { ...previousBalances, ...accountBalances };
 
-            for (const [assetId, balance] of Object.entries(accountBalances)) {
+            for (const [assetId, balance] of Object.entries(effective)) {
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
               ] as { amount: string } | undefined;
-              const balanceData = balance as { amount: string };
-              const newAmount = balanceData.amount;
+              const newAmount = (balance as { amount: string }).amount;
               const oldAmount = previousBalance?.amount;
-
-              // Track if balance actually changed
               if (oldAmount !== newAmount) {
                 changedBalances.push({
                   accountId,
@@ -1211,8 +1442,7 @@ export class AssetsController extends BaseController<
                 });
               }
             }
-
-            Object.assign(balances[accountId], accountBalances);
+            balances[accountId] = effective;
           }
         }
 
@@ -1441,15 +1671,17 @@ export class AssetsController extends BaseController<
 
     // Stop balance subscriptions by properly notifying data sources via messenger
     // This ensures data sources stop their polling timers.
-    // Use #allBalanceDataSources so we unsubscribe from every source that may have
-    // been subscribed (e.g. when switching from full to basic functionality).
+    // Use #allBalanceDataSources + staked balance source so we unsubscribe from
+    // every source that may have been subscribed.
+    const allSources = [
+      ...this.#allBalanceDataSources,
+      this.#stakedBalanceDataSource,
+    ];
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
     for (const subscriptionKey of subscriptionKeys) {
       if (subscriptionKey.startsWith('ds:')) {
         const sourceId = subscriptionKey.slice(3);
-        const source = this.#allBalanceDataSources.find(
-          (ds) => ds.getName() === sourceId,
-        );
+        const source = allSources.find((ds) => ds.getName() === sourceId);
         if (source) {
           this.#unsubscribeDataSource(source);
         }
@@ -1475,12 +1707,17 @@ export class AssetsController extends BaseController<
    * Subscribe to asset updates for all selected accounts.
    */
   #subscribeAssets(): void {
-    if (this.#selectedAccounts.length === 0) {
+    if (this.#selectedAccounts.length === 0 || this.#enabledChains.size === 0) {
       return;
     }
 
     // Subscribe to balance updates (batched by data source)
     this.#subscribeAssetsBalance(this.#selectedAccounts, [
+      ...this.#enabledChains,
+    ]);
+
+    // Subscribe to staked balance updates (separate from regular balance chain-claiming)
+    this.#subscribeStakedBalance(this.#selectedAccounts, [
       ...this.#enabledChains,
     ]);
 
@@ -1544,6 +1781,35 @@ export class AssetsController extends BaseController<
         this.#subscribeDataSource(source, accountsForSource, assignedChains);
       }
     }
+  }
+
+  /**
+   * Subscribe to staked balance updates.
+   * Unlike regular balance data sources, the staked balance data source provides
+   * supplementary data and does not participate in chain-claiming.
+   *
+   * @param accounts - Accounts to subscribe staked balance updates for.
+   * @param chainIds - Chain IDs to subscribe for.
+   */
+  #subscribeStakedBalance(
+    accounts: InternalAccount[],
+    chainIds: ChainId[],
+  ): void {
+    const source = this.#stakedBalanceDataSource;
+    if (!source) {
+      return;
+    }
+    const availableChains = new Set(source.getActiveChainsSync());
+    const assignedChains = chainIds.filter((chainId) =>
+      availableChains.has(chainId),
+    );
+
+    if (assignedChains.length === 0) {
+      this.#unsubscribeDataSource(source);
+      return;
+    }
+
+    this.#subscribeDataSource(source, accounts, assignedChains);
   }
 
   /**
@@ -1698,16 +1964,24 @@ export class AssetsController extends BaseController<
     const result: ChainId[] = [];
 
     for (const scope of scopes) {
-      const [namespace, reference] = (scope as string).split(':');
+      const scopeStr = scope as string;
+      if (!isCaipChainId(scopeStr)) {
+        result.push(scope);
+        continue;
+      }
+      const { namespace, reference } = parseCaipChainId(scopeStr);
 
       // Wildcard scope (e.g., "eip155:0" means all enabled chains in that namespace)
       if (reference === '0') {
         for (const chain of this.#enabledChains) {
-          if (chain.startsWith(`${namespace}:`)) {
-            result.push(chain);
+          if (isCaipChainId(chain)) {
+            const chainParsed = parseCaipChainId(chain);
+            if (chainParsed.namespace === namespace) {
+              result.push(chain);
+            }
           }
         }
-      } else if (namespace === 'eip155' && reference?.startsWith('0x')) {
+      } else if (namespace === 'eip155' && isStrictHexString(reference)) {
         // Normalize hex to decimal for EIP155
         result.push(`eip155:${parseInt(reference, 16)}` as ChainId);
       } else {
@@ -1805,10 +2079,16 @@ export class AssetsController extends BaseController<
       hasPrice: Boolean(response.assetsPrice),
     });
 
-    // Run through enrichment middlewares (Event Stack: Detection → Token → Price)
+    // Run through enrichment middlewares (Detection, then Token + Price in parallel)
     // Include 'metadata' in dataTypes so TokenDataSource runs to enrich detected assets
     const { response: enrichedResponse } = await this.#executeMiddlewares(
-      [this.#detectionMiddleware, this.#tokenDataSource, this.#priceDataSource],
+      [
+        this.#detectionMiddleware,
+        createParallelMiddleware([
+          this.#tokenDataSource,
+          this.#priceDataSource,
+        ]),
+      ],
       request ?? {
         accountsWithSupportedChains: [],
         chainIds: [],
@@ -1835,6 +2115,7 @@ export class AssetsController extends BaseController<
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
     this.#rpcDataSource?.destroy?.();
+    this.#stakedBalanceDataSource?.destroy?.();
 
     // Stop all active subscriptions
     this.#stop();

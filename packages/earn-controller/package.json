@@ -1,6 +1,6 @@
 {
   "name": "@metamask/earn-controller",
-  "version": "11.1.0",
+  "version": "11.1.1",
   "description": "Manages state for earning features and coordinates interactions between staking services, SDK integrations, and other controllers to enable users to participate in various earning opportunities",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/earn-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/earn-controller",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -52,16 +51,16 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/account-tree-controller": "^4.1.1",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/keyring-api": "^21.5.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/network-controller": "^29.0.0",
+    "@metamask/network-controller": "^30.0.0",
     "@metamask/stake-sdk": "^3.2.1",
     "reselect": "^5.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/transaction-controller": "^62.17.0",
+    "@metamask/transaction-controller": "^62.19.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

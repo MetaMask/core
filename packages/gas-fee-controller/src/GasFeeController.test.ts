@@ -18,7 +18,6 @@ import type {
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
-import * as sinon from 'sinon';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import {
@@ -74,12 +73,10 @@ const getRootMessenger = (): RootMessenger => {
 const setupNetworkController = async ({
   rootMessenger,
   state,
-  clock,
   initializeProvider = true,
 }: {
   rootMessenger: RootMessenger;
   state: Partial<NetworkState>;
-  clock: sinon.SinonFakeTimers;
   initializeProvider?: boolean;
 }) => {
   const networkControllerMessenger = new Messenger<
@@ -128,7 +125,7 @@ const setupNetworkController = async ({
     networkController.initializeProvider();
     // Ensure that the request for eth_getBlockByNumber made by the PollingBlockTracker
     // inside the NetworkController goes through
-    await clock.nextAsync();
+    await jest.advanceTimersToNextTimerAsync();
   }
 
   return networkController;
@@ -256,7 +253,6 @@ function buildMockGasFeeStateEthGasPrice({
 }
 
 describe('GasFeeController', () => {
-  let clock: sinon.SinonFakeTimers;
   let gasFeeController: GasFeeController;
   let networkController: NetworkController;
 
@@ -312,7 +308,6 @@ describe('GasFeeController', () => {
     networkController = await setupNetworkController({
       rootMessenger,
       state: networkControllerState,
-      clock,
       initializeProvider: initializeNetworkProvider,
     });
     const restrictedMessenger = getGasFeeControllerMessenger(rootMessenger);
@@ -332,7 +327,7 @@ describe('GasFeeController', () => {
   }
 
   beforeEach(() => {
-    clock = sinon.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     mockedDetermineGasFeeCalculations.mockResolvedValue(
       buildMockGasFeeStateFeeMarket(),
     );
@@ -344,7 +339,7 @@ describe('GasFeeController', () => {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker?.destroy();
-    sinon.restore();
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -433,8 +428,10 @@ describe('GasFeeController', () => {
         });
 
         it('should continue updating the state with all estimate data (including new time estimates because of a subsequent call to determineGasFeeCalculations) on a set interval', async () => {
+          const pollingInterval = 10000;
+          await setupGasFeeController({ interval: pollingInterval });
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-          await clock.nextAsync();
+          await jest.advanceTimersByTimeAsync(pollingInterval);
 
           expect(gasFeeController.state).toMatchObject(
             mockDetermineGasFeeCalculationsReturnValues[1],
@@ -501,7 +498,7 @@ describe('GasFeeController', () => {
           await gasFeeController.getGasFeeEstimatesAndStartPolling(
             'some-previously-unseen-token',
           );
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
 
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
         });
@@ -524,8 +521,8 @@ describe('GasFeeController', () => {
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-        await clock.tickAsync(pollingInterval);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
       });
@@ -549,8 +546,8 @@ describe('GasFeeController', () => {
         const pollToken =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(4);
       });
@@ -582,8 +579,8 @@ describe('GasFeeController', () => {
         await gasFeeController.getGasFeeEstimatesAndStartPolling(
           'some-previously-unseen-token-2',
         );
-        await clock.tickAsync(pollingInterval);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
       });
@@ -632,12 +629,12 @@ describe('GasFeeController', () => {
           await setupGasFeeController({ interval: pollingInterval });
           const pollToken =
             await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
           gasFeeController.disconnectPoller(pollToken);
 
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
         });
 
@@ -646,13 +643,13 @@ describe('GasFeeController', () => {
           await setupGasFeeController({ interval: pollingInterval });
           const pollToken =
             await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
           gasFeeController.disconnectPoller(pollToken);
 
           await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(4);
         });
       });
@@ -662,12 +659,12 @@ describe('GasFeeController', () => {
           const pollingInterval = 10000;
           await setupGasFeeController({ interval: pollingInterval });
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
           gasFeeController.disconnectPoller('some-previously-unseen-token');
 
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
         });
       });
@@ -681,12 +678,12 @@ describe('GasFeeController', () => {
         const pollToken1 =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(1);
 
         gasFeeController.disconnectPoller(pollToken1);
 
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
       });
     });
@@ -707,12 +704,12 @@ describe('GasFeeController', () => {
         const pollingInterval = 10000;
         await setupGasFeeController({ interval: pollingInterval });
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
         gasFeeController.stopPolling();
 
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
       });
 
@@ -721,13 +718,13 @@ describe('GasFeeController', () => {
         await setupGasFeeController({ interval: pollingInterval });
         const pollToken =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
         gasFeeController.stopPolling();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(4);
       });
 
@@ -753,12 +750,12 @@ describe('GasFeeController', () => {
         const pollToken =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
 
         gasFeeController.stopPolling();
 
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
       });
 
@@ -768,13 +765,13 @@ describe('GasFeeController', () => {
         const pollToken =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
 
         gasFeeController.stopPolling();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(5);
       });
     });
@@ -1241,7 +1238,7 @@ describe('GasFeeController', () => {
       gasFeeController.startPolling({
         networkClientId: 'linea-sepolia',
       });
-      await clock.tickAsync(0);
+      await jest.advanceTimersByTimeAsync(0);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
@@ -1250,9 +1247,9 @@ describe('GasFeeController', () => {
           )}`,
         }),
       );
-      await clock.tickAsync(pollingInterval / 2);
+      await jest.advanceTimersByTimeAsync(pollingInterval / 2);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(1);
-      await clock.tickAsync(pollingInterval / 2);
+      await jest.advanceTimersByTimeAsync(pollingInterval / 2);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
@@ -1270,7 +1267,7 @@ describe('GasFeeController', () => {
       gasFeeController.startPolling({
         networkClientId: 'sepolia',
       });
-      await clock.tickAsync(pollingInterval);
+      await jest.advanceTimersByTimeAsync(pollingInterval);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
