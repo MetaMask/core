@@ -111,7 +111,7 @@ export function validateIfTransactionUnapproved(
   transactionMeta: TransactionMeta | undefined,
   fnName: string,
 ): void {
-  if (transactionMeta?.status !== TransactionStatus.submitted) {
+  if (transactionMeta?.status !== TransactionStatus.unapproved) {
     throw new Error(
       `TransactionsController: Can only call ${fnName} on an unapproved transaction.\n      Current tx status: ${transactionMeta?.status}`,
     );
