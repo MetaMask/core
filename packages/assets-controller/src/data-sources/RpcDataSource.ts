@@ -1,4 +1,3 @@
-import { toChecksumAddress } from '@ethereumjs/util';
 import { Web3Provider } from '@ethersproject/providers';
 import type { GetTokenListState } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
@@ -35,14 +34,10 @@ import {
   BalanceFetcher,
   MulticallClient,
   TokenDetector,
-  StakedBalanceFetcher,
-  getStakingContractAddress,
 } from './evm-rpc-services';
 import type {
   BalancePollingInput,
   DetectionPollingInput,
-  StakedBalancePollingInput,
-  StakedBalanceFetchResult,
 } from './evm-rpc-services';
 import type {
   Address,
@@ -69,23 +64,6 @@ import type {
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
-const DEFAULT_STAKED_BALANCE_INTERVAL = 180_000; // 3 minutes
-
-/** Metadata for staked ETH (same symbol and decimals as native ETH). */
-const STAKED_ETH_METADATA: AssetMetadata = {
-  type: 'erc20',
-  name: 'staked ethereum',
-  symbol: 'ETH',
-  decimals: 18,
-};
-
-function stakedAssetId(
-  chainId: ChainId,
-  contractAddress: string,
-): Caip19AssetId {
-  const checksummed = toChecksumAddress(contractAddress);
-  return `${chainId}/erc20:${checksummed}` as Caip19AssetId;
-}
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -156,8 +134,6 @@ type SubscriptionData = {
   balancePollingTokens: string[];
   /** Polling tokens from TokenDetector */
   detectionPollingTokens: string[];
-  /** Polling tokens from StakedBalanceFetcher */
-  stakedBalancePollingTokens: string[];
   /** Chain IDs being polled */
   chains: ChainId[];
   /** Accounts being polled */
@@ -246,8 +222,6 @@ export class RpcDataSource extends AbstractDataSource<
 
   readonly #tokenDetector: TokenDetector;
 
-  readonly #stakedBalanceFetcher: StakedBalanceFetcher;
-
   constructor(options: RpcDataSourceOptions) {
     super(CONTROLLER_NAME, { activeChains: [] });
     this.#messenger = options.messenger;
@@ -320,17 +294,6 @@ export class RpcDataSource extends AbstractDataSource<
     );
     this.#tokenDetector.setOnDetectionUpdate(
       this.#handleDetectionUpdate.bind(this),
-    );
-
-    this.#stakedBalanceFetcher = new StakedBalanceFetcher({
-      getNetworkProvider: (hexChainId: string): Web3Provider | undefined => {
-        const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
-        return this.#getProvider(caipChainId);
-      },
-      pollingInterval: DEFAULT_STAKED_BALANCE_INTERVAL,
-    });
-    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate(
-      this.#handleStakedBalanceUpdate.bind(this),
     );
 
     this.#subscribeToNetworkController();
@@ -544,43 +507,6 @@ export class RpcDataSource extends AbstractDataSource<
     for (const subscription of this.#activeSubscriptions.values()) {
       subscription.onAssetsUpdate(response, request)?.catch((error) => {
         log('Failed to update detected assets', { error });
-      });
-    }
-  }
-
-  /**
-   * Handle staked balance update from StakedBalanceFetcher.
-   *
-   * @param result - The staked balance fetch result.
-   */
-  #handleStakedBalanceUpdate(result: StakedBalanceFetchResult): void {
-    const contractAddress = getStakingContractAddress(result.chainId);
-    if (!contractAddress) {
-      return;
-    }
-    const chainIdDecimal = parseInt(result.chainId, 16);
-    const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
-    const assetId = stakedAssetId(caipChainId, contractAddress);
-
-    const response: DataResponse = {
-      assetsInfo: { [assetId]: STAKED_ETH_METADATA },
-      assetsBalance: {
-        [result.accountId]: {
-          [assetId]: { amount: result.balance.amount },
-        },
-      },
-      updateMode: 'merge',
-    };
-
-    const request: DataRequest = {
-      accountsWithSupportedChains: [],
-      chainIds: [caipChainId],
-      dataTypes: ['balance'],
-    };
-
-    for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response, request)?.catch((error) => {
-        log('Failed to report staked balance update', { error });
       });
     }
   }
@@ -1234,10 +1160,9 @@ export class RpcDataSource extends AbstractDataSource<
 
     // Clean up existing subscription (stops old polling)
     await this.unsubscribe(subscriptionId);
-    // Start polling through BalanceFetcher, TokenDetector, and StakedBalanceFetcher
+    // Start polling through BalanceFetcher and TokenDetector
     const balancePollingTokens: string[] = [];
     const detectionPollingTokens: string[] = [];
-    const stakedBalancePollingTokens: string[] = [];
 
     for (const {
       account,
@@ -1275,23 +1200,6 @@ export class RpcDataSource extends AbstractDataSource<
             this.#tokenDetector.startPolling(detectionInput);
           detectionPollingTokens.push(detectionToken);
         }
-
-        // Start staked balance polling only for chains with a known staking contract (e.g. mainnet, Hoodi)
-        const stakingContractAddress = getStakingContractAddress(hexChainId);
-        if (stakingContractAddress) {
-          const stakedInput: StakedBalancePollingInput = {
-            chainId: hexChainId,
-            accountId,
-            accountAddress: address as Address,
-          };
-          const stakedToken =
-            this.#stakedBalanceFetcher.startPolling(stakedInput);
-          stakedBalancePollingTokens.push(stakedToken);
-          log('Started staked balance polling', {
-            chainId,
-            accountId,
-          });
-        }
       }
     }
 
@@ -1302,7 +1210,6 @@ export class RpcDataSource extends AbstractDataSource<
     this.#activeSubscriptions.set(subscriptionId, {
       balancePollingTokens,
       detectionPollingTokens,
-      stakedBalancePollingTokens,
       chains: chainsToSubscribe,
       accounts,
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
@@ -1313,7 +1220,6 @@ export class RpcDataSource extends AbstractDataSource<
       chains: chainsToSubscribe,
       balancePollingCount: balancePollingTokens.length,
       detectionPollingCount: detectionPollingTokens.length,
-      stakedBalancePollingCount: stakedBalancePollingTokens.length,
     });
   }
 
@@ -1333,11 +1239,6 @@ export class RpcDataSource extends AbstractDataSource<
       // Stop detection polling
       for (const token of subscription.detectionPollingTokens) {
         this.#tokenDetector.stopPollingByPollingToken(token);
-      }
-
-      // Stop staked balance polling
-      for (const token of subscription.stakedBalancePollingTokens) {
-        this.#stakedBalanceFetcher.stopPollingByPollingToken(token);
       }
 
       this.#activeSubscriptions.delete(subscriptionId);
@@ -1439,7 +1340,6 @@ export class RpcDataSource extends AbstractDataSource<
     // Stop all polling
     this.#balanceFetcher.stopAllPolling();
     this.#tokenDetector.stopAllPolling();
-    this.#stakedBalanceFetcher.stopAllPolling();
 
     // Clear subscriptions
     this.#activeSubscriptions.clear();

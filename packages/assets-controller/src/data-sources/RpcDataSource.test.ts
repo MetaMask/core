@@ -4,15 +4,10 @@ import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import {
-  BalanceFetcher,
-  StakedBalanceFetcher,
-  TokenDetector,
-} from './evm-rpc-services';
+import { BalanceFetcher, TokenDetector } from './evm-rpc-services';
 import type {
   Address,
   BalanceFetchResult,
-  StakedBalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services';
 import type { RpcDataSourceOptions } from './RpcDataSource';
@@ -998,10 +993,6 @@ describe('RpcDataSource', () => {
         BalanceFetcher.prototype,
         'startPolling',
       );
-      const stakedStartSpy = jest.spyOn(
-        StakedBalanceFetcher.prototype,
-        'startPolling',
-      );
       const detectionStartSpy = jest.spyOn(
         TokenDetector.prototype,
         'startPolling',
@@ -1021,7 +1012,6 @@ describe('RpcDataSource', () => {
           accountAddress: MOCK_ADDRESS,
         };
         expect(balanceStartSpy).toHaveBeenCalledWith(expectedInput);
-        expect(stakedStartSpy).toHaveBeenCalledWith(expectedInput);
         expect(detectionStartSpy).toHaveBeenCalledWith(expectedInput);
       });
     });
@@ -1052,42 +1042,9 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('starts balance and staked balance polling for chain with staking contract (mainnet)', async () => {
+    it('starts balance polling for chain (Polygon)', async () => {
       const balanceStartSpy = jest.spyOn(
         BalanceFetcher.prototype,
-        'startPolling',
-      );
-      const stakedStartSpy = jest.spyOn(
-        StakedBalanceFetcher.prototype,
-        'startPolling',
-      );
-
-      await withController(async ({ controller }) => {
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-        });
-
-        const expectedInput = {
-          chainId: MOCK_CHAIN_ID_HEX,
-          accountId: MOCK_ACCOUNT_ID,
-          accountAddress: MOCK_ADDRESS,
-        };
-        expect(balanceStartSpy).toHaveBeenCalledWith(expectedInput);
-        expect(stakedStartSpy).toHaveBeenCalledWith(expectedInput);
-        await controller.unsubscribe('test-sub');
-      });
-    });
-
-    it('completes subscription for chain without staking contract (Polygon only)', async () => {
-      const balanceStartSpy = jest.spyOn(
-        BalanceFetcher.prototype,
-        'startPolling',
-      );
-      const stakedStartSpy = jest.spyOn(
-        StakedBalanceFetcher.prototype,
         'startPolling',
       );
 
@@ -1123,9 +1080,6 @@ describe('RpcDataSource', () => {
         });
 
         expect(balanceStartSpy).toHaveBeenCalledWith(
-          expect.objectContaining({ chainId: '0x89' }),
-        );
-        expect(stakedStartSpy).not.toHaveBeenCalledWith(
           expect.objectContaining({ chainId: '0x89' }),
         );
         await controller.unsubscribe('test-sub');
@@ -1203,53 +1157,6 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('does not start staked balance polling for chain without staking contract', async () => {
-      const stakedStartSpy = jest.spyOn(
-        StakedBalanceFetcher.prototype,
-        'startPolling',
-      );
-      const networkState = createMockNetworkState(NetworkStatus.Degraded);
-      (networkState.networkConfigurationsByChainId as Record<string, unknown>)[
-        '0x89'
-      ] = {
-        chainId: '0x89',
-        name: 'Polygon',
-        nativeCurrency: 'MATIC',
-        defaultRpcEndpointIndex: 0,
-        rpcEndpoints: [
-          {
-            networkClientId: 'polygon',
-            url: 'https://polygon-rpc.com',
-            type: RpcEndpointType.Custom,
-          },
-        ],
-        blockExplorerUrls: [],
-      };
-      (networkState.networksMetadata as Record<string, unknown>).polygon = {
-        status: NetworkStatus.Available,
-        EIPS: {},
-      };
-
-      await withController({ networkState }, async ({ controller }) => {
-        await controller.subscribe({
-          request: {
-            accountsWithSupportedChains: [
-              {
-                account: createMockInternalAccount(),
-                supportedChains: ['eip155:137' as ChainId],
-              },
-            ],
-            chainIds: ['eip155:137' as ChainId],
-            dataTypes: ['balance'],
-          },
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-        });
-        expect(stakedStartSpy).not.toHaveBeenCalled();
-      });
-    });
-
     it('unsubscribe stops all polling', async () => {
       const balanceStopSpy = jest.spyOn(
         BalanceFetcher.prototype,
@@ -1257,10 +1164,6 @@ describe('RpcDataSource', () => {
       );
       const detectionStopSpy = jest.spyOn(
         TokenDetector.prototype,
-        'stopPollingByPollingToken',
-      );
-      const stakedStopSpy = jest.spyOn(
-        StakedBalanceFetcher.prototype,
         'stopPollingByPollingToken',
       );
 
@@ -1274,7 +1177,6 @@ describe('RpcDataSource', () => {
         await controller.unsubscribe('test-sub');
         expect(balanceStopSpy).toHaveBeenCalled();
         expect(detectionStopSpy).toHaveBeenCalled();
-        expect(stakedStopSpy).toHaveBeenCalled();
       });
     });
   });
@@ -1795,64 +1697,6 @@ describe('RpcDataSource', () => {
           failedAddresses: [],
           timestamp: Date.now(),
         });
-      });
-    });
-  });
-
-  describe('handleStakedBalanceUpdate (via callback)', () => {
-    it('invokes onAssetsUpdate when StakedBalanceFetcher callback runs for mainnet', async () => {
-      let stakedUpdateCallback:
-        | ((result: StakedBalanceFetchResult) => void)
-        | null = null;
-      jest
-        .spyOn(StakedBalanceFetcher.prototype, 'setOnStakedBalanceUpdate')
-        .mockImplementation(function (this: StakedBalanceFetcher, callback) {
-          stakedUpdateCallback = callback;
-        });
-
-      await withController(async ({ controller }) => {
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-        });
-
-        expect(stakedUpdateCallback).not.toBeNull();
-        stakedUpdateCallback?.({
-          chainId: MOCK_CHAIN_ID_HEX,
-          accountId: MOCK_ACCOUNT_ID,
-          balance: { amount: '1.5' },
-        });
-      });
-    });
-
-    it('does nothing when staking contract not found for chain', async () => {
-      let stakedUpdateCallback:
-        | ((result: StakedBalanceFetchResult) => void)
-        | null = null;
-      jest
-        .spyOn(StakedBalanceFetcher.prototype, 'setOnStakedBalanceUpdate')
-        .mockImplementation(function (this: StakedBalanceFetcher, callback) {
-          stakedUpdateCallback = callback;
-        });
-
-      await withController(async ({ controller }) => {
-        const onAssetsUpdate = jest.fn();
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate,
-        });
-
-        expect(stakedUpdateCallback).not.toBeNull();
-        stakedUpdateCallback?.({
-          chainId: '0x89',
-          accountId: MOCK_ACCOUNT_ID,
-          balance: { amount: '0' },
-        });
-        expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
     });
   });
