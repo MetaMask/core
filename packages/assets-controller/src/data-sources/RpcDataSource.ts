@@ -411,6 +411,7 @@ export class RpcDataSource extends AbstractDataSource<
         [result.accountId]: newBalances,
       },
       assetsInfo,
+      updateMode: 'full',
     };
 
     log('Balance update response', {
@@ -483,6 +484,7 @@ export class RpcDataSource extends AbstractDataSource<
       assetsBalance: {
         [result.accountId]: newBalances,
       },
+      updateMode: 'full',
     };
 
     for (const subscription of this.#activeSubscriptions.values()) {

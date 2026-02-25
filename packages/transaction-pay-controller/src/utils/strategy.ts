@@ -1,29 +1,13 @@
-import type { TransactionMeta } from '@metamask/transaction-controller';
-
 import { TransactionPayStrategy } from '../constants';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
-import type { PayStrategy, TransactionPayControllerMessenger } from '../types';
+import type { PayStrategy } from '../types';
 
-/**
- * Get the payment strategy instance.
- *
- * @param messenger - Controller messenger
- * @param transaction - Transaction to get the strategy for.
- * @returns The payment strategy instance.
- */
-export function getStrategy(
-  messenger: TransactionPayControllerMessenger,
-  transaction: TransactionMeta,
-): PayStrategy<unknown> {
-  const strategyName = messenger.call(
-    'TransactionPayController:getStrategy',
-    transaction,
-  );
-
-  return getStrategyByName(strategyName);
-}
+export type NamedStrategy = {
+  name: TransactionPayStrategy;
+  strategy: PayStrategy<unknown>;
+};
 
 /**
  * Get strategy instance by name.
@@ -47,4 +31,33 @@ export function getStrategyByName(
     default:
       throw new Error(`Unknown strategy: ${strategyName as string}`);
   }
+}
+
+/**
+ * Resolve strategy names into strategy instances, skipping unknown entries.
+ *
+ * @param strategyNames - Ordered strategy names.
+ * @param onUnknownStrategy - Callback invoked for unknown strategies.
+ * @returns Ordered valid strategies with names.
+ */
+export function getStrategiesByName(
+  strategyNames: TransactionPayStrategy[],
+  onUnknownStrategy?: (strategyName: TransactionPayStrategy) => void,
+): NamedStrategy[] {
+  return strategyNames
+    .map((strategyName) => {
+      try {
+        return {
+          name: strategyName,
+          strategy: getStrategyByName(strategyName),
+        };
+      } catch {
+        onUnknownStrategy?.(strategyName);
+        return undefined;
+      }
+    })
+    .filter(
+      (namedStrategy): namedStrategy is NamedStrategy =>
+        namedStrategy !== undefined,
+    );
 }
