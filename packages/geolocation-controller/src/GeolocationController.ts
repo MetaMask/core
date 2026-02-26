@@ -12,6 +12,12 @@ import type { GeolocationStatus } from './types';
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
 
 /**
+ * Sentinel value used when the geolocation has not been determined yet or when
+ * the API returns an empty response.
+ */
+export const UNKNOWN_LOCATION = 'UNKNOWN';
+
+/**
  * The name of the {@link GeolocationController}, used to namespace the
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
@@ -52,13 +58,13 @@ const geolocationControllerMetadata = {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
-    usedInUi: true,
+    usedInUi: false,
   },
   error: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
-    usedInUi: true,
+    usedInUi: false,
   },
 } satisfies StateMetadata<GeolocationControllerState>;
 
@@ -72,7 +78,7 @@ const geolocationControllerMetadata = {
  */
 export function getDefaultGeolocationControllerState(): GeolocationControllerState {
   return {
-    location: 'UNKNOWN',
+    location: UNKNOWN_LOCATION,
     status: 'idle',
     lastFetchedAt: null,
     error: null,
@@ -224,8 +230,15 @@ export class GeolocationController extends BaseController<
       return this.#fetchPromise;
     }
 
-    const promise = this.#performFetch();
+    // Assign #fetchPromise before #performFetch's synchronous body runs, so
+    // re-entrant callers from stateChange listeners see an in-flight promise.
+    let resolve!: (value: string | PromiseLike<string>) => void;
+    const promise = new Promise<string>((_resolve) => {
+      resolve = _resolve;
+    });
     this.#fetchPromise = promise;
+    resolve(this.#performFetch());
+
     try {
       return await promise;
     } finally {
@@ -280,7 +293,8 @@ export class GeolocationController extends BaseController<
         throw new Error(`Geolocation fetch failed: ${response.status}`);
       }
 
-      const location = (await response.text()).trim() || 'UNKNOWN';
+      const raw = (await response.text()).trim();
+      const location = /^[A-Z]{2}$/u.test(raw) ? raw : UNKNOWN_LOCATION;
 
       if (generation === this.#fetchGeneration) {
         this.update((draft) => {

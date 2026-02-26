@@ -10,6 +10,7 @@ import type { GeolocationControllerMessenger } from './GeolocationController';
 import {
   GeolocationController,
   getDefaultGeolocationControllerState,
+  UNKNOWN_LOCATION,
 } from './GeolocationController';
 
 const MOCK_URL = 'https://on-ramp.api.cx.metamask.io/geolocation';
@@ -159,8 +160,6 @@ describe('GeolocationController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
-            "error": null,
-            "lastFetchedAt": null,
             "location": "UNKNOWN",
             "status": "idle",
           }
@@ -225,6 +224,33 @@ describe('GeolocationController', () => {
             expect(result1).toBe('IT');
             expect(result2).toBe('IT');
             expect(result3).toBe('IT');
+          },
+        );
+      });
+
+      it('deduplicates re-entrant calls from stateChange listeners', async () => {
+        const mockFetch = createMockFetch('BR');
+
+        await withController(
+          { options: { fetch: mockFetch } },
+          async ({ controller, rootMessenger }) => {
+            let reEntrantPromise: Promise<string> | undefined;
+
+            rootMessenger.subscribe(
+              'GeolocationController:stateChange',
+              (state) => {
+                if (state.status === 'loading' && !reEntrantPromise) {
+                  reEntrantPromise = controller.getGeolocation();
+                }
+              },
+            );
+
+            const result = await controller.getGeolocation();
+            const reEntrantResult = await reEntrantPromise;
+
+            expect(result).toBe('BR');
+            expect(reEntrantResult).toBe('BR');
+            expect(mockFetch).toHaveBeenCalledTimes(1);
           },
         );
       });
@@ -349,8 +375,8 @@ describe('GeolocationController', () => {
           async ({ controller }) => {
             const result = await controller.getGeolocation();
 
-            expect(result).toBe('UNKNOWN');
-            expect(controller.state.location).toBe('UNKNOWN');
+            expect(result).toBe(UNKNOWN_LOCATION);
+            expect(controller.state.location).toBe(UNKNOWN_LOCATION);
           },
         );
       });
@@ -403,8 +429,8 @@ describe('GeolocationController', () => {
           async ({ controller }) => {
             const result = await controller.getGeolocation();
 
-            expect(result).toBe('UNKNOWN');
-            expect(controller.state.location).toBe('UNKNOWN');
+            expect(result).toBe(UNKNOWN_LOCATION);
+            expect(controller.state.location).toBe(UNKNOWN_LOCATION);
             expect(controller.state.status).toBe('complete');
           },
         );
@@ -422,6 +448,56 @@ describe('GeolocationController', () => {
           async ({ controller }) => {
             const result = await controller.getGeolocation();
             expect(result).toBe('US');
+          },
+        );
+      });
+
+      it('rejects non-ISO-3166-1 alpha-2 response as UNKNOWN', async () => {
+        const mockFetch = jest
+          .fn()
+          .mockImplementation(() =>
+            Promise.resolve(createMockResponse('<html>error page</html>', 200)),
+          );
+
+        await withController(
+          { options: { fetch: mockFetch } },
+          async ({ controller }) => {
+            const result = await controller.getGeolocation();
+            expect(result).toBe(UNKNOWN_LOCATION);
+            expect(controller.state.location).toBe(UNKNOWN_LOCATION);
+            expect(controller.state.status).toBe('complete');
+          },
+        );
+      });
+
+      it('rejects lowercase country codes as UNKNOWN', async () => {
+        const mockFetch = jest
+          .fn()
+          .mockImplementation(() =>
+            Promise.resolve(createMockResponse('us', 200)),
+          );
+
+        await withController(
+          { options: { fetch: mockFetch } },
+          async ({ controller }) => {
+            const result = await controller.getGeolocation();
+            expect(result).toBe(UNKNOWN_LOCATION);
+          },
+        );
+      });
+
+      it('rejects three-letter codes as UNKNOWN', async () => {
+        const mockFetch = jest
+          .fn()
+          .mockImplementation(() =>
+            Promise.resolve(createMockResponse('USA', 200)),
+          );
+
+        await withController(
+          { options: { fetch: mockFetch } },
+          async ({ controller }) => {
+            const result = await controller.getGeolocation();
+            expect(result).toBe(UNKNOWN_LOCATION);
           },
         );
       });
@@ -768,7 +844,7 @@ async function withController<ReturnValue>(
 
   const rootMessenger = getRootMessenger();
   const controllerMessenger = getMessenger(rootMessenger);
-  const defaultFetch = createMockFetch('UNKNOWN');
+  const defaultFetch = createMockFetch(UNKNOWN_LOCATION);
 
   const controller = new GeolocationController({
     messenger: controllerMessenger,

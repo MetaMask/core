@@ -16,4 +16,5 @@ export {
   GeolocationController,
   getDefaultGeolocationControllerState,
   controllerName,
+  UNKNOWN_LOCATION,
 } from './GeolocationController';
