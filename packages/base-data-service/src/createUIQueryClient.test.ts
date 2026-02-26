@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/messenger';
 import { Json } from '@metamask/utils';
 import {
+  DehydratedState,
   InfiniteData,
   InfiniteQueryObserver,
   QueryClient,
@@ -15,6 +16,7 @@ import {
   ExampleDataServiceActions,
   ExampleMessenger,
   GetActivityResponse,
+  GetAssetsResponse,
 } from '../tests/ExampleDataService';
 import {
   mockAssets,
@@ -33,9 +35,11 @@ function createClient(serviceMessenger: ExampleMessenger): QueryClient {
 
   const messengerAdapter = {
     call: async (
-      method: ExampleDataServiceActions['type'],
+      method: string,
       ...params: Json[]
-    ) => {
+    ): Promise<
+      void | DehydratedState | GetActivityResponse | GetAssetsResponse
+    > => {
       if (method === 'ExampleDataService:subscribe') {
         return serviceMessenger.call(
           method,
@@ -49,7 +53,11 @@ function createClient(serviceMessenger: ExampleMessenger): QueryClient {
           subscription,
         );
       }
-      return serviceMessenger.call(method, ...params);
+      return serviceMessenger.call(
+        method as ExampleDataServiceActions['type'],
+        // @ts-expect-error TODO.
+        ...params,
+      );
     },
     subscribe: async (
       _method: string,
