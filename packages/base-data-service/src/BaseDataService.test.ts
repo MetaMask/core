@@ -65,8 +65,4 @@ describe('BaseDataService', () => {
 
     expect(page2.data).not.toStrictEqual(page1.data);
   });
-
-
-    expect(page2.data).not.toStrictEqual(page1.data);
-  });
 });
