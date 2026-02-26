@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- accounts-controller: Move mocks out of build ([#8033](https://github.com/MetaMask/core/pull/8033))
+- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+
 ### Added
 
 - Expose missing public `AccountsController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))

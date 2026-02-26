@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat!: Expose Accounts-owned controller/service methods through messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
+
 ### Added
 
 - Added optional `ab_tests` property to `RequiredEventContextFromClient` and `CrossChainSwapsEventProperties` types for A/B test experiment attribution ([#8007](https://github.com/MetaMask/core/pull/8007))
