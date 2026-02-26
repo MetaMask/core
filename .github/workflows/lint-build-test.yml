@@ -7,18 +7,11 @@ jobs:
   prepare:
     name: Prepare
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x, 22.x]
     outputs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
     steps:
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
-        with:
-          is-high-risk-environment: false
-          cache-node-modules: true
-          node-version: ${{ matrix.node-version }}
+      - uses: actions/checkout@v5
+      - run: corepack enable
       - name: Fetch workspace package names
         id: workspace-package-names
         run: |
