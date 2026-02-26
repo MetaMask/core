@@ -1,0 +1,33 @@
+name: Test prepare-preview-builds action
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-prepare-preview-builds:
+    name: Test prepare preview builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v2
+        with:
+          is-high-risk-environment: true
+      - name: Get commit SHA
+        id: commit-sha
+        run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Prepare preview builds
+        uses: MetaMask/github-tools/.github/actions/prepare-preview-builds@prepare-preview-builds-action
+        with:
+          npm-scope: '@metamask-previews'
+          commit-hash: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
+      - name: Verify manifests were renamed
+        run: |
+          # Check that at least one package was renamed to the preview scope
+          renamed=$(jq -r '.name' packages/*/package.json | grep '@metamask-previews/' | head -5)
+          if [[ -z "$renamed" ]]; then
+            echo "::error::No packages were renamed to @metamask-previews scope"
+            exit 1
+          fi
+          echo "Renamed packages (sample):"
+          echo "$renamed"
