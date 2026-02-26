@@ -5,107 +5,11 @@ on:
     types: created
 
 jobs:
-  is-fork-pull-request:
-    name: Determine whether this issue comment was on a pull request from a fork
-    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
-    runs-on: ubuntu-latest
-    outputs:
-      IS_FORK: ${{ steps.is-fork.outputs.IS_FORK }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Determine whether this PR is from a fork
-        id: is-fork
-        run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "${PR_NUMBER}" )" >> "$GITHUB_OUTPUT"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
-
-  build-preview:
-    name: Build preview
-    needs: is-fork-pull-request
-    if: ${{ needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Check out pull request
-        run: gh pr checkout "${PR_NUMBER}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
-        with:
-          is-high-risk-environment: true
-      - name: Get commit SHA
-        id: commit-sha
-        run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-      - name: Prepare preview builds
-        uses: MetaMask/github-tools/.github/actions/prepare-preview-builds@v1
-        with:
-          npm-scope: '@metamask-previews'
-          commit-hash: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
-      - run: yarn build
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: preview-build-artifacts
-          include-hidden-files: true
-          retention-days: 4
-          path: |
-            ./yarn.lock
-            ./package.json
-            ./packages/*/
-            !./packages/*/node_modules/
-            !./packages/*/src/
-            !./packages/*/tests/
-            !./packages/**/*.test.*
-
   publish-preview:
-    name: Publish preview
-    needs: build-preview
-    permissions:
-      pull-requests: write
-    environment: default-branch
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
-        with:
-          is-high-risk-environment: true
-      - name: Restore build artifacts
-        uses: actions/download-artifact@v7
-        with:
-          name: preview-build-artifacts
-      # The artifact package.json files come from the PR branch.
-      # A malicious PR could inject lifecycle scripts (prepack/postpack) that
-      # execute during `yarn npm publish` with the NPM token in the environment
-      # (enableScripts: false does NOT prevent pack/publish lifecycle scripts).
-      # It could also override publishConfig.registry to exfiltrate the token.
-      - name: Validate artifact manifests
-        run: |
-          bad=0
-          for f in packages/**/package.json; do
-            if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)(pack|publish)"))' "$f" > /dev/null 2>&1; then
-              echo "::error::Forbidden lifecycle script in $f"
-              bad=1
-            fi
-            reg=$(jq -r '.publishConfig.registry // ""' "$f")
-            if [[ -n "$reg" && "$reg" != "https://registry.npmjs.org/" ]]; then
-              echo "::error::Unexpected registry in $f: $reg"
-              bad=1
-            fi
-          done
-          exit "$bad"
-      - name: Reconcile workspace state
-        run: yarn install --no-immutable
-      - name: Publish preview builds
-        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
-        env:
-          YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
-      - name: Generate preview build message
-        run: yarn tsx scripts/generate-preview-build-message.ts
-      - name: Post build preview in comment
-        run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
+    uses: MetaMask/github-tools/.github/workflows/publish-preview.yml@prepare-preview-builds-action
+    with:
+      environment: default-branch
+      docs-url: 'https://github.com/MetaMask/core/blob/main/docs/processes/preview-builds.md'
+    secrets:
+      PUBLISH_PREVIEW_NPM_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
