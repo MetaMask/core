@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/messenger';
-import { BaseDataService } from './BaseDataService';
 import { Json } from '@metamask/utils';
+
+import { BaseDataService } from './BaseDataService';
 
 const serviceName = 'ExampleDataService';
 
@@ -11,19 +12,26 @@ type ExampleDataServiceGetAssetsAction = {
 
 type ExampleDataServiceGetActivityAction = {
   type: `${typeof serviceName}:getActivity`;
-  handler: ExampleDataService['getActivity']
+  handler: ExampleDataService['getActivity'];
 };
 
-export type ExampleDataServiceActions = ExampleDataServiceGetAssetsAction | ExampleDataServiceGetActivityAction;
+type ExampleDataServiceActions =
+  | ExampleDataServiceGetAssetsAction
+  | ExampleDataServiceGetActivityAction;
 
-type ExampleMessenger = Messenger<typeof serviceName, ExampleDataServiceActions, any>;
+type ExampleMessenger = Messenger<
+  typeof serviceName,
+  ExampleDataServiceActions,
+  never
+>;
 
 class ExampleDataService extends BaseDataService<
   typeof serviceName,
   ExampleMessenger
 > {
-  #accountsBaseUrl = 'https://accounts.api.cx.metamask.io';
-  #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
+  readonly #accountsBaseUrl = 'https://accounts.api.cx.metamask.io';
+
+  readonly #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
 
   constructor(messenger: ExampleMessenger) {
     super({
@@ -57,26 +65,32 @@ class ExampleDataService extends BaseDataService<
     });
   }
 
-  async getActivity(address: string, pageParam?: string) {
-    return this.fetchInfiniteQuery<{ data: Json; pageInfo: { hasNextPage: boolean; endCursor: string } }>({
-      queryKey: [`${this.name}:getActivity`, address],
-      queryFn: async ({ pageParam }) => {
-        const caipAddress = `eip155:0:${address.toLowerCase()}`;
-        const url = new URL(
-          `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=10&accountAddresses=${caipAddress}`,
-        );
+  async getActivity(address: string, page?: string) {
+    return this.fetchInfiniteQuery<{
+      data: Json;
+      pageInfo: { hasNextPage: boolean; endCursor: string };
+    }>(
+      {
+        queryKey: [`${this.name}:getActivity`, address],
+        queryFn: async ({ pageParam }) => {
+          const caipAddress = `eip155:0:${address.toLowerCase()}`;
+          const url = new URL(
+            `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=10&accountAddresses=${caipAddress}`,
+          );
 
-        if (pageParam) {
-          url.searchParams.set('cursor', pageParam);
-        }
+          if (pageParam) {
+            url.searchParams.set('cursor', pageParam);
+          }
 
-        const response = await fetch(url);
+          const response = await fetch(url);
 
-        return response.json();
+          return response.json();
+        },
+        getNextPageParam: ({ pageInfo }) =>
+          pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
       },
-      getNextPageParam: ({ pageInfo }) =>
-        pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
-    }, pageParam);
+      page,
+    );
   }
 }
 
