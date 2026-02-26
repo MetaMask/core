@@ -1,100 +1,14 @@
 import { Messenger } from '@metamask/messenger';
-import { Json } from '@metamask/utils';
 
-import { BaseDataService } from './BaseDataService';
-
-const serviceName = 'ExampleDataService';
-
-type ExampleDataServiceGetAssetsAction = {
-  type: `${typeof serviceName}:getAssets`;
-  handler: ExampleDataService['getAssets'];
-};
-
-type ExampleDataServiceGetActivityAction = {
-  type: `${typeof serviceName}:getActivity`;
-  handler: ExampleDataService['getActivity'];
-};
-
-type ExampleDataServiceActions =
-  | ExampleDataServiceGetAssetsAction
-  | ExampleDataServiceGetActivityAction;
-
-type ExampleMessenger = Messenger<
-  typeof serviceName,
-  ExampleDataServiceActions,
-  never
->;
-
-class ExampleDataService extends BaseDataService<
-  typeof serviceName,
-  ExampleMessenger
-> {
-  readonly #accountsBaseUrl = 'https://accounts.api.cx.metamask.io';
-
-  readonly #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
-
-  constructor(messenger: ExampleMessenger) {
-    super({
-      name: serviceName,
-      messenger,
-    });
-
-    messenger.registerActionHandler(
-      `${this.name}:getAssets`,
-      this.getAssets.bind(this),
-    );
-
-    messenger.registerActionHandler(
-      `${this.name}:getActivity`,
-      this.getActivity.bind(this),
-    );
-  }
-
-  async getAssets(assets: string[]) {
-    return this.fetchQuery({
-      queryKey: [`${this.name}:getAssets`, ...assets],
-      queryFn: async () => {
-        const url = new URL(
-          `${this.#tokensBaseUrl}/v3/assets?assetIds=${assets.join(',')}`,
-        );
-
-        const response = await fetch(url);
-
-        return response.json();
-      },
-    });
-  }
-
-  async getActivity(address: string, page?: string) {
-    return this.fetchInfiniteQuery<{
-      data: Json;
-      pageInfo: { hasNextPage: boolean; endCursor: string };
-    }>(
-      {
-        queryKey: [`${this.name}:getActivity`, address],
-        queryFn: async ({ pageParam }) => {
-          const caipAddress = `eip155:0:${address.toLowerCase()}`;
-          const url = new URL(
-            `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=10&accountAddresses=${caipAddress}`,
-          );
-
-          if (pageParam) {
-            url.searchParams.set('cursor', pageParam);
-          }
-
-          const response = await fetch(url);
-
-          return response.json();
-        },
-        getNextPageParam: ({ pageInfo }) =>
-          pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
-      },
-      page,
-    );
-  }
-}
+import { ExampleDataService, serviceName } from '../tests/ExampleDataService';
+import { mockAssets, mockTransactions } from '../tests/mocks';
 
 describe('BaseDataService', () => {
+  beforeEach(() => {
+    mockAssets();
+    mockTransactions();
+  });
+
   it('handles basic queries', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
@@ -107,6 +21,12 @@ describe('BaseDataService', () => {
       ]),
     ).toStrictEqual([
       {
+        assetId: 'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+        decimals: 18,
+        name: 'Dai Stablecoin',
+        symbol: 'DAI',
+      },
+      {
         assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
         decimals: 8,
         name: 'Bitcoin',
@@ -117,12 +37,6 @@ describe('BaseDataService', () => {
         decimals: 18,
         name: 'Ethereum',
         symbol: 'ETH',
-      },
-      {
-        assetId: 'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
-        decimals: 18,
-        name: 'Dai Stablecoin',
-        symbol: 'DAI',
       },
     ]);
   });
