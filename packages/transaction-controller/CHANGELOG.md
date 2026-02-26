@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.1.1` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Add extra parameters in types and change `addTransaction` behavior ([#8052](https://github.com/MetaMask/core/pull/8052))
+  - Add optional `excludeNativeTokenForFee` in `TransactionMeta` type.
+  - Add optional `actionId` and optional `excludeNativeTokenForFee` in `TransactionBatchRequest` type.
+  - Add optional `excludeNativeTokenForFee` to `AddTransactionOptions` type.
+  - Changed `isGasFeeTokenIgnoredIfBalance` to be false if `excludeNativeTokenForFee` is passed in `addTransaction`.
 
 ### Removed
 

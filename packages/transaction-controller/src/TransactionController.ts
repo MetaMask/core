@@ -1188,6 +1188,7 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
       disableGasBuffer,
       gasFeeToken,
+      excludeNativeTokenForFee,
       isGasFeeIncluded,
       isGasFeeSponsored,
       isStateOnly,
@@ -1275,6 +1276,11 @@ export class TransactionController extends BaseController<
         })
       ).type;
 
+    // Original behavior was that this was set to 'true' whenever a gasFeeToken was passed.
+    // 'excludeNativeTokenForFee' optionnally overrides this behavior to prevent native token from
+    // being used when another gasFeeToken is set.
+    const isGasFeeTokenIgnoredIfBalance =
+      Boolean(gasFeeToken) && !excludeNativeTokenForFee;
     let addedTransactionMeta: TransactionMeta = {
       actionId,
       assetsFiatValues,
@@ -1284,9 +1290,13 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
       disableGasBuffer,
       id: random(),
-      isGasFeeTokenIgnoredIfBalance: Boolean(gasFeeToken),
+      isGasFeeTokenIgnoredIfBalance,
       isGasFeeIncluded,
       isGasFeeSponsored,
+      // To avoid the property to be set as undefined.
+      ...(excludeNativeTokenForFee === undefined
+        ? {}
+        : { excludeNativeTokenForFee }),
       isFirstTimeInteraction: undefined,
       isStateOnly,
       nestedTransactions,
