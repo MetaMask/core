@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/transaction-pay-controller",
-  "version": "16.1.0",
-  "description": "Manages alternate payment strategies to provide required funds for transactions in MetaMask",
+  "name": "@metamask/base-data-service",
+  "version": "0.0.0",
+  "description": "Provides utilities for building data services",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/transaction-pay-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/base-data-service#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -14,7 +14,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "license": "(MIT OR Apache-2.0)",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -38,35 +38,14 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-pay-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-pay-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/base-data-service",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/base-data-service",
+    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
-  },
-  "dependencies": {
-    "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/contracts": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
-    "@metamask/assets-controllers": "^100.0.3",
-    "@metamask/base-controller": "^9.0.0",
-    "@metamask/bridge-controller": "^67.2.0",
-    "@metamask/bridge-status-controller": "^67.0.1",
-    "@metamask/controller-utils": "^11.19.0",
-    "@metamask/gas-fee-controller": "^26.0.3",
-    "@metamask/messenger": "^0.3.0",
-    "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/network-controller": "^30.0.0",
-    "@metamask/remote-feature-flag-controller": "^4.1.0",
-    "@metamask/transaction-controller": "^62.19.0",
-    "@metamask/utils": "^11.9.0",
-    "bignumber.js": "^9.1.2",
-    "bn.js": "^5.2.1",
-    "immer": "^9.0.6",
-    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

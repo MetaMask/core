@@ -16,8 +16,11 @@ export type SubscriptionRequest = {
   request: DataRequest;
   subscriptionId: string;
   isUpdate: boolean;
-  /** Called when this data source has new asset data. Passed by the controller when subscribing. */
-  onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+  /** Called when this data source has new asset data. Passed by the controller when subscribing. Optional request describes the update scope (e.g. dataTypes: ['balance'] to skip enrichment). */
+  onAssetsUpdate: (
+    response: DataResponse,
+    request?: DataRequest,
+  ) => void | Promise<void>;
   /**
    * Optional state access (e.g. for price/token data sources that need assetsBalance).
    * Provided by the controller when subscribing.
@@ -39,7 +42,10 @@ export type ActiveSubscription = {
   /** Account addresses (for WebSocket data sources to detect account changes) */
   addresses?: string[];
   /** Callback to report asset updates (from SubscriptionRequest) */
-  onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+  onAssetsUpdate: (
+    response: DataResponse,
+    request?: DataRequest,
+  ) => void | Promise<void>;
 };
 
 /**

@@ -589,6 +589,12 @@ export class AssetsController extends BaseController<
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
+  readonly #onActiveChainsUpdated: (
+    dataSourceId: string,
+    activeChains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
+
   constructor({
     messenger,
     state = {},
@@ -619,36 +625,36 @@ export class AssetsController extends BaseController<
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
-    const onActiveChainsUpdated = (
+    this.#onActiveChainsUpdated = (
       dataSourceName: string,
       chains: ChainId[],
       previousChains: ChainId[],
     ): void => {
-      this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+      this.#handleActiveChainsUpdate(dataSourceName, chains, previousChains);
     };
 
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
       messenger: this.messenger,
       queryApiClient,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...accountsApiDataSourceConfig,
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...rpcConfig,
     });
     this.#stakedBalanceDataSource = new StakedBalanceDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...stakedBalanceDataSourceConfig,
     });
     this.#tokenDataSource = new TokenDataSource({
@@ -830,7 +836,7 @@ export class AssetsController extends BaseController<
    * @param activeChains - Currently active (supported and available) chain IDs for this source.
    * @param previousChains - Previous chains; used to compute added/removed.
    */
-  handleActiveChainsUpdate(
+  #handleActiveChainsUpdate(
     dataSourceId: string,
     activeChains: ChainId[],
     previousChains: ChainId[],
@@ -871,6 +877,20 @@ export class AssetsController extends BaseController<
         });
       }
     }
+  }
+
+  /**
+   * Returns the callback passed to data sources for reporting active chain updates.
+   * Used by tests to simulate a data source reporting chain changes.
+   *
+   * @returns The onActiveChainsUpdated callback.
+   */
+  getOnActiveChainsUpdated(): (
+    dataSourceId: string,
+    activeChains: ChainId[],
+    previousChains: ChainId[],
+  ) => void {
+    return this.#onActiveChainsUpdated;
   }
 
   // ============================================================================
@@ -1983,7 +2003,8 @@ export class AssetsController extends BaseController<
       }),
       subscriptionId: subscriptionKey,
       isUpdate,
-      onAssetsUpdate: (response) => this.handleAssetsUpdate(response, sourceId),
+      onAssetsUpdate: (response, request) =>
+        this.handleAssetsUpdate(response, sourceId, request),
       getAssetsState: () => this.state,
     };
 

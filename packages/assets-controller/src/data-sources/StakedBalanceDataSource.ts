@@ -90,7 +90,10 @@ type SubscriptionData = {
   /** Per-account supported chains; used by refreshStakedBalance and transaction handlers. */
   accountsWithSupportedChains: AccountWithSupportedChains[];
   /** Callback to report asset updates. */
-  onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+  onAssetsUpdate: (
+    response: DataResponse,
+    request?: DataRequest,
+  ) => void | Promise<void>;
 };
 
 /**
@@ -450,14 +453,46 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       }
     }
 
+    const chainIds = [...new Set(toRefresh.map(({ chainId }) => chainId))];
+    const chainsByAccountId = new Map<AccountId, ChainId[]>();
+    for (const { account, chainId } of toRefresh) {
+      const list = chainsByAccountId.get(account.id) ?? [];
+      if (!list.includes(chainId)) {
+        list.push(chainId);
+      }
+      chainsByAccountId.set(account.id, list);
+    }
+    const accountById = new Map<AccountId, InternalAccount>();
+    for (const { account } of toRefresh) {
+      if (!accountById.has(account.id)) {
+        accountById.set(account.id, account);
+      }
+    }
+    const request: DataRequest = {
+      accountsWithSupportedChains: [...accountById.entries()].map(
+        ([accountId, account]) => ({
+          account,
+          supportedChains: chainsByAccountId.get(accountId) ?? [],
+        }),
+      ),
+      chainIds,
+      dataTypes: ['balance'],
+    };
+
     if (Object.keys(assetsBalance).length > 0) {
-      const response: DataResponse = { assetsInfo, assetsBalance };
+      const response: DataResponse = {
+        assetsInfo,
+        assetsBalance,
+        updateMode: 'merge',
+      };
       for (const subscription of this.#activeSubscriptions.values()) {
-        subscription.onAssetsUpdate(response)?.catch((error: unknown) => {
-          log('Failed to report staked balance update after transaction', {
-            error,
+        subscription
+          .onAssetsUpdate(response, request)
+          ?.catch((error: unknown) => {
+            log('Failed to report staked balance update after transaction', {
+              error,
+            });
           });
-        });
       }
     }
   }
@@ -600,6 +635,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
     const assetId = stakedAssetId(caipChainId, contractAddress);
 
+    // request.dataTypes: ['balance'] so controller skips Token/Price enrichment.
     const response: DataResponse = {
       assetsInfo: {
         [assetId]: STAKED_ETH_METADATA,
@@ -609,6 +645,13 @@ export class StakedBalanceDataSource extends AbstractDataSource<
           [assetId]: { amount: result.balance.amount },
         },
       },
+      updateMode: 'merge',
+    };
+
+    const request: DataRequest = {
+      accountsWithSupportedChains: [],
+      chainIds: [caipChainId],
+      dataTypes: ['balance'],
     };
 
     log('Staked balance update', {
@@ -618,9 +661,11 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     });
 
     for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response)?.catch((error: unknown) => {
-        log('Failed to report staked balance update', { error });
-      });
+      subscription
+        .onAssetsUpdate(response, request)
+        ?.catch((error: unknown) => {
+          log('Failed to report staked balance update', { error });
+        });
     }
   }
 
