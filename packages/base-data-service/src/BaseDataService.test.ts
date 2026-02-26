@@ -48,18 +48,24 @@ describe('BaseDataService', () => {
     ]);
   });
 
-  it.only('handles paginated queries', async () => {
+  it('handles paginated queries', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
     const page1 = await service.getActivity(TEST_ADDRESS);
 
-    // expect(page1.data).toStrictEqual([]);
+    expect(page1.data).toHaveLength(3);
 
     const page2 = await service.getActivity(
       TEST_ADDRESS,
       page1.pageInfo.endCursor,
     );
+
+    expect(page2.data).toHaveLength(3);
+
+    expect(page2.data).not.toStrictEqual(page1.data);
+  });
+
 
     expect(page2.data).not.toStrictEqual(page1.data);
   });
