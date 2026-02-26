@@ -40,7 +40,7 @@ jobs:
         id: commit-sha
         run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
       - name: Prepare preview builds
-        uses: MetaMask/github-tools/.github/actions/prepare-preview-builds@prepare-preview-builds-action
+        uses: MetaMask/github-tools/.github/actions/prepare-preview-builds@v1
         with:
           npm-scope: '@metamask-previews'
           commit-hash: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
