@@ -1,6 +1,12 @@
 import { Messenger } from '@metamask/messenger';
 import { Json } from '@metamask/utils';
-import { QueryClient, QueryKey, QueryObserver } from '@tanstack/query-core';
+import {
+  InfiniteData,
+  InfiniteQueryObserver,
+  QueryClient,
+  QueryKey,
+  QueryObserver,
+} from '@tanstack/query-core';
 
 import { SubscriptionCallback, SubscriptionPayload } from './BaseDataService';
 import { createUIQueryClient } from './createUIQueryClient';
@@ -8,8 +14,13 @@ import {
   ExampleDataService,
   ExampleDataServiceActions,
   ExampleMessenger,
+  GetActivityResponse,
 } from '../tests/ExampleDataService';
-import { mockAssets } from '../tests/mocks';
+import {
+  mockAssets,
+  mockTransactionsPage1,
+  mockTransactionsPage2,
+} from '../tests/mocks';
 
 const DATA_SERVICES = ['ExampleDataService'];
 
@@ -77,9 +88,16 @@ const getAssetsQueryKey = [
   ],
 ];
 
+const getActivityQueryKey = [
+  'ExampleDataService:getActivity',
+  '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520',
+];
+
 describe('createUIQueryClient', () => {
   beforeEach(() => {
     mockAssets();
+    mockTransactionsPage1();
+    mockTransactionsPage2();
   });
 
   it('proxies requests to the underlying service', async () => {
@@ -190,6 +208,68 @@ describe('createUIQueryClient', () => {
 
     expect(queryData).toStrictEqual([]);
     expect(queryData).toStrictEqual(clientB.getQueryData(getAssetsQueryKey));
+
+    observerA.destroy();
+    observerB.destroy();
+  });
+
+  it('fetches using paginated observers', async () => {
+    const { clientA, clientB } = createClients();
+
+    const getPreviousPageParam = ({
+      pageInfo,
+    }: GetActivityResponse): string | undefined =>
+      pageInfo.hasPreviousPage ? pageInfo.startCursor : undefined;
+    const getNextPageParam = ({
+      pageInfo,
+    }: GetActivityResponse): string | undefined =>
+      pageInfo.hasNextPage ? pageInfo.endCursor : undefined;
+
+    const observerA = new InfiniteQueryObserver(clientA, {
+      queryKey: getActivityQueryKey,
+      getNextPageParam,
+      getPreviousPageParam,
+    });
+
+    const observerB = new InfiniteQueryObserver(clientB, {
+      queryKey: getActivityQueryKey,
+      getNextPageParam,
+      getPreviousPageParam,
+    });
+
+    const promiseA = new Promise<InfiniteData<GetActivityResponse>>(
+      (resolve) => {
+        observerA.subscribe((event) => {
+          if (event.status === 'success') {
+            resolve(event.data);
+          }
+        });
+      },
+    );
+
+    const resultA = await promiseA;
+
+    expect(resultA.pages[0].data).toHaveLength(3);
+
+    const promiseB = new Promise<InfiniteData<GetActivityResponse>>(
+      (resolve) => {
+        observerB.subscribe((event) => {
+          if (event.status === 'success') {
+            resolve(event.data);
+          }
+        });
+      },
+    );
+
+    const resultB = await promiseB;
+    expect(resultA).toStrictEqual(resultB);
+
+    const nextPageResult = await observerA.fetchNextPage();
+    expect(nextPageResult.data?.pages).toHaveLength(2);
+
+    expect(clientA.getQueryData(getActivityQueryKey)).toStrictEqual(
+      clientB.getQueryData(getActivityQueryKey),
+    );
 
     observerA.destroy();
     observerB.destroy();
