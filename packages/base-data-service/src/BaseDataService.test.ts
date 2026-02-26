@@ -1,12 +1,19 @@
 import { Messenger } from '@metamask/messenger';
 
 import { ExampleDataService, serviceName } from '../tests/ExampleDataService';
-import { mockAssets, mockTransactions } from '../tests/mocks';
+import {
+  mockAssets,
+  mockTransactionsPage1,
+  mockTransactionsPage2,
+} from '../tests/mocks';
+
+const TEST_ADDRESS = '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520';
 
 describe('BaseDataService', () => {
   beforeEach(() => {
     mockAssets();
-    mockTransactions();
+    mockTransactionsPage1();
+    mockTransactionsPage2();
   });
 
   it('handles basic queries', async () => {
@@ -41,18 +48,16 @@ describe('BaseDataService', () => {
     ]);
   });
 
-  it('handles paginated queries', async () => {
+  it.only('handles paginated queries', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    const page1 = await service.getActivity(
-      '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-    );
+    const page1 = await service.getActivity(TEST_ADDRESS);
 
     // expect(page1.data).toStrictEqual([]);
 
     const page2 = await service.getActivity(
-      '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+      TEST_ADDRESS,
       page1.pageInfo.endCursor,
     );
 

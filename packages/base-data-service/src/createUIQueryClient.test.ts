@@ -40,7 +40,10 @@ function createClient(serviceMessenger: ExampleMessenger): QueryClient {
       }
       return serviceMessenger.call(method, ...params);
     },
-    subscribe: async (_method: string, callback: SubscriptionCallback): Promise<void> => {
+    subscribe: async (
+      _method: string,
+      callback: SubscriptionCallback,
+    ): Promise<void> => {
       subscriptions.add(callback);
     },
   };
@@ -177,15 +180,15 @@ describe('createUIQueryClient', () => {
 
     // Replace the mock response and invalidate
     mockAssets({
-        status: 200,
-        body: [],
-    })
+      status: 200,
+      body: [],
+    });
 
     await clientA.invalidateQueries();
 
     const queryData = clientA.getQueryData(getAssetsQueryKey);
 
-    expect(queryData).toStrictEqual([])
+    expect(queryData).toStrictEqual([]);
     expect(queryData).toStrictEqual(clientB.getQueryData(getAssetsQueryKey));
 
     observerA.destroy();

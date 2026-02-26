@@ -70,14 +70,19 @@ export class ExampleDataService extends BaseDataService<
   async getActivity(address: string, page?: string) {
     return this.fetchInfiniteQuery<{
       data: Json;
-      pageInfo: { hasNextPage: boolean; endCursor: string };
+      pageInfo: {
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+        startCursor: string;
+        endCursor: string;
+      };
     }>(
       {
         queryKey: [`${this.name}:getActivity`, address],
         queryFn: async ({ pageParam }) => {
           const caipAddress = `eip155:0:${address.toLowerCase()}`;
           const url = new URL(
-            `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=10&accountAddresses=${caipAddress}`,
+            `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
           );
 
           if (pageParam) {
@@ -88,6 +93,8 @@ export class ExampleDataService extends BaseDataService<
 
           return response.json();
         },
+        getPreviousPageParam: ({ pageInfo }) =>
+          pageInfo.hasPreviousPage ? pageInfo.startCursor : undefined,
         getNextPageParam: ({ pageInfo }) =>
           pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
       },
