@@ -1838,9 +1838,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       EventName
     >[EventName],
   ): void => {
-    const eventAbTests = (
-      eventProperties as { ab_tests?: Record<string, string> } | undefined
-    )?.ab_tests;
+    const { ab_tests: eventAbTests } =
+      (eventProperties as
+        | Record<string, Record<string, string> | undefined>
+        | undefined) ?? {};
     const historyAbTests = txMetaId
       ? this.state.txHistory?.[txMetaId]?.abTests
       : undefined;
