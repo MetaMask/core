@@ -414,14 +414,14 @@ function mockAuthBearerTokenCall(
   messenger: NotificationServicesPushControllerMessenger,
 ): jest.Mock<
   ReturnType<
-    AuthenticationController.AuthenticationControllerGetBearerToken['handler']
+    AuthenticationController.AuthenticationControllerGetBearerTokenAction['handler']
   >,
   Parameters<
-    AuthenticationController.AuthenticationControllerGetBearerToken['handler']
+    AuthenticationController.AuthenticationControllerGetBearerTokenAction['handler']
   >
 > {
   type Fn =
-    AuthenticationController.AuthenticationControllerGetBearerToken['handler'];
+    AuthenticationController.AuthenticationControllerGetBearerTokenAction['handler'];
   const mockAuthGetBearerToken = jest
     .fn<ReturnType<Fn>, Parameters<Fn>>()
     .mockResolvedValue(MOCK_JWT);

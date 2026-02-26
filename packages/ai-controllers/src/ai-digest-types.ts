@@ -79,6 +79,8 @@ export type MarketInsightsReport = {
   summary: string;
   /** Key market trends */
   trends: MarketInsightsTrend[];
+  /** Optional top-level social posts included by the API */
+  social?: MarketInsightsTweet[];
   /** Data sources used to generate the report */
   sources: MarketInsightsSource[];
 };

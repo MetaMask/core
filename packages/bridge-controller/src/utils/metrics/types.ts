@@ -64,7 +64,8 @@ export type InputKeys =
   | 'token_destination'
   | 'chain_source'
   | 'chain_destination'
-  | 'slippage';
+  | 'slippage'
+  | 'token_amount_source';
 
 export type InputValues = {
   token_source: CaipAssetType;
@@ -72,6 +73,7 @@ export type InputValues = {
   chain_source: CaipChainId;
   chain_destination: CaipChainId;
   slippage: number;
+  token_amount_source: string;
 };
 
 export type QuoteWarning =
@@ -101,7 +103,8 @@ type RequiredEventContextFromClientBase = {
       | 'token_destination'
       | 'chain_source'
       | 'chain_destination'
-      | 'slippage';
+      | 'slippage'
+      | 'token_amount_source';
     input_value: InputValues[keyof InputValues];
     input_amount_preset?: InputAmountPreset;
   };
@@ -245,6 +248,7 @@ type RequiredEventContextFromClientBase = {
 export type RequiredEventContextFromClient = {
   [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
     location?: MetaMetricsSwapsEventSource;
+    ab_tests?: Record<string, string>;
   };
 };
 
@@ -313,6 +317,7 @@ export type CrossChainSwapsEventProperties<
   | {
       action_type: MetricsActionType;
       location: MetaMetricsSwapsEventSource;
+      ab_tests?: Record<string, string>;
     }
   | Pick<EventPropertiesFromControllerState, T>[T]
   | Pick<RequiredEventContextFromClient, T>[T];

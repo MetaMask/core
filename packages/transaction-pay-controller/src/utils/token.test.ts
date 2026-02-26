@@ -1,15 +1,19 @@
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import type { TokensControllerState } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerState } from '@metamask/assets-controllers';
 import type { TokenRatesControllerState } from '@metamask/assets-controllers';
 import type { Hex } from '@metamask/utils';
 
 import {
+  computeTokenAmounts,
   getTokenBalance,
   getTokenInfo,
   getTokenFiatRate,
   getAllTokenBalances,
   getNativeToken,
   isSameToken,
+  getLiveTokenBalance,
 } from './token';
 import {
   CHAIN_ID_POLYGON,
@@ -17,6 +21,16 @@ import {
   POLYGON_USDCE_ADDRESS,
 } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
+
+jest.mock('@ethersproject/contracts', () => ({
+  ...jest.requireActual('@ethersproject/contracts'),
+  Contract: jest.fn(),
+}));
+
+jest.mock('@ethersproject/providers', () => ({
+  ...jest.requireActual('@ethersproject/providers'),
+  Web3Provider: jest.fn(),
+}));
 
 const TOKEN_ADDRESS_MOCK = '0x559B65722aD62AD6DAC4Fa5a1c6B23A2e8ce57Ec' as Hex;
 const TOKEN_ADDRESS_2_MOCK = '0x123456789abcdef1234567890abcdef12345678' as Hex;
@@ -27,6 +41,9 @@ const FROM_MOCK = '0x456' as Hex;
 const NETWORK_CLIENT_ID_MOCK = '123-456';
 const TICKER_MOCK = 'TST';
 const SYMBOL_MOCK = 'TEST';
+const ACCOUNT_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
+const ERC20_ADDRESS_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Hex;
+const PROVIDER_MOCK = { request: jest.fn() };
 
 describe('Token Utils', () => {
   const {
@@ -40,8 +57,29 @@ describe('Token Utils', () => {
     findNetworkClientIdByChainIdMock,
   } = getMessengerMock();
 
+  let mockBalanceOf: jest.Mock;
+  let mockGetBalance: jest.Mock;
+
   beforeEach(() => {
     jest.resetAllMocks();
+
+    mockBalanceOf = jest.fn();
+    mockGetBalance = jest.fn();
+
+    findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+
+    getNetworkClientByIdMock.mockReturnValue({
+      configuration: { ticker: TICKER_MOCK },
+      provider: PROVIDER_MOCK,
+    } as never);
+
+    (Contract as unknown as jest.Mock).mockImplementation(() => ({
+      balanceOf: mockBalanceOf,
+    }));
+
+    (Web3Provider as unknown as jest.Mock).mockImplementation(() => ({
+      getBalance: mockGetBalance,
+    }));
   });
 
   describe('getTokenInfo', () => {
@@ -421,6 +459,127 @@ describe('Token Utils', () => {
 
     it('returns zero address for other chains', () => {
       expect(getNativeToken('0x1')).toBe(NATIVE_TOKEN_ADDRESS);
+    });
+  });
+
+  describe('getLiveTokenBalance', () => {
+    it('returns ERC-20 balance via contract balanceOf', async () => {
+      mockBalanceOf.mockResolvedValue({ toString: () => '5000000' });
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        ERC20_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('5000000');
+      expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+      );
+      expect(getNetworkClientByIdMock).toHaveBeenCalledWith(
+        NETWORK_CLIENT_ID_MOCK,
+      );
+      expect(Web3Provider).toHaveBeenCalledWith(PROVIDER_MOCK);
+      expect(Contract).toHaveBeenCalledWith(
+        ERC20_ADDRESS_MOCK,
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(mockBalanceOf).toHaveBeenCalledWith(ACCOUNT_MOCK);
+    });
+
+    it('returns native balance via ethersProvider.getBalance', async () => {
+      mockGetBalance.mockResolvedValue({
+        toString: () => '1000000000000000000',
+      });
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        NATIVE_TOKEN_ADDRESS,
+      );
+
+      expect(result).toBe('1000000000000000000');
+      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(Contract).not.toHaveBeenCalled();
+    });
+
+    it('returns native balance for polygon native address', async () => {
+      mockGetBalance.mockResolvedValue({
+        toString: () => '2000000000000000000',
+      });
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        '0x89' as Hex,
+        '0x0000000000000000000000000000000000001010' as Hex,
+      );
+
+      expect(result).toBe('2000000000000000000');
+      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(Contract).not.toHaveBeenCalled();
+    });
+
+    it('treats native address comparison as case-insensitive', async () => {
+      mockGetBalance.mockResolvedValue({ toString: () => '500' });
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        NATIVE_TOKEN_ADDRESS.toUpperCase() as Hex,
+      );
+
+      expect(result).toBe('500');
+      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(Contract).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('computeTokenAmounts', () => {
+    it('computes amount fields from raw value, decimals, and fiat rates', () => {
+      const result = computeTokenAmounts('1230000', 6, {
+        usdRate: '3.0',
+        fiatRate: '2.0',
+      });
+
+      expect(result).toStrictEqual({
+        raw: '1230000',
+        human: '1.23',
+        usd: '3.69',
+        fiat: '2.46',
+      });
+    });
+
+    it('handles zero balance', () => {
+      const result = computeTokenAmounts('0', 18, {
+        usdRate: '2000',
+        fiatRate: '1500',
+      });
+
+      expect(result).toStrictEqual({
+        raw: '0',
+        human: '0',
+        usd: '0',
+        fiat: '0',
+      });
+    });
+
+    it('accepts BigNumber.Value input types', () => {
+      const result = computeTokenAmounts('0x12d687', 6, {
+        usdRate: '1.0',
+        fiatRate: '0.85',
+      });
+
+      expect(result).toStrictEqual({
+        raw: '1234567',
+        human: '1.234567',
+        usd: '1.234567',
+        fiat: '1.04938195',
+      });
     });
   });
 

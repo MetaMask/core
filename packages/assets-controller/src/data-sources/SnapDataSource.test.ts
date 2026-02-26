@@ -435,6 +435,7 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
+      updateMode: 'full',
     });
 
     cleanup();
@@ -469,6 +470,7 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
+      updateMode: 'full',
     });
 
     cleanup();

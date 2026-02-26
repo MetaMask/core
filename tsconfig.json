@@ -45,6 +45,9 @@
       "path": "./packages/base-controller"
     },
     {
+      "path": "./packages/base-data-service"
+    },
+    {
       "path": "./packages/bridge-controller"
     },
     {
@@ -61,6 +64,9 @@
     },
     {
       "path": "./packages/client-controller"
+    },
+    {
+      "path": "./packages/compliance-controller"
     },
     {
       "path": "./packages/composable-controller"

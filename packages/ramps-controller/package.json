@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ramps-controller",
-  "version": "8.1.0",
+  "version": "10.0.0",
   "description": "A controller for managing cryptocurrency on/off ramps functionality",
   "keywords": [
     "MetaMask",
@@ -42,7 +42,6 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/ramps-controller",
     "dev": "node dev-watch.js",
     "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
