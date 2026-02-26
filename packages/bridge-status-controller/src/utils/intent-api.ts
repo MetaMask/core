@@ -21,34 +21,37 @@ export type IntentApi = {
   submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-    jwt: string,
   ): Promise<IntentOrder>;
   getOrderStatus(
     orderId: string,
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-    jwt: string,
   ): Promise<IntentOrder>;
 };
+
+export type GetJwtFn = () => Promise<string | undefined>;
 
 export class IntentApiImpl implements IntentApi {
   readonly #baseUrl: string;
 
   readonly #fetchFn: FetchFunction;
 
-  constructor(baseUrl: string, fetchFn: FetchFunction) {
+  readonly #getJwt: GetJwtFn;
+
+  constructor(baseUrl: string, fetchFn: FetchFunction, getJwt: GetJwtFn) {
     this.#baseUrl = baseUrl;
     this.#fetchFn = fetchFn;
+    this.#getJwt = getJwt;
   }
 
   async submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-    jwt: string | undefined,
   ): Promise<IntentOrder> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
     try {
+      const jwt = await this.#getJwt();
       const response = await this.#fetchFn(endpoint, {
         method: 'POST',
         headers: {
@@ -74,10 +77,10 @@ export class IntentApiImpl implements IntentApi {
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-    jwt: string | undefined,
   ): Promise<IntentOrder> {
     const endpoint = `${this.#baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {
+      const jwt = await this.#getJwt();
       const response = await this.#fetchFn(endpoint, {
         method: 'GET',
         headers: getClientHeaders({ clientId, jwt }),
@@ -95,7 +98,7 @@ export class IntentApiImpl implements IntentApi {
   }
 }
 
-export type IntentStatusTranslation = {
+export type IntentBridgeStatus = {
   status: StatusResponse;
   txHash?: string;
   transactionStatus: TransactionStatus;
@@ -105,7 +108,7 @@ export const translateIntentOrderToBridgeStatus = (
   intentOrder: IntentOrder,
   srcChainId: number,
   fallbackTxHash?: string,
-): IntentStatusTranslation => {
+): IntentBridgeStatus => {
   let statusType: StatusTypes;
   switch (intentOrder.status) {
     case IntentOrderStatus.CONFIRMED:
@@ -138,7 +141,7 @@ export const translateIntentOrderToBridgeStatus = (
 
   return {
     status,
-    txHash: intentOrder.txHash,
+    txHash,
     transactionStatus: mapIntentOrderStatusToTransactionStatus(
       intentOrder.status,
     ),
