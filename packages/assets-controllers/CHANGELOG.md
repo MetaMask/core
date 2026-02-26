@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.19.0` ([#8031](https://github.com/MetaMask/core/pull/8031))
 
+### Fixed
+
+- Fix `AccountsApiBalanceFetcher` to apply stricter conditions when zeroing out token balances ([#8044](https://github.com/MetaMask/core/pull/8044))
+
 ## [100.0.3]
 
 ### Changed

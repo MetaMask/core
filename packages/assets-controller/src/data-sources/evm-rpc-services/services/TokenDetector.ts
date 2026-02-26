@@ -107,6 +107,7 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
   async _executePoll(input: DetectionPollingInput): Promise<void> {
     // Check if token list is available for this chain
     const tokensToCheck = this.getTokensToCheck(input.chainId);
+
     if (tokensToCheck.length === 0) {
       // No tokens in list for chain, will retry on next poll
       return;

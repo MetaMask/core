@@ -248,6 +248,7 @@ type RequiredEventContextFromClientBase = {
 export type RequiredEventContextFromClient = {
   [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
     location?: MetaMetricsSwapsEventSource;
+    ab_tests?: Record<string, string>;
   };
 };
 
@@ -316,6 +317,7 @@ export type CrossChainSwapsEventProperties<
   | {
       action_type: MetricsActionType;
       location: MetaMetricsSwapsEventSource;
+      ab_tests?: Record<string, string>;
     }
   | Pick<EventPropertiesFromControllerState, T>[T]
   | Pick<RequiredEventContextFromClient, T>[T];

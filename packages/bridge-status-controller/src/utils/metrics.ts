@@ -177,6 +177,7 @@ export const getPriceImpactFromQuote = (
  * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
  * @param isHardwareAccount - whether the tx is submitted using a hardware wallet
  * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
+ * @param abTests - A/B test context to attribute events to specific experiments
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
@@ -184,6 +185,7 @@ export const getPreConfirmationPropertiesFromQuote = (
   isStxEnabledOnClient: boolean,
   isHardwareAccount: boolean,
   location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
+  abTests?: Record<string, string>,
 ) => {
   const { quote } = quoteResponse;
   return {
@@ -203,6 +205,7 @@ export const getPreConfirmationPropertiesFromQuote = (
     action_type: MetricsActionType.SWAPBRIDGE_V1,
     custom_slippage: false, // TODO detect whether the user changed the default slippage
     location,
+    ...(abTests && Object.keys(abTests).length > 0 && { ab_tests: abTests }),
   };
 };
 

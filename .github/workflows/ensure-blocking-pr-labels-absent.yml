@@ -16,7 +16,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
       - name: Run command

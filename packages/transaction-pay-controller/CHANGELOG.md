@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^4.0.0` to `^4.1.0` ([#8041](https://github.com/MetaMask/core/pull/8041))
+
+## [16.1.0]
+
 ### Added
 
+- Add `metaMask` fee field to `TransactionPayFees` ([#8030](https://github.com/MetaMask/core/pull/8030))
 - Add ordered strategy fallback mechanism for quote retrieval ([#7868](https://github.com/MetaMask/core/pull/7868))
 
 ### Changed
@@ -438,7 +445,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.0...HEAD
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.0.0...@metamask/transaction-pay-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@15.1.2...@metamask/transaction-pay-controller@16.0.0
 [15.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@15.1.1...@metamask/transaction-pay-controller@15.1.2
 [15.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@15.1.0...@metamask/transaction-pay-controller@15.1.1

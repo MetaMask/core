@@ -342,6 +342,9 @@ export type TransactionPayFees = {
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
 
+  /** Fee charged by MetaMask. */
+  metaMask: FiatValue;
+
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
