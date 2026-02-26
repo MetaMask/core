@@ -36,20 +36,21 @@ export function createUIQueryClient(
         queryFn: async (options): Promise<Json> => {
           const { queryKey } = options;
 
-          const potentialAction = queryKey?.[0];
+          const action = queryKey?.[0];
 
           assert(
-            typeof potentialAction === 'string',
+            typeof action === 'string',
             'The first element of a query key must be a string.',
           );
           assert(
-            dataServices.includes(potentialAction?.split(':')?.[0]),
+            dataServices.includes(action?.split(':')?.[0]),
             'Queries must use data service actions.',
           );
 
           return await messenger.call(
-            potentialAction,
-            options as unknown as Json,
+            action,
+            ...(options.queryKey.slice(1) as Json[]),
+            options.pageParam,
           );
         },
         // TODO: Decide on values for these.
@@ -63,9 +64,6 @@ export function createUIQueryClient(
 
   client.getQueryCache().subscribe((event) => {
     const { query } = event;
-    if (!query) {
-      return;
-    }
 
     const hash = query.queryHash;
     const hasSubscription = subscriptions.has(hash);
@@ -80,7 +78,9 @@ export function createUIQueryClient(
     ) {
       subscriptions.add(hash);
 
-      // Lazily subscribe to the cache updates broadcast by the data service
+      // This is a bit of a mess because we can't pass functions across the process boundary, so we call subscribe
+      // but also register listeners for :cacheUpdate which will be sent to subscribed processes
+      // TODO: Unsubscribe
       messenger.subscribe(`${service}:cacheUpdate`, (data) => {
         const castData = data as { hash: string; state: Json };
         if (subscriptions.has(castData.hash)) {
