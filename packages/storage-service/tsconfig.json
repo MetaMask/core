@@ -3,6 +3,10 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [{ "path": "../messenger" }],
+  "references": [
+    {
+      "path": "../messenger"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

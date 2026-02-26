@@ -4,10 +4,21 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../accounts-controller" },
-    { "path": "../keyring-controller" },
-    { "path": "../messenger" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../accounts-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../controller-utils"
+    }
   ],
   "include": ["../../types", "./src"]
 }

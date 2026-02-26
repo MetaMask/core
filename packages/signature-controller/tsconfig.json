@@ -20,9 +20,6 @@
       "path": "../gator-permissions-controller"
     },
     {
-      "path": "../message-manager"
-    },
-    {
       "path": "../keyring-controller"
     },
     {

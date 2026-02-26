@@ -5,12 +5,24 @@
     "rootDir": "../.."
   },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../network-controller" },
-    { "path": "../multichain-network-controller" },
-    { "path": "../controller-utils" },
-    { "path": "../transaction-controller" },
-    { "path": "../messenger" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../multichain-network-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../messenger"
+    }
   ],
   "include": ["../../types", "./src"]
 }

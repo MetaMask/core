@@ -4,9 +4,15 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../json-rpc-engine" },
-    { "path": "../messenger" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../messenger"
+    }
   ],
   "include": ["../../types", "./src", "./tests"]
 }

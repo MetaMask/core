@@ -11,9 +11,6 @@
       "path": "../base-controller"
     },
     {
-      "path": "../bridge-controller"
-    },
-    {
       "path": "../controller-utils"
     },
     {

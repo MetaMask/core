@@ -22,9 +22,6 @@
       "path": "../gator-permissions-controller/tsconfig.build.json"
     },
     {
-      "path": "../message-manager/tsconfig.build.json"
-    },
-    {
       "path": "../keyring-controller/tsconfig.build.json"
     },
     {
