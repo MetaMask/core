@@ -5,6 +5,13 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [{ "path": "../base-data-service/tsconfig.build.json" }],
+  "references": [
+    {
+      "path": "../base-data-service/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

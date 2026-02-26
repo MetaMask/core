@@ -4,9 +4,18 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../messenger" },
-    { "path": "../transaction-controller" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../network-controller"
+    }
   ],
   "include": ["../../types", "./src", "./tests"]
 }

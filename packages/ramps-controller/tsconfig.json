@@ -5,9 +5,18 @@
     "resolveJsonModule": true
   },
   "references": [
-    { "path": "../base-controller" },
-    { "path": "../messenger" },
-    { "path": "../profile-sync-controller" }
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../controller-utils"
+    }
   ],
   "include": ["../../types", "./src"]
 }

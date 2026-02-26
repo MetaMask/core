@@ -116,10 +116,10 @@ const config = createConfig([
       '**/docusaurus.config.ts',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
-      'scripts/*.ts',
-      'scripts/create-package/**/*.ts',
+      'scripts/**/*.{ts,mts}',
       'packages/platform-api-docs/**/*.ts',
     ],
+    ignores: ['scripts/create-package/package-template/**/*.ts'],
     extends: [nodejs],
   },
   {
@@ -130,7 +130,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.mts'],
     extends: [typescript],
     languageOptions: {
       parserOptions: {
