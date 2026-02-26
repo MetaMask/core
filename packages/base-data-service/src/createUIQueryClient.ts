@@ -12,8 +12,9 @@ function getServiceFromQueryKey(queryKey: QueryKey): string {
   return queryKey[0].split(':')[0];
 }
 
+// When UI messengers are available this should simply be a proper messenger that allows access to DataServiceActions
 type MessengerAdapter = {
-  call: (method: string, ...params: Json[]) => Promise<Json>;
+  call: (method: string, ...params: Json[]) => Promise<Json | void>;
   subscribe: (method: string, callback: (data: Json) => void) => void;
 };
 
@@ -47,11 +48,11 @@ export function createUIQueryClient(
             'Queries must use data service actions.',
           );
 
-          return await messenger.call(
+          return (await messenger.call(
             action,
             ...(options.queryKey.slice(1) as Json[]),
             options.pageParam,
-          );
+          )) as Json;
         },
         // TODO: Decide on values for these.
         staleTime: Infinity,
