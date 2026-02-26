@@ -430,6 +430,7 @@ async function addTransactionBatchWith7702(
   const { result } = await addTransaction(txParams, {
     batchId,
     gasFeeToken,
+    forceGasFeeToken: userRequest.forceGasFeeToken,
     isGasFeeIncluded: userRequest.isGasFeeIncluded,
     isGasFeeSponsored: userRequest.isGasFeeSponsored,
     nestedTransactions,
