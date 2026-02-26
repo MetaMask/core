@@ -1,4 +1,24 @@
 import type {
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+} from '@metamask/account-tree-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerSignTypedMessageAction,
+} from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
+import type {
+  NetworkControllerGetStateAction,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+} from '@metamask/network-controller';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type {
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
+import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
+import type {
   CaipAccountId,
   CaipChainId,
   CaipAssetId,
@@ -126,6 +146,9 @@ export type TrackingData = {
   tradeWithToken?: boolean;
   mmPayTokenSelected?: string; // Token symbol when tradeWithToken is true
   mmPayNetworkSelected?: string; // chainId when tradeWithToken is true
+
+  // A/B test context to attribute trade events to specific experiments
+  abTests?: Record<string, string>;
 };
 
 // TP/SL-specific tracking data for analytics events
@@ -879,6 +902,9 @@ export type Order = {
   detailedOrderType?: string; // Full order type from exchange (e.g., 'Take Profit Limit', 'Stop Market')
   isTrigger?: boolean; // Whether this is a trigger order (TP/SL)
   reduceOnly?: boolean; // Whether this is a reduce-only order
+  isPositionTpsl?: boolean; // Whether this TP/SL is associated with the full position
+  parentOrderId?: string; // Parent order ID for display-only synthetic TP/SL rows
+  isSynthetic?: boolean; // Whether this order is synthetic (display-only, cancelable only when linked to a real child order ID)
   triggerPrice?: string; // Trigger condition price for trigger orders (e.g., TP/SL trigger level)
   providerId?: PerpsProviderType; // Multi-provider: which provider this order is on (injected by aggregator)
 };
@@ -1269,7 +1295,7 @@ export type PerpsTraceValue = string | number | boolean;
  */
 export type PerpsAnalyticsProperties = Record<
   string,
-  string | number | boolean | null | undefined
+  string | number | boolean | Record<string, string> | null | undefined
 >;
 
 /**
@@ -1430,12 +1456,10 @@ export type PerpsRemoteFeatureFlagState = {
  * - Observability: logger, debugLogger, metrics, performance, tracer
  * - Platform: streamManager (mobile/extension specific)
  * - Cache: cache invalidation for standalone queries
- * - Controllers: delegated cross-controller interactions (DI — no messenger.call for external controllers).
- * Includes rewards (RewardsController) alongside network, keyring, transaction, etc.
+ * - Rewards: delegated rewards interaction (DI — no RewardsController in Core yet)
  *
- * All cross-controller interactions go through controllers.* rather than
- * messenger.call('OtherController:action'). This removes all controller-to-controller
- * npm dependencies except @metamask/base-controller from the published package.
+ * Cross-controller communication uses the messenger pattern (messenger.call).
+ * Only rewards remains as DI because RewardsController is not yet in Core.
  */
 export type PerpsPlatformDependencies = {
   // === Observability (stateless utilities) ===
@@ -1467,52 +1491,15 @@ export type PerpsPlatformDependencies = {
   // === Cache Invalidation (for standalone query caches) ===
   cacheInvalidator: PerpsCacheInvalidator;
 
-  // === Controllers (delegated cross-controller interactions) ===
-  // All external-controller calls go here instead of messenger.call('OtherController:...')
-  controllers: {
-    network: {
-      getState(): { selectedNetworkClientId: string };
-      getNetworkClientById(id: string): { configuration: { chainId: string } };
-      findNetworkClientIdByChainId(chainId: `0x${string}`): string | undefined;
-    };
-    keyring: {
-      getState(): { isUnlocked: boolean };
-      signTypedMessage(
-        params: PerpsTypedMessageParams,
-        version: string,
-      ): Promise<string>;
-    };
-    transaction: {
-      addTransaction(
-        txParams: PerpsTransactionParams,
-        opts: PerpsAddTransactionOptions,
-      ): Promise<{
-        result: Promise<string>;
-        transactionMeta: { id: string; hash?: string };
-      }>;
-    };
-    remoteFeatureFlags: {
-      getState(): PerpsRemoteFeatureFlagState;
-      onStateChange(
-        handler: (state: PerpsRemoteFeatureFlagState) => void,
-      ): () => void;
-    };
-    accountTree: {
-      getAccountsFromSelectedGroup(): PerpsInternalAccount[];
-      onSelectedAccountGroupChange(handler: () => void): () => void;
-    };
-    authentication: {
-      getBearerToken(): Promise<string>;
-    };
-    rewards: {
-      /**
-       * Get fee discount for an account from the RewardsController.
-       * Returns discount in basis points (e.g., 6500 = 65% discount)
-       */
-      getPerpsDiscountForAccount(
-        caipAccountId: `${string}:${string}:${string}`,
-      ): Promise<number>;
-    };
+  // === Rewards (DI — no RewardsController in Core yet) ===
+  rewards: {
+    /**
+     * Get fee discount for an account from the RewardsController.
+     * Returns discount in basis points (e.g., 6500 = 65% discount)
+     */
+    getPerpsDiscountForAccount(
+      caipAccountId: `${string}:${string}:${string}`,
+    ): Promise<number>;
   };
 };
 
@@ -1656,3 +1643,44 @@ export type {
   PredictedFundingsResponse,
   SpotMetaResponse,
 } from './hyperliquid-types';
+
+// ============================================================================
+// Messenger Types (shared by controller and services)
+// ============================================================================
+
+/**
+ * Actions from other controllers that PerpsController is allowed to call.
+ */
+export type PerpsControllerAllowedActions =
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | KeyringControllerGetStateAction
+  | KeyringControllerSignTypedMessageAction
+  | TransactionControllerAddTransactionAction
+  | RemoteFeatureFlagControllerGetStateAction
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | AuthenticationController.AuthenticationControllerGetBearerToken;
+
+/**
+ * Events from other controllers that PerpsController is allowed to subscribe to.
+ */
+export type PerpsControllerAllowedEvents =
+  | RemoteFeatureFlagControllerStateChangeEvent
+  | AccountTreeControllerSelectedAccountGroupChangeEvent;
+
+/**
+ * The messenger type used by PerpsController and its services.
+ * Defined here (rather than in PerpsController.ts) to avoid circular imports
+ * between the controller and service files.
+ *
+ * The first two type parameters (Actions, Events) are filled in by
+ * PerpsController.ts when it unions in its own actions/events.
+ * Services use this base type directly since they only need the allowed
+ * external actions/events.
+ */
+export type PerpsControllerMessengerBase = Messenger<
+  'PerpsController',
+  PerpsControllerAllowedActions,
+  PerpsControllerAllowedEvents
+>;

@@ -59,8 +59,14 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@metamask/account-tree-controller": "^4.1.1",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-controller": "^25.1.0",
     "@metamask/keyring-internal-api": "^10.0.0",
+    "@metamask/network-controller": "^30.0.0",
+    "@metamask/profile-sync-controller": "^27.1.0",
+    "@metamask/remote-feature-flag-controller": "^4.0.0",
+    "@metamask/transaction-controller": "^62.19.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/uuid": "^8.3.0",
