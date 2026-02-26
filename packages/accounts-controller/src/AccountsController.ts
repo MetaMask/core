@@ -38,6 +38,7 @@ import type { CaipChainId } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 
+import { AccountsControllerMethodActions } from './AccountsController-method-action-types';
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
@@ -79,113 +80,21 @@ export type AccountsControllerGetStateAction = ControllerGetStateAction<
   AccountsControllerState
 >;
 
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerSetSelectedAccountAction = {
-  type: `${typeof controllerName}:setSelectedAccount`;
-  handler: AccountsController['setSelectedAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerSetAccountNameAction = {
-  type: `${typeof controllerName}:setAccountName`;
-  handler: AccountsController['setAccountName'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerSetAccountNameAndSelectAccountAction = {
-  type: `${typeof controllerName}:setAccountNameAndSelectAccount`;
-  handler: AccountsController['setAccountNameAndSelectAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerListAccountsAction = {
-  type: `${typeof controllerName}:listAccounts`;
-  handler: AccountsController['listAccounts'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerListMultichainAccountsAction = {
-  type: `${typeof controllerName}:listMultichainAccounts`;
-  handler: AccountsController['listMultichainAccounts'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerUpdateAccountsAction = {
-  type: `${typeof controllerName}:updateAccounts`;
-  handler: AccountsController['updateAccounts'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetSelectedAccountAction = {
-  type: `${typeof controllerName}:getSelectedAccount`;
-  handler: AccountsController['getSelectedAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetSelectedMultichainAccountAction = {
-  type: `${typeof controllerName}:getSelectedMultichainAccount`;
-  handler: AccountsController['getSelectedMultichainAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetAccountByAddressAction = {
-  type: `${typeof controllerName}:getAccountByAddress`;
-  handler: AccountsController['getAccountByAddress'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetAccountAction = {
-  type: `${typeof controllerName}:getAccount`;
-  handler: AccountsController['getAccount'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerGetAccountsAction = {
-  type: `${typeof controllerName}:getAccounts`;
-  handler: AccountsController['getAccounts'];
-};
-
-/**
- * @deprecated This type is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- */
-export type AccountsControllerUpdateAccountMetadataAction = {
-  type: `${typeof controllerName}:updateAccountMetadata`;
-  handler: AccountsController['updateAccountMetadata'];
-};
+const MESSENGER_EXPOSED_METHODS = [
+  'setSelectedAccount',
+  'setAccountName',
+  'setAccountNameAndSelectAccount',
+  'listAccounts',
+  'listMultichainAccounts',
+  'updateAccounts',
+  'getSelectedAccount',
+  'getSelectedMultichainAccount',
+  'getAccountByAddress',
+  'getAccount',
+  'getAccounts',
+  'updateAccountMetadata',
+  'loadBackup',
+] as const;
 
 /**
  * @deprecated This type is deprecated and will be removed in a future version.
@@ -201,18 +110,7 @@ export type AllowedActions =
  */
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
-  | AccountsControllerSetSelectedAccountAction
-  | AccountsControllerListAccountsAction
-  | AccountsControllerListMultichainAccountsAction
-  | AccountsControllerSetAccountNameAction
-  | AccountsControllerSetAccountNameAndSelectAccountAction
-  | AccountsControllerUpdateAccountsAction
-  | AccountsControllerGetAccountByAddressAction
-  | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetAccountAction
-  | AccountsControllerGetAccountsAction
-  | AccountsControllerGetSelectedMultichainAccountAction
-  | AccountsControllerUpdateAccountMetadataAction;
+  | AccountsControllerMethodActions;
 
 /**
  * @deprecated This type is deprecated and will be removed in a future version.
@@ -420,8 +318,12 @@ export class AccountsController extends BaseController<
       },
     });
 
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     this.#subscribeToMessageEvents();
-    this.#registerMessageHandlers();
   }
 
   /**
@@ -492,7 +394,7 @@ export class AccountsController extends BaseController<
    * @returns The internal account object.
    * @throws An error if the account ID is not found.
    */
-  getAccountExpect(accountId: string): InternalAccount {
+  #getAccountExpect(accountId: string): InternalAccount {
     const account = this.getAccount(accountId);
     if (account === undefined) {
       throw new Error(`Account Id "${accountId}" not found`);
@@ -518,7 +420,7 @@ export class AccountsController extends BaseController<
       return EMPTY_ACCOUNT;
     }
 
-    const account = this.getAccountExpect(selectedAccount);
+    const account = this.#getAccountExpect(selectedAccount);
     if (isEvmAccountType(account.type)) {
       return account;
     }
@@ -558,7 +460,7 @@ export class AccountsController extends BaseController<
     }
 
     if (!chainId) {
-      return this.getAccountExpect(selectedAccount);
+      return this.#getAccountExpect(selectedAccount);
     }
 
     const accounts = this.listMultichainAccounts(chainId);
@@ -588,7 +490,7 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccountExpect(accountId);
+    const account = this.#getAccountExpect(accountId);
 
     if (this.state.internalAccounts.selectedAccount === account.id) {
       return;
@@ -630,7 +532,7 @@ export class AccountsController extends BaseController<
    * @throws An error if an account with the same name already exists.
    */
   setAccountNameAndSelectAccount(accountId: string, accountName: string): void {
-    const account = this.getAccountExpect(accountId);
+    const account = this.#getAccountExpect(accountId);
 
     this.#assertAccountCanBeRenamed(account, accountName);
 
@@ -682,7 +584,7 @@ export class AccountsController extends BaseController<
     accountId: string,
     metadata: Partial<InternalAccount['metadata']>,
   ): void {
-    const account = this.getAccountExpect(accountId);
+    const account = this.#getAccountExpect(accountId);
 
     if (metadata.name) {
       this.#assertAccountCanBeRenamed(account, metadata.name);
@@ -1326,71 +1228,6 @@ export class AccountsController extends BaseController<
     this.messenger.subscribe(
       'MultichainNetworkController:networkDidChange',
       (id) => this.#handleOnMultichainNetworkDidChange(id),
-    );
-  }
-
-  /**
-   * Registers message handlers for the AccountsController.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:setSelectedAccount`,
-      this.setSelectedAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:listAccounts`,
-      this.listAccounts.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:listMultichainAccounts`,
-      this.listMultichainAccounts.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountName`,
-      this.setAccountName.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountNameAndSelectAccount`,
-      this.setAccountNameAndSelectAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:updateAccounts`,
-      this.updateAccounts.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getSelectedAccount`,
-      this.getSelectedAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getSelectedMultichainAccount`,
-      this.getSelectedMultichainAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getAccountByAddress`,
-      this.getAccountByAddress.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `AccountsController:getAccount`,
-      this.getAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `AccountsController:getAccounts`,
-      this.getAccounts.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `AccountsController:updateAccountMetadata`,
-      this.updateAccountMetadata.bind(this),
     );
   }
 }
