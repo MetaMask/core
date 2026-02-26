@@ -115,13 +115,7 @@ export class BaseDataService<
 
   #setupCacheListener(): void {
     this.#client.getQueryCache().subscribe((event) => {
-      if (!event.query) {
-        return;
-      }
-
-      const queryKeyHash = event.query.queryHash;
-
-      if (this.#subscriptions.has(queryKeyHash)) {
+      if (this.#subscriptions.has(event.query.queryHash)) {
         this.#broadcastQueryState(event.query.queryKey);
       }
     });
@@ -216,12 +210,8 @@ export class BaseDataService<
     const hash = hashQueryKey(queryKey);
     const subscribers = this.#subscriptions.get(hash);
 
-    if (!subscribers) {
-      return;
-    }
-
-    subscribers.delete(subscription);
-    if (subscribers.size === 0) {
+    subscribers?.delete(subscription);
+    if (subscribers?.size === 0) {
       this.#subscriptions.delete(hash);
     }
   }
