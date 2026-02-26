@@ -22,6 +22,12 @@ jobs:
       - name: Fetch workspace package names
         id: workspace-package-names
         run: |
+          node --version
+          yarn --version
+          jq --version
+          yarn workspaces list --no-private --json
+          yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name)'
+          yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json'
           echo "child-workspace-package-names=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')" >> "$GITHUB_OUTPUT"
         shell: bash
 
