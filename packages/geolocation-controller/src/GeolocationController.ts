@@ -205,7 +205,7 @@ export class GeolocationController extends BaseController<
       state: { ...getDefaultGeolocationControllerState(), ...state },
     });
 
-    this.#fetch = fetchFunction ?? globalThis.fetch;
+    this.#fetch = fetchFunction ?? globalThis.fetch.bind(globalThis);
     this.#getGeolocationUrl = getGeolocationUrl;
     this.#ttlMs = ttlMs ?? DEFAULT_TTL_MS;
 
