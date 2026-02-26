@@ -1,4 +1,7 @@
-import { HttpError } from '@metamask/controller-utils';
+import {
+  DEFAULT_DEGRADED_THRESHOLD,
+  HttpError,
+} from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -70,12 +73,12 @@ describe('SampleGasPricesService', () => {
       },
     );
 
-    it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
+    it('calls onDegraded listeners if the request responds with 2xx but takes longer than the degraded threshold to complete', async () => {
       nock('https://api.example.com')
         .get('/gas-prices')
         .query({ chainId: 'eip155:1' })
         .reply(200, () => {
-          jest.advanceTimersByTime(6000);
+          jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             data: {
               low: 5,
@@ -93,34 +96,7 @@ describe('SampleGasPricesService', () => {
       expect(onDegradedListener).toHaveBeenCalled();
     });
 
-    it('allows the degradedThreshold to be changed', async () => {
-      nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .reply(200, () => {
-          jest.advanceTimersByTime(1000);
-          return {
-            data: {
-              low: 5,
-              average: 10,
-              high: 15,
-            },
-          };
-        });
-      const { service, rootMessenger } = getService({
-        options: {
-          policyOptions: { degradedThreshold: 500 },
-        },
-      });
-      const onDegradedListener = jest.fn();
-      service.onDegraded(onDegradedListener);
-
-      await rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1');
-
-      expect(onDegradedListener).toHaveBeenCalled();
-    });
-
-    it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
+    it('throws if the request responds with non-200, even after enough retries', async () => {
       nock('https://api.example.com')
         .get('/gas-prices')
         .query({ chainId: 'eip155:1' })
@@ -128,7 +104,7 @@ describe('SampleGasPricesService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        jest.advanceTimersToNextTimer();
       });
 
       await expect(
@@ -138,7 +114,7 @@ describe('SampleGasPricesService', () => {
       );
     });
 
-    it('calls onDegraded listeners when the maximum number of retries is exceeded', async () => {
+    it('calls onDegraded listeners if the request responds with non-200, even after enough retries', async () => {
       nock('https://api.example.com')
         .get('/gas-prices')
         .query({ chainId: 'eip155:1' })
@@ -146,7 +122,7 @@ describe('SampleGasPricesService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        jest.advanceTimersToNextTimer();
       });
       const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
@@ -159,7 +135,7 @@ describe('SampleGasPricesService', () => {
       expect(onDegradedListener).toHaveBeenCalled();
     });
 
-    it('intercepts requests and throws a circuit break error after the 4th failed attempt, running onBreak listeners', async () => {
+    it('calls onBreak listeners upon reaching the maximum number of consecutive non-200 responses', async () => {
       nock('https://api.example.com')
         .get('/gas-prices')
         .query({ chainId: 'eip155:1' })
@@ -167,35 +143,28 @@ describe('SampleGasPricesService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        jest.advanceTimersToNextTimer();
       });
       const onBreakListener = jest.fn();
       service.onBreak(onBreakListener);
 
-      // Should make 4 requests
+      // Attempt a request, reach the maximum number of retries
       await expect(
         rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
-      // Should make 4 requests
+      // Attempt a request, reach the maximum number of retries
       await expect(
         rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
-      // Should make 4 requests
+      // Attempt a request, reach the maximum number of retries, break the circuit
       await expect(
         rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-      );
-      // Should not make an additional request (we only mocked 12 requests
-      // above)
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        'Execution prevented because the circuit breaker is open',
       );
       expect(onBreakListener).toHaveBeenCalledWith({
         error: new HttpError(
@@ -205,7 +174,7 @@ describe('SampleGasPricesService', () => {
       });
     });
 
-    it('resumes requests after the circuit break duration passes, returning the API response if the request ultimately succeeds', async () => {
+    it('throws a circuit break error while the circuit is open and resumes requests after the circuit break duration passes', async () => {
       const circuitBreakDuration = 5_000;
       nock('https://api.example.com')
         .get('/gas-prices')
@@ -227,19 +196,22 @@ describe('SampleGasPricesService', () => {
         },
       });
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        jest.advanceTimersToNextTimer();
       });
 
+      // Attempt a request, reach the maximum number of retries
       await expect(
         rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
+      // Attempt a request, reach the maximum number of retries
       await expect(
         rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
         "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
       );
+      // Attempt a request, reach the maximum number of retries, break the circuit
       await expect(
         rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
       ).rejects.toThrow(
@@ -250,12 +222,84 @@ describe('SampleGasPricesService', () => {
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
-      await jest.advanceTimersByTimeAsync(circuitBreakDuration);
+      jest.advanceTimersByTime(circuitBreakDuration);
       const gasPricesResponse = await service.fetchGasPrices('0x1');
       expect(gasPricesResponse).toStrictEqual({
         low: 5,
         average: 10,
         high: 15,
+      });
+    });
+
+    it('allows the degraded threshold to be changed', async () => {
+      const degradedThreshold = 500;
+      nock('https://api.example.com')
+        .get('/gas-prices')
+        .query({ chainId: 'eip155:1' })
+        .reply(200, () => {
+          jest.advanceTimersByTime(degradedThreshold + 1);
+          return {
+            data: {
+              low: 5,
+              average: 10,
+              high: 15,
+            },
+          };
+        });
+      const { service, rootMessenger } = getService({
+        options: {
+          policyOptions: {
+            degradedThreshold,
+          },
+        },
+      });
+      const onDegradedListener = jest.fn();
+      service.onDegraded(onDegradedListener);
+
+      await rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1');
+
+      expect(onDegradedListener).toHaveBeenCalled();
+    });
+
+    it('allows the maximum number of retries and consecutive failures to be changed', async () => {
+      const maxRetries = 2;
+      const maxConsecutiveFailures = 6;
+      nock('https://api.example.com')
+        .get('/gas-prices')
+        .query({ chainId: 'eip155:1' })
+        .times(maxConsecutiveFailures)
+        .reply(500);
+      const { service, rootMessenger } = getService({
+        options: {
+          policyOptions: {
+            maxRetries,
+            maxConsecutiveFailures,
+          },
+        },
+      });
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
+      const onBreakListener = jest.fn();
+      service.onBreak(onBreakListener);
+
+      // Attempt a request, reach the maximum number of retries
+      await expect(
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
+      ).rejects.toThrow(
+        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
+      );
+      // Attempt a request, reach the maximum number of retries, break the circuit
+      await expect(
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
+      ).rejects.toThrow(
+        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
+      );
+      expect(onBreakListener).toHaveBeenCalledWith({
+        error: new HttpError(
+          500,
+          "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
+        ),
       });
     });
   });
