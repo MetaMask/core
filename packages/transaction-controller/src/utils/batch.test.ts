@@ -93,6 +93,7 @@ const NONCE_PREVIOUS_MOCK = '0x110';
 const NONCE_MOCK = '0x111';
 const NONCE_MOCK_2 = '0x112';
 const GAS_LIMIT_7702_MOCK = '0x1234';
+const ACTION_ID_MOCK = '456-789';
 
 const TRANSACTION_META_MOCK = {
   id: BATCH_ID_CUSTOM_MOCK,
@@ -995,6 +996,102 @@ describe('Batch Utils', () => {
           securityAlertResponse: {
             securityAlertId: SECURITY_ALERT_ID_MOCK,
           },
+        }),
+      );
+    });
+
+    // This ensures that Tempo-related additions keep things unchanged
+    // as long as input parameters are unchanged.
+    it('default to no action ID in transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.not.objectContaining({
+          actionId: expect.anything(),
+        }),
+      );
+    });
+
+    it('adds action ID to transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      request.request.actionId = ACTION_ID_MOCK;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          actionId: ACTION_ID_MOCK,
+        }),
+      );
+    });
+
+    // This ensures that Tempo-related additions keep things unchanged
+    // as long as input parameters are unchanged.
+    it('defaults to no excludeNativeTokenForFee in transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.not.objectContaining({
+          excludeNativeTokenForFee: expect.anything(),
+        }),
+      );
+    });
+
+    it('adds excludeNativeTokenForFee to transaction', async () => {
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      request.request.excludeNativeTokenForFee = true;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          excludeNativeTokenForFee: true,
         }),
       );
     });
