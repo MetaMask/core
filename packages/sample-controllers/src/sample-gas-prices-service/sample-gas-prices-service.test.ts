@@ -96,7 +96,7 @@ describe('SampleGasPricesService', () => {
       expect(onDegradedListener).toHaveBeenCalled();
     });
 
-    it('throws if the request responds with non-200, even after enough retries', async () => {
+    it('throws if the request responds with non-200, even after the maximum number of retries is reached', async () => {
       nock('https://api.example.com')
         .get('/gas-prices')
         .query({ chainId: 'eip155:1' })
@@ -114,7 +114,7 @@ describe('SampleGasPricesService', () => {
       );
     });
 
-    it('calls onDegraded listeners if the request responds with non-200, even after enough retries', async () => {
+    it('calls onDegraded listeners if the request responds with non-200, even after the maximum number of retries is reached', async () => {
       nock('https://api.example.com')
         .get('/gas-prices')
         .query({ chainId: 'eip155:1' })
