@@ -4,5 +4,5 @@
     "baseUrl": "./"
   },
   "references": [{ "path": "../messenger/tsconfig.build.json" }],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }
