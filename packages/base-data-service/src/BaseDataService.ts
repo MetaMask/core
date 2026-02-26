@@ -1,4 +1,10 @@
 import {
+  Messenger,
+  ActionConstraint,
+  EventConstraint,
+} from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
+import {
   DehydratedState,
   FetchInfiniteQueryOptions,
   FetchQueryOptions,
@@ -11,19 +17,16 @@ import {
   dehydrate,
   hashQueryKey,
 } from '@tanstack/query-core';
-import {
-  Messenger,
-  ActionConstraint,
-  EventConstraint,
-} from '@metamask/messenger';
-import type { Json } from '@metamask/utils';
 
-export type SubscriptionPayload = { hash: string, state: DehydratedState };
+export type SubscriptionPayload = { hash: string; state: DehydratedState };
 export type SubscriptionCallback = (payload: SubscriptionPayload) => void;
 
 export type DataServiceSubscribeAction<ServiceName extends string> = {
   type: `${ServiceName}:subscribe`;
-  handler: (queryKey: QueryKey, callback: SubscriptionCallback) => DehydratedState;
+  handler: (
+    queryKey: QueryKey,
+    callback: SubscriptionCallback,
+  ) => DehydratedState;
 };
 
 export type DataServiceUnsubscribeAction<ServiceName extends string> = {
@@ -36,13 +39,13 @@ export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   handler: (
     filters?: InvalidateQueryFilters<Json>,
     options?: InvalidateOptions,
-  ) => Promise<void>
+  ) => Promise<void>;
 };
 
 export type DataServiceActions<ServiceName extends string> =
-  DataServiceSubscribeAction<ServiceName> |
-  DataServiceUnsubscribeAction<ServiceName> |
-  DataServiceInvalidateQueriesAction<ServiceName>
+  | DataServiceSubscribeAction<ServiceName>
+  | DataServiceUnsubscribeAction<ServiceName>
+  | DataServiceInvalidateQueriesAction<ServiceName>;
 
 export class BaseDataService<
   ServiceName extends string,
@@ -58,15 +61,15 @@ export class BaseDataService<
 > {
   public readonly name: ServiceName;
 
-  #messenger: Messenger<
+  readonly #messenger: Messenger<
     ServiceName,
     DataServiceActions<ServiceName>,
     never
   >;
 
-  #client = new QueryClient();
+  readonly #client = new QueryClient();
 
-  #subscriptions: Map<string, Set<SubscriptionCallback>> = new Map();
+  readonly #subscriptions: Map<string, Set<SubscriptionCallback>> = new Map();
 
   constructor({
     name,
@@ -87,28 +90,30 @@ export class BaseDataService<
     this.#setupCacheListener();
   }
 
-  #registerMessageHandlers() {
+  #registerMessageHandlers(): void {
     this.#messenger.registerActionHandler(
       `${this.name}:subscribe`,
       // @ts-expect-error TODO.
-      (queryKey: QueryKey, callback: SubscriptionCallback) => this.#handleSubscribe(queryKey, callback),
+      (queryKey: QueryKey, callback: SubscriptionCallback) =>
+        this.#handleSubscribe(queryKey, callback),
     );
 
     this.#messenger.registerActionHandler(
       `${this.name}:unsubscribe`,
       // @ts-expect-error TODO.
-      (queryKey: QueryKey, callback: SubscriptionCallback) => this.#handleUnsubscribe(queryKey, callback),
+      (queryKey: QueryKey, callback: SubscriptionCallback) =>
+        this.#handleUnsubscribe(queryKey, callback),
     );
 
     this.#messenger.registerActionHandler(
       `${this.name}:invalidateQueries`,
       // @ts-expect-error TODO.
-      (filters?: InvalidateQueryFilters<Json>,
-        options?: InvalidateOptions) => this.invalidateQueries(filters, options),
+      (filters?: InvalidateQueryFilters<Json>, options?: InvalidateOptions) =>
+        this.invalidateQueries(filters, options),
     );
   }
 
-  #setupCacheListener() {
+  #setupCacheListener(): void {
     this.#client.getQueryCache().subscribe((event) => {
       if (!event.query) {
         return;
@@ -198,6 +203,7 @@ export class BaseDataService<
       this.#subscriptions.set(hash, new Set());
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.#subscriptions.get(hash)!.add(subscription);
 
     return this.#getDehydratedStateForQuery(queryKey);
@@ -227,10 +233,11 @@ export class BaseDataService<
     });
   }
 
-  #broadcastQueryState(queryKey: QueryKey) {
+  #broadcastQueryState(queryKey: QueryKey): void {
     const hash = hashQueryKey(queryKey);
     const state = this.#getDehydratedStateForQuery(queryKey);
 
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const subscribers = this.#subscriptions.get(hash)!;
     subscribers.forEach((subscriber) =>
       subscriber({
