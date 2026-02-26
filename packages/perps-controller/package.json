@@ -65,7 +65,7 @@
     "@metamask/keyring-internal-api": "^10.0.0",
     "@metamask/network-controller": "^30.0.0",
     "@metamask/profile-sync-controller": "^27.1.0",
-    "@metamask/remote-feature-flag-controller": "^4.0.0",
+    "@metamask/remote-feature-flag-controller": "^4.1.0",
     "@metamask/transaction-controller": "^62.19.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
