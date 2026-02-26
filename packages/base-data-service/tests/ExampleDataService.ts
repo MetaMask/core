@@ -1,5 +1,5 @@
 import { Messenger } from '@metamask/messenger';
-import { Duration, inMilliseconds, Json } from '@metamask/utils';
+import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
 
 import { BaseDataService, DataServiceActions } from '../src/BaseDataService';
 
@@ -26,6 +26,24 @@ export type ExampleMessenger = Messenger<
   never
 >;
 
+export type GetAssetsResponse = {
+  assetId: CaipAssetId;
+  decimals: number;
+  name: string;
+  symbol: string;
+};
+
+export type GetActivityResponse = {
+  data: Json[];
+  pageInfo: {
+    count: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    startCursor: string;
+    endCursor: string;
+  };
+};
+
 export class ExampleDataService extends BaseDataService<
   typeof serviceName,
   ExampleMessenger
@@ -51,7 +69,7 @@ export class ExampleDataService extends BaseDataService<
     );
   }
 
-  async getAssets(assets: string[]) {
+  async getAssets(assets: string[]): Promise<GetAssetsResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getAssets`, assets],
       queryFn: async () => {
@@ -67,16 +85,11 @@ export class ExampleDataService extends BaseDataService<
     });
   }
 
-  async getActivity(address: string, page?: string) {
-    return this.fetchInfiniteQuery<{
-      data: Json;
-      pageInfo: {
-        hasNextPage: boolean;
-        hasPreviousPage: boolean;
-        startCursor: string;
-        endCursor: string;
-      };
-    }>(
+  async getActivity(
+    address: string,
+    page?: string,
+  ): Promise<GetActivityResponse> {
+    return this.fetchInfiniteQuery<GetActivityResponse>(
       {
         queryKey: [`${this.name}:getActivity`, address],
         queryFn: async ({ pageParam }) => {
@@ -97,6 +110,7 @@ export class ExampleDataService extends BaseDataService<
           pageInfo.hasPreviousPage ? pageInfo.startCursor : undefined,
         getNextPageParam: ({ pageInfo }) =>
           pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
+        staleTime: inMilliseconds(5, Duration.Minute),
       },
       page,
     );
