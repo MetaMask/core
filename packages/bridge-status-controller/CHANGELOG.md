@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added optional `abTests` property to `BridgeHistoryItem` to persist A/B test context across the transaction lifecycle ([#8007](https://github.com/MetaMask/core/pull/8007))
+- Added optional `abTests` parameter to `StartPollingForBridgeTxStatusArgs` ([#8007](https://github.com/MetaMask/core/pull/8007))
+- Added optional `abTests` parameter to `submitTx` and `submitIntent` methods for A/B test experiment attribution ([#8007](https://github.com/MetaMask/core/pull/8007))
+- `trackUnifiedSwapBridgeEvent` now resolves `ab_tests` from event properties or transaction history and includes it in emitted events ([#8007](https://github.com/MetaMask/core/pull/8007))
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^67.1.1` to `^67.2.0` ([#8024](https://github.com/MetaMask/core/pull/8024))
 - Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.19.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031))
 - Make `submitIntent` sign intent typed data internally when signature is not provided, keeping support for externally provided signatures ([#7895](https://github.com/MetaMask/core/pull/7895)).
+- Move `IntentApiImpl` instantation from `BridgeStatusController` to `IntentManager` ([#8015](https://github.com/MetaMask/core/pull/8015/))
 
 ## [67.0.1]
 
