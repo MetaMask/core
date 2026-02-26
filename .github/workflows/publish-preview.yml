@@ -39,7 +39,11 @@ jobs:
       - name: Get commit SHA
         id: commit-sha
         run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-      - run: yarn prepare-preview-builds @metamask-previews ${{ steps.commit-sha.outputs.COMMIT_SHA }}
+      - name: Prepare preview builds
+        uses: MetaMask/github-tools/.github/actions/prepare-preview-builds@prepare-preview-builds-action
+        with:
+          npm-scope: '@metamask-previews'
+          commit-hash: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
       - run: yarn build
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
