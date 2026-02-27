@@ -21,6 +21,10 @@
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
     "create-package": "tsx scripts/create-package",
+    "docs:messenger:build": "yarn workspace @metamask/messenger-docs docs:build",
+    "docs:messenger:dev": "yarn workspace @metamask/messenger-docs docs:dev",
+    "docs:messenger:generate": "yarn workspace @metamask/messenger-docs docs:generate",
+    "docs:messenger:serve": "yarn workspace @metamask/messenger-docs docs:serve",
     "generate-method-action-types": "yarn workspaces foreach --all --parallel --interlaced --verbose run generate-method-action-types",
     "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn generate-method-action-types --check",
     "lint:dependencies": "depcheck && yarn dedupe --check",
@@ -45,7 +49,11 @@
   },
   "resolutions": {
     "elliptic@6.5.4": "^6.5.7",
+    "eslint-import-resolver-typescript": "3.7.0",
+    "eslint-plugin-import-x": "4.6.1",
+    "eslint-plugin-n": "17.15.1",
     "fast-xml-parser@^4.3.4": "^4.4.1",
+    "prettier@npm:^3.3.3": "3.4.2",
     "ws@7.4.6": "^7.5.10"
   },
   "devDependencies": {
@@ -107,6 +115,8 @@
       "@lavamoat/preinstall-always-fail": false,
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
       "babel-runtime>core-js": false,
+      "eslint-import-resolver-typescript>unrs-resolver": false,
+      "eslint-plugin-import-x>unrs-resolver": false,
       "simple-git-hooks": false,
       "tsx>esbuild": false
     }

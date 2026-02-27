@@ -37,6 +37,9 @@ scripts/coverage
 # typescript
 packages/*/*.tsbuildinfo
 
+# Messenger API docs (generated)
+.messenger-docs/
+
 # Emacs
 \#*\#
 .#*

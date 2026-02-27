@@ -45,6 +45,7 @@
   "metamask/controller-utils": "team-core-platform",
   "metamask/error-reporting-service": "team-core-platform",
   "metamask/messenger": "team-core-platform",
+  "metamask/messenger-docs": "team-core-platform",
   "metamask/sample-controllers": "team-core-platform",
   "metamask/polling-controller": "team-core-platform",
   "metamask/preferences-controller": "team-core-platform",

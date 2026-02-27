@@ -81,6 +81,7 @@
 /packages/error-reporting-service      @MetaMask/core-platform
 /packages/eth-json-rpc-middleware      @MetaMask/core-platform
 /packages/messenger                    @MetaMask/core-platform
+/packages/messenger-docs               @MetaMask/core-platform
 /packages/sample-controllers           @MetaMask/core-platform
 /packages/polling-controller           @MetaMask/core-platform
 /packages/preferences-controller       @MetaMask/core-platform
