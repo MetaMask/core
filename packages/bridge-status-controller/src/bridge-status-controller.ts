@@ -1593,12 +1593,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
-   * UI-signed intent submission (fast path): the UI generates the EIP-712 signature and calls this with the raw signature.
-   * Here we submit the order to the intent provider and create a synthetic history entry for UX.
+   * Submits an intent order and creates a synthetic history entry for UX.
+   * The EIP-712 payload is always signed inside this controller via KeyringController.
    *
    * @param params - Object containing intent submission parameters
    * @param params.quoteResponse - Quote carrying intent data
-   * @param params.signature - Optional precomputed signature (if omitted, it is signed via KeyringController)
    * @param params.accountAddress - The EOA submitting the order
    * @param params.location - The entry point from which the user initiated the swap or bridge
    * @param params.abTests - A/B test context to attribute events to specific experiments
@@ -1606,18 +1605,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
   submitIntent = async (params: {
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata;
-    signature?: string;
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
-    const {
-      quoteResponse,
-      signature: precomputedSignature,
-      accountAddress,
-      location,
-      abTests,
-    } = params;
+    const { quoteResponse, accountAddress, location, abTests } = params;
 
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
@@ -1668,21 +1660,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const { srcChainId: chainId, requestId } = quoteResponse.quote;
 
-      const signature =
-        precomputedSignature ??
-        (await ((): Promise<string> => {
-          if (!intent.typedData) {
-            throw new Error('submitIntent: missing intent typedData');
-          }
-          return this.messenger.call(
-            'KeyringController:signTypedMessage',
-            {
-              from: accountAddress,
-              data: intent.typedData as unknown as Json,
-            },
-            'V4',
-          );
-        })());
+      if (!intent.typedData) {
+        throw new Error('submitIntent: missing intent typedData');
+      }
+      const signature = await this.messenger.call(
+        'KeyringController:signTypedMessage',
+        {
+          from: accountAddress,
+          data: intent.typedData as unknown as Json,
+        },
+        'V4',
+      );
 
       const submissionParams: IntentSubmissionParams = {
         srcChainId: chainId.toString(),

@@ -401,7 +401,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const promise = controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
     expect(await promise.catch((error: any) => error)).toStrictEqual(
@@ -448,7 +447,6 @@ describe('BridgeStatusController (intent swaps)', () => {
     await expect(
       controller.submitIntent({
         quoteResponse,
-        signature: '0xsig',
         accountAddress,
       }),
     ).resolves.toBeDefined();
@@ -482,7 +480,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const promise = controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
     expect(await promise.catch((error: any) => error)).toStrictEqual(
@@ -522,7 +519,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const result = await controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
 
@@ -535,7 +531,7 @@ describe('BridgeStatusController (intent swaps)', () => {
     consoleSpy.mockRestore();
   });
 
-  it('submitIntent: signs typedData when signature is not provided', async () => {
+  it('submitIntent: signs typedData', async () => {
     const { controller, messenger, accountAddress, submitIntentMock } = setup();
 
     const orderUid = 'order-uid-signed-in-core-1';
@@ -624,7 +620,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     await controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
 
@@ -669,7 +664,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     await controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
 
@@ -716,7 +710,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     await controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
 
