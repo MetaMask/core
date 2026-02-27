@@ -8,13 +8,13 @@ export type NetworkFilterOptions = {
   isDefault?: boolean;
 };
 
-const FILTER_KEYS: (keyof NetworkFilterOptions)[] = [
+const FILTER_KEYS = [
   'isFeatured',
   'isTestnet',
   'isActive',
   'isDeprecated',
   'isDefault',
-];
+] as const satisfies (keyof NetworkFilterOptions)[];
 
 /**
  * @param networks - Array of chain configurations to filter.

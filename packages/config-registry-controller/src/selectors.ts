@@ -1,7 +1,7 @@
 import { createSelector } from 'reselect';
 
-import { filterNetworks } from './config-registry-api-service';
-import type { RegistryNetworkConfig } from './config-registry-api-service';
+import { filterNetworks } from './config-registry-api-service/filters';
+import type { RegistryNetworkConfig } from './config-registry-api-service/types';
 import type { ConfigRegistryControllerState } from './ConfigRegistryController';
 
 /**

@@ -3,8 +3,11 @@ import type {
   CreateServicePolicyOptions,
   ServicePolicy,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
+import type { IDisposable } from 'cockatiel';
 
+import type { ConfigRegistryApiServiceMethodActions } from './config-registry-api-service-method-action-types';
 import type {
   FetchConfigOptions,
   FetchConfigResult,
@@ -13,6 +16,49 @@ import type {
 import { validateRegistryConfigApiResponse } from './types';
 
 const ENDPOINT_PATH = '/config/networks';
+
+/**
+ * The name of the {@link ConfigRegistryApiService}, used to namespace the
+ * service's actions and events.
+ */
+export const serviceName = 'ConfigRegistryApiService';
+
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = ['fetchConfig'] as const;
+
+/**
+ * Actions that {@link ConfigRegistryApiService} exposes to other consumers.
+ */
+export type ConfigRegistryApiServiceActions =
+  ConfigRegistryApiServiceMethodActions;
+
+/**
+ * Actions from other messengers that {@link ConfigRegistryApiServiceMessenger} calls.
+ */
+type AllowedActions = never;
+
+/**
+ * Events that {@link ConfigRegistryApiService} exposes to other consumers.
+ */
+export type ConfigRegistryApiServiceEvents = never;
+
+/**
+ * Events from other messengers that {@link ConfigRegistryApiService} subscribes to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger which is restricted to actions and events accessed by
+ * {@link ConfigRegistryApiService}.
+ */
+export type ConfigRegistryApiServiceMessenger = Messenger<
+  typeof serviceName,
+  ConfigRegistryApiServiceActions | AllowedActions,
+  ConfigRegistryApiServiceEvents | AllowedEvents
+>;
+
+// === SERVICE DEFINITION ===
 
 /**
  * Returns the base URL for the config registry API for the given environment.
@@ -26,6 +72,11 @@ function getConfigRegistryUrl(env: SDK.Env): string {
 }
 
 export type ConfigRegistryApiServiceOptions = {
+  /**
+   * The messenger suited for this service. Required so the service can be used
+   * independently and register its actions.
+   */
+  messenger: ConfigRegistryApiServiceMessenger;
   env?: SDK.Env;
   fetch?: typeof fetch;
   /**
@@ -36,6 +87,10 @@ export type ConfigRegistryApiServiceOptions = {
 };
 
 export class ConfigRegistryApiService {
+  readonly name: typeof serviceName;
+
+  readonly #messenger: ConfigRegistryApiServiceMessenger;
+
   readonly #policy: ServicePolicy;
 
   readonly #url: string;
@@ -49,19 +104,42 @@ export class ConfigRegistryApiService {
    * Construct a Config Registry API Service.
    *
    * @param options - The options for constructing the service.
+   * @param options.messenger - The messenger suited for this service.
    * @param options.env - The environment to determine the correct API endpoints. Defaults to UAT.
    * @param options.fetch - Custom fetch function for testing or custom implementations. Defaults to the global fetch.
    * @param options.policyOptions - Options to pass to `createServicePolicy`, which wraps each request. See {@link CreateServicePolicyOptions}.
    */
   constructor({
+    messenger,
     env = SDK.Env.UAT,
     fetch: customFetch = globalThis.fetch,
     policyOptions = {},
-  }: ConfigRegistryApiServiceOptions = {}) {
+  }: ConfigRegistryApiServiceOptions) {
+    this.name = serviceName;
+    this.#messenger = messenger;
     this.#url = getConfigRegistryUrl(env);
     this.#fetch = customFetch;
 
     this.#policy = createServicePolicy(policyOptions);
+
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Registers a handler that will be called after a request returns a non-500
+   * response, causing a retry. Primarily useful in tests where timers are being
+   * mocked.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler. See
+   * {@link CockatielEvent}.
+   * @see {@link createServicePolicy}
+   */
+  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
+    return this.#policy.onRetry(listener);
   }
 
   /**

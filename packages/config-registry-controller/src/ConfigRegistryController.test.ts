@@ -5,22 +5,21 @@ import type {
 } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 
-import type { RegistryNetworkConfig } from './config-registry-api-service';
-import type { FetchConfigResult } from './config-registry-api-service';
-import type { ConfigRegistryMessenger } from './ConfigRegistryController';
+import type { RegistryNetworkConfig } from './config-registry-api-service/types';
+import type { FetchConfigResult } from './config-registry-api-service/types';
+import type { ConfigRegistryControllerMessenger } from './ConfigRegistryController';
 import {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
 } from './ConfigRegistryController';
 import { selectFeaturedNetworks, selectNetworks } from './selectors';
-import { createMockNetworkConfig } from './test-helpers';
-import { jestAdvanceTime } from '../../../tests/helpers';
+import { createMockNetworkConfig } from '../tests/helpers';
 
 const namespace = 'ConfigRegistryController' as const;
 
-type AllActions = MessengerActions<ConfigRegistryMessenger>;
+type AllActions = MessengerActions<ConfigRegistryControllerMessenger>;
 
-type AllEvents = MessengerEvents<ConfigRegistryMessenger>;
+type AllEvents = MessengerEvents<ConfigRegistryControllerMessenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
@@ -30,7 +29,7 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
  * @returns A controller messenger and root messenger.
  */
 function getConfigRegistryControllerMessenger(): {
-  messenger: ConfigRegistryMessenger;
+  messenger: ConfigRegistryControllerMessenger;
   rootMessenger: RootMessenger;
 } {
   const rootMessenger: RootMessenger = new Messenger({
@@ -38,7 +37,7 @@ function getConfigRegistryControllerMessenger(): {
     captureException: jest.fn(),
   });
 
-  const configRegistryControllerMessenger: ConfigRegistryMessenger =
+  const configRegistryControllerMessenger: ConfigRegistryControllerMessenger =
     new Messenger<
       typeof namespace,
       AllActions,
@@ -55,7 +54,11 @@ function getConfigRegistryControllerMessenger(): {
       'RemoteFeatureFlagController:getState',
       'ConfigRegistryApiService:fetchConfig',
     ],
-    events: ['KeyringController:unlock', 'KeyringController:lock'],
+    events: [
+      'KeyringController:unlock',
+      'KeyringController:lock',
+      'RemoteFeatureFlagController:stateChange',
+    ],
   });
 
   return { messenger: configRegistryControllerMessenger, rootMessenger };
@@ -97,7 +100,7 @@ function buildMockApiServiceHandler(overrides?: {
 type WithControllerCallback<ReturnValue> = (args: {
   controller: ConfigRegistryController;
   rootMessenger: RootMessenger;
-  messenger: ConfigRegistryMessenger;
+  messenger: ConfigRegistryControllerMessenger;
   mockApiServiceHandler: jest.Mock;
   mockRemoteFeatureFlagGetState: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -216,10 +219,10 @@ describe('ConfigRegistryController', () => {
   });
 
   describe('polling', () => {
-    it('starts polling', async () => {
+    it('hits the config registry API when polling is started', async () => {
       await withController(async ({ controller, mockApiServiceHandler }) => {
         controller.startPolling(null);
-        await jestAdvanceTime({ duration: 0 });
+        await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
         controller.stopAllPolling();
       });
@@ -231,22 +234,22 @@ describe('ConfigRegistryController', () => {
         { options: { pollingInterval } },
         async ({ controller, mockApiServiceHandler }) => {
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           mockApiServiceHandler.mockClear();
-          await jestAdvanceTime({ duration: pollingInterval });
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
           controller.stopAllPolling();
         },
       );
     });
 
-    it('stops polling', async () => {
+    it('does not hit the config registry API periodically when polling is stopped', async () => {
       await withController(async ({ controller, mockApiServiceHandler }) => {
         controller.startPolling(null);
-        await jestAdvanceTime({ duration: 0 });
+        await jest.advanceTimersByTimeAsync(0);
         mockApiServiceHandler.mockClear();
         controller.stopAllPolling();
-        await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
+        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
         expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });
     });
@@ -270,7 +273,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Network error' }),
@@ -314,7 +317,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Network error' }),
@@ -345,7 +348,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Network error' }),
@@ -379,7 +382,7 @@ describe('ConfigRegistryController', () => {
 
           const beforeTimestamp = Date.now();
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           const afterTimestamp = Date.now();
 
           expect(controller.state.etag).toBe('"test-etag"');
@@ -421,7 +424,7 @@ describe('ConfigRegistryController', () => {
 
           const beforeTimestamp = Date.now();
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           const afterTimestamp = Date.now();
 
           expect(controller.state.etag).toBe('"existing-etag"');
@@ -464,7 +467,7 @@ describe('ConfigRegistryController', () => {
 
           const beforeTimestamp = Date.now();
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           const afterTimestamp = Date.now();
 
           expect(controller.state.etag).toBeNull();
@@ -500,7 +503,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockRejectedValue(validationError);
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -532,7 +535,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockRejectedValue(validationError);
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -564,7 +567,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockRejectedValue(validationError);
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -596,44 +599,13 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockRejectedValue(validationError);
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({
               message: 'Validation error: data.version is not a string',
             }),
           );
-        },
-      );
-    });
-
-    it('skips fetch when lastFetched is in the future', async () => {
-      const now = Date.now();
-      const futureTimestamp = now + 10000;
-      await withController(
-        {
-          options: {
-            state: {
-              lastFetched: futureTimestamp,
-            },
-          },
-        },
-        async ({
-          controller,
-          mockRemoteFeatureFlagGetState,
-          mockApiServiceHandler,
-        }) => {
-          mockRemoteFeatureFlagGetState.mockReturnValue({
-            remoteFeatureFlags: {
-              configRegistryApiEnabled: true,
-            },
-            cacheTimestamp: now,
-          });
-
-          controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
-
-          expect(mockApiServiceHandler).not.toHaveBeenCalled();
         },
       );
     });
@@ -677,7 +649,7 @@ describe('ConfigRegistryController', () => {
           });
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(mockApiServiceHandler).toHaveBeenCalled();
           expect(controller.state.lastFetched).not.toBeNull();
@@ -728,79 +700,12 @@ describe('ConfigRegistryController', () => {
           });
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(mockApiServiceHandler).toHaveBeenCalled();
           expect(controller.state.lastFetched).not.toBe(oldTimestamp);
 
           jest.restoreAllMocks();
-        },
-      );
-    });
-
-    it('uses custom polling interval when checking lastFetched', async () => {
-      const customInterval = 5000;
-      const recentTimestamp = Date.now() - 3000;
-      await withController(
-        {
-          options: {
-            pollingInterval: customInterval,
-            state: {
-              lastFetched: recentTimestamp,
-            },
-          },
-        },
-        async ({
-          controller,
-          mockRemoteFeatureFlagGetState,
-          mockApiServiceHandler,
-        }) => {
-          mockRemoteFeatureFlagGetState.mockReturnValue({
-            remoteFeatureFlags: {
-              configRegistryApiEnabled: true,
-            },
-            cacheTimestamp: Date.now(),
-          });
-
-          controller.startPolling(null);
-
-          expect(mockApiServiceHandler).not.toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('uses DEFAULT_POLLING_INTERVAL when getIntervalLength returns undefined', async () => {
-      const pollingInterval = 10000;
-      const recentTimestamp = Date.now() - 1000;
-      await withController(
-        {
-          options: {
-            pollingInterval,
-            state: {
-              lastFetched: recentTimestamp,
-            },
-          },
-        },
-        async ({
-          controller,
-          mockRemoteFeatureFlagGetState,
-          mockApiServiceHandler,
-        }) => {
-          mockRemoteFeatureFlagGetState.mockReturnValue({
-            remoteFeatureFlags: {
-              configRegistryApiEnabled: true,
-            },
-            cacheTimestamp: Date.now(),
-          });
-
-          jest
-            .spyOn(controller, 'getIntervalLength')
-            .mockReturnValue(undefined);
-
-          controller.startPolling(null);
-          await jestAdvanceTime({ duration: pollingInterval });
-
-          expect(mockApiServiceHandler).not.toHaveBeenCalled();
         },
       );
     });
@@ -824,7 +729,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockRejectedValue('String error');
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'String error' }),
@@ -861,7 +766,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockRejectedValue(new Error('Network error'));
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(rootMessenger.captureException).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Network error' }),
@@ -881,11 +786,11 @@ describe('ConfigRegistryController', () => {
         );
         expect(typeof token).toBe('string');
 
-        await jestAdvanceTime({ duration: 0 });
+        await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
         messenger.call('ConfigRegistryController:stopPolling');
-        await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
+        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
       });
     });
@@ -918,8 +823,6 @@ describe('ConfigRegistryController', () => {
         const token = controller.startPolling(null);
         expect(typeof token).toBe('string');
         expect(token.length).toBeGreaterThan(0);
-
-        controller.stopAllPolling();
       });
     });
 
@@ -928,33 +831,7 @@ describe('ConfigRegistryController', () => {
         const token = controller.startPolling(null);
         expect(typeof token).toBe('string');
         expect(token.length).toBeGreaterThan(0);
-
-        controller.stopAllPolling();
       });
-    });
-
-    it('delays first poll when lastFetched is recent', async () => {
-      const pollingInterval = 10000;
-      const recentTimestamp = Date.now() - 2000;
-      await withController(
-        {
-          options: {
-            pollingInterval,
-            state: {
-              lastFetched: recentTimestamp,
-            },
-          },
-        },
-        async ({ controller, mockApiServiceHandler }) => {
-          controller.startPolling(null);
-
-          await jestAdvanceTime({ duration: 0 });
-          await jestAdvanceTime({ duration: pollingInterval });
-          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-
-          controller.stopAllPolling();
-        },
-      );
     });
 
     it('proceeds immediately when lastFetched is null', async () => {
@@ -969,7 +846,7 @@ describe('ConfigRegistryController', () => {
         async ({ controller, mockApiServiceHandler }) => {
           controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
           controller.stopAllPolling();
@@ -994,7 +871,7 @@ describe('ConfigRegistryController', () => {
           jest.spyOn(Date, 'now').mockReturnValue(now);
           controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: 1 });
+          await jest.advanceTimersByTimeAsync(1);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
           controller.stopAllPolling();
@@ -1020,38 +897,11 @@ describe('ConfigRegistryController', () => {
           jest.spyOn(Date, 'now').mockReturnValue(now);
           controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: 1 });
+          await jest.advanceTimersByTimeAsync(1);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
           controller.stopAllPolling();
           jest.restoreAllMocks();
-        },
-      );
-    });
-
-    it('uses DEFAULT_POLLING_INTERVAL when getIntervalLength returns undefined', async () => {
-      const pollingInterval = 10000;
-      const recentTimestamp = Date.now() - 1000;
-      await withController(
-        {
-          options: {
-            pollingInterval,
-            state: {
-              lastFetched: recentTimestamp,
-            },
-          },
-        },
-        async ({ controller, mockApiServiceHandler }) => {
-          jest
-            .spyOn(controller, 'getIntervalLength')
-            .mockReturnValue(undefined);
-
-          controller.startPolling(null);
-          await jestAdvanceTime({ duration: pollingInterval });
-
-          expect(mockApiServiceHandler).not.toHaveBeenCalled();
-
-          controller.stopAllPolling();
         },
       );
     });
@@ -1070,11 +920,11 @@ describe('ConfigRegistryController', () => {
         },
         async ({ controller, mockApiServiceHandler }) => {
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           const callsAfterFirst = mockApiServiceHandler.mock.calls.length;
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(callsAfterFirst);
 
           controller.stopAllPolling();
@@ -1101,7 +951,7 @@ describe('ConfigRegistryController', () => {
 
           controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(mockApiServiceHandler).not.toHaveBeenCalled();
           expect(controller.state.configs).toStrictEqual({
@@ -1149,7 +999,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockImplementation(fetchConfigSpy);
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(fetchConfigSpy).toHaveBeenCalled();
           expect(controller.state.configs.networks['eip155:1']).toBeDefined();
@@ -1210,7 +1060,7 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockImplementation(fetchConfigSpy);
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           // All networks stored in state
           const allNetworks = selectNetworks(controller.state);
@@ -1292,7 +1142,7 @@ describe('ConfigRegistryController', () => {
           });
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           // Last occurrence overwrites (no grouping/priority)
           expect(controller.state.configs.networks['eip155:1']).toBeDefined();
@@ -1358,7 +1208,7 @@ describe('ConfigRegistryController', () => {
           });
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           // Last occurrence overwrites
           expect(controller.state.configs.networks['eip155:1']).toBeDefined();
@@ -1369,21 +1219,25 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('uses custom isConfigRegistryApiEnabled function when provided', async () => {
-      const customIsEnabled = jest.fn().mockReturnValue(true);
+    it('fetches when feature flag is enabled (default mock)', async () => {
       await withController(
-        {
-          options: {
-            isConfigRegistryApiEnabled: customIsEnabled,
-          },
-        },
-        async ({ controller, messenger, mockApiServiceHandler }) => {
+        {},
+        async ({
+          controller,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
           const mockChains = [
             createMockNetworkConfig({
               chainId: 'eip155:1',
               name: 'Ethereum Mainnet',
             }),
           ];
+
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: true },
+            cacheTimestamp: Date.now(),
+          });
 
           mockApiServiceHandler.mockResolvedValue({
             data: {
@@ -1398,9 +1252,9 @@ describe('ConfigRegistryController', () => {
           });
 
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
-          expect(customIsEnabled).toHaveBeenCalledWith(messenger);
+          expect(mockRemoteFeatureFlagGetState).toHaveBeenCalled();
           expect(mockApiServiceHandler).toHaveBeenCalled();
           expect(controller.state.configs.networks['eip155:1']).toBeDefined();
           expect(controller.state.version).toBe('1.0.0');
@@ -1408,20 +1262,23 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('uses custom isConfigRegistryApiEnabled function returning false', async () => {
-      const customIsEnabled = jest.fn().mockReturnValue(false);
+    it('skips fetch when feature flag is disabled', async () => {
       await withController(
-        {
-          options: {
-            fallbackConfig: MOCK_FALLBACK_CONFIG,
-            isConfigRegistryApiEnabled: customIsEnabled,
-          },
-        },
-        async ({ controller, messenger, mockApiServiceHandler }) => {
-          controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+        { options: { fallbackConfig: MOCK_FALLBACK_CONFIG } },
+        async ({
+          controller,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: false },
+            cacheTimestamp: Date.now(),
+          });
 
-          expect(customIsEnabled).toHaveBeenCalledWith(messenger);
+          controller.startPolling(null);
+          await jest.advanceTimersByTimeAsync(0);
+
+          expect(mockRemoteFeatureFlagGetState).toHaveBeenCalled();
           expect(mockApiServiceHandler).not.toHaveBeenCalled();
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
@@ -1445,7 +1302,7 @@ describe('ConfigRegistryController', () => {
 
           controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(mockApiServiceHandler).not.toHaveBeenCalled();
           expect(controller.state.configs).toStrictEqual({
@@ -1471,7 +1328,7 @@ describe('ConfigRegistryController', () => {
 
           controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(mockApiServiceHandler).not.toHaveBeenCalled();
           expect(controller.state.configs).toStrictEqual({
@@ -1490,7 +1347,7 @@ describe('ConfigRegistryController', () => {
         async ({ controller, rootMessenger, mockApiServiceHandler }) => {
           rootMessenger.publish('KeyringController:unlock');
 
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
 
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
@@ -1503,12 +1360,12 @@ describe('ConfigRegistryController', () => {
       await withController(
         async ({ controller, rootMessenger, mockApiServiceHandler }) => {
           controller.startPolling(null);
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           const callsAfterUnlock = mockApiServiceHandler.mock.calls.length;
 
           rootMessenger.publish('KeyringController:lock');
 
-          await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
+          await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(callsAfterUnlock);
         },
       );
@@ -1518,11 +1375,75 @@ describe('ConfigRegistryController', () => {
       await withController(async ({ controller, mockApiServiceHandler }) => {
         controller.startPolling(null);
 
-        await jestAdvanceTime({ duration: 0 });
+        await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
       });
+    });
+  });
+
+  describe('RemoteFeatureFlagController:stateChange', () => {
+    it('starts polling when flag becomes enabled', async () => {
+      await withController(
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: true },
+            cacheTimestamp: Date.now(),
+          });
+
+          rootMessenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: { configRegistryApiEnabled: true },
+              cacheTimestamp: Date.now(),
+            },
+            [],
+          );
+
+          await jest.advanceTimersByTimeAsync(0);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+
+          controller.stopAllPolling();
+        },
+      );
+    });
+
+    it('stops polling when flag becomes disabled', async () => {
+      await withController(
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
+          controller.startPolling(null);
+          await jest.advanceTimersByTimeAsync(0);
+          const callsAfterStart = mockApiServiceHandler.mock.calls.length;
+
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: false },
+            cacheTimestamp: Date.now(),
+          });
+
+          rootMessenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: { configRegistryApiEnabled: false },
+              cacheTimestamp: Date.now(),
+            },
+            [],
+          );
+
+          await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(callsAfterStart);
+        },
+      );
     });
   });
 
@@ -1542,13 +1463,13 @@ describe('ConfigRegistryController', () => {
         async ({ controller, mockApiServiceHandler }) => {
           controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           const callsAfterFirstAdvance =
             mockApiServiceHandler.mock.calls.length;
 
           controller.stopAllPolling();
 
-          await jestAdvanceTime({ duration: pollingInterval });
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(
             callsAfterFirstAdvance,
           );
@@ -1578,13 +1499,13 @@ describe('ConfigRegistryController', () => {
         async ({ controller, mockApiServiceHandler }) => {
           const token = controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: 0 });
+          await jest.advanceTimersByTimeAsync(0);
           const callsAfterFirstAdvance =
             mockApiServiceHandler.mock.calls.length;
 
           controller.stopPollingByPollingToken(token);
 
-          await jestAdvanceTime({ duration: pollingInterval });
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(
             callsAfterFirstAdvance,
           );
@@ -1607,13 +1528,13 @@ describe('ConfigRegistryController', () => {
         async ({ controller, mockApiServiceHandler }) => {
           const token = controller.startPolling(null);
 
-          await jestAdvanceTime({ duration: pollingInterval });
-          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(2);
           mockApiServiceHandler.mockClear();
 
           controller.stopPollingByPollingToken(token);
 
-          await jestAdvanceTime({ duration: pollingInterval });
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockApiServiceHandler).not.toHaveBeenCalled();
         },
       );
@@ -1624,13 +1545,13 @@ describe('ConfigRegistryController', () => {
         controller.startPolling(null);
         controller.startPolling(null);
 
-        await jestAdvanceTime({ duration: 0 });
+        await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
         mockApiServiceHandler.mockClear();
 
         controller.stopAllPolling();
 
-        await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
+        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
         expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });
     });
@@ -1638,19 +1559,19 @@ describe('ConfigRegistryController', () => {
     it('stops specific polling session when called with token', async () => {
       await withController(async ({ controller, mockApiServiceHandler }) => {
         const tokenA = controller.startPolling(null);
-        await jestAdvanceTime({ duration: 0 });
+        await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
         mockApiServiceHandler.mockClear();
 
         const tokenB = controller.startPolling(null);
-        await jestAdvanceTime({ duration: 0 });
+        await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).not.toHaveBeenCalled();
         mockApiServiceHandler.mockClear();
 
         controller.stopPollingByPollingToken(tokenA);
         controller.stopPollingByPollingToken(tokenB);
 
-        await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
+        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
         expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });
     });
@@ -1663,12 +1584,12 @@ describe('ConfigRegistryController', () => {
         );
         expect(typeof token).toBe('string');
 
-        await jestAdvanceTime({ duration: 0 });
+        await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
         mockApiServiceHandler.mockClear();
 
         messenger.call('ConfigRegistryController:stopPolling');
-        await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
+        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
         expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });
     });
@@ -1681,12 +1602,12 @@ describe('ConfigRegistryController', () => {
         );
         expect(typeof token).toBe('string');
 
-        await jestAdvanceTime({ duration: 0 });
+        await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
         mockApiServiceHandler.mockClear();
 
         messenger.call('ConfigRegistryController:stopPolling');
-        await jestAdvanceTime({ duration: DEFAULT_POLLING_INTERVAL });
+        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
         expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });
     });

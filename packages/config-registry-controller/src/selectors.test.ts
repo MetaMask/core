@@ -1,5 +1,5 @@
 import { selectFeaturedNetworks, selectNetworks } from './selectors';
-import { createMockNetworkConfig } from './test-helpers';
+import { createMockNetworkConfig } from '../tests/helpers';
 
 describe('selectors', () => {
   describe('selectNetworks', () => {

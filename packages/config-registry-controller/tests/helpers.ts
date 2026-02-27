@@ -1,4 +1,4 @@
-import type { RegistryNetworkConfig } from './config-registry-api-service';
+import type { RegistryNetworkConfig } from '../src/config-registry-api-service/types';
 
 /**
  * Creates a mock RegistryNetworkConfig (CAIP-2 chain) for testing.

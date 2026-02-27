@@ -10,14 +10,12 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
 import { Duration, inMilliseconds } from '@metamask/utils';
 
-import type {
-  FetchConfigOptions,
-  FetchConfigResult,
-  RegistryNetworkConfig,
-} from './config-registry-api-service';
-import { isConfigRegistryApiEnabled as defaultIsConfigRegistryApiEnabled } from './utils/feature-flags';
+import type { ConfigRegistryApiServiceFetchConfigAction } from './config-registry-api-service/config-registry-api-service-method-action-types';
+import type { RegistryNetworkConfig } from './config-registry-api-service/types';
+import { isConfigRegistryApiEnabled } from './utils/feature-flags';
 
 const controllerName = 'ConfigRegistryController';
 
@@ -141,10 +139,7 @@ export type ConfigRegistryControllerActions =
  */
 type AllowedActions =
   | RemoteFeatureFlagControllerGetStateAction
-  | {
-      type: 'ConfigRegistryApiService:fetchConfig';
-      handler: (options?: FetchConfigOptions) => Promise<FetchConfigResult>;
-    };
+  | ConfigRegistryApiServiceFetchConfigAction;
 
 /**
  * Events that {@link ConfigRegistryControllerMessenger} exposes to other consumers.
@@ -156,7 +151,10 @@ export type ConfigRegistryControllerEvents =
  * Events from other messengers that {@link ConfigRegistryControllerMessenger}
  * subscribes to.
  */
-type AllowedEvents = KeyringControllerUnlockEvent | KeyringControllerLockEvent;
+type AllowedEvents =
+  | KeyringControllerUnlockEvent
+  | KeyringControllerLockEvent
+  | RemoteFeatureFlagControllerStateChangeEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -168,42 +166,33 @@ export type ConfigRegistryControllerMessenger = Messenger<
   ConfigRegistryControllerEvents | AllowedEvents
 >;
 
-/** @deprecated Use {@link ConfigRegistryControllerMessenger} instead. */
-export type ConfigRegistryMessenger = ConfigRegistryControllerMessenger;
-
 export type ConfigRegistryControllerOptions = {
-  messenger: ConfigRegistryMessenger;
+  messenger: ConfigRegistryControllerMessenger;
   state?: Partial<ConfigRegistryControllerState>;
   pollingInterval?: number;
   fallbackConfig?: Record<string, RegistryNetworkConfig>;
-  isConfigRegistryApiEnabled?: (messenger: ConfigRegistryMessenger) => boolean;
 };
 
 export class ConfigRegistryController extends StaticIntervalPollingController<null>()<
   typeof controllerName,
   ConfigRegistryControllerState,
-  ConfigRegistryMessenger
+  ConfigRegistryControllerMessenger
 > {
-  readonly #isConfigRegistryApiEnabled: (
-    messenger: ConfigRegistryMessenger,
-  ) => boolean;
-
   /**
    * @param options - The controller options.
    * @param options.messenger - The controller messenger. Must have
-   * `ConfigRegistryApiService:fetchConfig` action handler registered.
+   *   `ConfigRegistryApiService:fetchConfig` action handler registered
+   *   (e.g. by instantiating {@link ConfigRegistryApiService} with the same
+   *   messenger).
    * @param options.state - Initial state.
    * @param options.pollingInterval - Polling interval in milliseconds.
    * @param options.fallbackConfig - Fallback configuration.
-   * @param options.isConfigRegistryApiEnabled - Function to check if the config
-   * registry API is enabled. Defaults to checking the remote feature flag.
    */
   constructor({
     messenger,
     state = {},
     pollingInterval = DEFAULT_POLLING_INTERVAL,
     fallbackConfig = DEFAULT_FALLBACK_CONFIG,
-    isConfigRegistryApiEnabled = defaultIsConfigRegistryApiEnabled,
   }: ConfigRegistryControllerOptions) {
     super({
       name: controllerName,
@@ -220,7 +209,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     });
 
     this.setIntervalLength(pollingInterval);
-    this.#isConfigRegistryApiEnabled = isConfigRegistryApiEnabled;
 
     this.messenger.registerActionHandler(
       `${controllerName}:startPolling`,
@@ -239,26 +227,26 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
     this.messenger.subscribe('KeyringController:lock', () =>
       this.stopAllPolling(),
     );
+
+    this.messenger.subscribe('RemoteFeatureFlagController:stateChange', () => {
+      if (isConfigRegistryApiEnabled(this.messenger)) {
+        this.startPolling(null);
+      } else {
+        this.stopAllPolling();
+      }
+    });
   }
 
   async _executePoll(_input: null): Promise<void> {
-    const isApiEnabled = this.#isConfigRegistryApiEnabled(this.messenger);
+    const isApiEnabled = isConfigRegistryApiEnabled(this.messenger);
 
     // Skip fetch when API is disabled; client uses static config.
     if (!isApiEnabled) {
       return;
     }
 
-    const interval = this.getIntervalLength() ?? DEFAULT_POLLING_INTERVAL;
-    if (
-      this.state.lastFetched !== null &&
-      Date.now() - this.state.lastFetched < interval
-    ) {
-      return;
-    }
-
     try {
-      const result: FetchConfigResult = await this.messenger.call(
+      const result = await this.messenger.call(
         'ConfigRegistryApiService:fetchConfig',
         {
           etag: this.state.etag ?? undefined,

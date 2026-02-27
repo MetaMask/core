@@ -2,9 +2,27 @@ import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
 
 import { ConfigRegistryApiService } from './config-registry-api-service';
+import type {
+  ConfigRegistryApiServiceMessenger,
+  ConfigRegistryApiServiceOptions,
+} from './config-registry-api-service';
 import type { RegistryConfigApiResponse } from './types';
-import { jestAdvanceTime } from '../../../../tests/helpers';
-import { createMockNetworkConfig } from '../test-helpers';
+import { createMockNetworkConfig } from '../../tests/helpers';
+
+function createMockServiceMessenger(): ConfigRegistryApiServiceMessenger {
+  return {
+    registerMethodActionHandlers: jest.fn(),
+  } as unknown as ConfigRegistryApiServiceMessenger;
+}
+
+function createService(
+  overrides: Partial<Omit<ConfigRegistryApiServiceOptions, 'messenger'>> = {},
+): ConfigRegistryApiService {
+  return new ConfigRegistryApiService({
+    ...overrides,
+    messenger: createMockServiceMessenger(),
+  });
+}
 
 const CONFIG_PATH = '/v1/config/networks';
 const UAT_ORIGIN = 'https://client-config.uat-api.cx.metamask.io';
@@ -27,7 +45,7 @@ describe('ConfigRegistryApiService', () => {
           .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
-        const service = new ConfigRegistryApiService({ env: SDK.Env.UAT });
+        const service = createService({ env: SDK.Env.UAT });
         await service.fetchConfig();
         expect(scope.isDone()).toBe(true);
       });
@@ -37,7 +55,7 @@ describe('ConfigRegistryApiService', () => {
           .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
-        const service = new ConfigRegistryApiService({ env: SDK.Env.DEV });
+        const service = createService({ env: SDK.Env.DEV });
         await service.fetchConfig();
         expect(scope.isDone()).toBe(true);
       });
@@ -47,7 +65,7 @@ describe('ConfigRegistryApiService', () => {
           .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
-        const service = new ConfigRegistryApiService({ env: SDK.Env.PRD });
+        const service = createService({ env: SDK.Env.PRD });
         await service.fetchConfig();
         expect(scope.isDone()).toBe(true);
       });
@@ -57,7 +75,7 @@ describe('ConfigRegistryApiService', () => {
           .get(CONFIG_PATH)
           .reply(200, MOCK_API_RESPONSE);
 
-        const service = new ConfigRegistryApiService();
+        const service = createService();
 
         await service.fetchConfig();
 
@@ -72,7 +90,7 @@ describe('ConfigRegistryApiService', () => {
           ETag: '"test-etag-123"',
         });
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
       const result = await service.fetchConfig();
 
       expect(result).toMatchObject({
@@ -88,7 +106,7 @@ describe('ConfigRegistryApiService', () => {
         .get(CONFIG_PATH)
         .reply(200, MOCK_API_RESPONSE);
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
       const result = await service.fetchConfig();
 
       expect(result).toMatchObject({ modified: true, data: MOCK_API_RESPONSE });
@@ -103,7 +121,7 @@ describe('ConfigRegistryApiService', () => {
         .matchHeader('If-None-Match', etag)
         .reply(304);
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
       const result = await service.fetchConfig({ etag });
 
       expect(result.modified).toBe(false);
@@ -117,7 +135,7 @@ describe('ConfigRegistryApiService', () => {
         .get(CONFIG_PATH)
         .reply(200, MOCK_API_RESPONSE, { ETag: etag });
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
       await service.fetchConfig();
       expect(firstScope.isDone()).toBe(true);
 
@@ -136,7 +154,7 @@ describe('ConfigRegistryApiService', () => {
     it('handles 304 Not Modified response without ETag header', async () => {
       const scope = nock(UAT_ORIGIN).get(CONFIG_PATH).reply(304);
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
       const result = await service.fetchConfig();
 
       expect(result.modified).toBe(false);
@@ -151,7 +169,7 @@ describe('ConfigRegistryApiService', () => {
         .matchHeader('If-None-Match', etag)
         .reply(200, MOCK_API_RESPONSE);
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
       await service.fetchConfig({ etag });
 
       expect(scope.isDone()).toBe(true);
@@ -163,7 +181,7 @@ describe('ConfigRegistryApiService', () => {
         .matchHeader('If-None-Match', (val) => val === undefined)
         .reply(200, MOCK_API_RESPONSE);
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
       await service.fetchConfig({ etag: undefined });
 
       expect(scope.isDone()).toBe(true);
@@ -174,7 +192,7 @@ describe('ConfigRegistryApiService', () => {
         .get(CONFIG_PATH)
         .reply(200, MOCK_API_RESPONSE);
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
       await service.fetchConfig(undefined);
 
       expect(scope.isDone()).toBe(true);
@@ -186,7 +204,7 @@ describe('ConfigRegistryApiService', () => {
         .get(CONFIG_PATH)
         .reply(200, invalidResponse);
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
 
       await expect(service.fetchConfig()).rejects.toMatchObject(
         expect.objectContaining({ message: expect.any(String) }),
@@ -197,7 +215,7 @@ describe('ConfigRegistryApiService', () => {
     it('throws error when response body is null', async () => {
       const scope = nock(UAT_ORIGIN).get(CONFIG_PATH).reply(200, 'null');
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
 
       await expect(service.fetchConfig()).rejects.toMatchObject(
         expect.objectContaining({ message: expect.any(String) }),
@@ -210,7 +228,7 @@ describe('ConfigRegistryApiService', () => {
         .get(CONFIG_PATH)
         .reply(200, { data: null });
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
 
       await expect(service.fetchConfig()).rejects.toMatchObject(
         expect.objectContaining({ message: expect.any(String) }),
@@ -225,7 +243,7 @@ describe('ConfigRegistryApiService', () => {
           data: { version: '1', timestamp: 0, chains: 'not-an-array' },
         });
 
-      const service = new ConfigRegistryApiService();
+      const service = createService();
 
       await expect(service.fetchConfig()).rejects.toMatchObject(
         expect.objectContaining({ message: expect.any(String) }),
@@ -238,7 +256,7 @@ describe('ConfigRegistryApiService', () => {
         .get(CONFIG_PATH)
         .reply(500, 'Internal Server Error');
 
-      const service = new ConfigRegistryApiService({
+      const service = createService({
         policyOptions: { maxRetries: 0 },
       });
 
@@ -255,7 +273,7 @@ describe('ConfigRegistryApiService', () => {
         .fn()
         .mockRejectedValue(new Error('Network connection failed'));
 
-      const service = new ConfigRegistryApiService({
+      const service = createService({
         fetch: customFetch,
       });
 
@@ -271,7 +289,7 @@ describe('ConfigRegistryApiService', () => {
         .get(CONFIG_PATH)
         .reply(200, MOCK_API_RESPONSE);
 
-      const service = new ConfigRegistryApiService({
+      const service = createService({
         policyOptions: { maxRetries: 2 },
       });
 
@@ -279,6 +297,16 @@ describe('ConfigRegistryApiService', () => {
 
       expect(result).toMatchObject({ modified: true, data: MOCK_API_RESPONSE });
       expect(successScope.isDone()).toBe(true);
+    });
+  });
+
+  describe('onRetry', () => {
+    it('registers and returns a disposable', () => {
+      const service = createService();
+      const listener = jest.fn();
+      const disposable = service.onRetry(listener);
+      expect(disposable).toHaveProperty('dispose');
+      expect(typeof disposable.dispose).toBe('function');
     });
   });
 
@@ -300,7 +328,7 @@ describe('ConfigRegistryApiService', () => {
       }
 
       const onBreakHandler = jest.fn();
-      const service = new ConfigRegistryApiService({
+      const service = createService({
         policyOptions: {
           maxRetries: retries,
           maxConsecutiveFailures: maximumConsecutiveFailures,
@@ -309,20 +337,17 @@ describe('ConfigRegistryApiService', () => {
       });
 
       service.onBreak(onBreakHandler);
+      service.onRetry(() => {
+        jest.advanceTimersToNextTimer();
+      });
 
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
         await expect(service.fetchConfig()).rejects.toMatchObject(
           expect.objectContaining({ message: expect.any(String) }),
         );
-        await jestAdvanceTime({ duration: 100 });
       }
 
       const finalPromise = service.fetchConfig();
-      finalPromise.catch(() => {
-        // Expected rejection
-      });
-      await jestAdvanceTime({ duration: 100 });
-
       await expect(finalPromise).rejects.toMatchObject(
         expect.objectContaining({ message: expect.any(String) }),
       );
@@ -348,7 +373,7 @@ describe('ConfigRegistryApiService', () => {
           return MOCK_API_RESPONSE;
         });
 
-      const service = new ConfigRegistryApiService({
+      const service = createService({
         policyOptions: { degradedThreshold, maxRetries: 0 },
       });
       const onDegradedHandler = jest.fn();
@@ -370,7 +395,7 @@ describe('ConfigRegistryApiService', () => {
         }),
       );
 
-      const service = new ConfigRegistryApiService({
+      const service = createService({
         fetch: customFetch,
       });
 

@@ -1,4 +1,4 @@
-import type { ConfigRegistryMessenger } from '../ConfigRegistryController';
+import type { ConfigRegistryControllerMessenger } from '../ConfigRegistryController';
 
 const FEATURE_FLAG_KEY = 'configRegistryApiEnabled';
 const DEFAULT_FEATURE_FLAG_VALUE = false;
@@ -10,7 +10,7 @@ const DEFAULT_FEATURE_FLAG_VALUE = false;
  * @returns True if the feature flag is enabled, false otherwise.
  */
 export function isConfigRegistryApiEnabled(
-  messenger: ConfigRegistryMessenger,
+  messenger: ConfigRegistryControllerMessenger,
 ): boolean {
   try {
     const state = messenger.call('RemoteFeatureFlagController:getState');

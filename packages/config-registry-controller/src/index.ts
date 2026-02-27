@@ -8,7 +8,6 @@ export type {
   ConfigRegistryControllerEvents,
   ConfigRegistryControllerStateChangeEvent,
   ConfigRegistryControllerMessenger,
-  ConfigRegistryMessenger,
 } from './ConfigRegistryController';
 export {
   ConfigRegistryController,
@@ -20,11 +19,21 @@ export type {
   FetchConfigResult,
   RegistryNetworkConfig,
   RegistryConfigApiResponse,
+} from './config-registry-api-service/types';
+export type {
   ConfigRegistryApiServiceOptions,
-  NetworkFilterOptions,
-} from './config-registry-api-service';
+  ConfigRegistryApiServiceActions,
+  ConfigRegistryApiServiceEvents,
+  ConfigRegistryApiServiceMessenger,
+} from './config-registry-api-service/config-registry-api-service';
+export type {
+  ConfigRegistryApiServiceFetchConfigAction,
+  ConfigRegistryApiServiceMethodActions,
+} from './config-registry-api-service/config-registry-api-service-method-action-types';
+export type { NetworkFilterOptions } from './config-registry-api-service/filters';
 export {
   ConfigRegistryApiService,
-  filterNetworks,
-} from './config-registry-api-service';
+  serviceName as configRegistryApiServiceName,
+} from './config-registry-api-service/config-registry-api-service';
+export { filterNetworks } from './config-registry-api-service/filters';
 export { isConfigRegistryApiEnabled } from './utils/feature-flags';
