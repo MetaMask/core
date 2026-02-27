@@ -323,6 +323,88 @@ describe('JsonRpcServer', () => {
     },
   );
 
+  it('does not throw when onError throws synchronously for a request', async () => {
+    const server = new JsonRpcServer({
+      engine: makeEngine(),
+      onError: () => {
+        throw new Error('onError failure');
+      },
+    });
+
+    const response = await server.handle({
+      jsonrpc,
+      id: 1,
+      method: 'unknown',
+    });
+
+    expect(response).toStrictEqual({
+      jsonrpc,
+      id: 1,
+      error: {
+        code: -32603,
+        message: 'Unknown method',
+        data: { cause: expect.any(Object) },
+      },
+    });
+  });
+
+  it('does not throw when onError throws synchronously for a notification', async () => {
+    const server = new JsonRpcServer({
+      engine: makeEngine(),
+      onError: () => {
+        throw new Error('onError failure');
+      },
+    });
+
+    const response = await server.handle({
+      jsonrpc,
+      method: 'unknown',
+    });
+
+    expect(response).toBeUndefined();
+  });
+
+  it('does not cause an unhandled rejection when onError rejects asynchronously for a request', async () => {
+    const server = new JsonRpcServer({
+      engine: makeEngine(),
+      onError: async () => {
+        throw new Error('async onError failure');
+      },
+    });
+
+    const response = await server.handle({
+      jsonrpc,
+      id: 1,
+      method: 'unknown',
+    });
+
+    expect(response).toStrictEqual({
+      jsonrpc,
+      id: 1,
+      error: {
+        code: -32603,
+        message: 'Unknown method',
+        data: { cause: expect.any(Object) },
+      },
+    });
+  });
+
+  it('does not cause an unhandled rejection when onError rejects asynchronously for a notification', async () => {
+    const server = new JsonRpcServer({
+      engine: makeEngine(),
+      onError: async () => {
+        throw new Error('async onError failure');
+      },
+    });
+
+    const response = await server.handle({
+      jsonrpc,
+      method: 'unknown',
+    });
+
+    expect(response).toBeUndefined();
+  });
+
   it.each([
     null,
     {},
