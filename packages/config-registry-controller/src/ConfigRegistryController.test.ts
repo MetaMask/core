@@ -224,7 +224,6 @@ describe('ConfigRegistryController', () => {
         controller.startPolling(null);
         await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-        controller.stopAllPolling();
       });
     });
 
@@ -238,7 +237,6 @@ describe('ConfigRegistryController', () => {
           mockApiServiceHandler.mockClear();
           await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-          controller.stopAllPolling();
         },
       );
     });
@@ -848,8 +846,6 @@ describe('ConfigRegistryController', () => {
 
           await jest.advanceTimersByTimeAsync(0);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-
-          controller.stopAllPolling();
         },
       );
     });
@@ -873,9 +869,6 @@ describe('ConfigRegistryController', () => {
 
           await jest.advanceTimersByTimeAsync(1);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-
-          controller.stopAllPolling();
-          jest.restoreAllMocks();
         },
       );
     });
@@ -899,9 +892,6 @@ describe('ConfigRegistryController', () => {
 
           await jest.advanceTimersByTimeAsync(1);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-
-          controller.stopAllPolling();
-          jest.restoreAllMocks();
         },
       );
     });
@@ -926,8 +916,6 @@ describe('ConfigRegistryController', () => {
           controller.startPolling(null);
           await jest.advanceTimersByTimeAsync(0);
           expect(mockApiServiceHandler).toHaveBeenCalledTimes(callsAfterFirst);
-
-          controller.stopAllPolling();
         },
       );
     });
@@ -957,8 +945,6 @@ describe('ConfigRegistryController', () => {
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-
-          controller.stopAllPolling();
         },
       );
     });
@@ -1308,8 +1294,6 @@ describe('ConfigRegistryController', () => {
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-
-          controller.stopAllPolling();
         },
       );
     });
@@ -1334,8 +1318,6 @@ describe('ConfigRegistryController', () => {
           expect(controller.state.configs).toStrictEqual({
             networks: MOCK_FALLBACK_CONFIG,
           });
-
-          controller.stopAllPolling();
         },
       );
     });
@@ -1343,17 +1325,13 @@ describe('ConfigRegistryController', () => {
 
   describe('KeyringController event listeners', () => {
     it('starts polling when KeyringController:unlock event is published', async () => {
-      await withController(
-        async ({ controller, rootMessenger, mockApiServiceHandler }) => {
-          rootMessenger.publish('KeyringController:unlock');
+      await withController(async ({ rootMessenger, mockApiServiceHandler }) => {
+        rootMessenger.publish('KeyringController:unlock');
 
-          await jest.advanceTimersByTimeAsync(0);
+        await jest.advanceTimersByTimeAsync(0);
 
-          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-
-          controller.stopAllPolling();
-        },
-      );
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('stops polling when KeyringController:lock event is published', async () => {
@@ -1377,17 +1355,42 @@ describe('ConfigRegistryController', () => {
 
         await jest.advanceTimersByTimeAsync(0);
         expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-
-        controller.stopAllPolling();
       });
     });
   });
 
   describe('RemoteFeatureFlagController:stateChange', () => {
-    it('starts polling when flag becomes enabled', async () => {
+    it('starts polling when flag becomes enabled and keyring is unlocked', async () => {
       await withController(
         async ({
-          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockApiServiceHandler,
+        }) => {
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: true },
+            cacheTimestamp: Date.now(),
+          });
+
+          rootMessenger.publish('KeyringController:unlock');
+          rootMessenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: { configRegistryApiEnabled: true },
+              cacheTimestamp: Date.now(),
+            },
+            [],
+          );
+
+          await jest.advanceTimersByTimeAsync(0);
+          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('does not start polling when keyring is locked and flag becomes enabled', async () => {
+      await withController(
+        async ({
           rootMessenger,
           mockRemoteFeatureFlagGetState,
           mockApiServiceHandler,
@@ -1406,10 +1409,8 @@ describe('ConfigRegistryController', () => {
             [],
           );
 
-          await jest.advanceTimersByTimeAsync(0);
-          expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-
-          controller.stopAllPolling();
+          await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
+          expect(mockApiServiceHandler).not.toHaveBeenCalled();
         },
       );
     });
@@ -1447,7 +1448,7 @@ describe('ConfigRegistryController', () => {
     });
   });
 
-  describe('stopPolling', () => {
+  describe('stopAllPolling', () => {
     it('clears pending delayed poll timeout when stopping', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
@@ -1484,6 +1485,60 @@ describe('ConfigRegistryController', () => {
       });
     });
 
+    it('stops all polling when called without token (backward compatible)', async () => {
+      await withController(async ({ controller, mockApiServiceHandler }) => {
+        controller.startPolling(null);
+        controller.startPolling(null);
+
+        await jest.advanceTimersByTimeAsync(0);
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+        mockApiServiceHandler.mockClear();
+
+        controller.stopAllPolling();
+
+        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
+        expect(mockApiServiceHandler).not.toHaveBeenCalled();
+      });
+    });
+
+    it('works via messenger action with token', async () => {
+      await withController(async ({ messenger, mockApiServiceHandler }) => {
+        const token = messenger.call(
+          'ConfigRegistryController:startPolling',
+          null,
+        );
+        expect(typeof token).toBe('string');
+
+        await jest.advanceTimersByTimeAsync(0);
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+        mockApiServiceHandler.mockClear();
+
+        messenger.call('ConfigRegistryController:stopPolling');
+        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
+        expect(mockApiServiceHandler).not.toHaveBeenCalled();
+      });
+    });
+
+    it('works via messenger action without token (backward compatible)', async () => {
+      await withController(async ({ messenger, mockApiServiceHandler }) => {
+        const token = messenger.call(
+          'ConfigRegistryController:startPolling',
+          null,
+        );
+        expect(typeof token).toBe('string');
+
+        await jest.advanceTimersByTimeAsync(0);
+        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
+        mockApiServiceHandler.mockClear();
+
+        messenger.call('ConfigRegistryController:stopPolling');
+        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
+        expect(mockApiServiceHandler).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('stopPollingByPollingToken', () => {
     it('stops delayed poll using placeholder token', async () => {
       const pollingInterval = 10000;
       const recentTimestamp = Date.now() - 2000;
@@ -1540,22 +1595,6 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('stops all polling when called without token (backward compatible)', async () => {
-      await withController(async ({ controller, mockApiServiceHandler }) => {
-        controller.startPolling(null);
-        controller.startPolling(null);
-
-        await jest.advanceTimersByTimeAsync(0);
-        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-        mockApiServiceHandler.mockClear();
-
-        controller.stopAllPolling();
-
-        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
-        expect(mockApiServiceHandler).not.toHaveBeenCalled();
-      });
-    });
-
     it('stops specific polling session when called with token', async () => {
       await withController(async ({ controller, mockApiServiceHandler }) => {
         const tokenA = controller.startPolling(null);
@@ -1571,42 +1610,6 @@ describe('ConfigRegistryController', () => {
         controller.stopPollingByPollingToken(tokenA);
         controller.stopPollingByPollingToken(tokenB);
 
-        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
-        expect(mockApiServiceHandler).not.toHaveBeenCalled();
-      });
-    });
-
-    it('works via messenger action with token', async () => {
-      await withController(async ({ messenger, mockApiServiceHandler }) => {
-        const token = messenger.call(
-          'ConfigRegistryController:startPolling',
-          null,
-        );
-        expect(typeof token).toBe('string');
-
-        await jest.advanceTimersByTimeAsync(0);
-        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-        mockApiServiceHandler.mockClear();
-
-        messenger.call('ConfigRegistryController:stopPolling');
-        await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
-        expect(mockApiServiceHandler).not.toHaveBeenCalled();
-      });
-    });
-
-    it('works via messenger action without token (backward compatible)', async () => {
-      await withController(async ({ messenger, mockApiServiceHandler }) => {
-        const token = messenger.call(
-          'ConfigRegistryController:startPolling',
-          null,
-        );
-        expect(typeof token).toBe('string');
-
-        await jest.advanceTimersByTimeAsync(0);
-        expect(mockApiServiceHandler).toHaveBeenCalledTimes(1);
-        mockApiServiceHandler.mockClear();
-
-        messenger.call('ConfigRegistryController:stopPolling');
         await jest.advanceTimersByTimeAsync(DEFAULT_POLLING_INTERVAL);
         expect(mockApiServiceHandler).not.toHaveBeenCalled();
       });

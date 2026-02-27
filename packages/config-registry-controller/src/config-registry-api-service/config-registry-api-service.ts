@@ -1,4 +1,4 @@
-import { createServicePolicy } from '@metamask/controller-utils';
+import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type {
   CreateServicePolicyOptions,
   ServicePolicy,
@@ -203,7 +203,8 @@ export class ConfigRegistryApiService {
       }
 
       if (!res.ok) {
-        throw new Error(
+        throw new HttpError(
+          res.status,
           `Failed to fetch config: ${res.status} ${res.statusText}`,
         );
       }

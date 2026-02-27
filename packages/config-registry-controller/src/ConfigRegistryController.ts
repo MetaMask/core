@@ -178,6 +178,8 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   ConfigRegistryControllerState,
   ConfigRegistryControllerMessenger
 > {
+  #keyringLocked = true;
+
   /**
    * @param options - The controller options.
    * @param options.messenger - The controller messenger. Must have
@@ -220,17 +222,29 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       this.stopAllPolling.bind(this),
     );
 
-    this.messenger.subscribe('KeyringController:unlock', () =>
-      this.startPolling(null),
-    );
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#keyringLocked = false;
+      this.startPolling(null);
+    });
 
-    this.messenger.subscribe('KeyringController:lock', () =>
-      this.stopAllPolling(),
-    );
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.#keyringLocked = true;
+      this.stopAllPolling();
+    });
 
     this.messenger.subscribe('RemoteFeatureFlagController:stateChange', () => {
-      if (isConfigRegistryApiEnabled(this.messenger)) {
-        this.startPolling(null);
+      let enabled = false;
+      try {
+        enabled = isConfigRegistryApiEnabled(
+          this.messenger.call('RemoteFeatureFlagController:getState'),
+        );
+      } catch {
+        // RemoteFeatureFlagController unavailable; treat as disabled.
+      }
+      if (enabled) {
+        if (!this.#keyringLocked) {
+          this.startPolling(null);
+        }
       } else {
         this.stopAllPolling();
       }
@@ -238,7 +252,14 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   }
 
   async _executePoll(_input: null): Promise<void> {
-    const isApiEnabled = isConfigRegistryApiEnabled(this.messenger);
+    let isApiEnabled = false;
+    try {
+      isApiEnabled = isConfigRegistryApiEnabled(
+        this.messenger.call('RemoteFeatureFlagController:getState'),
+      );
+    } catch {
+      // RemoteFeatureFlagController unavailable; skip fetch.
+    }
 
     // Skip fetch when API is disabled; client uses static config.
     if (!isApiEnabled) {

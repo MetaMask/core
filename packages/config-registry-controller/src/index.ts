@@ -31,9 +31,6 @@ export type {
   ConfigRegistryApiServiceMethodActions,
 } from './config-registry-api-service/config-registry-api-service-method-action-types';
 export type { NetworkFilterOptions } from './config-registry-api-service/filters';
-export {
-  ConfigRegistryApiService,
-  serviceName as configRegistryApiServiceName,
-} from './config-registry-api-service/config-registry-api-service';
+export { ConfigRegistryApiService } from './config-registry-api-service/config-registry-api-service';
 export { filterNetworks } from './config-registry-api-service/filters';
 export { isConfigRegistryApiEnabled } from './utils/feature-flags';
