@@ -59,10 +59,9 @@ describe('BaseDataService', () => {
 
     expect(page1.data).toHaveLength(3);
 
-    const page2 = await service.getActivity(
-      TEST_ADDRESS,
-      page1.pageInfo.endCursor,
-    );
+    const page2 = await service.getActivity(TEST_ADDRESS, {
+      after: page1.pageInfo.endCursor,
+    });
 
     expect(page2.data).toHaveLength(3);
 
@@ -73,17 +72,15 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    const page2 = await service.getActivity(
-      TEST_ADDRESS,
-      TRANSACTIONS_PAGE_2_CURSOR,
-    );
+    const page2 = await service.getActivity(TEST_ADDRESS, {
+      after: TRANSACTIONS_PAGE_2_CURSOR,
+    });
 
     expect(page2.data).toHaveLength(3);
 
-    const page3 = await service.getActivity(
-      TEST_ADDRESS,
-      page2.pageInfo.endCursor,
-    );
+    const page3 = await service.getActivity(TEST_ADDRESS, {
+      after: page2.pageInfo.endCursor,
+    });
 
     expect(page3.data).toHaveLength(3);
 
