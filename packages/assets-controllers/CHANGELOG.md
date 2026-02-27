@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `getIsWebSocketActive` parameter to `AccountsApiBalanceFetcher` constructor. When provided and it returns `true`, the fetcher skips calling the Accounts API v4 and returns `{ balances: [], unprocessedChainIds }` so the controller uses RPC/WebSocket for balance data. `TokenBalancesController` now passes `() => this.getIsWebSocketActive()` when creating the fetcher to avoid duplicate requests when the WebSocket is connected. `getIsWebSocketActive()` reads the current connection state from `BackendWebSocketService:getConnectionInfo` each time it is invoked. ([#8065](https://github.com/MetaMask/core/pull/8065))
+- Skip Accounts API v4 balance calls when WebSocket is connected. ([#8065](https://github.com/MetaMask/core/pull/8065))
 
 ### Changed
 

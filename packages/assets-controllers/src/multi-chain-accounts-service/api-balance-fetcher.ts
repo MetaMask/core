@@ -298,13 +298,9 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       return { balances: [] };
     }
 
-    // When WebSocket is active, skip Accounts API and treat supported chains as unprocessed
-    const supportedRequestedChainIds = chainIds.filter((c) => this.supports(c));
+    // When WebSocket is active, skip Accounts API and treat supported chains as processed (WebSocket provides data)
     if (this.#getIsWebSocketActive?.()) {
-      return {
-        balances: [],
-        unprocessedChainIds: supportedRequestedChainIds,
-      };
+      return { balances: [] };
     }
 
     // Let errors propagate to TokenBalancesController for RPC fallback

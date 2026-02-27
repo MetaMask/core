@@ -288,7 +288,7 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(mockFetchMultiChainBalancesV4).not.toHaveBeenCalled();
     });
 
-    it('should skip API and return unprocessedChainIds when getIsWebSocketActive returns true', async () => {
+    it('should skip API and treat chains as processed when getIsWebSocketActive returns true', async () => {
       const getIsWebSocketActive = jest.fn().mockReturnValue(true);
       balanceFetcher = new AccountsApiBalanceFetcher(
         'extension',
@@ -306,10 +306,8 @@ describe('AccountsApiBalanceFetcher', () => {
 
       expect(getIsWebSocketActive).toHaveBeenCalled();
       expect(mockFetchMultiChainBalancesV4).not.toHaveBeenCalled();
-      expect(result).toStrictEqual({
-        balances: [],
-        unprocessedChainIds: [MOCK_CHAIN_ID],
-      });
+      expect(result).toStrictEqual({ balances: [] });
+      expect(result.unprocessedChainIds).toBeUndefined();
     });
 
     it('should call API when getIsWebSocketActive returns false', async () => {
