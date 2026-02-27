@@ -193,6 +193,34 @@ export class GeolocationController extends BaseController<
    * @returns The ISO country code string.
    */
   async getGeolocation(): Promise<string> {
+    return this.#fetchAndUpdate();
+  }
+
+  /**
+   * Forces a fresh geolocation fetch, bypassing the service's cache.
+   *
+   * @returns The ISO country code string.
+   */
+  async refreshGeolocation(): Promise<string> {
+    this.#stateGeneration += 1;
+    this.update((draft) => {
+      draft.lastFetchedAt = null;
+    });
+    return this.#fetchAndUpdate({ bypassCache: true });
+  }
+
+  /**
+   * Calls the geolocation service and updates controller state with the
+   * result. Uses a generation guard so that a stale in-flight request
+   * cannot overwrite state written by a newer call.
+   *
+   * @param options - Options forwarded to the service.
+   * @param options.bypassCache - When true, the service skips its TTL cache.
+   * @returns The ISO country code string.
+   */
+  async #fetchAndUpdate(options?: {
+    bypassCache?: boolean;
+  }): Promise<string> {
     const generation = this.#stateGeneration;
 
     this.update((draft) => {
@@ -203,51 +231,7 @@ export class GeolocationController extends BaseController<
     try {
       const location = await this.messenger.call(
         'GeolocationApiService:fetchGeolocation',
-      );
-
-      if (generation === this.#stateGeneration) {
-        this.update((draft) => {
-          draft.location = location;
-          draft.status = 'complete';
-          draft.lastFetchedAt = Date.now();
-          draft.error = null;
-        });
-      }
-
-      return location;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      if (generation === this.#stateGeneration) {
-        this.update((draft) => {
-          draft.status = 'error';
-          draft.error = message;
-        });
-      }
-
-      return this.state.location;
-    }
-  }
-
-  /**
-   * Forces a fresh geolocation fetch, bypassing the service's cache.
-   *
-   * @returns The ISO country code string.
-   */
-  async refreshGeolocation(): Promise<string> {
-    const generation = this.#stateGeneration + 1;
-    this.#stateGeneration = generation;
-
-    this.update((draft) => {
-      draft.lastFetchedAt = null;
-      draft.status = 'loading';
-      draft.error = null;
-    });
-
-    try {
-      const location = await this.messenger.call(
-        'GeolocationApiService:fetchGeolocation',
-        { bypassCache: true },
+        options,
       );
 
       if (generation === this.#stateGeneration) {
