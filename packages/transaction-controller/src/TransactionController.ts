@@ -1277,6 +1277,7 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
       disableGasBuffer,
       gasFeeToken,
+      forceGasFeeToken,
       isGasFeeIncluded,
       isGasFeeSponsored,
       isStateOnly,
@@ -1362,7 +1363,11 @@ export class TransactionController extends BaseController<
       type ?? (await determineTransactionType(txParams, ethQuery)).type;
 
     const existingTransactionMeta = this.#getTransactionWithActionId(actionId);
-
+    // Original behavior was that this was set to 'true' whenever a gasFeeToken was passed.
+    // 'forceGasFeeToken' optionnally overrides this behavior to prevent native token from
+    // being used when another gasFeeToken is set.
+    const isGasFeeTokenIgnoredIfBalance =
+      Boolean(gasFeeToken) && !forceGasFeeToken;
     // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
     let addedTransactionMeta: TransactionMeta = existingTransactionMeta
       ? cloneDeep(existingTransactionMeta)
@@ -1376,7 +1381,7 @@ export class TransactionController extends BaseController<
           deviceConfirmedOn,
           disableGasBuffer,
           id: random(),
-          isGasFeeTokenIgnoredIfBalance: Boolean(gasFeeToken),
+          isGasFeeTokenIgnoredIfBalance,
           isGasFeeIncluded,
           isGasFeeSponsored,
           isFirstTimeInteraction: undefined,
