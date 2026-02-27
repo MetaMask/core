@@ -18,6 +18,7 @@ export const POLYGON_USDCE_ADDRESS =
 const POLYGON_POL_CAIP_ASSET_ID = 'eip155:137/slip44:966';
 const ARBITRUM_ETH_CAIP_ASSET_ID = 'eip155:42161/slip44:60';
 
+// We might use feature flags to determine these later
 export const MMPAY_FIAT_ASSET_ID_BY_TX_TYPE: Partial<
   Record<TransactionType, string>
 > = {
@@ -47,6 +48,7 @@ export const STABLECOINS: Record<Hex, Hex[]> = {
 export enum TransactionPayStrategy {
   Bridge = 'bridge',
   Relay = 'relay',
+  Fiat = 'fiat',
   Test = 'test',
 }
 

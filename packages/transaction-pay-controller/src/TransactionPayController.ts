@@ -50,10 +50,12 @@ export class TransactionPayController extends BaseController<
 
   readonly #getStrategy?: (
     transaction: TransactionMeta,
+    transactionData?: TransactionData,
   ) => TransactionPayStrategy;
 
   readonly #getStrategies?: (
     transaction: TransactionMeta,
+    transactionData?: TransactionData,
   ) => TransactionPayStrategy[];
 
   constructor({
@@ -228,9 +230,15 @@ export class TransactionPayController extends BaseController<
   #getStrategiesWithFallback(
     transaction: TransactionMeta,
   ): TransactionPayStrategy[] {
+    const transactionData = transaction.id
+      ? this.state.transactionData[transaction.id]
+      : undefined;
+
     const strategyCandidates: unknown[] =
-      this.#getStrategies?.(transaction) ??
-      (this.#getStrategy ? [this.#getStrategy(transaction)] : []);
+      this.#getStrategies?.(transaction, transactionData) ??
+      (this.#getStrategy
+        ? [this.#getStrategy(transaction, transactionData)]
+        : []);
 
     const validStrategies = strategyCandidates.filter(
       (strategy): strategy is TransactionPayStrategy =>

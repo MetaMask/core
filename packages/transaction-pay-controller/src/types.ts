@@ -146,10 +146,16 @@ export type TransactionPayControllerOptions = {
   getDelegationTransaction: GetDelegationTransactionCallback;
 
   /** Callback to select the PayStrategy for a transaction. */
-  getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
+  getStrategy?: (
+    transaction: TransactionMeta,
+    transactionData?: TransactionData,
+  ) => TransactionPayStrategy;
 
   /** Callback to select ordered PayStrategies for a transaction. */
-  getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
+  getStrategies?: (
+    transaction: TransactionMeta,
+    transactionData?: TransactionData,
+  ) => TransactionPayStrategy[];
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
