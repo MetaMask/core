@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Widen `RequiredEventContextFromClient` `InputChanged.input_amount_preset` to accept arbitrary string labels (for example `85%`, `95%`, `MAX`) while preserving compatibility with `InputAmountPreset` enum values.
+
 ## [67.3.0]
 
 ### Added
