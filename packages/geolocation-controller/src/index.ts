@@ -15,6 +15,11 @@ export type { GeolocationStatus } from './types';
 export {
   GeolocationController,
   getDefaultGeolocationControllerState,
-  controllerName,
   UNKNOWN_LOCATION,
 } from './GeolocationController';
+export { GeolocationApiService } from './geolocation-api-service';
+export type {
+  GeolocationApiServiceOptions,
+  FetchGeolocationOptions,
+  GeolocationApiServiceFetchGeolocationAction,
+} from './geolocation-api-service';
