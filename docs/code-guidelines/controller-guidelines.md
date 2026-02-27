@@ -195,7 +195,7 @@ class FooController extends BaseController</* ... */> {
 }
 ```
 
-## Use the messenger instead of callbacks
+## Don't use functions in constructor arguments for external interactions
 
 Prior to BaseController v2, it was common for a controller to respond to an event occurring within another controller (such a state change) by receiving an event listener callback which the client would bind ahead of time:
 
@@ -288,7 +288,7 @@ const fooController = new FooController({
 });
 ```
 
-## Use the messenger instead of event emitters
+## Don't use event emitters to notify consumers
 
 Some controllers expose an EventEmitter object so that other parts of the system can listen to them:
 
@@ -380,26 +380,26 @@ It is tempting to extract action registrations to a private method:
 
 🚫
 
-``` typescript
+```typescript
 export type FooControllerSomeMethodAction = {
   type: 'FooController:someMethod';
   handler: FooController['someMethod'];
-}
+};
 
 export type FooControllerAnotherMethodAction = {
   type: 'FooController:anotherMethod';
   handler: FooController['anotherMethod'];
-}
+};
 
 export type FooControllerYetAnotherMethodAction = {
   type: 'FooController:yetAnotherMethod';
   handler: FooController['yetAnotherMethod'];
-}
+};
 
 export type FooControllerStillYetAnotherMethodAction = {
   type: 'FooController:stillTetAnotherMethod';
   handler: FooController['stillYetAnotherMethod'];
-}
+};
 
 export type FooControllerActions =
   | FooControllerSomeMethodAction
@@ -443,10 +443,22 @@ class FooController extends BaseController<
   // ...
 
   #registerActionHandlers() {
-    this.messenger.registerActionHandler(`${CONTROLLER_NAME}:someMethod`, this.someMethod.bind(this));
-    this.messenger.registerActionHandler(`${CONTROLLER_NAME}:anotherMethod`, this.anotherMethod.bind(this));
-    this.messenger.registerActionHandler(`${CONTROLLER_NAME}:yetAnotherMethod`, this.yetAnotherMethod.bind(this));
-    this.messenger.registerActionHandler(`${CONTROLLER_NAME}:stillYetAnotherMethod`, this.stillYetAnotherMethod.bind(this));
+    this.messenger.registerActionHandler(
+      `${CONTROLLER_NAME}:someMethod`,
+      this.someMethod.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${CONTROLLER_NAME}:anotherMethod`,
+      this.anotherMethod.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${CONTROLLER_NAME}:yetAnotherMethod`,
+      this.yetAnotherMethod.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${CONTROLLER_NAME}:stillYetAnotherMethod`,
+      this.stillYetAnotherMethod.bind(this),
+    );
   }
 }
 ```
@@ -477,7 +489,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'someMethod',
   'anotherMethod',
   'yetAnotherMethod',
-  'stillYetAnotherMethod'
+  'stillYetAnotherMethod',
 ];
 
 class FooController extends BaseController<
@@ -488,7 +500,10 @@ class FooController extends BaseController<
   constructor({ messenger /*, ... */ }, { messenger: FooControllerMessenger }) {
     super({ messenger /*, ... */ });
 
-    this.messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   someMethod() {
@@ -515,13 +530,12 @@ class FooController extends BaseController<
 
 A controller may wish to subscribe to events defined by other controllers, and therefore will need to include them in the controller messenger's type definition.
 
-
-``` typescript
+```typescript
 const MESSENGER_EXPOSED_METHODS = [
   'someMethod',
   'anotherMethod',
   'yetAnotherMethod',
-  'stillYetAnotherMethod'
+  'stillYetAnotherMethod',
 ];
 
 class FooController extends BaseController<
@@ -532,7 +546,10 @@ class FooController extends BaseController<
   constructor({ messenger /*, ... */ }, { messenger: FooControllerMessenger }) {
     super({ messenger /*, ... */ });
 
-    this.messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   someMethod() {
@@ -554,8 +571,6 @@ class FooController extends BaseController<
 ```
 
 ## Don't wrap controller methods when exposing them through messenger
-
-
 
 ## Define the `*:getState` action using the `ControllerGetStateAction` utility type
 
