@@ -119,6 +119,28 @@ export function validateIfTransactionUnapproved(
 }
 
 /**
+ * Validates that a transaction is unapproved or submitted.
+ * Throws if the transaction is not unapproved or submitted.
+ *
+ * @param transactionMeta - The transaction metadata to check.
+ * @param fnName - The name of the function calling this helper.
+ */
+export function validateIfTransactionUnapprovedOrSubmitted(
+  transactionMeta: TransactionMeta | undefined,
+  fnName: string,
+): void {
+  const allowedStatuses = [
+    TransactionStatus.unapproved,
+    TransactionStatus.submitted,
+  ];
+  if (!transactionMeta || !allowedStatuses.includes(transactionMeta.status)) {
+    throw new Error(
+      `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${transactionMeta?.status}`,
+    );
+  }
+}
+
+/**
  * Normalizes properties on transaction params.
  *
  * @param error - The error to be normalize.

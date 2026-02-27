@@ -181,6 +181,7 @@ import {
   isEIP1559Transaction,
   validateGasValues,
   validateIfTransactionUnapproved,
+  validateIfTransactionUnapprovedOrSubmitted,
   normalizeTxError,
   normalizeGasFeeValues,
   setEnvelopeType,
@@ -2076,7 +2077,7 @@ export class TransactionController extends BaseController<
       );
     }
 
-    validateIfTransactionUnapproved(
+    validateIfTransactionUnapprovedOrSubmitted(
       transactionMeta,
       'updateTransactionGasFees',
     );
