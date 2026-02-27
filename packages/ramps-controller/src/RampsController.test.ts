@@ -4801,7 +4801,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('replaces an existing order with the same providerOrderId', async () => {
+    it('merges an existing order with the same providerOrderId', async () => {
       await withController(({ controller }) => {
         controller.addOrder(mockOrder);
 
@@ -4810,6 +4810,42 @@ describe('RampsController', () => {
 
         expect(controller.state.orders).toHaveLength(1);
         expect(controller.state.orders[0]?.fiatAmount).toBe(200);
+      });
+    });
+
+    it('preserves existing fields not present in the update', async () => {
+      await withController(({ controller }) => {
+        const orderWithPaymentDetails = createMockOrder({
+          providerOrderId: 'abc-123',
+          paymentDetails: [
+            {
+              fiatCurrency: 'USD',
+              paymentMethod: 'bank_transfer',
+              fields: [
+                { name: 'Account Number', id: 'account', value: '12345' },
+              ],
+            },
+          ],
+        });
+        controller.addOrder(orderWithPaymentDetails);
+
+        const apiUpdate = createMockOrder({
+          providerOrderId: 'abc-123',
+          status: RampsOrderStatus.Pending,
+        });
+        controller.addOrder(apiUpdate);
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.status).toBe(
+          RampsOrderStatus.Pending,
+        );
+        expect(controller.state.orders[0]?.paymentDetails).toStrictEqual([
+          {
+            fiatCurrency: 'USD',
+            paymentMethod: 'bank_transfer',
+            fields: [{ name: 'Account Number', id: 'account', value: '12345' }],
+          },
+        ]);
       });
     });
 
@@ -4924,6 +4960,48 @@ describe('RampsController', () => {
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Completed,
         );
+      });
+    });
+
+    it('preserves existing fields not present in the API response', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const existingOrder = createMockOrder({
+          providerOrderId: 'abc-123',
+          status: RampsOrderStatus.Created,
+          paymentDetails: [
+            {
+              fiatCurrency: 'USD',
+              paymentMethod: 'bank_transfer',
+              fields: [
+                { name: 'Account Number', id: 'account', value: '12345' },
+              ],
+            },
+          ],
+        });
+        controller.addOrder(existingOrder);
+
+        const apiResponse = createMockOrder({
+          providerOrderId: 'abc-123',
+          status: RampsOrderStatus.Pending,
+        });
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => apiResponse,
+        );
+
+        await controller.getOrder('transak-staging', 'abc-123', '0xabc');
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.status).toBe(
+          RampsOrderStatus.Pending,
+        );
+        expect(controller.state.orders[0]?.paymentDetails).toStrictEqual([
+          {
+            fiatCurrency: 'USD',
+            paymentMethod: 'bank_transfer',
+            fields: [{ name: 'Account Number', id: 'account', value: '12345' }],
+          },
+        ]);
       });
     });
   });

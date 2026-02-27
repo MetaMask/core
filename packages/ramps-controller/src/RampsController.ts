@@ -1613,8 +1613,9 @@ export class RampsController extends BaseController<
 
   /**
    * Adds or updates a V2 order in controller state.
-   * If an order with the same providerOrderId already exists, it is replaced
-   * to prevent duplicate entries that would cause redundant polling and events.
+   * If an order with the same providerOrderId already exists, the incoming
+   * fields are merged on top of the existing order so that fields not present
+   * in the update (e.g. paymentDetails from the Transak API) are preserved.
    *
    * @param order - The RampsOrder to add or update.
    */
@@ -1626,7 +1627,10 @@ export class RampsController extends BaseController<
       if (idx === -1) {
         state.orders.push(order as Draft<RampsOrder>);
       } else {
-        state.orders[idx] = order as Draft<RampsOrder>;
+        state.orders[idx] = {
+          ...state.orders[idx],
+          ...order,
+        } as Draft<RampsOrder>;
       }
     });
   }
@@ -1835,7 +1839,10 @@ export class RampsController extends BaseController<
         (existing) => existing.providerOrderId === orderCode,
       );
       if (idx !== -1) {
-        state.orders[idx] = order as Draft<RampsOrder>;
+        state.orders[idx] = {
+          ...state.orders[idx],
+          ...order,
+        } as Draft<RampsOrder>;
       }
     });
 
