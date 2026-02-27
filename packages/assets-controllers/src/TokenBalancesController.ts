@@ -17,10 +17,12 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type {
+  BackendWebSocketServiceActions,
   BalanceUpdate,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent,
 } from '@metamask/core-backend';
+import { WebSocketState } from '@metamask/core-backend';
 import type {
   KeyringControllerAccountRemovedEvent,
   KeyringControllerGetStateAction,
@@ -138,6 +140,7 @@ export type TokenBalancesControllerEvents =
   | NativeBalanceEvent;
 
 export type AllowedActions =
+  | BackendWebSocketServiceActions
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | TokensControllerGetStateAction
@@ -359,6 +362,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
       this.messenger.call('TokensController:getState');
+
     this.#allTokens = allTokens;
     this.#detectedTokens = allDetectedTokens;
     this.#allIgnoredTokens = allIgnoredTokens;
@@ -543,6 +547,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       this.#platform,
       this.#getProvider,
       () => this.state.tokenBalances, // list of existing user tokens
+      () => this.getIsWebSocketActive(),
     );
 
     return {
@@ -675,6 +680,18 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     queryAllAccounts?: boolean;
   }): Promise<void> {
     await this.updateBalances({ chainIds, queryAllAccounts });
+  }
+
+  /**
+   * Returns whether the WebSocket for real-time balance updates is currently connected.
+   *
+   * @returns True if the WebSocket is connected, false otherwise.
+   */
+  getIsWebSocketActive(): boolean {
+    const connectionInfo = this.messenger.call(
+      'BackendWebSocketService:getConnectionInfo',
+    );
+    return connectionInfo.state === WebSocketState.CONNECTED;
   }
 
   updateChainPollingConfigs(

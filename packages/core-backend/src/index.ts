@@ -21,6 +21,7 @@ export type {
   WebSocketSubscription,
   WebSocketConnectionInfo,
   BackendWebSocketServiceActions,
+  BackendWebSocketServiceGetConnectionInfoAction,
   BackendWebSocketServiceConnectionStateChangedEvent,
   BackendWebSocketServiceEvents,
   BackendWebSocketServiceMessenger,

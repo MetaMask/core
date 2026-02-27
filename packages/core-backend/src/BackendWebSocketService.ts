@@ -236,6 +236,8 @@ export type WebSocketConnectionInfo = {
 export type BackendWebSocketServiceActions =
   BackendWebSocketServiceMethodActions;
 
+export type { BackendWebSocketServiceGetConnectionInfoAction } from './BackendWebSocketService-method-action-types';
+
 type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 

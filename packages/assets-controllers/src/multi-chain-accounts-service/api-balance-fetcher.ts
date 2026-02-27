@@ -76,6 +76,9 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     };
   };
 
+  /** When true, skip Accounts API and treat chains as unprocessed (e.g. WebSocket is providing data). */
+  readonly #getIsWebSocketActive?: () => boolean;
+
   constructor(
     platform: 'extension' | 'mobile' = 'extension',
     getProvider?: GetProviderFunction,
@@ -84,10 +87,12 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
         [chainId: ChainIdHex]: { [tokenAddress: ChecksumAddress]: unknown };
       };
     },
+    getIsWebSocketActive?: () => boolean,
   ) {
     this.#platform = platform;
     this.#getProvider = getProvider;
     this.#getUserTokens = getUserTokens;
+    this.#getIsWebSocketActive = getIsWebSocketActive;
   }
 
   supports(chainId: ChainIdHex): boolean {
@@ -290,6 +295,11 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     }
 
     if (!caipAddrs.length) {
+      return { balances: [] };
+    }
+
+    // When WebSocket is active, skip Accounts API and treat supported chains as processed (WebSocket provides data)
+    if (this.#getIsWebSocketActive?.()) {
       return { balances: [] };
     }
 

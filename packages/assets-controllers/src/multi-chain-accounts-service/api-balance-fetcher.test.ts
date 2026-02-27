@@ -288,6 +288,49 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(mockFetchMultiChainBalancesV4).not.toHaveBeenCalled();
     });
 
+    it('should skip API and treat chains as processed when getIsWebSocketActive returns true', async () => {
+      const getIsWebSocketActive = jest.fn().mockReturnValue(true);
+      balanceFetcher = new AccountsApiBalanceFetcher(
+        'extension',
+        undefined,
+        undefined,
+        getIsWebSocketActive,
+      );
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      expect(getIsWebSocketActive).toHaveBeenCalled();
+      expect(mockFetchMultiChainBalancesV4).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ balances: [] });
+      expect(result.unprocessedChainIds).toBeUndefined();
+    });
+
+    it('should call API when getIsWebSocketActive returns false', async () => {
+      const getIsWebSocketActive = jest.fn().mockReturnValue(false);
+      balanceFetcher = new AccountsApiBalanceFetcher(
+        'extension',
+        undefined,
+        undefined,
+        getIsWebSocketActive,
+      );
+      mockFetchMultiChainBalancesV4.mockResolvedValue(MOCK_BALANCES_RESPONSE);
+
+      await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      expect(getIsWebSocketActive).toHaveBeenCalled();
+      expect(mockFetchMultiChainBalancesV4).toHaveBeenCalled();
+    });
+
     it('should fetch balances for selected account only', async () => {
       const selectedAccountResponse: GetBalancesResponse = {
         count: 2,

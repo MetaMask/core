@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export `BackendWebSocketServiceGetConnectionInfoAction` type from the package index for consumers that need to type the `getConnectionInfo` action. ([#8065](https://github.com/MetaMask/core/pull/8065))
 - Add `includeAggregators` option to `V3AssetsQueryOptions` so the tokens v3 assets API can be called with `includeAggregators: true` to return DEX/aggregator integrations in the response ([#8021](https://github.com/MetaMask/core/pull/8021))
 
 ### Changed
