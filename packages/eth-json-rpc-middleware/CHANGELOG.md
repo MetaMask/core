@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- Release/825.0.0 ([#7996](https://github.com/MetaMask/core/pull/7996))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
-
 ### Changed
 
 - Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))

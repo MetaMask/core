@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [67.4.0]
+
 ### Changed
 
 - Widen `RequiredEventContextFromClient` `InputChanged.input_amount_preset` to accept arbitrary string labels (for example `85%`, `95%`, `MAX`) while preserving compatibility with `InputAmountPreset` enum values. ([#8069](https://github.com/MetaMask/core/pull/8069))
@@ -1203,7 +1205,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.4.0...HEAD
+[67.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.3.0...@metamask/bridge-controller@67.4.0
 [67.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.2.0...@metamask/bridge-controller@67.3.0
 [67.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.1.1...@metamask/bridge-controller@67.2.0
 [67.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.1.0...@metamask/bridge-controller@67.1.1
