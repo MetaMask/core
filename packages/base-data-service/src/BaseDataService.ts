@@ -152,31 +152,37 @@ export class BaseDataService<
       .getQueryCache()
       .find<TQueryFnData, TError, TData>({ queryKey: options.queryKey });
 
-    if (query && pageParam) {
-      const pages =
-        (query.state.data as InfiniteData<TQueryFnData> | undefined)?.pages ??
-        [];
-      const previous = options.getPreviousPageParam?.(pages[0], pages);
+    if (!query || !pageParam) {
+      const result = await this.#client.fetchInfiniteQuery({
+        ...options,
+        queryFn: (context) =>
+          options.queryFn({
+            ...context,
+            pageParam: context.pageParam ?? pageParam,
+          }),
+      });
 
-      const direction = pageParam === previous ? 'backward' : 'forward';
-
-      const result = (await query.fetch(undefined, {
-        meta: {
-          fetchMore: {
-            direction,
-            pageParam,
-          },
-        },
-      })) as InfiniteData<TData>;
-
-      const pageIndex = result.pageParams.indexOf(pageParam);
-
-      return result.pages[pageIndex];
+      return result.pages[0];
     }
 
-    const result = await this.#client.fetchInfiniteQuery(options);
+    const pages =
+      (query.state.data as InfiniteData<TQueryFnData> | undefined)?.pages ?? [];
+    const previous = options.getPreviousPageParam?.(pages[0], pages);
 
-    return result.pages[0];
+    const direction = pageParam === previous ? 'backward' : 'forward';
+
+    const result = (await query.fetch(undefined, {
+      meta: {
+        fetchMore: {
+          direction,
+          pageParam,
+        },
+      },
+    })) as InfiniteData<TData>;
+
+    const pageIndex = result.pageParams.indexOf(pageParam);
+
+    return result.pages[pageIndex];
   }
 
   protected async invalidateQueries<TPageData extends Json>(
