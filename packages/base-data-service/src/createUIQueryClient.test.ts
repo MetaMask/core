@@ -17,6 +17,7 @@ import {
   ExampleMessenger,
   GetActivityResponse,
   GetAssetsResponse,
+  PageParam,
 } from '../tests/ExampleDataService';
 import {
   mockAssets,
@@ -226,12 +227,12 @@ describe('createUIQueryClient', () => {
 
     const getPreviousPageParam = ({
       pageInfo,
-    }: GetActivityResponse): string | undefined =>
-      pageInfo.hasPreviousPage ? pageInfo.startCursor : undefined;
+    }: GetActivityResponse): PageParam | undefined =>
+      pageInfo.hasPreviousPage ? { before: pageInfo.startCursor } : undefined;
     const getNextPageParam = ({
       pageInfo,
-    }: GetActivityResponse): string | undefined =>
-      pageInfo.hasNextPage ? pageInfo.endCursor : undefined;
+    }: GetActivityResponse): PageParam | undefined =>
+      pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined;
 
     const observerA = new InfiniteQueryObserver(clientA, {
       queryKey: getActivityQueryKey,

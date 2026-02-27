@@ -286,7 +286,7 @@ export function mockTransactionsPage2(mockReply?: MockReply): nock.Scope {
       limit: '3',
       accountAddresses:
         'eip155%3A0%3A0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
-      cursor: TRANSACTIONS_PAGE_2_CURSOR,
+      after: TRANSACTIONS_PAGE_2_CURSOR,
     })
     .reply(reply.status, reply.body);
 }
@@ -408,7 +408,7 @@ export function mockTransactionsPage3(mockReply?: MockReply): nock.Scope {
       limit: '3',
       accountAddresses:
         'eip155%3A0%3A0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
-      cursor: TRANSACTIONS_PAGE_3_CURSOR,
+      after: TRANSACTIONS_PAGE_3_CURSOR,
     })
     .reply(reply.status, reply.body);
 }
