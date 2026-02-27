@@ -43,7 +43,7 @@ jobs:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
       - name: Restore build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Dry run publish to NPM
@@ -64,7 +64,7 @@ jobs:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
       - name: Restore build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Publish to NPM
