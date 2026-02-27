@@ -69,6 +69,12 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
         protocol: 'cowswap',
         order: { some: 'order' },
         settlementContract: '0x9008D19f58AAbd9eD0D60971565AA8510560ab41',
+        typedData: {
+          types: {},
+          primaryType: 'Order',
+          domain: {},
+          message: {},
+        },
       },
     },
     sentAmount: { amount: '1', usd: '1' },
@@ -169,6 +175,8 @@ const createMessengerHarness = (
           return undefined;
         case 'GasFeeController:getState':
           return { gasFeeEstimates: {} };
+        case 'KeyringController:signTypedMessage':
+          return '0xtest-signature';
         default:
           return undefined;
       }
@@ -587,6 +595,7 @@ describe('BridgeStatusController (intent swaps)', () => {
     const { controller, accountAddress, submitIntentMock } = setup();
 
     const quoteResponse = minimalIntentQuoteResponse();
+    quoteResponse.quote.intent.typedData = undefined;
 
     await expect(
       controller.submitIntent({
