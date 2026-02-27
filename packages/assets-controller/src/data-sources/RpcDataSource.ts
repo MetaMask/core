@@ -139,7 +139,10 @@ type SubscriptionData = {
   /** Accounts being polled */
   accounts: InternalAccount[];
   /** Callback to report asset updates to the controller */
-  onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
+  onAssetsUpdate: (
+    response: DataResponse,
+    request?: DataRequest,
+  ) => void | Promise<void>;
 };
 
 /**
@@ -411,7 +414,13 @@ export class RpcDataSource extends AbstractDataSource<
         [result.accountId]: newBalances,
       },
       assetsInfo,
-      updateMode: 'full',
+      updateMode: 'merge',
+    };
+
+    const request: DataRequest = {
+      accountsWithSupportedChains: [],
+      chainIds: [caipChainId],
+      dataTypes: ['balance'],
     };
 
     log('Balance update response', {
@@ -420,7 +429,7 @@ export class RpcDataSource extends AbstractDataSource<
     });
 
     for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response)?.catch((error) => {
+      subscription.onAssetsUpdate(response, request)?.catch((error) => {
         log('Failed to update assets', { error });
       });
     }
@@ -484,11 +493,19 @@ export class RpcDataSource extends AbstractDataSource<
       assetsBalance: {
         [result.accountId]: newBalances,
       },
-      updateMode: 'full',
+      updateMode: 'merge',
+    };
+
+    const chainIdDecimal = parseInt(result.chainId, 16);
+    const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
+    const request: DataRequest = {
+      accountsWithSupportedChains: [],
+      chainIds: [caipChainId],
+      dataTypes: ['balance', 'metadata', 'price'],
     };
 
     for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response)?.catch((error) => {
+      subscription.onAssetsUpdate(response, request)?.catch((error) => {
         log('Failed to update detected assets', { error });
       });
     }
@@ -1106,15 +1123,21 @@ export class RpcDataSource extends AbstractDataSource<
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     const { request, subscriptionId, isUpdate } = subscriptionRequest;
 
-    const chainsToSubscribe = request.chainIds.filter((chainId) =>
-      this.#activeChains.includes(chainId),
-    );
+    // Use request.chainIds when activeChains is not yet populated (e.g. before
+    // NetworkController state has been applied) so polling can start.
+    const chainsToSubscribe =
+      this.#activeChains.length > 0
+        ? request.chainIds.filter((chainId) =>
+            this.#activeChains.includes(chainId),
+          )
+        : request.chainIds;
 
     log('Subscribe requested', {
       subscriptionId,
       isUpdate,
       accounts: request.accountsWithSupportedChains.map((a) => a.account.id),
       chainsToSubscribe,
+      activeChainsFallback: this.#activeChains.length === 0,
     });
 
     if (chainsToSubscribe.length === 0) {
@@ -1137,8 +1160,7 @@ export class RpcDataSource extends AbstractDataSource<
 
     // Clean up existing subscription (stops old polling)
     await this.unsubscribe(subscriptionId);
-
-    // Start polling through BalanceFetcher and TokenDetector (use pre-computed supportedChains per account)
+    // Start polling through BalanceFetcher and TokenDetector
     const balancePollingTokens: string[] = [];
     const detectionPollingTokens: string[] = [];
 
