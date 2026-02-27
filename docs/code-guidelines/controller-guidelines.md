@@ -467,9 +467,9 @@ This works, but the boilerplate remains.
 
 Instead, you can follow this process:
 
-1. Define a constant in your controller file called `MESSENGER_EXPOSED_METHODS`. Here is where you will list the methods you want to expose.
+1. Define a constant in your controller file called `MESSENGER_EXPOSED_METHODS`, listing the methods you want to expose.
 2. Remove manual action registrations; instead, call `registerMethodActionHandlers` and pass `MESSENGER_EXPOSED_METHODS`.
-3. Remove messenger action types; instead, run `yarn generate-method-action-types`. This will create a file called `${ControllerName}-method-action-types.ts` and export a type called `${ControllerName}MethodActions`.
+3. Remove messenger action types; instead, run `yarn generate-method-action-types`. This will create a file called `${ControllerName}-method-action-types.ts`, which exports a type called `${ControllerName}MethodActions`.
 4. Import `${ControllerName}-method-action-types.ts` in your controller file, and add `${ControllerName}MethodActions` to `${ControllerName}Actions`.
 
 ✅
