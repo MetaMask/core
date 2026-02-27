@@ -6,8 +6,9 @@
 import type { GeolocationController } from './GeolocationController';
 
 /**
- * Returns the cached geolocation if still valid, otherwise fetches it.
- * Concurrent calls are deduplicated to a single network request.
+ * Returns the geolocation country code. Delegates to the
+ * {@link GeolocationApiService} for network fetching and caching, then
+ * updates controller state with the result.
  *
  * @returns The ISO country code string.
  */
@@ -17,7 +18,7 @@ export type GeolocationControllerGetGeolocationAction = {
 };
 
 /**
- * Forces a fresh geolocation fetch, bypassing the cache.
+ * Forces a fresh geolocation fetch, bypassing the service's cache.
  *
  * @returns The ISO country code string.
  */
