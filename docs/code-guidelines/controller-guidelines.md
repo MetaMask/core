@@ -372,6 +372,160 @@ rootMessenger.subscribe('FooController:someEvent', () => {
 });
 ```
 
+## Expose controller methods through messenger in bulk
+
+Exposing controller methods through the messenger can be tedious. An action type must be created for each method, each action type must be added to the messenger type, and each action must be registered through the messenger. This creates a lot of boilerplate that must be maintained.
+
+It is tempting to extract action registrations to a private method:
+
+🚫
+
+```typescript
+export type FooControllerSomeMethodAction = {
+  type: 'FooController:someMethod';
+  handler: FooController['someMethod'];
+};
+
+export type FooControllerAnotherMethodAction = {
+  type: 'FooController:anotherMethod';
+  handler: FooController['anotherMethod'];
+};
+
+export type FooControllerYetAnotherMethodAction = {
+  type: 'FooController:yetAnotherMethod';
+  handler: FooController['yetAnotherMethod'];
+};
+
+export type FooControllerStillYetAnotherMethodAction = {
+  type: 'FooController:stillYetAnotherMethod';
+  handler: FooController['stillYetAnotherMethod'];
+};
+
+export type FooControllerActions =
+  | FooControllerSomeMethodAction
+  | FooControllerAnotherMethodAction
+  | FooControllerYetAnotherMethodAction
+  | FooControllerStillYetAnotherMethodAction;
+
+export type FooControllerMessenger = Messenger<
+  'FooController',
+  FooControllerActions,
+  never
+>;
+
+class FooController extends BaseController<
+  'FooController',
+  // ...,
+  FooControllerMessenger
+> {
+  constructor({ messenger /*, ... */ }, { messenger: FooControllerMessenger }) {
+    super({ messenger /*, ... */ });
+
+    this.#registerActionHandlers();
+  }
+
+  someMethod() {
+    // ...
+  }
+
+  anotherMethod() {
+    // ...
+  }
+
+  yetAnotherMethod() {
+    // ...
+  }
+
+  stillYetAnotherMethod() {
+    // ...
+  }
+
+  // ...
+
+  #registerActionHandlers() {
+    this.messenger.registerActionHandler(
+      'FooController:someMethod',
+      this.someMethod.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'FooController:anotherMethod',
+      this.anotherMethod.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'FooController:yetAnotherMethod',
+      this.yetAnotherMethod.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'FooController:stillYetAnotherMethod',
+      this.stillYetAnotherMethod.bind(this),
+    );
+  }
+}
+```
+
+This works, but the boilerplate remains.
+
+Instead, you can follow this process:
+
+1. Define a constant in your controller file called `MESSENGER_EXPOSED_METHODS`, listing the methods you want to expose.
+2. Remove manual action registrations; instead, call `registerMethodActionHandlers` and pass `MESSENGER_EXPOSED_METHODS`.
+3. Remove messenger action types; instead, run `yarn generate-method-action-types`. This will create a file called `${ControllerName}-method-action-types.ts`, which exports a type called `${ControllerName}MethodActions`.
+4. Import `${ControllerName}-method-action-types.ts` in your controller file, and add `${ControllerName}MethodActions` to `${ControllerName}Actions`.
+
+✅
+
+```typescript
+import { FooControllerMethodActions } from './FooController-method-action-types';
+
+export type FooControllerActions = FooControllerMethodActions;
+
+export type FooControllerMessenger = Messenger<
+  'FooController',
+  FooControllerActions,
+  never
+>;
+
+const MESSENGER_EXPOSED_METHODS = [
+  'someMethod',
+  'anotherMethod',
+  'yetAnotherMethod',
+  'stillYetAnotherMethod',
+];
+
+class FooController extends BaseController<
+  'FooController',
+  // ...,
+  FooControllerMessenger
+> {
+  constructor({ messenger /*, ... */ }, { messenger: FooControllerMessenger }) {
+    super({ messenger /*, ... */ });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  someMethod() {
+    // ...
+  }
+
+  anotherMethod() {
+    // ...
+  }
+
+  yetAnotherMethod() {
+    // ...
+  }
+
+  stillYetAnotherMethod() {
+    // ...
+  }
+
+  // ...
+}
+```
+
 ## Define the `*:getState` action using the `ControllerGetStateAction` utility type
 
 Each controller needs a type for its `*:getState` action. The `ControllerGetStateAction` utility type from the `@metamask/base-controller` package should be used to define this type.
