@@ -218,9 +218,7 @@ export class GeolocationController extends BaseController<
    * @param options.bypassCache - When true, the service skips its TTL cache.
    * @returns The ISO country code string.
    */
-  async #fetchAndUpdate(options?: {
-    bypassCache?: boolean;
-  }): Promise<string> {
+  async #fetchAndUpdate(options?: { bypassCache?: boolean }): Promise<string> {
     const generation = this.#stateGeneration;
 
     this.update((draft) => {
