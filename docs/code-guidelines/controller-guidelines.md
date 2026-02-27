@@ -195,7 +195,7 @@ class FooController extends BaseController</* ... */> {
 }
 ```
 
-## Don't use functions in constructor arguments for external interactions
+## Use the messenger instead of callbacks
 
 Prior to BaseController v2, it was common for a controller to respond to an event occurring within another controller (such a state change) by receiving an event listener callback which the client would bind ahead of time:
 
@@ -288,7 +288,7 @@ const fooController = new FooController({
 });
 ```
 
-## Don't use event emitters to notify consumers
+## Use the messenger instead of event emitters
 
 Some controllers expose an EventEmitter object so that other parts of the system can listen to them:
 
