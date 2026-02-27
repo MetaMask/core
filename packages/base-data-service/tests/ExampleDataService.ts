@@ -44,6 +44,12 @@ export type GetActivityResponse = {
   };
 };
 
+export type PageParam =
+  | {
+      before: string;
+    }
+  | { after: string };
+
 export class ExampleDataService extends BaseDataService<
   typeof serviceName,
   ExampleMessenger
@@ -87,7 +93,7 @@ export class ExampleDataService extends BaseDataService<
 
   async getActivity(
     address: string,
-    page?: string,
+    page?: PageParam,
   ): Promise<GetActivityResponse> {
     return this.fetchInfiniteQuery<GetActivityResponse>(
       {
@@ -98,8 +104,10 @@ export class ExampleDataService extends BaseDataService<
             `${this.#accountsBaseUrl}/v4/multiaccount/transactions?limit=3&accountAddresses=${caipAddress}`,
           );
 
-          if (pageParam) {
-            url.searchParams.set('cursor', pageParam);
+          if (pageParam?.after) {
+            url.searchParams.set('after', pageParam.after);
+          } else if (pageParam?.before) {
+            url.searchParams.set('before', pageParam.before);
           }
 
           const response = await fetch(url);
@@ -107,9 +115,11 @@ export class ExampleDataService extends BaseDataService<
           return response.json();
         },
         getPreviousPageParam: ({ pageInfo }) =>
-          pageInfo.hasPreviousPage ? pageInfo.startCursor : undefined,
+          pageInfo.hasPreviousPage
+            ? { before: pageInfo.startCursor }
+            : undefined,
         getNextPageParam: ({ pageInfo }) =>
-          pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
+          pageInfo.hasNextPage ? { after: pageInfo.endCursor } : undefined,
         staleTime: inMilliseconds(5, Duration.Minute),
       },
       page,
