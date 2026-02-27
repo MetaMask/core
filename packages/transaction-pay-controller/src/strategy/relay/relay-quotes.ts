@@ -618,7 +618,7 @@ async function calculateSourceNetworkCost(
   let finalAmount = gasFeeToken.amount;
 
   const hasMultipleTransactions =
-    relayParams.length > 1 || gasLimits.length > 1;
+    relayParams.length > 1 || gasLimits.length > 1 || request.isPostQuote;
 
   if (hasMultipleTransactions) {
     const gasRate = new BigNumber(gasFeeToken.amount, 16).dividedBy(
@@ -692,7 +692,7 @@ async function calculateSourceNetworkGasLimit(
     return relayGas;
   }
 
-  return combinePostQuoteGas(relayGas, params.length, postQuoteTransaction);
+  return combinePostQuoteGas(relayGas, postQuoteTransaction);
 }
 
 /**
@@ -706,7 +706,6 @@ async function calculateSourceNetworkGasLimit(
  * @param relayGas.totalGasEstimate - Estimated gas total.
  * @param relayGas.totalGasLimit - Maximum gas total.
  * @param relayGas.gasLimits - Per-transaction gas limits.
- * @param relayParamCount - Number of relay transaction parameters.
  * @param transaction - Original transaction metadata.
  * @returns Combined gas estimates including the original transaction.
  */
@@ -716,7 +715,6 @@ function combinePostQuoteGas(
     totalGasLimit: number;
     gasLimits: number[];
   },
-  relayParamCount: number,
   transaction: TransactionMeta,
 ): { totalGasEstimate: number; totalGasLimit: number; gasLimits: number[] } {
   const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
@@ -728,14 +726,14 @@ function combinePostQuoteGas(
   }
 
   let { gasLimits } = relayGas;
-  const isEIP7702 = gasLimits.length === 1 && relayParamCount > 1;
+  const isEIP7702 = gasLimits.length === 1;
 
   if (isEIP7702) {
-    // EIP-7702: single combined gas limit — add the original tx gas
-    // so the atomic batch covers both relay and original transactions.
+    // Single gas limit (either one relay param or 7702 combined) —
+    // add the original tx gas so the batch uses a single 7702 limit.
     gasLimits = [gasLimits[0] + originalTxGas];
   } else {
-    // Non-7702: individual gas limits — prepend the original tx gas
+    // Multiple individual gas limits — prepend the original tx gas
     // so the list order matches relay-submit's transaction order.
     gasLimits = [originalTxGas, ...gasLimits];
   }
