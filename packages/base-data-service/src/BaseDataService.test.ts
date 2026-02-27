@@ -7,6 +7,7 @@ import {
   mockTransactionsPage2,
   mockTransactionsPage3,
   TRANSACTIONS_PAGE_2_CURSOR,
+  TRANSACTIONS_PAGE_3_CURSOR,
 } from '../tests/mocks';
 
 const TEST_ADDRESS = '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520';
@@ -85,5 +86,23 @@ describe('BaseDataService', () => {
     expect(page3.data).toHaveLength(3);
 
     expect(page3.data).not.toStrictEqual(page2.data);
+  });
+
+  it('handles backwards queries starting at a specific page', async () => {
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+
+    const page3 = await service.getActivity(TEST_ADDRESS, {
+      after: TRANSACTIONS_PAGE_3_CURSOR,
+    });
+
+    expect(page3.data).toHaveLength(3);
+
+    const page2 = await service.getActivity(TEST_ADDRESS, {
+      before: page3.pageInfo.startCursor,
+    });
+
+    expect(page2.data).toHaveLength(3);
+    expect(page2.data).not.toStrictEqual(page3.data);
   });
 });
