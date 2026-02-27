@@ -224,7 +224,17 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#keyringLocked = false;
-      this.startPolling(null);
+      try {
+        if (
+          isConfigRegistryApiEnabled(
+            this.messenger.call('RemoteFeatureFlagController:getState'),
+          )
+        ) {
+          this.startPolling(null);
+        }
+      } catch {
+        // RemoteFeatureFlagController unavailable; do not start polling.
+      }
     });
 
     this.messenger.subscribe('KeyringController:lock', () => {
