@@ -596,6 +596,180 @@ describe('AssetsController', () => {
         expect(assets).toBeDefined();
       });
     });
+
+    it('hides native tokens on Tempo testnet (eip155:42431)', async () => {
+      await withController(
+        {
+          state: {
+            assetsMetadata: {
+              'eip155:42431/slip44:60': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+              'eip155:42431/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': {
+                type: 'erc20',
+                symbol: 'USDC',
+                name: 'USD Coin',
+                decimals: 6,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:42431/slip44:60': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+                'eip155:42431/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': {
+                  amount: '100',
+                  unit: 'USDC',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:42431'],
+          });
+
+          // Native token should be hidden
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:42431/slip44:60'],
+          ).toBeUndefined();
+
+          // ERC20 token should still be visible
+          expect(
+            assets[MOCK_ACCOUNT_ID][
+              'eip155:42431/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+            ],
+          ).toBeDefined();
+        },
+      );
+    });
+
+    it('hides native tokens on Tempo mainnet (eip155:4217)', async () => {
+      await withController(
+        {
+          state: {
+            assetsMetadata: {
+              'eip155:4217/slip44:60': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:4217/slip44:60': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:4217'],
+          });
+
+          // Native token should be hidden
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:4217/slip44:60'],
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('does not hide native tokens on non-Tempo networks', async () => {
+      await withController(
+        {
+          state: {
+            assetsMetadata: {
+              'eip155:1/slip44:60': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:1/slip44:60': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:1'],
+          });
+
+          // Native token should still be visible on Ethereum
+          expect(assets[MOCK_ACCOUNT_ID]['eip155:1/slip44:60']).toBeDefined();
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:1/slip44:60'].metadata.symbol,
+          ).toBe('ETH');
+        },
+      );
+    });
+
+    it('hides native tokens identified by metadata type', async () => {
+      await withController(
+        {
+          state: {
+            assetsMetadata: {
+              'eip155:42431/some:other': {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ethereum',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                'eip155:42431/some:other': {
+                  amount: '1',
+                  unit: 'ETH',
+                },
+              },
+            },
+            assetsPrice: {},
+            customAssets: {},
+            assetPreferences: {},
+          },
+        },
+        async ({ controller }) => {
+          const accounts = [createMockInternalAccount()];
+          const assets = await controller.getAssets(accounts, {
+            chainIds: ['eip155:42431'],
+          });
+
+          // Native token should be hidden even if assetId doesn't have slip44
+          expect(
+            assets[MOCK_ACCOUNT_ID]['eip155:42431/some:other'],
+          ).toBeUndefined();
+        },
+      );
+    });
   });
 
   describe('getAssetsBalance', () => {

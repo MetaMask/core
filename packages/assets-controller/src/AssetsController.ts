@@ -1694,6 +1694,11 @@ export class AssetsController extends BaseController<
 
         const assetChainId = extractChainId(typedAssetId);
 
+        // Skip native tokens on Tempo networks
+        if (this.#shouldHideNativeToken(assetChainId, typedAssetId, metadata)) {
+          continue;
+        }
+
         if (!chainIdSet.has(assetChainId)) {
           continue;
         }
@@ -1733,6 +1738,38 @@ export class AssetsController extends BaseController<
     }
 
     return result;
+  }
+
+  /**
+   * Determines if a native token should be hidden on specific networks.
+   *
+   * @param chainId - The CAIP-2 chain ID (e.g., "eip155:42431").
+   * @param assetId - The CAIP-19 asset ID (e.g., "eip155:42431/slip44:60").
+   * @param metadata - The asset metadata.
+   * @returns True if the token should be hidden, false otherwise.
+   */
+  #shouldHideNativeToken(
+    chainId: ChainId,
+    assetId: Caip19AssetId,
+    metadata: AssetMetadata,
+  ): boolean {
+    const TEMPO_CHAIN_IDS = ['eip155:42431', 'eip155:4217']; // Tempo Testnet (42431) and Mainnet (4217)
+
+    // Check if it's a Tempo network
+    if (!TEMPO_CHAIN_IDS.includes(chainId)) {
+      return false;
+    }
+
+    // Check if it's a native token (either by metadata type or assetId format)
+    const isNative =
+      metadata.type === 'native' || assetId.includes('/slip44:');
+
+    if (isNative) {
+      return true;
+    }
+
+
+    return false;
   }
 
   /**

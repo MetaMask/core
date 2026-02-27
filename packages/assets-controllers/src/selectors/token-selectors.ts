@@ -43,6 +43,34 @@ export const TRON_RESOURCE_SYMBOLS = Object.values(
 export const TRON_RESOURCE_SYMBOLS_SET: ReadonlySet<TronResourceSymbol> =
   new Set(TRON_RESOURCE_SYMBOLS);
 
+/**
+ * Determines if a native token should be hidden on Tempo networks.
+ *
+ * @param chainId - The hex chain ID (e.g., "0xa5bd").
+ * @param isNative - Whether the token is a native token.
+ * @param symbol - The token symbol.
+ * @returns True if the token should be hidden, false otherwise.
+ */
+function shouldHideNativeToken(
+  chainId: Hex | string,
+  isNative: boolean,
+  symbol?: string,
+): boolean {
+  const TEMPO_CHAIN_IDS = ['0xa5bf', '0x1079']; // Tempo Testnet (42431) and Mainnet (4217)
+
+  // Check if it's a Tempo network
+  if (!TEMPO_CHAIN_IDS.includes(chainId.toLowerCase())) {
+    return false;
+  }
+
+  // Hide native tokens on Tempo
+  if (isNative) {
+    return true;
+  }
+
+  return false;
+}
+
 export type AssetsByAccountGroup = {
   [accountGroupId: AccountGroupId]: AccountGroupAssets;
 };
@@ -181,6 +209,11 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
         }
 
         const { accountGroupId, type, accountId } = account;
+
+        // Skip native tokens on Tempo networks
+        if (shouldHideNativeToken(chainId, true)) {
+          continue;
+        }
 
         groupAssets[accountGroupId] ??= {};
         groupAssets[accountGroupId][chainId] ??= [];
@@ -381,6 +414,22 @@ const selectAllMultichainAssets = createAssetListSelector(
         const { accountGroupId, type } = account;
 
         if (ignoredMultichainAssets?.[accountId]?.includes(assetId)) {
+          continue;
+        }
+
+        // Skip native tokens on Tempo networks
+        const isNative = caipAsset.assetNamespace === 'slip44';
+        // Convert CAIP-2 chain ID to hex for comparison
+        const chainIdHex = chainId.startsWith('eip155:')
+          ? `0x${parseInt(chainId.split(':')[1], 10).toString(16)}`
+          : chainId;
+        if (
+          shouldHideNativeToken(
+            chainIdHex,
+            isNative,
+            assetMetadata.symbol,
+          )
+        ) {
           continue;
         }
 
