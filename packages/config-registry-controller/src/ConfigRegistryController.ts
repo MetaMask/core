@@ -275,9 +275,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
         state.configs.networks = newConfigs;
         state.version = result.data.data.version;
         state.lastFetched = Date.now();
-        if (result.etag !== undefined) {
-          state.etag = result.etag;
-        }
+        state.etag = result.etag ?? null;
       });
     } catch (error) {
       const errorInstance =
