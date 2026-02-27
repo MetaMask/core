@@ -705,7 +705,7 @@ describe('Relay Quotes Utils', () => {
       expect(estimateGasBatchMock).not.toHaveBeenCalled();
     });
 
-    it('prepends original transaction gas to relay gas limits for post-quote', async () => {
+    it('adds original transaction gas to single relay gas limit for post-quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -734,10 +734,8 @@ describe('Relay Quotes Utils', () => {
         } as TransactionMeta,
       });
 
-      // Original tx gas (0x13498 = 79000) prepended, relay gas (21000) from params
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([
-        79000, 21000,
-      ]);
+      // Single relay gas limit (21000) + original tx gas (0x13498 = 79000) = 100000
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([100000]);
     });
 
     it('prefers nestedTransactions gas over txParams.gas for post-quote', async () => {
@@ -771,9 +769,8 @@ describe('Relay Quotes Utils', () => {
       });
 
       // nestedTransactions gas (0xC350 = 50000) used instead of txParams.gas (79000)
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([
-        50000, 21000,
-      ]);
+      // Single relay gas limit (21000) + original tx gas (50000) = 71000
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([71000]);
     });
 
     it('adds original transaction gas to EIP-7702 combined gas limit for post-quote', async () => {
@@ -1235,6 +1232,50 @@ describe('Relay Quotes Utils', () => {
           transaction: TRANSACTION_META_MOCK,
         });
 
+        expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gasFeeToken: {
+              ...GAS_FEE_TOKEN_MOCK,
+              amount: toHex(1230000 * 2),
+            },
+          }),
+        );
+      });
+
+      it('using scaled gas fee token cost for post-quote with single relay param', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+        getGasBufferMock.mockReturnValue(1);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              targetAmountMinimum: '0',
+              isPostQuote: true,
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            chainId: '0x1' as Hex,
+            txParams: {
+              from: FROM_MOCK,
+              to: '0x9' as Hex,
+              data: '0xaaa' as Hex,
+              gas: '0x5208',
+              value: '0',
+            },
+          } as TransactionMeta,
+        });
+
+        // Gas fee token amount should be scaled for the combined gas
+        // (original tx gas 0x5208=21000 + relay gas 21000 = 42000),
+        // not just the relay gas (21000).
         expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
           expect.objectContaining({
             gasFeeToken: {

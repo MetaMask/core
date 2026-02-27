@@ -347,7 +347,7 @@ async function submitTransactions(
     );
   } else {
     const gasLimit7702 =
-      gasLimits.length === 1 && normalizedParams.length > 1
+      gasLimits.length === 1 && allParams.length > 1
         ? toHex(gasLimits[0])
         : undefined;
 
