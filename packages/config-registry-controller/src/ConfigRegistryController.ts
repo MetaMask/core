@@ -243,6 +243,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
       }
       if (enabled) {
         if (!this.#keyringLocked) {
+          this.stopAllPolling();
           this.startPolling(null);
         }
       } else {
