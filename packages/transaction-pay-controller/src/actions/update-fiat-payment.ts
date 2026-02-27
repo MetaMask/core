@@ -1,4 +1,5 @@
 import { createModuleLogger } from '@metamask/utils';
+import { pickBy } from 'lodash';
 
 import type { TransactionPayControllerMessenger } from '..';
 import { projectLogger } from '../logger';
@@ -25,7 +26,7 @@ export function updateFiatPayment(
   request: UpdateFiatPaymentRequest,
   options: UpdateFiatPaymentOptions,
 ): void {
-  const { transactionId, selectedPaymentMethodId } = request;
+  const { transactionId, selectedPaymentMethodId, amount } = request;
   const { messenger, updateTransactionData } = options;
 
   const transaction = getTransaction(transactionId, messenger);
@@ -34,11 +35,29 @@ export function updateFiatPayment(
     throw new Error('Transaction not found');
   }
 
-  log('Updated fiat payment', { transactionId, selectedPaymentMethodId });
+  log('Updated fiat payment', {
+    transactionId,
+    selectedPaymentMethodId,
+    amount,
+  });
 
   updateTransactionData(transactionId, (data) => {
+    const currentFiatPayment = data.fiatPayment ?? {
+      amount: null,
+      selectedPaymentMethodId: null,
+    };
+
+    const patch = pickBy(
+      {
+        amount,
+        selectedPaymentMethodId,
+      },
+      (value) => value !== undefined,
+    ) as Partial<typeof currentFiatPayment>;
+
     data.fiatPayment = {
-      selectedPaymentMethodId,
+      ...currentFiatPayment,
+      ...patch,
     };
 
     // We may need to update the payment token here later

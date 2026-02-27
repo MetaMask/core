@@ -217,6 +217,9 @@ export type TransactionData = {
 export type TransactionFiatPayment = {
   /** Selected fiat payment method ID. */
   selectedPaymentMethodId: string | null;
+
+  /** Entered fiat amount for the selected payment method. */
+  amount: string | null;
 };
 
 /** A token required by a transaction. */
@@ -535,7 +538,10 @@ export type UpdateFiatPaymentRequest = {
   transactionId: string;
 
   /** Selected fiat payment method ID. */
-  selectedPaymentMethodId: string | null;
+  selectedPaymentMethodId?: string | null;
+
+  /** Entered fiat amount. */
+  amount?: string | null;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */
