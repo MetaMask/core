@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^62.7.0` to `^62.19.0` ([#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642), [#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7996](https://github.com/MetaMask/core/pull/7996), [#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031))
 - Bump `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Make `wallet_sendCalls` more reliable ([#7816](https://github.com/MetaMask/core/pull/7816))
+- **BREAKING:** Replace `getAccounts` hook with `getPermittedAccountsForOrigin` in `walletSendCalls`, `walletGetCapabilities`, and `ProcessSendCallsHooks` ([#7816](https://github.com/MetaMask/core/pull/7816))
+  - Consumers must rename the `getAccounts` hook to `getPermittedAccountsForOrigin` and update its signature from `(req: JsonRpcRequest) => Promise<string[]>` to `() => Promise<string[]>`. The `req` parameter passed to `walletSendCalls` and `walletGetCapabilities` must now include an `origin` property.
 
 ## [2.1.0]
 
