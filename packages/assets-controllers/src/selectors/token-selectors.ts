@@ -8,7 +8,6 @@ import type { NetworkState } from '@metamask/network-controller';
 import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
-import { TokenRwaData } from 'src/token-service';
 
 import {
   parseBalanceWithDecimals,
@@ -19,6 +18,7 @@ import type { MultichainAssetsControllerState } from '../MultichainAssetsControl
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
 import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
 import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
+import { TokenRwaData } from '../token-service';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';

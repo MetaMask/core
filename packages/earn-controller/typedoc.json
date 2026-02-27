@@ -1,7 +1,8 @@
 {
+  "skipErrorChecking": true,
   "entryPoints": ["./src/index.ts"],
   "excludePrivate": true,
   "hideGenerator": true,
   "out": "docs",
-  "tsconfig": "./tsconfig.build.json"
+  "tsconfig": "./tsconfig.typedoc.json"
 }
