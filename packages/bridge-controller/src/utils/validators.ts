@@ -1,6 +1,7 @@
 import { isValidHexAddress } from '@metamask/controller-utils';
 import type { Infer } from '@metamask/superstruct';
 import {
+  any,
   string,
   boolean,
   number,
@@ -16,7 +17,6 @@ import {
   assert,
   pattern,
   intersection,
-  unknown,
 } from '@metamask/superstruct';
 import {
   CaipAssetTypeStruct,
@@ -350,8 +350,8 @@ export const IntentSchema = type({
         ),
       ),
       primaryType: string(),
-      domain: record(string(), unknown()),
-      message: record(string(), unknown()),
+      domain: any(),
+      message: any(),
     }),
   ),
 });
