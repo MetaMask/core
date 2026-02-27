@@ -12,10 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `orders: RampsOrder[]` to controller state with persistence, along with crud methods([#8045](https://github.com/MetaMask/core/pull/8045))
 - Added `RampsController:orderStatusChanged` event, published when a polled order's status transitions ([#8045](https://github.com/MetaMask/core/pull/8045))
 
-### Changed
-
-- `getOrder()` now updates the order in `state.orders` if it already exists there ([#8045](https://github.com/MetaMask/core/pull/8045))
-
 ## [10.0.0]
 
 ### Changed

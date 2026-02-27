@@ -4751,6 +4751,74 @@ describe('RampsController', () => {
     });
   });
 
+  describe('addOrder', () => {
+    const mockOrder = {
+      id: '/providers/transak-staging/orders/abc-123',
+      isOnlyLink: false,
+      provider: {
+        id: '/providers/transak-staging',
+        name: 'Transak (Staging)',
+        environmentType: 'STAGING',
+        description: 'Test provider description',
+        hqAddress: '123 Test St',
+        links: [],
+        logos: { light: '', dark: '', height: 24, width: 77 },
+      },
+      success: true,
+      cryptoAmount: 0.05,
+      fiatAmount: 100,
+      cryptoCurrency: { symbol: 'ETH', decimals: 18 },
+      fiatCurrency: { symbol: 'USD', decimals: 2, denomSymbol: '$' },
+      providerOrderId: 'abc-123',
+      providerOrderLink: 'https://transak.com/order/abc-123',
+      createdAt: 1700000000000,
+      paymentMethod: { id: '/payments/debit-credit-card', name: 'Card' },
+      totalFeesFiat: 5,
+      txHash: '',
+      walletAddress: '0xabc',
+      status: RampsOrderStatus.Completed,
+      network: { chainId: '1', name: 'Ethereum Mainnet' },
+      canBeUpdated: false,
+      idHasExpired: false,
+      excludeFromPurchases: false,
+      timeDescriptionPending: '',
+      orderType: 'BUY',
+      exchangeRate: 2000,
+    };
+
+    it('adds a new order to state', async () => {
+      await withController(({ controller }) => {
+        controller.addOrder(mockOrder);
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]).toStrictEqual(mockOrder);
+      });
+    });
+
+    it('replaces an existing order with the same providerOrderId', async () => {
+      await withController(({ controller }) => {
+        controller.addOrder(mockOrder);
+
+        const updatedOrder = { ...mockOrder, fiatAmount: 200 };
+        controller.addOrder(updatedOrder);
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.fiatAmount).toBe(200);
+      });
+    });
+
+    it('adds orders with different providerOrderIds independently', async () => {
+      await withController(({ controller }) => {
+        controller.addOrder(mockOrder);
+        controller.addOrder({
+          ...mockOrder,
+          providerOrderId: 'def-456',
+        });
+
+        expect(controller.state.orders).toHaveLength(2);
+      });
+    });
+  });
+
   describe('getOrder', () => {
     const mockOrder = {
       id: '/providers/transak-staging/orders/abc-123',

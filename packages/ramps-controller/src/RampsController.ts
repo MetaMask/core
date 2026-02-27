@@ -601,6 +601,7 @@ const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
   RampsOrderStatus.Completed,
   RampsOrderStatus.Failed,
   RampsOrderStatus.Cancelled,
+  RampsOrderStatus.IdExpired,
 ]);
 
 const PENDING_ORDER_STATUSES = new Set<RampsOrderStatus>([
@@ -1609,15 +1610,22 @@ export class RampsController extends BaseController<
   // === ORDER MANAGEMENT ===
 
   /**
-   * Adds a V2 order to controller state.
-   * If the order's provider is Transak and a WebSocket subscription callback
-   * is wired up in the future, it will be subscribed here.
+   * Adds or updates a V2 order in controller state.
+   * If an order with the same providerOrderId already exists, it is replaced
+   * to prevent duplicate entries that would cause redundant polling and events.
    *
-   * @param order - The RampsOrder to add.
+   * @param order - The RampsOrder to add or update.
    */
   addOrder(order: RampsOrder): void {
     this.update((state) => {
-      state.orders.push(order as Draft<RampsOrder>);
+      const idx = state.orders.findIndex(
+        (existing) => existing.providerOrderId === order.providerOrderId,
+      );
+      if (idx === -1) {
+        state.orders.push(order as Draft<RampsOrder>);
+      } else {
+        state.orders[idx] = order as Draft<RampsOrder>;
+      }
     });
   }
 
