@@ -3,6 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
-  "include": ["../../types", "./src"]
+  "references": [{ "path": "../messenger/tsconfig.build.json" }],
+  "include": ["../../types", "./src", "./tests"]
 }
