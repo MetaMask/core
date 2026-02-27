@@ -54,7 +54,7 @@
     "@metamask/messenger": "^0.3.0",
     "@metamask/polling-controller": "^16.0.3",
     "@metamask/profile-sync-controller": "^27.1.0",
-    "@metamask/remote-feature-flag-controller": "^4.0.0",
+    "@metamask/remote-feature-flag-controller": "^4.1.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.9.0",
     "reselect": "^5.1.1"
