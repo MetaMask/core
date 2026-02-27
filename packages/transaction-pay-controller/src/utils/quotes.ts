@@ -476,7 +476,11 @@ async function getQuotes(
     },
   );
 
-  if (!requests?.length) {
+  const hasFiatStrategy = strategies.some(
+    ({ name }) => name === TransactionPayStrategy.Fiat,
+  );
+
+  if (!requests?.length && !hasFiatStrategy) {
     return {
       batchTransactions: [],
       quotes: [],

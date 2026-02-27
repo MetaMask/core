@@ -143,6 +143,9 @@ export class TransactionPayController extends BaseController<
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
+      const originalFiatPaymentAmount = current?.fiatPayment?.amount;
+      const originalFiatPaymentMethodId =
+        current?.fiatPayment?.selectedPaymentMethodId;
 
       if (!current) {
         transactionData[transactionId] = {
@@ -172,6 +175,11 @@ export class TransactionPayController extends BaseController<
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
       const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
+      const isFiatAmountUpdated =
+        current.fiatPayment?.amount !== originalFiatPaymentAmount;
+      const isFiatPaymentMethodUpdated =
+        current.fiatPayment?.selectedPaymentMethodId !==
+        originalFiatPaymentMethodId;
 
       if (
         isPaymentTokenUpdated ||
@@ -181,6 +189,10 @@ export class TransactionPayController extends BaseController<
       ) {
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
+        shouldUpdateQuotes = true;
+      }
+
+      if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
         shouldUpdateQuotes = true;
       }
 
