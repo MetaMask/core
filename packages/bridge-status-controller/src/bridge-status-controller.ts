@@ -1632,6 +1632,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         quoteResponse as QuoteResponse & { quote: { intent?: Intent } },
       );
 
+      if (!intent.typedData) {
+        throw new Error('submitIntent: missing intent typedData');
+      }
+
       // If backend provided an approval tx for this intent quote, submit it first (on-chain),
       // then proceed with off-chain intent submission.
       let approvalTxId: string | undefined;
@@ -1660,9 +1664,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const { srcChainId: chainId, requestId } = quoteResponse.quote;
 
-      if (!intent.typedData) {
-        throw new Error('submitIntent: missing intent typedData');
-      }
       const signature = await this.messenger.call(
         'KeyringController:signTypedMessage',
         {
