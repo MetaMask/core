@@ -477,7 +477,7 @@ Instead, you can follow this process:
 ```typescript
 import { FooControllerMethodActions } from './FooController-method-action-types';
 
-export type FooControllerActions = FooControllerAnotherMethodActions;
+export type FooControllerActions = FooControllerMethodActions;
 
 export type FooControllerMessenger = Messenger<
   'FooController',
