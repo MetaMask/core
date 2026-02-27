@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/bridge-controller` from `^67.2.0` to `^67.3.0` ([#8051](https://github.com/MetaMask/core/pull/8051))
+- Bump `@metamask/bridge-controller` from `^67.2.0` to `^67.4.0` ([#8051](https://github.com/MetaMask/core/pull/8051), [#8070](https://github.com/MetaMask/core/pull/8070))
 - Bump `@metamask/remote-feature-flag-controller` from `^4.0.0` to `^4.1.0` ([#8041](https://github.com/MetaMask/core/pull/8041))
 
 ## [16.1.0]
