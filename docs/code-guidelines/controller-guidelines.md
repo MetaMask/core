@@ -526,52 +526,6 @@ class FooController extends BaseController<
 }
 ```
 
-## Define, but do not export, a type union for external event types
-
-A controller may wish to subscribe to events defined by other controllers, and therefore will need to include them in the controller messenger's type definition.
-
-```typescript
-const MESSENGER_EXPOSED_METHODS = [
-  'someMethod',
-  'anotherMethod',
-  'yetAnotherMethod',
-  'stillYetAnotherMethod',
-];
-
-class FooController extends BaseController<
-  'FooController',
-  // ...,
-  FooControllerMessenger
-> {
-  constructor({ messenger /*, ... */ }, { messenger: FooControllerMessenger }) {
-    super({ messenger /*, ... */ });
-
-    this.messenger.registerMethodActionHandlers(
-      this,
-      MESSENGER_EXPOSED_METHODS,
-    );
-  }
-
-  someMethod() {
-    // ...
-  }
-
-  anotherMethod() {
-    // ...
-  }
-
-  yetAnotherMethod() {
-    // ...
-  }
-
-  stillYetAnotherMethod() {
-    // ...
-  }
-}
-```
-
-## Don't wrap controller methods when exposing them through messenger
-
 ## Define the `*:getState` action using the `ControllerGetStateAction` utility type
 
 Each controller needs a type for its `*:getState` action. The `ControllerGetStateAction` utility type from the `@metamask/base-controller` package should be used to define this type.
