@@ -5465,6 +5465,59 @@ describe('RampsController', () => {
         controller.stopOrderPolling();
       });
     });
+
+    it('does not run concurrent polls when stop+start is called while a poll is in-flight', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        const pendingOrder = createMockOrder({
+          providerOrderId: 'race-1',
+          status: RampsOrderStatus.Pending,
+          provider: { id: '/providers/transak', name: 'Transak' },
+          walletAddress: '0xabc',
+        });
+        controller.addOrder(pendingOrder);
+
+        const updatedOrder = {
+          ...pendingOrder,
+          status: RampsOrderStatus.Completed,
+        };
+
+        let resolveFirst!: (value: RampsOrder) => void;
+        let callCount = 0;
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          () =>
+            new Promise<RampsOrder>((resolve) => {
+              callCount += 1;
+              if (callCount === 1) {
+                resolveFirst = resolve;
+              } else {
+                resolve(updatedOrder);
+              }
+            }),
+        );
+
+        const statusChangedListener = jest.fn();
+        messenger.subscribe(
+          'RampsController:orderStatusChanged',
+          statusChangedListener,
+        );
+
+        controller.startOrderPolling();
+        await jest.advanceTimersByTimeAsync(0);
+
+        controller.stopOrderPolling();
+        controller.startOrderPolling();
+        await jest.advanceTimersByTimeAsync(0);
+
+        resolveFirst(updatedOrder);
+        await jest.advanceTimersByTimeAsync(0);
+
+        expect(statusChangedListener).toHaveBeenCalledTimes(1);
+
+        controller.stopOrderPolling();
+      });
+    });
   });
 
   describe('Transak methods', () => {

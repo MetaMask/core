@@ -655,6 +655,8 @@ export class RampsController extends BaseController<
 
   #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
 
+  #isPolling = false;
+
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
    * defensive path when get() returns undefined in the finally block.
@@ -1732,37 +1734,45 @@ export class RampsController extends BaseController<
   }
 
   async #pollPendingOrders(): Promise<void> {
-    const pendingOrders = this.state.orders.filter((order) =>
-      PENDING_ORDER_STATUSES.has(order.status),
-    );
+    if (this.#isPolling) {
+      return;
+    }
+    this.#isPolling = true;
+    try {
+      const pendingOrders = this.state.orders.filter((order) =>
+        PENDING_ORDER_STATUSES.has(order.status),
+      );
 
-    const now = Date.now();
+      const now = Date.now();
 
-    await Promise.allSettled(
-      pendingOrders.map(async (order) => {
-        const meta = this.#orderPollingMeta.get(order.providerOrderId);
+      await Promise.allSettled(
+        pendingOrders.map(async (order) => {
+          const meta = this.#orderPollingMeta.get(order.providerOrderId);
 
-        if (meta) {
-          const backoffMs =
-            meta.errorCount > 0
-              ? Math.min(
-                  DEFAULT_POLLING_INTERVAL_MS *
-                    Math.pow(2, meta.errorCount - 1),
-                  5 * 60 * 1000,
-                )
-              : 0;
+          if (meta) {
+            const backoffMs =
+              meta.errorCount > 0
+                ? Math.min(
+                    DEFAULT_POLLING_INTERVAL_MS *
+                      Math.pow(2, meta.errorCount - 1),
+                    5 * 60 * 1000,
+                  )
+                : 0;
 
-          const pollingMinMs = (order.pollingSecondsMinimum ?? 0) * 1000;
-          const minWait = Math.max(backoffMs, pollingMinMs);
+            const pollingMinMs = (order.pollingSecondsMinimum ?? 0) * 1000;
+            const minWait = Math.max(backoffMs, pollingMinMs);
 
-          if (now - meta.lastTimeFetched < minWait) {
-            return;
+            if (now - meta.lastTimeFetched < minWait) {
+              return;
+            }
           }
-        }
 
-        await this.#refreshOrder(order);
-      }),
-    );
+          await this.#refreshOrder(order);
+        }),
+      );
+    } finally {
+      this.#isPolling = false;
+    }
   }
 
   /**
