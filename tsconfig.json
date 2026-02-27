@@ -72,6 +72,9 @@
       "path": "./packages/composable-controller"
     },
     {
+      "path": "./packages/config-registry-controller"
+    },
+    {
       "path": "./packages/connectivity-controller"
     },
     {

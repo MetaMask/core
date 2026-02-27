@@ -71,6 +71,9 @@
       "path": "./packages/composable-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/config-registry-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/connectivity-controller/tsconfig.build.json"
     },
     {

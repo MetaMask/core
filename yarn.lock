@@ -2946,6 +2946,34 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/config-registry-controller@workspace:packages/config-registry-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/config-registry-controller@workspace:packages/config-registry-controller"
+  dependencies:
+    "@lavamoat/allow-scripts": "npm:^3.0.4"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/controller-utils": "npm:^11.19.0"
+    "@metamask/keyring-controller": "npm:^25.1.0"
+    "@metamask/messenger": "npm:^0.3.0"
+    "@metamask/polling-controller": "npm:^16.0.3"
+    "@metamask/profile-sync-controller": "npm:^27.1.0"
+    "@metamask/remote-feature-flag-controller": "npm:^4.1.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.9.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    nock: "npm:^13.3.1"
+    reselect: "npm:^5.1.1"
+    ts-jest: "npm:^29.2.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/connectivity-controller@npm:^0.1.0, @metamask/connectivity-controller@workspace:packages/connectivity-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/connectivity-controller@workspace:packages/connectivity-controller"

@@ -41,6 +41,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/client-controller`](packages/client-controller)
 - [`@metamask/compliance-controller`](packages/compliance-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
+- [`@metamask/config-registry-controller`](packages/config-registry-controller)
 - [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
@@ -122,6 +123,7 @@ linkStyle default opacity:0.5
   client_controller(["@metamask/client-controller"]);
   compliance_controller(["@metamask/compliance-controller"]);
   composable_controller(["@metamask/composable-controller"]);
+  config_registry_controller(["@metamask/config-registry-controller"]);
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
@@ -218,6 +220,7 @@ linkStyle default opacity:0.5
   assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
+  assets_controllers --> core_backend;
   assets_controllers --> keyring_controller;
   assets_controllers --> messenger;
   assets_controllers --> multichain_account_service;
@@ -241,6 +244,7 @@ linkStyle default opacity:0.5
   bridge_controller --> multichain_network_controller;
   bridge_controller --> network_controller;
   bridge_controller --> polling_controller;
+  bridge_controller --> profile_sync_controller;
   bridge_controller --> remote_feature_flag_controller;
   bridge_controller --> transaction_controller;
   bridge_controller --> eth_json_rpc_provider;
@@ -251,6 +255,7 @@ linkStyle default opacity:0.5
   bridge_status_controller --> gas_fee_controller;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> polling_controller;
+  bridge_status_controller --> profile_sync_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
   chain_agnostic_permission --> permission_controller;
@@ -267,6 +272,13 @@ linkStyle default opacity:0.5
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
+  config_registry_controller --> base_controller;
+  config_registry_controller --> controller_utils;
+  config_registry_controller --> keyring_controller;
+  config_registry_controller --> messenger;
+  config_registry_controller --> polling_controller;
+  config_registry_controller --> profile_sync_controller;
+  config_registry_controller --> remote_feature_flag_controller;
   connectivity_controller --> base_controller;
   connectivity_controller --> messenger;
   core_backend --> accounts_controller;
@@ -444,6 +456,7 @@ linkStyle default opacity:0.5
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> core_backend;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> messenger;
   transaction_controller --> network_controller;
