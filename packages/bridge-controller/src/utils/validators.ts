@@ -16,7 +16,7 @@ import {
   assert,
   pattern,
   intersection,
-  any,
+  unknown,
 } from '@metamask/superstruct';
 import {
   CaipAssetTypeStruct,
@@ -350,8 +350,8 @@ export const IntentSchema = type({
         ),
       ),
       primaryType: string(),
-      domain: any(),
-      message: any(),
+      domain: record(string(), unknown()),
+      message: record(string(), unknown()),
     }),
   ),
 });
