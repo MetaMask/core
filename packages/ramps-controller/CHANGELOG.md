@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `orders: RampsOrder[]` to controller state with persistence, along with `addOrder()`, `removeOrder()`, `startOrderPolling()`, and `stopOrderPolling()` methods ([#8045](https://github.com/MetaMask/core/pull/8045))
+- Added `RampsController:orderStatusChanged` event, published when a polled order's status transitions ([#8045](https://github.com/MetaMask/core/pull/8045))
+- Added `OrderPaymentDetail` type and optional `paymentDetails` field to `RampsOrder` for bank transfer instruction data ([#8045](https://github.com/MetaMask/core/pull/8045))
+
+### Changed
+
+- `getOrder()` now updates the order in `state.orders` if it already exists there ([#8045](https://github.com/MetaMask/core/pull/8045))
+
 ## [10.0.0]
 
 ### Changed
