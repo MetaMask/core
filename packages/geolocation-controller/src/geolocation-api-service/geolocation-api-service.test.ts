@@ -165,6 +165,26 @@ describe('GeolocationApiService', () => {
       expect(result).toBe(UNKNOWN_LOCATION);
     });
 
+    it('does not cache UNKNOWN responses so subsequent calls retry', async () => {
+      const mockFetch = jest
+        .fn()
+        .mockImplementationOnce(() =>
+          Promise.resolve(createMockResponse('', 200)),
+        )
+        .mockImplementationOnce(() =>
+          Promise.resolve(createMockResponse('US', 200)),
+        );
+      const service = createService({ fetch: mockFetch });
+
+      const first = await service.fetchGeolocation();
+      expect(first).toBe(UNKNOWN_LOCATION);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      const second = await service.fetchGeolocation();
+      expect(second).toBe('US');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
     it('trims whitespace from response body', async () => {
       const mockFetch = jest
         .fn()

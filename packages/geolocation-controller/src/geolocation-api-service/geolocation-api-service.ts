@@ -142,7 +142,7 @@ export class GeolocationApiService {
     const raw = (await response.text()).trim();
     const location = /^[A-Z]{2}$/u.test(raw) ? raw : UNKNOWN_LOCATION;
 
-    if (generation === this.#fetchGeneration) {
+    if (generation === this.#fetchGeneration && location !== UNKNOWN_LOCATION) {
       this.#cachedLocation = location;
       this.#lastFetchedAt = Date.now();
     }
