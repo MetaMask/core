@@ -397,7 +397,7 @@ export type FooControllerYetAnotherMethodAction = {
 };
 
 export type FooControllerStillYetAnotherMethodAction = {
-  type: 'FooController:stillTetAnotherMethod';
+  type: 'FooController:stillYetAnotherMethod';
   handler: FooController['stillYetAnotherMethod'];
 };
 
@@ -444,19 +444,19 @@ class FooController extends BaseController<
 
   #registerActionHandlers() {
     this.messenger.registerActionHandler(
-      `${CONTROLLER_NAME}:someMethod`,
+      'FooController:someMethod',
       this.someMethod.bind(this),
     );
     this.messenger.registerActionHandler(
-      `${CONTROLLER_NAME}:anotherMethod`,
+      'FooController:anotherMethod',
       this.anotherMethod.bind(this),
     );
     this.messenger.registerActionHandler(
-      `${CONTROLLER_NAME}:yetAnotherMethod`,
+      'FooController:yetAnotherMethod',
       this.yetAnotherMethod.bind(this),
     );
     this.messenger.registerActionHandler(
-      `${CONTROLLER_NAME}:stillYetAnotherMethod`,
+      'FooController:stillYetAnotherMethod',
       this.stillYetAnotherMethod.bind(this),
     );
   }
