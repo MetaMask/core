@@ -430,10 +430,31 @@ export type RampsControllerSetSelectedTokenAction = {
 };
 
 /**
+ * Fetches buy quotes using the current controller context and provided inputs.
+ */
+export type RampsControllerGetQuotesAction = {
+  type: `${typeof controllerName}:getQuotes`;
+  handler: (options: {
+    region?: string;
+    fiat?: string;
+    assetId?: string;
+    amount: number;
+    walletAddress: string;
+    paymentMethods?: string[];
+    providers?: string[];
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }) => Promise<QuotesResponse>;
+};
+
+/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerActions =
   | RampsControllerGetStateAction
+  | RampsControllerGetQuotesAction
   | RampsControllerSetSelectedTokenAction;
 
 /**
@@ -675,6 +696,11 @@ export class RampsController extends BaseController<
     this.messenger.registerActionHandler(
       'RampsController:setSelectedToken',
       this.setSelectedToken.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'RampsController:getQuotes',
+      this.getQuotes.bind(this),
     );
   }
 

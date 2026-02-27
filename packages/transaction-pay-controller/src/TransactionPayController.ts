@@ -9,7 +9,6 @@ import { updatePaymentToken } from './actions/update-payment-token';
 import {
   CONTROLLER_NAME,
   isTransactionPayStrategy,
-  MMPAY_FIAT_ASSET_ID_BY_TX_TYPE,
   TransactionPayStrategy,
 } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
@@ -24,6 +23,7 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
+import { deriveFiatAssetIdForFiatPayment } from './utils/fiat';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { getTransaction, pollTransactionChanges } from './utils/transaction';
@@ -155,9 +155,9 @@ export class TransactionPayController extends BaseController<
         };
 
         const transaction = getTransaction(transactionId, this.messenger);
-        fiatAssetId = transaction?.type
-          ? MMPAY_FIAT_ASSET_ID_BY_TX_TYPE[transaction.type]
-          : undefined;
+        fiatAssetId = deriveFiatAssetIdForFiatPayment(
+          transaction as unknown as TransactionMeta,
+        );
 
         current = transactionData[transactionId];
       }

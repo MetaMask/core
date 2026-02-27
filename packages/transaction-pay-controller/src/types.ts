@@ -41,6 +41,30 @@ type RampsControllerSetSelectedTokenAction = {
   handler: (assetId?: string) => void;
 };
 
+type RampsQuotesResponse = {
+  success: unknown[];
+  sorted: unknown[];
+  error: unknown[];
+  customActions?: unknown[];
+};
+
+type RampsControllerGetQuotesAction = {
+  type: 'RampsController:getQuotes';
+  handler: (options: {
+    region?: string;
+    fiat?: string;
+    assetId?: string;
+    amount: number;
+    walletAddress: string;
+    paymentMethods?: string[];
+    providers?: string[];
+    redirectUrl?: string;
+    action?: 'buy' | 'sell';
+    forceRefresh?: boolean;
+    ttl?: number;
+  }) => Promise<RampsQuotesResponse>;
+};
+
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | BridgeControllerActions
@@ -60,6 +84,7 @@ export type AllowedActions =
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction
+  | RampsControllerGetQuotesAction
   | RampsControllerSetSelectedTokenAction;
 
 export type AllowedEvents =
