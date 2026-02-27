@@ -74,7 +74,7 @@ const setupController = ({
   config?: Partial<ConstructorParameters<typeof TokenBalancesController>[0]>;
   tokens?: Partial<TokensControllerState>;
   listAccounts?: InternalAccount[];
-  /** Initial WebSocket state reported by BackendWebSocketService:getConnectionInfo (default: DISCONNECTED) */
+  /** WebSocket state returned by BackendWebSocketService:getConnectionInfo (getIsWebSocketActive reads this live each time) */
   backendWebSocketState?: WebSocketState;
 } = {}): {
   controller: TokenBalancesController;
@@ -1860,21 +1860,33 @@ describe('TokenBalancesController', () => {
   });
 
   describe('getIsWebSocketActive and Accounts API fetcher', () => {
-    it('getIsWebSocketActive() returns false when BackendWebSocketService reports DISCONNECTED', () => {
+    it('getIsWebSocketActive() returns false when BackendWebSocketService:getConnectionInfo reports DISCONNECTED', () => {
       const { controller } = setupController({
         backendWebSocketState: WebSocketState.DISCONNECTED,
       });
       expect(controller.getIsWebSocketActive()).toBe(false);
     });
 
-    it('getIsWebSocketActive() returns true when BackendWebSocketService reports CONNECTED', () => {
+    it('getIsWebSocketActive() returns true when BackendWebSocketService:getConnectionInfo reports CONNECTED', () => {
       const { controller } = setupController({
         backendWebSocketState: WebSocketState.CONNECTED,
       });
       expect(controller.getIsWebSocketActive()).toBe(true);
     });
 
-    it('passes getIsWebSocketActive getter to AccountsApiBalanceFetcher that reflects controller state', () => {
+    it('getIsWebSocketActive() calls BackendWebSocketService:getConnectionInfo when invoked', () => {
+      const { controller, tokenBalancesControllerMessenger } = setupController({
+        backendWebSocketState: WebSocketState.DISCONNECTED,
+      });
+      const callSpy = jest.spyOn(tokenBalancesControllerMessenger, 'call');
+      controller.getIsWebSocketActive();
+      expect(callSpy).toHaveBeenCalledWith(
+        'BackendWebSocketService:getConnectionInfo',
+      );
+      callSpy.mockRestore();
+    });
+
+    it('passes getIsWebSocketActive getter to AccountsApiBalanceFetcher that returns current state from BackendWebSocketService:getConnectionInfo', () => {
       const apiBalanceFetcherModule = jest.requireActual(
         './multi-chain-accounts-service/api-balance-fetcher',
       );

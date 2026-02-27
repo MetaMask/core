@@ -307,9 +307,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /** Track if the keyring is unlocked */
   #isUnlocked = false;
 
-  /** Track if the WebSocket for real-time balance updates is connected */
-  readonly #isWebSocketActive: boolean = false;
-
   /** Store original chainIds from startPolling to preserve intent */
   #requestedChainIds: ChainIdHex[] = [];
 
@@ -365,11 +362,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
       this.messenger.call('TokensController:getState');
-
-    const connectionInfo = this.messenger.call(
-      'BackendWebSocketService:getConnectionInfo',
-    );
-    this.#isWebSocketActive = connectionInfo.state === WebSocketState.CONNECTED;
 
     this.#allTokens = allTokens;
     this.#detectedTokens = allDetectedTokens;
@@ -696,7 +688,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
    * @returns True if the WebSocket is connected, false otherwise.
    */
   getIsWebSocketActive(): boolean {
-    return this.#isWebSocketActive;
+    const connectionInfo = this.messenger.call(
+      'BackendWebSocketService:getConnectionInfo',
+    );
+    return connectionInfo.state === WebSocketState.CONNECTED;
   }
 
   updateChainPollingConfigs(
