@@ -141,7 +141,7 @@ export class BaseDataService<
     TError = unknown,
     TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
-    TPageParam = unknown,
+    TPageParam extends Json = Json,
   >(
     options: WithRequired<
       FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
@@ -166,8 +166,7 @@ export class BaseDataService<
       return result.pages[0];
     }
 
-    const pages =
-      (query.state.data as InfiniteData<TQueryFnData>).pages;
+    const { pages } = query.state.data as InfiniteData<TQueryFnData>;
     const previous = options.getPreviousPageParam?.(pages[0], pages);
 
     const direction = deepEqual(pageParam, previous) ? 'backward' : 'forward';
