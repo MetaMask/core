@@ -8,7 +8,9 @@ export type {
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
+  TransactionPayControllerUpdateFiatPaymentAction,
   TransactionPayControllerSetTransactionConfigAction,
+  TransactionFiatPayment,
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
   TransactionPayControllerUpdatePaymentTokenAction,
@@ -17,6 +19,7 @@ export type {
   TransactionPayRequiredToken,
   TransactionPaySourceAmount,
   TransactionPayTotals,
+  UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types';
 export { TransactionPayStrategy } from './constants';

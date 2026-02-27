@@ -1,3 +1,4 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
@@ -13,6 +14,17 @@ export const ARBITRUM_USDC_ADDRESS =
 
 export const POLYGON_USDCE_ADDRESS =
   '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Hex;
+
+const POLYGON_POL_CAIP_ASSET_ID = 'eip155:137/slip44:966';
+const ARBITRUM_ETH_CAIP_ASSET_ID = 'eip155:42161/slip44:60';
+
+export const MMPAY_FIAT_ASSET_ID_BY_TX_TYPE: Partial<
+  Record<TransactionType, string>
+> = {
+  [TransactionType.predictDeposit]: POLYGON_POL_CAIP_ASSET_ID,
+  [TransactionType.perpsDeposit]: ARBITRUM_ETH_CAIP_ASSET_ID,
+  [TransactionType.perpsDepositAndOrder]: ARBITRUM_ETH_CAIP_ASSET_ID,
+};
 
 export const STABLECOINS: Record<Hex, Hex[]> = {
   // Mainnet

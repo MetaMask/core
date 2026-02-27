@@ -36,6 +36,11 @@ import type { Draft } from 'immer';
 
 import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 
+type RampsControllerSetSelectedTokenAction = {
+  type: 'RampsController:setSelectedToken';
+  handler: (assetId?: string) => void;
+};
+
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | BridgeControllerActions
@@ -54,7 +59,8 @@ export type AllowedActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerUpdateTransactionAction
+  | RampsControllerSetSelectedTokenAction;
 
 export type AllowedEvents =
   | BridgeStatusControllerStateChangeEvent
@@ -89,6 +95,12 @@ export type TransactionPayControllerSetTransactionConfigAction = {
   handler: (transactionId: string, callback: TransactionConfigCallback) => void;
 };
 
+/** Action to update fiat payment state for a transaction. */
+export type TransactionPayControllerUpdateFiatPaymentAction = {
+  type: `${typeof CONTROLLER_NAME}:updateFiatPayment`;
+  handler: (request: UpdateFiatPaymentRequest) => void;
+};
+
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
   /** Whether the user has selected the maximum amount. */
@@ -115,6 +127,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
+  | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
@@ -175,6 +188,9 @@ export type TransactionData = {
    */
   paymentToken?: TransactionPaymentToken;
 
+  /** Fiat payment method state. */
+  fiatPayment?: TransactionFiatPayment;
+
   /** Quotes retrieved for the transaction. */
   quotes?: TransactionPayQuote<Json>[];
 
@@ -189,6 +205,12 @@ export type TransactionData = {
 
   /** Calculated totals for the transaction. */
   totals?: TransactionPayTotals;
+};
+
+/** Fiat payment state stored per transaction. */
+export type TransactionFiatPayment = {
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId: string | null;
 };
 
 /** A token required by a transaction. */
@@ -499,6 +521,15 @@ export type UpdatePaymentTokenRequest = {
 
   /** Chain ID of the new payment token. */
   chainId: Hex;
+};
+
+/** Request to update fiat payment state for a transaction. */
+export type UpdateFiatPaymentRequest = {
+  /** ID of the transaction to update. */
+  transactionId: string;
+
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId: string | null;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */

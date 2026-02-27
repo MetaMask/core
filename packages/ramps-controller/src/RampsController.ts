@@ -422,9 +422,19 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Sets the selected token by asset ID.
+ */
+export type RampsControllerSetSelectedTokenAction = {
+  type: `${typeof controllerName}:setSelectedToken`;
+  handler: (assetId?: string) => void;
+};
+
+/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerActions = RampsControllerGetStateAction;
+export type RampsControllerActions =
+  | RampsControllerGetStateAction
+  | RampsControllerSetSelectedTokenAction;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -661,6 +671,11 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+
+    this.messenger.registerActionHandler(
+      'RampsController:setSelectedToken',
+      this.setSelectedToken.bind(this),
+    );
   }
 
   /**

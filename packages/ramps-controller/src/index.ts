@@ -3,6 +3,7 @@ export type {
   RampsControllerEvents,
   RampsControllerGetStateAction,
   RampsControllerMessenger,
+  RampsControllerSetSelectedTokenAction,
   RampsControllerState,
   RampsControllerStateChangeEvent,
   RampsControllerOptions,
