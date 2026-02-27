@@ -8,6 +8,8 @@ import { sha256 } from 'ethereum-cryptography/sha256';
 import type { V4Options } from 'uuid';
 import { v4 as uuid } from 'uuid';
 
+import type { AccountId } from './AccountsController';
+
 /**
  * Returns the name of the keyring type.
  *
@@ -205,4 +207,14 @@ export function isHdSnapKeyringAccount(
   account: InternalAccount,
 ): account is HdSnapKeyringAccount {
   return is(account.options, HdSnapKeyringAccountOptionsStruct);
+}
+
+export function constructAccountIdByAddress(
+  accountsMap: Record<AccountId, InternalAccount>,
+): Record<string, AccountId> {
+  const accounts = Object.values(accountsMap);
+  return accounts.reduce<Record<string, AccountId>>((acc, account) => {
+    acc[account.address.toLowerCase()] = account.id;
+    return acc;
+  }, {});
 }

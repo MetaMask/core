@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `accountIdByAddress` mapping to state and update `getAccountByAddress` function ([#7893](https://github.com/MetaMask/core/pull/7893))
+  - This state was added to improve lookup times for an account by address from O(n) to O(1).
 - Expose missing public `AccountsController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
   - The following actions are now available:
     - `AccountController:loadBackupAction`

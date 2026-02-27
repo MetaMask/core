@@ -467,6 +467,16 @@ const mockAccountControllerState: AccountsControllerState = {
     },
     selectedAccount: 'd7f11451-9d79-4df4-a012-afd253443639',
   },
+  accountIdByAddress: {
+    '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab':
+      'd7f11451-9d79-4df4-a012-afd253443639',
+    '0x0413078b85a6cb85f8f75181ad1a23d265d49202':
+      '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
+    '4ktpypssbugxhe67nc9jurqwfcbnkdqto4k8rzmyaps7':
+      '2d89e6a0-b4e6-45a8-a707-f10cef143b42',
+    '7xrst6xecmjwtvrdfgch6jfvaisnokb8ldwcvimugbjc':
+      '40fe5e20-525a-4434-bb83-c51ce5560a8c',
+  },
 };
 
 const mockMultichainBalancesControllerState = {
