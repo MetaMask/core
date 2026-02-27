@@ -13,5 +13,5 @@
     { "path": "../network-controller" },
     { "path": "../messenger" }
   ],
-  "include": ["../../types", "./src", "src/tests"]
+  "include": ["../../types", "./src", "./tests"]
 }

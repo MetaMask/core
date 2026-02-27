@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/shield-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/shield-controller",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -52,7 +51,7 @@
     "@metamask/controller-utils": "^11.19.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/signature-controller": "^39.0.4",
-    "@metamask/transaction-controller": "^62.18.0",
+    "@metamask/transaction-controller": "^62.19.0",
     "@metamask/utils": "^11.9.0",
     "cockatiel": "^3.1.2"
   },

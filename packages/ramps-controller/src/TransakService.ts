@@ -539,6 +539,28 @@ export class TransakService {
     return headers;
   }
 
+  async #throwTransakApiError(
+    fetchResponse: Response,
+    url: URL,
+  ): Promise<never> {
+    let errorBody = '';
+    let errorCode: string | undefined;
+    try {
+      errorBody = await fetchResponse.text();
+      const parsed = JSON.parse(errorBody) as {
+        error?: { code?: string };
+      };
+      errorCode = parsed?.error?.code;
+    } catch {
+      // ignore body read/parse failures
+    }
+    throw new TransakApiError(
+      fetchResponse.status,
+      `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'${errorBody ? `: ${errorBody}` : ''}`,
+      errorCode,
+    );
+  }
+
   async #transakGet<ResponseType>(
     path: string,
     params?: Record<string, string>,
@@ -563,10 +585,7 @@ export class TransakService {
         headers: this.#getHeaders(),
       });
       if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
+        await this.#throwTransakApiError(fetchResponse, url);
       }
       return fetchResponse.json() as Promise<{ data: ResponseType }>;
     });
@@ -594,22 +613,7 @@ export class TransakService {
         body: JSON.stringify(requestBody),
       });
       if (!fetchResponse.ok) {
-        let errorBody = '';
-        let errorCode: string | undefined;
-        try {
-          errorBody = await fetchResponse.text();
-          const parsed = JSON.parse(errorBody) as {
-            error?: { code?: string };
-          };
-          errorCode = parsed?.error?.code;
-        } catch {
-          // ignore body read/parse failures
-        }
-        throw new TransakApiError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'${errorBody ? `: ${errorBody}` : ''}`,
-          errorCode,
-        );
+        await this.#throwTransakApiError(fetchResponse, url);
       }
       return fetchResponse.json() as Promise<{ data: ResponseType }>;
     });
@@ -633,10 +637,7 @@ export class TransakService {
         body: JSON.stringify(body),
       });
       if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
+        await this.#throwTransakApiError(fetchResponse, url);
       }
       return fetchResponse.json() as Promise<{ data: ResponseType }>;
     });
@@ -667,10 +668,7 @@ export class TransakService {
         headers: this.#getHeaders(),
       });
       if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
+        await this.#throwTransakApiError(fetchResponse, url);
       }
     });
   }

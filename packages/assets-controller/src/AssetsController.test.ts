@@ -34,6 +34,7 @@ const MOCK_ASSET_ID =
   'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
+const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
 
 function createMockInternalAccount(
   overrides?: Partial<InternalAccount>,
@@ -58,12 +59,18 @@ function createMockInternalAccount(
 type WithControllerOptions = {
   state?: Partial<AssetsControllerState>;
   isBasicFunctionality?: () => boolean;
+  /**
+   * When set, registers ClientController:getState so the controller sees this UI state.
+   * Required for tests that rely on asset tracking running (e.g. trackMetaMetricsEvent on unlock).
+   */
+  clientControllerState?: { isUiOpen: boolean };
   /** Extra options passed to AssetsController constructor (e.g. trackMetaMetricsEvent). */
   controllerOptions?: Partial<{
     trackMetaMetricsEvent: (
       payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
     ) => void;
     priceDataSourceConfig: PriceDataSourceConfig;
+    isEnabled: () => boolean;
   }>;
 };
 
@@ -91,6 +98,7 @@ async function withController<ReturnValue>(
     {
       state = {},
       isBasicFunctionality = (): boolean => true,
+      clientControllerState,
       controllerOptions = {},
     },
     fn,
@@ -117,7 +125,9 @@ async function withController<ReturnValue>(
           '1': true,
         },
       },
-      nativeAssetIdentifiers: {},
+      nativeAssetIdentifiers: {
+        'eip155:1': 'eip155:1/slip44:60',
+      },
     }),
   );
 
@@ -144,6 +154,17 @@ async function withController<ReturnValue>(
     tokensChainsCache: {},
   }));
 
+  if (clientControllerState !== undefined) {
+    (
+      messenger as {
+        registerActionHandler: (a: string, h: () => unknown) => void;
+      }
+    ).registerActionHandler(
+      'ClientController:getState',
+      () => clientControllerState,
+    );
+  }
+
   const controller = new AssetsController({
     messenger: messenger as unknown as AssetsControllerMessenger,
     state,
@@ -169,6 +190,7 @@ describe('AssetsController', () => {
         assetsPrice: {},
         customAssets: {},
         assetPreferences: {},
+        selectedCurrency: 'usd',
       });
     });
   });
@@ -182,6 +204,7 @@ describe('AssetsController', () => {
           assetsPrice: {},
           customAssets: {},
           assetPreferences: {},
+          selectedCurrency: 'usd',
         });
       });
     });
@@ -198,6 +221,7 @@ describe('AssetsController', () => {
         },
         assetsBalance: {},
         customAssets: {},
+        selectedCurrency: 'eur',
       };
 
       await withController({ state: initialState }, ({ controller }) => {
@@ -207,6 +231,7 @@ describe('AssetsController', () => {
           name: 'USD Coin',
           decimals: 6,
         });
+        expect(controller.state.selectedCurrency).toBe('eur');
       });
     });
 
@@ -254,6 +279,7 @@ describe('AssetsController', () => {
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
+        selectedCurrency: 'usd',
       });
 
       // Action handlers should NOT be registered when disabled
@@ -275,6 +301,7 @@ describe('AssetsController', () => {
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
+          selectedCurrency: 'usd',
         });
 
         // Action handlers should be registered
@@ -594,36 +621,62 @@ describe('AssetsController', () => {
   });
 
   describe('handleActiveChainsUpdate', () => {
-    it('updates data source chains', async () => {
-      await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
-
-        // Should not throw
-        expect(controller.state).toBeDefined();
-      });
-    });
-
-    it('handles empty chains array', async () => {
-      await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', [], []);
-
-        expect(controller.state).toBeDefined();
-      });
-    });
-
-    it('triggers fetch when chains are added', async () => {
+    it('calls getAssets with added enabled chains when chains are added', async () => {
       await withController(async ({ controller }) => {
-        // First set no chains
-        controller.handleActiveChainsUpdate('TestDataSource', [], []);
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
-        // Then add chains - this should trigger fetch for added chains
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
 
-        // Allow async operations to complete
-        await new Promise(process.nextTick);
-
-        expect(controller.state).toBeDefined();
+        expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.objectContaining({
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+            updateMode: 'merge',
+          }),
+        );
       });
+    });
+
+    it('does not call getAssets when no chains are added', async () => {
+      await withController(async ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], []);
+        onActiveChainsUpdated('TestDataSource', ['eip155:1'], ['eip155:1']);
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not call getAssets when only chains are removed', async () => {
+      await withController(async ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does nothing when controller is disabled', async () => {
+      await withController(
+        {
+          controllerOptions: { isEnabled: (): boolean => false },
+        },
+        async ({ controller }) => {
+          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+
+          onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
+
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 
@@ -700,6 +753,125 @@ describe('AssetsController', () => {
       });
     });
 
+    it('adds default 0 balance for native tokens when missing from response', async () => {
+      await withController(async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1000000' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '1000000' });
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '0' });
+      });
+    });
+
+    it('does not add default native balance for chains without a registered identifier', async () => {
+      await withController(async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        const accountBalances =
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID] ?? {};
+        const nativeIds = Object.keys(accountBalances).filter((id) =>
+          id.includes('/slip44:'),
+        );
+        expect(nativeIds).toStrictEqual([MOCK_NATIVE_ASSET_ID]);
+      });
+    });
+
+    it('preserves existing balances when merge update adds new chain data', async () => {
+      const polygonNative = 'eip155:137/slip44:966' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [polygonNative]: { amount: '10' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '1' });
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '0.5' });
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[polygonNative],
+        ).toStrictEqual({ amount: '10' });
+      });
+    });
+
+    it('replaces state when full update has authoritative data', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'full',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        // Full update is authoritative — the ERC20 that wasn't in the response is removed
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toBeUndefined();
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '2' });
+      });
+    });
+
     it('updates state with price data', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
@@ -720,6 +892,62 @@ describe('AssetsController', () => {
           (controller.state.assetsPrice[MOCK_ASSET_ID] as { price: number })
             .price,
         ).toBe(1.0);
+      });
+    });
+  });
+
+  describe('setSelectedCurrency', () => {
+    it('updates selectedCurrency in state', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.selectedCurrency).toBe('usd');
+
+        controller.setSelectedCurrency('eur');
+        expect(controller.state.selectedCurrency).toBe('eur');
+
+        controller.setSelectedCurrency('gbp');
+        expect(controller.state.selectedCurrency).toBe('gbp');
+      });
+    });
+
+    it('returns early when new currency is same as current', async () => {
+      await withController(({ controller }) => {
+        expect(controller.state.selectedCurrency).toBe('usd');
+
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        controller.setSelectedCurrency('usd');
+
+        expect(controller.state.selectedCurrency).toBe('usd');
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
+    it('calls getAssets with forceUpdate, price dataType, and assetsForPriceUpdate to refresh prices', async () => {
+      const mockAssetId2 =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1000000' },
+            [mockAssetId2]: { amount: '2000000' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        controller.setSelectedCurrency('eur');
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(expect.any(Array), {
+          forceUpdate: true,
+          dataTypes: ['price'],
+          assetsForPriceUpdate: [MOCK_ASSET_ID, mockAssetId2],
+        });
+
+        getAssetsSpy.mockRestore();
       });
     });
   });
@@ -814,8 +1042,17 @@ describe('AssetsController', () => {
       const trackMetaMetricsEvent = jest.fn();
 
       await withController(
-        { controllerOptions: { trackMetaMetricsEvent } },
+        {
+          clientControllerState: { isUiOpen: true },
+          controllerOptions: { trackMetaMetricsEvent },
+        },
         async ({ messenger }) => {
+          // UI must be open and keyring unlocked for asset tracking to run
+          (
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
 
           // Allow #start() -> getAssets() to resolve so the callback runs
@@ -842,8 +1079,17 @@ describe('AssetsController', () => {
       const trackMetaMetricsEvent = jest.fn();
 
       await withController(
-        { controllerOptions: { trackMetaMetricsEvent } },
+        {
+          clientControllerState: { isUiOpen: true },
+          controllerOptions: { trackMetaMetricsEvent },
+        },
         async ({ messenger }) => {
+          // UI must be open and keyring unlocked for asset tracking to run
+          (
+            messenger as unknown as {
+              publish: (topic: string, payload?: unknown) => void;
+            }
+          ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -919,7 +1165,6 @@ describe('AssetsController', () => {
   describe('network changes', () => {
     it('handles enabled networks change', async () => {
       await withController(async ({ messenger }) => {
-        // Simulate network enablement change with proper payload format
         (messenger.publish as CallableFunction)(
           'NetworkEnablementController:stateChange',
           {
@@ -929,7 +1174,10 @@ describe('AssetsController', () => {
                 '137': true,
               },
             },
-            nativeAssetIdentifiers: {},
+            nativeAssetIdentifiers: {
+              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:137': 'eip155:137/slip44:966',
+            },
           },
           [],
         );
@@ -942,7 +1190,6 @@ describe('AssetsController', () => {
 
     it('handles network being disabled', async () => {
       await withController(async ({ messenger }) => {
-        // First enable multiple networks
         (messenger.publish as CallableFunction)(
           'NetworkEnablementController:stateChange',
           {
@@ -952,14 +1199,16 @@ describe('AssetsController', () => {
                 '137': true,
               },
             },
-            nativeAssetIdentifiers: {},
+            nativeAssetIdentifiers: {
+              'eip155:1': MOCK_NATIVE_ASSET_ID,
+              'eip155:137': 'eip155:137/slip44:966',
+            },
           },
           [],
         );
 
         await new Promise(process.nextTick);
 
-        // Then disable one
         (messenger.publish as CallableFunction)(
           'NetworkEnablementController:stateChange',
           {
@@ -969,7 +1218,9 @@ describe('AssetsController', () => {
                 '137': false,
               },
             },
-            nativeAssetIdentifiers: {},
+            nativeAssetIdentifiers: {
+              'eip155:1': MOCK_NATIVE_ASSET_ID,
+            },
           },
           [],
         );

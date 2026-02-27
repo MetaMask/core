@@ -90,6 +90,22 @@ export type CreateWalletParams =
       password: string;
     };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'getMultichainAccountGroup',
+  'getMultichainAccountGroups',
+  'getMultichainAccountWallet',
+  'getMultichainAccountWallets',
+  'createNextMultichainAccountGroup',
+  'createMultichainAccountGroup',
+  'setBasicFunctionality',
+  'alignWallets',
+  'alignWallet',
+  'createMultichainAccountWallet',
+  'resyncAccounts',
+  'removeMultichainAccountWallet',
+  'ensureCanUseSnapPlatform',
+] as const;
+
 /**
  * Service to expose multichain accounts capabilities.
  */
@@ -154,57 +170,9 @@ export class MultichainAccountService {
 
     this.#watcher = new SnapPlatformWatcher(messenger);
 
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccountGroup',
-      (...args) => this.getMultichainAccountGroup(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccountGroups',
-      (...args) => this.getMultichainAccountGroups(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccountWallet',
-      (...args) => this.getMultichainAccountWallet(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccountWallets',
-      (...args) => this.getMultichainAccountWallets(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:createNextMultichainAccountGroup',
-      (...args) => this.createNextMultichainAccountGroup(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:createMultichainAccountGroup',
-      (...args) => this.createMultichainAccountGroup(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:setBasicFunctionality',
-      (...args) => this.setBasicFunctionality(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:alignWallets',
-      (...args) => this.alignWallets(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:alignWallet',
-      (...args) => this.alignWallet(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:createMultichainAccountWallet',
-      (...args) => this.createMultichainAccountWallet(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:resyncAccounts',
-      (...args) => this.resyncAccounts(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:removeMultichainAccountWallet',
-      (...args) => this.removeMultichainAccountWallet(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:ensureCanUseSnapPlatform',
-      (...args) => this.ensureCanUseSnapPlatform(...args),
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

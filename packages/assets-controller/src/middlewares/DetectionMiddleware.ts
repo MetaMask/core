@@ -16,12 +16,19 @@ createModuleLogger(projectLogger, CONTROLLER_NAME);
 // ============================================================================
 
 /**
- * DetectionMiddleware identifies assets that do not have metadata.
+ * DetectionMiddleware builds the set of assets that downstream sources use for
+ * metadata and price fetching.
  *
  * This middleware:
- * - Checks assets in the response for metadata in state (via ctx.getAssetsState)
- * - Assets in response but without metadata are considered "detected"
- * - Fills response.detectedAssets with asset IDs per account that lack metadata
+ * - Includes every asset that appears in response.assetsBalance (so prices and
+ *   metadata are fetched for existing assets as well as new ones)
+ * - Includes each account's custom assets from state (so custom tokens get
+ *   metadata and prices even when they have no balance yet)
+ * - Fills response.detectedAssets with these asset IDs per account
+ *
+ * TokenDataSource and PriceDataSource both key off detectedAssets. TokenDataSource
+ * then filters to only fetch metadata for assets that lack it; PriceDataSource
+ * fetches prices for all detected assets.
  *
  * Usage:
  * ```typescript
@@ -37,57 +44,68 @@ export class DetectionMiddleware {
   }
 
   /**
-   * Get the middleware for detecting assets without metadata.
+   * Get the middleware that builds detectedAssets for metadata and price fetching.
    *
    * This middleware:
-   * 1. Extracts the response from context
-   * 2. Detects assets from the response that don't have metadata
-   * 3. Fills response.detectedAssets with detected asset IDs per account
-   * 4. Calls next() to continue the middleware chain
+   * 1. Includes all assets from response.assetsBalance (so prices are fetched for existing assets too)
+   * 2. Merges each account's custom assets from state
+   * 3. Fills response.detectedAssets with these asset IDs per account
    *
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
     return forDataTypes(['balance'], async (ctx, next) => {
-      // Extract response from context
-      const { response } = ctx;
+      const { request, response } = ctx;
 
-      // If no balances in response, nothing to detect - pass through
-      if (!response.assetsBalance) {
-        return next(ctx);
-      }
-
-      // Get metadata from state
-      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
+      // Get state for custom assets
+      const state = ctx.getAssetsState();
+      const { customAssets: stateCustomAssets } = state;
 
       const detectedAssets: Record<AccountId, Caip19AssetId[]> = {};
 
-      // Detect assets from the response that don't have metadata
-      for (const [accountId, accountBalances] of Object.entries(
-        response.assetsBalance,
-      )) {
-        const detected: Caip19AssetId[] = [];
-
-        for (const assetId of Object.keys(
-          accountBalances as Record<string, unknown>,
+      // 1. From balance response: include every asset with balance (so prices + metadata path include existing assets)
+      if (response.assetsBalance) {
+        for (const [accountId, accountBalances] of Object.entries(
+          response.assetsBalance,
         )) {
-          // Asset is detected if it does not have metadata in state
-          if (!stateMetadata[assetId as Caip19AssetId]) {
+          const detected: Caip19AssetId[] = [];
+
+          for (const assetId of Object.keys(
+            accountBalances as Record<string, unknown>,
+          )) {
             detected.push(assetId as Caip19AssetId);
           }
-        }
 
-        if (detected.length > 0) {
-          detectedAssets[accountId] = detected;
+          // Merge this account's custom assets from state
+          const customForAccount = stateCustomAssets?.[accountId] ?? [];
+          for (const assetId of customForAccount) {
+            if (!detected.includes(assetId)) {
+              detected.push(assetId);
+            }
+          }
+
+          if (detected.length > 0) {
+            detectedAssets[accountId] = detected;
+          }
         }
       }
 
-      // Fill detectedAssets in the response
+      // 2. Accounts in request that weren't in balance response: include their custom assets
+      for (const { account } of request.accountsWithSupportedChains) {
+        const accountId = account.id;
+        if (detectedAssets[accountId]) {
+          continue;
+        }
+        const customForAccount = stateCustomAssets?.[accountId] ?? [];
+        if (customForAccount.length > 0) {
+          detectedAssets[accountId] = customForAccount;
+        }
+      }
+
       if (Object.keys(detectedAssets).length > 0) {
         response.detectedAssets = detectedAssets;
       }
 
-      // Call next() to continue the middleware chain
       return next(ctx);
     });
   }

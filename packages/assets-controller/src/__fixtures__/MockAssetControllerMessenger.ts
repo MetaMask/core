@@ -51,6 +51,7 @@ export function createMockAssetControllerMessenger(): {
     actions: [
       // AssetsController
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
+      'AssetsController:getState',
       // RpcDataSource
       'TokenListController:getState',
       'NetworkController:getState',
