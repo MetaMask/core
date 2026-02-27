@@ -41,6 +41,12 @@ export function mockAssets(mockReply?: MockReply): nock.Scope {
     .reply(reply.status, reply.body);
 }
 
+export const TRANSACTIONS_PAGE_2_CURSOR =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlaXAxNTU6MToweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjYtMDEtMTZUMjA6MTY6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjEwOjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNi0wMS0xNlQyMDoxNjoxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6MTM3OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNi0wMS0xNlQyMDoxNjoxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6NDIxNjE6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI2LTAxLTE2VDIwOjE2OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1MzQzNTI6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI2LTAxLTE2VDIwOjE2OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1NjoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjYtMDEtMTZUMjA6MTY6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjU5MTQ0OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNi0wMS0xNlQyMDoxNjoxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6ODQ1MzoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjYtMDEtMTZUMjA6MTY6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiaWF0IjoxNzcyMTg0NjQ5fQ.btHnBzYlpbZtAA0kgdyZ5rZ-BC91PZyZQPUuXj1jj6M';
+
+export const TRANSACTIONS_PAGE_3_CURSOR =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlaXAxNTU6MToweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTRUMTI6NTU6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjEwOjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xNFQxMjo1NToxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6MTM3OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xNFQxMjo1NToxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6NDIxNjE6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI1LTEyLTE0VDEyOjU1OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1MzQzNTI6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI1LTEyLTE0VDEyOjU1OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1NjoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTRUMTI6NTU6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjU5MTQ0OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xNFQxMjo1NToxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6ODQ1MzoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTRUMTI6NTU6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiaWF0IjoxNzcyMTg0NzE4fQ.3bzO_0SLGmIbhN8HoN_JTqaiOOcVqF25U8ftRuth2ow';
+
 export function mockTransactionsPage1(mockReply?: MockReply): nock.Scope {
   const reply = mockReply ?? {
     status: 200,
@@ -146,8 +152,7 @@ export function mockTransactionsPage1(mockReply?: MockReply): nock.Scope {
         hasNextPage: true,
         hasPreviousPage: false,
         startCursor: null,
-        endCursor:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlaXAxNTU6MToweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjYtMDEtMTZUMjA6MTY6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjEwOjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNi0wMS0xNlQyMDoxNjoxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6MTM3OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNi0wMS0xNlQyMDoxNjoxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6NDIxNjE6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI2LTAxLTE2VDIwOjE2OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1MzQzNTI6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI2LTAxLTE2VDIwOjE2OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1NjoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjYtMDEtMTZUMjA6MTY6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjU5MTQ0OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNi0wMS0xNlQyMDoxNjoxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6ODQ1MzoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjYtMDEtMTZUMjA6MTY6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiaWF0IjoxNzcyMTA4NzM4fQ.rlFQKUlm5rJjHynbXffMKzWw36qFva91GBcjOwjwPOw',
+        endCursor: TRANSACTIONS_PAGE_2_CURSOR,
       },
     },
   };
@@ -269,8 +274,7 @@ export function mockTransactionsPage2(mockReply?: MockReply): nock.Scope {
         hasNextPage: true,
         hasPreviousPage: false,
         startCursor: null,
-        endCursor:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlaXAxNTU6MToweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTRUMTI6NTU6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjEwOjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xNFQxMjo1NToxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6MTM3OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xNFQxMjo1NToxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6NDIxNjE6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI1LTEyLTE0VDEyOjU1OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1MzQzNTI6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI1LTEyLTE0VDEyOjU1OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1NjoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTRUMTI6NTU6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjU5MTQ0OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xNFQxMjo1NToxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6ODQ1MzoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTRUMTI6NTU6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiaWF0IjoxNzcyMTA5NDE2fQ.FD0bOPSGwFLPJytoo9KCRxTcUuyDXDKfzAeIGRfJPQI',
+        endCursor: TRANSACTIONS_PAGE_3_CURSOR,
       },
     },
   };
@@ -282,8 +286,129 @@ export function mockTransactionsPage2(mockReply?: MockReply): nock.Scope {
       limit: '3',
       accountAddresses:
         'eip155%3A0%3A0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
-      cursor:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlaXAxNTU6MToweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjYtMDEtMTZUMjA6MTY6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjEwOjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNi0wMS0xNlQyMDoxNjoxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6MTM3OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNi0wMS0xNlQyMDoxNjoxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6NDIxNjE6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI2LTAxLTE2VDIwOjE2OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1MzQzNTI6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI2LTAxLTE2VDIwOjE2OjE2LjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1NjoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjYtMDEtMTZUMjA6MTY6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjU5MTQ0OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNi0wMS0xNlQyMDoxNjoxNi4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6ODQ1MzoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjYtMDEtMTZUMjA6MTY6MTYuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiaWF0IjoxNzcyMTA4NzM4fQ.rlFQKUlm5rJjHynbXffMKzWw36qFva91GBcjOwjwPOw',
+      cursor: TRANSACTIONS_PAGE_2_CURSOR,
+    })
+    .reply(reply.status, reply.body);
+}
+
+export function mockTransactionsPage3(mockReply?: MockReply): nock.Scope {
+  const reply = mockReply ?? {
+    status: 200,
+    body: {
+      data: [
+        {
+          hash: '0xb7cec2f0aab8013c0f69a6e8841a565d925e9d9dff39d6f55236ef62df11f2ae',
+          timestamp: '2025-12-14T12:06:02.000Z',
+          chainId: 534352,
+          accountId: 'eip155:534352:0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
+          blockNumber: 26534356,
+          blockHash:
+            '0xca1eadb6d82aa3ae9ab3dfb4cde81c69537152b54242b5dc53a8f7167beaf68e',
+          gas: 20000000,
+          gasUsed: 13860597,
+          gasPrice: '120118',
+          effectiveGasPrice: '120118',
+          nonce: 270515,
+          cumulativeGasUsed: 13860597,
+          methodId: '0xc204642c',
+          value: '0',
+          to: '0x20cc3197f82c389978d70ec3169eecccf0d63cef',
+          from: '0x8245637968c2e16e9c28d45067bf6dd4334e6db0',
+          isError: false,
+          valueTransfers: [
+            {
+              from: '0xaf061718473fbcfc4315e33cd29ccba0bb3f8ac8',
+              to: '0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
+              amount: 1,
+              tokenId: '1',
+              contractAddress: '0x20cc3197f82c389978d70ec3169eecccf0d63cef',
+              transferType: 'erc1155',
+            },
+          ],
+        },
+        {
+          hash: '0x0fd46d8c05d0817fbfff845d32a39f1eadb0ced2a10136f9cca3603ab21f577d',
+          timestamp: '2025-12-14T11:25:35.000Z',
+          chainId: 1,
+          accountId: 'eip155:1:0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
+          blockNumber: 24010531,
+          blockHash:
+            '0x24ffc87ef6dee436018f114a9e1756ea874e3a10c79744465e5f297e03f3b914',
+          gas: 21000,
+          gasUsed: 21000,
+          gasPrice: '20000000000',
+          effectiveGasPrice: '20000000000',
+          nonce: 2,
+          cumulativeGasUsed: 14457098,
+          methodId: null,
+          value: '5000000000000000',
+          to: '0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
+          from: '0xc50103d72598734f6d6007cedc5d1d22d227710d',
+          isError: false,
+          valueTransfers: [
+            {
+              from: '0xc50103d72598734f6d6007cedc5d1d22d227710d',
+              to: '0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
+              amount: '5000000000000000',
+              decimal: 18,
+              transferType: 'normal',
+            },
+          ],
+        },
+        {
+          hash: '0x136142885cf873cb681cfe2967bc96b28d696b7a5d8b23d00dacd4e395a001b0',
+          timestamp: '2025-12-13T04:59:23.000Z',
+          chainId: 1,
+          accountId: 'eip155:1:0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
+          blockNumber: 24001456,
+          blockHash:
+            '0x50f4c60b4f7aa5944f0bff7f51e2417afa8ae3ce1a010ed4af5046c85bf01809',
+          gas: 16000000,
+          gasUsed: 12517751,
+          gasPrice: '50000000',
+          effectiveGasPrice: '50000000',
+          nonce: 242,
+          cumulativeGasUsed: 35408463,
+          methodId: '0x60806040',
+          value: '0',
+          to: '0x0000000000000000000000000000000000000000',
+          from: '0x8c984ec1dea4ecb9ae790ccca1e7ebb92b9631b0',
+          isError: false,
+          valueTransfers: [
+            {
+              from: '0xadae2631d69c848698ac4a73a9b1fc38f478fb8a',
+              to: '0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
+              amount: '3682800000000000000',
+              decimal: 18,
+              contractAddress: '0xcb696c86917175dfb4f0037ddc4f2e877a9f081a',
+              symbol: 'MD+',
+              name: 'MoonDayPlus.com',
+              transferType: 'erc20',
+            },
+          ],
+        },
+      ],
+      unprocessedNetworks: [],
+      pageInfo: {
+        count: 3,
+        hasNextPage: true,
+        hasPreviousPage: true,
+        startCursor:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlaXAxNTU6MToweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTRUMTI6MDY6MDIuMDAwWiIsImhhc1ByZXZpb3VzUGFnZSI6dHJ1ZX0sImVpcDE1NToxMDoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTRUMTI6MDY6MDIuMDAwWiIsImhhc1ByZXZpb3VzUGFnZSI6dHJ1ZX0sImVpcDE1NToxMzc6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI1LTEyLTE0VDEyOjA2OjAyLjAwMFoiLCJoYXNQcmV2aW91c1BhZ2UiOnRydWV9LCJlaXAxNTU6NDIxNjE6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI1LTEyLTE0VDEyOjA2OjAyLjAwMFoiLCJoYXNQcmV2aW91c1BhZ2UiOnRydWV9LCJlaXAxNTU6NTM0MzUyOjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xNFQxMjowNjowMi4wMDBaIiwiaGFzUHJldmlvdXNQYWdlIjp0cnVlfSwiZWlwMTU1OjU2OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xNFQxMjowNjowMi4wMDBaIiwiaGFzUHJldmlvdXNQYWdlIjp0cnVlfSwiZWlwMTU1OjU5MTQ0OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xNFQxMjowNjowMi4wMDBaIiwiaGFzUHJldmlvdXNQYWdlIjp0cnVlfSwiZWlwMTU1Ojg0NTM6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI1LTEyLTE0VDEyOjA2OjAyLjAwMFoiLCJoYXNQcmV2aW91c1BhZ2UiOnRydWV9LCJpYXQiOjE3NzIxODQ4MjJ9.mQOxvn8fFy8yLtntxJspuvL0i4A7QoyjGoJOn-XcnJI',
+        endCursor:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlaXAxNTU6MToweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTNUMDQ6NTk6MjMuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjEwOjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xM1QwNDo1OToyMy4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6MTM3OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xM1QwNDo1OToyMy4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6NDIxNjE6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI1LTEyLTEzVDA0OjU5OjIzLjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1MzQzNTI6MHg0YmJlZWIwNjZlZDA5YjdhZWQwN2JmMzllZWUwNDYwZGZhMjYxNTIwIjp7Imxhc3RUaW1lc3RhbXAiOiIyMDI1LTEyLTEzVDA0OjU5OjIzLjAwMFoiLCJoYXNOZXh0UGFnZSI6dHJ1ZX0sImVpcDE1NTo1NjoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTNUMDQ6NTk6MjMuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiZWlwMTU1OjU5MTQ0OjB4NGJiZWViMDY2ZWQwOWI3YWVkMDdiZjM5ZWVlMDQ2MGRmYTI2MTUyMCI6eyJsYXN0VGltZXN0YW1wIjoiMjAyNS0xMi0xM1QwNDo1OToyMy4wMDBaIiwiaGFzTmV4dFBhZ2UiOnRydWV9LCJlaXAxNTU6ODQ1MzoweDRiYmVlYjA2NmVkMDliN2FlZDA3YmYzOWVlZTA0NjBkZmEyNjE1MjAiOnsibGFzdFRpbWVzdGFtcCI6IjIwMjUtMTItMTNUMDQ6NTk6MjMuMDAwWiIsImhhc05leHRQYWdlIjp0cnVlfSwiaWF0IjoxNzcyMTg0ODIyfQ.-JOxS3Ly3j0XLp9P-PfRHJuzVsHQh6uRzvYJvcW_PGs',
+      },
+    },
+  };
+  return nock('https://accounts.api.cx.metamask.io:443', {
+    encodedQueryParams: true,
+  })
+    .get('/v4/multiaccount/transactions')
+    .query({
+      limit: '3',
+      accountAddresses:
+        'eip155%3A0%3A0x4bbeeb066ed09b7aed07bf39eee0460dfa261520',
+      cursor: TRANSACTIONS_PAGE_3_CURSOR,
     })
     .reply(reply.status, reply.body);
 }
