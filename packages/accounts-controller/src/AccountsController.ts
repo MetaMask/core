@@ -633,8 +633,6 @@ export class AccountsController extends BaseController<
     const existingInternalAccounts = this.state.internalAccounts.accounts;
     const internalAccounts: AccountsControllerState['internalAccounts']['accounts'] =
       {};
-    const accountIdByAddress: AccountsControllerState['accountIdByAddress'] =
-      {};
 
     const { keyrings } = this.messenger.call('KeyringController:getState');
     for (const keyring of keyrings) {
@@ -674,10 +672,6 @@ export class AccountsController extends BaseController<
           },
         };
 
-        // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
-        accountIdByAddress[internalAccount.address.toLowerCase()] =
-          internalAccount.id;
-
         // Increment the account index for this keyring.
         keyringAccountIndexes.set(keyringTypeName, keyringAccountIndex + 1);
       }
@@ -685,7 +679,7 @@ export class AccountsController extends BaseController<
 
     this.#update((state) => {
       state.internalAccounts.accounts = internalAccounts;
-      state.accountIdByAddress = accountIdByAddress;
+      state.accountIdByAddress = constructAccountIdByAddress(internalAccounts);
     });
   }
 
