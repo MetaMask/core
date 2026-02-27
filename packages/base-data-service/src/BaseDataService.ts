@@ -17,6 +17,7 @@ import {
   dehydrate,
   hashQueryKey,
 } from '@tanstack/query-core';
+import deepEqual from 'fast-deep-equal';
 
 export type SubscriptionPayload = { hash: string; state: DehydratedState };
 export type SubscriptionCallback = (payload: SubscriptionPayload) => void;
@@ -166,10 +167,10 @@ export class BaseDataService<
     }
 
     const pages =
-      (query.state.data as InfiniteData<TQueryFnData> | undefined)?.pages ?? [];
+      (query.state.data as InfiniteData<TQueryFnData>).pages;
     const previous = options.getPreviousPageParam?.(pages[0], pages);
 
-    const direction = pageParam === previous ? 'backward' : 'forward';
+    const direction = deepEqual(pageParam, previous) ? 'backward' : 'forward';
 
     const result = (await query.fetch(undefined, {
       meta: {
