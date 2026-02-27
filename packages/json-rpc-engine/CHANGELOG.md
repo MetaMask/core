@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `JsonRpcServer.handle()` no longer throws or produces unhandled promise rejections when the `onError` callback throws or rejects ([#8071](https://github.com/MetaMask/core/pull/8071))
+
 ## [10.2.2]
 
 ### Fixed
