@@ -350,11 +350,11 @@ export const IntentSchema = type({
         ),
       ),
       primaryType: string(),
-      // Keep `any()` here: stricter recursive JSON types for EIP-712 domain/message
-      // trigger TS2321/TS2589 (excessive type instantiation depth) in bridge state
+      // Keep values as `any()` here. Using `unknown()` in this record causes
+      // TS2321/TS2589 (excessive type instantiation depth) in bridge state
       // inference during build.
-      domain: any(),
-      message: any(),
+      domain: record(string(), any()),
+      message: record(string(), any()),
     }),
   ),
 });
