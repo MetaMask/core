@@ -10,14 +10,13 @@ import type {
   AcrossQuote,
   AcrossSwapApprovalResponse,
 } from './types';
-import { NATIVE_TOKEN_ADDRESS, TransactionPayStrategy } from '../../constants';
+import { TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   Amount,
   FiatRates,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
-  TransactionPayAction,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
@@ -113,12 +112,7 @@ async function getSingleQuote(
 
   const amount = isMaxAmount ? sourceTokenAmount : targetAmountMinimum;
   const tradeType = isMaxAmount ? 'exactInput' : 'exactOutput';
-  const { actions, recipient } = await getAcrossRequestContext(
-    transaction,
-    request,
-    messenger,
-    config.across.postActionsEnabled,
-  );
+  const recipient = getAcrossRecipient(transaction, request);
 
   const params = new URLSearchParams();
   params.set('tradeType', tradeType);
@@ -143,11 +137,7 @@ async function getSingleQuote(
     params.set('appFeeRecipient', featureFlags.metaMaskFee.recipient);
   }
 
-  const response = await requestAcrossApproval(
-    config.across.apiBase,
-    params,
-    actions,
-  );
+  const response = await requestAcrossApproval(config.across.apiBase, params);
 
   const quote = (await response.json()) as AcrossSwapApprovalResponse;
 
@@ -170,14 +160,11 @@ type AcrossApprovalRequest = {
 function buildAcrossApprovalRequest(
   apiBase: string,
   params: URLSearchParams,
-  actions?: TransactionPayAction[],
 ): AcrossApprovalRequest {
-  const normalizedActions = actions ?? [];
-
   return {
     url: `${apiBase}/swap/approval?${params.toString()}`,
     options: {
-      body: JSON.stringify({ actions: normalizedActions }),
+      body: JSON.stringify({ actions: [] }),
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
@@ -190,28 +177,21 @@ function buildAcrossApprovalRequest(
 async function requestAcrossApproval(
   apiBase: string,
   params: URLSearchParams,
-  actions?: TransactionPayAction[],
 ): Promise<Response> {
-  const { url, options } = buildAcrossApprovalRequest(apiBase, params, actions);
+  const { url, options } = buildAcrossApprovalRequest(apiBase, params);
   return successfulFetch(url, options);
 }
 
-async function getAcrossRequestContext(
+function getAcrossRecipient(
   transaction: TransactionMeta,
   request: QuoteRequest,
-  messenger: TransactionPayControllerMessenger,
-  postActionsEnabled: boolean,
-): Promise<{
-  actions?: TransactionPayAction[];
-  recipient: Hex;
-}> {
+): Hex {
   const { txParams } = transaction;
-  const { from, isMaxAmount, targetAmountMinimum, targetTokenAddress } =
-    request;
+  const { from } = request;
   const transferData = getTransferData(transaction);
 
   if (transferData) {
-    return { recipient: getTransferRecipient(transferData) };
+    return getTransferRecipient(transferData);
   }
 
   const data = txParams?.data as Hex | undefined;
@@ -219,40 +199,10 @@ async function getAcrossRequestContext(
   const nestedCalldata = getNestedCalldata(transaction);
 
   if (hasNoData && nestedCalldata.length === 0) {
-    return { recipient: from };
+    return from;
   }
 
-  const delegation = await messenger.call(
-    'TransactionPayController:getDelegationTransaction',
-    { transaction },
-  );
-
-  if (delegation.authorizationList?.length) {
-    throw new Error(UNSUPPORTED_AUTHORIZATION_LIST_ERROR);
-  }
-
-  if (!postActionsEnabled) {
-    throw new Error(UNSUPPORTED_DESTINATION_ERROR);
-  }
-
-  if (isMaxAmount) {
-    throw new Error('Max amount quotes do not support included transactions');
-  }
-
-  if (!delegation.action) {
-    throw new Error(UNSUPPORTED_DESTINATION_ERROR);
-  }
-
-  const tokenTransferAction = buildTokenTransferAction({
-    amountRaw: targetAmountMinimum,
-    recipient: from,
-    tokenAddress: targetTokenAddress,
-  });
-
-  return {
-    actions: [tokenTransferAction, delegation.action],
-    recipient: from,
-  };
+  throw new Error(UNSUPPORTED_DESTINATION_ERROR);
 }
 
 function getTransferData(transaction: TransactionMeta): Hex | undefined {
@@ -275,44 +225,6 @@ function getNestedCalldata(transaction: TransactionMeta): Hex[] {
   return (transaction.nestedTransactions ?? [])
     .map(({ data }) => data)
     .filter((data): data is Hex => data !== undefined && data !== '0x');
-}
-
-function buildTokenTransferAction({
-  amountRaw,
-  recipient,
-  tokenAddress,
-}: {
-  amountRaw: string;
-  recipient: Hex;
-  tokenAddress: Hex;
-}): TransactionPayAction {
-  if (tokenAddress === NATIVE_TOKEN_ADDRESS) {
-    return {
-      args: [],
-      functionSignature: '',
-      isNativeTransfer: true,
-      populateCallValueDynamically: false,
-      target: recipient,
-      value: amountRaw,
-    };
-  }
-
-  return {
-    args: [
-      {
-        populateDynamically: false,
-        value: recipient,
-      },
-      {
-        populateDynamically: false,
-        value: amountRaw,
-      },
-    ],
-    functionSignature: 'function transfer(address to, uint256 amount)',
-    isNativeTransfer: false,
-    target: tokenAddress,
-    value: '0',
-  };
 }
 
 function getTransferRecipient(data: Hex): Hex {

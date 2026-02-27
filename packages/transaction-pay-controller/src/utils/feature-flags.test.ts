@@ -515,7 +515,6 @@ describe('Feature Flags Utils', () => {
           allowSameChain: false,
           apiBase: DEFAULT_ACROSS_API_BASE,
           enabled: false,
-          postActionsEnabled: false,
         }),
       );
       expect(config.relay).toStrictEqual(
@@ -536,7 +535,6 @@ describe('Feature Flags Utils', () => {
                 apiBase: 'https://across.test',
                 enabled: false,
                 integratorId: 'metamask-test',
-                postActionsEnabled: true,
               },
               relay: {
                 enabled: false,
@@ -554,7 +552,6 @@ describe('Feature Flags Utils', () => {
           apiBase: 'https://across.test',
           enabled: false,
           integratorId: 'metamask-test',
-          postActionsEnabled: true,
         }),
       );
       expect(config.relay).toStrictEqual(

@@ -68,7 +68,6 @@ export type AcrossConfigRaw = {
   apiBase?: string;
   enabled?: boolean;
   integratorId?: string;
-  postActionsEnabled?: boolean;
 };
 
 export type PayStrategiesConfigRaw = {
@@ -83,7 +82,6 @@ export type PayStrategiesConfig = {
     allowSameChain: boolean;
     apiBase: string;
     enabled: boolean;
-    postActionsEnabled: boolean;
   };
   relay: {
     enabled: boolean;
@@ -203,7 +201,6 @@ export function getPayStrategiesConfig(
     apiBase: acrossRaw.apiBase ?? DEFAULT_ACROSS_API_BASE,
     enabled: acrossRaw.enabled ?? false,
     integratorId: acrossRaw.integratorId,
-    postActionsEnabled: acrossRaw.postActionsEnabled ?? false,
   };
 
   const relay = {

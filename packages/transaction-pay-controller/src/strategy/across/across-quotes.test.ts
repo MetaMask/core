@@ -6,9 +6,9 @@ import type { Hex } from '@metamask/utils';
 import { getAcrossQuotes } from './across-quotes';
 import type { AcrossSwapApprovalResponse } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { NATIVE_TOKEN_ADDRESS, TransactionPayStrategy } from '../../constants';
+import { TransactionPayStrategy } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
-import type { QuoteRequest, TransactionPayAction } from '../../types';
+import type { QuoteRequest } from '../../types';
 import { getGasBuffer, getSlippage } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
@@ -86,13 +86,6 @@ const TOKEN_TRANSFER_INTERFACE = new Interface([
 
 const TRANSFER_RECIPIENT = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
 const APP_FEE_RECIPIENT = '0x1234567890123456789012345678901234567890' as Hex;
-const DELEGATION_ACTION_MOCK: TransactionPayAction = {
-  args: [],
-  functionSignature: 'function claim()',
-  isNativeTransfer: false,
-  target: '0xdecafbaddecafbaddecafbaddecafbaddecafbad' as Hex,
-  value: '0',
-};
 
 function buildTransferData(
   recipient: string = TRANSFER_RECIPIENT,
@@ -115,7 +108,6 @@ describe('Across Quotes', () => {
     messenger,
     estimateGasMock,
     findNetworkClientIdByChainIdMock,
-    getDelegationTransactionMock,
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
 
@@ -155,11 +147,6 @@ describe('Across Quotes', () => {
     estimateGasMock.mockResolvedValue({
       gas: '0x5208',
       simulationFails: undefined,
-    });
-    getDelegationTransactionMock.mockResolvedValue({
-      data: '0x' as Hex,
-      to: FROM_MOCK,
-      value: '0x0' as Hex,
     });
   });
 
@@ -384,263 +371,6 @@ describe('Across Quotes', () => {
       expect(params.get('integratorId')).toBe('metamask-test');
     });
 
-    it('uses POST actions when postActionsEnabled and delegation action is available', async () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            payStrategies: {
-              across: {
-                enabled: true,
-                apiBase: 'https://test.across.to/api',
-                postActionsEnabled: true,
-              },
-            },
-          },
-        },
-      });
-
-      getDelegationTransactionMock.mockResolvedValue({
-        action: DELEGATION_ACTION_MOCK,
-        data: '0xdead' as Hex,
-        to: '0xde1e9a7e' as Hex,
-        value: '0x0' as Hex,
-      });
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_MOCK,
-      } as Response);
-
-      await getAcrossQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          txParams: {
-            data: '0xabc' as Hex,
-            from: FROM_MOCK,
-          },
-        } as TransactionMeta,
-      });
-
-      const [url, options] = successfulFetchMock.mock.calls[0];
-      const params = new URL(url as string).searchParams;
-      const body = JSON.parse((options?.body as string) ?? '{}') as {
-        actions: TransactionPayAction[];
-      };
-
-      expect(params.get('recipient')).toBe(FROM_MOCK);
-      expect(options).toMatchObject({
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-      });
-      expect(body.actions).toHaveLength(2);
-      expect(body.actions[0]).toMatchObject({
-        args: [
-          { populateDynamically: false, value: FROM_MOCK },
-          {
-            populateDynamically: false,
-            value: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-          },
-        ],
-        functionSignature: 'function transfer(address to, uint256 amount)',
-        isNativeTransfer: false,
-        target: QUOTE_REQUEST_MOCK.targetTokenAddress,
-        value: '0',
-      });
-      expect(body.actions[1]).toStrictEqual(DELEGATION_ACTION_MOCK);
-    });
-
-    it('throws when postActionsEnabled and max amount request needs actions', async () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            payStrategies: {
-              across: {
-                enabled: true,
-                apiBase: 'https://test.across.to/api',
-                postActionsEnabled: true,
-              },
-            },
-          },
-        },
-      });
-
-      getDelegationTransactionMock.mockResolvedValue({
-        action: DELEGATION_ACTION_MOCK,
-        data: '0xdead' as Hex,
-        to: '0xde1e9a7e' as Hex,
-        value: '0x0' as Hex,
-      });
-
-      await expect(
-        getAcrossQuotes({
-          messenger,
-          requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
-          transaction: {
-            ...TRANSACTION_META_MOCK,
-            txParams: {
-              data: '0xabc' as Hex,
-              from: FROM_MOCK,
-            },
-          } as TransactionMeta,
-        }),
-      ).rejects.toThrow(
-        /Max amount quotes do not support included transactions/u,
-      );
-
-      expect(successfulFetchMock).not.toHaveBeenCalled();
-    });
-
-    it('throws when postActionsEnabled but delegation action is missing', async () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            payStrategies: {
-              across: {
-                enabled: true,
-                apiBase: 'https://test.across.to/api',
-                postActionsEnabled: true,
-              },
-            },
-          },
-        },
-      });
-
-      getDelegationTransactionMock.mockResolvedValue({
-        data: '0xdead' as Hex,
-        to: '0xde1e9a7e' as Hex,
-        value: '0x0' as Hex,
-      });
-
-      await expect(
-        getAcrossQuotes({
-          messenger,
-          requests: [QUOTE_REQUEST_MOCK],
-          transaction: {
-            ...TRANSACTION_META_MOCK,
-            txParams: {
-              data: '0xabc' as Hex,
-              from: FROM_MOCK,
-            },
-          } as TransactionMeta,
-        }),
-      ).rejects.toThrow(/Across only supports transfer-style/u);
-
-      expect(successfulFetchMock).not.toHaveBeenCalled();
-    });
-
-    it('builds native transfer action when target token is native', async () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            payStrategies: {
-              across: {
-                enabled: true,
-                apiBase: 'https://test.across.to/api',
-                postActionsEnabled: true,
-              },
-            },
-          },
-        },
-      });
-
-      getDelegationTransactionMock.mockResolvedValue({
-        action: DELEGATION_ACTION_MOCK,
-        data: '0xdead' as Hex,
-        to: '0xde1e9a7e' as Hex,
-        value: '0x0' as Hex,
-      });
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_MOCK,
-      } as Response);
-
-      await getAcrossQuotes({
-        messenger,
-        requests: [
-          {
-            ...QUOTE_REQUEST_MOCK,
-            targetTokenAddress: NATIVE_TOKEN_ADDRESS,
-          },
-        ],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          txParams: {
-            data: '0xabc' as Hex,
-            from: FROM_MOCK,
-          },
-        } as TransactionMeta,
-      });
-
-      const [, options] = successfulFetchMock.mock.calls[0];
-      const body = JSON.parse((options?.body as string) ?? '{}') as {
-        actions: TransactionPayAction[];
-      };
-
-      expect(body.actions[0]).toMatchObject({
-        args: [],
-        functionSignature: '',
-        isNativeTransfer: true,
-        populateCallValueDynamically: false,
-        target: FROM_MOCK,
-        value: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-      });
-    });
-
-    it('uses POST with empty actions for transfer flows when postActionsEnabled', async () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            payStrategies: {
-              across: {
-                enabled: true,
-                apiBase: 'https://test.across.to/api',
-                postActionsEnabled: true,
-              },
-            },
-          },
-        },
-      });
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_MOCK,
-      } as Response);
-
-      await getAcrossQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          txParams: {
-            data: buildTransferData(TRANSFER_RECIPIENT),
-            from: FROM_MOCK,
-          },
-        } as TransactionMeta,
-      });
-
-      const [, options] = successfulFetchMock.mock.calls[0];
-      const body = JSON.parse((options?.body as string) ?? '{}') as {
-        actions: TransactionPayAction[];
-      };
-
-      expect(options).toMatchObject({
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-      });
-      expect(body.actions).toStrictEqual([]);
-    });
-
     it('uses POST approval request with empty actions by default', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
@@ -654,7 +384,7 @@ describe('Across Quotes', () => {
 
       const [, options] = successfulFetchMock.mock.calls[0];
       const body = JSON.parse((options?.body as string) ?? '{}') as {
-        actions: TransactionPayAction[];
+        actions: unknown[];
       };
 
       expect(options).toMatchObject({
@@ -741,32 +471,6 @@ describe('Across Quotes', () => {
               from: FROM_MOCK,
               data: '0xabc' as Hex,
               authorizationList: [{ address: '0xabc' as Hex }],
-            },
-          } as TransactionMeta,
-        }),
-      ).rejects.toThrow(/Across does not support type-4\/EIP-7702/u);
-
-      expect(successfulFetchMock).not.toHaveBeenCalled();
-      expect(getDelegationTransactionMock).not.toHaveBeenCalled();
-    });
-
-    it('throws when delegation requires authorization list', async () => {
-      getDelegationTransactionMock.mockResolvedValue({
-        authorizationList: [{ address: '0xabc' as Hex }],
-        data: '0xdead' as Hex,
-        to: '0xde1e9a7e' as Hex,
-        value: '0x0' as Hex,
-      });
-
-      await expect(
-        getAcrossQuotes({
-          messenger,
-          requests: [QUOTE_REQUEST_MOCK],
-          transaction: {
-            ...TRANSACTION_META_MOCK,
-            txParams: {
-              from: FROM_MOCK,
-              data: '0xabc' as Hex,
             },
           } as TransactionMeta,
         }),
