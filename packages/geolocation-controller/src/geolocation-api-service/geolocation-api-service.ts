@@ -4,10 +4,10 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { SDK } from '@metamask/profile-sync-controller';
 import type { IDisposable } from 'cockatiel';
 
 import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types';
+import { Env } from '../types';
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
 
@@ -71,8 +71,8 @@ export type GeolocationApiServiceMessenger = Messenger<
  * @param env - The environment to get the URL for.
  * @returns The full URL for the geolocation endpoint.
  */
-function getGeolocationUrl(env: SDK.Env): string {
-  const envPrefix = env === SDK.Env.PRD ? '' : `${env}-`;
+function getGeolocationUrl(env: Env): string {
+  const envPrefix = env === Env.PRD ? '' : `${env}-`;
   return `https://on-ramp.${envPrefix}api.cx.metamask.io${ENDPOINT_PATH}`;
 }
 
@@ -142,13 +142,13 @@ export class GeolocationApiService {
    */
   constructor({
     messenger,
-    env = SDK.Env.PRD,
+    env = Env.PRD,
     fetch: fetchFunction = globalThis.fetch,
     ttlMs,
     policyOptions = {},
   }: {
     messenger: GeolocationApiServiceMessenger;
-    env?: SDK.Env;
+    env?: Env;
     fetch?: typeof fetch;
     ttlMs?: number;
     policyOptions?: CreateServicePolicyOptions;

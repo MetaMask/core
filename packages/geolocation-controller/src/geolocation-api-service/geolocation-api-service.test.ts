@@ -5,13 +5,13 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { SDK } from '@metamask/profile-sync-controller';
 
 import type { GeolocationApiServiceMessenger } from './geolocation-api-service';
 import {
   GeolocationApiService,
   UNKNOWN_LOCATION,
 } from './geolocation-api-service';
+import { Env } from '../types';
 
 describe('GeolocationApiService', () => {
   beforeEach(() => {
@@ -51,7 +51,7 @@ describe('GeolocationApiService', () => {
     it('fetches from the UAT URL when env is UAT', async () => {
       const mockFetch = createMockFetch('FR');
       const { rootMessenger } = getService({
-        options: { fetch: mockFetch, env: SDK.Env.UAT },
+        options: { fetch: mockFetch, env: Env.UAT },
       });
 
       await rootMessenger.call('GeolocationApiService:fetchGeolocation');
@@ -64,7 +64,7 @@ describe('GeolocationApiService', () => {
     it('fetches from the DEV URL when env is DEV', async () => {
       const mockFetch = createMockFetch('FR');
       const { rootMessenger } = getService({
-        options: { fetch: mockFetch, env: SDK.Env.DEV },
+        options: { fetch: mockFetch, env: Env.DEV },
       });
 
       await rootMessenger.call('GeolocationApiService:fetchGeolocation');

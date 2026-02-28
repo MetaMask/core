@@ -12,6 +12,7 @@ export type {
   GeolocationControllerRefreshGeolocationAction,
 } from './GeolocationController-method-action-types';
 export type { GeolocationRequestStatus } from './types';
+export { Env } from './types';
 export {
   GeolocationController,
   getDefaultGeolocationControllerState,

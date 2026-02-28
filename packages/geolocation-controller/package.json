@@ -50,8 +50,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
     "@metamask/controller-utils": "^11.19.0",
-    "@metamask/messenger": "^0.3.0",
-    "@metamask/profile-sync-controller": "^27.1.0"
+    "@metamask/messenger": "^0.3.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

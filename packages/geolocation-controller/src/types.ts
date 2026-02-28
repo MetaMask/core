@@ -6,3 +6,12 @@ export type GeolocationRequestStatus =
   | 'loading'
   | 'complete'
   | 'error';
+
+/**
+ * Deployment environment for API endpoint selection.
+ */
+export enum Env {
+  DEV = 'dev',
+  UAT = 'uat',
+  PRD = 'prd',
+}
