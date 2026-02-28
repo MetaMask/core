@@ -1330,6 +1330,9 @@ describe('KeyringController', () => {
             const newKeyring = {
               accounts: [address],
               type: 'Simple Key Pair',
+              data: [
+                '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc',
+              ],
             };
             const importedAccountAddress =
               await controller.importAccountWithStrategy(
@@ -1422,6 +1425,9 @@ describe('KeyringController', () => {
             const newKeyring = {
               accounts: [address],
               type: 'Simple Key Pair',
+              data: [
+                '62390c1fe2fe70071bf6dc7345a872de041dc9663b89b2e28e6ce920427169c7',
+              ],
             };
             const modifiedState = {
               ...initialState,
@@ -2868,16 +2874,14 @@ describe('KeyringController', () => {
     });
 
     it('should unlock succesfully when the controller is instantiated with an existing `keyringsMetadata`', async () => {
-      stubKeyringClassWithAccount(HdKeyring, '0x123');
+      stubKeyringClassWithAccount(MockKeyring, '0x123');
       await withController(
         {
           state: {
             vault: createVault([
               {
-                type: KeyringTypes.hd,
-                data: {
-                  accounts: ['0x123'],
-                },
+                type: MockKeyring.type,
+                data: {},
                 metadata: {
                   id: '123',
                   name: '',
@@ -2885,6 +2889,7 @@ describe('KeyringController', () => {
               },
             ]),
           },
+          keyringBuilders: [keyringBuilderFactory(MockKeyring)],
           skipVaultCreation: true,
         },
         async ({ controller }) => {
@@ -2892,8 +2897,9 @@ describe('KeyringController', () => {
 
           expect(controller.state.keyrings).toStrictEqual([
             {
-              type: KeyringTypes.hd,
+              type: MockKeyring.type,
               accounts: ['0x123'],
+              data: {},
               metadata: {
                 id: '123',
                 name: '',
@@ -2937,6 +2943,9 @@ describe('KeyringController', () => {
             {
               type: KeyringTypes.hd,
               accounts: expect.any(Array),
+              data: {
+                accounts: ['0x123'],
+              },
               metadata: {
                 id: expect.any(String),
                 name: '',
@@ -4406,7 +4415,6 @@ describe('KeyringController', () => {
           ).toMatchInlineSnapshot(`
             {
               "isUnlocked": false,
-              "keyrings": [],
             }
           `);
         },
