@@ -1,0 +1,100 @@
+name: Check merge queue changelogs
+description: Check if the changelog was incorrectly merged in a merge queue
+  pull request.
+
+inputs:
+  github-token:
+    description: The GitHub token to use for authentication.
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Get pull request number
+      id: pr-number
+      uses: actions/github-script@v8
+      env:
+        HEAD_REF: ${{ github.event.pull_request.head.ref || github.event.merge_group.head_ref }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { EVENT_NAME, HEAD_REF } = process.env;
+
+          if (context.eventName === 'pull_request') {
+            const prNumber = context.payload.pull_request.number;
+            return core.setOutput('pr-number', prNumber);
+          }
+
+          const match = HEAD_REF.match(/\/pr-([0-9]+)-/u);
+          if (!match) {
+            return core.setFailed(`Could not extract pull request number from head ref: "${HEAD_REF}".`);
+          }
+
+          const number = parseInt(match[1], 10);
+          core.setOutput('pr-number', number);
+
+    - name: Get pull request branch
+      id: pr-branch
+      shell: bash
+      env:
+        REPOSITORY: ${{ github.repository }}
+        PR_NUMBER: ${{ steps.pr-number.outputs.pr-number }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        BRANCH=$(gh api "/repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq=.head.ref)
+        echo "pr-branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+    - name: Check changelog changes
+      id: changelog-check
+      shell: bash
+      env:
+        HEAD_REF: ${{ github.event.pull_request.head.ref || github.event.merge_group.head_ref }}
+        BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+        PR_BRANCH: ${{ steps.pr-branch.outputs.pr-branch }}
+        REPOSITORY: ${{ github.repository }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+
+        # Strip invalid prefix from `BASE_REF`
+        # It comes prefixed with `refs/heads/`, but the branch is not checked out in this context
+        # We need to express it as a remote branch
+        PREFIXED_REF_REGEX='refs/heads/(.+)'
+        if [[ "$BASE_REF" =~ $PREFIXED_REF_REGEX ]]; then
+          BASE_REF="${BASH_REMATCH[1]}"
+        fi
+
+        TARGET_REF=$(git merge-base "origin/$BASE_REF" "origin/$PR_BRANCH")
+        git fetch origin "$TARGET_REF"
+
+        UPDATED_CHANGELOGS=$(git diff --name-only "$TARGET_REF" "origin/$PR_BRANCH" | grep -E 'CHANGELOG\.md$' || true)
+        if [ -n "$UPDATED_CHANGELOGS" ]; then
+          for FILE in $UPDATED_CHANGELOGS; do
+            if [ ! -f "$FILE" ]; then
+              echo "Changelog file \"$FILE\" was deleted in this PR. Skipping."
+              continue
+            fi
+
+            if ! git cat-file -e "$TARGET_REF":"$FILE" 2>/dev/null; then
+              echo "Changelog file \"$FILE\" is new in this PR. Skipping."
+              continue
+            fi
+
+            echo "Checking changelog file: $FILE"
+            git show "$TARGET_REF":"$FILE" > /tmp/base-changelog.md
+            git show origin/"$PR_BRANCH":"$FILE" > /tmp/pr-changelog.md
+
+            node "${ACTION_PATH}/check-changelog-diff.cjs" \
+              /tmp/base-changelog.md \
+              /tmp/pr-changelog.md \
+              "$FILE"
+          done
+        else
+          echo "No CHANGELOG.md files were modified in this PR."
+        fi
