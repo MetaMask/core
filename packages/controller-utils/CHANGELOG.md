@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Deprecate `BlockExplorerUrl["megaeth-testnet"]`
   - Deprecate `NetworkNickname["megaeth-testnet"]`
 
+### Changed
+
+- Change network nicknames ([#7045](https://github.com/MetaMask/core/pull/7045))
+
 ## [11.16.0]
 
 ### Added

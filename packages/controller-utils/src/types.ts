@@ -185,7 +185,7 @@ export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
 
 export const NetworkNickname = {
-  [BuiltInNetworkName.Mainnet]: 'Ethereum Mainnet',
+  [BuiltInNetworkName.Mainnet]: 'Ethereum',
   [BuiltInNetworkName.Goerli]: 'Goerli',
   [BuiltInNetworkName.Sepolia]: 'Sepolia',
   [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
@@ -197,12 +197,12 @@ export const NetworkNickname = {
   [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
   [BuiltInNetworkName.MegaETHTestnetV2]: 'MegaETH Testnet',
   [BuiltInNetworkName.MonadTestnet]: 'Monad Testnet',
-  [BuiltInNetworkName.BaseMainnet]: 'Base Mainnet',
-  [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum One',
-  [BuiltInNetworkName.BscMainnet]: 'BSC Mainnet',
-  [BuiltInNetworkName.OptimismMainnet]: 'Optimism Mainnet',
-  [BuiltInNetworkName.PolygonMainnet]: 'Polygon Mainnet',
-  [BuiltInNetworkName.SeiMainnet]: 'Sei Mainnet',
+  [BuiltInNetworkName.BaseMainnet]: 'Base',
+  [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum',
+  [BuiltInNetworkName.BscMainnet]: 'BNB Chain',
+  [BuiltInNetworkName.OptimismMainnet]: 'OP',
+  [BuiltInNetworkName.PolygonMainnet]: 'Polygon',
+  [BuiltInNetworkName.SeiMainnet]: 'Sei',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type NetworkNickname =
   (typeof NetworkNickname)[keyof typeof NetworkNickname];
