@@ -2210,6 +2210,7 @@ export class NetworkController extends BaseController<
    * Creates and registers network clients for the collection of Infura and
    * custom RPC endpoints that can be used to make requests for a particular
    * chain, storing the given configuration object in state for later reference.
+   * After adding the network, it automatically sets it as the active network.
    *
    * @param fields - The object that describes the new network/chain and lists
    * the RPC endpoints which front that chain.
@@ -2217,7 +2218,7 @@ export class NetworkController extends BaseController<
    * @throws if any part of `fields` would produce invalid state.
    * @see {@link NetworkConfiguration}
    */
-  addNetwork(fields: AddNetworkFields): NetworkConfiguration {
+  async addNetwork(fields: AddNetworkFields): Promise<NetworkConfiguration> {
     const { rpcEndpoints: setOfRpcEndpointFields } = fields;
 
     const autoManagedNetworkClientRegistry =
@@ -2268,6 +2269,13 @@ export class NetworkController extends BaseController<
       `${controllerName}:networkAdded`,
       newNetworkConfiguration,
     );
+
+    // Set the newly added network as the active network using the default RPC endpoint
+    const defaultRpcEndpoint =
+      newNetworkConfiguration.rpcEndpoints[
+        newNetworkConfiguration.defaultRpcEndpointIndex
+      ];
+    await this.setActiveNetwork(defaultRpcEndpoint.networkClientId);
 
     return newNetworkConfiguration;
   }
