@@ -1,4 +1,4 @@
 /**
  * The status of a geolocation fetch operation.
  */
-export type GeolocationStatus = 'idle' | 'loading' | 'complete' | 'error';
+export type GeolocationRequestStatus = 'idle' | 'loading' | 'complete' | 'error';

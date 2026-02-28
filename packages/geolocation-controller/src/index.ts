@@ -11,15 +11,19 @@ export type {
   GeolocationControllerGetGeolocationAction,
   GeolocationControllerRefreshGeolocationAction,
 } from './GeolocationController-method-action-types';
-export type { GeolocationStatus } from './types';
+export type { GeolocationRequestStatus } from './types';
 export {
   GeolocationController,
   getDefaultGeolocationControllerState,
-  UNKNOWN_LOCATION,
 } from './GeolocationController';
-export { GeolocationApiService } from './geolocation-api-service';
+export {
+  GeolocationApiService,
+  UNKNOWN_LOCATION,
+} from './geolocation-api-service/geolocation-api-service';
 export type {
-  GeolocationApiServiceOptions,
+  GeolocationApiServiceMessenger,
+  GeolocationApiServiceActions,
+  GeolocationApiServiceEvents,
   FetchGeolocationOptions,
-  GeolocationApiServiceFetchGeolocationAction,
-} from './geolocation-api-service';
+} from './geolocation-api-service/geolocation-api-service';
+export type { GeolocationApiServiceFetchGeolocationAction } from './geolocation-api-service/geolocation-api-service-method-action-types';

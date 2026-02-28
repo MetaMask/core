@@ -10,8 +10,8 @@ import type { GeolocationControllerMessenger } from './GeolocationController';
 import {
   GeolocationController,
   getDefaultGeolocationControllerState,
-  UNKNOWN_LOCATION,
 } from './GeolocationController';
+import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service';
 
 describe('GeolocationController', () => {
   describe('constructor', () => {
@@ -23,7 +23,7 @@ describe('GeolocationController', () => {
       });
     });
 
-    it('accepts custom initial state', async () => {
+    it('merges provided partial state with defaults', async () => {
       await withController(
         { options: { state: { location: 'GB' } } },
         ({ controller }) => {
@@ -31,24 +31,6 @@ describe('GeolocationController', () => {
           expect(controller.state.status).toBe('idle');
         },
       );
-    });
-
-    it('registers getGeolocation action handler on the messenger', async () => {
-      await withController(async ({ rootMessenger }) => {
-        const result = await rootMessenger.call(
-          'GeolocationController:getGeolocation',
-        );
-        expect(typeof result).toBe('string');
-      });
-    });
-
-    it('registers refreshGeolocation action handler on the messenger', async () => {
-      await withController(async ({ rootMessenger }) => {
-        const result = await rootMessenger.call(
-          'GeolocationController:refreshGeolocation',
-        );
-        expect(typeof result).toBe('string');
-      });
     });
   });
 
@@ -122,7 +104,7 @@ describe('GeolocationController', () => {
   });
 
   describe('getGeolocation', () => {
-    it('updates state with location, complete status, and timestamp', async () => {
+    it('sets location, status to complete, and lastFetchedAt after fetch', async () => {
       await withController(
         { serviceResponse: 'GB' },
         async ({ controller }) => {
@@ -138,7 +120,7 @@ describe('GeolocationController', () => {
       );
     });
 
-    it('transitions state from idle to loading to complete', async () => {
+    it('transitions status from idle to loading to complete', async () => {
       const states: string[] = [];
       let resolveService!: (value: string) => void;
 
@@ -168,8 +150,8 @@ describe('GeolocationController', () => {
       );
     });
 
-    describe('fetch failure', () => {
-      it('sets status to error and stores error message', async () => {
+    describe('when the service throws', () => {
+      it('sets status to error with the error message', async () => {
         await withController(
           {
             serviceHandler: () => {
@@ -185,7 +167,7 @@ describe('GeolocationController', () => {
         );
       });
 
-      it('preserves last known location on failure', async () => {
+      it('preserves the last known location', async () => {
         let callCount = 0;
 
         await withController(
@@ -210,7 +192,7 @@ describe('GeolocationController', () => {
         );
       });
 
-      it('returns UNKNOWN when no prior value exists and fetch fails', async () => {
+      it('returns UNKNOWN_LOCATION when no prior value exists', async () => {
         await withController(
           {
             serviceHandler: () => {
@@ -226,7 +208,7 @@ describe('GeolocationController', () => {
         );
       });
 
-      it('handles non-Error thrown values', async () => {
+      it('stores string representation of non-Error thrown values', async () => {
         await withController(
           {
             serviceHandler: jest.fn().mockRejectedValue('string error'),
@@ -309,7 +291,7 @@ describe('GeolocationController', () => {
       );
     });
 
-    it('sets status to error when refresh fails', async () => {
+    it('sets status to error when the service throws', async () => {
       let callCount = 0;
 
       await withController(
@@ -334,7 +316,7 @@ describe('GeolocationController', () => {
       );
     });
 
-    it('handles non-Error thrown values during refresh', async () => {
+    it('stores string representation of non-Error thrown values', async () => {
       await withController(
         {
           serviceHandler: jest
@@ -387,8 +369,8 @@ describe('GeolocationController', () => {
     });
   });
 
-  describe('messenger integration', () => {
-    it('getGeolocation action resolves correctly via messenger', async () => {
+  describe('GeolocationController:getGeolocation', () => {
+    it('resolves with the fetched country code', async () => {
       await withController(
         { serviceResponse: 'JP' },
         async ({ rootMessenger }) => {
@@ -400,8 +382,10 @@ describe('GeolocationController', () => {
         },
       );
     });
+  });
 
-    it('refreshGeolocation action resolves correctly via messenger', async () => {
+  describe('GeolocationController:refreshGeolocation', () => {
+    it('resolves with the updated country code', async () => {
       let callCount = 0;
 
       await withController(
@@ -422,41 +406,8 @@ describe('GeolocationController', () => {
         },
       );
     });
-
-    it('getState returns current state via messenger', async () => {
-      await withController(
-        { serviceResponse: 'AU' },
-        async ({ controller, rootMessenger }) => {
-          await controller.getGeolocation();
-
-          const state = rootMessenger.call('GeolocationController:getState');
-
-          expect(state.location).toBe('AU');
-          expect(state.status).toBe('complete');
-        },
-      );
-    });
-
-    it('stateChange event fires on state updates', async () => {
-      const stateChanges: string[] = [];
-
-      await withController(
-        { serviceResponse: 'NZ' },
-        async ({ controller, rootMessenger }) => {
-          rootMessenger.subscribe(
-            'GeolocationController:stateChange',
-            (state) => {
-              stateChanges.push(state.status);
-            },
-          );
-
-          await controller.getGeolocation();
-
-          expect(stateChanges).toStrictEqual(['loading', 'complete']);
-        },
-      );
-    });
   });
+
 });
 
 /**

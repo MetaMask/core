@@ -1,4 +1,25 @@
+import type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from '@metamask/controller-utils';
+import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import { SDK } from '@metamask/profile-sync-controller';
+import type { IDisposable } from 'cockatiel';
+
+import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types';
+
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
+
+const ENDPOINT_PATH = '/geolocation';
+
+// === GENERAL ===
+
+/**
+ * The name of the {@link GeolocationApiService}, used to namespace the
+ * service's actions and events.
+ */
+export const serviceName = 'GeolocationApiService';
 
 /**
  * Sentinel value used when the geolocation has not been determined yet or when
@@ -6,17 +27,54 @@ const DEFAULT_TTL_MS = 5 * 60 * 1000;
  */
 export const UNKNOWN_LOCATION = 'UNKNOWN';
 
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = ['fetchGeolocation'] as const;
+
 /**
- * Options for constructing the {@link GeolocationApiService}.
+ * Actions that {@link GeolocationApiService} exposes to other consumers.
  */
-export type GeolocationApiServiceOptions = {
-  /** Injectable fetch function. Defaults to `globalThis.fetch`. */
-  fetch?: typeof globalThis.fetch;
-  /** Callback returning the geolocation API URL for the current environment. */
-  getGeolocationUrl: () => string;
-  /** Cache time-to-live in milliseconds. Defaults to 5 minutes. */
-  ttlMs?: number;
-};
+export type GeolocationApiServiceActions = GeolocationApiServiceMethodActions;
+
+/**
+ * Actions from other messengers that {@link GeolocationApiServiceMessenger}
+ * calls.
+ */
+type AllowedActions = never;
+
+/**
+ * Events that {@link GeolocationApiService} exposes to other consumers.
+ */
+export type GeolocationApiServiceEvents = never;
+
+/**
+ * Events from other messengers that {@link GeolocationApiService} subscribes
+ * to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger restricted to actions and events accessed by
+ * {@link GeolocationApiService}.
+ */
+export type GeolocationApiServiceMessenger = Messenger<
+  typeof serviceName,
+  GeolocationApiServiceActions | AllowedActions,
+  GeolocationApiServiceEvents | AllowedEvents
+>;
+
+// === SERVICE DEFINITION ===
+
+/**
+ * Returns the base URL for the geolocation API for the given environment.
+ *
+ * @param env - The environment to get the URL for.
+ * @returns The full URL for the geolocation endpoint.
+ */
+function getGeolocationUrl(env: SDK.Env): string {
+  const envPrefix = env === SDK.Env.PRD ? '' : `${env}-`;
+  return `https://on-ramp.${envPrefix}api.cx.metamask.io${ENDPOINT_PATH}`;
+}
 
 /**
  * Options accepted by {@link GeolocationApiService.fetchGeolocation}.
@@ -30,22 +88,36 @@ export type FetchGeolocationOptions = {
  * Low-level data service that fetches a country code from the geolocation API.
  *
  * Responsibilities:
- * - HTTP request to the geolocation endpoint
+ * - HTTP request to the geolocation endpoint (wrapped in a service policy)
  * - ISO 3166-1 alpha-2 response validation
  * - TTL-based in-memory cache
  * - Promise deduplication (concurrent callers share a single in-flight request)
  * - Race-condition prevention via a generation counter
  *
  * This class is intentionally not a controller: it does not manage UI state.
- * Register its {@link fetchGeolocation} method on the messenger so that
- * controllers and other packages can call it directly.
+ * Its {@link fetchGeolocation} method is automatically registered on the
+ * messenger so that controllers and other packages can call it directly.
  */
 export class GeolocationApiService {
+  /**
+   * The name of the service.
+   */
+  readonly name: typeof serviceName;
+
+  readonly #messenger: GeolocationApiServiceMessenger;
+
   readonly #fetch: typeof globalThis.fetch;
 
-  readonly #getGeolocationUrl: () => string;
+  readonly #url: string;
 
   readonly #ttlMs: number;
+
+  /**
+   * The policy that wraps each HTTP request.
+   *
+   * @see {@link createServicePolicy}
+   */
+  readonly #policy: ServicePolicy;
 
   #cachedLocation: string = UNKNOWN_LOCATION;
 
@@ -58,20 +130,78 @@ export class GeolocationApiService {
   /**
    * Constructs a new {@link GeolocationApiService}.
    *
-   * @param options - Service configuration.
-   * @param options.fetch - Injectable fetch function. Defaults to
-   * `globalThis.fetch`.
-   * @param options.getGeolocationUrl - Callback returning the API URL.
-   * @param options.ttlMs - Cache TTL in milliseconds. Defaults to 5 minutes.
+   * @param args - The constructor arguments.
+   * @param args.messenger - The messenger suited for this service.
+   * @param args.env - The environment to determine the correct API endpoint.
+   * Defaults to PRD.
+   * @param args.fetch - A function that can be used to make an HTTP request.
+   * Defaults to the global fetch.
+   * @param args.ttlMs - Cache TTL in milliseconds. Defaults to 5 minutes.
+   * @param args.policyOptions - Options to pass to `createServicePolicy`, which
+   * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
   constructor({
-    fetch: fetchFunction,
-    getGeolocationUrl,
+    messenger,
+    env = SDK.Env.PRD,
+    fetch: fetchFunction = globalThis.fetch,
     ttlMs,
-  }: GeolocationApiServiceOptions) {
-    this.#fetch = fetchFunction ?? globalThis.fetch.bind(globalThis);
-    this.#getGeolocationUrl = getGeolocationUrl;
+    policyOptions = {},
+  }: {
+    messenger: GeolocationApiServiceMessenger;
+    env?: SDK.Env;
+    fetch?: typeof fetch;
+    ttlMs?: number;
+    policyOptions?: CreateServicePolicyOptions;
+  }) {
+    this.name = serviceName;
+    this.#messenger = messenger;
+    this.#url = getGeolocationUrl(env);
+    this.#fetch = fetchFunction;
     this.#ttlMs = ttlMs ?? DEFAULT_TTL_MS;
+    this.#policy = createServicePolicy(policyOptions);
+
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Registers a handler that will be called after a request returns a 5xx
+   * response, causing a retry.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler.
+   * @see {@link createServicePolicy}
+   */
+  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
+    return this.#policy.onRetry(listener);
+  }
+
+  /**
+   * Registers a handler that will be called after a set number of retry rounds
+   * prove that requests to the API endpoint consistently return a 5xx response.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler.
+   * @see {@link createServicePolicy}
+   */
+  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
+    return this.#policy.onBreak(listener);
+  }
+
+  /**
+   * Registers a handler that will be called when requests are consistently
+   * failing or when a successful request takes longer than the degraded
+   * threshold.
+   *
+   * @param listener - The handler to be called.
+   * @returns An object that can be used to unregister the handler.
+   */
+  onDegraded(
+    listener: Parameters<ServicePolicy['onDegraded']>[0],
+  ): IDisposable {
+    return this.#policy.onDegraded(listener);
   }
 
   /**
@@ -125,19 +255,24 @@ export class GeolocationApiService {
   }
 
   /**
-   * Performs the actual HTTP fetch and validates the response.
+   * Performs the actual HTTP fetch, wrapped in the service policy for automatic
+   * retry and circuit-breaking, and validates the response.
    *
    * @returns The ISO country code string.
    */
   async #performFetch(): Promise<string> {
     const generation = this.#fetchGeneration;
 
-    const url = this.#getGeolocationUrl();
-    const response = await this.#fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`Geolocation fetch failed: ${response.status}`);
-    }
+    const response = await this.#policy.execute(async () => {
+      const localResponse = await this.#fetch(this.#url);
+      if (!localResponse.ok) {
+        throw new HttpError(
+          localResponse.status,
+          `Geolocation fetch failed: ${localResponse.status}`,
+        );
+      }
+      return localResponse;
+    });
 
     const raw = (await response.text()).trim();
     const location = /^[A-Z]{2}$/u.test(raw) ? raw : UNKNOWN_LOCATION;

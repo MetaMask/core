@@ -6,12 +6,10 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { GeolocationApiServiceFetchGeolocationAction } from './geolocation-api-service';
-import { UNKNOWN_LOCATION } from './geolocation-api-service';
+import type { GeolocationApiServiceFetchGeolocationAction } from './geolocation-api-service/geolocation-api-service-method-action-types';
+import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service';
 import type { GeolocationControllerMethodActions } from './GeolocationController-method-action-types';
-import type { GeolocationStatus } from './types';
-
-export { UNKNOWN_LOCATION };
+import type { GeolocationRequestStatus } from './types';
 
 /**
  * The name of the {@link GeolocationController}, used to namespace the
@@ -27,7 +25,7 @@ export type GeolocationControllerState = {
   /** ISO 3166-1 alpha-2 country code, or "UNKNOWN" if not yet determined. */
   location: string;
   /** Current status of the geolocation fetch lifecycle. */
-  status: GeolocationStatus;
+  status: GeolocationRequestStatus;
   /** Epoch milliseconds of the last successful fetch, or null if never fetched. */
   lastFetchedAt: number | null;
   /** Last error message, or null if no error has occurred. */

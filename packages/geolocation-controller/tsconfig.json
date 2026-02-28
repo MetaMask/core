@@ -3,6 +3,11 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [{ "path": "../base-controller" }, { "path": "../messenger" }],
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../controller-utils" },
+    { "path": "../messenger" },
+    { "path": "../profile-sync-controller" }
+  ],
   "include": ["../../types", "./src"]
 }
