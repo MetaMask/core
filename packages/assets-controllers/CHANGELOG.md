@@ -119,6 +119,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `forceRefreshTokenList()` method to `TokenListController` to allow manual refresh of token cache ([#39628](https://github.com/MetaMask/metamask-extension/issues/39628))
+  - Add `TokenListController:forceRefreshTokenList` messenger action
+  - Method bypasses cache validation to fetch fresh token data from API
+  - Useful for refreshing stale token data on Base chain and other supported networks
 - Add `HYPEREVM` support ([#7790](https://github.com/MetaMask/core/pull/7790))
   - Add `HYPEREVM` in `SupportedTokenDetectionNetworks`
   - Add `HYPEREVM` in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`

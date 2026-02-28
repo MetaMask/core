@@ -2108,6 +2108,184 @@ describe('TokenListController', () => {
       controller.destroy();
     });
   });
+
+  describe('forceRefreshTokenList', () => {
+    it('should force refresh token list even when cache is valid', async () => {
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList)
+        .persist();
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        cacheRefreshThreshold: 4 * 60 * 60 * 1000, // 4 hours
+      });
+      await controller.initialize();
+
+      // First fetch to populate cache
+      await controller.fetchTokenList(ChainId.mainnet);
+      const initialTimestamp =
+        controller.state.tokensChainsCache[ChainId.mainnet]?.timestamp;
+      expect(initialTimestamp).toBeDefined();
+
+      // Wait a bit to ensure timestamp would be different
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Force refresh - should bypass cache validation
+      await controller.forceRefreshTokenList(ChainId.mainnet);
+
+      const refreshedTimestamp =
+        controller.state.tokensChainsCache[ChainId.mainnet]?.timestamp;
+      expect(refreshedTimestamp).toBeDefined();
+      expect(refreshedTimestamp).toBeGreaterThan(initialTimestamp as number);
+
+      // Verify data is still correct
+      expect(
+        controller.state.tokensChainsCache[ChainId.mainnet].data,
+      ).toStrictEqual(
+        sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
+      );
+
+      controller.destroy();
+    });
+
+    it('should work via messenger action', async () => {
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList)
+        .persist();
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+      await controller.initialize();
+
+      // First fetch to populate cache
+      await controller.fetchTokenList(ChainId.mainnet);
+      const initialTimestamp =
+        controller.state.tokensChainsCache[ChainId.mainnet]?.timestamp;
+      expect(initialTimestamp).toBeDefined();
+
+      // Wait a bit to ensure timestamp would be different
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Force refresh via messenger action
+      await messenger.call('TokenListController:forceRefreshTokenList', ChainId.mainnet);
+
+      const refreshedTimestamp =
+        controller.state.tokensChainsCache[ChainId.mainnet]?.timestamp;
+      expect(refreshedTimestamp).toBeDefined();
+      expect(refreshedTimestamp).toBeGreaterThan(initialTimestamp as number);
+
+      controller.destroy();
+    });
+
+    it('should not refresh for unsupported networks', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+      await controller.initialize();
+
+      const unsupportedChainId = '0x1337' as Hex;
+      const initialState = { ...controller.state.tokensChainsCache };
+
+      // Should return early without error
+      await controller.forceRefreshTokenList(unsupportedChainId);
+
+      // State should remain unchanged
+      expect(controller.state.tokensChainsCache).toStrictEqual(initialState);
+
+      controller.destroy();
+    });
+
+    it('should handle API errors gracefully', async () => {
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(500, { error: 'Internal Server Error' })
+        .persist();
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: {
+          tokensChainsCache: {
+            [ChainId.mainnet]: {
+              data: sampleMainnetTokensChainsCache,
+              timestamp: Date.now(),
+            },
+          },
+        },
+      });
+      await controller.initialize();
+
+      const existingCache = controller.state.tokensChainsCache[ChainId.mainnet];
+      expect(existingCache).toBeDefined();
+
+      // Force refresh should handle error gracefully
+      await controller.forceRefreshTokenList(ChainId.mainnet);
+
+      // Cache should remain unchanged on error
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toStrictEqual(
+        existingCache,
+      );
+
+      controller.destroy();
+    });
+
+    it('should refresh Base chain (0x2105) token list', async () => {
+      const baseChainId = '0x2105' as Hex;
+      const baseTokenList = [
+        {
+          address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+          symbol: 'USDC',
+          decimals: 6,
+          occurrences: 5,
+          name: 'USD Coin',
+          aggregators: ['CoinGecko', '1inch'],
+          iconUrl: `https://static.cx.metamask.io/api/v1/tokenIcons/${convertHexToDecimal(baseChainId)}/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.png`,
+        },
+      ];
+
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(baseChainId))
+        .reply(200, baseTokenList)
+        .persist();
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      const controller = new TokenListController({
+        chainId: baseChainId,
+        messenger: restrictedMessenger,
+        cacheRefreshThreshold: 4 * 60 * 60 * 1000, // 4 hours
+      });
+      await controller.initialize();
+
+      // Force refresh Base chain
+      await controller.forceRefreshTokenList(baseChainId);
+
+      const cache = controller.state.tokensChainsCache[baseChainId];
+      expect(cache).toBeDefined();
+      expect(cache?.data).toBeDefined();
+      expect(cache?.timestamp).toBeDefined();
+      expect(cache?.data['0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913']).toBeDefined();
+      expect(
+        cache?.data['0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'].symbol,
+      ).toBe('USDC');
+
+      controller.destroy();
+    });
+  });
 });
 
 /**
