@@ -3773,6 +3773,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/geolocation-controller@workspace:packages/geolocation-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/geolocation-controller@workspace:packages/geolocation-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/controller-utils": "npm:^11.19.0"
+    "@metamask/messenger": "npm:^0.3.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    tsx: "npm:^4.20.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/json-rpc-engine@npm:^10.0.0, @metamask/json-rpc-engine@npm:^10.0.2, @metamask/json-rpc-engine@npm:^10.1.0, @metamask/json-rpc-engine@npm:^10.1.1, @metamask/json-rpc-engine@npm:^10.2.2, @metamask/json-rpc-engine@workspace:packages/json-rpc-engine":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-engine@workspace:packages/json-rpc-engine"

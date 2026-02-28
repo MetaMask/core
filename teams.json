@@ -42,6 +42,7 @@
   "metamask/build-utils": "team-core-platform",
   "metamask/composable-controller": "team-core-platform",
   "metamask/connectivity-controller": "team-core-platform",
+  "metamask/geolocation-controller": "team-core-platform",
   "metamask/controller-utils": "team-core-platform",
   "metamask/error-reporting-service": "team-core-platform",
   "metamask/messenger": "team-core-platform",
