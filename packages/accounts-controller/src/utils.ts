@@ -40,6 +40,9 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
+    case KeyringTypes.mpc: {
+      return 'MPC';
+    }
     default: {
       throw new Error(`Unknown keyring ${keyringType}`);
     }
