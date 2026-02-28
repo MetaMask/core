@@ -250,9 +250,7 @@ describe('GeolocationApiService', () => {
         const mockFetch = jest
           .fn()
           .mockImplementation(() =>
-            Promise.resolve(
-              createMockResponse('<html>error page</html>', 200),
-            ),
+            Promise.resolve(createMockResponse('<html>error page</html>', 200)),
           );
         const { service } = getService({ options: { fetch: mockFetch } });
 
@@ -430,9 +428,7 @@ describe('GeolocationApiService', () => {
     it('throws after exhausting all retry attempts', async () => {
       const mockFetch = jest
         .fn()
-        .mockImplementation(() =>
-          Promise.resolve(createMockResponse('', 500)),
-        );
+        .mockImplementation(() => Promise.resolve(createMockResponse('', 500)));
       const { service } = getService({ options: { fetch: mockFetch } });
       service.onRetry(() => {
         jest.advanceTimersToNextTimerAsync().catch(console.error);
@@ -468,9 +464,7 @@ describe('GeolocationApiService', () => {
     it('fires onBreak after repeated failures trip the circuit breaker', async () => {
       const mockFetch = jest
         .fn()
-        .mockImplementation(() =>
-          Promise.resolve(createMockResponse('', 500)),
-        );
+        .mockImplementation(() => Promise.resolve(createMockResponse('', 500)));
       const { service } = getService({
         options: {
           fetch: mockFetch,

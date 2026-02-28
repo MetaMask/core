@@ -6,12 +6,12 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
+import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service';
 import type { GeolocationControllerMessenger } from './GeolocationController';
 import {
   GeolocationController,
   getDefaultGeolocationControllerState,
 } from './GeolocationController';
-import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service';
 
 describe('GeolocationController', () => {
   describe('constructor', () => {
@@ -407,7 +407,6 @@ describe('GeolocationController', () => {
       );
     });
   });
-
 });
 
 /**

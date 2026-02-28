@@ -6,8 +6,8 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { GeolocationApiServiceFetchGeolocationAction } from './geolocation-api-service/geolocation-api-service-method-action-types';
 import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service';
+import type { GeolocationApiServiceFetchGeolocationAction } from './geolocation-api-service/geolocation-api-service-method-action-types';
 import type { GeolocationControllerMethodActions } from './GeolocationController-method-action-types';
 import type { GeolocationRequestStatus } from './types';
 
