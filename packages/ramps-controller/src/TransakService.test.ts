@@ -2206,6 +2206,324 @@ describe('TransakService', () => {
       expect(await promise).toBeDefined();
     });
   });
+
+  describe('WebSocket - subscribeToOrder', () => {
+    type MockChannel = {
+      bind: jest.Mock;
+      unbindAll: jest.Mock;
+    };
+
+    function createMockPusher(): {
+      createPusher: jest.Mock;
+      mockPusher: {
+        subscribe: jest.Mock;
+        unsubscribe: jest.Mock;
+        disconnect: jest.Mock;
+      };
+      channels: Record<string, MockChannel>;
+      subscribedChannels: string[];
+      unsubscribedChannels: string[];
+      boundHandlers: Record<string, Record<string, (data: unknown) => void>>;
+      isDisconnected: () => boolean;
+    } {
+      const boundHandlers: Record<
+        string,
+        Record<string, (data: unknown) => void>
+      > = {};
+      const subscribedChannels: string[] = [];
+      const unsubscribedChannels: string[] = [];
+      let disconnected = false;
+
+      const mockChannel = (channelName: string): MockChannel => ({
+        bind: jest.fn((event: string, callback: (data: unknown) => void) => {
+          if (!boundHandlers[channelName]) {
+            boundHandlers[channelName] = {};
+          }
+          boundHandlers[channelName][event] = callback;
+        }),
+        unbindAll: jest.fn(() => {
+          delete boundHandlers[channelName];
+        }),
+      });
+
+      const channels: Record<string, MockChannel> = {};
+
+      const mockPusher = {
+        subscribe: jest.fn((channelName: string) => {
+          subscribedChannels.push(channelName);
+          channels[channelName] = mockChannel(channelName);
+          return channels[channelName];
+        }),
+        unsubscribe: jest.fn((channelName: string) => {
+          unsubscribedChannels.push(channelName);
+        }),
+        disconnect: jest.fn(() => {
+          disconnected = true;
+        }),
+      };
+
+      const createPusher = jest.fn(() => mockPusher);
+
+      return {
+        createPusher,
+        mockPusher,
+        channels,
+        subscribedChannels,
+        unsubscribedChannels,
+        boundHandlers,
+        isDisconnected: (): boolean => disconnected,
+      };
+    }
+
+    it('subscribes to a Pusher channel for the given order ID', () => {
+      const { createPusher, subscribedChannels } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      service.subscribeToOrder('order-123');
+
+      expect(createPusher).toHaveBeenCalledWith('1d9ffac87de599c61283', {
+        cluster: 'ap2',
+      });
+      expect(subscribedChannels).toContain('order-123');
+    });
+
+    it('binds all five Transak order events on the channel', () => {
+      const { createPusher, channels } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      service.subscribeToOrder('order-123');
+
+      const channel = channels['order-123'];
+      expect(channel.bind).toHaveBeenCalledTimes(5);
+      expect(channel.bind).toHaveBeenCalledWith(
+        'ORDER_CREATED',
+        expect.any(Function),
+      );
+      expect(channel.bind).toHaveBeenCalledWith(
+        'ORDER_PAYMENT_VERIFYING',
+        expect.any(Function),
+      );
+      expect(channel.bind).toHaveBeenCalledWith(
+        'ORDER_PROCESSING',
+        expect.any(Function),
+      );
+      expect(channel.bind).toHaveBeenCalledWith(
+        'ORDER_COMPLETED',
+        expect.any(Function),
+      );
+      expect(channel.bind).toHaveBeenCalledWith(
+        'ORDER_FAILED',
+        expect.any(Function),
+      );
+    });
+
+    it('publishes TransakService:orderUpdate via messenger on event', () => {
+      const { createPusher, boundHandlers } = createMockPusher();
+      const { service, rootMessenger } = getService({
+        options: { createPusher },
+      });
+
+      const handler = jest.fn();
+      rootMessenger.subscribe('TransakService:orderUpdate', handler);
+
+      service.subscribeToOrder('order-xyz');
+
+      const orderHandlers = boundHandlers['order-xyz'];
+      orderHandlers.ORDER_COMPLETED({
+        status: 'COMPLETED',
+      });
+
+      expect(handler).toHaveBeenCalledWith({
+        transakOrderId: 'order-xyz',
+        status: 'COMPLETED',
+        eventType: 'ORDER_COMPLETED',
+      });
+    });
+
+    it('uses empty string for status when payload has no status field', () => {
+      const { createPusher, boundHandlers } = createMockPusher();
+      const { service, rootMessenger } = getService({
+        options: { createPusher },
+      });
+
+      const handler = jest.fn();
+      rootMessenger.subscribe('TransakService:orderUpdate', handler);
+
+      service.subscribeToOrder('order-no-status');
+
+      const orderHandlers = boundHandlers['order-no-status'];
+      orderHandlers.ORDER_PROCESSING({});
+
+      expect(handler).toHaveBeenCalledWith({
+        transakOrderId: 'order-no-status',
+        status: '',
+        eventType: 'ORDER_PROCESSING',
+      });
+    });
+
+    it('does not subscribe twice to the same order', () => {
+      const { createPusher, subscribedChannels } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      service.subscribeToOrder('order-dup');
+      service.subscribeToOrder('order-dup');
+
+      expect(
+        subscribedChannels.filter((ch) => ch === 'order-dup'),
+      ).toHaveLength(1);
+    });
+
+    it('silently no-ops when no Pusher factory is provided', () => {
+      const { service } = getService();
+      expect(() => service.subscribeToOrder('order-noop')).not.toThrow();
+    });
+
+    it('reuses the same Pusher instance across subscriptions', () => {
+      const { createPusher } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      service.subscribeToOrder('order-a');
+      service.subscribeToOrder('order-b');
+
+      expect(createPusher).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('WebSocket - unsubscribeFromOrder', () => {
+    function createMockPusher(): {
+      createPusher: jest.Mock;
+      mockPusher: {
+        subscribe: jest.Mock;
+        unsubscribe: jest.Mock;
+        disconnect: jest.Mock;
+      };
+      channels: Record<string, { bind: jest.Mock; unbindAll: jest.Mock }>;
+    } {
+      const channels: Record<
+        string,
+        { bind: jest.Mock; unbindAll: jest.Mock }
+      > = {};
+
+      const mockPusher = {
+        subscribe: jest.fn((channelName: string) => {
+          channels[channelName] = {
+            bind: jest.fn(),
+            unbindAll: jest.fn(),
+          };
+          return channels[channelName];
+        }),
+        unsubscribe: jest.fn(),
+        disconnect: jest.fn(),
+      };
+
+      return {
+        createPusher: jest.fn(() => mockPusher),
+        mockPusher,
+        channels,
+      };
+    }
+
+    it('unbinds all events and unsubscribes from the channel', () => {
+      const { createPusher, mockPusher, channels } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      service.subscribeToOrder('order-unsub');
+      service.unsubscribeFromOrder('order-unsub');
+
+      expect(channels['order-unsub'].unbindAll).toHaveBeenCalled();
+      expect(mockPusher.unsubscribe).toHaveBeenCalledWith('order-unsub');
+    });
+
+    it('no-ops when unsubscribing from a non-subscribed order', () => {
+      const { createPusher, mockPusher } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      expect(() =>
+        service.unsubscribeFromOrder('never-subscribed'),
+      ).not.toThrow();
+      expect(mockPusher.unsubscribe).not.toHaveBeenCalled();
+    });
+
+    it('allows re-subscribing after unsubscribe', () => {
+      const { createPusher, mockPusher } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      service.subscribeToOrder('order-resub');
+      service.unsubscribeFromOrder('order-resub');
+      service.subscribeToOrder('order-resub');
+
+      expect(mockPusher.subscribe).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('WebSocket - disconnectWebSocket', () => {
+    function createMockPusher(): {
+      createPusher: jest.Mock;
+      mockPusher: {
+        subscribe: jest.Mock;
+        unsubscribe: jest.Mock;
+        disconnect: jest.Mock;
+      };
+      channels: Record<string, { bind: jest.Mock; unbindAll: jest.Mock }>;
+    } {
+      const channels: Record<
+        string,
+        { bind: jest.Mock; unbindAll: jest.Mock }
+      > = {};
+
+      const mockPusher = {
+        subscribe: jest.fn((channelName: string) => {
+          channels[channelName] = {
+            bind: jest.fn(),
+            unbindAll: jest.fn(),
+          };
+          return channels[channelName];
+        }),
+        unsubscribe: jest.fn(),
+        disconnect: jest.fn(),
+      };
+
+      return {
+        createPusher: jest.fn(() => mockPusher),
+        mockPusher,
+        channels,
+      };
+    }
+
+    it('disconnects Pusher and cleans up all channels', () => {
+      const { createPusher, mockPusher, channels } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      service.subscribeToOrder('order-1');
+      service.subscribeToOrder('order-2');
+      service.disconnectWebSocket();
+
+      expect(channels['order-1'].unbindAll).toHaveBeenCalled();
+      expect(channels['order-2'].unbindAll).toHaveBeenCalled();
+      expect(mockPusher.unsubscribe).toHaveBeenCalledWith('order-1');
+      expect(mockPusher.unsubscribe).toHaveBeenCalledWith('order-2');
+      expect(mockPusher.disconnect).toHaveBeenCalled();
+    });
+
+    it('creates a fresh Pusher instance after disconnect + resubscribe', () => {
+      const { createPusher } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      service.subscribeToOrder('order-fresh');
+      service.disconnectWebSocket();
+      service.subscribeToOrder('order-fresh-2');
+
+      expect(createPusher).toHaveBeenCalledTimes(2);
+    });
+
+    it('no-ops when called without any active subscriptions', () => {
+      const { createPusher, mockPusher } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+
+      expect(() => service.disconnectWebSocket()).not.toThrow();
+      expect(mockPusher.disconnect).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('TransakOrderIdTransformer', () => {

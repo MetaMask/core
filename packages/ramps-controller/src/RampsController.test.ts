@@ -5598,6 +5598,204 @@ describe('RampsController', () => {
     });
   });
 
+  describe('Transak WebSocket integration', () => {
+    it('subscribes to WS channel when a pending Transak order is added', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const subscribeHandler = jest.fn();
+        rootMessenger.registerActionHandler(
+          'TransakService:subscribeToOrder',
+          subscribeHandler,
+        );
+
+        const order = createMockOrder({
+          providerOrderId: 'ws-order-1',
+          status: RampsOrderStatus.Pending,
+          provider: { id: '/providers/transak-native', name: 'Transak' },
+        });
+        controller.addOrder(order);
+
+        expect(subscribeHandler).toHaveBeenCalledWith('ws-order-1');
+      });
+    });
+
+    it('does not subscribe to WS for completed orders', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const subscribeHandler = jest.fn();
+        rootMessenger.registerActionHandler(
+          'TransakService:subscribeToOrder',
+          subscribeHandler,
+        );
+
+        const order = createMockOrder({
+          providerOrderId: 'ws-completed',
+          status: RampsOrderStatus.Completed,
+          provider: { id: '/providers/transak-native', name: 'Transak' },
+        });
+        controller.addOrder(order);
+
+        expect(subscribeHandler).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not subscribe to WS for non-Transak orders', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const subscribeHandler = jest.fn();
+        rootMessenger.registerActionHandler(
+          'TransakService:subscribeToOrder',
+          subscribeHandler,
+        );
+
+        const order = createMockOrder({
+          providerOrderId: 'moonpay-order-1',
+          status: RampsOrderStatus.Pending,
+          provider: { id: '/providers/moonpay', name: 'MoonPay' },
+        });
+        controller.addOrder(order);
+
+        expect(subscribeHandler).not.toHaveBeenCalled();
+      });
+    });
+
+    it('unsubscribes from WS when a Transak order is removed', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'TransakService:subscribeToOrder',
+          jest.fn(),
+        );
+        const unsubscribeHandler = jest.fn();
+        rootMessenger.registerActionHandler(
+          'TransakService:unsubscribeFromOrder',
+          unsubscribeHandler,
+        );
+
+        const order = createMockOrder({
+          providerOrderId: 'ws-remove-1',
+          status: RampsOrderStatus.Pending,
+          provider: { id: '/providers/transak-native', name: 'Transak' },
+        });
+        controller.addOrder(order);
+        controller.removeOrder('ws-remove-1');
+
+        expect(unsubscribeHandler).toHaveBeenCalledWith('ws-remove-1');
+      });
+    });
+
+    it('triggers refreshOrder when a TransakService:orderUpdate event is received', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'TransakService:subscribeToOrder',
+          jest.fn(),
+        );
+
+        const order = createMockOrder({
+          providerOrderId: 'ws-refresh-1',
+          status: RampsOrderStatus.Pending,
+          provider: { id: '/providers/transak-native', name: 'Transak' },
+          walletAddress: '0xabc',
+        });
+        controller.addOrder(order);
+
+        const updatedOrder = {
+          ...order,
+          status: RampsOrderStatus.Completed,
+        };
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => updatedOrder,
+        );
+
+        rootMessenger.publish('TransakService:orderUpdate', {
+          transakOrderId: 'ws-refresh-1',
+          status: 'COMPLETED',
+          eventType: 'ORDER_COMPLETED',
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(controller.state.orders[0]?.status).toBe(
+          RampsOrderStatus.Completed,
+        );
+      });
+    });
+
+    it('does not refresh for unrecognized order IDs', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const getOrderHandler = jest.fn();
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          getOrderHandler,
+        );
+
+        rootMessenger.publish('TransakService:orderUpdate', {
+          transakOrderId: 'unknown-order',
+          status: 'COMPLETED',
+          eventType: 'ORDER_COMPLETED',
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(getOrderHandler).not.toHaveBeenCalled();
+      });
+    });
+
+    it('subscribeToTransakOrderUpdates subscribes all pending Transak orders', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const subscribeHandler = jest.fn();
+        rootMessenger.registerActionHandler(
+          'TransakService:subscribeToOrder',
+          subscribeHandler,
+        );
+
+        const pendingOrder = createMockOrder({
+          providerOrderId: 'bulk-1',
+          status: RampsOrderStatus.Pending,
+          provider: {
+            id: '/providers/transak-native',
+            name: 'Transak',
+          },
+        });
+        const completedOrder = createMockOrder({
+          providerOrderId: 'bulk-2',
+          status: RampsOrderStatus.Completed,
+          provider: {
+            id: '/providers/transak-native',
+            name: 'Transak',
+          },
+        });
+        const moonpayOrder = createMockOrder({
+          providerOrderId: 'bulk-3',
+          status: RampsOrderStatus.Pending,
+          provider: { id: '/providers/moonpay', name: 'MoonPay' },
+        });
+
+        controller.addOrder(pendingOrder);
+        controller.addOrder(completedOrder);
+        controller.addOrder(moonpayOrder);
+
+        subscribeHandler.mockClear();
+
+        controller.subscribeToTransakOrderUpdates();
+
+        expect(subscribeHandler).toHaveBeenCalledTimes(1);
+        expect(subscribeHandler).toHaveBeenCalledWith('bulk-1');
+      });
+    });
+
+    it('disconnects WebSocket on destroy', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const disconnectHandler = jest.fn();
+        rootMessenger.registerActionHandler(
+          'TransakService:disconnectWebSocket',
+          disconnectHandler,
+        );
+
+        controller.destroy();
+
+        expect(disconnectHandler).toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('Transak methods', () => {
     describe('transakSetApiKey', () => {
       it('calls messenger with the api key', async () => {
@@ -7071,6 +7269,7 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   rootMessenger.delegate({
     messenger,
     actions: [...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS],
+    events: ['TransakService:orderUpdate'],
   });
   return messenger;
 }

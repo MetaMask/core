@@ -7,6 +7,35 @@ import type { Messenger } from '@metamask/messenger';
 
 import type { TransakServiceMethodActions } from './TransakService-method-action-types';
 
+// === PUSHER / WEBSOCKET TYPES ===
+
+export type ChannelLike = {
+  bind(event: string, callback: (data: unknown) => void): void;
+  unbindAll(): void;
+};
+
+export type PusherLike = {
+  subscribe(channelName: string): ChannelLike;
+  unsubscribe(channelName: string): void;
+  disconnect(): void;
+};
+
+export type PusherFactory = (
+  key: string,
+  options: { cluster: string },
+) => PusherLike;
+
+const TRANSAK_PUSHER_KEY = '1d9ffac87de599c61283';
+const TRANSAK_PUSHER_CLUSTER = 'ap2';
+
+const TRANSAK_WS_ORDER_EVENTS = [
+  'ORDER_CREATED',
+  'ORDER_PAYMENT_VERIFYING',
+  'ORDER_PROCESSING',
+  'ORDER_COMPLETED',
+  'ORDER_FAILED',
+] as const;
+
 // === TYPES ===
 
 export type TransakAccessToken = {
@@ -330,13 +359,21 @@ const MESSENGER_EXPOSED_METHODS = [
   'cancelOrder',
   'cancelAllActiveOrders',
   'getActiveOrders',
+  'subscribeToOrder',
+  'unsubscribeFromOrder',
+  'disconnectWebSocket',
 ] as const;
 
 export type TransakServiceActions = TransakServiceMethodActions;
 
 type AllowedActions = never;
 
-export type TransakServiceEvents = never;
+export type TransakServiceOrderUpdateEvent = {
+  type: `${typeof serviceName}:orderUpdate`;
+  payload: [{ transakOrderId: string; status: string; eventType: string }];
+};
+
+export type TransakServiceEvents = TransakServiceOrderUpdateEvent;
 
 type AllowedEvents = never;
 
@@ -454,6 +491,12 @@ export class TransakService {
 
   readonly #orderRetryDelayMs: number;
 
+  readonly #createPusher: PusherFactory | null;
+
+  #pusher: PusherLike | null = null;
+
+  readonly #subscribedChannels: Map<string, ChannelLike> = new Map();
+
   #apiKey: string | null = null;
 
   #accessToken: TransakAccessToken | null = null;
@@ -466,6 +509,7 @@ export class TransakService {
     apiKey,
     policyOptions = {},
     orderRetryDelayMs = 2000,
+    createPusher,
   }: {
     messenger: TransakServiceMessenger;
     environment?: TransakEnvironment;
@@ -474,6 +518,7 @@ export class TransakService {
     apiKey?: string;
     policyOptions?: CreateServicePolicyOptions;
     orderRetryDelayMs?: number;
+    createPusher?: PusherFactory;
   }) {
     this.name = serviceName;
     this.#messenger = messenger;
@@ -483,6 +528,7 @@ export class TransakService {
     this.#context = context;
     this.#apiKey = apiKey ?? null;
     this.#orderRetryDelayMs = orderRetryDelayMs;
+    this.#createPusher = createPusher ?? null;
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -1170,5 +1216,67 @@ export class TransakService {
   async getActiveOrders(): Promise<TransakOrder[]> {
     this.#ensureAccessToken();
     return this.#transakGet<TransakOrder[]>('/api/v2/active-orders');
+  }
+
+  // === WEBSOCKET METHODS ===
+
+  #ensurePusher(): PusherLike {
+    if (!this.#pusher) {
+      if (!this.#createPusher) {
+        throw new Error(
+          'WebSocket support requires a Pusher factory. Pass createPusher to the TransakService constructor.',
+        );
+      }
+      this.#pusher = this.#createPusher(TRANSAK_PUSHER_KEY, {
+        cluster: TRANSAK_PUSHER_CLUSTER,
+      });
+    }
+    return this.#pusher;
+  }
+
+  subscribeToOrder(transakOrderId: string): void {
+    if (this.#subscribedChannels.has(transakOrderId)) {
+      return;
+    }
+
+    if (!this.#createPusher) {
+      return;
+    }
+
+    const pusher = this.#ensurePusher();
+    const channel = pusher.subscribe(transakOrderId);
+
+    for (const event of TRANSAK_WS_ORDER_EVENTS) {
+      channel.bind(event, (data: unknown) => {
+        const orderData = data as { status?: string } | undefined;
+        this.#messenger.publish('TransakService:orderUpdate', {
+          transakOrderId,
+          status: orderData?.status ?? '',
+          eventType: event,
+        });
+      });
+    }
+
+    this.#subscribedChannels.set(transakOrderId, channel);
+  }
+
+  unsubscribeFromOrder(transakOrderId: string): void {
+    const channel = this.#subscribedChannels.get(transakOrderId);
+    if (!channel) {
+      return;
+    }
+    channel.unbindAll();
+    this.#pusher?.unsubscribe(transakOrderId);
+    this.#subscribedChannels.delete(transakOrderId);
+  }
+
+  disconnectWebSocket(): void {
+    for (const [orderId, channel] of this.#subscribedChannels) {
+      channel.unbindAll();
+      this.#pusher?.unsubscribe(orderId);
+    }
+    this.#subscribedChannels.clear();
+    this.#pusher?.disconnect();
+    this.#pusher = null;
   }
 }
