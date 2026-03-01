@@ -1,3 +1,4 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
@@ -13,6 +14,36 @@ export const ARBITRUM_USDC_ADDRESS =
 
 export const POLYGON_USDCE_ADDRESS =
   '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Hex;
+
+export type TransactionPayFiatAsset = {
+  address: Hex;
+  caipAssetId: string;
+  chainId: Hex;
+  decimals: number;
+};
+
+const POLYGON_POL_FIAT_ASSET: TransactionPayFiatAsset = {
+  address: '0x0000000000000000000000000000000000001010',
+  caipAssetId: 'eip155:137/slip44:966',
+  chainId: CHAIN_ID_POLYGON,
+  decimals: 18,
+};
+
+const ARBITRUM_ETH_FIAT_ASSET: TransactionPayFiatAsset = {
+  address: NATIVE_TOKEN_ADDRESS,
+  caipAssetId: 'eip155:42161/slip44:60',
+  chainId: CHAIN_ID_ARBITRUM,
+  decimals: 18,
+};
+
+// We might use feature flags to determine these later
+export const MMPAY_FIAT_ASSET_ID_BY_TX_TYPE: Partial<
+  Record<TransactionType, TransactionPayFiatAsset>
+> = {
+  [TransactionType.predictDeposit]: POLYGON_POL_FIAT_ASSET,
+  [TransactionType.perpsDeposit]: ARBITRUM_ETH_FIAT_ASSET,
+  [TransactionType.perpsDepositAndOrder]: ARBITRUM_ETH_FIAT_ASSET,
+};
 
 export const STABLECOINS: Record<Hex, Hex[]> = {
   // Mainnet
@@ -35,6 +66,7 @@ export const STABLECOINS: Record<Hex, Hex[]> = {
 export enum TransactionPayStrategy {
   Bridge = 'bridge',
   Relay = 'relay',
+  Fiat = 'fiat',
   Test = 'test',
 }
 

@@ -4571,7 +4571,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/ramps-controller@workspace:packages/ramps-controller":
+"@metamask/ramps-controller@npm:^10.0.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/ramps-controller@workspace:packages/ramps-controller"
   dependencies:
@@ -5113,6 +5113,7 @@ __metadata:
     "@metamask/messenger": "npm:^0.3.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^30.0.0"
+    "@metamask/ramps-controller": "npm:^10.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^4.1.0"
     "@metamask/transaction-controller": "npm:^62.19.0"
     "@metamask/utils": "npm:^11.9.0"

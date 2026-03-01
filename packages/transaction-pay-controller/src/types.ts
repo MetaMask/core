@@ -36,6 +36,35 @@ import type { Draft } from 'immer';
 
 import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 
+type RampsControllerSetSelectedTokenAction = {
+  type: 'RampsController:setSelectedToken';
+  handler: (assetId?: string) => void;
+};
+
+type RampsQuotesResponse = {
+  success: unknown[];
+  sorted: unknown[];
+  error: unknown[];
+  customActions?: unknown[];
+};
+
+type RampsControllerGetQuotesAction = {
+  type: 'RampsController:getQuotes';
+  handler: (options: {
+    region?: string;
+    fiat?: string;
+    assetId?: string;
+    amount: number;
+    walletAddress: string;
+    paymentMethods?: string[];
+    providers?: string[];
+    redirectUrl?: string;
+    action?: 'buy' | 'sell';
+    forceRefresh?: boolean;
+    ttl?: number;
+  }) => Promise<RampsQuotesResponse>;
+};
+
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | BridgeControllerActions
@@ -54,7 +83,9 @@ export type AllowedActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerUpdateTransactionAction
+  | RampsControllerGetQuotesAction
+  | RampsControllerSetSelectedTokenAction;
 
 export type AllowedEvents =
   | BridgeStatusControllerStateChangeEvent
@@ -89,6 +120,12 @@ export type TransactionPayControllerSetTransactionConfigAction = {
   handler: (transactionId: string, callback: TransactionConfigCallback) => void;
 };
 
+/** Action to update fiat payment state for a transaction. */
+export type TransactionPayControllerUpdateFiatPaymentAction = {
+  type: `${typeof CONTROLLER_NAME}:updateFiatPayment`;
+  handler: (request: UpdateFiatPaymentRequest) => void;
+};
+
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
   /** Whether the user has selected the maximum amount. */
@@ -115,6 +152,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
+  | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
@@ -133,10 +171,16 @@ export type TransactionPayControllerOptions = {
   getDelegationTransaction: GetDelegationTransactionCallback;
 
   /** Callback to select the PayStrategy for a transaction. */
-  getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
+  getStrategy?: (
+    transaction: TransactionMeta,
+    transactionData?: TransactionData,
+  ) => TransactionPayStrategy;
 
   /** Callback to select ordered PayStrategies for a transaction. */
-  getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
+  getStrategies?: (
+    transaction: TransactionMeta,
+    transactionData?: TransactionData,
+  ) => TransactionPayStrategy[];
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
@@ -175,6 +219,9 @@ export type TransactionData = {
    */
   paymentToken?: TransactionPaymentToken;
 
+  /** Fiat payment method state. */
+  fiatPayment?: TransactionFiatPayment;
+
   /** Quotes retrieved for the transaction. */
   quotes?: TransactionPayQuote<Json>[];
 
@@ -189,6 +236,15 @@ export type TransactionData = {
 
   /** Calculated totals for the transaction. */
   totals?: TransactionPayTotals;
+};
+
+/** Fiat payment state stored per transaction. */
+export type TransactionFiatPayment = {
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId: string | null;
+
+  /** Entered fiat amount for the selected payment method. */
+  amount: string | null;
 };
 
 /** A token required by a transaction. */
@@ -348,6 +404,9 @@ export type TransactionPayFees = {
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
+  /** Fee charged by fiat on-ramp provider. */
+  fiatProvider?: FiatValue;
+
   /** Network fee for transactions on the source network. */
   sourceNetwork: {
     estimate: Amount;
@@ -499,6 +558,18 @@ export type UpdatePaymentTokenRequest = {
 
   /** Chain ID of the new payment token. */
   chainId: Hex;
+};
+
+/** Request to update fiat payment state for a transaction. */
+export type UpdateFiatPaymentRequest = {
+  /** ID of the transaction to update. */
+  transactionId: string;
+
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId?: string | null;
+
+  /** Entered fiat amount. */
+  amount?: string | null;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */

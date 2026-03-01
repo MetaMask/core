@@ -4,6 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
+import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
 import {
   CONTROLLER_NAME,
@@ -18,12 +19,14 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
+  UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
+import { deriveFiatAssetIdForFiatPayment } from './utils/fiat';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { pollTransactionChanges } from './utils/transaction';
+import { getTransaction, pollTransactionChanges } from './utils/transaction';
 
 const stateMetadata: StateMetadata<TransactionPayControllerState> = {
   transactionData: {
@@ -47,10 +50,12 @@ export class TransactionPayController extends BaseController<
 
   readonly #getStrategy?: (
     transaction: TransactionMeta,
+    transactionData?: TransactionData,
   ) => TransactionPayStrategy;
 
   readonly #getStrategies?: (
     transaction: TransactionMeta,
+    transactionData?: TransactionData,
   ) => TransactionPayStrategy[];
 
   constructor({
@@ -111,6 +116,13 @@ export class TransactionPayController extends BaseController<
     });
   }
 
+  updateFiatPayment(request: UpdateFiatPaymentRequest): void {
+    updateFiatPayment(request, {
+      messenger: this.messenger,
+      updateTransactionData: this.#updateTransactionData.bind(this),
+    });
+  }
+
   #removeTransactionData(transactionId: string): void {
     this.update((state) => {
       delete state.transactionData[transactionId];
@@ -122,6 +134,7 @@ export class TransactionPayController extends BaseController<
     fn: (transactionData: Draft<TransactionData>) => void,
   ): void {
     let shouldUpdateQuotes = false;
+    let fiatAssetId: string | undefined;
 
     this.update((state) => {
       const { transactionData } = state;
@@ -130,12 +143,24 @@ export class TransactionPayController extends BaseController<
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
+      const originalFiatPaymentAmount = current?.fiatPayment?.amount;
+      const originalFiatPaymentMethodId =
+        current?.fiatPayment?.selectedPaymentMethodId;
 
       if (!current) {
         transactionData[transactionId] = {
+          fiatPayment: {
+            amount: null,
+            selectedPaymentMethodId: null,
+          },
           isLoading: false,
           tokens: [],
         };
+
+        const transaction = getTransaction(transactionId, this.messenger);
+        fiatAssetId = deriveFiatAssetIdForFiatPayment(
+          transaction as unknown as TransactionMeta,
+        );
 
         current = transactionData[transactionId];
       }
@@ -150,6 +175,11 @@ export class TransactionPayController extends BaseController<
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
       const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
+      const isFiatAmountUpdated =
+        current.fiatPayment?.amount !== originalFiatPaymentAmount;
+      const isFiatPaymentMethodUpdated =
+        current.fiatPayment?.selectedPaymentMethodId !==
+        originalFiatPaymentMethodId;
 
       if (
         isPaymentTokenUpdated ||
@@ -160,6 +190,14 @@ export class TransactionPayController extends BaseController<
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
         shouldUpdateQuotes = true;
+      }
+
+      if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
+        shouldUpdateQuotes = true;
+      }
+
+      if (fiatAssetId) {
+        this.messenger.call('RampsController:setSelectedToken', fiatAssetId);
       }
     });
 
@@ -195,14 +233,25 @@ export class TransactionPayController extends BaseController<
       'TransactionPayController:updatePaymentToken',
       this.updatePaymentToken.bind(this),
     );
+
+    this.messenger.registerActionHandler(
+      'TransactionPayController:updateFiatPayment',
+      this.updateFiatPayment.bind(this),
+    );
   }
 
   #getStrategiesWithFallback(
     transaction: TransactionMeta,
   ): TransactionPayStrategy[] {
+    const transactionData = transaction.id
+      ? this.state.transactionData[transaction.id]
+      : undefined;
+
     const strategyCandidates: unknown[] =
-      this.#getStrategies?.(transaction) ??
-      (this.#getStrategy ? [this.#getStrategy(transaction)] : []);
+      this.#getStrategies?.(transaction, transactionData) ??
+      (this.#getStrategy
+        ? [this.#getStrategy(transaction, transactionData)]
+        : []);
 
     const validStrategies = strategyCandidates.filter(
       (strategy): strategy is TransactionPayStrategy =>
