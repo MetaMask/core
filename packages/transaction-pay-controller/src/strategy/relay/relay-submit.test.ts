@@ -265,6 +265,27 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('keeps max-gas-station submissions on current gasFeeToken-only options', async () => {
+      request.quotes[0].fees.isSourceGasFeeToken = true;
+      request.quotes[0].original.metamask.isMaxGasStation = true;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          gasFeeToken: TOKEN_ADDRESS_MOCK,
+        }),
+      );
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.not.objectContaining({
+          gasFeeTokenAmount: expect.anything(),
+        }),
+      );
+    });
+
     it('adds transaction with authorization list if same chain and authorization list present', async () => {
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       request.quotes[0].original.request = {
