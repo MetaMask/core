@@ -69,6 +69,10 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
         protocol: 'cowswap',
         order: { some: 'order' },
         settlementContract: '0x9008D19f58AAbd9eD0D60971565AA8510560ab41',
+        typedData: {
+          domain: {},
+          message: {},
+        },
       },
     },
     sentAmount: { amount: '1', usd: '1' },
@@ -169,6 +173,8 @@ const createMessengerHarness = (
           return undefined;
         case 'GasFeeController:getState':
           return { gasFeeEstimates: {} };
+        case 'KeyringController:signTypedMessage':
+          return '0xtest-signature';
         default:
           return undefined;
       }
@@ -401,7 +407,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const promise = controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
     expect(await promise.catch((error: any) => error)).toStrictEqual(
@@ -448,7 +453,6 @@ describe('BridgeStatusController (intent swaps)', () => {
     await expect(
       controller.submitIntent({
         quoteResponse,
-        signature: '0xsig',
         accountAddress,
       }),
     ).resolves.toBeDefined();
@@ -482,7 +486,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const promise = controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
     expect(await promise.catch((error: any) => error)).toStrictEqual(
@@ -522,7 +525,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const result = await controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
 
@@ -533,6 +535,56 @@ describe('BridgeStatusController (intent swaps)', () => {
     );
 
     consoleSpy.mockRestore();
+  });
+
+  it('submitIntent: signs typedData', async () => {
+    const { controller, messenger, accountAddress, submitIntentMock } = setup();
+
+    const orderUid = 'order-uid-signed-in-core-1';
+    submitIntentMock.mockResolvedValue({
+      id: orderUid,
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
+
+    const quoteResponse = minimalIntentQuoteResponse();
+    quoteResponse.quote.intent.typedData = {
+      domain: {},
+      message: {},
+    };
+
+    const originalCallImpl = (
+      messenger.call as jest.Mock
+    ).getMockImplementation();
+    (messenger.call as jest.Mock).mockImplementation(
+      (method: string, ...args: any[]) => {
+        if (method === 'KeyringController:signTypedMessage') {
+          return '0xautosigned';
+        }
+        return originalCallImpl?.(method, ...args);
+      },
+    );
+
+    await controller.submitIntent({
+      quoteResponse,
+      accountAddress,
+    });
+
+    expect((messenger.call as jest.Mock).mock.calls).toStrictEqual(
+      expect.arrayContaining([
+        [
+          'KeyringController:signTypedMessage',
+          expect.objectContaining({
+            from: accountAddress,
+            data: quoteResponse.quote.intent.typedData,
+          }),
+          'V4',
+        ],
+      ]),
+    );
+
+    expect(submitIntentMock.mock.calls[0]?.[0]?.signature).toBe('0xautosigned');
   });
 
   it('intent polling: updates history, merges tx hashes, updates TC tx, and stops polling on COMPLETED', async () => {
@@ -557,7 +609,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     await controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
 
@@ -602,7 +653,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     await controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
 
@@ -649,7 +699,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     await controller.submitIntent({
       quoteResponse,
-      signature: '0xsig',
       accountAddress,
     });
 

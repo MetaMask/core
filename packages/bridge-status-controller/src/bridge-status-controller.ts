@@ -38,7 +38,7 @@ import type {
   TransactionParams,
 } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import { IntentManager } from './bridge-status-controller.intent';
 import {
@@ -1593,26 +1593,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /**
-   * UI-signed intent submission (fast path): the UI generates the EIP-712 signature and calls this with the raw signature.
-   * Here we submit the order to the intent provider and create a synthetic history entry for UX.
+   * Submits an intent order and creates a synthetic history entry for UX.
+   * The EIP-712 payload is always signed inside this controller via KeyringController.
    *
    * @param params - Object containing intent submission parameters
    * @param params.quoteResponse - Quote carrying intent data
-   * @param params.signature - Hex signature produced by eth_signTypedData_v4
    * @param params.accountAddress - The EOA submitting the order
    * @param params.location - The entry point from which the user initiated the swap or bridge
    * @param params.abTests - A/B test context to attribute events to specific experiments
    * @returns A lightweight TransactionMeta-like object for history linking
    */
   submitIntent = async (params: {
-    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata;
-    signature: string;
+    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
-    const { quoteResponse, signature, accountAddress, location, abTests } =
-      params;
+    const { quoteResponse, accountAddress, location, abTests } = params;
 
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
@@ -1631,9 +1628,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     try {
-      const intent = getIntentFromQuote(
-        quoteResponse as QuoteResponse & { quote: { intent?: Intent } },
-      );
+      const intent = getIntentFromQuote(quoteResponse);
 
       // If backend provided an approval tx for this intent quote, submit it first (on-chain),
       // then proceed with off-chain intent submission.
@@ -1662,6 +1657,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
 
       const { srcChainId: chainId, requestId } = quoteResponse.quote;
+
+      const signature = await this.messenger.call(
+        'KeyringController:signTypedMessage',
+        {
+          from: accountAddress,
+          data: intent.typedData,
+        },
+        'V4',
+      );
 
       const submissionParams: IntentSubmissionParams = {
         srcChainId: chainId.toString(),
@@ -1817,11 +1821,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       EventName
     >[EventName],
   ): void => {
+    const { ab_tests: eventAbTests } =
+      (eventProperties as
+        | Record<string, Record<string, string> | undefined>
+        | undefined) ?? {};
     const historyAbTests = txMetaId
       ? this.state.txHistory?.[txMetaId]?.abTests
       : undefined;
-    const resolvedAbTests =
-      eventProperties?.ab_tests ?? historyAbTests ?? undefined;
+    const resolvedAbTests = eventAbTests ?? historyAbTests ?? undefined;
 
     const baseProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,
