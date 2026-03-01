@@ -88,6 +88,7 @@ export { createRequestSelector } from './selectors';
 export type {
   TransakServiceActions,
   TransakServiceEvents,
+  TransakServiceOrderUpdateEvent,
   TransakServiceMessenger,
   TransakAccessToken,
   TransakUserDetails,
@@ -110,6 +111,9 @@ export type {
   TransakUserLimits,
   TransakIdProofStatus,
   PatchUserRequestBody as TransakPatchUserRequestBody,
+  PusherFactory,
+  PusherLike,
+  ChannelLike,
 } from './TransakService';
 export {
   TransakApiError,
@@ -128,4 +132,7 @@ export type {
   TransakServiceGetOrderAction,
   TransakServiceRequestOttAction,
   TransakServiceGeneratePaymentWidgetUrlAction,
+  TransakServiceSubscribeToOrderAction,
+  TransakServiceUnsubscribeFromOrderAction,
+  TransakServiceDisconnectWebSocketAction,
 } from './TransakService-method-action-types';

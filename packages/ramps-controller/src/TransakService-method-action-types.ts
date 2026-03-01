@@ -125,6 +125,21 @@ export type TransakServiceGetActiveOrdersAction = {
   handler: TransakService['getActiveOrders'];
 };
 
+export type TransakServiceSubscribeToOrderAction = {
+  type: `TransakService:subscribeToOrder`;
+  handler: TransakService['subscribeToOrder'];
+};
+
+export type TransakServiceUnsubscribeFromOrderAction = {
+  type: `TransakService:unsubscribeFromOrder`;
+  handler: TransakService['unsubscribeFromOrder'];
+};
+
+export type TransakServiceDisconnectWebSocketAction = {
+  type: `TransakService:disconnectWebSocket`;
+  handler: TransakService['disconnectWebSocket'];
+};
+
 /**
  * Union of all TransakService action types.
  */
@@ -152,4 +167,7 @@ export type TransakServiceMethodActions =
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
-  | TransakServiceGetActiveOrdersAction;
+  | TransakServiceGetActiveOrdersAction
+  | TransakServiceSubscribeToOrderAction
+  | TransakServiceUnsubscribeFromOrderAction
+  | TransakServiceDisconnectWebSocketAction;
