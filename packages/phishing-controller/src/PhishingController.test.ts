@@ -3482,34 +3482,25 @@ describe('PhishingController', () => {
     });
 
     it('will return empty approvals for unknown chain ID', async () => {
-      const response = await controller.getApprovals(
-        '0x999999',
-        testAddress,
-      );
+      const response = await controller.getApprovals('0x999999', testAddress);
       expect(response).toStrictEqual({ approvals: [] });
     });
 
     it.each([
       [400, 'Bad Request'],
       [500, 'Internal Server Error'],
-    ])(
-      'will return empty approvals on %i HTTP error',
-      async (statusCode) => {
-        const scope = nock(SECURITY_ALERTS_BASE_URL)
-          .post(APPROVALS_ENDPOINT, {
-            chain: 'ethereum',
-            address: testAddress.toLowerCase(),
-          })
-          .reply(statusCode);
+    ])('will return empty approvals on %i HTTP error', async (statusCode) => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(statusCode);
 
-        const response = await controller.getApprovals(
-          testChainId,
-          testAddress,
-        );
-        expect(response).toStrictEqual({ approvals: [] });
-        expect(scope.isDone()).toBe(true);
-      },
-    );
+      const response = await controller.getApprovals(testChainId, testAddress);
+      expect(response).toStrictEqual({ approvals: [] });
+      expect(scope.isDone()).toBe(true);
+    });
 
     it('will return empty approvals on timeout', async () => {
       const scope = nock(SECURITY_ALERTS_BASE_URL)
