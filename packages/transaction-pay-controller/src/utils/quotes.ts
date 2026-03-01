@@ -3,6 +3,7 @@ import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { getStrategiesByName, getStrategyByName } from './strategy';
 import {
@@ -108,17 +109,22 @@ export async function updateQuotes(
     );
 
     const totals = calculateTotals({
+      fiatPaymentAmountUsd: transactionData.fiatPayment?.amount,
       isMaxAmount,
       messenger,
       quotes: quotes as TransactionPayQuote<unknown>[],
       tokens,
       transaction,
     });
+    const hasFiatQuote = quotes.some(
+      (quote) => quote.strategy === TransactionPayStrategy.Fiat,
+    );
 
     log('Calculated totals', { transactionId, totals });
 
     syncTransaction({
       batchTransactions,
+      hasFiatQuote,
       isPostQuote,
       messenger: messenger as never,
       paymentToken,
@@ -145,6 +151,7 @@ export async function updateQuotes(
  *
  * @param request - Request object.
  * @param request.batchTransactions - Batch transactions to sync.
+ * @param request.hasFiatQuote - Whether current quotes include fiat strategy.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.messenger - Messenger instance.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
@@ -153,6 +160,7 @@ export async function updateQuotes(
  */
 function syncTransaction({
   batchTransactions,
+  hasFiatQuote,
   isPostQuote,
   messenger,
   paymentToken,
@@ -160,6 +168,7 @@ function syncTransaction({
   transactionId,
 }: {
   batchTransactions: BatchTransaction[];
+  hasFiatQuote: boolean;
   isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
@@ -180,14 +189,25 @@ function syncTransaction({
       tx.batchTransactions = batchTransactions;
       tx.batchTransactionsOptions = {};
 
+      const legacyTotalFiat = hasFiatQuote
+        ? new BigNumber(totals.total.usd)
+            .plus(totals.fees.provider.usd)
+            .plus(totals.fees.sourceNetwork.estimate.usd)
+            .plus(totals.fees.targetNetwork.usd)
+            .plus(totals.fees.metaMask.usd)
+            .toString(10)
+        : totals.total.usd;
+
       tx.metamaskPay = {
-        bridgeFeeFiat: totals.fees.provider.usd,
+        bridgeFeeFiat: new BigNumber(totals.fees.provider.usd)
+          .plus(totals.fees.fiatProvider?.usd ?? 0)
+          .toString(10),
         chainId: paymentToken.chainId,
         isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         targetFiat: totals.targetAmount.usd,
         tokenAddress: paymentToken.address,
-        totalFiat: totals.total.usd,
+        totalFiat: legacyTotalFiat,
       };
     },
   );

@@ -404,6 +404,9 @@ export type TransactionPayFees = {
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
+  /** Fee charged by fiat on-ramp provider. */
+  fiatProvider?: FiatValue;
+
   /** Network fee for transactions on the source network. */
   sourceNetwork: {
     estimate: Amount;

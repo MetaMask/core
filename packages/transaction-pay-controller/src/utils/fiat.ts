@@ -3,11 +3,15 @@ import {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
-import { MMPAY_FIAT_ASSET_ID_BY_TX_TYPE } from '../constants';
+import {
+  MMPAY_FIAT_ASSET_ID_BY_TX_TYPE,
+  TransactionPayFiatAsset,
+} from '../constants';
+import { FiatQuotesResponse, FiatQuote } from '../strategy/fiat/types';
 
-export function deriveFiatAssetIdForFiatPayment(
+export function deriveFiatAssetForFiatPayment(
   transaction: TransactionMeta,
-): string | undefined {
+): TransactionPayFiatAsset | undefined {
   const transactionType = transaction?.type;
 
   if (transactionType === TransactionType.batch) {
@@ -18,4 +22,19 @@ export function deriveFiatAssetIdForFiatPayment(
   }
 
   return MMPAY_FIAT_ASSET_ID_BY_TX_TYPE[transactionType as TransactionType];
+}
+
+export function deriveFiatAssetIdForFiatPayment(
+  transaction: TransactionMeta,
+): string | undefined {
+  return deriveFiatAssetForFiatPayment(transaction)?.caipAssetId;
+}
+
+export function pickBestFiatQuote(
+  quotes: FiatQuotesResponse,
+): FiatQuote | undefined {
+  return quotes.success?.find(
+    // Implement to find most reliable quote but return transak for now
+    (quote) => quote.provider === '/providers/transak-native-staging',
+  );
 }
