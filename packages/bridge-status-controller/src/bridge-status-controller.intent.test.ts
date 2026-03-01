@@ -70,8 +70,6 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
         order: { some: 'order' },
         settlementContract: '0x9008D19f58AAbd9eD0D60971565AA8510560ab41',
         typedData: {
-          types: {},
-          primaryType: 'Order',
           domain: {},
           message: {},
         },
@@ -552,8 +550,6 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const quoteResponse = minimalIntentQuoteResponse();
     quoteResponse.quote.intent.typedData = {
-      types: {},
-      primaryType: 'Order',
       domain: {},
       message: {},
     };
@@ -589,22 +585,6 @@ describe('BridgeStatusController (intent swaps)', () => {
     );
 
     expect(submitIntentMock.mock.calls[0]?.[0]?.signature).toBe('0xautosigned');
-  });
-
-  it('submitIntent: throws when signature and typedData are both missing', async () => {
-    const { controller, accountAddress, submitIntentMock } = setup();
-
-    const quoteResponse = minimalIntentQuoteResponse();
-    quoteResponse.quote.intent.typedData = undefined;
-
-    await expect(
-      controller.submitIntent({
-        quoteResponse,
-        accountAddress,
-      }),
-    ).rejects.toThrow('submitIntent: missing intent typedData');
-
-    expect(submitIntentMock).not.toHaveBeenCalled();
   });
 
   it('intent polling: updates history, merges tx hashes, updates TC tx, and stops polling on COMPLETED', async () => {

@@ -1,4 +1,6 @@
-import { validateFeatureFlagsResponse } from './validators';
+import { is } from '@metamask/superstruct';
+
+import { validateFeatureFlagsResponse, IntentSchema } from './validators';
 
 describe('validators', () => {
   describe('validateFeatureFlagsResponse', () => {
@@ -322,5 +324,96 @@ describe('validators', () => {
         expect(validateFeatureFlagsResponse(response)).toBe(expected);
       },
     );
+  });
+
+  describe('IntentSchema', () => {
+    const validOrder = {
+      sellToken: '0x0000000000000000000000000000000000000001',
+      buyToken: '0x0000000000000000000000000000000000000002',
+      validTo: 1717027200,
+      appData: 'some-app-data',
+      appDataHash: '0xabcd',
+      feeAmount: '100',
+      kind: 'sell' as const,
+      partiallyFillable: false,
+      sellAmount: '1000',
+    };
+
+    const validIntent = {
+      protocol: 'cowswap',
+      order: validOrder,
+      typedData: {
+        domain: { name: 'GPv2Settlement', chainId: 1 },
+        message: { sellToken: '0x01', buyToken: '0x02' },
+      },
+    };
+
+    it('accepts a valid intent with required fields only', () => {
+      expect(is(validIntent, IntentSchema)).toBe(true);
+    });
+
+    it('accepts intent with optional settlementContract', () => {
+      expect(
+        is(
+          {
+            ...validIntent,
+            settlementContract:
+              '0x9008D19f58AAbd9eD0D60971565AA8510560ab41',
+          },
+          IntentSchema,
+        ),
+      ).toBe(true);
+    });
+
+    it('rejects intent without typedData', () => {
+      const { typedData: _, ...intentWithoutTypedData } = validIntent;
+      expect(is(intentWithoutTypedData, IntentSchema)).toBe(false);
+    });
+
+    it('rejects intent with typedData missing domain', () => {
+      expect(
+        is(
+          {
+            ...validIntent,
+            typedData: { message: {} },
+          },
+          IntentSchema,
+        ),
+      ).toBe(false);
+    });
+
+    it('rejects intent with typedData missing message', () => {
+      expect(
+        is(
+          {
+            ...validIntent,
+            typedData: { domain: {} },
+          },
+          IntentSchema,
+        ),
+      ).toBe(false);
+    });
+
+    it('rejects intent without protocol', () => {
+      const { protocol: _, ...intentWithoutProtocol } = validIntent;
+      expect(is(intentWithoutProtocol, IntentSchema)).toBe(false);
+    });
+
+    it('rejects intent without order', () => {
+      const { order: _, ...intentWithoutOrder } = validIntent;
+      expect(is(intentWithoutOrder, IntentSchema)).toBe(false);
+    });
+
+    it('accepts intent with empty typedData records', () => {
+      expect(
+        is(
+          {
+            ...validIntent,
+            typedData: { domain: {}, message: {} },
+          },
+          IntentSchema,
+        ),
+      ).toBe(true);
+    });
   });
 });

@@ -1604,7 +1604,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @returns A lightweight TransactionMeta-like object for history linking
    */
   submitIntent = async (params: {
-    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata;
+    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
@@ -1628,13 +1628,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     try {
-      const intent = getIntentFromQuote(
-        quoteResponse as QuoteResponse & { quote: { intent?: Intent } },
-      );
-
-      if (!intent.typedData) {
-        throw new Error('submitIntent: missing intent typedData');
-      }
+      const intent = getIntentFromQuote(quoteResponse);
 
       // If backend provided an approval tx for this intent quote, submit it first (on-chain),
       // then proceed with off-chain intent submission.
@@ -1668,7 +1662,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         'KeyringController:signTypedMessage',
         {
           from: accountAddress,
-          data: intent.typedData as unknown as Json,
+          data: intent.typedData,
         },
         'V4',
       );

@@ -330,33 +330,16 @@ export const IntentSchema = type({
   settlementContract: optional(HexAddressSchema),
 
   /**
-   * Optional relayer address responsible for order submission.
-   */
-  relayer: optional(HexAddressSchema),
-
-  /**
    * Optional EIP-712 typed data payload for signing.
    * Must be JSON-serializable and include required EIP-712 fields.
    */
-  typedData: optional(
-    type({
-      types: record(
-        string(),
-        array(
-          type({
-            name: string(),
-            type: string(),
-          }),
-        ),
-      ),
-      primaryType: string(),
-      // Keep values as `any()` here. Using `unknown()` in this record causes
-      // TS2321/TS2589 (excessive type instantiation depth) in bridge state
-      // inference during build.
-      domain: record(string(), any()),
-      message: record(string(), any()),
-    }),
-  ),
+  typedData: type({
+    // Keep values as `any()` here. Using `unknown()` in this record causes
+    // TS2321/TS2589 (excessive type instantiation depth) in bridge state
+    // inference during build.
+    domain: record(string(), any()),
+    message: record(string(), any()),
+  }),
 });
 
 export const QuoteSchema = type({
