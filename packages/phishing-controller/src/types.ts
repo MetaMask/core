@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * Represents the result of checking a domain.
  */
@@ -261,4 +262,61 @@ export type AddressScanResult = {
 export type AddressScanCacheData = {
   result_type: AddressScanResultType;
   label: string;
+};
+
+export enum ApprovalResultType {
+  Malicious = 'Malicious',
+  Warning = 'Warning',
+  Benign = 'Benign',
+  ErrorResult = 'Error',
+}
+
+export enum ApprovalFeatureType {
+  Malicious = 'Malicious',
+  Warning = 'Warning',
+  Benign = 'Benign',
+  Info = 'Info',
+}
+
+export type ApprovalFeature = {
+  feature_id: string;
+  type: ApprovalFeatureType;
+  description: string;
+};
+
+export type Allowance = {
+  amount: string;
+  is_unlimited: boolean;
+};
+
+export type ApprovalAsset = {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logo_url?: string;
+  type?: string;
+};
+
+export type Exposure = {
+  usd: number;
+};
+
+export type Spender = {
+  address: string;
+  label?: string;
+  is_verified?: boolean;
+};
+
+export type Approval = {
+  allowance: Allowance;
+  asset: ApprovalAsset;
+  exposure: Exposure;
+  spender: Spender;
+  verdict: ApprovalResultType;
+  features?: ApprovalFeature[];
+};
+
+export type ApprovalsResponse = {
+  approvals: Approval[];
 };

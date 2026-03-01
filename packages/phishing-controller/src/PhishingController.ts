@@ -35,6 +35,7 @@ import type {
   TokenScanApiResponse,
   AddressScanCacheData,
   AddressScanResult,
+  ApprovalsResponse,
 } from './types';
 import {
   applyDiffs,
@@ -66,6 +67,7 @@ export const SECURITY_ALERTS_BASE_URL =
   'https://security-alerts.api.cx.metamask.io';
 export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 export const ADDRESS_SCAN_ENDPOINT = '/address/evm/scan';
+export const APPROVALS_ENDPOINT = '/address/evm/approvals';
 
 // Cache configuration defaults
 export const DEFAULT_URL_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
@@ -399,6 +401,11 @@ export type PhishingControllerScanAddressAction = {
   handler: PhishingController['scanAddress'];
 };
 
+export type PhishingControllerGetApprovalsAction = {
+  type: `${typeof controllerName}:getApprovals`;
+  handler: PhishingController['getApprovals'];
+};
+
 export type PhishingControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   PhishingControllerState
@@ -410,7 +417,8 @@ export type PhishingControllerActions =
   | TestOrigin
   | PhishingControllerBulkScanUrlsAction
   | PhishingControllerBulkScanTokensAction
-  | PhishingControllerScanAddressAction;
+  | PhishingControllerScanAddressAction
+  | PhishingControllerGetApprovalsAction;
 
 export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -599,6 +607,11 @@ export class PhishingController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:scanAddress` as const,
       this.scanAddress.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:getApprovals` as const,
+      this.getApprovals.bind(this),
     );
   }
 
@@ -1307,6 +1320,62 @@ export class PhishingController extends BaseController<
       result_type: apiResponse.result_type,
       label: apiResponse.label,
     };
+  };
+
+  /**
+   * Get token approvals for an EVM address with security enrichments.
+   *
+   * @param chainId - The chain ID in hex format (e.g., '0x1' for Ethereum).
+   * @param address - The address to get approvals for.
+   * @returns The approvals response containing approval data, or empty approvals on error.
+   */
+  getApprovals = async (
+    chainId: string,
+    address: string,
+  ): Promise<ApprovalsResponse> => {
+    if (!address || !chainId) {
+      return { approvals: [] };
+    }
+
+    const normalizedChainId = chainId.toLowerCase();
+    const normalizedAddress = address.toLowerCase();
+    const chain = resolveChainName(normalizedChainId);
+
+    if (!chain) {
+      return { approvals: [] };
+    }
+
+    const apiResponse = await safelyExecuteWithTimeout(
+      async () => {
+        const res = await fetch(
+          `${SECURITY_ALERTS_BASE_URL}${APPROVALS_ENDPOINT}`,
+          {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              chain,
+              address: normalizedAddress,
+            }),
+          },
+        );
+        if (!res.ok) {
+          return { error: `${res.status} ${res.statusText}` };
+        }
+        const data: ApprovalsResponse = await res.json();
+        return data;
+      },
+      true,
+      5000,
+    );
+
+    if (!apiResponse || 'error' in apiResponse) {
+      return { approvals: [] };
+    }
+
+    return apiResponse;
   };
 
   /**

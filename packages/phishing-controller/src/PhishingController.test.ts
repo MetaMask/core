@@ -21,6 +21,7 @@ import {
   PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
   SECURITY_ALERTS_BASE_URL,
   ADDRESS_SCAN_ENDPOINT,
+  APPROVALS_ENDPOINT,
 } from './PhishingController';
 import type {
   PhishingControllerOptions,
@@ -3426,6 +3427,138 @@ describe('PhishingController', () => {
 
       expect(cachedResult1).toMatchObject(mockResponse1);
       expect(cachedResult2).toMatchObject(mockResponse2);
+    });
+  });
+
+  describe('getApprovals', () => {
+    let controller: PhishingController;
+
+    const testChainId = '0x1';
+    const testAddress = '0x1234567890123456789012345678901234567890';
+    const mockApproval = {
+      allowance: { amount: '1000000', is_unlimited: false },
+      asset: {
+        address: '0xtoken',
+        symbol: 'TKN',
+        name: 'Token',
+        decimals: 18,
+      },
+      exposure: { usd: 100 },
+      spender: { address: '0xspender' },
+      verdict: 'Benign',
+    };
+    const mockResponse = { approvals: [mockApproval] };
+
+    beforeEach(() => {
+      controller = getPhishingController();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('will return approvals for a valid address and chain', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await controller.getApprovals(testChainId, testAddress);
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will return empty approvals when address is missing', async () => {
+      const response = await controller.getApprovals(testChainId, '');
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it('will return empty approvals when chainId is missing', async () => {
+      const response = await controller.getApprovals('', testAddress);
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it('will return empty approvals for unknown chain ID', async () => {
+      const response = await controller.getApprovals(
+        '0x999999',
+        testAddress,
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [500, 'Internal Server Error'],
+    ])(
+      'will return empty approvals on %i HTTP error',
+      async (statusCode) => {
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(APPROVALS_ENDPOINT, {
+            chain: 'ethereum',
+            address: testAddress.toLowerCase(),
+          })
+          .reply(statusCode);
+
+        const response = await controller.getApprovals(
+          testChainId,
+          testAddress,
+        );
+        expect(response).toStrictEqual({ approvals: [] });
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+
+    it('will return empty approvals on timeout', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .delayConnection(10000)
+        .reply(200, mockResponse);
+
+      const promise = controller.getApprovals(testChainId, testAddress);
+      jest.advanceTimersByTime(5000);
+      const response = await promise;
+      expect(response).toStrictEqual({ approvals: [] });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('will normalize address to lowercase before API call', async () => {
+      const mixedCaseAddress = '0xAbCdEf1234567890123456789012345678901234';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: mixedCaseAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await controller.getApprovals(
+        testChainId,
+        mixedCaseAddress,
+      );
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will normalize chainId and resolve to chain name', async () => {
+      const mixedCaseChainId = '0xA';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'optimism',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await controller.getApprovals(
+        mixedCaseChainId,
+        testAddress,
+      );
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
     });
   });
 });
