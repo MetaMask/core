@@ -1342,11 +1342,6 @@
       "count": 2
     }
   },
-  "packages/phishing-controller/src/types.ts": {
-    "@typescript-eslint/naming-convention": {
-      "count": 4
-    }
-  },
   "packages/phishing-controller/src/utils.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
