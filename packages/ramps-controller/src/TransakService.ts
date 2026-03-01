@@ -1222,12 +1222,7 @@ export class TransakService {
 
   #ensurePusher(): PusherLike {
     if (!this.#pusher) {
-      if (!this.#createPusher) {
-        throw new Error(
-          'WebSocket support requires a Pusher factory. Pass createPusher to the TransakService constructor.',
-        );
-      }
-      this.#pusher = this.#createPusher(TRANSAK_PUSHER_KEY, {
+      this.#pusher = this.#createPusher!(TRANSAK_PUSHER_KEY, {
         cluster: TRANSAK_PUSHER_CLUSTER,
       });
     }

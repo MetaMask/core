@@ -802,6 +802,34 @@ describe('TransakService', () => {
         }),
       );
     });
+
+    it('throws a TransakApiError without errorCode when errorCode is null in response', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(400, {
+          error: {
+            errorCode: null,
+            message: 123,
+          },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getUserDetails();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toBeInstanceOf(TransakApiError);
+      await expect(promise).rejects.toThrow(
+        expect.objectContaining({
+          httpStatus: 400,
+          errorCode: undefined,
+          apiMessage: undefined,
+        }),
+      );
+    });
   });
 
   describe('patchUser', () => {

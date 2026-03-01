@@ -1960,7 +1960,9 @@ export class RampsController extends BaseController<
     });
 
     if (order) {
-      this.#refreshOrder(order).catch(() => undefined);
+      // Intentionally ignore errors - WebSocket updates are best-effort;
+      // polling provides the reliable fallback
+      void this.#refreshOrder(order).catch(() => undefined);
     }
   }
 
