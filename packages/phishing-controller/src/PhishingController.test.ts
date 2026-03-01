@@ -3436,15 +3436,27 @@ describe('PhishingController', () => {
     const testChainId = '0x1';
     const testAddress = '0x1234567890123456789012345678901234567890';
     const mockApproval = {
-      allowance: { amount: '1000000', is_unlimited: false },
+      allowance: { value: '1000000', usd_price: '1000.00' },
       asset: {
+        type: 'ERC20',
         address: '0xtoken',
         symbol: 'TKN',
         name: 'Token',
         decimals: 18,
+        logo_url: 'https://example.com/token.png',
       },
-      exposure: { usd: 100 },
-      spender: { address: '0xspender' },
+      exposure: { usd_price: '100.00', value: '100.00', raw_value: '0x64' },
+      spender: {
+        address: '0xspender',
+        label: 'Uniswap',
+        features: [
+          {
+            type: 'Benign',
+            feature_id: 'VERIFIED_CONTRACT',
+            description: 'This contract is verified',
+          },
+        ],
+      },
       verdict: 'Benign',
     };
     const mockResponse = { approvals: [mockApproval] };

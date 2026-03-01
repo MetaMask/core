@@ -285,8 +285,8 @@ export type ApprovalFeature = {
 };
 
 export type Allowance = {
-  amount: string;
-  is_unlimited: boolean;
+  value: string;
+  usd_price: string;
 };
 
 export type ApprovalAsset = {
@@ -299,13 +299,15 @@ export type ApprovalAsset = {
 };
 
 export type Exposure = {
-  usd: number;
+  usd_price: string;
+  value: string;
+  raw_value: string;
 };
 
 export type Spender = {
   address: string;
   label?: string;
-  is_verified?: boolean;
+  features?: ApprovalFeature[];
 };
 
 export type Approval = {
@@ -314,7 +316,6 @@ export type Approval = {
   exposure: Exposure;
   spender: Spender;
   verdict: ApprovalResultType;
-  features?: ApprovalFeature[];
 };
 
 export type ApprovalsResponse = {
