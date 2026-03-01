@@ -5786,9 +5786,12 @@ describe('RampsController', () => {
         });
         controller.addOrder(order);
 
+        const getOrderMock = jest
+          .fn()
+          .mockRejectedValue(new Error('Network error'));
         rootMessenger.registerActionHandler(
           'RampsService:getOrder',
-          jest.fn().mockRejectedValue(new Error('Network error')),
+          getOrderMock,
         );
 
         rootMessenger.publish('TransakService:orderUpdate', {
@@ -5797,10 +5800,15 @@ describe('RampsController', () => {
           eventType: 'ORDER_COMPLETED',
         });
 
-        // Force all microtasks to execute
-        await new Promise(process.nextTick);
-        await new Promise(process.nextTick);
-        await new Promise(process.nextTick);
+        await new Promise((resolve) => process.nextTick(resolve));
+        await new Promise((resolve) => process.nextTick(resolve));
+        await new Promise((resolve) => process.nextTick(resolve));
+
+        expect(getOrderMock).toHaveBeenCalledWith(
+          'transak-native',
+          'error-order',
+          '0xabc',
+        );
       });
     });
 

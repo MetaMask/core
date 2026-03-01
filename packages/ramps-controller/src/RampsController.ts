@@ -1962,7 +1962,7 @@ export class RampsController extends BaseController<
     if (order) {
       // Intentionally ignore errors - WebSocket updates are best-effort;
       // polling provides the reliable fallback
-      void this.#refreshOrder(order).catch(() => undefined);
+      this.#refreshOrder(order).catch(() => undefined);
     }
   }
 
