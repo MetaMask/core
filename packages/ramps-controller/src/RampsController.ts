@@ -22,6 +22,7 @@ import type {
   RampsServiceActions,
   RampsOrder,
 } from './RampsService';
+import { RampsOrderStatus } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -257,6 +258,12 @@ export type RampsControllerState = {
    * user details, quote, and KYC data.
    */
   nativeProviders: NativeProvidersState;
+  /**
+   * V2 orders stored directly as RampsOrder[].
+   * The controller is the authority for V2 orders — it polls, updates,
+   * and persists them. No FiatOrder wrapper needed.
+   */
+  orders: RampsOrder[];
 };
 
 /**
@@ -303,6 +310,12 @@ const rampsControllerMetadata = {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: false,
+    usedInUi: true,
+  },
+  orders: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
     usedInUi: true,
   },
 } satisfies StateMetadata<RampsControllerState>;
@@ -364,6 +377,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
           createDefaultResourceState<TransakKycRequirement | null>(null),
       },
     },
+    orders: [],
   };
 }
 
@@ -473,9 +487,20 @@ export type RampsControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 
 /**
+ * Published when a V2 order's status transitions.
+ * Consumed by mobile's init layer for notifications and analytics.
+ */
+export type RampsControllerOrderStatusChangedEvent = {
+  type: `${typeof controllerName}:orderStatusChanged`;
+  payload: [{ order: RampsOrder; previousStatus: RampsOrderStatus }];
+};
+
+/**
  * Events that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerEvents = RampsControllerStateChangeEvent;
+export type RampsControllerEvents =
+  | RampsControllerStateChangeEvent
+  | RampsControllerOrderStatusChangedEvent;
 
 /**
  * Events from other messengers that {@link RampsController} subscribes to.
@@ -570,6 +595,30 @@ function findRegionFromCode(
   };
 }
 
+// === ORDER POLLING CONSTANTS ===
+
+const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
+  RampsOrderStatus.Completed,
+  RampsOrderStatus.Failed,
+  RampsOrderStatus.Cancelled,
+  RampsOrderStatus.IdExpired,
+]);
+
+const PENDING_ORDER_STATUSES = new Set<RampsOrderStatus>([
+  RampsOrderStatus.Pending,
+  RampsOrderStatus.Created,
+  RampsOrderStatus.Unknown,
+  RampsOrderStatus.Precreated,
+]);
+
+const DEFAULT_POLLING_INTERVAL_MS = 30_000;
+const MAX_ERROR_COUNT = 5;
+
+type OrderPollingMetadata = {
+  lastTimeFetched: number;
+  errorCount: number;
+};
+
 // === CONTROLLER DEFINITION ===
 
 /**
@@ -601,6 +650,12 @@ export class RampsController extends BaseController<
    * Used so isLoading is only cleared when the last request for that resource finishes.
    */
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
+
+  readonly #orderPollingMeta: Map<string, OrderPollingMetadata> = new Map();
+
+  #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
+
+  #isPolling = false;
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -1554,11 +1609,182 @@ export class RampsController extends BaseController<
     );
   }
 
+  // === ORDER MANAGEMENT ===
+
+  /**
+   * Adds or updates a V2 order in controller state.
+   * If an order with the same providerOrderId already exists, the incoming
+   * fields are merged on top of the existing order so that fields not present
+   * in the update (e.g. paymentDetails from the Transak API) are preserved.
+   *
+   * @param order - The RampsOrder to add or update.
+   */
+  addOrder(order: RampsOrder): void {
+    this.update((state) => {
+      const idx = state.orders.findIndex(
+        (existing) => existing.providerOrderId === order.providerOrderId,
+      );
+      if (idx === -1) {
+        state.orders.push(order as Draft<RampsOrder>);
+      } else {
+        state.orders[idx] = {
+          ...state.orders[idx],
+          ...order,
+        } as Draft<RampsOrder>;
+      }
+    });
+  }
+
+  /**
+   * Removes a V2 order from controller state by providerOrderId.
+   *
+   * @param providerOrderId - The provider order ID to remove.
+   */
+  removeOrder(providerOrderId: string): void {
+    this.update((state) => {
+      state.orders = state.orders.filter(
+        (order) => order.providerOrderId !== providerOrderId,
+      );
+    });
+
+    this.#orderPollingMeta.delete(providerOrderId);
+  }
+
+  /**
+   * Refreshes a single order via the V2 API and updates it in state.
+   * Publishes orderStatusChanged if the status transitioned.
+   *
+   * @param order - The order to refresh (needs provider and providerOrderId).
+   */
+  async #refreshOrder(order: RampsOrder): Promise<void> {
+    const providerCode = order.provider?.id ?? '';
+    if (!providerCode || !order.providerOrderId || !order.walletAddress) {
+      return;
+    }
+
+    const providerCodeSegment = providerCode.replace('/providers/', '');
+    const previousStatus = order.status;
+
+    try {
+      const updatedOrder = await this.getOrder(
+        providerCodeSegment,
+        order.providerOrderId,
+        order.walletAddress,
+      );
+
+      const meta = this.#orderPollingMeta.get(order.providerOrderId) ?? {
+        lastTimeFetched: 0,
+        errorCount: 0,
+      };
+
+      if (updatedOrder.status === RampsOrderStatus.Unknown) {
+        meta.errorCount = Math.min(meta.errorCount + 1, MAX_ERROR_COUNT);
+      } else {
+        meta.errorCount = 0;
+      }
+
+      meta.lastTimeFetched = Date.now();
+      this.#orderPollingMeta.set(order.providerOrderId, meta);
+
+      if (
+        previousStatus !== updatedOrder.status &&
+        previousStatus !== undefined
+      ) {
+        this.messenger.publish('RampsController:orderStatusChanged', {
+          order: updatedOrder,
+          previousStatus,
+        });
+      }
+
+      if (TERMINAL_ORDER_STATUSES.has(updatedOrder.status)) {
+        this.#orderPollingMeta.delete(order.providerOrderId);
+      }
+    } catch {
+      const meta = this.#orderPollingMeta.get(order.providerOrderId) ?? {
+        lastTimeFetched: 0,
+        errorCount: 0,
+      };
+      meta.errorCount = Math.min(meta.errorCount + 1, MAX_ERROR_COUNT);
+      meta.lastTimeFetched = Date.now();
+      this.#orderPollingMeta.set(order.providerOrderId, meta);
+    }
+  }
+
+  /**
+   * Starts polling all pending V2 orders at a fixed interval.
+   * Each poll cycle iterates orders with non-terminal statuses,
+   * respects pollingSecondsMinimum and backoff from error count.
+   */
+  startOrderPolling(): void {
+    if (this.#orderPollingTimer) {
+      return;
+    }
+
+    this.#orderPollingTimer = setInterval(() => {
+      this.#pollPendingOrders().catch(() => undefined);
+    }, DEFAULT_POLLING_INTERVAL_MS);
+
+    this.#pollPendingOrders().catch(() => undefined);
+  }
+
+  /**
+   * Stops order polling and clears the interval.
+   */
+  stopOrderPolling(): void {
+    if (this.#orderPollingTimer) {
+      clearInterval(this.#orderPollingTimer);
+      this.#orderPollingTimer = null;
+    }
+  }
+
+  async #pollPendingOrders(): Promise<void> {
+    if (this.#isPolling) {
+      return;
+    }
+    this.#isPolling = true;
+    try {
+      const pendingOrders = this.state.orders.filter((order) =>
+        PENDING_ORDER_STATUSES.has(order.status),
+      );
+
+      const now = Date.now();
+
+      await Promise.allSettled(
+        pendingOrders.map(async (order) => {
+          const meta = this.#orderPollingMeta.get(order.providerOrderId);
+
+          if (meta) {
+            const backoffMs =
+              meta.errorCount > 0
+                ? Math.min(
+                    DEFAULT_POLLING_INTERVAL_MS *
+                      Math.pow(2, meta.errorCount - 1),
+                    5 * 60 * 1000,
+                  )
+                : 0;
+
+            const pollingMinMs = (order.pollingSecondsMinimum ?? 0) * 1000;
+            const minWait = Math.max(backoffMs, pollingMinMs);
+
+            if (now - meta.lastTimeFetched < minWait) {
+              return;
+            }
+          }
+
+          await this.#refreshOrder(order);
+        }),
+      );
+    } finally {
+      this.#isPolling = false;
+    }
+  }
+
   /**
    * Cleans up controller resources.
    * Should be called when the controller is no longer needed.
    */
   override destroy(): void {
+    this.stopOrderPolling();
     super.destroy();
   }
 
@@ -1601,12 +1827,26 @@ export class RampsController extends BaseController<
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
-    return await this.messenger.call(
+    const order = await this.messenger.call(
       'RampsService:getOrder',
       providerCode,
       orderCode,
       wallet,
     );
+
+    this.update((state) => {
+      const idx = state.orders.findIndex(
+        (existing) => existing.providerOrderId === orderCode,
+      );
+      if (idx !== -1) {
+        state.orders[idx] = {
+          ...state.orders[idx],
+          ...order,
+        } as Draft<RampsOrder>;
+      }
+    });
+
+    return order;
   }
 
   /**
