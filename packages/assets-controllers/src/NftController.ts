@@ -1644,7 +1644,7 @@ export class NftController extends BaseController<
     const nftsToAdd: NftToAdd[] = [];
 
     nftContractsToAdd.forEach((nftContractToAdd) => {
-      const nftContract = newNftContracts[nftContractToAdd.chainId].find(
+      const nftContract = newNftContracts[nftContractToAdd.chainId]?.find(
         (contract) =>
           contract.address.toLowerCase() ===
           nftContractToAdd.tokenAddress.toLowerCase(),
