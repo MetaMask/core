@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getExchangeRatesForBridge()` method and `AssetsController:getExchangeRatesForBridge` messenger action. Returns bridge-compatible exchange rate state (`conversionRates`, `currencyRates`, `marketData`, `currentCurrency`) derived from `assetsPrice` and `selectedCurrency`, for use when the bridge uses AssetsController for rates ([#8076](https://github.com/MetaMask/core/pull/8076))
+
+### Changed
+
+- Move `normalizeAssetId` into `utils/` (`utils/normalizeAssetId.ts`) and re-export from the utils barrel ([#8076](https://github.com/MetaMask/core/pull/8076))
+- Re-export all method action types from `AssetsController` so action types are exported from a single module ([#8076](https://github.com/MetaMask/core/pull/8076))
+
 ## [2.1.0]
 
 ### Added
