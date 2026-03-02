@@ -464,9 +464,9 @@ export type RampsControllerGetOrderAction = {
  */
 export type RampsControllerActions =
   | RampsControllerGetStateAction
-  | RampsControllerSetSelectedTokenAction
+  | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
-  | RampsControllerGetOrderAction;
+  | RampsControllerSetSelectedTokenAction;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -750,16 +750,16 @@ export class RampsController extends BaseController<
 
   #registerActionHandlers(): void {
     this.messenger.registerActionHandler(
-      'RampsController:setSelectedToken',
-      this.setSelectedToken.bind(this),
+      'RampsController:getOrder',
+      this.getOrder.bind(this),
     );
     this.messenger.registerActionHandler(
       'RampsController:getQuotes',
       this.getQuotes.bind(this),
     );
     this.messenger.registerActionHandler(
-      'RampsController:getOrder',
-      this.getOrder.bind(this),
+      'RampsController:setSelectedToken',
+      this.setSelectedToken.bind(this),
     );
   }
 
