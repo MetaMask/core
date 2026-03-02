@@ -70,7 +70,9 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
         order: { some: 'order' },
         settlementContract: '0x9008D19f58AAbd9eD0D60971565AA8510560ab41',
         typedData: {
+          types: {},
           domain: {},
+          primaryType: 'Order',
           message: {},
         },
       },
@@ -550,6 +552,8 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const quoteResponse = minimalIntentQuoteResponse();
     quoteResponse.quote.intent.typedData = {
+      types: {},
+      primaryType: 'Order',
       domain: {},
       message: {},
     };

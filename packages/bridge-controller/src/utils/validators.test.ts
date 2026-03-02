@@ -282,9 +282,10 @@ describe('validators', () => {
           maxRefreshCount: 5,
           refreshRate: 30000,
           support: true,
-          minimumVersion: '0.0',
+          minimumVersion: '0.0.0',
           sse: {
             enabled: true,
+            minimumVersion: '0.0',
           },
         },
         type: 'sse config - malformed minimum version',
@@ -318,12 +319,9 @@ describe('validators', () => {
         type: 'all evm chains active + an extra field not specified in the schema',
         expected: true,
       },
-    ])(
-      'should return $expected if the response is valid: $type',
-      ({ response, expected }) => {
-        expect(validateFeatureFlagsResponse(response)).toBe(expected);
-      },
-    );
+    ])('should return $expected for: $type', ({ response, expected }) => {
+      expect(validateFeatureFlagsResponse(response)).toBe(expected);
+    });
   });
 
   describe('IntentSchema', () => {
@@ -343,7 +341,9 @@ describe('validators', () => {
       protocol: 'cowswap',
       order: validOrder,
       typedData: {
+        types: { Order: [{ name: 'sellToken', type: 'address' }] },
         domain: { name: 'GPv2Settlement', chainId: 1 },
+        primaryType: 'Order',
         message: { sellToken: '0x01', buyToken: '0x02' },
       },
     };
@@ -374,7 +374,7 @@ describe('validators', () => {
         is(
           {
             ...validIntent,
-            typedData: { message: {} },
+            typedData: { types: {}, primaryType: 'Order', message: {} },
           },
           IntentSchema,
         ),
@@ -386,7 +386,31 @@ describe('validators', () => {
         is(
           {
             ...validIntent,
-            typedData: { domain: {} },
+            typedData: { types: {}, domain: {}, primaryType: 'Order' },
+          },
+          IntentSchema,
+        ),
+      ).toBe(false);
+    });
+
+    it('rejects intent with typedData missing types', () => {
+      expect(
+        is(
+          {
+            ...validIntent,
+            typedData: { domain: {}, primaryType: 'Order', message: {} },
+          },
+          IntentSchema,
+        ),
+      ).toBe(false);
+    });
+
+    it('rejects intent with typedData missing primaryType', () => {
+      expect(
+        is(
+          {
+            ...validIntent,
+            typedData: { types: {}, domain: {}, message: {} },
           },
           IntentSchema,
         ),
@@ -408,7 +432,12 @@ describe('validators', () => {
         is(
           {
             ...validIntent,
-            typedData: { domain: {}, message: {} },
+            typedData: {
+              types: {},
+              domain: {},
+              primaryType: 'Order',
+              message: {},
+            },
           },
           IntentSchema,
         ),

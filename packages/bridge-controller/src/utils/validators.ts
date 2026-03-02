@@ -337,6 +337,16 @@ export const IntentSchema = type({
     // Keep values as `any()` here. Using `unknown()` in this record causes
     // TS2321/TS2589 (excessive type instantiation depth) in bridge state
     // inference during build.
+    types: record(
+      string(),
+      array(
+        type({
+          name: string(),
+          type: string(),
+        }),
+      ),
+    ),
+    primaryType: string(),
     domain: record(string(), any()),
     message: record(string(), any()),
   }),
