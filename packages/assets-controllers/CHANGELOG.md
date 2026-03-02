@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- accounts-controller: Move mocks out of build ([#8033](https://github.com/MetaMask/core/pull/8033))
-- feat!: Expose Accounts-owned controller/service methods through messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
-
 ### Added
 
 - Export `MAP_CAIP_CURRENCIES` from the package (and from `MultichainAssetsRatesController`) so consumers can resolve selected currency to the same CAIP currency string used by MultichainAssetsRatesController ([#8076](https://github.com/MetaMask/core/pull/8076))
