@@ -8,7 +8,12 @@ import type {
   DecodedPermission,
   PermissionRule,
 } from '../types';
-import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
+import {
+  getByteLength,
+  getTermsByEnforcer,
+  splitHex,
+  ZERO_32_BYTES,
+} from '../utils';
 
 /**
  * Creates the erc20-token-periodic permission rule.
@@ -29,13 +34,16 @@ export function makeErc20TokenPeriodicRule(
     permissionType: 'erc20-token-periodic',
     optionalEnforcers: [timestampEnforcer],
     timestampEnforcer,
-    requiredEnforcers: new Map<Hex, number>([
-      [erc20PeriodicEnforcer, 1],
-      [valueLteEnforcer, 1],
-      [nonceEnforcer, 1],
-    ]),
-    decodeData: (caveats) =>
-      decodeErc20Periodic(caveats, erc20PeriodicEnforcer),
+    requiredEnforcers: {
+      [erc20PeriodicEnforcer]: 1,
+      [valueLteEnforcer]: 1,
+      [nonceEnforcer]: 1,
+    },
+    validateAndDecodeData: (caveats) =>
+      validateAndDecodeData(caveats, {
+        erc20PeriodicEnforcer,
+        valueLteEnforcer,
+      }),
   });
 }
 
@@ -43,14 +51,29 @@ export function makeErc20TokenPeriodicRule(
  * Decodes erc20-token-periodic permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param enforcer - Address of the ERC20PeriodTransferEnforcer.
- * @returns Decoded periodic terms (tokenAddress, periodAmount, periodDuration, startTime).
+ * @param enforcers - Addresses of the enforcers.
+ * @param enforcers.erc20PeriodicEnforcer - Address of the ERC20PeriodicEnforcer.
+ * @param enforcers.valueLteEnforcer - Address of the ValueLteEnforcer.
+ * @returns Decoded periodic terms.
  */
-export function decodeErc20Periodic(
+function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcer: Hex,
+  enforcers: { erc20PeriodicEnforcer: Hex; valueLteEnforcer: Hex },
 ): DecodedPermission['permission']['data'] {
-  const terms = getTermsByEnforcer({ caveats, enforcer });
+  const { erc20PeriodicEnforcer, valueLteEnforcer } = enforcers;
+
+  const valueLteTerms = getTermsByEnforcer({
+    caveats,
+    enforcer: valueLteEnforcer,
+  });
+  if (valueLteTerms !== ZERO_32_BYTES) {
+    throw new Error(`Invalid value-lte terms: must be ${ZERO_32_BYTES}`);
+  }
+
+  const terms = getTermsByEnforcer({
+    caveats,
+    enforcer: erc20PeriodicEnforcer,
+  });
 
   const EXPECTED_TERMS_BYTELENGTH = 116; // 20 + 32 + 32 + 32
 

@@ -6,7 +6,6 @@ import {
 import type { Hex } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
-import type { DecodedPermission } from '../types';
 
 describe('makePermissionRule', () => {
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][CHAIN_ID.sepolia];
@@ -14,19 +13,14 @@ describe('makePermissionRule', () => {
   const requiredEnforcer = contracts.NonceEnforcer;
 
   it('calls optional validate callback when provided and decoding succeeds', () => {
-    const validate = jest.fn<
-      void,
-      [DecodedPermission['permission']['data'], number | null]
-    >();
-    const decodeData = jest.fn().mockReturnValue({});
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
 
     const rule = makePermissionRule({
       permissionType: 'native-token-stream',
       timestampEnforcer,
       optionalEnforcers: [],
-      requiredEnforcers: new Map([[requiredEnforcer, 1]]),
-      decodeData,
-      validate,
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
     });
 
     const caveats = [
@@ -53,7 +47,6 @@ describe('makePermissionRule', () => {
     }
     expect(result.expiry).toBe(1720000);
     expect(result.data).toStrictEqual({});
-    expect(decodeData).toHaveBeenCalled();
-    expect(validate).toHaveBeenCalledWith({}, 1720000);
+    expect(validateAndDecodeData).toHaveBeenCalled();
   });
 });

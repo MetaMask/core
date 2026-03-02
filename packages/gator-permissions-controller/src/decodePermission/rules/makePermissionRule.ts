@@ -8,7 +8,6 @@ import type {
   PermissionRule,
   PermissionType,
   ValidateAndDecodeResult,
-  ValidateDecodedPermission,
 } from '../types';
 import {
   buildEnforcerCountsAndSet,
@@ -26,8 +25,7 @@ import {
  * @param args.timestampEnforcer - Address of the TimestampEnforcer used to extract expiry.
  * @param args.permissionType - The permission type identifier.
  * @param args.requiredEnforcers - Map of required enforcer address to required count.
- * @param args.decodeData - Callback to decode caveats into permission data; may throw.
- * @param args.validate - Optional callback to validate decoded data and expiry; throw to reject.
+ * @param args.validateAndDecodeData - Callback to decode caveats into permission data; may throw.
  * @returns A permission rule with caveatAddressesMatch and validateAndDecodePermission.
  */
 export function makePermissionRule({
@@ -35,22 +33,24 @@ export function makePermissionRule({
   timestampEnforcer,
   permissionType,
   requiredEnforcers,
-  decodeData,
-  validate,
+  validateAndDecodeData,
 }: {
   optionalEnforcers: Hex[];
   timestampEnforcer: Hex;
   permissionType: PermissionType;
-  requiredEnforcers: Map<Hex, number>;
-  decodeData: (
+  requiredEnforcers: Record<Hex, number>;
+  validateAndDecodeData: (
     caveats: ChecksumCaveat[],
   ) => DecodedPermission['permission']['data'];
-  validate?: ValidateDecodedPermission;
 }): PermissionRule {
   const optionalEnforcersSet = new Set(optionalEnforcers);
+  const requiredEnforcersMap = new Map(
+    Object.entries(requiredEnforcers),
+  ) as Map<Hex, number>;
+
   return {
     permissionType,
-    requiredEnforcers,
+    requiredEnforcers: requiredEnforcersMap,
     optionalEnforcers: optionalEnforcersSet,
     caveatAddressesMatch(caveatAddresses: Hex[]): boolean {
       const { counts, enforcersSet } =
@@ -59,7 +59,7 @@ export function makePermissionRule({
       return enforcersMatchRule(
         counts,
         enforcersSet,
-        requiredEnforcers,
+        requiredEnforcersMap,
         optionalEnforcersSet,
       );
     },
@@ -82,10 +82,9 @@ export function makePermissionRule({
         if (expiryTerms) {
           expiry = extractExpiryFromCaveatTerms(expiryTerms);
         }
-        const data = decodeData(checksumCaveats);
-        if (validate) {
-          validate(data, expiry);
-        }
+
+        const data = validateAndDecodeData(checksumCaveats);
+
         return { isValid: true, expiry, data };
       } catch (caughtError) {
         return { isValid: false, error: caughtError as Error };

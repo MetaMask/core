@@ -13,7 +13,11 @@ import { createPermissionRulesForContracts } from '.';
 describe('native-token-periodic rule', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
-  const { TimestampEnforcer, NativeTokenPeriodTransferEnforcer } = contracts;
+  const {
+    TimestampEnforcer,
+    NativeTokenPeriodTransferEnforcer,
+    ExactCalldataEnforcer,
+  } = contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
   const rule = permissionRules.find(
     (candidate) => candidate.permissionType === 'native-token-periodic',
@@ -31,6 +35,12 @@ describe('native-token-periodic rule', () => {
     args: '0x' as const,
   };
 
+  const exactCalldataCaveat = {
+    enforcer: ExactCalldataEnforcer,
+    terms: '0x' as Hex,
+    args: '0x' as const,
+};
+
   it('rejects duplicate NativeTokenPeriodTransferEnforcer caveats', () => {
     const terms = createNativeTokenPeriodTransferTerms(
       {
@@ -42,6 +52,7 @@ describe('native-token-periodic rule', () => {
     );
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
         terms,
@@ -65,15 +76,18 @@ describe('native-token-periodic rule', () => {
   });
 
   it('rejects truncated terms', () => {
-    const truncatedTerms = `0x${'00'.repeat(40)}`; // 40 bytes, need 96
+    const truncatedTerms: Hex = `0x${'00'.repeat(40)}`; // 40 bytes, need 96
+
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
         terms: truncatedTerms,
         args: '0x' as const,
       },
     ];
+
     const result = rule.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
@@ -99,6 +113,7 @@ describe('native-token-periodic rule', () => {
     const termsWithTrailing = `${validTerms}deadbeef` as Hex;
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
         terms: termsWithTrailing,
@@ -118,9 +133,44 @@ describe('native-token-periodic rule', () => {
     );
   });
 
+  it('rejects when ExactCalldataEnforcer terms are not 0x', () => {
+    const caveats = [
+      expiryCaveat,
+      {
+        enforcer: ExactCalldataEnforcer,
+        terms: '0x00' as Hex,
+        args: '0x' as const,
+      },
+      {
+        enforcer: NativeTokenPeriodTransferEnforcer,
+        terms: createNativeTokenPeriodTransferTerms(
+          {
+            periodAmount: 100n,
+            periodDuration: 86400,
+            startDate: 1715664,
+          },
+          { out: 'hex' },
+        ),
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    // this is here as a type guard
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid exact-calldata terms: must be 0x',
+    );
+  });
+
   it('successfully decodes valid native-token-periodic caveats', () => {
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
         terms: createNativeTokenPeriodTransferTerms(
@@ -157,6 +207,7 @@ describe('native-token-periodic rule', () => {
       `0x${periodAmountHex}${periodDurationZero}${startDateHex}` as Hex;
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
         terms,
@@ -184,6 +235,7 @@ describe('native-token-periodic rule', () => {
       `0x${periodAmountHex}${periodDurationHex}${startTimeZero}` as Hex;
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: NativeTokenPeriodTransferEnforcer,
         terms,

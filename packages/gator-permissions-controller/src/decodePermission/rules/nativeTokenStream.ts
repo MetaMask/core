@@ -29,13 +29,16 @@ export function makeNativeTokenStreamRule(
     permissionType: 'native-token-stream',
     optionalEnforcers: [timestampEnforcer],
     timestampEnforcer,
-    requiredEnforcers: new Map<Hex, number>([
-      [nativeTokenStreamingEnforcer, 1],
-      [exactCalldataEnforcer, 1],
-      [nonceEnforcer, 1],
-    ]),
-    decodeData: (caveats) =>
-      decodeNativeStream(caveats, nativeTokenStreamingEnforcer),
+    requiredEnforcers: {
+      [nativeTokenStreamingEnforcer]: 1,
+      [exactCalldataEnforcer]: 1,
+      [nonceEnforcer]: 1,
+    },
+    validateAndDecodeData: (caveats) =>
+      validateAndDecodeData(caveats, {
+        nativeTokenStreamingEnforcer,
+        exactCalldataEnforcer,
+      }),
   });
 }
 
@@ -43,14 +46,30 @@ export function makeNativeTokenStreamRule(
  * Decodes native-token-stream permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param enforcer - Address of the NativeTokenStreamingEnforcer.
- * @returns Decoded stream terms (amounts, startTime).
+ * @param enforcers - Addresses of the enforcers.
+ * @param enforcers.nativeTokenStreamingEnforcer - Address of the NativeTokenStreamingEnforcer.
+ * @param enforcers.exactCalldataEnforcer - Address of the ExactCalldataEnforcer.
+ * @returns Decoded stream terms.
  */
-export function decodeNativeStream(
+function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcer: Hex,
+  enforcers: { nativeTokenStreamingEnforcer: Hex; exactCalldataEnforcer: Hex },
 ): DecodedPermission['permission']['data'] {
-  const terms = getTermsByEnforcer({ caveats, enforcer });
+  const { nativeTokenStreamingEnforcer, exactCalldataEnforcer } = enforcers;
+
+  const exactCalldataTerms = getTermsByEnforcer({
+    caveats,
+    enforcer: exactCalldataEnforcer,
+  });
+
+  if (exactCalldataTerms !== '0x') {
+    throw new Error('Invalid exact-calldata terms: must be 0x');
+  }
+
+  const terms = getTermsByEnforcer({
+    caveats,
+    enforcer: nativeTokenStreamingEnforcer,
+  });
 
   const EXPECTED_TERMS_BYTELENGTH = 128; // 32 + 32 + 32 + 32
 

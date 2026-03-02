@@ -9,11 +9,13 @@ import {
 } from '@metamask/delegation-deployments';
 
 import { createPermissionRulesForContracts } from '.';
+import { ZERO_32_BYTES } from '../utils';
 
 describe('erc20-token-periodic rule', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
-  const { TimestampEnforcer, ERC20PeriodTransferEnforcer } = contracts;
+  const { TimestampEnforcer, ERC20PeriodTransferEnforcer, ValueLteEnforcer } =
+    contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
   const rule = permissionRules.find(
     (candidate) => candidate.permissionType === 'erc20-token-periodic',
@@ -31,6 +33,12 @@ describe('erc20-token-periodic rule', () => {
     args: '0x' as const,
   };
 
+  const valueLteCaveat = {
+    enforcer: ValueLteEnforcer,
+    terms: ZERO_32_BYTES,
+    args: '0x' as const,
+  };
+
   it('rejects duplicate ERC20PeriodTransferEnforcer caveats', () => {
     const tokenAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
     const terms = createERC20TokenPeriodTransferTerms(
@@ -44,6 +52,7 @@ describe('erc20-token-periodic rule', () => {
     );
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       {
         enforcer: ERC20PeriodTransferEnforcer,
         terms,
@@ -67,9 +76,10 @@ describe('erc20-token-periodic rule', () => {
   });
 
   it('rejects truncated terms', () => {
-    const truncatedTerms = `0x${'a'.repeat(100)}`; // 50 bytes, need 116
+    const truncatedTerms: Hex = `0x${'a'.repeat(100)}`; // 50 bytes, need 116
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       {
         enforcer: ERC20PeriodTransferEnforcer,
         terms: truncatedTerms,
@@ -89,10 +99,48 @@ describe('erc20-token-periodic rule', () => {
     );
   });
 
+  it('rejects when ValueLteEnforcer terms are not zero (native token value must be zero)', () => {
+    const nonZeroValueLteTerms =
+      '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex;
+    const tokenAddress = '0xcccccccccccccccccccccccccccccccccccccccc' as Hex;
+    const caveats = [
+      expiryCaveat,
+      {
+        enforcer: ValueLteEnforcer,
+        terms: nonZeroValueLteTerms,
+        args: '0x' as const,
+      },
+      {
+        enforcer: ERC20PeriodTransferEnforcer,
+        terms: createERC20TokenPeriodTransferTerms(
+          {
+            tokenAddress,
+            periodAmount: 200n,
+            periodDuration: 86400,
+            startDate: 1715664,
+          },
+          { out: 'hex' },
+        ),
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    // this is here as a type guard
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain('Invalid value-lte terms');
+    expect(result.error.message).toContain('must be');
+  });
+
   it('successfully decodes valid erc20-token-periodic caveats', () => {
     const tokenAddress = '0xcccccccccccccccccccccccccccccccccccccccc' as Hex;
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       {
         enforcer: ERC20PeriodTransferEnforcer,
         terms: createERC20TokenPeriodTransferTerms(
@@ -132,6 +180,7 @@ describe('erc20-token-periodic rule', () => {
 
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       {
         enforcer: ERC20PeriodTransferEnforcer,
         terms,
@@ -166,6 +215,7 @@ describe('erc20-token-periodic rule', () => {
     const termsWithTrailing = `${validTerms}deadbeef` as Hex;
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       {
         enforcer: ERC20PeriodTransferEnforcer,
         terms: termsWithTrailing,
@@ -194,6 +244,7 @@ describe('erc20-token-periodic rule', () => {
       `0x${tokenAddress.slice(2)}${periodAmountHex}${periodDurationHex}${startTimeZero}` as Hex;
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       {
         enforcer: ERC20PeriodTransferEnforcer,
         terms,

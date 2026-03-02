@@ -8,7 +8,12 @@ import type {
   DecodedPermission,
   PermissionRule,
 } from '../types';
-import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
+import {
+  getByteLength,
+  getTermsByEnforcer,
+  splitHex,
+  ZERO_32_BYTES,
+} from '../utils';
 
 /**
  * Creates the erc20-token-stream permission rule.
@@ -29,12 +34,16 @@ export function makeErc20TokenStreamRule(
     permissionType: 'erc20-token-stream',
     optionalEnforcers: [timestampEnforcer],
     timestampEnforcer,
-    requiredEnforcers: new Map<Hex, number>([
-      [erc20StreamingEnforcer, 1],
-      [valueLteEnforcer, 1],
-      [nonceEnforcer, 1],
-    ]),
-    decodeData: (caveats) => decodeErc20Stream(caveats, erc20StreamingEnforcer),
+    requiredEnforcers: {
+      [erc20StreamingEnforcer]: 1,
+      [valueLteEnforcer]: 1,
+      [nonceEnforcer]: 1,
+    },
+    validateAndDecodeData: (caveats) =>
+      validateAndDecodeData(caveats, {
+        erc20StreamingEnforcer,
+        valueLteEnforcer,
+      }),
   });
 }
 
@@ -42,14 +51,29 @@ export function makeErc20TokenStreamRule(
  * Decodes erc20-token-stream permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param enforcer - Address of the ERC20StreamingEnforcer.
- * @returns Decoded stream terms (tokenAddress, amounts, startTime).
+ * @param enforcers - Addresses of the enforcers.
+ * @param enforcers.erc20StreamingEnforcer - Address of the ERC20StreamingEnforcer.
+ * @param enforcers.valueLteEnforcer - Address of the ValueLteEnforcer.
+ * @returns Decoded stream terms.
  */
-export function decodeErc20Stream(
+function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcer: Hex,
+  enforcers: { erc20StreamingEnforcer: Hex; valueLteEnforcer: Hex },
 ): DecodedPermission['permission']['data'] {
-  const terms = getTermsByEnforcer({ caveats, enforcer });
+  const { erc20StreamingEnforcer, valueLteEnforcer } = enforcers;
+  const valueLteTerms = getTermsByEnforcer({
+    caveats,
+    enforcer: valueLteEnforcer,
+  });
+
+  if (valueLteTerms !== ZERO_32_BYTES) {
+    throw new Error(`Invalid value-lte terms: must be ${ZERO_32_BYTES}`);
+  }
+
+  const terms = getTermsByEnforcer({
+    caveats,
+    enforcer: erc20StreamingEnforcer,
+  });
 
   const EXPECTED_TERMS_BYTELENGTH = 148;
 

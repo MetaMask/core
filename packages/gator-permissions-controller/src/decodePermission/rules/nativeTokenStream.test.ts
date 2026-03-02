@@ -13,7 +13,11 @@ import { createPermissionRulesForContracts } from '.';
 describe('native-token-stream rule', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
-  const { TimestampEnforcer, NativeTokenStreamingEnforcer } = contracts;
+  const {
+    TimestampEnforcer,
+    NativeTokenStreamingEnforcer,
+    ExactCalldataEnforcer,
+  } = contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
   const rule = permissionRules.find(
     (candidate) => candidate.permissionType === 'native-token-stream',
@@ -31,9 +35,16 @@ describe('native-token-stream rule', () => {
     args: '0x' as const,
   };
 
+  const exactCalldataCaveat = {
+    enforcer: ExactCalldataEnforcer,
+    terms: '0x' as Hex,
+    args: '0x' as const,
+  };
+
   it('rejects duplicate caveats for same enforcer (e.g. two TimestampEnforcer)', () => {
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: TimestampEnforcer,
         terms: createTimestampTerms({
@@ -72,6 +83,7 @@ describe('native-token-stream rule', () => {
     const invalidTerms =
       '0x00000000000000000000000000000000zz000000000000000000000000001a3b80' as Hex;
     const caveats = [
+      exactCalldataCaveat,
       { enforcer: TimestampEnforcer, terms: invalidTerms, args: '0x' as const },
       {
         enforcer: NativeTokenStreamingEnforcer,
@@ -100,9 +112,10 @@ describe('native-token-stream rule', () => {
   });
 
   it('rejects native-token-stream terms shorter than expected', () => {
-    const truncatedTerms = `0x${'00'.repeat(50)}`;
+    const truncatedTerms: Hex = `0x${'00'.repeat(50)}`;
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: NativeTokenStreamingEnforcer,
         terms: truncatedTerms,
@@ -136,6 +149,7 @@ describe('native-token-stream rule', () => {
     const termsWithTrailing = `${validTerms}deadbeef` as Hex;
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: NativeTokenStreamingEnforcer,
         terms: termsWithTrailing,
@@ -155,9 +169,45 @@ describe('native-token-stream rule', () => {
     );
   });
 
+  it('rejects when ExactCalldataEnforcer terms are not 0x', () => {
+    const caveats = [
+      expiryCaveat,
+      {
+        enforcer: ExactCalldataEnforcer,
+        terms: '0x00' as Hex,
+        args: '0x' as const,
+      },
+      {
+        enforcer: NativeTokenStreamingEnforcer,
+        terms: createNativeTokenStreamingTerms(
+          {
+            initialAmount: 10n,
+            maxAmount: 100n,
+            amountPerSecond: 5n,
+            startTime: 1715664,
+          },
+          { out: 'hex' },
+        ),
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    // this is here as a type guard
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid exact-calldata terms: must be 0x',
+    );
+  });
+
   it('successfully decodes valid native-token-stream caveats', () => {
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       {
         enforcer: NativeTokenStreamingEnforcer,
         terms: createNativeTokenStreamingTerms(
@@ -188,8 +238,9 @@ describe('native-token-stream rule', () => {
   });
 
   it('rejects TimestampEnforcer terms with wrong length (66 required)', () => {
-    const badLengthTerms = `0x${'0'.repeat(65)}`;
+    const badLengthTerms: Hex = `0x${'0'.repeat(65)}`;
     const caveats = [
+      exactCalldataCaveat,
       {
         enforcer: TimestampEnforcer,
         terms: badLengthTerms,
@@ -225,6 +276,7 @@ describe('native-token-stream rule', () => {
 
   it('rejects expiry timestampBeforeThreshold zero', () => {
     const caveats = [
+      exactCalldataCaveat,
       {
         enforcer: TimestampEnforcer,
         terms: createTimestampTerms({
@@ -263,6 +315,7 @@ describe('native-token-stream rule', () => {
 
   it('rejects expiry timestampAfterThreshold non-zero', () => {
     const caveats = [
+      exactCalldataCaveat,
       {
         enforcer: TimestampEnforcer,
         terms: createTimestampTerms({
@@ -306,6 +359,7 @@ describe('native-token-stream rule', () => {
 
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
     ];
 
@@ -331,6 +385,7 @@ describe('native-token-stream rule', () => {
       `0x${initialAmountHex}${maxAmountZero}${amountPerSecondHex}${startTimeHex}` as Hex;
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
     ];
     const result = rule.validateAndDecodePermission(caveats);
@@ -355,6 +410,7 @@ describe('native-token-stream rule', () => {
       `0x${initialAmountHex}${maxAmountHex}${amountPerSecondZero}${startTimeHex}` as Hex;
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
     ];
     const result = rule.validateAndDecodePermission(caveats);
@@ -378,6 +434,7 @@ describe('native-token-stream rule', () => {
 
     const caveats = [
       expiryCaveat,
+      exactCalldataCaveat,
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
     ];
 

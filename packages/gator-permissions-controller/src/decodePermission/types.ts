@@ -54,7 +54,7 @@ export type ChecksumEnforcersByChainId = {
 };
 
 /** Caveat with checksummed enforcer address; used by rule decode functions. */
-export type ChecksumCaveat = Caveat<Hex> & { enforcer: Hex };
+export type ChecksumCaveat = Caveat<Hex>;
 
 /**
  * Result of validating and decoding permission terms from caveats.
@@ -67,15 +67,6 @@ export type ValidateAndDecodeResult =
       data: DecodedPermission['permission']['data'];
     }
   | { isValid: false; error: Error };
-
-/**
- * Optional post-decode validation for a permission rule. Runs after decoding
- * with the decoded data and expiry; throw to reject.
- */
-export type ValidateDecodedPermission = (
-  data: DecodedPermission['permission']['data'],
-  expiry: number | null,
-) => void;
 
 /**
  * A rule that defines the required and optional enforcers for a permission type,

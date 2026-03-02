@@ -29,13 +29,16 @@ export function makeNativeTokenPeriodicRule(
     permissionType: 'native-token-periodic',
     optionalEnforcers: [timestampEnforcer],
     timestampEnforcer,
-    requiredEnforcers: new Map<Hex, number>([
-      [nativeTokenPeriodicEnforcer, 1],
-      [exactCalldataEnforcer, 1],
-      [nonceEnforcer, 1],
-    ]),
-    decodeData: (caveats) =>
-      decodeNativePeriodic(caveats, nativeTokenPeriodicEnforcer),
+    requiredEnforcers: {
+      [nativeTokenPeriodicEnforcer]: 1,
+      [exactCalldataEnforcer]: 1,
+      [nonceEnforcer]: 1,
+    },
+    validateAndDecodeData: (caveats) =>
+      validateAndDecodeData(caveats, {
+        nativeTokenPeriodicEnforcer,
+        exactCalldataEnforcer,
+      }),
   });
 }
 
@@ -43,14 +46,30 @@ export function makeNativeTokenPeriodicRule(
  * Decodes native-token-periodic permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param enforcer - Address of the NativeTokenPeriodTransferEnforcer.
- * @returns Decoded periodic terms (periodAmount, periodDuration, startTime).
+ * @param enforcers - Addresses of the enforcers.
+ * @param enforcers.nativeTokenPeriodicEnforcer - Address of the NativeTokenPeriodicEnforcer.
+ * @param enforcers.exactCalldataEnforcer - Address of the ExactCalldataEnforcer.
+ * @returns Decoded periodic terms.
  */
-export function decodeNativePeriodic(
+function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcer: Hex,
+  enforcers: { nativeTokenPeriodicEnforcer: Hex; exactCalldataEnforcer: Hex },
 ): DecodedPermission['permission']['data'] {
-  const terms = getTermsByEnforcer({ caveats, enforcer });
+  const { nativeTokenPeriodicEnforcer, exactCalldataEnforcer } = enforcers;
+
+  const exactCalldataTerms = getTermsByEnforcer({
+    caveats,
+    enforcer: exactCalldataEnforcer,
+  });
+
+  if (exactCalldataTerms !== '0x') {
+    throw new Error('Invalid exact-calldata terms: must be 0x');
+  }
+
+  const terms = getTermsByEnforcer({
+    caveats,
+    enforcer: nativeTokenPeriodicEnforcer,
+  });
 
   const EXPECTED_TERMS_BYTELENGTH = 96; // 32 + 32 + 32
 

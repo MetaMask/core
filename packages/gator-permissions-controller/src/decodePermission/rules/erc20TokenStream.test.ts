@@ -9,11 +9,13 @@ import {
 } from '@metamask/delegation-deployments';
 
 import { createPermissionRulesForContracts } from '.';
+import { ZERO_32_BYTES } from '../utils';
 
 describe('erc20-token-stream rule', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
-  const { TimestampEnforcer, ERC20StreamingEnforcer } = contracts;
+  const { TimestampEnforcer, ERC20StreamingEnforcer, ValueLteEnforcer } =
+    contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
   const rule = permissionRules.find(
     (candidate) => candidate.permissionType === 'erc20-token-stream',
@@ -31,6 +33,12 @@ describe('erc20-token-stream rule', () => {
     args: '0x' as const,
   };
 
+  const valueLteCaveat = {
+    enforcer: ValueLteEnforcer,
+    terms: ZERO_32_BYTES,
+    args: '0x' as const,
+  };
+
   it('rejects duplicate ERC20StreamingEnforcer caveats', () => {
     const tokenAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
     const terms = createERC20StreamingTerms(
@@ -45,6 +53,7 @@ describe('erc20-token-stream rule', () => {
     );
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
     ];
@@ -60,9 +69,10 @@ describe('erc20-token-stream rule', () => {
   });
 
   it('rejects truncated terms', () => {
-    const truncatedTerms = `0x${'a'.repeat(100)}`;
+    const truncatedTerms: Hex = `0x${'a'.repeat(100)}`;
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       {
         enforcer: ERC20StreamingEnforcer,
         terms: truncatedTerms,
@@ -82,10 +92,49 @@ describe('erc20-token-stream rule', () => {
     );
   });
 
+  it('rejects when ValueLteEnforcer terms are not zero (native token value must be zero)', () => {
+    const nonZeroValueLteTerms =
+      '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex;
+    const tokenAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
+    const caveats = [
+      expiryCaveat,
+      {
+        enforcer: ValueLteEnforcer,
+        terms: nonZeroValueLteTerms,
+        args: '0x' as const,
+      },
+      {
+        enforcer: ERC20StreamingEnforcer,
+        terms: createERC20StreamingTerms(
+          {
+            tokenAddress,
+            initialAmount: 1n,
+            maxAmount: 2n,
+            amountPerSecond: 1n,
+            startTime: 1715664,
+          },
+          { out: 'hex' },
+        ),
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    // this is here as a type guard
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain('Invalid value-lte terms');
+    expect(result.error.message).toContain('must be');
+  });
+
   it('decodes zero token address', () => {
     const zeroAddress = '0x0000000000000000000000000000000000000000' as Hex;
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       {
         enforcer: ERC20StreamingEnforcer,
         terms: createERC20StreamingTerms(
@@ -123,6 +172,7 @@ describe('erc20-token-stream rule', () => {
       `0x${tokenAddress.slice(2)}${initialAmountHex}${maxAmountHex}${amountPerSecondHex}${startTimeHex}` as Hex;
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
     ];
     const result = rule.validateAndDecodePermission(caveats);
@@ -153,6 +203,7 @@ describe('erc20-token-stream rule', () => {
     const termsWithTrailing = `${validTerms}deadbeef` as Hex;
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       {
         enforcer: ERC20StreamingEnforcer,
         terms: termsWithTrailing,
@@ -182,6 +233,7 @@ describe('erc20-token-stream rule', () => {
       `0x${tokenAddress.slice(2)}${initialAmountHex}${maxAmountHex}${amountPerSecondHex}${startTimeZero}` as Hex;
     const caveats = [
       expiryCaveat,
+      valueLteCaveat,
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
     ];
     const result = rule.validateAndDecodePermission(caveats);

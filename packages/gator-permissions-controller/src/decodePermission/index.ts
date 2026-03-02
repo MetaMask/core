@@ -8,5 +8,4 @@ export type {
   DecodedPermission,
   PermissionRule,
   ValidateAndDecodeResult,
-  ValidateDecodedPermission,
 } from './types';

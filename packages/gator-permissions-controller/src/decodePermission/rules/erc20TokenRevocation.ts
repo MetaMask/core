@@ -7,7 +7,13 @@ import type {
   DecodedPermission,
   PermissionRule,
 } from '../types';
-import { getByteLength, getTermsByEnforcer } from '../utils';
+import {
+  ERC20_APPROVE_SELECTOR_TERMS,
+  ERC20_APPROVE_ZERO_AMOUNT_TERMS,
+  getByteLength,
+  getTermsByEnforcer,
+  ZERO_32_BYTES,
+} from '../utils';
 
 /**
  * Creates the erc20-token-revocation permission rule.
@@ -28,36 +34,34 @@ export function makeErc20TokenRevocationRule(
     permissionType: 'erc20-token-revocation',
     optionalEnforcers: [timestampEnforcer],
     timestampEnforcer,
-    requiredEnforcers: new Map<Hex, number>([
-      [allowedCalldataEnforcer, 2],
-      [valueLteEnforcer, 1],
-      [nonceEnforcer, 1],
-    ]),
-    decodeData: (caveats) =>
-      decodeErc20Revocation(caveats, allowedCalldataEnforcer, valueLteEnforcer),
+    requiredEnforcers: {
+      [allowedCalldataEnforcer]: 2,
+      [valueLteEnforcer]: 1,
+      [nonceEnforcer]: 1,
+    },
+    validateAndDecodeData: (caveats) =>
+      validateAndDecodeData(caveats, {
+        allowedCalldataEnforcer,
+        valueLteEnforcer,
+      }),
   });
 }
-
-const ZERO_32_BYTES =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
-const ERC20_APPROVE_SELECTOR_TERMS =
-  '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as const;
-const ERC20_APPROVE_ZERO_AMOUNT_TERMS =
-  '0x00000000000000000000000000000000000000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000' as const;
 
 /**
  * Decodes erc20-token-revocation permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param allowedCalldataEnforcer - Address of the AllowedCalldataEnforcer.
- * @param valueLteEnforcer - Address of the ValueLteEnforcer.
+ * @param enforcers - Addresses of the enforcers.
+ * @param enforcers.allowedCalldataEnforcer - Address of the AllowedCalldataEnforcer.
+ * @param enforcers.valueLteEnforcer - Address of the ValueLteEnforcer.
  * @returns Empty object (revocation has no decoded data payload).
  */
-export function decodeErc20Revocation(
+function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  allowedCalldataEnforcer: Hex,
-  valueLteEnforcer: Hex,
+  enforcers: { allowedCalldataEnforcer: Hex; valueLteEnforcer: Hex },
 ): DecodedPermission['permission']['data'] {
+  const { allowedCalldataEnforcer, valueLteEnforcer } = enforcers;
+
   const allowedCalldataCaveats = caveats.filter(
     (caveat) => caveat.enforcer === allowedCalldataEnforcer,
   );

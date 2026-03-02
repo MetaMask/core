@@ -43,6 +43,7 @@ const MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID =
   'local:http://localhost:8082' as SnapId;
 
 const DEFAULT_TEST_CONFIG = {
+  gatorPermissionsProviderSnapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
   supportedPermissionTypes: [
     'native-token-stream',
     'native-token-periodic',
@@ -735,7 +736,7 @@ describe('GatorPermissionsController', () => {
       );
 
       // Enforcers match native-token-stream but stream terms are truncated (invalid)
-      const truncatedStreamTerms = `0x${'00'.repeat(50)}`;
+      const truncatedStreamTerms: Hex = `0x${'00'.repeat(50)}`;
       const caveats = [
         {
           enforcer: TimestampEnforcer,
@@ -753,7 +754,7 @@ describe('GatorPermissionsController', () => {
 
       expect(() =>
         controller.decodePermissionFromPermissionContextForOrigin({
-          origin: controller.permissionsProviderSnapId,
+          origin: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
           chainId,
           delegation: {
             delegate: delegatorAddressA,
