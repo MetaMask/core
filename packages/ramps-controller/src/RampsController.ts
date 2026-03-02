@@ -436,9 +436,53 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Sets the selected token by asset ID.
+ */
+export type RampsControllerSetSelectedTokenAction = {
+  type: `${typeof controllerName}:setSelectedToken`;
+  handler: (assetId?: string) => void;
+};
+
+/**
+ * Fetches buy quotes using the current controller context and provided inputs.
+ */
+export type RampsControllerGetQuotesAction = {
+  type: `${typeof controllerName}:getQuotes`;
+  handler: (options: {
+    region?: string;
+    fiat?: string;
+    assetId?: string;
+    amount: number;
+    walletAddress: string;
+    paymentMethods?: string[];
+    providers?: string[];
+    redirectUrl?: string;
+    action?: RampAction;
+    forceRefresh?: boolean;
+    ttl?: number;
+  }) => Promise<QuotesResponse>;
+};
+
+/**
+ * Fetches a specific order from the unified V2 API endpoint.
+ */
+export type RampsControllerGetOrderAction = {
+  type: `${typeof controllerName}:getOrder`;
+  handler: (
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ) => Promise<RampsOrder>;
+};
+
+/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerActions = RampsControllerGetStateAction;
+export type RampsControllerActions =
+  | RampsControllerGetStateAction
+  | RampsControllerGetOrderAction
+  | RampsControllerGetQuotesAction
+  | RampsControllerSetSelectedTokenAction;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -716,6 +760,21 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+
+    this.messenger.registerActionHandler(
+      'RampsController:setSelectedToken',
+      this.setSelectedToken.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'RampsController:getQuotes',
+      this.getQuotes.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'RampsController:getOrder',
+      this.getOrder.bind(this),
+    );
   }
 
   /**

@@ -63,11 +63,25 @@ export async function getRelayQuotes(
     const normalizedRequests = requests
       // Ignore gas fee token requests (which have both target=0 and source=0)
       // but keep post-quote requests (identified by isPostQuote flag)
-      .filter(
-        (singleRequest) =>
-          singleRequest.targetAmountMinimum !== '0' ||
-          singleRequest.isPostQuote,
-      )
+      // and exact-input max requests that specify a positive source amount.
+      .filter((singleRequest) => {
+        const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
+        const isPostQuote = Boolean(singleRequest.isPostQuote);
+        const isExactInputRequest =
+          Boolean(singleRequest.isMaxAmount) &&
+          new BigNumber(singleRequest.sourceTokenAmount).gt(0);
+
+        const shouldKeep =
+          hasTargetMinimum || isPostQuote || isExactInputRequest;
+
+        if (!shouldKeep) {
+          log('Skipping relay request as empty amount request', {
+            singleRequest,
+          });
+        }
+
+        return shouldKeep;
+      })
       .map((singleRequest) => normalizeRequest(singleRequest));
 
     log('Normalized requests', normalizedRequests);
@@ -123,6 +137,16 @@ async function getSingleQuote(
     // For regular flows with a target amount, use EXPECTED_OUTPUT.
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
+
+    log('Determined Relay trade type', {
+      isMaxAmount,
+      isPostQuote: request.isPostQuote,
+      sourceTokenAmount,
+      targetAmountMinimum,
+      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
+      transactionId: transaction.id,
+      useExactInput,
+    });
 
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,

@@ -57,6 +57,11 @@ export function updatePaymentToken(
 
   updateTransactionData(transactionId, (data) => {
     data.paymentToken = paymentToken;
+    data.fiatPayment = {
+      amount: null,
+      quickBuyOrderId: null,
+      selectedPaymentMethodId: null,
+    };
   });
 }
 

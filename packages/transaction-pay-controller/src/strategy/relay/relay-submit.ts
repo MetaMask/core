@@ -1,3 +1,4 @@
+import { Interface } from '@ethersproject/abi';
 import {
   ORIGIN_METAMASK,
   successfulFetch,
@@ -17,6 +18,7 @@ import {
   RELAY_DEPOSIT_TYPES,
   RELAY_POLLING_INTERVAL,
   RELAY_STATUS_URL,
+  TOKEN_TRANSFER_FOUR_BYTE,
 } from './constants';
 import type { RelayQuote, RelayStatusResponse } from './types';
 import { projectLogger } from '../../logger';
@@ -35,6 +37,9 @@ import {
 } from '../../utils/transaction';
 
 const FALLBACK_HASH = '0x0' as Hex;
+const TOKEN_TRANSFER_INTERFACE = new Interface([
+  'function transfer(address to, uint256 amount)',
+]);
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -253,23 +258,16 @@ async function submitTransactions(
     normalizeParams(singleParams, messenger),
   );
 
-  // For post-quote flows, prepend the original transaction so it gets
-  // included in the batch alongside the relay deposit(s).
-  // This always results in multiple params, so it takes the batch path.
+  // For post-quote flows, append the original transaction so relay steps
+  // execute first and fund the final transfer/deposit.
   const { isPostQuote } = quote.request;
+  const originalParams = isPostQuote
+    ? buildPostQuoteOriginalParams(transaction, quote)
+    : undefined;
 
-  const allParams =
-    isPostQuote && transaction.txParams.to
-      ? [
-          {
-            data: transaction.txParams.data as Hex | undefined,
-            from: transaction.txParams.from,
-            to: transaction.txParams.to,
-            value: transaction.txParams.value as Hex | undefined,
-          } as TransactionParams,
-          ...normalizedParams,
-        ]
-      : normalizedParams;
+  const allParams = originalParams
+    ? [...normalizedParams, originalParams]
+    : normalizedParams;
 
   const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
@@ -374,6 +372,18 @@ async function submitTransactions(
       };
     });
 
+    log('Submitting relay transaction batch', {
+      gasLimit7702,
+      isPostQuote,
+      transactionPlan: transactions.map((singleTransaction, index) => ({
+        index,
+        to: singleTransaction.params.to,
+        type: singleTransaction.type,
+        value: singleTransaction.params.value,
+      })),
+      transactionId: transaction.id,
+    });
+
     await messenger.call('TransactionController:addTransactionBatch', {
       from,
       disable7702: !gasLimit7702,
@@ -399,7 +409,21 @@ async function submitTransactions(
   }
 
   await Promise.all(
-    transactionIds.map((txId) => waitForTransactionConfirmed(txId, messenger)),
+    transactionIds.map(async (txId) => {
+      try {
+        await waitForTransactionConfirmed(txId, messenger);
+      } catch (error) {
+        const failedTx = getTransaction(txId, messenger);
+
+        log('Failed waiting for transaction confirmation', {
+          error,
+          failedTx,
+          txId,
+        });
+
+        throw error;
+      }
+    }),
   );
 
   log('All transactions confirmed', transactionIds);
@@ -409,13 +433,111 @@ async function submitTransactions(
   return hash as Hex;
 }
 
+function buildPostQuoteOriginalParams(
+  transaction: TransactionMeta,
+  quote: TransactionPayQuote<RelayQuote>,
+): TransactionParams | undefined {
+  const originalParams = getOriginalTransferParams(transaction);
+
+  if (!originalParams) {
+    return undefined;
+  }
+
+  const originalData = originalParams.data;
+  if (!originalData?.startsWith(TOKEN_TRANSFER_FOUR_BYTE)) {
+    return originalParams;
+  }
+
+  const decodedTransfer = decodeTransferData(originalData);
+  if (!decodedTransfer) {
+    return originalParams;
+  }
+
+  const currentAmountRaw = new BigNumber(decodedTransfer.amountRaw);
+  if (!currentAmountRaw.isFinite() || currentAmountRaw.gt(0)) {
+    return originalParams;
+  }
+
+  const minimumAmountRaw = new BigNumber(
+    quote.original.details.currencyOut.minimumAmount,
+  )
+    .decimalPlaces(0, BigNumber.ROUND_DOWN)
+    .toFixed(0);
+
+  if (!new BigNumber(minimumAmountRaw).gt(0)) {
+    throw new Error('Invalid relay minimum output for post-quote transfer');
+  }
+
+  const patchedData = TOKEN_TRANSFER_INTERFACE.encodeFunctionData('transfer', [
+    decodedTransfer.recipient,
+    minimumAmountRaw,
+  ]) as Hex;
+
+  log('Patched post-quote transfer amount from relay minimum output', {
+    minimumAmountRaw,
+    originalAmountRaw: currentAmountRaw.toString(10),
+    transactionId: transaction.id,
+  });
+
+  return {
+    ...originalParams,
+    data: patchedData,
+  };
+}
+
+function getOriginalTransferParams(
+  transaction: TransactionMeta,
+): TransactionParams | undefined {
+  const nestedTransfer = transaction.nestedTransactions?.find(
+    (nestedTx) =>
+      nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE) && nestedTx.to,
+  );
+
+  if (nestedTransfer?.to) {
+    return {
+      data: nestedTransfer.data,
+      from: transaction.txParams.from,
+      to: nestedTransfer.to,
+      value: nestedTransfer.value,
+    };
+  }
+
+  if (!transaction.txParams.to) {
+    return undefined;
+  }
+
+  return {
+    data: transaction.txParams.data as Hex | undefined,
+    from: transaction.txParams.from,
+    to: transaction.txParams.to,
+    value: transaction.txParams.value as Hex | undefined,
+  } as TransactionParams;
+}
+
+function decodeTransferData(
+  data: string,
+): { amountRaw: string; recipient: Hex } | undefined {
+  try {
+    const decoded = TOKEN_TRANSFER_INTERFACE.decodeFunctionData(
+      'transfer',
+      data,
+    );
+    return {
+      amountRaw: decoded.amount.toString(),
+      recipient: decoded.to as Hex,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Determine the transaction type for a given index in the batch.
  *
  * @param isPostQuote - Whether this is a post-quote flow.
  * @param index - Index of the transaction in the batch.
- * @param originalType - Type of the original transaction (used for post-quote index 0).
- * @param relayParamCount - Number of relay-only params (excludes prepended original tx).
+ * @param originalType - Type of the original transaction.
+ * @param relayParamCount - Number of relay-only params (excludes appended original tx).
  * @returns The transaction type.
  */
 function getTransactionType(
@@ -424,13 +546,12 @@ function getTransactionType(
   originalType: TransactionMeta['type'],
   relayParamCount: number,
 ): TransactionMeta['type'] {
-  // Post-quote index 0 is the original transaction
-  if (isPostQuote && index === 0) {
+  // Post-quote appends original transaction after relay steps.
+  if (isPostQuote && index === relayParamCount) {
     return originalType;
   }
 
-  // Adjust index for post-quote flows where original tx is prepended
-  const relayIndex = isPostQuote ? index - 1 : index;
+  const relayIndex = index;
 
   const depositType = getRelayDepositType(originalType);
 
