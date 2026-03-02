@@ -5719,7 +5719,14 @@ describe('RampsController', () => {
     });
 
     it('does not refresh for unrecognized order IDs', async () => {
-      await withController(async ({ rootMessenger }) => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const nonTransakOrder = createMockOrder({
+          providerOrderId: 'moonpay-order',
+          status: RampsOrderStatus.Pending,
+          provider: { id: '/providers/moonpay', name: 'MoonPay' },
+        });
+        controller.addOrder(nonTransakOrder);
+
         const getOrderHandler = jest.fn();
         rootMessenger.registerActionHandler(
           'RampsService:getOrder',
@@ -7299,4 +7306,6 @@ async function withController<ReturnValue>(
     ...options,
   });
   return await testFunction({ controller, rootMessenger, messenger });
+}
+
 }

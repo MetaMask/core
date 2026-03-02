@@ -1960,7 +1960,8 @@ export class RampsController extends BaseController<
     });
 
     if (order) {
-      this.#refreshOrder(order).catch(() => undefined);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- fire-and-forget; #refreshOrder handles its own errors
+      this.#refreshOrder(order);
     }
   }
 

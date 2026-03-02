@@ -802,6 +802,56 @@ describe('TransakService', () => {
         }),
       );
     });
+
+    it('falls back to undefined errorCode when error has neither code nor errorCode', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(400, {
+          error: { message: 'Bad request' },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getUserDetails();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toBeInstanceOf(TransakApiError);
+      await expect(promise).rejects.toThrow(
+        expect.objectContaining({
+          httpStatus: 400,
+          errorCode: undefined,
+          apiMessage: 'Bad request',
+        }),
+      );
+    });
+
+    it('sets apiMessage to undefined when error message is not a string', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(400, {
+          error: { code: '9999', message: 12345 },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getUserDetails();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toBeInstanceOf(TransakApiError);
+      await expect(promise).rejects.toThrow(
+        expect.objectContaining({
+          httpStatus: 400,
+          errorCode: '9999',
+          apiMessage: undefined,
+        }),
+      );
+    });
   });
 
   describe('patchUser', () => {
@@ -2373,9 +2423,11 @@ describe('TransakService', () => {
       ).toHaveLength(1);
     });
 
-    it('silently no-ops when no Pusher factory is provided', () => {
+    it('throws when no Pusher factory is provided', () => {
       const { service } = getService();
-      expect(() => service.subscribeToOrder('order-noop')).not.toThrow();
+      expect(() => service.subscribeToOrder('order-noop')).toThrow(
+        'WebSocket support requires a Pusher factory',
+      );
     });
 
     it('reuses the same Pusher instance across subscriptions', () => {
@@ -2522,6 +2574,61 @@ describe('TransakService', () => {
 
       expect(() => service.disconnectWebSocket()).not.toThrow();
       expect(mockPusher.disconnect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getWebSocketSubscriptions', () => {
+    function createMockPusher() {
+      const channels: Record<string, { bind: jest.Mock; unbindAll: jest.Mock }> =
+        {};
+      const mockPusher = {
+        subscribe: jest.fn((channelName: string) => {
+          channels[channelName] = { bind: jest.fn(), unbindAll: jest.fn() };
+          return channels[channelName];
+        }),
+        unsubscribe: jest.fn(),
+        disconnect: jest.fn(),
+      };
+      return { createPusher: jest.fn(() => mockPusher), mockPusher, channels };
+    }
+
+    it('returns connected: false and empty array when no Pusher factory', () => {
+      const { service } = getService();
+      expect(service.getWebSocketSubscriptions()).toEqual({
+        connected: false,
+        subscribedOrderIds: [],
+      });
+    });
+
+    it('returns connected: false when Pusher exists but no subscriptions', () => {
+      const { createPusher } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+      expect(service.getWebSocketSubscriptions()).toEqual({
+        connected: false,
+        subscribedOrderIds: [],
+      });
+    });
+
+    it('returns connected: true and subscribed order IDs when channels exist', () => {
+      const { createPusher } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+      service.subscribeToOrder('order-a');
+      service.subscribeToOrder('order-b');
+      expect(service.getWebSocketSubscriptions()).toEqual({
+        connected: true,
+        subscribedOrderIds: ['order-a', 'order-b'],
+      });
+    });
+
+    it('returns connected: false after disconnect', () => {
+      const { createPusher } = createMockPusher();
+      const { service } = getService({ options: { createPusher } });
+      service.subscribeToOrder('order-x');
+      service.disconnectWebSocket();
+      expect(service.getWebSocketSubscriptions()).toEqual({
+        connected: false,
+        subscribedOrderIds: [],
+      });
     });
   });
 });

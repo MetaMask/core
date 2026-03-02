@@ -362,6 +362,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToOrder',
   'unsubscribeFromOrder',
   'disconnectWebSocket',
+  'getWebSocketSubscriptions',
 ] as const;
 
 export type TransakServiceActions = TransakServiceMethodActions;
@@ -1239,10 +1240,6 @@ export class TransakService {
       return;
     }
 
-    if (!this.#createPusher) {
-      return;
-    }
-
     const pusher = this.#ensurePusher();
     const channel = pusher.subscribe(transakOrderId);
 
@@ -1278,5 +1275,19 @@ export class TransakService {
     this.#subscribedChannels.clear();
     this.#pusher?.disconnect();
     this.#pusher = null;
+  }
+
+  /**
+   * Returns the current WebSocket subscription state for debugging.
+   * Used by the ramps debug dashboard to display live connection status.
+   */
+  getWebSocketSubscriptions(): {
+    connected: boolean;
+    subscribedOrderIds: string[];
+  } {
+    return {
+      connected: this.#pusher !== null,
+      subscribedOrderIds: Array.from(this.#subscribedChannels.keys()),
+    };
   }
 }
