@@ -935,6 +935,13 @@ export class NftController extends BaseController<
         [chainId: `0x${string}`]: Nft[];
       } = {};
       const modifiedChainIds = new Set<Hex>();
+      const pendingCallbacks: {
+        address: string;
+        symbol: string | undefined;
+        tokenId: string;
+        standard: string | null;
+        source: Source;
+      }[] = [];
 
       for (const {
         tokenAddress,
@@ -1005,7 +1012,7 @@ export class NftController extends BaseController<
           modifiedChainIds.add(chainId);
 
           if (this.#onNftAdded) {
-            this.#onNftAdded({
+            pendingCallbacks.push({
               address: checksumHexAddress,
               symbol: nftContract.symbol,
               tokenId: tokenId.toString(),
@@ -1027,6 +1034,10 @@ export class NftController extends BaseController<
           ALL_NFTS_STATE_KEY,
           { chainId, userAddress },
         );
+      }
+
+      for (const callbackData of pendingCallbacks) {
+        this.#onNftAdded?.(callbackData);
       }
     } finally {
       releaseLock();
