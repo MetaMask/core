@@ -26,6 +26,22 @@ export type AssetsControllerGetAssetsPriceAction = {
 };
 
 /**
+ * Returns exchange rates in the format expected by the bridge controller
+ * (conversionRates, currencyRates, marketData, currentCurrency) so that
+ * when useAssetsControllerForRates is true the bridge can use a single
+ * action instead of MultichainAssetsRatesController, TokenRatesController,
+ * and CurrencyRateController.
+ *
+ * @param options - Optional options for bridge rate conversion.
+ * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and conversionRates use correct user-currency vs USD values; otherwise the bridge USD conversion will be wrong for non-USD currencies.
+ * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
+ */
+export type AssetsControllerGetExchangeRatesForBridgeAction = {
+  type: `AssetsController:getExchangeRatesForBridge`;
+  handler: AssetsController['getExchangeRatesForBridge'];
+};
+
+/**
  * Add a custom asset for an account.
  * Custom assets are included in subscription and fetch operations.
  * Adding a custom asset also unhides it if it was previously hidden.
@@ -95,6 +111,7 @@ export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
   | AssetsControllerGetAssetsPriceAction
+  | AssetsControllerGetExchangeRatesForBridgeAction
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction
