@@ -20,6 +20,7 @@ import {
   stringify,
 } from './utils';
 import type { JsonRpcCall } from './utils';
+import { deepClone } from './compatibility-utils';
 
 // Helper to forbid `id` on notifications
 type WithoutId<Request extends JsonRpcCall> = Request & { id?: never };
@@ -284,7 +285,7 @@ export class JsonRpcEngineV2<
   async handle(
     request: Request,
     { context }: HandleOptions<Context> = {},
-  ): Promise<Readonly<ResultConstraint<Request>> | void> {
+  ): Promise<ResultConstraint<Request> | void> {
     const isReq = isRequest(request);
     const { result } = await this.#handle(request, context);
 
@@ -293,7 +294,7 @@ export class JsonRpcEngineV2<
         `Nothing ended request: ${stringify(request)}`,
       );
     }
-    return result;
+    return deepClone(result) as ResultConstraint<Request>;
   }
 
   /**

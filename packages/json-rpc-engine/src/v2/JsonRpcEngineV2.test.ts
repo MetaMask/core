@@ -696,6 +696,19 @@ describe('JsonRpcEngineV2', () => {
           ),
         );
       });
+
+      it('returns non-frozen objects', async () => {
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            (): { foo: string, baz: { qux: number } } => ({ foo: 'bar', baz: { qux: 1 } }),
+          ],
+        });
+
+        const result = await engine.handle(makeRequest());
+
+        expect(Object.isFrozen(result)).toBe(false);
+        expect(Object.isFrozen((result as { baz: { qux: number }}).baz)).toBe(false);
+      });
     });
 
     describe('parallel requests', () => {
