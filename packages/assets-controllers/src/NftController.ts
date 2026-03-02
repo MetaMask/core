@@ -944,73 +944,80 @@ export class NftController extends BaseController<
         chainId,
         source,
       } of nfts) {
-        const checksumHexAddress = toChecksumHexAddress(tokenAddress);
+        try {
+          const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
-        if (!allNftsForUserPerChain[chainId]) {
-          allNftsForUserPerChain[chainId] = [
-            ...(allNftsForUser?.[chainId] ?? []),
-          ];
-        }
-
-        const existingEntry = allNftsForUserPerChain[chainId].find(
-          (nft) =>
-            nft.address.toLowerCase() === checksumHexAddress.toLowerCase() &&
-            nft.tokenId === tokenId,
-        );
-
-        if (existingEntry) {
-          const differentMetadata = compareNftMetadata(
-            nftMetadata,
-            existingEntry,
-          );
-
-          const hasNewFields = hasNewCollectionFields(
-            nftMetadata,
-            existingEntry,
-          );
-
-          if (
-            !differentMetadata &&
-            existingEntry.isCurrentlyOwned &&
-            !hasNewFields
-          ) {
-            continue;
+          if (!allNftsForUserPerChain[chainId]) {
+            allNftsForUserPerChain[chainId] = [
+              ...(allNftsForUser?.[chainId] ?? []),
+            ];
           }
 
-          const indexToUpdate = allNftsForUserPerChain[chainId].findIndex(
+          const existingEntry = allNftsForUserPerChain[chainId].find(
             (nft) =>
               nft.address.toLowerCase() === checksumHexAddress.toLowerCase() &&
               nft.tokenId === tokenId,
           );
 
-          if (indexToUpdate !== -1) {
-            allNftsForUserPerChain[chainId][indexToUpdate] = {
-              ...existingEntry,
+          if (existingEntry) {
+            const differentMetadata = compareNftMetadata(
+              nftMetadata,
+              existingEntry,
+            );
+
+            const hasNewFields = hasNewCollectionFields(
+              nftMetadata,
+              existingEntry,
+            );
+
+            if (
+              !differentMetadata &&
+              existingEntry.isCurrentlyOwned &&
+              !hasNewFields
+            ) {
+              continue;
+            }
+
+            const indexToUpdate = allNftsForUserPerChain[chainId].findIndex(
+              (nft) =>
+                nft.address.toLowerCase() ===
+                  checksumHexAddress.toLowerCase() && nft.tokenId === tokenId,
+            );
+
+            if (indexToUpdate !== -1) {
+              allNftsForUserPerChain[chainId][indexToUpdate] = {
+                ...existingEntry,
+                ...nftMetadata,
+              };
+            }
+          } else {
+            const newEntry: Nft = {
+              address: checksumHexAddress,
+              tokenId,
+              favorite: false,
+              isCurrentlyOwned: true,
               ...nftMetadata,
             };
+
+            allNftsForUserPerChain[chainId].push(newEntry);
           }
-        } else {
-          const newEntry: Nft = {
-            address: checksumHexAddress,
-            tokenId,
-            favorite: false,
-            isCurrentlyOwned: true,
-            ...nftMetadata,
-          };
 
-          allNftsForUserPerChain[chainId].push(newEntry);
-        }
+          modifiedChainIds.add(chainId);
 
-        modifiedChainIds.add(chainId);
-
-        if (this.#onNftAdded) {
-          this.#onNftAdded({
-            address: checksumHexAddress,
-            symbol: nftContract.symbol,
-            tokenId: tokenId.toString(),
-            standard: nftMetadata.standard,
-            source,
-          });
+          if (this.#onNftAdded) {
+            this.#onNftAdded({
+              address: checksumHexAddress,
+              symbol: nftContract.symbol,
+              tokenId: tokenId.toString(),
+              standard: nftMetadata.standard,
+              source,
+            });
+          }
+        } catch (error) {
+          console.error(
+            `NftController: Failed to add NFT ${tokenAddress} #${tokenId}`,
+            error,
+          );
         }
       }
 
@@ -1056,92 +1063,90 @@ export class NftController extends BaseController<
         source,
         nftMetadata,
       } of contracts) {
-        const checksumHexAddress = toChecksumHexAddress(tokenAddress);
-        const {
-          configuration: { chainId },
-        } = this.messenger.call(
-          'NetworkController:getNetworkClientById',
-          networkClientId,
-        );
-
-        if (!nftContractsForUserPerChain[chainId]) {
-          nftContractsForUserPerChain[chainId] = [
-            ...(allNftContractsForUser?.[chainId] ?? []),
-          ];
-        }
-
-        const existingEntry = nftContractsForUserPerChain[chainId].find(
-          (nftContract) =>
-            nftContract.address.toLowerCase() ===
-            checksumHexAddress.toLowerCase(),
-        );
-
-        if (existingEntry) {
-          continue; // TODO juan check if we need to update the contract
-        }
-
-        let contractInformation;
         try {
+          const checksumHexAddress = toChecksumHexAddress(tokenAddress);
+          const {
+            configuration: { chainId },
+          } = this.messenger.call(
+            'NetworkController:getNetworkClientById',
+            networkClientId,
+          );
+
+          if (!nftContractsForUserPerChain[chainId]) {
+            nftContractsForUserPerChain[chainId] = [
+              ...(allNftContractsForUser?.[chainId] ?? []),
+            ];
+          }
+
+          const existingEntry = nftContractsForUserPerChain[chainId].find(
+            (nftContract) =>
+              nftContract.address.toLowerCase() ===
+              checksumHexAddress.toLowerCase(),
+          );
+
+          if (existingEntry) {
+            continue; // TODO juan check if we need to update the contract
+          }
+
           // this doesn't work currently for detection if the user switches networks while the detection is processing
           // will be fixed once detection uses networkClientIds
           // get name and symbol if ERC721 then put together the metadata
-          contractInformation = await this.#getNftContractInformation(
+          const contractInformation = await this.#getNftContractInformation(
             checksumHexAddress,
             nftMetadata,
             networkClientId,
           );
+
+          // If the nft is auto-detected we want some valid metadata to be present
+          if (
+            source === Source.Detected &&
+            'address' in contractInformation &&
+            typeof contractInformation.address === 'string' &&
+            'collection' in contractInformation &&
+            contractInformation.collection.name === null &&
+            'image_url' in contractInformation.collection &&
+            contractInformation.collection.image_url === null &&
+            Object.entries(contractInformation).every(([key, value]) => {
+              return key === 'address' || key === 'collection' || !value;
+            })
+          ) {
+            continue;
+          }
+
+          const {
+            asset_contract_type,
+            created_date,
+            symbol,
+            description,
+            external_link,
+            schema_name,
+            collection: { name, image_url, tokenCount },
+          } = contractInformation;
+
+          /* istanbul ignore next */
+          const newEntry: NftContract = Object.assign(
+            {},
+            { address: checksumHexAddress },
+            description && { description },
+            name && { name },
+            image_url && { logo: image_url },
+            symbol && { symbol },
+            tokenCount !== null &&
+              typeof tokenCount !== 'undefined' && { totalSupply: tokenCount },
+            asset_contract_type && { assetContractType: asset_contract_type },
+            created_date && { createdDate: created_date },
+            schema_name && { schemaName: schema_name },
+            external_link && { externalLink: external_link },
+          );
+
+          nftContractsForUserPerChain[chainId].push(newEntry);
+          modifiedChainIds.add(chainId);
         } catch (error) {
           console.error(
-            `NftController: Failed to fetch contract information for ${checksumHexAddress}`,
+            `NftController: Failed to add NFT contract for ${tokenAddress}`,
             error,
           );
-          continue;
         }
-
-        // If the nft is auto-detected we want some valid metadata to be present
-        if (
-          source === Source.Detected &&
-          'address' in contractInformation &&
-          typeof contractInformation.address === 'string' &&
-          'collection' in contractInformation &&
-          contractInformation.collection.name === null &&
-          'image_url' in contractInformation.collection &&
-          contractInformation.collection.image_url === null &&
-          Object.entries(contractInformation).every(([key, value]) => {
-            return key === 'address' || key === 'collection' || !value;
-          })
-        ) {
-          continue;
-        }
-
-        const {
-          asset_contract_type,
-          created_date,
-          symbol,
-          description,
-          external_link,
-          schema_name,
-          collection: { name, image_url, tokenCount },
-        } = contractInformation;
-
-        /* istanbul ignore next */
-        const newEntry: NftContract = Object.assign(
-          {},
-          { address: checksumHexAddress },
-          description && { description },
-          name && { name },
-          image_url && { logo: image_url },
-          symbol && { symbol },
-          tokenCount !== null &&
-            typeof tokenCount !== 'undefined' && { totalSupply: tokenCount },
-          asset_contract_type && { assetContractType: asset_contract_type },
-          created_date && { createdDate: created_date },
-          schema_name && { schemaName: schema_name },
-          external_link && { externalLink: external_link },
-        );
-
-        nftContractsForUserPerChain[chainId].push(newEntry);
-        modifiedChainIds.add(chainId);
       }
 
       // Loops once per chain (not once per NFT contract)
