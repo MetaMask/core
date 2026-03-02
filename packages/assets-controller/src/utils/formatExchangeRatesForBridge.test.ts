@@ -11,6 +11,18 @@ function price(overrides: Partial<AssetPrice> & { price: number }): AssetPrice {
   return { lastUpdated: 0, ...overrides } as AssetPrice;
 }
 
+/** Minimal nativeAssetIdentifiers for EVM tests (from NetworkEnablementController shape). */
+const EVM_NATIVE_IDS: Record<string, string> = {
+  'eip155:1': 'eip155:1/slip44:60',
+  'eip155:10': 'eip155:10/slip44:60',
+};
+
+/** Network configs for EVM tests (from NetworkController.networkConfigurationsByChainId shape). */
+const EVM_NETWORK_CONFIGS: Record<string, { nativeCurrency: string }> = {
+  '0x1': { nativeCurrency: 'ETH' },
+  '0xa': { nativeCurrency: 'ETH' },
+};
+
 describe('formatExchangeRatesForBridge', () => {
   it('returns empty conversionRates, currencyRates, marketData when assetsPrice is empty', () => {
     const result = formatExchangeRatesForBridge({
@@ -83,6 +95,55 @@ describe('formatExchangeRatesForBridge', () => {
     expect(Object.keys(result.conversionRates)).toHaveLength(0);
   });
 
+  it('omits EVM marketData and currencyRates when nativeAssetIdentifiers is empty', () => {
+    const ethNativeId = 'eip155:1/slip44:60';
+    const result = formatExchangeRatesForBridge({
+      assetsPrice: {
+        [ethNativeId]: price({ price: 2000 }),
+      },
+      selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
+    });
+
+    expect(result.currencyRates.ETH).toBeUndefined();
+    expect(result.marketData['0x1']).toBeUndefined();
+  });
+
+  it('uses native currency symbol from networkConfigurationsByChainId', () => {
+    const polNativeId = 'eip155:137/slip44:966';
+    const result = formatExchangeRatesForBridge({
+      assetsPrice: {
+        [polNativeId]: price({ price: 0.5, lastUpdated: 1_700_000_000_000 }),
+      },
+      selectedCurrency: 'usd',
+      nativeAssetIdentifiers: { 'eip155:137': polNativeId },
+      networkConfigurationsByChainId: {
+        '0x89': { nativeCurrency: 'POL' },
+      },
+    });
+
+    expect(result.currencyRates.POL).toStrictEqual({
+      conversionDate: 1_700_000_000,
+      conversionRate: 0.5,
+      usdConversionRate: 0.5,
+    });
+    const nativeAddress = '0x0000000000000000000000000000000000000000';
+    expect(result.marketData['0x89']?.[nativeAddress]?.currency).toBe('POL');
+  });
+
+  it('falls back to ETH when networkConfigurationsByChainId has no nativeCurrency for chain', () => {
+    const ethNativeId = 'eip155:1/slip44:60';
+    const result = formatExchangeRatesForBridge({
+      assetsPrice: { [ethNativeId]: price({ price: 2000 }) },
+      selectedCurrency: 'usd',
+      nativeAssetIdentifiers: { 'eip155:1': ethNativeId },
+      networkConfigurationsByChainId: {},
+    });
+
+    expect(result.currencyRates.ETH).toBeDefined();
+    expect(result.currencyRates.ETH?.conversionRate).toBe(2000);
+  });
+
   it('includes EVM native asset in marketData and currencyRates', () => {
     const ethNativeId = 'eip155:1/slip44:60';
     const result = formatExchangeRatesForBridge({
@@ -95,6 +156,8 @@ describe('formatExchangeRatesForBridge', () => {
         }),
       },
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: { 'eip155:1': ethNativeId },
+      networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
     });
 
     expect(result.currencyRates.ETH).toStrictEqual({
@@ -137,6 +200,8 @@ describe('formatExchangeRatesForBridge', () => {
         }),
       },
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: { 'eip155:1': ethNativeId },
+      networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
     });
 
     const chainData = result.marketData['0x1'];
@@ -225,6 +290,8 @@ describe('formatExchangeRatesForBridge', () => {
         [optimismNative]: price({ price: 1998 }),
       },
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: EVM_NATIVE_IDS,
+      networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
     });
 
     const nativeAddress = '0x0000000000000000000000000000000000000000';

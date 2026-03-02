@@ -49,22 +49,6 @@ export type BridgeExchangeRatesFormat = {
   currentCurrency: string;
 };
 
-/** EVM chain reference (decimal) -> native symbol and slip44 for native asset */
-const EVM_CHAIN_NATIVE: Record<
-  string,
-  { symbol: string; nativeAssetIdSuffix: string }
-> = {
-  '1': { symbol: 'ETH', nativeAssetIdSuffix: 'slip44:60' },
-  '10': { symbol: 'ETH', nativeAssetIdSuffix: 'slip44:60' },
-  '56': { symbol: 'BNB', nativeAssetIdSuffix: 'slip44:714' },
-  '137': { symbol: 'POL', nativeAssetIdSuffix: 'slip44:966' },
-  '324': { symbol: 'ETH', nativeAssetIdSuffix: 'slip44:60' },
-  '8453': { symbol: 'ETH', nativeAssetIdSuffix: 'slip44:60' },
-  '42161': { symbol: 'ETH', nativeAssetIdSuffix: 'slip44:60' },
-  '43114': { symbol: 'AVAX', nativeAssetIdSuffix: 'slip44:9005' },
-  '59144': { symbol: 'ETH', nativeAssetIdSuffix: 'slip44:60' },
-};
-
 function getPriceNumber(price: AssetPrice): number {
   return typeof price === 'object' && price !== null && 'price' in price
     ? Number((price as { price: number }).price)
@@ -80,13 +64,22 @@ function getPriceNumber(price: AssetPrice): number {
  * @param params - Conversion parameters.
  * @param params.assetsPrice - Map of CAIP-19 asset ID to price data.
  * @param params.selectedCurrency - ISO 4217 currency code (e.g. 'usd').
+ * @param params.nativeAssetIdentifiers - Optional map of CAIP-2 chain ID to native asset ID (e.g. from NetworkEnablementController state). When provided, used for EVM native lookups.
+ * @param params.networkConfigurationsByChainId - Optional map of Hex chain ID to network config (e.g. from NetworkController state). Used to resolve native currency symbol via `nativeCurrency`; keys are Hex (e.g. '0x1').
  * @returns Bridge-compatible conversionRates, currencyRates, marketData, currentCurrency.
  */
 export function formatExchangeRatesForBridge(params: {
   assetsPrice: Record<string, AssetPrice>;
   selectedCurrency: string;
+  nativeAssetIdentifiers?: Record<string, string>;
+  networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
 }): BridgeExchangeRatesFormat {
-  const { assetsPrice, selectedCurrency } = params;
+  const {
+    assetsPrice,
+    selectedCurrency,
+    nativeAssetIdentifiers = {},
+    networkConfigurationsByChainId = {},
+  } = params;
   const conversionRates: Record<string, BridgeConversionRateEntry> = {};
   const currencyRates: Record<string, BridgeCurrencyRateEntry> = {};
   const marketData: Record<string, Record<string, BridgeMarketDataEntry>> = {};
@@ -135,10 +128,9 @@ export function formatExchangeRatesForBridge(params: {
 
       if (chainIdParsed.namespace === 'eip155') {
         const chainIdHex = numberToHex(parseInt(chainRef, 10));
-        const nativeInfo = EVM_CHAIN_NATIVE[chainRef];
-        const nativeAssetId = nativeInfo
-          ? `${parsed.chainId}/${nativeInfo.nativeAssetIdSuffix}`
-          : null;
+        const nativeAssetId = nativeAssetIdentifiers[parsed.chainId] ?? null;
+        const symbol =
+          networkConfigurationsByChainId[chainIdHex]?.nativeCurrency ?? 'ETH';
         const nativePrice =
           nativeAssetId && assetsPrice[nativeAssetId]
             ? getPriceNumber(assetsPrice[nativeAssetId])
@@ -151,7 +143,7 @@ export function formatExchangeRatesForBridge(params: {
           tokenAddress = '0x0000000000000000000000000000000000000000';
         }
 
-        if (tokenAddress && nativeInfo) {
+        if (tokenAddress && nativeAssetId) {
           const priceInNative =
             !Number.isNaN(nativePrice) && nativePrice > 0
               ? price / nativePrice
@@ -159,7 +151,6 @@ export function formatExchangeRatesForBridge(params: {
           if (!marketData[chainIdHex]) {
             marketData[chainIdHex] = {};
           }
-          // Spread full price/market data (id, marketCap, allTimeHigh, etc.) then set bridge fields
           const baseMarketData =
             typeof priceData === 'object' && priceData !== null
               ? (priceData as Record<string, unknown>)
@@ -167,19 +158,18 @@ export function formatExchangeRatesForBridge(params: {
           marketData[chainIdHex][tokenAddress] = {
             ...baseMarketData,
             price: priceInNative,
-            currency: nativeInfo.symbol,
+            currency: symbol,
             assetId,
             chainId: chainIdHex,
             tokenAddress,
           };
         }
 
-        if (parsed.assetNamespace === 'slip44' && nativeInfo) {
-          const usdRate = price;
-          currencyRates[nativeInfo.symbol] = {
+        if (parsed.assetNamespace === 'slip44' && nativeAssetId) {
+          currencyRates[symbol] = {
             conversionDate: conversionTime,
-            conversionRate: usdRate,
-            usdConversionRate: usdRate,
+            conversionRate: price,
+            usdConversionRate: price,
           };
         }
       }
