@@ -39,7 +39,7 @@ describe('native-token-periodic rule', () => {
     enforcer: ExactCalldataEnforcer,
     terms: '0x' as Hex,
     args: '0x' as const,
-};
+  };
 
   it('rejects duplicate NativeTokenPeriodTransferEnforcer caveats', () => {
     const terms = createNativeTokenPeriodTransferTerms(

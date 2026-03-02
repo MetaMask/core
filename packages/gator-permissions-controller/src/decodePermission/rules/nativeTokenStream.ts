@@ -1,5 +1,4 @@
 import { hexToBigInt, hexToNumber } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
 import type {
@@ -53,7 +52,10 @@ export function makeNativeTokenStreamRule(
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: { nativeTokenStreamingEnforcer: Hex; exactCalldataEnforcer: Hex },
+  enforcers: Pick<
+    ChecksumEnforcersByChainId,
+    'nativeTokenStreamingEnforcer' | 'exactCalldataEnforcer'
+  >,
 ): DecodedPermission['permission']['data'] {
   const { nativeTokenStreamingEnforcer, exactCalldataEnforcer } = enforcers;
 

@@ -1,5 +1,3 @@
-import type { Hex } from '@metamask/utils';
-
 import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
@@ -58,7 +56,10 @@ export function makeErc20TokenRevocationRule(
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: { allowedCalldataEnforcer: Hex; valueLteEnforcer: Hex },
+  enforcers: Pick<
+    ChecksumEnforcersByChainId,
+    'allowedCalldataEnforcer' | 'valueLteEnforcer'
+  >,
 ): DecodedPermission['permission']['data'] {
   const { allowedCalldataEnforcer, valueLteEnforcer } = enforcers;
 

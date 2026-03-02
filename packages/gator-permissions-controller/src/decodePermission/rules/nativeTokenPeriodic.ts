@@ -1,5 +1,4 @@
 import { hexToNumber } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
 import type {
@@ -53,7 +52,10 @@ export function makeNativeTokenPeriodicRule(
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: { nativeTokenPeriodicEnforcer: Hex; exactCalldataEnforcer: Hex },
+  enforcers: Pick<
+    ChecksumEnforcersByChainId,
+    'nativeTokenPeriodicEnforcer' | 'exactCalldataEnforcer'
+  >,
 ): DecodedPermission['permission']['data'] {
   const { nativeTokenPeriodicEnforcer, exactCalldataEnforcer } = enforcers;
 

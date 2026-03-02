@@ -1,5 +1,4 @@
 import { hexToBigInt, hexToNumber } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
 import type {
@@ -58,7 +57,10 @@ export function makeErc20TokenStreamRule(
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: { erc20StreamingEnforcer: Hex; valueLteEnforcer: Hex },
+  enforcers: Pick<
+    ChecksumEnforcersByChainId,
+    'erc20StreamingEnforcer' | 'valueLteEnforcer'
+  >,
 ): DecodedPermission['permission']['data'] {
   const { erc20StreamingEnforcer, valueLteEnforcer } = enforcers;
   const valueLteTerms = getTermsByEnforcer({

@@ -1,5 +1,4 @@
 import { hexToNumber } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
 import type {
@@ -58,7 +57,10 @@ export function makeErc20TokenPeriodicRule(
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: { erc20PeriodicEnforcer: Hex; valueLteEnforcer: Hex },
+  enforcers: Pick<
+    ChecksumEnforcersByChainId,
+    'erc20PeriodicEnforcer' | 'valueLteEnforcer'
+  >,
 ): DecodedPermission['permission']['data'] {
   const { erc20PeriodicEnforcer, valueLteEnforcer } = enforcers;
 
