@@ -80,7 +80,7 @@ function getGeolocationUrl(env: Env): string {
  * Options accepted by {@link GeolocationApiService.fetchGeolocation}.
  */
 export type FetchGeolocationOptions = {
-  /** When true, the TTL cache is bypassed and a fresh network request is made. */
+  /** When true, the TTL cache is invalidated so the next request fetches fresh data. */
   bypassCache?: boolean;
 };
 
@@ -92,7 +92,6 @@ export type FetchGeolocationOptions = {
  * - ISO 3166-1 alpha-2 response validation
  * - TTL-based in-memory cache
  * - Promise deduplication (concurrent callers share a single in-flight request)
- * - Race-condition prevention via a generation counter
  *
  * This class is intentionally not a controller: it does not manage UI state.
  * Its {@link fetchGeolocation} method is automatically registered on the
@@ -124,8 +123,6 @@ export class GeolocationApiService {
   #lastFetchedAt: number | null = null;
 
   #fetchPromise: Promise<string> | null = null;
-
-  #fetchGeneration = 0;
 
   /**
    * Constructs a new {@link GeolocationApiService}.
@@ -210,15 +207,14 @@ export class GeolocationApiService {
    * deduplicated to a single in-flight request.
    *
    * @param options - Optional fetch options.
-   * @param options.bypassCache - When true, invalidates the cache and forces a
-   * fresh network request.
+   * @param options.bypassCache - When true, invalidates the TTL cache. If a
+   * request is already in-flight it will be reused (deduplication always
+   * applies).
    * @returns The ISO 3166-1 alpha-2 country code, or {@link UNKNOWN_LOCATION}
    * when the API returns an empty or invalid body.
    */
   async fetchGeolocation(options?: FetchGeolocationOptions): Promise<string> {
     if (options?.bypassCache) {
-      this.#fetchGeneration += 1;
-      this.#fetchPromise = null;
       this.#lastFetchedAt = null;
     }
 
@@ -236,9 +232,7 @@ export class GeolocationApiService {
     try {
       return await promise;
     } finally {
-      if (this.#fetchPromise === promise) {
-        this.#fetchPromise = null;
-      }
+      this.#fetchPromise = null;
     }
   }
 
@@ -261,8 +255,6 @@ export class GeolocationApiService {
    * @returns The ISO country code string.
    */
   async #performFetch(): Promise<string> {
-    const generation = this.#fetchGeneration;
-
     const response = await this.#policy.execute(async () => {
       const localResponse = await this.#fetch(this.#url);
       if (!localResponse.ok) {
@@ -277,7 +269,7 @@ export class GeolocationApiService {
     const raw = (await response.text()).trim();
     const location = /^[A-Z]{2}$/u.test(raw) ? raw : UNKNOWN_LOCATION;
 
-    if (generation === this.#fetchGeneration && location !== UNKNOWN_LOCATION) {
+    if (location !== UNKNOWN_LOCATION) {
       this.#cachedLocation = location;
       this.#lastFetchedAt = Date.now();
     }

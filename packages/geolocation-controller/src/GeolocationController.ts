@@ -159,8 +159,6 @@ export class GeolocationController extends BaseController<
   GeolocationControllerState,
   GeolocationControllerMessenger
 > {
-  #stateGeneration = 0;
-
   /**
    * Constructs a new {@link GeolocationController}.
    *
@@ -200,7 +198,6 @@ export class GeolocationController extends BaseController<
    * @returns The ISO country code string.
    */
   async refreshGeolocation(): Promise<string> {
-    this.#stateGeneration += 1;
     this.update((draft) => {
       draft.lastFetchedAt = null;
     });
@@ -209,16 +206,13 @@ export class GeolocationController extends BaseController<
 
   /**
    * Calls the geolocation service and updates controller state with the
-   * result. Uses a generation guard so that a stale in-flight request
-   * cannot overwrite state written by a newer call.
+   * result.
    *
    * @param options - Options forwarded to the service.
    * @param options.bypassCache - When true, the service skips its TTL cache.
    * @returns The ISO country code string.
    */
   async #fetchAndUpdate(options?: { bypassCache?: boolean }): Promise<string> {
-    const generation = this.#stateGeneration;
-
     this.update((draft) => {
       draft.status = 'loading';
       draft.error = null;
@@ -230,25 +224,21 @@ export class GeolocationController extends BaseController<
         options,
       );
 
-      if (generation === this.#stateGeneration) {
-        this.update((draft) => {
-          draft.location = location;
-          draft.status = 'complete';
-          draft.lastFetchedAt = Date.now();
-          draft.error = null;
-        });
-      }
+      this.update((draft) => {
+        draft.location = location;
+        draft.status = 'complete';
+        draft.lastFetchedAt = Date.now();
+        draft.error = null;
+      });
 
       return location;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
 
-      if (generation === this.#stateGeneration) {
-        this.update((draft) => {
-          draft.status = 'error';
-          draft.error = message;
-        });
-      }
+      this.update((draft) => {
+        draft.status = 'error';
+        draft.error = message;
+      });
 
       return this.state.location;
     }

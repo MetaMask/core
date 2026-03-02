@@ -254,43 +254,6 @@ describe('GeolocationController', () => {
       );
     });
 
-    it('does not let a stale in-flight getGeolocation overwrite refreshed state', async () => {
-      let resolveOld!: (value: string) => void;
-      let resolveNew!: (value: string) => void;
-
-      let callCount = 0;
-      const mockServiceHandler = jest.fn(() => {
-        callCount += 1;
-        if (callCount === 1) {
-          return new Promise<string>((resolve) => {
-            resolveOld = resolve;
-          });
-        }
-        return new Promise<string>((resolve) => {
-          resolveNew = resolve;
-        });
-      });
-
-      await withController(
-        { serviceHandler: mockServiceHandler },
-        async ({ controller }) => {
-          const oldPromise = controller.getGeolocation();
-
-          const refreshPromise = controller.refreshGeolocation();
-
-          resolveNew('GB');
-          await refreshPromise;
-          expect(controller.state.location).toBe('GB');
-
-          resolveOld('US');
-          await oldPromise;
-
-          expect(controller.state.location).toBe('GB');
-          expect(controller.state.status).toBe('complete');
-        },
-      );
-    });
-
     it('sets status to error when the service throws', async () => {
       let callCount = 0;
 
@@ -330,40 +293,6 @@ describe('GeolocationController', () => {
           await controller.refreshGeolocation();
           expect(controller.state.status).toBe('error');
           expect(controller.state.error).toBe('string refresh error');
-        },
-      );
-    });
-
-    it('does not let a stale in-flight error overwrite refreshed state', async () => {
-      let rejectOld!: (reason: Error) => void;
-
-      let callCount = 0;
-      const mockServiceHandler = jest.fn(() => {
-        callCount += 1;
-        if (callCount === 1) {
-          return new Promise<string>((_resolve, reject) => {
-            rejectOld = reject;
-          });
-        }
-        return Promise.resolve('DE');
-      });
-
-      await withController(
-        { serviceHandler: mockServiceHandler },
-        async ({ controller }) => {
-          const oldPromise = controller.getGeolocation();
-
-          const refreshPromise = controller.refreshGeolocation();
-          await refreshPromise;
-          expect(controller.state.location).toBe('DE');
-          expect(controller.state.status).toBe('complete');
-
-          rejectOld(new Error('Network timeout'));
-          await oldPromise;
-
-          expect(controller.state.status).toBe('complete');
-          expect(controller.state.error).toBeNull();
-          expect(controller.state.location).toBe('DE');
         },
       );
     });

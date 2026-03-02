@@ -287,7 +287,7 @@ describe('GeolocationApiService', () => {
     });
 
     describe('bypassCache', () => {
-      it('forces a new fetch even when the cache is valid', async () => {
+      it('invalidates the TTL cache and triggers a new fetch', async () => {
         const mockFetch = jest
           .fn()
           .mockImplementationOnce(() =>
@@ -307,99 +307,18 @@ describe('GeolocationApiService', () => {
         expect(mockFetch).toHaveBeenCalledTimes(2);
       });
 
-      it('does not let a stale in-flight fetch overwrite the refreshed cache', async () => {
-        let resolveOldFetch: (value: Response) => void = () => undefined;
-        let resolveNewFetch: (value: Response) => void = () => undefined;
-
-        const mockFetch = jest
-          .fn()
-          .mockImplementationOnce(
-            () =>
-              new Promise<Response>((resolve) => {
-                resolveOldFetch = resolve;
-              }),
-          )
-          .mockImplementationOnce(
-            () =>
-              new Promise<Response>((resolve) => {
-                resolveNewFetch = resolve;
-              }),
-          );
+      it('reuses an in-flight request instead of starting a second one', async () => {
+        const mockFetch = createMockFetch('US');
         const { service } = getService({ options: { fetch: mockFetch } });
 
-        const oldPromise = service.fetchGeolocation();
+        const [first, second] = await Promise.all([
+          service.fetchGeolocation(),
+          service.fetchGeolocation({ bypassCache: true }),
+        ]);
 
-        const refreshPromise = service.fetchGeolocation({ bypassCache: true });
-        expect(mockFetch).toHaveBeenCalledTimes(2);
-
-        resolveNewFetch(createMockResponse('GB', 200));
-        const refreshResult = await refreshPromise;
-        expect(refreshResult).toBe('GB');
-
-        resolveOldFetch(createMockResponse('US', 200));
-        await oldPromise;
-
-        const cached = await service.fetchGeolocation();
-        expect(cached).toBe('GB');
-      });
-
-      it('preserves deduplication for the refresh fetch after the old finally block runs', async () => {
-        let resolveOldFetch: (value: Response) => void = () => undefined;
-
-        const mockFetch = jest
-          .fn()
-          .mockImplementationOnce(
-            () =>
-              new Promise<Response>((resolve) => {
-                resolveOldFetch = resolve;
-              }),
-          )
-          .mockImplementation(() =>
-            Promise.resolve(createMockResponse('FR', 200)),
-          );
-        const { service } = getService({ options: { fetch: mockFetch } });
-
-        const oldPromise = service.fetchGeolocation();
-
-        const refreshPromise = service.fetchGeolocation({ bypassCache: true });
-
-        resolveOldFetch(createMockResponse('US', 200));
-        await oldPromise;
-        await refreshPromise;
-
-        expect(mockFetch).toHaveBeenCalledTimes(2);
-      });
-
-      it('does not let a stale in-flight error affect the refreshed cache', async () => {
-        let rejectOldFetch: (reason: Error) => void = () => undefined;
-
-        const mockFetch = jest
-          .fn()
-          .mockImplementationOnce(
-            () =>
-              new Promise<Response>((_resolve, reject) => {
-                rejectOldFetch = reject;
-              }),
-          )
-          .mockImplementation(() =>
-            Promise.resolve(createMockResponse('DE', 200)),
-          );
-        const { service } = getService({
-          options: { fetch: mockFetch, policyOptions: { maxRetries: 0 } },
-        });
-
-        const oldPromise = service.fetchGeolocation();
-
-        const refreshResult = await service.fetchGeolocation({
-          bypassCache: true,
-        });
-        expect(refreshResult).toBe('DE');
-
-        rejectOldFetch(new Error('Network timeout'));
-        await expect(oldPromise).rejects.toThrow('Network timeout');
-
-        const cached = await service.fetchGeolocation();
-        expect(cached).toBe('DE');
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(first).toBe('US');
+        expect(second).toBe('US');
       });
     });
   });
