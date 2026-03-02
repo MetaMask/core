@@ -7,6 +7,7 @@ import type {
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
+import { deepClone } from './compatibility-utils';
 import type {
   ContextConstraint,
   InferKeyValues,
@@ -20,7 +21,6 @@ import {
   stringify,
 } from './utils';
 import type { JsonRpcCall } from './utils';
-import { deepClone } from './compatibility-utils';
 
 // Helper to forbid `id` on notifications
 type WithoutId<Request extends JsonRpcCall> = Request & { id?: never };
