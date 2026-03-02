@@ -5,6 +5,7 @@ export type {
   RampsControllerMessenger,
   RampsControllerState,
   RampsControllerStateChangeEvent,
+  RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
   UserRegion,
   ResourceState,
@@ -47,6 +48,7 @@ export type {
   RampsOrderCryptoCurrency,
   RampsOrderFiatCurrency,
   RampsOrderPaymentMethod,
+  OrderPaymentDetail,
 } from './RampsService';
 export {
   RampsService,

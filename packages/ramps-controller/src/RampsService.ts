@@ -543,6 +543,16 @@ export type RampsOrderPaymentMethod = {
 };
 
 /**
+ * Bank transfer instruction fields attached to an order by providers
+ * that require manual payment (e.g. SEPA, wire transfer).
+ */
+export type OrderPaymentDetail = {
+  fiatCurrency: string;
+  paymentMethod: string;
+  fields: { name: string; id: string; value: string }[];
+};
+
+/**
  * Fiat currency information associated with an order.
  */
 export type RampsOrderFiatCurrency = {
@@ -589,6 +599,7 @@ export type RampsOrder = {
   statusDescription?: string;
   partnerFees?: number;
   networkFees?: number;
+  paymentDetails?: OrderPaymentDetail[];
 };
 
 /**
