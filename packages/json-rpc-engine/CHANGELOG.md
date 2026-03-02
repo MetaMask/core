@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Clone `JsonRpcEngineV2` return values to prevent returning frozen objects ([#8077](https://github.com/MetaMask/core/pull/8077))
+
 ## [10.2.2]
 
 ### Fixed
