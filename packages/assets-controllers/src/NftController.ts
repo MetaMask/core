@@ -926,7 +926,10 @@ export class NftController extends BaseController<
    * @param nfts[].source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @returns A promise that resolves when all NFTs have been added or updated.
    */
-  async #addMultipleNfts(userAddress: string, nfts: NftToAdd[]): Promise<void> {
+  async #addMultipleNfts(
+    userAddress: string,
+    nfts: NftToAdd[],
+  ): Promise<{ errors: Error[] }> {
     const releaseLock = await this.#mutex.acquire();
     try {
       const { allNfts } = this.state;
@@ -935,6 +938,7 @@ export class NftController extends BaseController<
         [chainId: `0x${string}`]: Nft[];
       } = {};
       const modifiedChainIds = new Set<Hex>();
+      const errors: Error[] = [];
       const pendingCallbacks: {
         address: string;
         symbol: string | undefined;
@@ -1025,6 +1029,9 @@ export class NftController extends BaseController<
             `NftController: Failed to add NFT ${tokenAddress} #${tokenId}`,
             error,
           );
+          errors.push(
+            error instanceof Error ? error : new Error(String(error)),
+          );
         }
       }
 
@@ -1039,6 +1046,8 @@ export class NftController extends BaseController<
       for (const callbackData of pendingCallbacks) {
         this.#onNftAdded?.(callbackData);
       }
+
+      return { errors };
     } finally {
       releaseLock();
     }
@@ -1058,7 +1067,10 @@ export class NftController extends BaseController<
   async #addNftContracts(
     userAddress: string,
     contracts: NftContractToAdd[],
-  ): Promise<{ [chainId: `0x${string}`]: NftContract[] }> {
+  ): Promise<{
+    contracts: { [chainId: `0x${string}`]: NftContract[] };
+    errors: Error[];
+  }> {
     const releaseLock = await this.#mutex.acquire();
     try {
       const { allNftContracts } = this.state;
@@ -1067,6 +1079,7 @@ export class NftController extends BaseController<
         [chainId: `0x${string}`]: NftContract[];
       } = {};
       const modifiedChainIds = new Set<Hex>();
+      const errors: Error[] = [];
 
       for (const {
         networkClientId,
@@ -1096,7 +1109,7 @@ export class NftController extends BaseController<
           );
 
           if (existingEntry) {
-            continue; // TODO juan check if we need to update the contract
+            continue;
           }
 
           // this doesn't work currently for detection if the user switches networks while the detection is processing
@@ -1157,6 +1170,9 @@ export class NftController extends BaseController<
             `NftController: Failed to add NFT contract for ${tokenAddress}`,
             error,
           );
+          errors.push(
+            error instanceof Error ? error : new Error(String(error)),
+          );
         }
       }
 
@@ -1169,7 +1185,7 @@ export class NftController extends BaseController<
         );
       }
 
-      return nftContractsForUserPerChain;
+      return { contracts: nftContractsForUserPerChain, errors };
     } finally {
       releaseLock();
     }
@@ -1545,14 +1561,19 @@ export class NftController extends BaseController<
       nftMetadata = await this.#sanitizeNftMetadata(nftMetadata);
     }
 
-    const newNftContracts = await this.#addNftContracts(addressToSearch, [
-      {
-        tokenAddress: checksumHexAddress,
-        networkClientId,
-        source,
-        nftMetadata,
-      },
-    ]);
+    const { contracts: newNftContracts, errors: contractErrors } =
+      await this.#addNftContracts(addressToSearch, [
+        {
+          tokenAddress: checksumHexAddress,
+          networkClientId,
+          source,
+          nftMetadata,
+        },
+      ]);
+
+    if (contractErrors.length > 0) {
+      throw contractErrors[0];
+    }
 
     // If NFT contract was not added, do not add individual NFT
     const nftContract = Object.values(newNftContracts)
@@ -1576,16 +1597,23 @@ export class NftController extends BaseController<
     }
 
     if (nftContract) {
-      await this.#addMultipleNfts(addressToSearch, [
-        {
-          tokenAddress: checksumHexAddress,
-          tokenId,
-          nftMetadata,
-          nftContract,
-          chainId,
-          source,
-        },
-      ]);
+      const { errors: nftErrors } = await this.#addMultipleNfts(
+        addressToSearch,
+        [
+          {
+            tokenAddress: checksumHexAddress,
+            tokenId,
+            nftMetadata,
+            nftContract,
+            chainId,
+            source,
+          },
+        ],
+      );
+
+      if (nftErrors.length > 0) {
+        throw nftErrors[0];
+      }
     }
   }
 
@@ -1647,7 +1675,7 @@ export class NftController extends BaseController<
     }
 
     // Add the NFT contracts to state
-    const newNftContracts = await this.#addNftContracts(
+    const { contracts: newNftContracts } = await this.#addNftContracts(
       addressToSearch,
       nftContractsToAdd,
     );
