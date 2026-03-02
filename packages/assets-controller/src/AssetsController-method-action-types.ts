@@ -26,8 +26,15 @@ export type AssetsControllerGetAssetsPriceAction = {
 };
 
 /**
- * Returns exchange rates in the format expected by the bridge controller.
- * Used when the bridge's useAssetsControllerForRates flag is true.
+ * Returns exchange rates in the format expected by the bridge controller
+ * (conversionRates, currencyRates, marketData, currentCurrency) so that
+ * when useAssetsControllerForRates is true the bridge can use a single
+ * action instead of MultichainAssetsRatesController, TokenRatesController,
+ * and CurrencyRateController.
+ *
+ * @param options - Optional options for bridge rate conversion.
+ * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and conversionRates use correct user-currency vs USD values; otherwise the bridge USD conversion will be wrong for non-USD currencies.
+ * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
  */
 export type AssetsControllerGetExchangeRatesForBridgeAction = {
   type: `AssetsController:getExchangeRatesForBridge`;
