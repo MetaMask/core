@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Optimize NFT Controller state writes from O(n) to O(1) for NFT detection by batching contract and NFT additions ([#8079](https://github.com/MetaMask/core/pull/8079))
+- Optimize NFT Controller state writes from O(2n) to O(2) for NFT detection by batching contract and NFT additions ([#8079](https://github.com/MetaMask/core/pull/8079))
 - Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.19.0` ([#8031](https://github.com/MetaMask/core/pull/8031))
 
 ### Fixed
