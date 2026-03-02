@@ -20,7 +20,6 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { estimateGasLimitWithBufferOrFallback } from '../../utils/gas';
 import {
   collectTransactionIds,
   getTransaction,
@@ -29,8 +28,7 @@ import {
 } from '../../utils/transaction';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
-const ACROSS_STATUS_POLL_INTERVAL = 3000;
-const ACROSS_STATUS_MAX_ATTEMPTS = 20;
+const ACROSS_STATUS_POLL_INTERVAL = 1000;
 
 type PreparedAcrossTransaction = {
   params: TransactionParams;
@@ -131,11 +129,18 @@ async function submitTransactions(
 
   if (approvalTxns?.length) {
     for (const [index, approval] of approvalTxns.entries()) {
+      const approvalGasLimit = quoteGasLimits?.approval[index]?.estimate;
+      if (approvalGasLimit === undefined) {
+        throw new Error(
+          `Missing quote gas limit for Across approval transaction at index ${index}`,
+        );
+      }
+
       transactions.push({
-        params: await buildTransactionParams(messenger, from, {
+        params: buildTransactionParams(from, {
           chainId: approval.chainId,
           data: approval.data,
-          gasLimit: quoteGasLimits?.approval[index]?.estimate,
+          gasLimit: approvalGasLimit,
           to: approval.to,
           value: approval.value,
         }),
@@ -144,11 +149,16 @@ async function submitTransactions(
     }
   }
 
+  const swapGasLimit = quoteGasLimits?.swap?.estimate;
+  if (swapGasLimit === undefined) {
+    throw new Error('Missing quote gas limit for Across swap transaction');
+  }
+
   transactions.push({
-    params: await buildTransactionParams(messenger, from, {
+    params: buildTransactionParams(from, {
       chainId: swapTx.chainId,
       data: swapTx.data,
-      gasLimit: quoteGasLimits?.swap?.estimate,
+      gasLimit: swapGasLimit,
       to: swapTx.to,
       value: swapTx.value,
       maxFeePerGas: swapTx.maxFeePerGas,
@@ -256,7 +266,10 @@ async function waitForAcrossCompletion(
   });
   const url = `${config.across.apiBase}/deposit/status?${params.toString()}`;
 
-  for (let attempt = 0; attempt < ACROSS_STATUS_MAX_ATTEMPTS; attempt++) {
+  let attempt = 0;
+
+  while (true) {
+    attempt += 1;
     let status: AcrossStatusResponse;
 
     try {
@@ -283,7 +296,7 @@ async function waitForAcrossCompletion(
     const normalizedStatus = status.status?.toLowerCase();
 
     log('Polled Across status', {
-      attempt: attempt + 1,
+      attempt,
       status: normalizedStatus,
       transactionHash,
     });
@@ -311,9 +324,6 @@ async function waitForAcrossCompletion(
       setTimeout(resolve, ACROSS_STATUS_POLL_INTERVAL),
     );
   }
-
-  log('Across status polling timed out', { transactionHash });
-  return transactionHash;
 }
 
 function getAcrossDepositType(
@@ -331,33 +341,20 @@ function getAcrossDepositType(
   }
 }
 
-async function buildTransactionParams(
-  messenger: TransactionPayControllerMessenger,
+function buildTransactionParams(
   from: Hex,
   params: {
     chainId: number;
     data: Hex;
-    gasLimit?: number;
+    gasLimit: number;
     to: Hex;
     value?: Hex;
     maxFeePerGas?: string;
     maxPriorityFeePerGas?: string;
   },
-): Promise<TransactionParams> {
-  const chainId = toHex(params.chainId);
+): TransactionParams {
   const value = toHex(params.value ?? '0x0');
-  const gas =
-    params.gasLimit ??
-    (await estimateGasLimit(
-      messenger,
-      {
-        chainId,
-        data: params.data,
-        to: params.to,
-        value,
-      },
-      from,
-    ));
+  const gas = params.gasLimit;
 
   return {
     data: params.data,
@@ -389,32 +386,4 @@ function toBatchTransactionParams(
     to: params.to as Hex | undefined,
     value: params.value as Hex | undefined,
   };
-}
-
-async function estimateGasLimit(
-  messenger: TransactionPayControllerMessenger,
-  params: {
-    chainId: Hex;
-    data: Hex;
-    to: Hex;
-    value: Hex;
-  },
-  from: Hex,
-): Promise<number> {
-  const { chainId, data, to, value } = params;
-  const gasResult = await estimateGasLimitWithBufferOrFallback({
-    chainId,
-    data,
-    fallbackOnSimulationFailure: true,
-    from,
-    messenger,
-    to,
-    value,
-  });
-
-  if (gasResult.usedFallback) {
-    log('Gas estimate failed, using fallback', { error: gasResult.error });
-  }
-
-  return gasResult.estimate;
 }

@@ -2,12 +2,12 @@ import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { clone, cloneDeep } from 'lodash';
 
-import { getGasBuffer, getRelayFallbackGas } from './feature-flags';
+import { getFallbackGas, getGasBuffer } from './feature-flags';
 import {
   calculateGasCost,
   calculateGasFeeTokenCost,
   calculateTransactionGasCost,
-  estimateGasLimitWithBufferOrFallback,
+  estimateGasLimit,
 } from './gas';
 import { getTokenBalance, getTokenFiatRate } from './token';
 import type { GasFeeEstimates } from '../../../gas-fee-controller/src';
@@ -21,7 +21,7 @@ jest.mock('./token');
 jest.mock('./feature-flags', () => ({
   ...jest.requireActual('./feature-flags'),
   getGasBuffer: jest.fn(),
-  getRelayFallbackGas: jest.fn(),
+  getFallbackGas: jest.fn(),
 }));
 
 const GAS_USED_MOCK = toHex(21000);
@@ -63,7 +63,7 @@ const GAS_FEE_CONTROLLER_STATE_MOCK = {
 
 describe('Gas Utils', () => {
   const getGasBufferMock = jest.mocked(getGasBuffer);
-  const getRelayFallbackGasMock = jest.mocked(getRelayFallbackGas);
+  const getFallbackGasMock = jest.mocked(getFallbackGas);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
   const {
@@ -78,7 +78,7 @@ describe('Gas Utils', () => {
 
     getGasFeeControllerStateMock.mockReturnValue(GAS_FEE_CONTROLLER_STATE_MOCK);
     getTokenBalanceMock.mockReturnValue('147000000000000');
-    getRelayFallbackGasMock.mockReturnValue({
+    getFallbackGasMock.mockReturnValue({
       estimate: 123,
       max: 456,
     });
@@ -416,7 +416,7 @@ describe('Gas Utils', () => {
     });
   });
 
-  describe('estimateGasLimitWithBufferOrFallback', () => {
+  describe('estimateGasLimit', () => {
     it('returns buffered gas estimate when simulation succeeds', async () => {
       estimateGasMock.mockResolvedValue({
         gas: '0x5208',
@@ -424,7 +424,7 @@ describe('Gas Utils', () => {
       });
 
       expect(
-        await estimateGasLimitWithBufferOrFallback({
+        await estimateGasLimit({
           chainId: CHAIN_ID_MOCK,
           data: '0xdead' as Hex,
           from: '0xabc' as Hex,
@@ -448,7 +448,7 @@ describe('Gas Utils', () => {
       });
 
       await expect(
-        estimateGasLimitWithBufferOrFallback({
+        estimateGasLimit({
           chainId: CHAIN_ID_MOCK,
           data: '0xdead' as Hex,
           from: '0xabc' as Hex,
@@ -466,7 +466,7 @@ describe('Gas Utils', () => {
         },
       });
 
-      const result = await estimateGasLimitWithBufferOrFallback({
+      const result = await estimateGasLimit({
         chainId: CHAIN_ID_MOCK,
         data: '0xdead' as Hex,
         fallbackOnSimulationFailure: true,
@@ -499,7 +499,7 @@ describe('Gas Utils', () => {
       estimateGasMock.mockRejectedValue(error);
 
       expect(
-        await estimateGasLimitWithBufferOrFallback({
+        await estimateGasLimit({
           chainId: CHAIN_ID_MOCK,
           data: '0xdead' as Hex,
           from: '0xabc' as Hex,
@@ -520,7 +520,7 @@ describe('Gas Utils', () => {
         simulationFails: undefined,
       });
 
-      const result = await estimateGasLimitWithBufferOrFallback({
+      const result = await estimateGasLimit({
         chainId: CHAIN_ID_MOCK,
         data: '0xdead' as Hex,
         from: '0xabc' as Hex,

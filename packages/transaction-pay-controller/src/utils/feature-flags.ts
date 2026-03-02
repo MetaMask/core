@@ -12,8 +12,8 @@ const log = createModuleLogger(projectLogger, 'feature-flags');
 type StrategyOrder = [TransactionPayStrategy, ...TransactionPayStrategy[]];
 
 export const DEFAULT_GAS_BUFFER = 1.0;
-export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
-export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
+export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
+export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
@@ -33,10 +33,6 @@ type FeatureFlagsRaw = {
       }
     >;
   };
-  metaMaskFee?: {
-    recipient?: Hex;
-    fee?: string;
-  };
   relayDisabledGasStationChains?: Hex[];
   relayFallbackGas?: {
     estimate?: number;
@@ -50,10 +46,6 @@ type FeatureFlagsRaw = {
 };
 
 export type FeatureFlags = {
-  metaMaskFee?: {
-    recipient: Hex;
-    fee: string;
-  };
   relayDisabledGasStationChains: Hex[];
   relayFallbackGas: {
     estimate: number;
@@ -67,7 +59,6 @@ export type AcrossConfigRaw = {
   allowSameChain?: boolean;
   apiBase?: string;
   enabled?: boolean;
-  integratorId?: string;
 };
 
 export type PayStrategiesConfigRaw = {
@@ -126,14 +117,11 @@ export function getFeatureFlags(
   messenger: TransactionPayControllerMessenger,
 ): FeatureFlags {
   const featureFlags = getFeatureFlagsRaw(messenger);
-  const metaMaskFee = getMetaMaskFee(featureFlags.metaMaskFee);
 
   const estimate =
-    featureFlags.relayFallbackGas?.estimate ??
-    DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE;
+    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
 
-  const max =
-    featureFlags.relayFallbackGas?.max ?? DEFAULT_RELAY_FALLBACK_GAS_MAX;
+  const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
 
   const relayQuoteUrl = featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
 
@@ -143,7 +131,6 @@ export function getFeatureFlags(
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
 
   const result: FeatureFlags = {
-    ...(metaMaskFee ? { metaMaskFee } : {}),
     relayDisabledGasStationChains,
     relayFallbackGas: {
       estimate,
@@ -156,29 +143,6 @@ export function getFeatureFlags(
   log('Feature flags:', { raw: featureFlags, result });
 
   return result;
-}
-
-function getMetaMaskFee(
-  rawMetaMaskFee: FeatureFlagsRaw['metaMaskFee'],
-): FeatureFlags['metaMaskFee'] {
-  if (!rawMetaMaskFee?.recipient || !rawMetaMaskFee.fee) {
-    return undefined;
-  }
-
-  if (!/^0x[a-fA-F0-9]{40}$/u.test(rawMetaMaskFee.recipient)) {
-    return undefined;
-  }
-
-  const parsedFee = Number(rawMetaMaskFee.fee);
-
-  if (!Number.isFinite(parsedFee) || parsedFee <= 0 || parsedFee >= 1) {
-    return undefined;
-  }
-
-  return {
-    recipient: rawMetaMaskFee.recipient,
-    fee: rawMetaMaskFee.fee,
-  };
 }
 
 /**
@@ -200,7 +164,6 @@ export function getPayStrategiesConfig(
     allowSameChain: acrossRaw.allowSameChain ?? false,
     apiBase: acrossRaw.apiBase ?? DEFAULT_ACROSS_API_BASE,
     enabled: acrossRaw.enabled ?? false,
-    integratorId: acrossRaw.integratorId,
   };
 
   const relay = {
@@ -219,7 +182,7 @@ export function getPayStrategiesConfig(
  * @param messenger - Controller messenger.
  * @returns Fallback gas limits.
  */
-export function getRelayFallbackGas(
+export function getFallbackGas(
   messenger: TransactionPayControllerMessenger,
 ): FeatureFlags['relayFallbackGas'] {
   return getFeatureFlags(messenger).relayFallbackGas;

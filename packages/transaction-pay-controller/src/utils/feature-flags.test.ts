@@ -2,9 +2,9 @@ import type { Hex } from '@metamask/utils';
 
 import {
   DEFAULT_ACROSS_API_BASE,
+  DEFAULT_FALLBACK_GAS_ESTIMATE,
+  DEFAULT_FALLBACK_GAS_MAX,
   DEFAULT_GAS_BUFFER,
-  DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
-  DEFAULT_RELAY_FALLBACK_GAS_MAX,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
   DEFAULT_STRATEGY_ORDER,
@@ -31,9 +31,6 @@ const CHAIN_ID_DIFFERENT_MOCK = '0x89' as Hex;
 const TOKEN_ADDRESS_MOCK = '0xabc123def456' as Hex;
 const TOKEN_ADDRESS_DIFFERENT_MOCK = '0xdef789abc012' as Hex;
 const TOKEN_SPECIFIC_SLIPPAGE_MOCK = 0.02;
-const METAMASK_FEE_RECIPIENT_MOCK =
-  '0x1234567890123456789012345678901234567890' as Hex;
-const METAMASK_FEE_MOCK = '0.001';
 
 describe('Feature Flags Utils', () => {
   const { messenger, getRemoteFeatureFlagControllerStateMock } =
@@ -54,8 +51,8 @@ describe('Feature Flags Utils', () => {
       expect(featureFlags).toStrictEqual({
         relayDisabledGasStationChains: [],
         relayFallbackGas: {
-          estimate: DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
-          max: DEFAULT_RELAY_FALLBACK_GAS_MAX,
+          estimate: DEFAULT_FALLBACK_GAS_ESTIMATE,
+          max: DEFAULT_FALLBACK_GAS_MAX,
         },
         relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
         slippage: DEFAULT_SLIPPAGE,
@@ -91,120 +88,7 @@ describe('Feature Flags Utils', () => {
         slippage: SLIPPAGE_MOCK,
       });
     });
-
-    it('returns normalized metaMaskFee when fee config is valid', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            metaMaskFee: {
-              recipient: METAMASK_FEE_RECIPIENT_MOCK,
-              fee: METAMASK_FEE_MOCK,
-            },
-          },
-        },
-      });
-
-      const featureFlags = getFeatureFlags(messenger);
-
-      expect(featureFlags.metaMaskFee).toStrictEqual({
-        recipient: METAMASK_FEE_RECIPIENT_MOCK,
-        fee: METAMASK_FEE_MOCK,
-      });
-    });
-
-    it('omits metaMaskFee when recipient is missing', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            metaMaskFee: {
-              fee: METAMASK_FEE_MOCK,
-            },
-          },
-        },
-      });
-
-      const featureFlags = getFeatureFlags(messenger);
-
-      expect(featureFlags.metaMaskFee).toBeUndefined();
-    });
-
-    it('omits metaMaskFee when fee is missing', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            metaMaskFee: {
-              recipient: METAMASK_FEE_RECIPIENT_MOCK,
-            },
-          },
-        },
-      });
-
-      const featureFlags = getFeatureFlags(messenger);
-
-      expect(featureFlags.metaMaskFee).toBeUndefined();
-    });
-
-    it('omits metaMaskFee when fee is not numeric', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            metaMaskFee: {
-              recipient: METAMASK_FEE_RECIPIENT_MOCK,
-              fee: 'abc',
-            },
-          },
-        },
-      });
-
-      const featureFlags = getFeatureFlags(messenger);
-
-      expect(featureFlags.metaMaskFee).toBeUndefined();
-    });
-
-    it.each(['0', '-0.1', '1', '1.1'])(
-      'omits metaMaskFee when fee is out of bounds: %s',
-      (fee) => {
-        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          ...getDefaultRemoteFeatureFlagControllerState(),
-          remoteFeatureFlags: {
-            confirmations_pay: {
-              metaMaskFee: {
-                recipient: METAMASK_FEE_RECIPIENT_MOCK,
-                fee,
-              },
-            },
-          },
-        });
-
-        const featureFlags = getFeatureFlags(messenger);
-
-        expect(featureFlags.metaMaskFee).toBeUndefined();
-      },
-    );
-
-    it('omits metaMaskFee when recipient is not a valid EVM address', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            metaMaskFee: {
-              recipient: '0x1234' as Hex,
-              fee: METAMASK_FEE_MOCK,
-            },
-          },
-        },
-      });
-
-      const featureFlags = getFeatureFlags(messenger);
-
-      expect(featureFlags.metaMaskFee).toBeUndefined();
-    });
   });
-
   describe('getGasBuffer', () => {
     it('returns default gas buffer when none are set', () => {
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);
@@ -534,7 +418,6 @@ describe('Feature Flags Utils', () => {
                 allowSameChain: true,
                 apiBase: 'https://across.test',
                 enabled: false,
-                integratorId: 'metamask-test',
               },
               relay: {
                 enabled: false,
@@ -551,7 +434,6 @@ describe('Feature Flags Utils', () => {
           allowSameChain: true,
           apiBase: 'https://across.test',
           enabled: false,
-          integratorId: 'metamask-test',
         }),
       );
       expect(config.relay).toStrictEqual(

@@ -85,7 +85,6 @@ const TOKEN_TRANSFER_INTERFACE = new Interface([
 ]);
 
 const TRANSFER_RECIPIENT = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
-const APP_FEE_RECIPIENT = '0x1234567890123456789012345678901234567890' as Hex;
 
 function buildTransferData(
   recipient: string = TRANSFER_RECIPIENT,
@@ -267,83 +266,15 @@ describe('Across Quotes', () => {
       expect(params.get('slippage')).toBe('0.02');
     });
 
-    it('includes app fee params when metaMaskFee config is valid', async () => {
+    it('does not include locally-configured app fee or integrator query params', async () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             metaMaskFee: {
-              recipient: APP_FEE_RECIPIENT,
+              recipient: '0x1234567890123456789012345678901234567890',
               fee: '0.001',
             },
-            payStrategies: {
-              across: {
-                enabled: true,
-                apiBase: 'https://test.across.to/api',
-              },
-            },
-          },
-        },
-      });
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_MOCK,
-      } as Response);
-
-      await getAcrossQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      const [url] = successfulFetchMock.mock.calls[0];
-      const params = new URL(url as string).searchParams;
-
-      expect(params.get('appFee')).toBe('0.001');
-      expect(params.get('appFeeRecipient')).toBe(APP_FEE_RECIPIENT);
-    });
-
-    it('omits app fee params when metaMaskFee config is invalid', async () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            metaMaskFee: {
-              recipient: '0x1234',
-              fee: '0.001',
-            },
-            payStrategies: {
-              across: {
-                enabled: true,
-                apiBase: 'https://test.across.to/api',
-              },
-            },
-          },
-        },
-      });
-
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_MOCK,
-      } as Response);
-
-      await getAcrossQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      const [url] = successfulFetchMock.mock.calls[0];
-      const params = new URL(url as string).searchParams;
-
-      expect(params.has('appFee')).toBe(false);
-      expect(params.has('appFeeRecipient')).toBe(false);
-    });
-
-    it('includes integratorId when configured', async () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
             payStrategies: {
               across: {
                 enabled: true,
@@ -368,7 +299,9 @@ describe('Across Quotes', () => {
       const [url] = successfulFetchMock.mock.calls[0];
       const params = new URL(url as string).searchParams;
 
-      expect(params.get('integratorId')).toBe('metamask-test');
+      expect(params.has('appFee')).toBe(false);
+      expect(params.has('appFeeRecipient')).toBe(false);
+      expect(params.has('integratorId')).toBe(false);
     });
 
     it('uses POST approval request with empty actions by default', async () => {
@@ -756,6 +689,60 @@ describe('Across Quotes', () => {
           max: 30000,
         },
       ]);
+      expect(result[0].original.gasLimits.swap).toStrictEqual({
+        estimate: 21000,
+        max: 21000,
+      });
+    });
+
+    it('uses swapTx.gas from Across response when provided', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          swapTx: {
+            ...QUOTE_MOCK.swapTx,
+            gas: '0x6000',
+          },
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateGasMock).not.toHaveBeenCalled();
+      expect(result[0].original.gasLimits.swap).toStrictEqual({
+        estimate: 24576,
+        max: 24576,
+      });
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chainId: '0x1',
+          gas: 24576,
+        }),
+      );
+    });
+
+    it('falls back to local swap gas estimate when swapTx.gas is invalid', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          swapTx: {
+            ...QUOTE_MOCK.swapTx,
+            gas: 'invalid',
+          },
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateGasMock).toHaveBeenCalledTimes(1);
       expect(result[0].original.gasLimits.swap).toStrictEqual({
         estimate: 21000,
         max: 21000,

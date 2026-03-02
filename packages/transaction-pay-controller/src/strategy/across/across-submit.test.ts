@@ -15,12 +15,7 @@ import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-f
 import { TransactionPayStrategy } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type { TransactionPayQuote } from '../../types';
-import { getGasBuffer } from '../../utils/feature-flags';
 
-jest.mock('../../utils/feature-flags', () => ({
-  ...jest.requireActual('../../utils/feature-flags'),
-  getGasBuffer: jest.fn(),
-}));
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
   successfulFetch: jest.fn(),
@@ -99,7 +94,6 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
 };
 
 describe('Across Submit', () => {
-  const getGasBufferMock = jest.mocked(getGasBuffer);
   const successfulFetchMock = jest.mocked(successfulFetch);
 
   const {
@@ -128,7 +122,6 @@ describe('Across Submit', () => {
       },
     });
 
-    getGasBufferMock.mockReturnValue(1.0);
     estimateGasMock.mockResolvedValue({
       gas: '0x5208',
       simulationFails: undefined,
@@ -674,14 +667,23 @@ describe('Across Submit', () => {
       expect(result.transactionHash).toBe('0xconfirmed');
     });
 
-    it('returns original transaction hash when Across status polling times out', async () => {
+    it('keeps polling pending status until success is returned', async () => {
       jest.useFakeTimers();
 
       try {
         setupConfirmedSubmission();
-        successfulFetchMock.mockResolvedValue({
+        const pendingAttempts = 25;
+        for (let attempt = 0; attempt < pendingAttempts; attempt++) {
+          successfulFetchMock.mockResolvedValueOnce({
+            json: async () => ({
+              status: 'pending',
+            }),
+          } as Response);
+        }
+
+        successfulFetchMock.mockResolvedValueOnce({
           json: async () => ({
-            status: 'pending',
+            status: 'success',
           }),
         } as Response);
 
@@ -696,18 +698,28 @@ describe('Across Submit', () => {
         const result = await resultPromise;
 
         expect(result.transactionHash).toBe('0xconfirmed');
-        expect(successfulFetchMock).toHaveBeenCalledTimes(20);
+        expect(successfulFetchMock).toHaveBeenCalledTimes(pendingAttempts + 1);
       } finally {
         jest.useRealTimers();
       }
     });
 
-    it('returns original transaction hash when Across status polling requests fail', async () => {
+    it('keeps retrying failed status requests until success is returned', async () => {
       jest.useFakeTimers();
 
       try {
         setupConfirmedSubmission();
-        successfulFetchMock.mockRejectedValue(new Error('Network error'));
+        const failureAttempts = 25;
+        for (let attempt = 0; attempt < failureAttempts; attempt++) {
+          successfulFetchMock.mockRejectedValueOnce(new Error('Network error'));
+        }
+
+        successfulFetchMock.mockResolvedValueOnce({
+          json: async () => ({
+            destinationTxHash: '0xtarget',
+            status: 'success',
+          }),
+        } as Response);
 
         const resultPromise = submitAcrossQuotes({
           messenger,
@@ -719,8 +731,8 @@ describe('Across Submit', () => {
         await jest.runAllTimersAsync();
         const result = await resultPromise;
 
-        expect(result.transactionHash).toBe('0xconfirmed');
-        expect(successfulFetchMock).toHaveBeenCalledTimes(20);
+        expect(result.transactionHash).toBe('0xtarget');
+        expect(successfulFetchMock).toHaveBeenCalledTimes(failureAttempts + 1);
       } finally {
         jest.useRealTimers();
       }
@@ -751,94 +763,59 @@ describe('Across Submit', () => {
       expect(estimateGasMock).not.toHaveBeenCalled();
     });
 
-    it('uses fallback gas value when estimation fails', async () => {
-      estimateGasMock.mockRejectedValue(new Error('Gas estimation failed'));
-
-      const noApprovalQuote = {
+    it('throws when swap quote gas limit is missing', async () => {
+      const missingSwapGasQuote = {
         ...QUOTE_MOCK,
         original: {
           ...QUOTE_MOCK.original,
-          gasLimits: undefined as never,
+          gasLimits: {
+            ...QUOTE_MOCK.original.gasLimits,
+            swap: undefined,
+          },
           quote: {
             ...QUOTE_MOCK.original.quote,
             approvalTxns: [],
           },
         },
-      } as TransactionPayQuote<AcrossQuote>;
+      } as unknown as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await expect(
+        submitAcrossQuotes({
+          messenger,
+          quotes: [missingSwapGasQuote],
+          transaction: TRANSACTION_META_MOCK,
+          isSmartTransaction: jest.fn(),
+        }),
+      ).rejects.toThrow('Missing quote gas limit for Across swap transaction');
 
-      const params = addTransactionMock.mock.calls[0][0] as { gas: Hex };
-      expect(params.gas).toBe(toHex(900000));
+      expect(addTransactionMock).not.toHaveBeenCalled();
     });
 
-    it('uses fallback gas value when gas simulation fails', async () => {
-      estimateGasMock.mockResolvedValue({
-        gas: '0x5208',
-        simulationFails: {
-          debug: {},
-        },
-      });
-
-      const noApprovalQuote = {
+    it('throws when approval quote gas limit is missing', async () => {
+      const missingApprovalGasQuote = {
         ...QUOTE_MOCK,
         original: {
           ...QUOTE_MOCK.original,
-          gasLimits: undefined as never,
-          quote: {
-            ...QUOTE_MOCK.original.quote,
-            approvalTxns: [],
+          gasLimits: {
+            ...QUOTE_MOCK.original.gasLimits,
+            approval: [],
           },
         },
       } as TransactionPayQuote<AcrossQuote>;
 
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
+      await expect(
+        submitAcrossQuotes({
+          messenger,
+          quotes: [missingApprovalGasQuote],
+          transaction: TRANSACTION_META_MOCK,
+          isSmartTransaction: jest.fn(),
+        }),
+      ).rejects.toThrow(
+        'Missing quote gas limit for Across approval transaction at index 0',
+      );
 
-      const params = addTransactionMock.mock.calls[0][0] as { gas: Hex };
-      expect(params.gas).toBe(toHex(900000));
-    });
-
-    it('applies gas buffer to estimated gas', async () => {
-      getGasBufferMock.mockReturnValue(1.5);
-
-      estimateGasMock.mockResolvedValue({
-        gas: '0x10000',
-        simulationFails: undefined,
-      });
-
-      const noApprovalQuote = {
-        ...QUOTE_MOCK,
-        original: {
-          ...QUOTE_MOCK.original,
-          gasLimits: undefined as never,
-          quote: {
-            ...QUOTE_MOCK.original.quote,
-            approvalTxns: [],
-          },
-        },
-      } as TransactionPayQuote<AcrossQuote>;
-
-      await submitAcrossQuotes({
-        messenger,
-        quotes: [noApprovalQuote],
-        transaction: TRANSACTION_META_MOCK,
-        isSmartTransaction: jest.fn(),
-      });
-
-      const params = addTransactionMock.mock.calls[0][0] as { gas: Hex };
-      const gasValue = parseInt(params.gas, 16);
-      const expectedGas = Math.ceil(0x10000 * 1.5);
-      expect(gasValue).toBe(expectedGas);
+      expect(addTransactionMock).not.toHaveBeenCalled();
+      expect(addTransactionBatchMock).not.toHaveBeenCalled();
     });
 
     it('includes maxFeePerGas and maxPriorityFeePerGas in swap transaction', async () => {

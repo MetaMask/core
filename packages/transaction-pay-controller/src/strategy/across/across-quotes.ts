@@ -21,15 +21,8 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getFiatValueFromUsd, sumAmounts } from '../../utils/amounts';
-import {
-  getFeatureFlags,
-  getSlippage,
-  getPayStrategiesConfig,
-} from '../../utils/feature-flags';
-import {
-  calculateGasCost,
-  estimateGasLimitWithBufferOrFallback,
-} from '../../utils/gas';
+import { getPayStrategiesConfig, getSlippage } from '../../utils/feature-flags';
+import { calculateGasCost, estimateGasLimit } from '../../utils/gas';
 import { getTokenFiatRate } from '../../utils/token';
 import { TOKEN_TRANSFER_FOUR_BYTE } from '../relay/constants';
 
@@ -103,7 +96,6 @@ async function getSingleQuote(
   } = request;
 
   const config = getPayStrategiesConfig(messenger);
-  const featureFlags = getFeatureFlags(messenger);
   const slippageDecimal = getSlippage(
     messenger,
     sourceChainId,
@@ -113,33 +105,18 @@ async function getSingleQuote(
   const amount = isMaxAmount ? sourceTokenAmount : targetAmountMinimum;
   const tradeType = isMaxAmount ? 'exactInput' : 'exactOutput';
   const recipient = getAcrossRecipient(transaction, request);
-
-  const params = new URLSearchParams();
-  params.set('tradeType', tradeType);
-  params.set('amount', amount);
-  params.set('inputToken', sourceTokenAddress);
-  params.set('outputToken', targetTokenAddress);
-  params.set('originChainId', String(parseInt(sourceChainId, 16)));
-  params.set('destinationChainId', String(parseInt(targetChainId, 16)));
-  params.set('depositor', from);
-  params.set('recipient', recipient);
-
-  if (slippageDecimal !== undefined) {
-    params.set('slippage', String(slippageDecimal));
-  }
-
-  if (config.across.integratorId) {
-    params.set('integratorId', config.across.integratorId);
-  }
-
-  if (featureFlags.metaMaskFee) {
-    params.set('appFee', featureFlags.metaMaskFee.fee);
-    params.set('appFeeRecipient', featureFlags.metaMaskFee.recipient);
-  }
-
-  const response = await requestAcrossApproval(config.across.apiBase, params);
-
-  const quote = (await response.json()) as AcrossSwapApprovalResponse;
+  const quote = await requestAcrossApproval({
+    amount,
+    apiBase: config.across.apiBase,
+    depositor: from,
+    destinationChainId: targetChainId,
+    inputToken: sourceTokenAddress,
+    originChainId: sourceChainId,
+    outputToken: targetTokenAddress,
+    recipient,
+    slippage: slippageDecimal,
+    tradeType,
+  });
 
   const originalQuote: AcrossQuoteWithoutGasLimits = {
     quote,
@@ -153,14 +130,53 @@ async function getSingleQuote(
 }
 
 type AcrossApprovalRequest = {
+  amount: string;
+  apiBase: string;
+  depositor: Hex;
+  destinationChainId: Hex;
+  inputToken: Hex;
+  originChainId: Hex;
+  outputToken: Hex;
+  recipient: Hex;
+  slippage?: number;
+  tradeType: 'exactInput' | 'exactOutput';
+};
+
+type AcrossApprovalFetchRequest = {
   url: string;
   options: RequestInit;
 };
 
-function buildAcrossApprovalRequest(
-  apiBase: string,
-  params: URLSearchParams,
-): AcrossApprovalRequest {
+function buildAcrossApprovalFetchRequest(
+  request: AcrossApprovalRequest,
+): AcrossApprovalFetchRequest {
+  const {
+    amount,
+    apiBase,
+    depositor,
+    destinationChainId,
+    inputToken,
+    originChainId,
+    outputToken,
+    recipient,
+    slippage,
+    tradeType,
+  } = request;
+
+  const params = new URLSearchParams();
+  params.set('tradeType', tradeType);
+  params.set('amount', amount);
+  params.set('inputToken', inputToken);
+  params.set('outputToken', outputToken);
+  params.set('originChainId', String(parseInt(originChainId, 16)));
+  params.set('destinationChainId', String(parseInt(destinationChainId, 16)));
+  params.set('depositor', depositor);
+  params.set('recipient', recipient);
+
+  if (slippage !== undefined) {
+    params.set('slippage', String(slippage));
+  }
+
   return {
     url: `${apiBase}/swap/approval?${params.toString()}`,
     options: {
@@ -175,11 +191,11 @@ function buildAcrossApprovalRequest(
 }
 
 async function requestAcrossApproval(
-  apiBase: string,
-  params: URLSearchParams,
-): Promise<Response> {
-  const { url, options } = buildAcrossApprovalRequest(apiBase, params);
-  return successfulFetch(url, options);
+  request: AcrossApprovalRequest,
+): Promise<AcrossSwapApprovalResponse> {
+  const { url, options } = buildAcrossApprovalFetchRequest(request);
+  const response = await successfulFetch(url, options);
+  return (await response.json()) as AcrossSwapApprovalResponse;
 }
 
 function getAcrossRecipient(
@@ -223,8 +239,11 @@ function getTransferData(transaction: TransactionMeta): Hex | undefined {
 
 function getNestedCalldata(transaction: TransactionMeta): Hex[] {
   return (transaction.nestedTransactions ?? [])
-    .map(({ data }) => data)
-    .filter((data): data is Hex => data !== undefined && data !== '0x');
+    .map((nestedTx: { data?: Hex }) => nestedTx.data)
+    .filter(
+      (data: Hex | undefined): data is Hex =>
+        data !== undefined && data !== '0x',
+    );
 }
 
 function getTransferRecipient(data: Hex): Hex {
@@ -280,7 +299,7 @@ async function normalizeQuote(
     quote.expectedOutputAmount,
   );
   const provider = getFiatValueFromUsd(providerUsd, usdToFiatRate);
-  const metaMask = getFiatValueFromUsd(
+  const metaMaskFee = getFiatValueFromUsd(
     new BigNumber(quote.fees?.app?.amountUsd ?? '0').abs(),
     usdToFiatRate,
   );
@@ -295,7 +314,7 @@ async function normalizeQuote(
     dust,
     estimatedDuration: quote.expectedFillTime ?? 0,
     fees: {
-      metaMask,
+      metaMask: metaMaskFee,
       provider,
       sourceNetwork,
       targetNetwork,
@@ -443,7 +462,7 @@ async function calculateSourceNetworkCost(
   const approvalGasResults = await Promise.all(
     approvalTxns.map(async (approval) => {
       const chainId = toHex(approval.chainId);
-      const gas = await estimateGasLimitWithBufferOrFallback({
+      const gas = await estimateGasLimit({
         chainId,
         data: approval.data,
         from,
@@ -463,16 +482,29 @@ async function calculateSourceNetworkCost(
     }),
   );
 
-  const swapGas = await estimateGasLimitWithBufferOrFallback({
-    chainId: swapChainId,
-    data: swapTx.data,
-    from,
-    messenger,
-    to: swapTx.to,
-    value: swapTx.value ?? '0x0',
-  });
+  const swapGasFromQuote = parseAcrossSwapGasLimit(swapTx.gas);
+  const swapGas =
+    swapGasFromQuote === undefined
+      ? await estimateGasLimit({
+          chainId: swapChainId,
+          data: swapTx.data,
+          from,
+          messenger,
+          to: swapTx.to,
+          value: swapTx.value ?? '0x0',
+        })
+      : {
+          estimate: swapGasFromQuote,
+          max: swapGasFromQuote,
+          usedFallback: false,
+        };
 
-  if (swapGas.usedFallback) {
+  if (swapGasFromQuote !== undefined) {
+    log('Using Across-provided swap gas limit', {
+      gas: swapGasFromQuote,
+      transactionType: 'swap',
+    });
+  } else if (swapGas.usedFallback) {
     log('Gas estimate failed, using fallback', {
       error: swapGas.error,
       transactionType: 'swap',
@@ -531,4 +563,25 @@ async function calculateSourceNetworkCost(
       },
     },
   };
+}
+
+function parseAcrossSwapGasLimit(gas?: string): number | undefined {
+  if (!gas) {
+    return undefined;
+  }
+
+  const parsedGas = gas.startsWith('0x')
+    ? new BigNumber(gas.slice(2), 16)
+    : new BigNumber(gas);
+
+  if (
+    !parsedGas.isFinite() ||
+    parsedGas.isNaN() ||
+    !parsedGas.isInteger() ||
+    parsedGas.lte(0)
+  ) {
+    return undefined;
+  }
+
+  return parsedGas.toNumber();
 }

@@ -7,7 +7,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getGasBuffer, getRelayFallbackGas } from './feature-flags';
+import { getFallbackGas, getGasBuffer } from './feature-flags';
 import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token';
 import type { TransactionPayControllerMessenger } from '..';
 import { createModuleLogger, projectLogger } from '../logger';
@@ -199,7 +199,7 @@ export function calculateGasFeeTokenCost({
   };
 }
 
-export async function estimateGasLimitWithBufferOrFallback({
+export async function estimateGasLimit({
   chainId,
   data,
   fallbackOnSimulationFailure = false,
@@ -257,7 +257,7 @@ export async function estimateGasLimitWithBufferOrFallback({
     throw simulationError;
   }
 
-  const fallbackGas = getRelayFallbackGas(messenger);
+  const fallbackGas = getFallbackGas(messenger);
 
   return {
     estimate: fallbackGas.estimate,

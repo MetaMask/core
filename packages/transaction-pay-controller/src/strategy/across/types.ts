@@ -37,6 +37,7 @@ export type AcrossSwapTransaction = {
   chainId: number;
   to: Hex;
   data: Hex;
+  gas?: string;
   value?: Hex;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
