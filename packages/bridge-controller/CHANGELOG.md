@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add validation support for intent EIP-712 `typedData` payloads so clients can pass signed intent data through the bridge flow. ([#8048](https://github.com/MetaMask/core/pull/8048))
+
 ## [67.4.0]
 
 ### Changed
@@ -24,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/remote-feature-flag-controller` from `^4.0.0` to `^4.1.0` ([#8041](https://github.com/MetaMask/core/pull/8041))
 - Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.19.0` ([#8031](https://github.com/MetaMask/core/pull/8031))
 - Bump `@metamask/assets-controllers` from `^100.0.2` to `^100.0.3` ([#8029](https://github.com/MetaMask/core/pull/8029))
-- Extend quote intent validation to accept optional EIP-712 `typedData` payloads ([#7895](https://github.com/MetaMask/core/pull/7895)).
 
 ## [67.2.0]
 
