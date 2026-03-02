@@ -151,6 +151,7 @@ export class TransactionPayController extends BaseController<
         transactionData[transactionId] = {
           fiatPayment: {
             amount: null,
+            quickBuyOrderId: null,
             selectedPaymentMethodId: null,
           },
           isLoading: false,

@@ -1,6 +1,7 @@
 export type {
   RampsControllerActions,
   RampsControllerEvents,
+  RampsControllerGetOrderAction,
   RampsControllerGetStateAction,
   RampsControllerGetQuotesAction,
   RampsControllerMessenger,

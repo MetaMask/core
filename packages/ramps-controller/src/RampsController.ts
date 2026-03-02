@@ -450,10 +450,23 @@ export type RampsControllerGetQuotesAction = {
 };
 
 /**
+ * Fetches a specific order from the unified V2 API endpoint.
+ */
+export type RampsControllerGetOrderAction = {
+  type: `${typeof controllerName}:getOrder`;
+  handler: (
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ) => Promise<RampsOrder>;
+};
+
+/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerActions =
   | RampsControllerGetStateAction
+  | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
   | RampsControllerSetSelectedTokenAction;
 
@@ -701,6 +714,11 @@ export class RampsController extends BaseController<
     this.messenger.registerActionHandler(
       'RampsController:getQuotes',
       this.getQuotes.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'RampsController:getOrder',
+      this.getOrder.bind(this),
     );
   }
 

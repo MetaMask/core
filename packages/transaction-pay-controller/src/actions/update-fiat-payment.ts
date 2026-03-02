@@ -26,7 +26,8 @@ export function updateFiatPayment(
   request: UpdateFiatPaymentRequest,
   options: UpdateFiatPaymentOptions,
 ): void {
-  const { transactionId, selectedPaymentMethodId, amount } = request;
+  const { transactionId, selectedPaymentMethodId, amount, quickBuyOrderId } =
+    request;
   const { messenger, updateTransactionData } = options;
 
   const transaction = getTransaction(transactionId, messenger);
@@ -39,17 +40,20 @@ export function updateFiatPayment(
     transactionId,
     selectedPaymentMethodId,
     amount,
+    quickBuyOrderId,
   });
 
   updateTransactionData(transactionId, (data) => {
     const currentFiatPayment = data.fiatPayment ?? {
       amount: null,
+      quickBuyOrderId: null,
       selectedPaymentMethodId: null,
     };
 
     const patch = pickBy(
       {
         amount,
+        quickBuyOrderId,
         selectedPaymentMethodId,
       },
       (value) => value !== undefined,

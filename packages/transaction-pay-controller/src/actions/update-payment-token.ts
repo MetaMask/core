@@ -59,6 +59,7 @@ export function updatePaymentToken(
     data.paymentToken = paymentToken;
     data.fiatPayment = {
       amount: null,
+      quickBuyOrderId: null,
       selectedPaymentMethodId: null,
     };
   });

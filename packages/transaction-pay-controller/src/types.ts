@@ -41,6 +41,20 @@ type RampsControllerSetSelectedTokenAction = {
   handler: (assetId?: string) => void;
 };
 
+type RampsControllerGetOrderAction = {
+  type: 'RampsController:getOrder';
+  handler: (
+    providerCode: string,
+    orderCode: string,
+    wallet: string,
+  ) => Promise<RampsOrder>;
+};
+
+type RampsOrder = {
+  status?: string;
+  [key: string]: unknown;
+};
+
 type RampsQuotesResponse = {
   success: unknown[];
   sorted: unknown[];
@@ -85,7 +99,8 @@ export type AllowedActions =
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction
   | RampsControllerGetQuotesAction
-  | RampsControllerSetSelectedTokenAction;
+  | RampsControllerSetSelectedTokenAction
+  | RampsControllerGetOrderAction;
 
 export type AllowedEvents =
   | BridgeStatusControllerStateChangeEvent
@@ -245,6 +260,9 @@ export type TransactionFiatPayment = {
 
   /** Entered fiat amount for the selected payment method. */
   amount: string | null;
+
+  /** Quick-buy order ID in normalized format (/providers/{provider}/orders/{id}). */
+  quickBuyOrderId: string | null;
 };
 
 /** A token required by a transaction. */
@@ -570,6 +588,9 @@ export type UpdateFiatPaymentRequest = {
 
   /** Entered fiat amount. */
   amount?: string | null;
+
+  /** Quick-buy order ID in normalized format (/providers/{provider}/orders/{id}). */
+  quickBuyOrderId?: string | null;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */
