@@ -421,20 +421,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getExchangeRateSources = (): ExchangeRateSourcesForLookup => {
     if (this.#getUseAssetsControllerForRates()) {
-      const res = {
+      return {
         ...this.messenger.call('AssetsController:getExchangeRatesForBridge'),
         historicalPrices: {},
         ...this.state,
       };
-      return res;
     }
-    const res2 = {
+    return {
       ...this.messenger.call('MultichainAssetsRatesController:getState'),
       ...this.messenger.call('CurrencyRateController:getState'),
       ...this.messenger.call('TokenRatesController:getState'),
       ...this.state,
     };
-    return res2;
   };
 
   /**
