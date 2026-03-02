@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `orders: RampsOrder[]` to controller state with persistence, along with crud methods([#8045](https://github.com/MetaMask/core/pull/8045))
+- Added `RampsController:orderStatusChanged` event, published when a polled order's status transitions ([#8045](https://github.com/MetaMask/core/pull/8045))
+- Add messenger actions for `RampsController:setSelectedToken`, `RampsController:getQuotes`, and `RampsController:getOrder`, register their handlers in `RampsController`, and export the action types from the package index ([#8081](https://github.com/MetaMask/core/pull/8081))
+
 ## [10.0.0]
 
 ### Changed

@@ -397,6 +397,82 @@ describe('AccountsApiClient', () => {
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });
+
+    describe('getV4MultiAccountTransactionsInfiniteQueryOptions', () => {
+      it('returns a queryKey', () => {
+        const result =
+          client.accounts.getV4MultiAccountTransactionsInfiniteQueryOptions({
+            accountAddresses: ['eip155:0:0xabc'],
+            networks: ['eip155:1', 'eip155:137'],
+            sortDirection: 'DESC',
+            limit: 25,
+          });
+
+        expect(result.queryKey).toStrictEqual([
+          'accounts',
+          'transactions',
+          'v4MultiAccount',
+          {
+            accountAddresses: ['eip155:0:0xabc'],
+            networks: ['eip155:1', 'eip155:137'],
+            startTimestamp: undefined,
+            endTimestamp: undefined,
+            limit: 25,
+            sortDirection: 'DESC',
+            includeLogs: undefined,
+            includeTxMetadata: undefined,
+            maxLogsPerTx: undefined,
+            lang: undefined,
+          },
+        ]);
+      });
+
+      it('sorts accountAddresses in the queryKey for stability', () => {
+        const result =
+          client.accounts.getV4MultiAccountTransactionsInfiniteQueryOptions({
+            accountAddresses: ['eip155:0:0xzzz', 'eip155:0:0xaaa'],
+          });
+
+        const keyObj = result.queryKey[3];
+        expect(keyObj).toMatchObject({
+          accountAddresses: ['eip155:0:0xaaa', 'eip155:0:0xzzz'],
+        });
+      });
+
+      it('sorts networks in the queryKey for stability', () => {
+        const result =
+          client.accounts.getV4MultiAccountTransactionsInfiniteQueryOptions({
+            accountAddresses: ['eip155:0:0xabc'],
+            networks: ['eip155:137', 'eip155:1'],
+          });
+
+        const keyObj = result.queryKey[3];
+        expect(keyObj).toMatchObject({
+          networks: ['eip155:1', 'eip155:137'],
+        });
+      });
+
+      it('uses STALE_TIMES.TRANSACTIONS and GC_TIMES.DEFAULT by default', () => {
+        const result =
+          client.accounts.getV4MultiAccountTransactionsInfiniteQueryOptions({
+            accountAddresses: ['eip155:0:0xabc'],
+          });
+
+        expect(result.staleTime).toBe(30 * 1000);
+        expect(result.gcTime).toBe(5 * 60 * 1000);
+      });
+
+      it('allows overriding staleTime and gcTime via options', () => {
+        const result =
+          client.accounts.getV4MultiAccountTransactionsInfiniteQueryOptions(
+            { accountAddresses: ['eip155:0:0xabc'] },
+            { staleTime: 60_000, gcTime: 120_000 },
+          );
+
+        expect(result.staleTime).toBe(60_000);
+        expect(result.gcTime).toBe(120_000);
+      });
+    });
   });
 
   describe('Relationships', () => {

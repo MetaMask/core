@@ -12,6 +12,7 @@
  */
 
 import type {
+  FetchInfiniteQueryOptions,
   FetchQueryOptions,
   QueryFunctionContext,
 } from '@tanstack/query-core';
@@ -751,6 +752,99 @@ export class AccountsApiClient extends BaseApiClient {
             },
           },
         ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Returns TanStack Query options for v4 multi-account transactions,
+   * designed for use with `useInfiniteQuery`.
+   *
+   * @param params - API endpoint parameters (excluding pagination cursors).
+   * @param params.accountAddresses - Array of CAIP-10 account addresses.
+   * @param params.networks - CAIP-2 network IDs to filter by.
+   * @param params.startTimestamp - Start timestamp (epoch).
+   * @param params.endTimestamp - End timestamp (epoch).
+   * @param params.limit - Max transactions per page (default 50).
+   * @param params.sortDirection - Sort direction (ASC/DESC).
+   * @param params.includeLogs - Whether to include logs.
+   * @param params.includeTxMetadata - Whether to include transaction metadata.
+   * @param params.maxLogsPerTx - Max logs per transaction.
+   * @param params.lang - Language for transaction category (default "en").
+   * @param options - Fetch options including cache settings.
+   * @returns Options object compatible with `useInfiniteQuery`.
+   */
+  getV4MultiAccountTransactionsInfiniteQueryOptions(
+    params: {
+      accountAddresses: string[];
+      networks?: string[];
+      startTimestamp?: number;
+      endTimestamp?: number;
+      limit?: number;
+      sortDirection?: 'ASC' | 'DESC';
+      includeLogs?: boolean;
+      includeTxMetadata?: boolean;
+      maxLogsPerTx?: number;
+      lang?: string;
+    },
+    options?: FetchOptions,
+  ): FetchInfiniteQueryOptions<
+    V4MultiAccountTransactionsResponse,
+    Error,
+    V4MultiAccountTransactionsResponse,
+    readonly unknown[],
+    string | undefined
+  > {
+    return {
+      queryKey: [
+        'accounts',
+        'transactions',
+        'v4MultiAccount',
+        {
+          accountAddresses: [...params.accountAddresses].sort(),
+          networks: params.networks && [...params.networks].sort(),
+          startTimestamp: params.startTimestamp,
+          endTimestamp: params.endTimestamp,
+          limit: params.limit,
+          sortDirection: params.sortDirection,
+          includeLogs: params.includeLogs,
+          includeTxMetadata: params.includeTxMetadata,
+          maxLogsPerTx: params.maxLogsPerTx,
+          lang: params.lang,
+        },
+      ] as const,
+      queryFn: ({
+        pageParam,
+        signal,
+      }: {
+        pageParam?: string;
+        signal?: AbortSignal;
+      }) =>
+        this.fetch<V4MultiAccountTransactionsResponse>(
+          API_URLS.ACCOUNTS,
+          '/v4/multiaccount/transactions',
+          {
+            signal,
+            params: {
+              accountAddresses: params.accountAddresses,
+              networks: params.networks,
+              startTimestamp: params.startTimestamp,
+              endTimestamp: params.endTimestamp,
+              cursor: pageParam,
+              limit: params.limit,
+              sortDirection: params.sortDirection,
+              includeLogs: params.includeLogs,
+              includeTxMetadata: params.includeTxMetadata,
+              maxLogsPerTx: params.maxLogsPerTx,
+              lang: params.lang,
+            },
+          },
+        ),
+      getNextPageParam: ({ pageInfo }: V4MultiAccountTransactionsResponse) =>
+        pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
+      initialPageParam: options?.initialPageParam,
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,

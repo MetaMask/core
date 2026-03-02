@@ -103,7 +103,8 @@ import type {
   Asset,
   AssetsControllerStateInternal,
 } from './types';
-import { normalizeAssetId } from './utils';
+import { normalizeAssetId, formatExchangeRatesForBridge } from './utils';
+import type { BridgeExchangeRatesFormat } from './utils';
 
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
@@ -137,6 +138,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssetsBalance',
   'getAssetMetadata',
   'getAssetsPrice',
+  'getExchangeRatesForBridge',
   'addCustomAsset',
   'removeCustomAsset',
   'getCustomAssets',
@@ -1119,6 +1121,35 @@ export class AssetsController extends BaseController<
     }
 
     return result;
+  }
+
+  /**
+   * Returns exchange rates in the format expected by the bridge controller
+   * (conversionRates, currencyRates, marketData, currentCurrency) so that
+   * when useAssetsControllerForRates is true the bridge can use a single
+   * action instead of MultichainAssetsRatesController, TokenRatesController,
+   * and CurrencyRateController.
+   *
+   * @param options - Optional options for bridge rate conversion.
+   * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and conversionRates use correct user-currency vs USD values; otherwise the bridge USD conversion will be wrong for non-USD currencies.
+   * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
+   */
+  getExchangeRatesForBridge(options?: {
+    usdToSelectedCurrencyRate?: number;
+  }): BridgeExchangeRatesFormat {
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return formatExchangeRatesForBridge({
+      assetsPrice: this.state.assetsPrice,
+      selectedCurrency: this.state.selectedCurrency,
+      nativeAssetIdentifiers,
+      networkConfigurationsByChainId,
+      usdToSelectedCurrencyRate: options?.usdToSelectedCurrencyRate,
+    });
   }
 
   // ============================================================================
@@ -2264,6 +2295,9 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getExchangeRatesForBridge',
+    );
     this.messenger.unregisterActionHandler('AssetsController:addCustomAsset');
     this.messenger.unregisterActionHandler(
       'AssetsController:removeCustomAsset',
