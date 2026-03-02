@@ -26,6 +26,15 @@ export type AssetsControllerGetAssetsPriceAction = {
 };
 
 /**
+ * Returns exchange rates in the format expected by the bridge controller.
+ * Used when the bridge's useAssetsControllerForRates flag is true.
+ */
+export type AssetsControllerGetExchangeRatesForBridgeAction = {
+  type: `AssetsController:getExchangeRatesForBridge`;
+  handler: AssetsController['getExchangeRatesForBridge'];
+};
+
+/**
  * Add a custom asset for an account.
  * Custom assets are included in subscription and fetch operations.
  * Adding a custom asset also unhides it if it was previously hidden.
@@ -95,6 +104,7 @@ export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
   | AssetsControllerGetAssetsPriceAction
+  | AssetsControllerGetExchangeRatesForBridgeAction
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction

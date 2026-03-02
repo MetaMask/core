@@ -620,6 +620,61 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('getExchangeRatesForBridge', () => {
+    it('returns bridge format via action with empty state', async () => {
+      await withController(({ messenger }) => {
+        const result = (messenger.call as CallableFunction)(
+          'AssetsController:getExchangeRatesForBridge',
+        );
+
+        expect(result).toStrictEqual({
+          conversionRates: {},
+          currencyRates: {},
+          marketData: {},
+          currentCurrency: 'usd',
+        });
+      });
+    });
+
+    it('returns bridge format derived from assetsPrice and selectedCurrency', async () => {
+      const bitcoinAssetId =
+        'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsPrice: {
+          [bitcoinAssetId]: {
+            price: 50000,
+            lastUpdated: 1_600_000_000,
+          },
+        },
+        selectedCurrency: 'eur',
+      };
+
+      await withController({ state: initialState }, ({ messenger }) => {
+        const result = (messenger.call as CallableFunction)(
+          'AssetsController:getExchangeRatesForBridge',
+        );
+
+        expect(result.currentCurrency).toBe('eur');
+        expect(result.conversionRates[bitcoinAssetId]).toBeDefined();
+        expect(result.conversionRates[bitcoinAssetId].rate).toBe('50000');
+        expect(result.conversionRates[bitcoinAssetId].currency).toBe(
+          'swift:0/iso4217:EUR',
+        );
+      });
+    });
+
+    it('returns same result as controller.getExchangeRatesForBridge()', async () => {
+      await withController(({ controller, messenger }) => {
+        const viaAction = (messenger.call as CallableFunction)(
+          'AssetsController:getExchangeRatesForBridge',
+        );
+        const viaMethod = controller.getExchangeRatesForBridge();
+
+        expect(viaAction).toStrictEqual(viaMethod);
+      });
+    });
+  });
+
   describe('handleActiveChainsUpdate', () => {
     it('calls getAssets with added enabled chains when chains are added', async () => {
       await withController(async ({ controller }) => {

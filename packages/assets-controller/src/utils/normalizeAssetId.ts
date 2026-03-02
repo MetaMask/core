@@ -1,7 +1,7 @@
 import { toChecksumAddress } from '@ethereumjs/util';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
-import type { Caip19AssetId } from './types';
+import type { Caip19AssetId } from '../types';
 
 /**
  * Normalizes a CAIP-19 asset ID by checksumming EVM addresses.

@@ -185,6 +185,7 @@ export {
   MultichainAssetsRatesController,
   getDefaultMultichainAssetsRatesControllerState,
 } from './MultichainAssetsRatesController';
+export { MAP_CAIP_CURRENCIES } from './MultichainAssetsRatesController';
 
 export type {
   MultichainAssetsRatesControllerState,
