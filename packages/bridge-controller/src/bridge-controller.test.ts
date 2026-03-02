@@ -91,6 +91,15 @@ const bridgeConfig = {
   },
 };
 
+const metricsContext = {
+  token_symbol_source: 'ETH',
+  token_symbol_destination: 'USDC',
+  usd_amount_source: 100,
+  stx_enabled: true,
+  security_warnings: [],
+  warnings: [],
+};
+
 describe('BridgeController', function () {
   let bridgeController: BridgeController;
 
@@ -232,7 +241,7 @@ describe('BridgeController', function () {
         clientVersion: '13.7.0',
         fetchFn: mockFetchFn,
         trackMetaMetricsFn,
-        getUseAssetsControllerForRates: () => true,
+        getUseAssetsControllerForRates: (): boolean => true,
       });
       controllerWithAssetsRates.resetState();
 
@@ -435,15 +444,6 @@ describe('BridgeController', function () {
     expect(setIntervalLengthSpy).toHaveBeenCalledTimes(1);
     expect(setIntervalLengthSpy).toHaveBeenCalledWith(3);
   });
-
-  const metricsContext = {
-    token_symbol_source: 'ETH',
-    token_symbol_destination: 'USDC',
-    usd_amount_source: 100,
-    stx_enabled: true,
-    security_warnings: [],
-    warnings: [],
-  };
 
   it('updateBridgeQuoteRequestParams should update the quoteRequest state', async function () {
     messengerMock.call.mockReturnValue({
