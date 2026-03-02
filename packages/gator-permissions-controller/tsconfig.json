@@ -8,5 +8,5 @@
     { "path": "../messenger" },
     { "path": "../transaction-controller" }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }

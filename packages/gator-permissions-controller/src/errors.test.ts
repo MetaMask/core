@@ -4,11 +4,11 @@ import {
   GatorPermissionsProviderError,
   OriginNotAllowedError,
   PermissionDecodingError,
-} from '../errors';
+} from './errors';
 import {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,
-} from '../types';
+} from './types';
 
 describe('errors', () => {
   describe('GatorPermissionsControllerError', () => {

@@ -73,6 +73,7 @@
 
 ## Core Platform Team
 /packages/base-controller              @MetaMask/core-platform
+/packages/base-data-service            @MetaMask/core-platform
 /packages/build-utils                  @MetaMask/core-platform
 /packages/composable-controller        @MetaMask/core-platform
 /packages/connectivity-controller      @MetaMask/core-platform

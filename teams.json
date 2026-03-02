@@ -38,6 +38,7 @@
   "metamask/eip-5792-middleware": "team-wallet-integrations",
   "metamask/client-controller": "team-core-platform,team-extension-platform,team-mobile-platform",
   "metamask/base-controller": "team-core-platform",
+  "metamask/base-data-service": "team-core-platform",
   "metamask/build-utils": "team-core-platform",
   "metamask/composable-controller": "team-core-platform",
   "metamask/connectivity-controller": "team-core-platform",

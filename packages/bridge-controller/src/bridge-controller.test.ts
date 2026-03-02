@@ -29,6 +29,7 @@ import { formatChainIdToCaip } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import {
+  InputAmountPreset,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   MetricsSwapType,
@@ -2439,6 +2440,63 @@ describe('BridgeController', function () {
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+    });
+
+    it('should track InputChanged with an enum quick amount preset label', () => {
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.InputChanged,
+        {
+          input: 'token_amount_source',
+          input_value: '1',
+          input_amount_preset: InputAmountPreset.PERCENT_90,
+        },
+      );
+
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+      expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+        1,
+        UnifiedSwapBridgeEventName.InputChanged,
+        expect.objectContaining({
+          input: 'token_amount_source',
+          input_value: '1',
+          input_amount_preset: InputAmountPreset.PERCENT_90,
+        }),
+      );
+    });
+
+    it('should track InputChanged with arbitrary quick amount preset labels', () => {
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.InputChanged,
+        {
+          input: 'token_amount_source',
+          input_value: '1',
+          input_amount_preset: '85%',
+        },
+      );
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.InputChanged,
+        {
+          input: 'token_amount_source',
+          input_value: '1',
+          input_amount_preset: '95%',
+        },
+      );
+
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(2);
+      expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+        1,
+        UnifiedSwapBridgeEventName.InputChanged,
+        expect.objectContaining({
+          input_amount_preset: '85%',
+        }),
+      );
+      expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+        2,
+        UnifiedSwapBridgeEventName.InputChanged,
+        expect.objectContaining({
+          input_amount_preset: '95%',
+        }),
+      );
     });
 
     it('should track the InputSourceDestinationFlipped event', () => {
