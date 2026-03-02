@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- accounts-controller: Move mocks out of build ([#8033](https://github.com/MetaMask/core/pull/8033))
+- feat!: Expose Accounts-owned controller/service methods through messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.19.0` ([#8031](https://github.com/MetaMask/core/pull/8031))
