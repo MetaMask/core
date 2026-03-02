@@ -1559,7 +1559,6 @@ export class NftController extends BaseController<
       nftMetadata.chainId = convertHexToDecimal(chainId);
     }
 
-    // If NFT contract information, add individual NFT
     if (nftContract) {
       await this.#addMultipleNfts(addressToSearch, [
         {
@@ -1653,8 +1652,9 @@ export class NftController extends BaseController<
       }
     });
 
-    // If NFT contract information, add individual NFT
-    await this.#addMultipleNfts(addressToSearch, nftsToAdd);
+    if (nftsToAdd.length > 0) {
+      await this.#addMultipleNfts(addressToSearch, nftsToAdd);
+    }
   }
 
   /**
