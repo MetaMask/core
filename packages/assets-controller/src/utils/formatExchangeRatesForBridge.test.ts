@@ -326,4 +326,41 @@ describe('formatExchangeRatesForBridge', () => {
       'swift:0/iso4217:USD',
     );
   });
+
+  it('uses usdToSelectedCurrencyRate for currencyRates when selectedCurrency is not usd', () => {
+    const ethNativeId = 'eip155:1/slip44:60';
+    const result = formatExchangeRatesForBridge({
+      assetsPrice: {
+        [ethNativeId]: price({ price: 2000, lastUpdated: 1_700_000_000_000 }),
+      },
+      selectedCurrency: 'eur',
+      nativeAssetIdentifiers: { 'eip155:1': ethNativeId },
+      networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
+      usdToSelectedCurrencyRate: 0.92,
+    });
+
+    expect(result.currencyRates.ETH).toStrictEqual({
+      conversionDate: 1_700_000_000,
+      conversionRate: 2000 * 0.92,
+      usdConversionRate: 2000,
+    });
+  });
+
+  it('uses usdToSelectedCurrencyRate for non-EVM conversionRates rate in selected currency', () => {
+    const bitcoinAssetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
+    const result = formatExchangeRatesForBridge({
+      assetsPrice: {
+        [bitcoinAssetId]: price({ price: 50000 }),
+      },
+      selectedCurrency: 'eur',
+      usdToSelectedCurrencyRate: 0.92,
+    });
+
+    expect(result.conversionRates[bitcoinAssetId].rate).toBe(
+      String(50000 * 0.92),
+    );
+    expect(result.conversionRates[bitcoinAssetId].currency).toBe(
+      'swift:0/iso4217:EUR',
+    );
+  });
 });

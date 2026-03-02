@@ -673,6 +673,26 @@ describe('AssetsController', () => {
         expect(viaAction).toStrictEqual(viaMethod);
       });
     });
+
+    it('passes usdToSelectedCurrencyRate so currencyRates have distinct conversionRate and usdConversionRate', async () => {
+      const ethNativeId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsPrice: {
+          [ethNativeId]: { price: 2000, lastUpdated: 1_700_000_000_000 },
+        },
+        selectedCurrency: 'eur',
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const result = controller.getExchangeRatesForBridge({
+          usdToSelectedCurrencyRate: 0.92,
+        });
+
+        expect(result.currencyRates.ETH).toBeDefined();
+        expect(result.currencyRates.ETH?.conversionRate).toBe(2000 * 0.92);
+        expect(result.currencyRates.ETH?.usdConversionRate).toBe(2000);
+      });
+    });
   });
 
   describe('handleActiveChainsUpdate', () => {

@@ -1130,9 +1130,13 @@ export class AssetsController extends BaseController<
    * action instead of MultichainAssetsRatesController, TokenRatesController,
    * and CurrencyRateController.
    *
+   * @param options - Optional options for bridge rate conversion.
+   * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and conversionRates use correct user-currency vs USD values; otherwise the bridge USD conversion will be wrong for non-USD currencies.
    * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
    */
-  getExchangeRatesForBridge(): BridgeExchangeRatesFormat {
+  getExchangeRatesForBridge(options?: {
+    usdToSelectedCurrencyRate?: number;
+  }): BridgeExchangeRatesFormat {
     const { nativeAssetIdentifiers } = this.messenger.call(
       'NetworkEnablementController:getState',
     );
@@ -1144,6 +1148,7 @@ export class AssetsController extends BaseController<
       selectedCurrency: this.state.selectedCurrency,
       nativeAssetIdentifiers,
       networkConfigurationsByChainId,
+      usdToSelectedCurrencyRate: options?.usdToSelectedCurrencyRate,
     });
   }
 
