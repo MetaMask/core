@@ -802,6 +802,60 @@ describe('TransakService', () => {
         }),
       );
     });
+
+    it('throws a TransakApiError without errorCode when errorCode is null', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(400, {
+          error: {
+            errorCode: null,
+            message: 'Error message',
+          },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getUserDetails();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow(
+        expect.objectContaining({
+          httpStatus: 400,
+          errorCode: undefined,
+          apiMessage: 'Error message',
+        }),
+      );
+    });
+
+    it('throws a TransakApiError without apiMessage when message is not a string', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(400, {
+          error: {
+            errorCode: 9999,
+            message: 12345,
+          },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getUserDetails();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow(
+        expect.objectContaining({
+          httpStatus: 400,
+          errorCode: '9999',
+          apiMessage: undefined,
+        }),
+      );
+    });
   });
 
   describe('patchUser', () => {
