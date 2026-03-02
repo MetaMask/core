@@ -5,7 +5,6 @@ import type {
   RequiredEventContextFromClient,
   TxData,
   QuoteResponse,
-  Intent,
   Trade,
 } from '@metamask/bridge-controller';
 import {
@@ -38,7 +37,7 @@ import type {
   TransactionParams,
 } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
-import type { Hex, Json } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { IntentManager } from './bridge-status-controller.intent';
 import {

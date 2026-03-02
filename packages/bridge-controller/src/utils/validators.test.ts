@@ -357,8 +357,7 @@ describe('validators', () => {
         is(
           {
             ...validIntent,
-            settlementContract:
-              '0x9008D19f58AAbd9eD0D60971565AA8510560ab41',
+            settlementContract: '0x9008D19f58AAbd9eD0D60971565AA8510560ab41',
           },
           IntentSchema,
         ),
