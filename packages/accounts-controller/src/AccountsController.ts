@@ -490,7 +490,7 @@ export class AccountsController extends BaseController<
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    const accountId = this.state.accountIdByAddress[address.toLowerCase()];
+    const accountId = this.state.accountIdByAddress[address];
     return accountId ? this.getAccount(accountId) : undefined;
   }
 
@@ -926,8 +926,7 @@ export class AccountsController extends BaseController<
         for (const patch of [patches.snap, patches.normal]) {
           for (const account of patch.removed) {
             delete internalAccounts.accounts[account.id];
-            // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
-            delete accountIdByAddress[account.address.toLowerCase()];
+            delete accountIdByAddress[account.address];
 
             diff.removed.push(account.id);
           }
@@ -956,8 +955,7 @@ export class AccountsController extends BaseController<
                 },
               };
 
-              // FIXME: We should not lowercase all addresses since some accounts addresses might be case-sensitive
-              accountIdByAddress[account.address.toLowerCase()] = account.id;
+              accountIdByAddress[account.address] = account.id;
 
               diff.added.push(internalAccounts.accounts[account.id]);
             }

@@ -214,7 +214,7 @@ export function constructAccountIdByAddress(
 ): Record<string, AccountId> {
   const accounts = Object.values(accountsMap);
   return accounts.reduce<Record<string, AccountId>>((acc, account) => {
-    acc[account.address.toLowerCase()] = account.id;
+    acc[account.address] = account.id;
     return acc;
   }, {});
 }
