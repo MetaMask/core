@@ -3,16 +3,24 @@ import {
   createTimestampTerms,
 } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/delegation-core';
-import { CHAIN_ID, DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import {
+  CHAIN_ID,
+  DELEGATOR_CONTRACTS,
+} from '@metamask/delegation-deployments';
 
-import { createPermissionRulesForContracts } from './index';
+import { createPermissionRulesForContracts } from '.';
 
 describe('erc20-token-stream rule', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
   const { TimestampEnforcer, ERC20StreamingEnforcer } = contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
-  const rule = permissionRules.find((r) => r.permissionType === 'erc20-token-stream')!;
+  const rule = permissionRules.find(
+    (candidate) => candidate.permissionType === 'erc20-token-stream',
+  );
+  if (!rule) {
+    throw new Error('Rule not found');
+  }
 
   const expiryCaveat = {
     enforcer: TimestampEnforcer,
@@ -26,7 +34,13 @@ describe('erc20-token-stream rule', () => {
   it('rejects duplicate ERC20StreamingEnforcer caveats', () => {
     const tokenAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
     const terms = createERC20StreamingTerms(
-      { tokenAddress, initialAmount: 1n, maxAmount: 2n, amountPerSecond: 1n, startTime: 1715664 },
+      {
+        tokenAddress,
+        initialAmount: 1n,
+        maxAmount: 2n,
+        amountPerSecond: 1n,
+        startTime: 1715664,
+      },
       { out: 'hex' },
     );
     const caveats = [
@@ -46,10 +60,14 @@ describe('erc20-token-stream rule', () => {
   });
 
   it('rejects truncated terms', () => {
-    const truncatedTerms = `0x${'a'.repeat(100)}` as Hex;
+    const truncatedTerms = `0x${'a'.repeat(100)}`;
     const caveats = [
       expiryCaveat,
-      { enforcer: ERC20StreamingEnforcer, terms: truncatedTerms, args: '0x' as const },
+      {
+        enforcer: ERC20StreamingEnforcer,
+        terms: truncatedTerms,
+        args: '0x' as const,
+      },
     ];
     const result = rule.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
@@ -59,7 +77,9 @@ describe('erc20-token-stream rule', () => {
       throw new Error('Expected invalid result');
     }
 
-    expect(result.error.message).toContain('Invalid erc20-token-stream terms: expected 148 bytes');
+    expect(result.error.message).toContain(
+      'Invalid erc20-token-stream terms: expected 148 bytes',
+    );
   });
 
   it('decodes zero token address', () => {
@@ -69,7 +89,13 @@ describe('erc20-token-stream rule', () => {
       {
         enforcer: ERC20StreamingEnforcer,
         terms: createERC20StreamingTerms(
-          { tokenAddress: zeroAddress, initialAmount: 1n, maxAmount: 2n, amountPerSecond: 1n, startTime: 1715664 },
+          {
+            tokenAddress: zeroAddress,
+            initialAmount: 1n,
+            maxAmount: 2n,
+            amountPerSecond: 1n,
+            startTime: 1715664,
+          },
           { out: 'hex' },
         ),
         args: '0x' as const,
@@ -89,11 +115,12 @@ describe('erc20-token-stream rule', () => {
 
   it('rejects when initialAmount exceeds maxAmount', () => {
     const tokenAddress = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex;
-    const initialAmountHex = (1000n).toString(16).padStart(64, '0');
-    const maxAmountHex = (100n).toString(16).padStart(64, '0');
-    const amountPerSecondHex = (1n).toString(16).padStart(64, '0');
+    const initialAmountHex = 1000n.toString(16).padStart(64, '0');
+    const maxAmountHex = 100n.toString(16).padStart(64, '0');
+    const amountPerSecondHex = 1n.toString(16).padStart(64, '0');
     const startTimeHex = (1715664).toString(16).padStart(64, '0');
-    const terms = `0x${tokenAddress.slice(2)}${initialAmountHex}${maxAmountHex}${amountPerSecondHex}${startTimeHex}` as Hex;
+    const terms =
+      `0x${tokenAddress.slice(2)}${initialAmountHex}${maxAmountHex}${amountPerSecondHex}${startTimeHex}` as Hex;
     const caveats = [
       expiryCaveat,
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
@@ -106,19 +133,31 @@ describe('erc20-token-stream rule', () => {
       throw new Error('Expected invalid result');
     }
 
-    expect(result.error.message).toContain('maxAmount must be greater than initialAmount');
+    expect(result.error.message).toContain(
+      'maxAmount must be greater than initialAmount',
+    );
   });
 
   it('rejects when terms have trailing bytes', () => {
     const tokenAddress = '0xcccccccccccccccccccccccccccccccccccccccc' as Hex;
     const validTerms = createERC20StreamingTerms(
-      { tokenAddress, initialAmount: 42n, maxAmount: 100n, amountPerSecond: 1n, startTime: 1715664 },
+      {
+        tokenAddress,
+        initialAmount: 42n,
+        maxAmount: 100n,
+        amountPerSecond: 1n,
+        startTime: 1715664,
+      },
       { out: 'hex' },
     );
     const termsWithTrailing = `${validTerms}deadbeef` as Hex;
     const caveats = [
       expiryCaveat,
-      { enforcer: ERC20StreamingEnforcer, terms: termsWithTrailing, args: '0x' as const },
+      {
+        enforcer: ERC20StreamingEnforcer,
+        terms: termsWithTrailing,
+        args: '0x' as const,
+      },
     ];
     const result = rule.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
@@ -128,16 +167,19 @@ describe('erc20-token-stream rule', () => {
       throw new Error('Expected invalid result');
     }
 
-    expect(result.error.message).toContain('Invalid erc20-token-stream terms: expected 148 bytes');
+    expect(result.error.message).toContain(
+      'Invalid erc20-token-stream terms: expected 148 bytes',
+    );
   });
 
   it('rejects when startTime is 0', () => {
     const tokenAddress = '0xdddddddddddddddddddddddddddddddddddddddd' as Hex;
-    const initialAmountHex = (1n).toString(16).padStart(64, '0');
-    const maxAmountHex = (2n).toString(16).padStart(64, '0');
-    const amountPerSecondHex = (1n).toString(16).padStart(64, '0');
+    const initialAmountHex = 1n.toString(16).padStart(64, '0');
+    const maxAmountHex = 2n.toString(16).padStart(64, '0');
+    const amountPerSecondHex = 1n.toString(16).padStart(64, '0');
     const startTimeZero = '0'.repeat(64);
-    const terms = `0x${tokenAddress.slice(2)}${initialAmountHex}${maxAmountHex}${amountPerSecondHex}${startTimeZero}` as Hex;
+    const terms =
+      `0x${tokenAddress.slice(2)}${initialAmountHex}${maxAmountHex}${amountPerSecondHex}${startTimeZero}` as Hex;
     const caveats = [
       expiryCaveat,
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },

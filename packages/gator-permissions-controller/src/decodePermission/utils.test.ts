@@ -2,8 +2,8 @@ import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { DeployedContractsByName } from './types';
 import { createPermissionRulesForContracts } from './rules';
+import type { DeployedContractsByName } from './types';
 import {
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
@@ -209,9 +209,12 @@ describe('createPermissionRulesForChainId', () => {
     }
 
     const nativeStreamRule = rules.find(
-      (r) => r.permissionType === 'native-token-stream',
+      (candidate) => candidate.permissionType === 'native-token-stream',
     );
     expect(nativeStreamRule).toBeDefined();
+    if (!nativeStreamRule) {
+      throw new Error('Rule not found');
+    }
 
     const matchingCaveatAddresses: Hex[] = [
       nativeTokenStreamingEnforcer,
@@ -219,7 +222,7 @@ describe('createPermissionRulesForChainId', () => {
       nonceEnforcer,
       timestampEnforcer,
     ];
-    expect(nativeStreamRule!.caveatAddressesMatch(matchingCaveatAddresses)).toBe(
+    expect(nativeStreamRule.caveatAddressesMatch(matchingCaveatAddresses)).toBe(
       true,
     );
   });

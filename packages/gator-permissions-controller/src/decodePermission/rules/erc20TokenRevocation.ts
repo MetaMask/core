@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
+import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -7,10 +8,12 @@ import type {
   PermissionRule,
 } from '../types';
 import { getByteLength, getTermsByEnforcer } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the erc20-token-revocation permission rule.
+ *
+ * @param enforcers - Checksummed enforcer addresses for the chain.
+ * @returns The erc20-token-revocation permission rule.
  */
 export function makeErc20TokenRevocationRule(
   enforcers: ChecksumEnforcersByChainId,
@@ -44,6 +47,11 @@ const ERC20_APPROVE_ZERO_AMOUNT_TERMS =
 
 /**
  * Decodes erc20-token-revocation permission data from caveats; throws on invalid.
+ *
+ * @param caveats - Caveats from the permission context (checksummed).
+ * @param allowedCalldataEnforcer - Address of the AllowedCalldataEnforcer.
+ * @param valueLteEnforcer - Address of the ValueLteEnforcer.
+ * @returns Empty object (revocation has no decoded data payload).
  */
 export function decodeErc20Revocation(
   caveats: ChecksumCaveat[],
@@ -51,10 +59,10 @@ export function decodeErc20Revocation(
   valueLteEnforcer: Hex,
 ): DecodedPermission['permission']['data'] {
   const allowedCalldataCaveats = caveats.filter(
-    (c) => c.enforcer === allowedCalldataEnforcer,
+    (caveat) => caveat.enforcer === allowedCalldataEnforcer,
   );
-  const allowedCalldataTerms = allowedCalldataCaveats.map((c) =>
-    c.terms.toLowerCase(),
+  const allowedCalldataTerms = allowedCalldataCaveats.map((caveat) =>
+    caveat.terms.toLowerCase(),
   );
 
   const hasApproveSelector = allowedCalldataTerms.includes(

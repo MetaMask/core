@@ -735,9 +735,13 @@ describe('GatorPermissionsController', () => {
       );
 
       // Enforcers match native-token-stream but stream terms are truncated (invalid)
-      const truncatedStreamTerms = `0x${'00'.repeat(50)}` as Hex;
+      const truncatedStreamTerms = `0x${'00'.repeat(50)}`;
       const caveats = [
-        { enforcer: TimestampEnforcer, terms: expiryTerms, args: '0x' } as const,
+        {
+          enforcer: TimestampEnforcer,
+          terms: expiryTerms,
+          args: '0x',
+        } as const,
         {
           enforcer: NativeTokenStreamingEnforcer,
           terms: truncatedStreamTerms,

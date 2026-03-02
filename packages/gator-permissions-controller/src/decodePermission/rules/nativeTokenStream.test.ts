@@ -3,16 +3,24 @@ import {
   createTimestampTerms,
 } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/delegation-core';
-import { CHAIN_ID, DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import {
+  CHAIN_ID,
+  DELEGATOR_CONTRACTS,
+} from '@metamask/delegation-deployments';
 
-import { createPermissionRulesForContracts } from './index';
+import { createPermissionRulesForContracts } from '.';
 
 describe('native-token-stream rule', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
   const { TimestampEnforcer, NativeTokenStreamingEnforcer } = contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
-  const rule = permissionRules.find((r) => r.permissionType === 'native-token-stream')!;
+  const rule = permissionRules.find(
+    (candidate) => candidate.permissionType === 'native-token-stream',
+  );
+  if (!rule) {
+    throw new Error('Rule not found');
+  }
 
   const expiryCaveat = {
     enforcer: TimestampEnforcer,
@@ -92,7 +100,7 @@ describe('native-token-stream rule', () => {
   });
 
   it('rejects native-token-stream terms shorter than expected', () => {
-    const truncatedTerms = `0x${'00'.repeat(50)}` as Hex;
+    const truncatedTerms = `0x${'00'.repeat(50)}`;
     const caveats = [
       expiryCaveat,
       {
@@ -180,9 +188,13 @@ describe('native-token-stream rule', () => {
   });
 
   it('rejects TimestampEnforcer terms with wrong length (66 required)', () => {
-    const badLengthTerms = `0x${'0'.repeat(65)}` as Hex;
+    const badLengthTerms = `0x${'0'.repeat(65)}`;
     const caveats = [
-      { enforcer: TimestampEnforcer, terms: badLengthTerms, args: '0x' as const },
+      {
+        enforcer: TimestampEnforcer,
+        terms: badLengthTerms,
+        args: '0x' as const,
+      },
       {
         enforcer: NativeTokenStreamingEnforcer,
         terms: createNativeTokenStreamingTerms(
@@ -206,7 +218,9 @@ describe('native-token-stream rule', () => {
       throw new Error('Expected invalid result');
     }
 
-    expect(result.error.message).toContain('Invalid TimestampEnforcer terms length');
+    expect(result.error.message).toContain(
+      'Invalid TimestampEnforcer terms length',
+    );
   });
 
   it('rejects expiry timestampBeforeThreshold zero', () => {
@@ -309,11 +323,12 @@ describe('native-token-stream rule', () => {
   });
 
   it('rejects native-token-stream when maxAmount is zero', () => {
-    const initialAmountHex = (1n).toString(16).padStart(64, '0');
+    const initialAmountHex = 1n.toString(16).padStart(64, '0');
     const maxAmountZero = '0'.repeat(64);
-    const amountPerSecondHex = (1n).toString(16).padStart(64, '0');
+    const amountPerSecondHex = 1n.toString(16).padStart(64, '0');
     const startTimeHex = (1715664).toString(16).padStart(64, '0');
-    const terms = `0x${initialAmountHex}${maxAmountZero}${amountPerSecondHex}${startTimeHex}` as Hex;
+    const terms =
+      `0x${initialAmountHex}${maxAmountZero}${amountPerSecondHex}${startTimeHex}` as Hex;
     const caveats = [
       expiryCaveat,
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
@@ -332,11 +347,12 @@ describe('native-token-stream rule', () => {
   });
 
   it('rejects native-token-stream when amountPerSecond is zero', () => {
-    const initialAmountHex = (1n).toString(16).padStart(64, '0');
-    const maxAmountHex = (2n).toString(16).padStart(64, '0');
+    const initialAmountHex = 1n.toString(16).padStart(64, '0');
+    const maxAmountHex = 2n.toString(16).padStart(64, '0');
     const amountPerSecondZero = '0'.repeat(64);
     const startTimeHex = (1715664).toString(16).padStart(64, '0');
-    const terms = `0x${initialAmountHex}${maxAmountHex}${amountPerSecondZero}${startTimeHex}` as Hex;
+    const terms =
+      `0x${initialAmountHex}${maxAmountHex}${amountPerSecondZero}${startTimeHex}` as Hex;
     const caveats = [
       expiryCaveat,
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
@@ -355,8 +371,8 @@ describe('native-token-stream rule', () => {
   });
 
   it('rejects native-token-stream with startTime 0 (validates startTime is positive)', () => {
-    const oneHex = (1n).toString(16).padStart(64, '0');
-    const twoHex = (2n).toString(16).padStart(64, '0');
+    const oneHex = 1n.toString(16).padStart(64, '0');
+    const twoHex = 2n.toString(16).padStart(64, '0');
     const startTimeZero = '0'.repeat(64);
     const terms = `0x${oneHex}${twoHex}${oneHex}${startTimeZero}` as Hex;
 

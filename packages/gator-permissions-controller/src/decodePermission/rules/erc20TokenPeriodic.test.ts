@@ -3,9 +3,12 @@ import {
   createTimestampTerms,
 } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/delegation-core';
-import { CHAIN_ID, DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import {
+  CHAIN_ID,
+  DELEGATOR_CONTRACTS,
+} from '@metamask/delegation-deployments';
 
-import { createPermissionRulesForContracts } from './index';
+import { createPermissionRulesForContracts } from '.';
 
 describe('erc20-token-periodic rule', () => {
   const chainId = CHAIN_ID.sepolia;
@@ -13,8 +16,11 @@ describe('erc20-token-periodic rule', () => {
   const { TimestampEnforcer, ERC20PeriodTransferEnforcer } = contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
   const rule = permissionRules.find(
-    (r) => r.permissionType === 'erc20-token-periodic',
-  )!;
+    (candidate) => candidate.permissionType === 'erc20-token-periodic',
+  );
+  if (!rule) {
+    throw new Error('Rule not found');
+  }
 
   const expiryCaveat = {
     enforcer: TimestampEnforcer,
@@ -26,8 +32,7 @@ describe('erc20-token-periodic rule', () => {
   };
 
   it('rejects duplicate ERC20PeriodTransferEnforcer caveats', () => {
-    const tokenAddress =
-      '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
+    const tokenAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
     const terms = createERC20TokenPeriodTransferTerms(
       {
         tokenAddress,
@@ -62,7 +67,7 @@ describe('erc20-token-periodic rule', () => {
   });
 
   it('rejects truncated terms', () => {
-    const truncatedTerms = `0x${'a'.repeat(100)}` as Hex; // 50 bytes, need 116
+    const truncatedTerms = `0x${'a'.repeat(100)}`; // 50 bytes, need 116
     const caveats = [
       expiryCaveat,
       {
@@ -85,8 +90,7 @@ describe('erc20-token-periodic rule', () => {
   });
 
   it('successfully decodes valid erc20-token-periodic caveats', () => {
-    const tokenAddress =
-      '0xcccccccccccccccccccccccccccccccccccccccc' as Hex;
+    const tokenAddress = '0xcccccccccccccccccccccccccccccccccccccccc' as Hex;
     const caveats = [
       expiryCaveat,
       {
@@ -119,12 +123,12 @@ describe('erc20-token-periodic rule', () => {
   });
 
   it('rejects when periodDuration is 0', () => {
-    const tokenAddress =
-      '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
-    const periodAmountHex = (100n).toString(16).padStart(64, '0');
+    const tokenAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
+    const periodAmountHex = 100n.toString(16).padStart(64, '0');
     const periodDurationZero = '0'.repeat(64);
     const startDateHex = (1715664).toString(16).padStart(64, '0');
-    const terms = `0x${tokenAddress.slice(2)}${periodAmountHex}${periodDurationZero}${startDateHex}` as Hex;
+    const terms =
+      `0x${tokenAddress.slice(2)}${periodAmountHex}${periodDurationZero}${startDateHex}` as Hex;
 
     const caveats = [
       expiryCaveat,
@@ -149,8 +153,7 @@ describe('erc20-token-periodic rule', () => {
   });
 
   it('rejects when terms have trailing bytes', () => {
-    const tokenAddress =
-      '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex;
+    const tokenAddress = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex;
     const validTerms = createERC20TokenPeriodTransferTerms(
       {
         tokenAddress,
@@ -183,12 +186,12 @@ describe('erc20-token-periodic rule', () => {
   });
 
   it('rejects when startTime is 0', () => {
-    const tokenAddress =
-      '0xdddddddddddddddddddddddddddddddddddddddd' as Hex;
-    const periodAmountHex = (100n).toString(16).padStart(64, '0');
+    const tokenAddress = '0xdddddddddddddddddddddddddddddddddddddddd' as Hex;
+    const periodAmountHex = 100n.toString(16).padStart(64, '0');
     const periodDurationHex = (86400).toString(16).padStart(64, '0');
     const startTimeZero = '0'.repeat(64);
-    const terms = `0x${tokenAddress.slice(2)}${periodAmountHex}${periodDurationHex}${startTimeZero}` as Hex;
+    const terms =
+      `0x${tokenAddress.slice(2)}${periodAmountHex}${periodDurationHex}${startTimeZero}` as Hex;
     const caveats = [
       expiryCaveat,
       {

@@ -588,7 +588,7 @@ export default class GatorPermissionsController extends BaseController<
       const enforcers = caveats.map((caveat) => caveat.enforcer);
       const permissionRules = createPermissionRulesForContracts(contracts);
 
-      // find the single rule where the specified enforcers contain all the required enforcers 
+      // find the single rule where the specified enforcers contain all the required enforcers
       // and no forbidden enforcers
       const matchingRule = findRuleWithMatchingCaveatAddresses({
         enforcers,

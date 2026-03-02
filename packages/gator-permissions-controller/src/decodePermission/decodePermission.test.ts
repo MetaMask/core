@@ -1,11 +1,4 @@
-import {
-  createNativeTokenStreamingTerms,
-  createNativeTokenPeriodTransferTerms,
-  createERC20StreamingTerms,
-  createERC20TokenPeriodTransferTerms,
-  createTimestampTerms,
-  ROOT_AUTHORITY,
-} from '@metamask/delegation-core';
+import { ROOT_AUTHORITY } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/delegation-core';
 import {
   CHAIN_ID,
@@ -17,27 +10,8 @@ import {
   findRuleWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
 } from './decodePermission';
-import type {
-  DecodedPermission,
-  DeployedContractsByName,
-  PermissionType,
-} from './types';
-import type { PermissionRule } from './types';
 import { createPermissionRulesForContracts } from './rules';
-
-/** Mock rule whose validateAndDecodePermission returns invalid (for error-path tests). */
-function createMockPermissionRuleThatReturnsInvalid(errorMessage: string): PermissionRule {
-  return {
-    permissionType: 'native-token-stream',
-    requiredEnforcers: new Map(),
-    optionalEnforcers: new Set(),
-    caveatAddressesMatch: () => true,
-    validateAndDecodePermission: () => ({
-      isValid: false,
-      error: new Error(errorMessage),
-    }),
-  };
-}
+import type { DecodedPermission, DeployedContractsByName } from './types';
 
 // These tests use the live deployments table for version 1.3.0 to
 // construct deterministic caveat address sets for a known chain.
@@ -76,7 +50,9 @@ describe('decodePermission', () => {
       expect(() => {
         findRuleWithMatchingCaveatAddresses({
           enforcers,
-          permissionRules: createPermissionRulesForContracts(contractsWithDuplicates),
+          permissionRules: createPermissionRulesForContracts(
+            contractsWithDuplicates,
+          ),
         });
       }).toThrow('Multiple permission types match');
     });
@@ -121,9 +97,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -131,9 +107,9 @@ describe('decodePermission', () => {
         const enforcers = [ExactCalldataEnforcer];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -164,7 +140,9 @@ describe('decodePermission', () => {
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
             enforcers,
-            permissionRules: createPermissionRulesForContracts(contractsWithoutTimestampEnforcer),
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutTimestampEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: TimestampEnforcer');
       });
@@ -209,9 +187,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -219,9 +197,9 @@ describe('decodePermission', () => {
         const enforcers = [ExactCalldataEnforcer];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -252,7 +230,9 @@ describe('decodePermission', () => {
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
             enforcers,
-            permissionRules: createPermissionRulesForContracts(contractsWithoutTimestampEnforcer),
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutTimestampEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: TimestampEnforcer');
       });
@@ -297,9 +277,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -307,9 +287,9 @@ describe('decodePermission', () => {
         const enforcers = [ERC20StreamingEnforcer];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -340,7 +320,9 @@ describe('decodePermission', () => {
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
             enforcers,
-            permissionRules: createPermissionRulesForContracts(contractsWithoutTimestampEnforcer),
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutTimestampEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: TimestampEnforcer');
       });
@@ -385,9 +367,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -395,9 +377,9 @@ describe('decodePermission', () => {
         const enforcers = [ERC20PeriodTransferEnforcer];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -428,7 +410,9 @@ describe('decodePermission', () => {
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
             enforcers,
-            permissionRules: createPermissionRulesForContracts(contractsWithoutTimestampEnforcer),
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutTimestampEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: TimestampEnforcer');
       });
@@ -474,9 +458,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -490,9 +474,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -504,9 +488,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -521,9 +505,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -556,7 +540,9 @@ describe('decodePermission', () => {
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
             enforcers,
-            permissionRules: createPermissionRulesForContracts(contractsWithoutAllowedCalldataEnforcer),
+            permissionRules: createPermissionRulesForContracts(
+              contractsWithoutAllowedCalldataEnforcer,
+            ),
           }),
         ).toThrow('Contract not found: AllowedCalldataEnforcer');
       });
@@ -660,9 +646,9 @@ describe('decodePermission', () => {
       it('rejects empty enforcer list', () => {
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers: [],
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers: [],
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -685,9 +671,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -702,9 +688,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -716,9 +702,9 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
 
@@ -732,18 +718,16 @@ describe('decodePermission', () => {
         ];
         expect(() =>
           findRuleWithMatchingCaveatAddresses({
-          enforcers,
-          permissionRules: createPermissionRulesForContracts(contracts),
-        }),
+            enforcers,
+            permissionRules: createPermissionRulesForContracts(contracts),
+          }),
         ).toThrow('Unable to identify permission type');
       });
     });
 
     describe('reconstructDecodedPermission()', () => {
-      const delegator =
-        '0x1111111111111111111111111111111111111111' as Hex;
-      const delegate =
-        '0x2222222222222222222222222222222222222222' as Hex;
+      const delegator = '0x1111111111111111111111111111111111111111' as Hex;
+      const delegate = '0x2222222222222222222222222222222222222222' as Hex;
       const data: DecodedPermission['permission']['data'] = {
         initialAmount: '0x01',
         maxAmount: '0x02',

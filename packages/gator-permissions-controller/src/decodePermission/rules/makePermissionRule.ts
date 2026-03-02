@@ -63,20 +63,22 @@ export function makePermissionRule({
         optionalEnforcersSet,
       );
     },
-    validateAndDecodePermission(caveats: Caveat<Hex>[]): ValidateAndDecodeResult {
-      const checksumCaveats: ChecksumCaveat[] = caveats.map((c) => ({
-        ...c,
-        enforcer: getChecksumAddress(c.enforcer),
+    validateAndDecodePermission(
+      caveats: Caveat<Hex>[],
+    ): ValidateAndDecodeResult {
+      const checksumCaveats: ChecksumCaveat[] = caveats.map((caveat) => ({
+        ...caveat,
+        enforcer: getChecksumAddress(caveat.enforcer),
       }));
       try {
         let expiry: number | null = null;
-        
+
         const expiryTerms = getTermsByEnforcer({
           caveats: checksumCaveats,
           enforcer: timestampEnforcer,
           throwIfNotFound: false,
         });
-        
+
         if (expiryTerms) {
           expiry = extractExpiryFromCaveatTerms(expiryTerms);
         }
@@ -85,8 +87,8 @@ export function makePermissionRule({
           validate(data, expiry);
         }
         return { isValid: true, expiry, data };
-      } catch (err) {
-        return { isValid: false, error: err as Error };
+      } catch (caughtError) {
+        return { isValid: false, error: caughtError as Error };
       }
     },
   };

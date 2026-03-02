@@ -24,11 +24,12 @@ const ENFORCER_CONTRACT_NAMES = {
 
 /**
  * Get the byte length of a hex string.
- * @param hex - The hex string to get the byte length of.
+ *
+ * @param hexString - The hex string to get the byte length of.
  * @returns The byte length of the hex string.
  */
-export const getByteLength = (hex: Hex): number => {
-  return (hex.length - 2) / 2;
+export const getByteLength = (hexString: Hex): number => {
+  return (hexString.length - 2) / 2;
 };
 
 /**
@@ -128,6 +129,9 @@ export const extractExpiryFromCaveatTerms = (terms: Hex): number => {
 /**
  * Builds enforcer counts and set from caveat addresses (checksummed).
  * Used by caveatAddressesMatch.
+ *
+ * @param caveatAddresses - List of enforcer contract addresses (hex).
+ * @returns Counts per enforcer and set of unique enforcers.
  */
 export function buildEnforcerCountsAndSet(caveatAddresses: Hex[]): {
   counts: Map<Hex, number>;
@@ -143,6 +147,12 @@ export function buildEnforcerCountsAndSet(caveatAddresses: Hex[]): {
 /**
  * Returns true if the given counts/set match the rule (required counts exact,
  * no enforcer outside required + optional).
+ *
+ * @param counts - Map of enforcer address to occurrence count.
+ * @param enforcersSet - Set of unique enforcer addresses present.
+ * @param requiredEnforcers - Map of required enforcer to required count.
+ * @param optionalEnforcers - Set of optional enforcer addresses.
+ * @returns True if the counts match the rule.
  */
 export function enforcersMatchRule(
   counts: Map<Hex, number>,
@@ -155,10 +165,14 @@ export function enforcersMatchRule(
     ...requiredEnforcers.keys(),
   ]);
   for (const addr of enforcersSet) {
-    if (!allowedEnforcers.has(addr)) return false;
+    if (!allowedEnforcers.has(addr)) {
+      return false;
+    }
   }
   for (const [addr, requiredCount] of requiredEnforcers.entries()) {
-    if ((counts.get(addr) ?? 0) !== requiredCount) return false;
+    if ((counts.get(addr) ?? 0) !== requiredCount) {
+      return false;
+    }
   }
   return true;
 }

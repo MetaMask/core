@@ -1,6 +1,7 @@
 import { hexToBigInt, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -8,10 +9,12 @@ import type {
   PermissionRule,
 } from '../types';
 import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the native-token-stream permission rule.
+ *
+ * @param enforcers - Checksummed enforcer addresses for the chain.
+ * @returns The native-token-stream permission rule.
  */
 export function makeNativeTokenStreamRule(
   enforcers: ChecksumEnforcersByChainId,
@@ -38,6 +41,10 @@ export function makeNativeTokenStreamRule(
 
 /**
  * Decodes native-token-stream permission data from caveats; throws on invalid.
+ *
+ * @param caveats - Caveats from the permission context (checksummed).
+ * @param enforcer - Address of the NativeTokenStreamingEnforcer.
+ * @returns Decoded stream terms (amounts, startTime).
  */
 export function decodeNativeStream(
   caveats: ChecksumCaveat[],
@@ -48,9 +55,7 @@ export function decodeNativeStream(
   const EXPECTED_TERMS_BYTELENGTH = 128; // 32 + 32 + 32 + 32
 
   if (getByteLength(terms) !== EXPECTED_TERMS_BYTELENGTH) {
-    throw new Error(
-      'Invalid native-token-stream terms: expected 128 bytes',
-    );
+    throw new Error('Invalid native-token-stream terms: expected 128 bytes');
   }
 
   const [initialAmount, maxAmount, amountPerSecond, startTimeRaw] = splitHex(

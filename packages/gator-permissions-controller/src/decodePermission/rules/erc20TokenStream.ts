@@ -1,6 +1,7 @@
 import { hexToBigInt, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -8,10 +9,12 @@ import type {
   PermissionRule,
 } from '../types';
 import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the erc20-token-stream permission rule.
+ *
+ * @param enforcers - Checksummed enforcer addresses for the chain.
+ * @returns The erc20-token-stream permission rule.
  */
 export function makeErc20TokenStreamRule(
   enforcers: ChecksumEnforcersByChainId,
@@ -31,13 +34,16 @@ export function makeErc20TokenStreamRule(
       [valueLteEnforcer, 1],
       [nonceEnforcer, 1],
     ]),
-    decodeData: (caveats) =>
-      decodeErc20Stream(caveats, erc20StreamingEnforcer),
+    decodeData: (caveats) => decodeErc20Stream(caveats, erc20StreamingEnforcer),
   });
 }
 
 /**
  * Decodes erc20-token-stream permission data from caveats; throws on invalid.
+ *
+ * @param caveats - Caveats from the permission context (checksummed).
+ * @param enforcer - Address of the ERC20StreamingEnforcer.
+ * @returns Decoded stream terms (tokenAddress, amounts, startTime).
  */
 export function decodeErc20Stream(
   caveats: ChecksumCaveat[],
@@ -48,15 +54,18 @@ export function decodeErc20Stream(
   const EXPECTED_TERMS_BYTELENGTH = 148;
 
   if (getByteLength(terms) !== EXPECTED_TERMS_BYTELENGTH) {
-    throw new Error(
-      'Invalid erc20-token-stream terms: expected 148 bytes',
-    );
+    throw new Error('Invalid erc20-token-stream terms: expected 148 bytes');
   }
 
-  const [tokenAddress, initialAmount, maxAmount, amountPerSecond, startTimeRaw] =
-    splitHex(terms, [20, 32, 32, 32, 32]);
-  
-    const startTime = hexToNumber(startTimeRaw);
+  const [
+    tokenAddress,
+    initialAmount,
+    maxAmount,
+    amountPerSecond,
+    startTimeRaw,
+  ] = splitHex(terms, [20, 32, 32, 32, 32]);
+
+  const startTime = hexToNumber(startTimeRaw);
   const initialAmountBigInt = hexToBigInt(initialAmount);
   const maxAmountBigInt = hexToBigInt(maxAmount);
 

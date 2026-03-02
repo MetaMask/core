@@ -3,9 +3,12 @@ import {
   createTimestampTerms,
 } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/delegation-core';
-import { CHAIN_ID, DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import {
+  CHAIN_ID,
+  DELEGATOR_CONTRACTS,
+} from '@metamask/delegation-deployments';
 
-import { createPermissionRulesForContracts } from './index';
+import { createPermissionRulesForContracts } from '.';
 
 describe('native-token-periodic rule', () => {
   const chainId = CHAIN_ID.sepolia;
@@ -13,8 +16,11 @@ describe('native-token-periodic rule', () => {
   const { TimestampEnforcer, NativeTokenPeriodTransferEnforcer } = contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
   const rule = permissionRules.find(
-    (r) => r.permissionType === 'native-token-periodic',
-  )!;
+    (candidate) => candidate.permissionType === 'native-token-periodic',
+  );
+  if (!rule) {
+    throw new Error('Rule not found');
+  }
 
   const expiryCaveat = {
     enforcer: TimestampEnforcer,
@@ -59,7 +65,7 @@ describe('native-token-periodic rule', () => {
   });
 
   it('rejects truncated terms', () => {
-    const truncatedTerms = `0x${'00'.repeat(40)}` as Hex; // 40 bytes, need 96
+    const truncatedTerms = `0x${'00'.repeat(40)}`; // 40 bytes, need 96
     const caveats = [
       expiryCaveat,
       {
@@ -144,10 +150,11 @@ describe('native-token-periodic rule', () => {
   });
 
   it('rejects when periodDuration is 0', () => {
-    const periodAmountHex = (100n).toString(16).padStart(64, '0');
+    const periodAmountHex = 100n.toString(16).padStart(64, '0');
     const periodDurationZero = '0'.repeat(64);
     const startDateHex = (1715664).toString(16).padStart(64, '0');
-    const terms = `0x${periodAmountHex}${periodDurationZero}${startDateHex}` as Hex;
+    const terms =
+      `0x${periodAmountHex}${periodDurationZero}${startDateHex}` as Hex;
     const caveats = [
       expiryCaveat,
       {
@@ -170,10 +177,11 @@ describe('native-token-periodic rule', () => {
   });
 
   it('rejects when startTime is 0', () => {
-    const periodAmountHex = (100n).toString(16).padStart(64, '0');
+    const periodAmountHex = 100n.toString(16).padStart(64, '0');
     const periodDurationHex = (86400).toString(16).padStart(64, '0');
     const startTimeZero = '0'.repeat(64);
-    const terms = `0x${periodAmountHex}${periodDurationHex}${startTimeZero}` as Hex;
+    const terms =
+      `0x${periodAmountHex}${periodDurationHex}${startTimeZero}` as Hex;
     const caveats = [
       expiryCaveat,
       {

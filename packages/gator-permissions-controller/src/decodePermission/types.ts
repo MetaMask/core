@@ -1,8 +1,8 @@
-import type { Caveat } from '@metamask/delegation-core';
 import type {
   PermissionRequest,
   PermissionTypes,
 } from '@metamask/7715-permission-types';
+import type { Caveat } from '@metamask/delegation-core';
 import type { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Hex } from '@metamask/utils';
 
@@ -99,4 +99,3 @@ export type PermissionRule = {
     caveats: Caveat<Hex>[],
   ) => ValidateAndDecodeResult;
 };
-

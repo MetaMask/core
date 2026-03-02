@@ -1,17 +1,23 @@
 import { createTimestampTerms } from '@metamask/delegation-core';
-import { CHAIN_ID, DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import {
+  CHAIN_ID,
+  DELEGATOR_CONTRACTS,
+} from '@metamask/delegation-deployments';
 import type { Hex } from '@metamask/utils';
 
-import type { DecodedPermission } from '../types';
 import { makePermissionRule } from './makePermissionRule';
+import type { DecodedPermission } from '../types';
 
 describe('makePermissionRule', () => {
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][CHAIN_ID.sepolia];
-  const timestampEnforcer = contracts.TimestampEnforcer as Hex;
-  const requiredEnforcer = contracts.NonceEnforcer as Hex;
+  const timestampEnforcer = contracts.TimestampEnforcer;
+  const requiredEnforcer = contracts.NonceEnforcer;
 
   it('calls optional validate callback when provided and decoding succeeds', () => {
-    const validate = jest.fn<void, [DecodedPermission['permission']['data'], number | null]>();
+    const validate = jest.fn<
+      void,
+      [DecodedPermission['permission']['data'], number | null]
+    >();
     const decodeData = jest.fn().mockReturnValue({});
 
     const rule = makePermissionRule({
@@ -46,7 +52,7 @@ describe('makePermissionRule', () => {
       throw new Error('Expected valid result');
     }
     expect(result.expiry).toBe(1720000);
-    expect(result.data).toEqual({});
+    expect(result.data).toStrictEqual({});
     expect(decodeData).toHaveBeenCalled();
     expect(validate).toHaveBeenCalledWith({}, 1720000);
   });

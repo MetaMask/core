@@ -1,6 +1,7 @@
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -8,10 +9,12 @@ import type {
   PermissionRule,
 } from '../types';
 import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the erc20-token-periodic permission rule.
+ *
+ * @param enforcers - Checksummed enforcer addresses for the chain.
+ * @returns The erc20-token-periodic permission rule.
  */
 export function makeErc20TokenPeriodicRule(
   enforcers: ChecksumEnforcersByChainId,
@@ -38,6 +41,10 @@ export function makeErc20TokenPeriodicRule(
 
 /**
  * Decodes erc20-token-periodic permission data from caveats; throws on invalid.
+ *
+ * @param caveats - Caveats from the permission context (checksummed).
+ * @param enforcer - Address of the ERC20PeriodTransferEnforcer.
+ * @returns Decoded periodic terms (tokenAddress, periodAmount, periodDuration, startTime).
  */
 export function decodeErc20Periodic(
   caveats: ChecksumCaveat[],
@@ -48,9 +55,7 @@ export function decodeErc20Periodic(
   const EXPECTED_TERMS_BYTELENGTH = 116; // 20 + 32 + 32 + 32
 
   if (getByteLength(terms) !== EXPECTED_TERMS_BYTELENGTH) {
-    throw new Error(
-      'Invalid erc20-token-periodic terms: expected 116 bytes',
-    );
+    throw new Error('Invalid erc20-token-periodic terms: expected 116 bytes');
   }
 
   const [tokenAddress, periodAmount, periodDurationRaw, startTimeRaw] =

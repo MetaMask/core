@@ -1,7 +1,10 @@
 import { createTimestampTerms } from '@metamask/delegation-core';
-import { CHAIN_ID, DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
+import {
+  CHAIN_ID,
+  DELEGATOR_CONTRACTS,
+} from '@metamask/delegation-deployments';
 
-import { createPermissionRulesForContracts } from './index';
+import { createPermissionRulesForContracts } from '.';
 
 describe('erc20-token-revocation rule', () => {
   const chainId = CHAIN_ID.sepolia;
@@ -10,8 +13,11 @@ describe('erc20-token-revocation rule', () => {
     contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
   const rule = permissionRules.find(
-    (r) => r.permissionType === 'erc20-token-revocation',
-  )!;
+    (candidate) => candidate.permissionType === 'erc20-token-revocation',
+  );
+  if (!rule) {
+    throw new Error('Rule not found');
+  }
 
   const expiryCaveat = {
     enforcer: TimestampEnforcer,
@@ -247,6 +253,6 @@ describe('erc20-token-revocation rule', () => {
     }
 
     expect(result.expiry).toBe(1720000);
-    expect(result.data).toEqual({});
+    expect(result.data).toStrictEqual({});
   });
 });

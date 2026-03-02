@@ -2,10 +2,7 @@ import type { Hex } from '@metamask/delegation-core';
 import { ROOT_AUTHORITY } from '@metamask/delegation-core';
 import { numberToHex } from '@metamask/utils';
 
-import type {
-  DecodedPermission,
-  PermissionType,
-} from './types';
+import type { DecodedPermission, PermissionType } from './types';
 import type { PermissionRule } from './types';
 
 /*

@@ -1,6 +1,7 @@
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -8,10 +9,12 @@ import type {
   PermissionRule,
 } from '../types';
 import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the native-token-periodic permission rule.
+ *
+ * @param enforcers - Checksummed enforcer addresses for the chain.
+ * @returns The native-token-periodic permission rule.
  */
 export function makeNativeTokenPeriodicRule(
   enforcers: ChecksumEnforcersByChainId,
@@ -38,6 +41,10 @@ export function makeNativeTokenPeriodicRule(
 
 /**
  * Decodes native-token-periodic permission data from caveats; throws on invalid.
+ *
+ * @param caveats - Caveats from the permission context (checksummed).
+ * @param enforcer - Address of the NativeTokenPeriodTransferEnforcer.
+ * @returns Decoded periodic terms (periodAmount, periodDuration, startTime).
  */
 export function decodeNativePeriodic(
   caveats: ChecksumCaveat[],
@@ -48,14 +55,13 @@ export function decodeNativePeriodic(
   const EXPECTED_TERMS_BYTELENGTH = 96; // 32 + 32 + 32
 
   if (getByteLength(terms) !== EXPECTED_TERMS_BYTELENGTH) {
-    throw new Error(
-      'Invalid native-token-periodic terms: expected 96 bytes',
-    );
+    throw new Error('Invalid native-token-periodic terms: expected 96 bytes');
   }
 
-  const [periodAmount, periodDurationRaw, startTimeRaw] = splitHex(terms, [
-    32, 32, 32,
-  ]);
+  const [periodAmount, periodDurationRaw, startTimeRaw] = splitHex(
+    terms,
+    [32, 32, 32],
+  );
   const periodDuration = hexToNumber(periodDurationRaw);
   const startTime = hexToNumber(startTimeRaw);
 
