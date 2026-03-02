@@ -26,6 +26,7 @@ import {
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
+import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import {
   TransactionStatus,
@@ -1663,7 +1664,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           from: accountAddress,
           data: intent.typedData,
         },
-        'V4',
+        SignTypedDataVersion.V4,
       );
 
       const submissionParams: IntentSubmissionParams = {
