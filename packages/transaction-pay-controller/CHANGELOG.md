@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Support gasless predict withdraw ([#8067](https://github.com/MetaMask/core/pull/8067))
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^67.2.0` to `^67.3.0` ([#8051](https://github.com/MetaMask/core/pull/8051))
