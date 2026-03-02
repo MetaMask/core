@@ -1242,7 +1242,7 @@ describe('Relay Quotes Utils', () => {
         );
       });
 
-      it('using scaled gas fee token cost for post-quote with single relay param', async () => {
+      it('using gas fee token amount as-is for post-quote with single relay param', async () => {
         successfulFetchMock.mockResolvedValue({
           json: async () => QUOTE_MOCK,
         } as never);
@@ -1273,14 +1273,13 @@ describe('Relay Quotes Utils', () => {
           } as TransactionMeta,
         });
 
-        // Gas fee token amount should be scaled for the combined gas
-        // (original tx gas 0x5208=21000 + relay gas 21000 = 42000),
-        // not just the relay gas (21000).
+        // Single relay param and single gas limit: hasMultipleTransactions is false,
+        // so gas fee token amount is used as-is (no batch scaling).
         expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
           expect.objectContaining({
             gasFeeToken: {
               ...GAS_FEE_TOKEN_MOCK,
-              amount: toHex(1230000 * 2),
+              amount: GAS_FEE_TOKEN_MOCK.amount,
             },
           }),
         );
