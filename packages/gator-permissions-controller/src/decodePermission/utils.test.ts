@@ -3,8 +3,8 @@ import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type { DeployedContractsByName } from './types';
+import { createPermissionRulesForContracts } from './rules';
 import {
-  createPermissionRulesForChainId,
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
   isSubset,
@@ -85,7 +85,7 @@ describe('createPermissionRulesForChainId', () => {
     // native-token-periodic
     // erc20-token-revocation
     const permissionTypeCount = 5;
-    const rules = createPermissionRulesForChainId(contracts);
+    const rules = createPermissionRulesForContracts(contracts);
     expect(rules).toHaveLength(permissionTypeCount);
 
     const byType = Object.fromEntries(
@@ -190,6 +190,37 @@ describe('createPermissionRulesForChainId', () => {
         [valueLteEnforcer, 1],
         [nonceEnforcer, 1],
       ]),
+    );
+  });
+
+  it('each rule has caveatAddressesMatch and validateAndDecodePermission', () => {
+    const contracts = buildContracts();
+    const rules = createPermissionRulesForContracts(contracts);
+    const {
+      nativeTokenStreamingEnforcer,
+      exactCalldataEnforcer,
+      nonceEnforcer,
+      timestampEnforcer,
+    } = getChecksumEnforcersByChainId(contracts);
+
+    for (const rule of rules) {
+      expect(typeof rule.caveatAddressesMatch).toBe('function');
+      expect(typeof rule.validateAndDecodePermission).toBe('function');
+    }
+
+    const nativeStreamRule = rules.find(
+      (r) => r.permissionType === 'native-token-stream',
+    );
+    expect(nativeStreamRule).toBeDefined();
+
+    const matchingCaveatAddresses: Hex[] = [
+      nativeTokenStreamingEnforcer,
+      exactCalldataEnforcer,
+      nonceEnforcer,
+      timestampEnforcer,
+    ];
+    expect(nativeStreamRule!.caveatAddressesMatch(matchingCaveatAddresses)).toBe(
+      true,
     );
   });
 });

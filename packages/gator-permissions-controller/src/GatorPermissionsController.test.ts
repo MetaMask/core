@@ -721,6 +721,47 @@ describe('GatorPermissionsController', () => {
       ).toThrow('Failed to decode permission');
     });
 
+    it('throws when caveat terms are invalid for the matched permission rule', () => {
+      const {
+        TimestampEnforcer,
+        NativeTokenStreamingEnforcer,
+        ExactCalldataEnforcer,
+        NonceEnforcer,
+      } = contracts;
+
+      const expiryTerms = createTimestampTerms(
+        { timestampAfterThreshold: 0, timestampBeforeThreshold: 1720000 },
+        { out: 'hex' },
+      );
+
+      // Enforcers match native-token-stream but stream terms are truncated (invalid)
+      const truncatedStreamTerms = `0x${'00'.repeat(50)}` as Hex;
+      const caveats = [
+        { enforcer: TimestampEnforcer, terms: expiryTerms, args: '0x' } as const,
+        {
+          enforcer: NativeTokenStreamingEnforcer,
+          terms: truncatedStreamTerms,
+          args: '0x',
+        } as const,
+        { enforcer: ExactCalldataEnforcer, terms: '0x', args: '0x' } as const,
+        { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+      ];
+
+      expect(() =>
+        controller.decodePermissionFromPermissionContextForOrigin({
+          origin: controller.permissionsProviderSnapId,
+          chainId,
+          delegation: {
+            delegate: delegatorAddressA,
+            delegator: delegateAddressB,
+            authority: ROOT_AUTHORITY as Hex,
+            caveats,
+          },
+          metadata: buildMetadata(''),
+        }),
+      ).toThrow('Failed to decode permission');
+    });
+
     it('throws when authority is not ROOT_AUTHORITY', () => {
       const {
         TimestampEnforcer,

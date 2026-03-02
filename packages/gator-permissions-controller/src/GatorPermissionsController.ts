@@ -22,8 +22,8 @@ import type { Hex } from '@metamask/utils';
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
 import {
-  getPermissionDataAndExpiry,
-  identifyPermissionByEnforcers,
+  createPermissionRulesForContracts,
+  findRuleWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
 } from './decodePermission';
 import {
@@ -586,21 +586,30 @@ export default class GatorPermissionsController extends BaseController<
 
     try {
       const enforcers = caveats.map((caveat) => caveat.enforcer);
+      const permissionRules = createPermissionRulesForContracts(contracts);
 
-      const permissionType = identifyPermissionByEnforcers({
+      // find the single rule where the specified enforcers contain all the required enforcers 
+      // and no forbidden enforcers
+      const matchingRule = findRuleWithMatchingCaveatAddresses({
         enforcers,
-        contracts,
+        permissionRules,
       });
 
-      const { expiry, data } = getPermissionDataAndExpiry({
-        contracts,
-        caveats,
-        permissionType,
-      });
+      // validate the terms of each caveat against the matching rule, returning the decoded result
+      // this happens in a single function, as decoding is an inherent part of validation.
+      const decodeResult = matchingRule.validateAndDecodePermission(caveats);
+
+      if (!decodeResult.isValid) {
+        throw new PermissionDecodingError({
+          cause: decodeResult.error,
+        });
+      }
+
+      const { expiry, data } = decodeResult;
 
       const permission = reconstructDecodedPermission({
         chainId,
-        permissionType,
+        permissionType: matchingRule.permissionType,
         delegator,
         delegate,
         authority,
