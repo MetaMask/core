@@ -240,6 +240,149 @@ describe('RampsController', () => {
     });
   });
 
+  describe('messenger action handlers', () => {
+    it('handles RampsController:setSelectedToken', async () => {
+      const mockToken: RampsToken = {
+        assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        chainId: 'eip155:1',
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        iconUrl: 'https://example.com/usdc.png',
+        tokenSupported: true,
+      };
+
+      const mockTokensResponse: TokensResponse = {
+        topTokens: [mockToken],
+        allTokens: [mockToken],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokensResponse, null),
+            },
+          },
+        },
+        ({ controller, messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          messenger.call('RampsController:setSelectedToken', mockToken.assetId);
+
+          expect(controller.state.tokens.selected).toStrictEqual(mockToken);
+        },
+      );
+    });
+
+    it('handles RampsController:getQuotes', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+              amountOutInFiat: 98,
+            },
+            metadata: {
+              reliability: 95,
+              tags: {
+                isBestRate: true,
+                isMostReliable: false,
+              },
+            },
+          },
+        ],
+        sorted: [
+          {
+            sortBy: 'price',
+            ids: ['/providers/moonpay'],
+          },
+        ],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => mockQuotesResponse,
+        );
+
+        const quotes = await messenger.call('RampsController:getQuotes', {
+          action: 'buy',
+          amount: 100,
+          assetId: 'eip155:1/slip44:60',
+          fiat: 'USD',
+          paymentMethods: ['/payments/debit-credit-card'],
+          providers: ['/providers/moonpay'],
+          region: 'US',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        });
+
+        expect(quotes).toStrictEqual(mockQuotesResponse);
+      });
+    });
+
+    it('handles RampsController:getOrder', async () => {
+      const mockOrder = {
+        id: '/providers/transak-staging/orders/abc-123',
+        isOnlyLink: false,
+        provider: {
+          id: '/providers/transak-staging',
+          name: 'Transak (Staging)',
+          environmentType: 'STAGING',
+          description: 'Test provider description',
+          hqAddress: '123 Test St',
+          links: [],
+          logos: { light: '', dark: '', height: 24, width: 77 },
+        },
+        success: true,
+        cryptoAmount: 0.05,
+        fiatAmount: 100,
+        cryptoCurrency: { symbol: 'ETH', decimals: 18 },
+        fiatCurrency: { symbol: 'USD', decimals: 2, denomSymbol: '$' },
+        providerOrderId: 'abc-123',
+        providerOrderLink: 'https://transak.com/order/abc-123',
+        createdAt: 1700000000000,
+        paymentMethod: { id: '/payments/debit-credit-card', name: 'Card' },
+        totalFeesFiat: 5,
+        txHash: '',
+        walletAddress: '0xabc',
+        status: RampsOrderStatus.Completed,
+        network: { chainId: '1', name: 'Ethereum Mainnet' },
+        canBeUpdated: false,
+        idHasExpired: false,
+        excludeFromPurchases: false,
+        timeDescriptionPending: '',
+        orderType: 'BUY',
+        exchangeRate: 2000,
+      };
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => mockOrder,
+        );
+
+        const order = await messenger.call(
+          'RampsController:getOrder',
+          'transak-staging',
+          'abc-123',
+          '0xabc',
+        );
+
+        expect(order).toStrictEqual(mockOrder);
+      });
+    });
+  });
+
   describe('getProviders', () => {
     const mockProviders: Provider[] = [
       {
