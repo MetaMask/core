@@ -436,9 +436,37 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Sets selected token in the {@link RampsController}.
+ */
+export type RampsControllerSetSelectedTokenAction = {
+  type: 'RampsController:setSelectedToken';
+  handler: RampsController['setSelectedToken'];
+};
+
+/**
+ * Fetches quotes via the {@link RampsController}.
+ */
+export type RampsControllerGetQuotesAction = {
+  type: 'RampsController:getQuotes';
+  handler: RampsController['getQuotes'];
+};
+
+/**
+ * Fetches an order via the {@link RampsController}.
+ */
+export type RampsControllerGetOrderAction = {
+  type: 'RampsController:getOrder';
+  handler: RampsController['getOrder'];
+};
+
+/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerActions = RampsControllerGetStateAction;
+export type RampsControllerActions =
+  | RampsControllerGetStateAction
+  | RampsControllerSetSelectedTokenAction
+  | RampsControllerGetQuotesAction
+  | RampsControllerGetOrderAction;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -716,6 +744,23 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+
+    this.#registerActionHandlers();
+  }
+
+  #registerActionHandlers(): void {
+    this.messenger.registerActionHandler(
+      'RampsController:setSelectedToken',
+      this.setSelectedToken.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'RampsController:getQuotes',
+      this.getQuotes.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'RampsController:getOrder',
+      this.getOrder.bind(this),
+    );
   }
 
   /**
