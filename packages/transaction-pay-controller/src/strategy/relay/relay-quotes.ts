@@ -726,6 +726,7 @@ function combinePostQuoteGas(
   }
 
   let { gasLimits } = relayGas;
+  // TODO: Test EIP-7702 support on the chain as well before assuming single gas limit.
   const isEIP7702 = gasLimits.length === 1;
 
   if (isEIP7702) {
