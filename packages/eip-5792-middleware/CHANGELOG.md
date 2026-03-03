@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: mark getAccounts → getPermittedAccountsForOrigin rename as breaking in eip-5792-middleware changelog ([#8060](https://github.com/MetaMask/core/pull/8060))
+
 ## [3.0.0]
 
 ### Added
