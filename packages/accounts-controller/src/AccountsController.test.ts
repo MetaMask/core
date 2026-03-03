@@ -290,14 +290,17 @@ function buildAccountsControllerMessenger(
  * @param options - The options object.
  * @param [options.initialState] - The initial state to use for the AccountsController.
  * @param [options.messenger] - The root messenger to use for creating the AccountsController messenger.
+ * @param [options.overrideState] - The state to override the initial state with.
  * @returns An instance of the AccountsController class.
  */
 function setupAccountsController({
   initialState = {},
   messenger = buildMessenger(),
+  overrideState = null,
 }: {
   initialState?: Partial<AccountsControllerState>;
   messenger?: RootMessenger;
+  overrideState?: AccountsControllerState | null;
 }): {
   accountsController: AccountsController;
   messenger: RootMessenger;
@@ -309,7 +312,7 @@ function setupAccountsController({
 
   const accountsController = new AccountsController({
     messenger: accountsControllerMessenger,
-    state: { ...defaultState, ...initialState },
+    state: overrideState ?? { ...defaultState, ...initialState },
   });
 
   const triggerMultichainNetworkChange = (
@@ -347,6 +350,35 @@ describe('AccountsController', () => {
     address: 'mock-address-2',
     keyringType: KeyringTypes.hd,
     lastSelected: 22222,
+  });
+
+  describe('constructor', () => {
+    it('should construct the accountIdByAddress correctly', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      expect(accountsController.state.accountIdByAddress).toStrictEqual({
+        [mockAccount.address]: mockAccount.id,
+      });
+    });
+
+    it('should handle empty state', () => {
+      const { accountsController } = setupAccountsController({
+        // @ts-expect-error - We want to test empty state here.
+        overrideState: {},
+      });
+      // No accounts, no accountIdByAddress
+      // Initial state
+      expect(accountsController.state.accountIdByAddress).toStrictEqual({});
+    });
   });
 
   describe('onSnapStateChange', () => {
