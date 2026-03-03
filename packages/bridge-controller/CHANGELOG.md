@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.0.0]
+
 ### Changed
 
 - **BREAKING:** Add validation support for intent EIP-712 `typedData` payloads so clients can pass signed intent data through the bridge flow. ([#8048](https://github.com/MetaMask/core/pull/8048))
@@ -1213,7 +1215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@68.0.0...HEAD
+[68.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.4.0...@metamask/bridge-controller@68.0.0
 [67.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.3.0...@metamask/bridge-controller@67.4.0
 [67.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.2.0...@metamask/bridge-controller@67.3.0
 [67.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.1.1...@metamask/bridge-controller@67.2.0
