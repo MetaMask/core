@@ -142,6 +142,26 @@ describe('GatorPermissionsController', () => {
 
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
     });
+
+    it('instantiates successfully without gatorPermissionsProviderSnapId', () => {
+      const configWithoutSnapId = {
+        supportedPermissionTypes: DEFAULT_TEST_CONFIG.supportedPermissionTypes,
+      };
+
+      expect(() => {
+        new GatorPermissionsController({
+          messenger: getGatorPermissionsControllerMessenger(),
+          config: configWithoutSnapId,
+        });
+      }).not.toThrow();
+
+      const controller = new GatorPermissionsController({
+        messenger: getGatorPermissionsControllerMessenger(),
+        config: configWithoutSnapId,
+      });
+      expect(controller).toBeDefined();
+      expect(controller.state.grantedPermissions).toStrictEqual([]);
+    });
   });
 
   describe('fetchAndUpdateGatorPermissions', () => {
