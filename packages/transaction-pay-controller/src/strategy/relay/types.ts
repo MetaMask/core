@@ -53,6 +53,9 @@ export type RelayQuote = {
     };
   };
   fees: {
+    app?: {
+      amountUsd: string;
+    };
     relayer: {
       amountUsd: string;
     };

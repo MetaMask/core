@@ -728,6 +728,18 @@ describe('Bridge Quotes Utils', () => {
       });
     });
 
+    it('returns zero metaMask fee in quote', async () => {
+      const quotes = await getBridgeQuotes({
+        ...request,
+        requests: [QUOTE_REQUEST_1_MOCK],
+      });
+
+      expect(quotes[0].fees.metaMask).toStrictEqual({
+        usd: '0',
+        fiat: '0',
+      });
+    });
+
     it('returns target network fee in quote', async () => {
       calculateTransactionGasCostMock.mockReturnValue({
         fiat: '1.23',

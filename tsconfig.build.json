@@ -44,6 +44,9 @@
       "path": "./packages/base-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/base-data-service/tsconfig.build.json"
+    },
+    {
       "path": "./packages/bridge-controller/tsconfig.build.json"
     },
     {
@@ -114,6 +117,9 @@
     },
     {
       "path": "./packages/gator-permissions-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/geolocation-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/json-rpc-engine/tsconfig.build.json"

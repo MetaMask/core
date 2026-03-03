@@ -32,6 +32,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/assets-controller`](packages/assets-controller)
 - [`@metamask/assets-controllers`](packages/assets-controllers)
 - [`@metamask/base-controller`](packages/base-controller)
+- [`@metamask/base-data-service`](packages/base-data-service)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
@@ -56,6 +57,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
+- [`@metamask/geolocation-controller`](packages/geolocation-controller)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
@@ -112,6 +114,7 @@ linkStyle default opacity:0.5
   assets_controller(["@metamask/assets-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
   base_controller(["@metamask/base-controller"]);
+  base_data_service(["@metamask/base-data-service"]);
   bridge_controller(["@metamask/bridge-controller"]);
   bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);
@@ -136,6 +139,7 @@ linkStyle default opacity:0.5
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   gator_permissions_controller(["@metamask/gator-permissions-controller"]);
+  geolocation_controller(["@metamask/geolocation-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
@@ -201,6 +205,7 @@ linkStyle default opacity:0.5
   assets_controller --> account_tree_controller;
   assets_controller --> assets_controllers;
   assets_controller --> base_controller;
+  assets_controller --> client_controller;
   assets_controller --> controller_utils;
   assets_controller --> core_backend;
   assets_controller --> keyring_controller;
@@ -216,6 +221,7 @@ linkStyle default opacity:0.5
   assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
+  assets_controllers --> core_backend;
   assets_controllers --> keyring_controller;
   assets_controllers --> messenger;
   assets_controllers --> multichain_account_service;
@@ -239,6 +245,7 @@ linkStyle default opacity:0.5
   bridge_controller --> multichain_network_controller;
   bridge_controller --> network_controller;
   bridge_controller --> polling_controller;
+  bridge_controller --> profile_sync_controller;
   bridge_controller --> remote_feature_flag_controller;
   bridge_controller --> transaction_controller;
   bridge_controller --> eth_json_rpc_provider;
@@ -249,6 +256,7 @@ linkStyle default opacity:0.5
   bridge_status_controller --> gas_fee_controller;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> polling_controller;
+  bridge_status_controller --> profile_sync_controller;
   bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
   chain_agnostic_permission --> permission_controller;
@@ -311,6 +319,8 @@ linkStyle default opacity:0.5
   gator_permissions_controller --> base_controller;
   gator_permissions_controller --> messenger;
   gator_permissions_controller --> transaction_controller;
+  geolocation_controller --> base_controller;
+  geolocation_controller --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   keyring_controller --> messenger;
@@ -442,6 +452,7 @@ linkStyle default opacity:0.5
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> core_backend;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> messenger;
   transaction_controller --> network_controller;

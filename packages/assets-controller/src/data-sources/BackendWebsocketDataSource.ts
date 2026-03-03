@@ -323,8 +323,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   /**
    * Sync active chains from AccountsApiDataSource.
-   * Called by AssetsController.handleActiveChainsUpdate when the callback is
-   * invoked for BackendWebsocketDataSource (no messenger call; controller already updated).
+   * When the data source invokes the onActiveChainsUpdated callback, the
+   * controller processes the active chains update (no messenger call; controller already updated).
    *
    * @param chains - Updated active chain IDs from AccountsApiDataSource.
    */

@@ -103,7 +103,8 @@ import type {
   Asset,
   AssetsControllerStateInternal,
 } from './types';
-import { normalizeAssetId } from './utils';
+import { normalizeAssetId, formatExchangeRatesForBridge } from './utils';
+import type { BridgeExchangeRatesFormat } from './utils';
 
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
@@ -137,6 +138,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssetsBalance',
   'getAssetMetadata',
   'getAssetsPrice',
+  'getExchangeRatesForBridge',
   'addCustomAsset',
   'removeCustomAsset',
   'getCustomAssets',
@@ -589,6 +591,12 @@ export class AssetsController extends BaseController<
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
+  readonly #onActiveChainsUpdated: (
+    dataSourceId: string,
+    activeChains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
+
   constructor({
     messenger,
     state = {},
@@ -619,36 +627,36 @@ export class AssetsController extends BaseController<
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
-    const onActiveChainsUpdated = (
+    this.#onActiveChainsUpdated = (
       dataSourceName: string,
       chains: ChainId[],
       previousChains: ChainId[],
     ): void => {
-      this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+      this.#handleActiveChainsUpdate(dataSourceName, chains, previousChains);
     };
 
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
       messenger: this.messenger,
       queryApiClient,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...accountsApiDataSourceConfig,
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...rpcConfig,
     });
     this.#stakedBalanceDataSource = new StakedBalanceDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...stakedBalanceDataSourceConfig,
     });
     this.#tokenDataSource = new TokenDataSource({
@@ -830,7 +838,7 @@ export class AssetsController extends BaseController<
    * @param activeChains - Currently active (supported and available) chain IDs for this source.
    * @param previousChains - Previous chains; used to compute added/removed.
    */
-  handleActiveChainsUpdate(
+  #handleActiveChainsUpdate(
     dataSourceId: string,
     activeChains: ChainId[],
     previousChains: ChainId[],
@@ -865,11 +873,26 @@ export class AssetsController extends BaseController<
         this.getAssets(this.#selectedAccounts, {
           chainIds: addedEnabledChains,
           forceUpdate: true,
+          updateMode: 'merge',
         }).catch((error) => {
           log('Failed to fetch balance for added chains', { error });
         });
       }
     }
+  }
+
+  /**
+   * Returns the callback passed to data sources for reporting active chain updates.
+   * Used by tests to simulate a data source reporting chain changes.
+   *
+   * @returns The onActiveChainsUpdated callback.
+   */
+  getOnActiveChainsUpdated(): (
+    dataSourceId: string,
+    activeChains: ChainId[],
+    previousChains: ChainId[],
+  ) => void {
+    return this.#onActiveChainsUpdated;
   }
 
   // ============================================================================
@@ -964,6 +987,8 @@ export class AssetsController extends BaseController<
       forceUpdate?: boolean;
       dataTypes?: DataType[];
       assetsForPriceUpdate?: Caip19AssetId[];
+      /** When set to 'merge', fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
+      updateMode?: AssetsUpdateMode;
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -1013,7 +1038,14 @@ export class AssetsController extends BaseController<
         sources,
         request,
       );
-      await this.#updateState({ ...response, updateMode: 'full' });
+      // Default to 'merge' when fetching a subset of chains so we don't wipe
+      // balances from chains that weren't included in this fetch.
+      const isPartialChainFetch =
+        options?.chainIds !== undefined &&
+        options.chainIds.length < this.#enabledChains.size;
+      const updateMode =
+        options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
+      await this.#updateState({ ...response, updateMode });
       if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
         const durationMs = Date.now() - startTime;
@@ -1091,6 +1123,35 @@ export class AssetsController extends BaseController<
     return result;
   }
 
+  /**
+   * Returns exchange rates in the format expected by the bridge controller
+   * (conversionRates, currencyRates, marketData, currentCurrency) so that
+   * when useAssetsControllerForRates is true the bridge can use a single
+   * action instead of MultichainAssetsRatesController, TokenRatesController,
+   * and CurrencyRateController.
+   *
+   * @param options - Optional options for bridge rate conversion.
+   * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and conversionRates use correct user-currency vs USD values; otherwise the bridge USD conversion will be wrong for non-USD currencies.
+   * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
+   */
+  getExchangeRatesForBridge(options?: {
+    usdToSelectedCurrencyRate?: number;
+  }): BridgeExchangeRatesFormat {
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return formatExchangeRatesForBridge({
+      assetsPrice: this.state.assetsPrice,
+      selectedCurrency: this.state.selectedCurrency,
+      nativeAssetIdentifiers,
+      networkConfigurationsByChainId,
+      usdToSelectedCurrencyRate: options?.usdToSelectedCurrencyRate,
+    });
+  }
+
   // ============================================================================
   // CUSTOM ASSETS MANAGEMENT
   // ============================================================================
@@ -1162,13 +1223,14 @@ export class AssetsController extends BaseController<
       }
     });
 
-    // Fetch data for the newly added custom asset
+    // Fetch data for the newly added custom asset (merge to preserve other chains)
     const account = this.#selectedAccounts.find((a) => a.id === accountId);
     if (account) {
       const chainId = extractChainId(normalizedAssetId);
       await this.getAssets([account], {
         chainIds: [chainId],
         forceUpdate: true,
+        updateMode: 'merge',
       });
     }
   }
@@ -1354,6 +1416,83 @@ export class AssetsController extends BaseController<
   // STATE MANAGEMENT
   // ============================================================================
 
+  /**
+   * Resolves native asset IDs (CAIP-19) for the given chains by looking them up
+   * in NetworkEnablementController.nativeAssetIdentifiers.
+   * Chains without a registered native identifier are skipped.
+   *
+   * @param chains - The chain IDs to resolve native assets for.
+   * @returns Array of native asset IDs for the chains that have a registered identifier.
+   */
+  #resolveNativeAssetIds(chains: Iterable<ChainId>): Caip19AssetId[] {
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const ids: Caip19AssetId[] = [];
+    for (const chainId of chains) {
+      const nativeId = nativeAssetIdentifiers?.[chainId];
+      if (nativeId) {
+        ids.push(nativeId as Caip19AssetId);
+      }
+    }
+    return ids;
+  }
+
+  /**
+   * Returns native asset IDs for all enabled chains.
+   *
+   * @returns Array of native asset IDs, one per enabled chain that has a registered identifier.
+   */
+  #getNativeAssetIdsForEnabledChains(): Caip19AssetId[] {
+    return this.#resolveNativeAssetIds(this.#enabledChains);
+  }
+
+  /**
+   * Returns native asset IDs for the chains that this account supports
+   * (account scopes ∩ enabled chains).
+   *
+   * @param account - The account (scopes determine which chains apply).
+   * @returns Array of native asset IDs, one per supported chain that has a registered identifier.
+   */
+  #getNativeAssetIdsForAccount(account: InternalAccount): Caip19AssetId[] {
+    return this.#resolveNativeAssetIds(
+      this.#getEnabledChainsForAccount(account),
+    );
+  }
+
+  /**
+   * Ensures assetsBalance has a 0 balance for each native token (from
+   * NetworkEnablementController.nativeAssetIdentifiers) for each selected account.
+   * Only adds natives for chains that the account supports (correct accountId ↔ chain mapping).
+   */
+  #ensureNativeBalancesDefaultZero(): void {
+    const accounts = this.#selectedAccounts;
+    if (accounts.length === 0) {
+      return;
+    }
+    this.update((state) => {
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      for (const account of accounts) {
+        const accountId = account.id;
+        const nativeAssetIds = this.#getNativeAssetIdsForAccount(account);
+        if (nativeAssetIds.length === 0) {
+          continue;
+        }
+        if (!balances[accountId]) {
+          balances[accountId] = {};
+        }
+        for (const nativeAssetId of nativeAssetIds) {
+          if (!(nativeAssetId in balances[accountId])) {
+            balances[accountId][nativeAssetId] = { amount: '0' };
+          }
+        }
+      }
+    });
+  }
+
   async #updateState(response: DataResponse): Promise<void> {
     const normalizedResponse = normalizeResponse(response);
     const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
@@ -1409,10 +1548,13 @@ export class AssetsController extends BaseController<
                 accountId
               ] ?? [];
 
-            // Full: response is authoritative; preserve custom assets not in response. Merge: response overlays previous.
+            // Full: response is authoritative; preserve custom assets not in response.
+            // Merge: response overlays previous balances.
+            // Callers that fetch partial data (e.g. newly added chains) must set updateMode: 'merge'.
             const effective: Record<string, AssetBalance> =
-              mode === 'full'
-                ? ((): Record<string, AssetBalance> => {
+              mode === 'merge'
+                ? { ...previousBalances, ...accountBalances }
+                : ((): Record<string, AssetBalance> => {
                     const next: Record<string, AssetBalance> = {
                       ...accountBalances,
                     };
@@ -1424,8 +1566,20 @@ export class AssetsController extends BaseController<
                       }
                     }
                     return next;
-                  })()
-                : { ...previousBalances, ...accountBalances };
+                  })();
+
+            // Ensure native tokens have an entry (0 if missing) for chains this account supports
+            const account = this.#selectedAccounts.find(
+              (a) => a.id === accountId,
+            );
+            const nativeAssetIdsForAccount = account
+              ? this.#getNativeAssetIdsForAccount(account)
+              : this.#getNativeAssetIdsForEnabledChains();
+            for (const nativeAssetId of nativeAssetIdsForAccount) {
+              if (!(nativeAssetId in effective)) {
+                effective[nativeAssetId] = { amount: '0' } as AssetBalance;
+              }
+            }
 
             for (const [assetId, balance] of Object.entries(effective)) {
               const previousBalance = previousBalances[
@@ -1433,7 +1587,11 @@ export class AssetsController extends BaseController<
               ] as { amount: string } | undefined;
               const newAmount = (balance as { amount: string }).amount;
               const oldAmount = previousBalance?.amount;
-              if (oldAmount !== newAmount) {
+              const isNewDefaultNativeZero =
+                oldAmount === undefined &&
+                newAmount === '0' &&
+                nativeAssetIdsForAccount.includes(assetId as Caip19AssetId);
+              if (oldAmount !== newAmount && !isNewDefaultNativeZero) {
                 changedBalances.push({
                   accountId,
                   assetId,
@@ -1646,6 +1804,7 @@ export class AssetsController extends BaseController<
     });
 
     this.#subscribeAssets();
+    this.#ensureNativeBalancesDefaultZero();
     this.getAssets(this.#selectedAccounts, {
       chainIds: [...this.#enabledChains],
       forceUpdate: true,
@@ -1875,7 +2034,8 @@ export class AssetsController extends BaseController<
       }),
       subscriptionId: subscriptionKey,
       isUpdate,
-      onAssetsUpdate: (response) => this.handleAssetsUpdate(response, sourceId),
+      onAssetsUpdate: (response, request) =>
+        this.handleAssetsUpdate(response, sourceId, request),
       getAssetsState: () => this.state,
     };
 
@@ -2012,6 +2172,8 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
       });
     }
+
+    this.#ensureNativeBalancesDefaultZero();
   }
 
   async #handleEnabledNetworksChanged(
@@ -2050,13 +2212,16 @@ export class AssetsController extends BaseController<
     // Refresh subscriptions for new chain set
     this.#subscribeAssets();
 
-    // Do one-time fetch for newly enabled chains
+    // Do one-time fetch for newly enabled chains; merge so we keep existing chain balances
     if (addedChains.length > 0 && this.#selectedAccounts.length > 0) {
       await this.getAssets(this.#selectedAccounts, {
         chainIds: addedChains,
         forceUpdate: true,
+        updateMode: 'merge',
       });
     }
+
+    this.#ensureNativeBalancesDefaultZero();
   }
 
   /**
@@ -2130,6 +2295,9 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getExchangeRatesForBridge',
+    );
     this.messenger.unregisterActionHandler('AssetsController:addCustomAsset');
     this.messenger.unregisterActionHandler(
       'AssetsController:removeCustomAsset',

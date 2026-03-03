@@ -3,7 +3,6 @@ import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import type {
   UnifiedSwapBridgeEventName,
-  InputAmountPreset,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   MetricsSwapType,
@@ -106,7 +105,7 @@ type RequiredEventContextFromClientBase = {
       | 'slippage'
       | 'token_amount_source';
     input_value: InputValues[keyof InputValues];
-    input_amount_preset?: InputAmountPreset;
+    input_amount_preset?: string;
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {
     token_symbol_source: RequestParams['token_symbol_source'];
@@ -248,6 +247,7 @@ type RequiredEventContextFromClientBase = {
 export type RequiredEventContextFromClient = {
   [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
     location?: MetaMetricsSwapsEventSource;
+    ab_tests?: Record<string, string>;
   };
 };
 
@@ -316,6 +316,7 @@ export type CrossChainSwapsEventProperties<
   | {
       action_type: MetricsActionType;
       location: MetaMetricsSwapsEventSource;
+      ab_tests?: Record<string, string>;
     }
   | Pick<EventPropertiesFromControllerState, T>[T]
   | Pick<RequiredEventContextFromClient, T>[T];
