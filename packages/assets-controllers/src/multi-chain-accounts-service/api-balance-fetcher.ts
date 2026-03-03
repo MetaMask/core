@@ -442,8 +442,18 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
             const existingBalance = nonNativeBalancesFromAPI.get(key);
             const isChainIncludedInRequest = chainIds.includes(chainId as Hex);
             const isChainSupported = this.supports(chainId as Hex);
+            const isAccountIncludedInRequest = queryAllAccounts
+              ? allAccounts.some(
+                  (currentAccount) =>
+                    currentAccount.address.toLowerCase() ===
+                    account.toLowerCase(),
+                )
+              : selectedAccount.toLowerCase() === account.toLowerCase();
             const shouldZeroOutBalance =
-              !existingBalance && isChainIncludedInRequest && isChainSupported;
+              !existingBalance &&
+              isChainIncludedInRequest &&
+              isChainSupported &&
+              isAccountIncludedInRequest;
 
             if (isERC && shouldZeroOutBalance) {
               results.push({
