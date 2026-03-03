@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add validation support for intent EIP-712 `typedData` payloads so clients can pass signed intent data through the bridge flow. ([#8048](https://github.com/MetaMask/core/pull/8048))
 
+### Fixed
+
+- Use 9005 as AVAX slip44 reference to match the token api's responses ([#8098](https://github.com/MetaMask/core/pull/8098))
+
 ## [67.4.0]
 
 ### Changed
