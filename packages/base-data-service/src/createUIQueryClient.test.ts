@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/messenger';
+import { ExtractActionParameters } from '@metamask/messenger';
 import { Json } from '@metamask/utils';
 import {
   DehydratedState,
@@ -30,7 +31,7 @@ const DATA_SERVICES = ['ExampleDataService'];
 function createClient(serviceMessenger: ExampleMessenger): QueryClient {
   const subscriptions = new Set<SubscriptionCallback>();
 
-  const subscription = (payload: SubscriptionPayload): void => {
+  const listener = (payload: SubscriptionPayload): void => {
     subscriptions.forEach((callback) => callback(payload));
   };
 
@@ -45,19 +46,18 @@ function createClient(serviceMessenger: ExampleMessenger): QueryClient {
         return serviceMessenger.call(
           method,
           params[0] as QueryKey,
-          subscription,
+          listener,
         );
       } else if (method === 'ExampleDataService:unsubscribe') {
         return serviceMessenger.call(
           method,
           params[0] as QueryKey,
-          subscription,
+          listener,
         );
       }
       return serviceMessenger.call(
         method as ExampleDataServiceActions['type'],
-        // @ts-expect-error TODO.
-        ...params,
+        ...(params as ExtractActionParameters<ExampleDataServiceActions>),
       );
     },
     subscribe: async (
