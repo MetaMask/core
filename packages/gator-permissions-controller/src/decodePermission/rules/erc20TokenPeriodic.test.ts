@@ -263,4 +263,66 @@ describe('erc20-token-periodic rule', () => {
       'Invalid erc20-token-periodic terms: startTime must be a positive number',
     );
   });
+
+  it('rejects when periodAmount is 0', () => {
+    const tokenAddress = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as Hex;
+    const periodAmountZero = '0'.repeat(64);
+    const periodDurationHex = (86400).toString(16).padStart(64, '0');
+    const startDateHex = (1715664).toString(16).padStart(64, '0');
+    const terms =
+      `0x${tokenAddress.slice(2)}${periodAmountZero}${periodDurationHex}${startDateHex}` as Hex;
+
+    const caveats = [
+      expiryCaveat,
+      valueLteCaveat,
+      {
+        enforcer: ERC20PeriodTransferEnforcer,
+        terms,
+        args: '0x' as const,
+      },
+    ];
+
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    // this is here as a type guard
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid erc20-token-periodic terms: periodAmount must be a positive number',
+    );
+  });
+
+  it('rejects when tokenAddress is not valid hex (invalid characters)', () => {
+    const invalidTokenAddress = 'gg';
+    const periodAmountHex = 100n.toString(16).padStart(64, '0');
+    const periodDurationHex = (86400).toString(16).padStart(64, '0');
+    const startDateHex = (1715664).toString(16).padStart(64, '0');
+    const terms =
+      `0x${invalidTokenAddress}${'0'.repeat(38)}${periodAmountHex}${periodDurationHex}${startDateHex}` as Hex;
+
+    const caveats = [
+      expiryCaveat,
+      valueLteCaveat,
+      {
+        enforcer: ERC20PeriodTransferEnforcer,
+        terms,
+        args: '0x' as const,
+      },
+    ];
+
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    // this is here as a type guard
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid erc20-token-periodic terms: tokenAddress must be a valid hex string',
+    );
+  });
 });

@@ -86,6 +86,12 @@ function validateAndDecodeData(
   const periodDuration = hexToNumber(periodDurationRaw);
   const startTime = hexToNumber(startTimeRaw);
 
+  if (hexToNumber(periodAmount) <= 0) {
+    throw new Error(
+      'Invalid native-token-periodic terms: periodAmount must be a positive number',
+    );
+  }
+
   if (periodDuration <= 0) {
     throw new Error(
       'Invalid native-token-periodic terms: periodDuration must be a positive number',

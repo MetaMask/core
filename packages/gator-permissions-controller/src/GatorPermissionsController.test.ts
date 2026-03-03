@@ -148,19 +148,17 @@ describe('GatorPermissionsController', () => {
         supportedPermissionTypes: DEFAULT_TEST_CONFIG.supportedPermissionTypes,
       };
 
+      let controller: GatorPermissionsController | undefined;
+
       expect(() => {
-        new GatorPermissionsController({
+        controller = new GatorPermissionsController({
           messenger: getGatorPermissionsControllerMessenger(),
           config: configWithoutSnapId,
         });
       }).not.toThrow();
 
-      const controller = new GatorPermissionsController({
-        messenger: getGatorPermissionsControllerMessenger(),
-        config: configWithoutSnapId,
-      });
       expect(controller).toBeDefined();
-      expect(controller.state.grantedPermissions).toStrictEqual([]);
+      expect(controller?.state.grantedPermissions).toStrictEqual([]);
     });
   });
 

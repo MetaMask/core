@@ -88,6 +88,18 @@ function validateAndDecodeData(
   const periodDuration = hexToNumber(periodDurationRaw);
   const startTime = hexToNumber(startTimeRaw);
 
+  if (!/^0x[0-9a-fA-F]{40}$/u.test(tokenAddress)) {
+    throw new Error(
+      'Invalid erc20-token-periodic terms: tokenAddress must be a valid hex string',
+    );
+  }
+
+  if (hexToNumber(periodAmount) <= 0) {
+    throw new Error(
+      'Invalid erc20-token-periodic terms: periodAmount must be a positive number',
+    );
+  }
+
   if (periodDuration <= 0) {
     throw new Error(
       'Invalid erc20-token-periodic terms: periodDuration must be a positive number',

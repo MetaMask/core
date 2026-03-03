@@ -254,4 +254,34 @@ describe('native-token-periodic rule', () => {
       'Invalid native-token-periodic terms: startTime must be a positive number',
     );
   });
+
+  it('rejects when periodAmount is 0', () => {
+    const periodAmountZero = '0'.repeat(64);
+    const periodDurationHex = (86400).toString(16).padStart(64, '0');
+    const startDateHex = (1715664).toString(16).padStart(64, '0');
+    const terms =
+      `0x${periodAmountZero}${periodDurationHex}${startDateHex}` as Hex;
+
+    const caveats = [
+      expiryCaveat,
+      exactCalldataCaveat,
+      {
+        enforcer: NativeTokenPeriodTransferEnforcer,
+        terms,
+        args: '0x' as const,
+      },
+    ];
+
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    // this is here as a type guard
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid native-token-periodic terms: periodAmount must be a positive number',
+    );
+  });
 });

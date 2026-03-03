@@ -95,6 +95,12 @@ function validateAndDecodeData(
   const initialAmountBigInt = hexToBigInt(initialAmount);
   const maxAmountBigInt = hexToBigInt(maxAmount);
 
+  if (!/^0x[0-9a-fA-F]{40}$/u.test(tokenAddress)) {
+    throw new Error(
+      'Invalid erc20-token-stream terms: tokenAddress must be a valid hex string',
+    );
+  }
+
   if (maxAmountBigInt < initialAmountBigInt) {
     throw new Error(
       'Invalid erc20-token-stream terms: maxAmount must be greater than initialAmount',
