@@ -83,6 +83,12 @@ export type TransactionPayControllerUpdatePaymentTokenAction = {
   handler: (request: UpdatePaymentTokenRequest) => void;
 };
 
+/** Action to update fiat payment state for a transaction. */
+export type TransactionPayControllerUpdateFiatPaymentAction = {
+  type: `${typeof CONTROLLER_NAME}:updateFiatPayment`;
+  handler: (request: UpdateFiatPaymentRequest) => void;
+};
+
 /** Action to update transaction configuration using a callback. */
 export type TransactionPayControllerSetTransactionConfigAction = {
   type: `${typeof CONTROLLER_NAME}:setTransactionConfig`;
@@ -124,6 +130,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
+  | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
@@ -162,6 +169,9 @@ export type TransactionPayControllerState = {
 
 /** State relating to a single transaction. */
 export type TransactionData = {
+  /** Fiat payment method state. */
+  fiatPayment?: TransactionFiatPayment;
+
   /** Whether quotes are currently being retrieved. */
   isLoading: boolean;
 
@@ -205,6 +215,18 @@ export type TransactionData = {
 
   /** Calculated totals for the transaction. */
   totals?: TransactionPayTotals;
+};
+
+/** Fiat payment state stored per transaction. */
+export type TransactionFiatPayment = {
+  /** Entered fiat amount for the selected payment method. */
+  amount: string | null;
+
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId: string | null;
+
+  /** Quick-buy order ID in normalized format (/providers/{provider}/orders/{id}). */
+  quickBuyOrderId: string | null;
 };
 
 /** A token required by a transaction. */
@@ -522,6 +544,21 @@ export type UpdatePaymentTokenRequest = {
 
   /** Chain ID of the new payment token. */
   chainId: Hex;
+};
+
+/** Request to update fiat payment state for a transaction. */
+export type UpdateFiatPaymentRequest = {
+  /** Entered fiat amount. */
+  amount?: string | null;
+
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId?: string | null;
+
+  /** ID of the transaction to update. */
+  transactionId: string;
+
+  /** Quick-buy order ID in normalized format (/providers/{provider}/orders/{id}). */
+  quickBuyOrderId?: string | null;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */
