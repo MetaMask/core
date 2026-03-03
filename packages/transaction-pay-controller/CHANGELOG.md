@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Normalize Polygon native token addresses between Relay requests and MetaMask balance checks to avoid undefined token values in quote and submit flows ([#8091](https://github.com/MetaMask/core/pull/8091))
+
 ## [16.1.1]
 
 ### Changed
