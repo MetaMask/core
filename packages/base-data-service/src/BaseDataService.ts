@@ -195,7 +195,7 @@ export class BaseDataService<
     return result.pages[pageIndex];
   }
 
-  protected async invalidateQueries<TPageData extends Json>(
+  async invalidateQueries<TPageData extends Json>(
     filters?: InvalidateQueryFilters<TPageData>,
     options?: InvalidateOptions,
   ): Promise<void> {
@@ -215,7 +215,7 @@ export class BaseDataService<
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.#subscriptions.get(hash)!.add(subscription);
 
-    return this.#getDehydratedStateForQuery(queryKey);
+    return this.#getDehydratedState(queryKey);
   }
 
   #handleUnsubscribe(
@@ -231,7 +231,7 @@ export class BaseDataService<
     }
   }
 
-  #getDehydratedStateForQuery(queryKey: QueryKey): DehydratedState {
+  #getDehydratedState(queryKey: QueryKey): DehydratedState {
     const hash = hashQueryKey(queryKey);
     return dehydrate(this.#client, {
       shouldDehydrateQuery: (query) => query.queryHash === hash,
@@ -240,7 +240,7 @@ export class BaseDataService<
 
   #broadcastCacheUpdate(queryKey: QueryKey): void {
     const hash = hashQueryKey(queryKey);
-    const state = this.#getDehydratedStateForQuery(queryKey);
+    const state = this.#getDehydratedState(queryKey);
 
     const payload = {
       hash,
