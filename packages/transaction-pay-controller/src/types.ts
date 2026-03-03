@@ -130,8 +130,8 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
-  | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerSetTransactionConfigAction
+  | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =
