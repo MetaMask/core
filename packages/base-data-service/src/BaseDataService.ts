@@ -2,6 +2,7 @@ import {
   Messenger,
   ActionConstraint,
   EventConstraint,
+  ActionHandler,
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import {
@@ -100,26 +101,27 @@ export class BaseDataService<
   }
 
   #registerMessageHandlers(): void {
-    this.#messenger.registerActionHandler(
-      `${this.name}:subscribe`,
-      // @ts-expect-error TODO.
-      (queryKey: QueryKey, callback: SubscriptionCallback) =>
-        this.#handleSubscribe(queryKey, callback),
-    );
+    // Casts are required since `registerActionHandler` isn't able to extract the method parameters correctly.
+    this.#messenger.registerActionHandler(`${this.name}:subscribe`, ((
+      queryKey: QueryKey,
+      callback: SubscriptionCallback,
+    ) => this.#handleSubscribe(queryKey, callback)) as ActionHandler<
+      DataServiceActions<ServiceName>
+    >);
 
-    this.#messenger.registerActionHandler(
-      `${this.name}:unsubscribe`,
-      // @ts-expect-error TODO.
-      (queryKey: QueryKey, callback: SubscriptionCallback) =>
-        this.#handleUnsubscribe(queryKey, callback),
-    );
+    this.#messenger.registerActionHandler(`${this.name}:unsubscribe`, ((
+      queryKey: QueryKey,
+      callback: SubscriptionCallback,
+    ) => this.#handleUnsubscribe(queryKey, callback)) as ActionHandler<
+      DataServiceActions<ServiceName>
+    >);
 
-    this.#messenger.registerActionHandler(
-      `${this.name}:invalidateQueries`,
-      // @ts-expect-error TODO.
-      (filters?: InvalidateQueryFilters<Json>, options?: InvalidateOptions) =>
-        this.invalidateQueries(filters, options),
-    );
+    this.#messenger.registerActionHandler(`${this.name}:invalidateQueries`, ((
+      filters?: InvalidateQueryFilters<Json>,
+      options?: InvalidateOptions,
+    ) => this.invalidateQueries(filters, options)) as ActionHandler<
+      DataServiceActions<ServiceName>
+    >);
   }
 
   #setupCacheListener(): void {
