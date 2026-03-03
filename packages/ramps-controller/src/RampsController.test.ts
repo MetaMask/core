@@ -4773,7 +4773,7 @@ describe('RampsController', () => {
     });
   });
 
-  describe('getWidgetUrl', () => {
+  describe('getBuyWidgetData', () => {
     it('fetches and returns widget URL via RampsService messenger', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const quote: Quote = {
@@ -4796,9 +4796,13 @@ describe('RampsController', () => {
           }),
         );
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await controller.getBuyWidgetData(quote);
 
-        expect(widgetUrl).toBe('https://global.transak.com/?apiKey=test');
+        expect(buyWidget).toStrictEqual({
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
       });
     });
 
@@ -4813,9 +4817,9 @@ describe('RampsController', () => {
           },
         };
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await controller.getBuyWidgetData(quote);
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
       });
     });
 
@@ -4825,9 +4829,9 @@ describe('RampsController', () => {
           provider: '/providers/moonpay',
         } as unknown as Quote;
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await controller.getBuyWidgetData(quote);
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
       });
     });
 
@@ -4851,9 +4855,9 @@ describe('RampsController', () => {
           },
         );
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await controller.getBuyWidgetData(quote);
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
       });
     });
 
@@ -4879,9 +4883,41 @@ describe('RampsController', () => {
           }),
         );
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await controller.getBuyWidgetData(quote);
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
+      });
+    });
+  });
+
+  describe('addPrecreatedOrder', () => {
+    it('adds a stub order with Precreated status for polling', async () => {
+      await withController(({ controller }) => {
+        controller.addPrecreatedOrder({
+          orderId: '/providers/paypal/orders/abc123',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+          chainId: '1',
+        });
+
+        expect(controller.state.orders).toHaveLength(1);
+        const stub = controller.state.orders[0];
+        expect(stub?.providerOrderId).toBe('abc123');
+        expect(stub?.provider?.id).toBe('/providers/paypal');
+        expect(stub?.walletAddress).toBe('0xabc');
+        expect(stub?.status).toBe(RampsOrderStatus.Precreated);
+      });
+    });
+
+    it('parses orderCode when orderId has no /orders/ segment', async () => {
+      await withController(({ controller }) => {
+        controller.addPrecreatedOrder({
+          orderId: 'plain-order-id',
+          providerCode: 'transak',
+          walletAddress: '0xdef',
+        });
+
+        expect(controller.state.orders[0]?.providerOrderId).toBe('plain-order-id');
       });
     });
   });
