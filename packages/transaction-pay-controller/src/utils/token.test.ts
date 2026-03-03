@@ -14,6 +14,8 @@ import {
   getNativeToken,
   isSameToken,
   getLiveTokenBalance,
+  normalizeTokenAddressForMM,
+  normalizeTokenAddressForRelayRequest,
 } from './token';
 import {
   CHAIN_ID_POLYGON,
@@ -459,6 +461,47 @@ describe('Token Utils', () => {
 
     it('returns zero address for other chains', () => {
       expect(getNativeToken('0x1')).toBe(NATIVE_TOKEN_ADDRESS);
+    });
+  });
+
+  describe('token address normalization wrappers', () => {
+    const POLYGON_NATIVE_TOKEN =
+      '0x0000000000000000000000000000000000001010' as Hex;
+
+    it('returns Relay native token address for Polygon native token', () => {
+      const result = normalizeTokenAddressForRelayRequest(
+        POLYGON_NATIVE_TOKEN,
+        CHAIN_ID_POLYGON,
+      );
+
+      expect(result).toBe(NATIVE_TOKEN_ADDRESS);
+    });
+
+    it('returns Polygon native token address for MetaMask target', () => {
+      const result = normalizeTokenAddressForMM(
+        NATIVE_TOKEN_ADDRESS,
+        CHAIN_ID_POLYGON,
+      );
+
+      expect(result).toBe(POLYGON_NATIVE_TOKEN);
+    });
+
+    it('returns original address for non-Polygon chains in MetaMask wrapper', () => {
+      const result = normalizeTokenAddressForMM(
+        NATIVE_TOKEN_ADDRESS,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toBe(NATIVE_TOKEN_ADDRESS);
+    });
+
+    it('returns original address for non-native Polygon token in Relay wrapper', () => {
+      const result = normalizeTokenAddressForRelayRequest(
+        POLYGON_USDCE_ADDRESS,
+        CHAIN_ID_POLYGON,
+      );
+
+      expect(result).toBe(POLYGON_USDCE_ADDRESS);
     });
   });
 

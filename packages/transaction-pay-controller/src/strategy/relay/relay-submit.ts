@@ -26,7 +26,10 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getFeatureFlags } from '../../utils/feature-flags';
-import { getLiveTokenBalance } from '../../utils/token';
+import {
+  getLiveTokenBalance,
+  normalizeTokenAddressForMM,
+} from '../../utils/token';
 import {
   collectTransactionIds,
   getTransaction,
@@ -191,6 +194,11 @@ async function validateSourceBalance(
 ): Promise<void> {
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
 
+  const normalizedSourceTokenAddress = normalizeTokenAddressForMM(
+    sourceTokenAddress,
+    sourceChainId,
+  );
+
   let currentBalance: string;
 
   try {
@@ -198,7 +206,7 @@ async function validateSourceBalance(
       messenger,
       from,
       sourceChainId,
-      sourceTokenAddress,
+      normalizedSourceTokenAddress,
     );
   } catch (error) {
     throw new Error(

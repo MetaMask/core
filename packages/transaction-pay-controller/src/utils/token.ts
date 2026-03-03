@@ -6,7 +6,11 @@ import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
-import { NATIVE_TOKEN_ADDRESS, STABLECOINS } from '../constants';
+import {
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+  STABLECOINS,
+} from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
 
 /**
@@ -340,4 +344,80 @@ function getTicker(
   } catch {
     return undefined;
   }
+}
+
+type NormalizeTokenAddressOptions = {
+  target: 'relay' | 'metamask';
+};
+
+/**
+ * Normalize token address formats between MetaMask and Relay for Polygon native
+ * token handling.
+ *
+ * MetaMask uses Polygon's native token contract-like address (`0x...1010`),
+ * while Relay expects the zero address for native tokens.
+ *
+ * @param tokenAddress - Token address to normalize.
+ * @param chainId - Chain ID for the token.
+ * @param options - Normalization options.
+ * @param options.target - Target system format.
+ * @returns Normalized token address for the target system.
+ */
+export function normalizeTokenAddress(
+  tokenAddress: Hex,
+  chainId: Hex,
+  options: NormalizeTokenAddressOptions,
+): Hex {
+  if (chainId !== CHAIN_ID_POLYGON) {
+    return tokenAddress;
+  }
+
+  const polygonNativeTokenAddress = getNativeToken(CHAIN_ID_POLYGON);
+  const normalizedTokenAddress = tokenAddress.toLowerCase();
+
+  if (
+    options.target === 'relay' &&
+    normalizedTokenAddress === polygonNativeTokenAddress.toLowerCase()
+  ) {
+    return NATIVE_TOKEN_ADDRESS;
+  }
+
+  if (
+    options.target === 'metamask' &&
+    normalizedTokenAddress === NATIVE_TOKEN_ADDRESS.toLowerCase()
+  ) {
+    return polygonNativeTokenAddress;
+  }
+
+  return tokenAddress;
+}
+
+/**
+ * Normalize token address to Relay format.
+ *
+ * @param tokenAddress - Token address to normalize.
+ * @param chainId - Chain ID for the token.
+ * @returns Token address formatted for Relay requests.
+ */
+export function normalizeTokenAddressForRelayRequest(
+  tokenAddress: Hex,
+  chainId: Hex,
+): Hex {
+  return normalizeTokenAddress(tokenAddress, chainId, { target: 'relay' });
+}
+
+/**
+ * Normalize token address to MetaMask format.
+ *
+ * @param tokenAddress - Token address to normalize.
+ * @param chainId - Chain ID for the token.
+ * @returns Token address formatted for MetaMask balance checks.
+ */
+export function normalizeTokenAddressForMM(
+  tokenAddress: Hex,
+  chainId: Hex,
+): Hex {
+  return normalizeTokenAddress(tokenAddress, chainId, {
+    target: 'metamask',
+  });
 }

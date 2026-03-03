@@ -35,7 +35,14 @@ import {
   getTokenFiatRate,
 } from '../../utils/token';
 
-jest.mock('../../utils/token');
+jest.mock('../../utils/token', () => ({
+  ...jest.createMockFromModule<typeof import('../../utils/token')>(
+    '../../utils/token',
+  ),
+  normalizeTokenAddressForRelayRequest:
+    jest.requireActual<typeof import('../../utils/token')>('../../utils/token')
+      .normalizeTokenAddressForRelayRequest,
+}));
 jest.mock('../../utils/gas');
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
