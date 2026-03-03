@@ -7,6 +7,7 @@ import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import type { Messenger } from '@metamask/messenger';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
+import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
@@ -88,6 +89,21 @@ export type NetworkEnablementControllerDisableNetworkAction = {
   handler: NetworkEnablementController['disableNetwork'];
 };
 
+export type NetworkEnablementControllerListPopularNetworksAction = {
+  type: `${typeof controllerName}:listPopularNetworks`;
+  handler: NetworkEnablementController['listPopularNetworks'];
+};
+
+export type NetworkEnablementControllerListPopularEvmNetworksAction = {
+  type: `${typeof controllerName}:listPopularEvmNetworks`;
+  handler: NetworkEnablementController['listPopularEvmNetworks'];
+};
+
+export type NetworkEnablementControllerListPopularMultichainNetworksAction = {
+  type: `${typeof controllerName}:listPopularMultichainNetworks`;
+  handler: NetworkEnablementController['listPopularMultichainNetworks'];
+};
+
 /**
  * All actions that {@link NetworkEnablementController} calls internally.
  */
@@ -98,7 +114,10 @@ export type AllowedActions =
 export type NetworkEnablementControllerActions =
   | NetworkEnablementControllerGetStateAction
   | NetworkEnablementControllerSetEnabledNetworksAction
-  | NetworkEnablementControllerDisableNetworkAction;
+  | NetworkEnablementControllerDisableNetworkAction
+  | NetworkEnablementControllerListPopularNetworksAction
+  | NetworkEnablementControllerListPopularEvmNetworksAction
+  | NetworkEnablementControllerListPopularMultichainNetworksAction;
 
 export type NetworkEnablementControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -747,5 +766,59 @@ export class NetworkEnablementController extends BaseController<
         slip44CoinType,
       );
     });
+  }
+
+  /**
+   * Returns popular EVM network chain IDs in hex form, restricted to networks
+   * that exist in NetworkController (networkConfigurationsByChainId). Source list
+   * is POPULAR_NETWORKS.
+   *
+   * @returns Hex chain IDs for popular EVM networks that are configured.
+   */
+  listPopularEvmNetworks(): Hex[] {
+    const networkControllerState = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return POPULAR_NETWORKS.filter(
+      (chainIdHex) =>
+        networkControllerState.networkConfigurationsByChainId[chainIdHex],
+    );
+  }
+
+  /**
+   * Returns popular multichain (Bitcoin, Solana, Tron) mainnet chain IDs in
+   * CAIP-2 form, restricted to networks that exist in MultichainNetworkController
+   * (multichainNetworkConfigurationsByChainId).
+   *
+   * @returns CAIP-2 chain IDs for Bitcoin, Solana, and Tron mainnets that are configured.
+   */
+  listPopularMultichainNetworks(): CaipChainId[] {
+    const multichainState = this.messenger.call(
+      'MultichainNetworkController:getState',
+    );
+    const multichainMainnets = [
+      BtcScope.Mainnet,
+      SolScope.Mainnet,
+      TrxScope.Mainnet,
+    ] as const;
+    return multichainMainnets.filter(
+      (chainId) =>
+        multichainState.multichainNetworkConfigurationsByChainId[chainId],
+    );
+  }
+
+  /**
+   * Returns the list of popular network chain IDs in CAIP-2 form, restricted to
+   * networks that exist in NetworkController (networkConfigurationsByChainId) and
+   * MultichainNetworkController (multichainNetworkConfigurationsByChainId). EVM
+   * popular networks come from POPULAR_NETWORKS; multichain popular are Bitcoin,
+   * Solana, and Tron mainnets.
+   *
+   * @returns CAIP-2 chain IDs for popular EVM networks and multichain mainnets that are configured.
+   */
+  listPopularNetworks(): CaipChainId[] {
+    const evmHex = this.listPopularEvmNetworks();
+    const evmCaip = evmHex.map((chainIdHex) => toEvmCaipChainId(chainIdHex));
+    return [...evmCaip, ...this.listPopularMultichainNetworks()];
   }
 }
