@@ -346,39 +346,10 @@ function getTicker(
   }
 }
 
-/**
- * Normalize token address to Relay format.
- *
- * @param tokenAddress - Token address to normalize.
- * @param chainId - Chain ID for the token.
- * @returns Token address formatted for Relay requests.
- */
-export function normalizeTokenAddressForRelayRequest(
-  tokenAddress: Hex,
-  chainId: Hex,
-): Hex {
-  return normalizeTokenAddress(tokenAddress, chainId, { target: 'relay' });
+export enum TokenAddressTarget {
+  Relay = 'relay',
+  MetaMask = 'metamask',
 }
-
-/**
- * Normalize token address to MetaMask format.
- *
- * @param tokenAddress - Token address to normalize.
- * @param chainId - Chain ID for the token.
- * @returns Token address formatted for MetaMask balance checks.
- */
-export function normalizeTokenAddressForMM(
-  tokenAddress: Hex,
-  chainId: Hex,
-): Hex {
-  return normalizeTokenAddress(tokenAddress, chainId, {
-    target: 'metamask',
-  });
-}
-
-type NormalizeTokenAddressOptions = {
-  target: 'relay' | 'metamask';
-};
 
 /**
  * Normalize token address formats between MetaMask and Relay for Polygon native
@@ -389,34 +360,34 @@ type NormalizeTokenAddressOptions = {
  *
  * @param tokenAddress - Token address to normalize.
  * @param chainId - Chain ID for the token.
- * @param options - Normalization options.
- * @param options.target - Target system format.
- * @returns Normalized token address for the target system.
+ * @param target - Optional target system format.
+ * @returns Normalized token address for the target system, or the original
+ * address if no target is provided.
  */
-function normalizeTokenAddress(
+export function normalizeTokenAddress(
   tokenAddress: Hex,
   chainId: Hex,
-  options: NormalizeTokenAddressOptions,
+  target?: TokenAddressTarget,
 ): Hex {
   if (chainId !== CHAIN_ID_POLYGON) {
     return tokenAddress;
   }
 
-  const polygonNativeTokenAddress = getNativeToken(CHAIN_ID_POLYGON);
+  const nativeTokenAddress = getNativeToken(chainId).toLowerCase() as Hex;
   const normalizedTokenAddress = tokenAddress.toLowerCase();
 
   if (
-    options.target === 'relay' &&
-    normalizedTokenAddress === polygonNativeTokenAddress.toLowerCase()
+    target === TokenAddressTarget.Relay &&
+    normalizedTokenAddress === nativeTokenAddress
   ) {
     return NATIVE_TOKEN_ADDRESS;
   }
 
   if (
-    options.target === 'metamask' &&
+    target === TokenAddressTarget.MetaMask &&
     normalizedTokenAddress === NATIVE_TOKEN_ADDRESS.toLowerCase()
   ) {
-    return polygonNativeTokenAddress;
+    return nativeTokenAddress;
   }
 
   return tokenAddress;

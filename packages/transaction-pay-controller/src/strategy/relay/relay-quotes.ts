@@ -42,7 +42,8 @@ import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
-  normalizeTokenAddressForRelayRequest,
+  normalizeTokenAddress,
+  TokenAddressTarget,
 } from '../../utils/token';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
@@ -270,13 +271,15 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
     request.targetTokenAddress.toLowerCase() ===
       ARBITRUM_USDC_ADDRESS.toLowerCase();
 
-  newRequest.sourceTokenAddress = normalizeTokenAddressForRelayRequest(
+  newRequest.sourceTokenAddress = normalizeTokenAddress(
     newRequest.sourceTokenAddress,
     newRequest.sourceChainId,
+    TokenAddressTarget.Relay,
   );
-  newRequest.targetTokenAddress = normalizeTokenAddressForRelayRequest(
+  newRequest.targetTokenAddress = normalizeTokenAddress(
     newRequest.targetTokenAddress,
     newRequest.targetChainId,
+    TokenAddressTarget.Relay,
   );
 
   if (isHyperliquidDeposit) {

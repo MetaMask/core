@@ -23,14 +23,7 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 
-jest.mock('../../utils/token', () => ({
-  ...jest.createMockFromModule<typeof import('../../utils/token')>(
-    '../../utils/token',
-  ),
-  normalizeTokenAddressForMM:
-    jest.requireActual<typeof import('../../utils/token')>('../../utils/token')
-      .normalizeTokenAddressForMM,
-}));
+jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
 

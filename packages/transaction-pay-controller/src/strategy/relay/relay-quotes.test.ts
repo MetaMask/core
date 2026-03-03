@@ -39,9 +39,9 @@ jest.mock('../../utils/token', () => ({
   ...jest.createMockFromModule<typeof import('../../utils/token')>(
     '../../utils/token',
   ),
-  normalizeTokenAddressForRelayRequest:
+  normalizeTokenAddress:
     jest.requireActual<typeof import('../../utils/token')>('../../utils/token')
-      .normalizeTokenAddressForRelayRequest,
+      .normalizeTokenAddress,
 }));
 jest.mock('../../utils/gas');
 jest.mock('../../utils/feature-flags', () => ({

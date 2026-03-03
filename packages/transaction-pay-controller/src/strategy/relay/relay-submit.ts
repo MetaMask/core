@@ -28,7 +28,8 @@ import type {
 import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   getLiveTokenBalance,
-  normalizeTokenAddressForMM,
+  normalizeTokenAddress,
+  TokenAddressTarget,
 } from '../../utils/token';
 import {
   collectTransactionIds,
@@ -194,9 +195,10 @@ async function validateSourceBalance(
 ): Promise<void> {
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
 
-  const normalizedSourceTokenAddress = normalizeTokenAddressForMM(
+  const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
     sourceChainId,
+    TokenAddressTarget.MetaMask,
   );
 
   let currentBalance: string;
