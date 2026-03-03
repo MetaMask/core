@@ -7,10 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert "Release/843.0.0" ([#8086](https://github.com/MetaMask/core/pull/8086))
-- Release/843.0.0 ([#8084](https://github.com/MetaMask/core/pull/8084))
+## [10.1.0]
 
 ### Added
 
@@ -195,7 +192,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.1.0...HEAD
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.0.0...@metamask/ramps-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@9.0.0...@metamask/ramps-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.1.0...@metamask/ramps-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.0.0...@metamask/ramps-controller@8.1.0
