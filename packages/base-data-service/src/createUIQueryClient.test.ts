@@ -81,6 +81,7 @@ function createClients(): {
   service: ExampleDataService;
   clientA: QueryClient;
   clientB: QueryClient;
+  messenger: Messenger<'ExampleDataService', ExampleDataServiceActions>;
 } {
   const serviceMessenger = new Messenger<
     'ExampleDataService',
@@ -91,7 +92,7 @@ function createClients(): {
   const clientA = createClient(serviceMessenger);
   const clientB = createClient(serviceMessenger);
 
-  return { service, clientA, clientB };
+  return { service, clientA, clientB, messenger: serviceMessenger };
 }
 
 const getAssetsQueryKey = [
@@ -288,5 +289,49 @@ describe('createUIQueryClient', () => {
 
     observerA.destroy();
     observerB.destroy();
+  });
+
+  it('errors if observer attempts to use default query function without a data service', async () => {
+    const { clientA } = createClients();
+
+    const observer = new QueryObserver(clientA, {
+      queryKey: ['query'],
+      retry: false,
+    });
+
+    const promise = new Promise<Error>((_resolve, reject) => {
+      observer.subscribe((event) => {
+        if (event.status === 'error') {
+          reject(event.error as Error);
+        }
+      });
+    });
+
+    await expect(promise).rejects.toThrow(
+      'Queries must use data service actions.',
+    );
+  });
+
+  it('ignores attempts to invalidate non data service queries', async () => {
+    const { clientA, messenger } = createClients();
+
+    const spy = jest.spyOn(messenger, 'call');
+
+    const observer = new QueryObserver(clientA, {
+      queryKey: ['query'],
+      retry: false,
+    });
+
+    const promise = new Promise<void>((resolve) => {
+      observer.subscribe(() => {
+        resolve();
+      });
+    });
+
+    await promise;
+
+    await clientA.invalidateQueries({ queryKey: ['query'] });
+
+    expect(spy).not.toHaveBeenCalled();
   });
 });
