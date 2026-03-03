@@ -1,6 +1,6 @@
 {
   "name": "@metamask/perps-controller",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Controller for perpetual trading functionality in MetaMask",
   "keywords": [
     "MetaMask",
