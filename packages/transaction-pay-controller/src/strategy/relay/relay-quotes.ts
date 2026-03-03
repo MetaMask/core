@@ -274,6 +274,10 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
     newRequest.sourceTokenAddress,
     newRequest.sourceChainId,
   );
+  newRequest.targetTokenAddress = normalizeTokenAddressForRelayRequest(
+    newRequest.targetTokenAddress,
+    newRequest.targetChainId,
+  );
 
   if (isHyperliquidDeposit) {
     newRequest.targetChainId = CHAIN_ID_HYPERCORE;

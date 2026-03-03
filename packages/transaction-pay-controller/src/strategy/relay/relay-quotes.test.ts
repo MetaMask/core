@@ -1834,6 +1834,34 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('updates request if target is polygon native', async () => {
+      const polygonTargetRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        targetChainId: CHAIN_ID_POLYGON,
+        targetTokenAddress: '0x0000000000000000000000000000000000001010',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [polygonTargetRequest],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          destinationCurrency: NATIVE_TOKEN_ADDRESS,
+        }),
+      );
+    });
+
     it('estimates gas for single transaction', async () => {
       const quoteMock = cloneDeep(QUOTE_MOCK);
       delete quoteMock.steps[0].items[0].data.gas;

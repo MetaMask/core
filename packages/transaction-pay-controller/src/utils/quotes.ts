@@ -9,7 +9,6 @@ import {
   computeTokenAmounts,
   getLiveTokenBalance,
   getTokenFiatRate,
-  normalizeTokenAddressForRelayRequest,
 } from './token';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
@@ -307,10 +306,7 @@ function buildQuoteRequests({
       sourceTokenAddress: paymentToken.address,
       targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
       targetChainId: token.chainId,
-      targetTokenAddress: normalizeTokenAddressForRelayRequest(
-        token.address,
-        token.chainId,
-      ),
+      targetTokenAddress: token.address,
     };
   });
 
@@ -378,10 +374,7 @@ function buildPostQuoteRequests({
     // and we show them how much they'll receive after fees
     targetAmountMinimum: '0',
     targetChainId: destinationToken.chainId,
-    targetTokenAddress: normalizeTokenAddressForRelayRequest(
-      destinationToken.address,
-      destinationToken.chainId,
-    ),
+    targetTokenAddress: destinationToken.address,
   };
 
   log('Post-quote request built', { transactionId, request });

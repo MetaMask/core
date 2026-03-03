@@ -28,9 +28,6 @@ jest.mock('./token', () => ({
   ...jest.createMockFromModule<typeof import('./token')>('./token'),
   computeTokenAmounts:
     jest.requireActual<typeof import('./token')>('./token').computeTokenAmounts,
-  normalizeTokenAddressForRelayRequest:
-    jest.requireActual<typeof import('./token')>('./token')
-      .normalizeTokenAddressForRelayRequest,
 }));
 
 jest.useFakeTimers();
