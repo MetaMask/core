@@ -6,14 +6,8 @@ import {
   InvalidateOptions,
   OmitKeyof,
   parseFilterArgs,
-  QueryKey as TanStackQueryKey
+  QueryKey,
 } from '@tanstack/query-core';
-
-type QueryKey = readonly [string, ...Json[]];
-
-function getServiceFromQueryKey(queryKey: QueryKey): string {
-  return queryKey[0].split(':')[0];
-}
 
 // When UI messengers are available this should simply be a proper messenger that allows access to DataServiceActions
 type MessengerAdapter = {
@@ -43,6 +37,20 @@ export function createUIQueryClient(
     }
   };
 
+  const getServiceFromQueryKey = (queryKey: QueryKey): string | null => {
+    try {
+      const action = queryKey[0];
+      assert(typeof action === 'string');
+
+      const service = action.split(':')[0];
+      assert(dataServices.includes(service));
+
+      return service;
+    } catch {
+      return null;
+    }
+  };
+
   const client: QueryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -55,8 +63,9 @@ export function createUIQueryClient(
             typeof action === 'string',
             'The first element of a query key must be a string.',
           );
+
           assert(
-            dataServices.includes(action?.split(':')?.[0]),
+            dataServices.includes(action.split(':')?.[0]),
             'Queries must use data service actions.',
           );
 
@@ -83,6 +92,10 @@ export function createUIQueryClient(
     const observerCount = query.getObserversCount();
 
     const service = getServiceFromQueryKey(query.queryKey);
+
+    if (!service) {
+      return;
+    }
 
     if (
       !hasSubscription &&
@@ -119,16 +132,20 @@ export function createUIQueryClient(
 
   // This function is defined in this way to have full support for all function overloads.
   client.invalidateQueries = async (
-    arg1?: TanStackQueryKey | InvalidateQueryFilters,
+    arg1?: QueryKey | InvalidateQueryFilters,
     arg2?: OmitKeyof<InvalidateQueryFilters, 'queryKey'> | InvalidateOptions,
     arg3?: InvalidateOptions,
   ): Promise<void> => {
-    const [filters, options] = parseFilterArgs(arg1, arg2, arg3)
+    const [filters, options] = parseFilterArgs(arg1, arg2, arg3);
 
     const queries = client.getQueryCache().findAll(filters);
     await Promise.all(
-      queries.map((query) => {
-        const service = getServiceFromQueryKey(query.queryKey as QueryKey);
+      queries.map(async (query) => {
+        const service = getServiceFromQueryKey(query.queryKey);
+
+        if (!service) {
+          return null;
+        }
 
         return messenger.call(
           `${service}:invalidateQueries`,
