@@ -42,6 +42,22 @@ export type AssetsControllerGetExchangeRatesForBridgeAction = {
 };
 
 /**
+ * Returns state in the legacy format expected by transaction-pay-controller
+ * (TokenBalancesController, AccountTrackerController, TokensController,
+ * TokenRatesController, CurrencyRateController shapes) so that when
+ * useAssetsController is true the transaction-pay-controller can use a
+ * single action instead of five separate getState calls.
+ *
+ * @param options - Optional options for legacy rate conversion.
+ * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and marketData use correct user-currency vs USD values; otherwise conversion rates will be wrong for non-USD currencies.
+ * @returns Legacy-compatible state for transaction-pay-controller.
+ */
+export type AssetsControllerGetStateForTransactionPayAction = {
+  type: `AssetsController:getStateForTransactionPay`;
+  handler: AssetsController['getStateForTransactionPay'];
+};
+
+/**
  * Add a custom asset for an account.
  * Custom assets are included in subscription and fetch operations.
  * Adding a custom asset also unhides it if it was previously hidden.
@@ -112,6 +128,7 @@ export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetMetadataAction
   | AssetsControllerGetAssetsPriceAction
   | AssetsControllerGetExchangeRatesForBridgeAction
+  | AssetsControllerGetStateForTransactionPayAction
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction
