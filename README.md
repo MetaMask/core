@@ -41,6 +41,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/client-controller`](packages/client-controller)
 - [`@metamask/compliance-controller`](packages/compliance-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
+- [`@metamask/config-registry-controller`](packages/config-registry-controller)
 - [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
@@ -123,6 +124,7 @@ linkStyle default opacity:0.5
   client_controller(["@metamask/client-controller"]);
   compliance_controller(["@metamask/compliance-controller"]);
   composable_controller(["@metamask/composable-controller"]);
+  config_registry_controller(["@metamask/config-registry-controller"]);
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
@@ -273,6 +275,13 @@ linkStyle default opacity:0.5
   composable_controller --> base_controller;
   composable_controller --> messenger;
   composable_controller --> json_rpc_engine;
+  config_registry_controller --> base_controller;
+  config_registry_controller --> controller_utils;
+  config_registry_controller --> keyring_controller;
+  config_registry_controller --> messenger;
+  config_registry_controller --> polling_controller;
+  config_registry_controller --> profile_sync_controller;
+  config_registry_controller --> remote_feature_flag_controller;
   connectivity_controller --> base_controller;
   connectivity_controller --> messenger;
   core_backend --> accounts_controller;

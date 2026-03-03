@@ -695,6 +695,29 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('getStateForTransactionPay', () => {
+    it('passes usdToSelectedCurrencyRate so currencyRates have distinct conversionRate and usdConversionRate', async () => {
+      const ethNativeId = 'eip155:1/slip44:60' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsPrice: {
+          [ethNativeId]: { price: 2000, lastUpdated: 1_700_000_000_000 },
+        },
+        selectedCurrency: 'eur',
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        const result = controller.getStateForTransactionPay({
+          usdToSelectedCurrencyRate: 0.92,
+        });
+
+        expect(result.currentCurrency).toBe('eur');
+        expect(result.currencyRates.ETH).toBeDefined();
+        expect(result.currencyRates.ETH?.conversionRate).toBe(2000 * 0.92);
+        expect(result.currencyRates.ETH?.usdConversionRate).toBe(2000);
+      });
+    });
+  });
+
   describe('handleActiveChainsUpdate', () => {
     it('calls getAssets with added enabled chains when chains are added', async () => {
       await withController(async ({ controller }) => {
