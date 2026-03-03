@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/833.0.0 ([#8031](https://github.com/MetaMask/core/pull/8031))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- Release 828.0.0 ([#8005](https://github.com/MetaMask/core/pull/8005))
-
 ## [11.1.1]
 
 ### Changed
