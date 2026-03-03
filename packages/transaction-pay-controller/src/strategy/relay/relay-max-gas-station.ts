@@ -440,13 +440,15 @@ function getProbeSourceAmountRaw(
     .multipliedBy(PROBE_AMOUNT_PERCENTAGE)
     .integerValue(BigNumber.ROUND_FLOOR);
 
-  const targetProbeRaw = new BigNumber(1).shiftedBy(
+  // Minimum probe size: ~0.01 token for tokens with >=2 decimals,
+  // otherwise one raw unit for low-decimal tokens.
+  const minimumProbeRaw = new BigNumber(1).shiftedBy(
     Math.max(sourceDecimals - 2, 0),
   );
 
   const probeRaw = BigNumber.minimum(
     sourceAmount,
-    BigNumber.maximum(probeRawAmount, targetProbeRaw),
+    BigNumber.maximum(probeRawAmount, minimumProbeRaw),
   ).integerValue(BigNumber.ROUND_FLOOR);
 
   if (probeRaw.isLessThanOrEqualTo(0)) {
