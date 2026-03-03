@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release/843.0.0" ([#8086](https://github.com/MetaMask/core/pull/8086))
+- Release/843.0.0 ([#8084](https://github.com/MetaMask/core/pull/8084))
+
 ### Added
 
 - Added `orders: RampsOrder[]` to controller state with persistence, along with crud methods([#8045](https://github.com/MetaMask/core/pull/8045))
