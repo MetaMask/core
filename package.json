@@ -108,7 +108,8 @@
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
       "babel-runtime>core-js": false,
       "simple-git-hooks": false,
-      "tsx>esbuild": false
+      "tsx>esbuild": false,
+      "eslint-plugin-import-x>unrs-resolver": false
     }
   }
 }
