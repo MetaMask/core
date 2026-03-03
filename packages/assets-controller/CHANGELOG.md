@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getStateForTransactionPay()` method and `AssetsController:getStateForTransactionPay` messenger action. Returns state in the legacy format expected by transaction-pay-controller (TokenBalancesController, AccountTrackerController, TokensController, TokenRatesController, CurrencyRateController shapes) so that when `useAssetsController` is true the transaction-pay-controller can use a single action instead of five separate getState calls. Also export `formatStateForTransactionPay` and types `TransactionPayLegacyFormat`, `AccountForLegacyFormat`, `LegacyToken` from utils ([#8094](https://github.com/MetaMask/core/pull/8094))
+
+### Fixed
+
+- `getStateForTransactionPay()` and `formatStateForTransactionPay()` now accept optional `usdToSelectedCurrencyRate` (rate: 1 USD = N units of selected currency). When `selectedCurrency` is not USD, passing this rate ensures `currencyRates` and `marketData` use correct user-currency vs USD values; previously they incorrectly used USD price for both
+
 ## [2.2.0]
 
 ### Added
