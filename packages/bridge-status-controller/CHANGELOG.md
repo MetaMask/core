@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.0.0]
+
 ### Uncategorized
 
 - feat!: Expose Accounts-owned controller/service methods through messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
@@ -998,7 +1000,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@67.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.0...HEAD
+[68.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@67.0.1...@metamask/bridge-status-controller@68.0.0
 [67.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@67.0.0...@metamask/bridge-status-controller@67.0.1
 [67.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.1.0...@metamask/bridge-status-controller@67.0.0
 [66.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.2...@metamask/bridge-status-controller@66.1.0
