@@ -52,6 +52,7 @@
     "@metamask/bridge-controller": "^67.4.0",
     "@metamask/controller-utils": "^11.19.0",
     "@metamask/gas-fee-controller": "^26.0.3",
+    "@metamask/keyring-controller": "^25.1.0",
     "@metamask/network-controller": "^30.0.0",
     "@metamask/polling-controller": "^16.0.3",
     "@metamask/profile-sync-controller": "^27.1.0",
