@@ -819,48 +819,17 @@ export class NftController extends BaseController<
   }
 
   /**
-   * Request NFT contract information from the contract itself.
+   * Request NFT contract information, merging on-chain data with metadata
+   * already received from the NFT API.
+   *
+   * Each field (name, symbol) is fetched from the chain independently: if the
+   * API already supplied a value for a field, the RPC call for that field is
+   * skipped. Both calls are issued in parallel when both are needed.
    *
    * @param contractAddress - Hex address of the NFT contract.
-   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
-   * @returns Promise resolving to the current NFT name and image.
-   */
-  async #getNftContractInformationFromContract(
-    // TODO for calls to blockchain we need to explicitly pass the currentNetworkClientId since its relying on the provider
-    contractAddress: string,
-    networkClientId: NetworkClientId,
-  ): Promise<
-    Partial<ApiNftContract> &
-      Pick<ApiNftContract, 'address'> &
-      Pick<ApiNftContract, 'collection'>
-  > {
-    const [name, symbol] = await Promise.all([
-      this.messenger.call(
-        'AssetsContractController:getERC721AssetName',
-        contractAddress,
-        networkClientId,
-      ),
-      this.messenger.call(
-        'AssetsContractController:getERC721AssetSymbol',
-        contractAddress,
-        networkClientId,
-      ),
-    ]);
-
-    return {
-      collection: { name },
-      symbol,
-      address: contractAddress,
-    };
-  }
-
-  /**
-   * Request NFT contract information from Blockchain and aggregate with received data from NFTMetadata.
-   *
-   * @param contractAddress - Hex address of the NFT contract.
-   * @param nftMetadataFromApi - Received NFT information to be aggregated with blockchain contract information.
-   * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
-   * @returns Promise resolving to the NFT contract name, image and description.
+   * @param nftMetadataFromApi - NFT information received from the API.
+   * @param networkClientId - Network client to use for any on-chain calls.
+   * @returns Promise resolving to the aggregated NFT contract information.
    */
   async #getNftContractInformation(
     contractAddress: string,
@@ -871,21 +840,47 @@ export class NftController extends BaseController<
       Pick<ApiNftContract, 'address'> &
       Pick<ApiNftContract, 'collection'>
   > {
-    const blockchainContractData = await safelyExecute(() =>
-      this.#getNftContractInformationFromContract(
-        contractAddress,
-        networkClientId,
-      ),
-    );
+    const apiName = nftMetadataFromApi.collection?.name;
+    const apiSymbol = nftMetadataFromApi.collection?.symbol;
+
+    const needsOnChainName = apiName === null || apiName === undefined;
+    const needsOnChainSymbol = apiSymbol === null || apiSymbol === undefined;
+
+    // TODO for calls to blockchain we need to explicitly pass the
+    // currentNetworkClientId since its relying on the provider
+    const [onChainName, onChainSymbol] = await Promise.all([
+      needsOnChainName
+        ? safelyExecute(() =>
+            this.messenger.call(
+              'AssetsContractController:getERC721AssetName',
+              contractAddress,
+              networkClientId,
+            ),
+          )
+        : Promise.resolve(undefined),
+      needsOnChainSymbol
+        ? safelyExecute(() =>
+            this.messenger.call(
+              'AssetsContractController:getERC721AssetSymbol',
+              contractAddress,
+              networkClientId,
+            ),
+          )
+        : Promise.resolve(undefined),
+    ]);
+
+    const name = apiName ?? onChainName;
+    const symbol = apiSymbol ?? onChainSymbol;
 
     if (
-      blockchainContractData ||
+      name !== undefined ||
+      symbol !== undefined ||
       !Object.values(nftMetadataFromApi).every((value) => value === null)
     ) {
       return {
         address: contractAddress,
-        ...blockchainContractData,
         schema_name: nftMetadataFromApi?.standard ?? null,
+        ...(symbol !== undefined && { symbol }),
         collection: {
           name: null,
           image_url:
@@ -894,7 +889,7 @@ export class NftController extends BaseController<
             null,
           tokenCount: nftMetadataFromApi?.collection?.tokenCount ?? null,
           ...nftMetadataFromApi?.collection,
-          ...blockchainContractData?.collection,
+          ...(name !== undefined && { name }),
         },
       };
     }
