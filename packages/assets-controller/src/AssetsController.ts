@@ -1167,9 +1167,13 @@ export class AssetsController extends BaseController<
    * useAssetsController is true the transaction-pay-controller can use a
    * single action instead of five separate getState calls.
    *
+   * @param options - Optional options for legacy rate conversion.
+   * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and marketData use correct user-currency vs USD values; otherwise conversion rates will be wrong for non-USD currencies.
    * @returns Legacy-compatible state for transaction-pay-controller.
    */
-  getStateForTransactionPay(): TransactionPayLegacyFormat {
+  getStateForTransactionPay(options?: {
+    usdToSelectedCurrencyRate?: number;
+  }): TransactionPayLegacyFormat {
     const accounts = this.#selectedAccounts;
     const { nativeAssetIdentifiers } = this.messenger.call(
       'NetworkEnablementController:getState',
@@ -1185,6 +1189,7 @@ export class AssetsController extends BaseController<
       accounts: accounts.map((a) => ({ id: a.id, address: a.address })),
       nativeAssetIdentifiers,
       networkConfigurationsByChainId,
+      usdToSelectedCurrencyRate: options?.usdToSelectedCurrencyRate,
     });
   }
 

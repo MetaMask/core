@@ -256,8 +256,29 @@ describe('formatStateForTransactionPay', () => {
 
     expect(result.currentCurrency).toBe('eur');
     expect(result.currencyRates.ETH).toBeDefined();
-    expect(result.currencyRates.ETH?.conversionRate).toBe(2000);
     expect(result.marketData['0x1']?.[NATIVE_ADDRESS]).toBeDefined();
+  });
+
+  it('uses usdToSelectedCurrencyRate for currencyRates when selectedCurrency is not usd', () => {
+    const result = formatStateForTransactionPay({
+      accounts: [],
+      assetsBalance: {},
+      assetsInfo: {},
+      assetsPrice: {
+        [ETH_NATIVE_ID]: price({ price: 2000, lastUpdated: 1_700_000_000_000 }),
+      },
+      selectedCurrency: 'eur',
+      nativeAssetIdentifiers: EVM_NATIVE_IDS,
+      networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
+      usdToSelectedCurrencyRate: 0.92,
+    });
+
+    expect(result.currentCurrency).toBe('eur');
+    expect(result.currencyRates.ETH).toStrictEqual({
+      conversionDate: 1_700_000_000,
+      conversionRate: 2000 * 0.92,
+      usdConversionRate: 2000,
+    });
   });
 
   it('includes multiple accounts in tokenBalances and accountsByChainId', () => {
