@@ -318,7 +318,7 @@ export class AccountsController extends BaseController<
     state: AccountsControllerState;
   }) {
     const accountIdByAddress = constructAccountIdByAddress(
-      state.internalAccounts.accounts,
+      state?.internalAccounts?.accounts ?? {},
     );
     super({
       messenger,
