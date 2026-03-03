@@ -285,6 +285,50 @@ describe('IntentManager', () => {
     expect(updateTransactionFn).toHaveBeenCalledTimes(1);
   });
 
+  it('syncTransactionFromIntentStatus cleans up intent statuses map when order has failed', async () => {
+    const existingTxMeta = {
+      id: 'tx-2',
+      status: TransactionStatus.submitted,
+      txReceipt: { status: '0x0' },
+    };
+    const updateTransactionFn = jest.fn();
+    const failedOrder = {
+      id: 'order-3',
+      status: IntentOrderStatus.FAILED,
+      txHash: '0xhash',
+      metadata: {},
+    };
+    const manager = new IntentManager(
+      createManagerOptions({
+        messenger: {
+          call: jest.fn(() => ({ transactions: [existingTxMeta] })),
+        },
+        updateTransactionFn,
+        fetchFn: jest.fn().mockResolvedValue(failedOrder),
+      }),
+    );
+
+    const historyItem = makeHistoryItem({
+      originalTransactionId: 'tx-2',
+      status: {
+        status: StatusTypes.PENDING,
+        srcChain: { chainId: 1, txHash: '0xhash' },
+      },
+    });
+    await manager.getIntentTransactionStatus(
+      'order-3',
+      historyItem,
+      'client-id',
+    );
+    manager.syncTransactionFromIntentStatus('order-3', historyItem);
+
+    expect(updateTransactionFn).toHaveBeenCalledTimes(1);
+
+    manager.syncTransactionFromIntentStatus('order-3', historyItem);
+
+    expect(updateTransactionFn).toHaveBeenCalledTimes(1);
+  });
+
   it('syncTransactionFromIntentStatus logs warn when transaction is not found', async () => {
     const warnSpy = jest
       .spyOn(console, 'warn')

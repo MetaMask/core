@@ -164,6 +164,9 @@ export class IntentManager {
       const { bridgeStatus, orderStatus } = intentStatuses;
       const txHash = bridgeStatus?.txHash;
       const isComplete = bridgeStatus?.status.status === StatusTypes.COMPLETE;
+      const isFinalStatus =
+        bridgeStatus?.status.status === StatusTypes.COMPLETE ||
+        bridgeStatus?.status.status === StatusTypes.FAILED;
       const existingTxReceipt = (
         existingTxMeta as { txReceipt?: Record<string, unknown> }
       ).txReceipt;
@@ -189,7 +192,7 @@ export class IntentManager {
         `BridgeStatusController - Intent order status updated: ${orderStatus}`,
       );
 
-      if (isComplete) {
+      if (isFinalStatus) {
         this.#intentStatusesByBridgeTxMetaId.delete(bridgeTxMetaId);
       }
     } catch (error) {
