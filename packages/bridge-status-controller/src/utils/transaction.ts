@@ -343,6 +343,7 @@ export const getAddTransactionBatchParams = async ({
     toTokenAmount,
   },
   requireApproval = false,
+  isDelegatedAccount = false,
   estimateGasFeeFn,
 }: {
   messenger: BridgeStatusControllerMessenger;
@@ -354,6 +355,7 @@ export const getAddTransactionBatchParams = async ({
   approval?: TxData;
   resetApproval?: TxData;
   requireApproval?: boolean;
+  isDelegatedAccount?: boolean;
 }) => {
   const isGasless = gasIncluded || gasIncluded7702;
   const selectedAccount = messenger.call(
@@ -371,9 +373,10 @@ export const getAddTransactionBatchParams = async ({
     hexChainId,
   );
 
-  // When an active quote has gasIncluded7702 set to true,
-  // enable 7702 gasless txs for smart accounts
-  const disable7702 = gasIncluded7702 !== true;
+  // Enable 7702 batching when the quote includes gasless 7702 support,
+  // or when the account is already delegated (to avoid the in-flight
+  // transaction limit for delegated accounts)
+  const disable7702 = gasIncluded7702 !== true && !isDelegatedAccount;
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
     const gasFees = await calculateGasFees(
