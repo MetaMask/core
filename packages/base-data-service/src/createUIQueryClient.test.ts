@@ -66,6 +66,12 @@ function createClient(serviceMessenger: ExampleMessenger): QueryClient {
     ): Promise<void> => {
       subscriptions.add(callback);
     },
+    unsubscribe: async (
+      _method: string,
+      callback: SubscriptionCallback,
+    ): Promise<void> => {
+      subscriptions.delete(callback);
+    },
   };
 
   return createUIQueryClient(DATA_SERVICES, messengerAdapter);

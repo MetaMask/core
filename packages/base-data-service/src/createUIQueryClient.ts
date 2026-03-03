@@ -16,6 +16,7 @@ function getServiceFromQueryKey(queryKey: QueryKey): string {
 type MessengerAdapter = {
   call: (method: string, ...params: Json[]) => Promise<Json | void>;
   subscribe: (method: string, callback: (data: Json) => void) => void;
+  unsubscribe: (method: string, callback: (data: Json) => void) => void;
 };
 
 /**
@@ -30,6 +31,14 @@ export function createUIQueryClient(
   messenger: MessengerAdapter,
 ): QueryClient {
   const subscriptions = new Set<string>();
+
+  const cacheListener = (data: Json): void => {
+    const castData = data as { hash: string; state: Json };
+    if (subscriptions.has(castData.hash)) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      hydrate(client, castData.state);
+    }
+  };
 
   const client: QueryClient = new QueryClient({
     defaultOptions: {
@@ -81,13 +90,7 @@ export function createUIQueryClient(
 
       // This is a bit of a mess because we can't pass functions across the process boundary, so we call subscribe
       // but also register listeners for :cacheUpdate which will be sent to subscribed processes
-      // TODO: Unsubscribe
-      messenger.subscribe(`${service}:cacheUpdate`, (data) => {
-        const castData = data as { hash: string; state: Json };
-        if (subscriptions.has(castData.hash)) {
-          hydrate(client, castData.state);
-        }
-      });
+      messenger.subscribe(`${service}:cacheUpdate`, cacheListener);
 
       messenger
         .call(`${service}:subscribe`, query.queryKey)
@@ -99,6 +102,9 @@ export function createUIQueryClient(
       hasSubscription
     ) {
       subscriptions.delete(hash);
+
+      messenger.unsubscribe(`${service}:cacheUpdate`, cacheListener);
+
       messenger
         .call(`${service}:unsubscribe`, query.queryKey)
         .catch(console.error);
