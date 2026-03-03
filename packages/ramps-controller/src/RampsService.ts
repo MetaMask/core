@@ -255,11 +255,6 @@ export type Quote = {
      * Contains the widget URL, browser type, and optional pre-order tracking ID.
      */
     buyWidget?: BuyWidget;
-    /**
-     * When true, this is a synthetic quote for custom-action-only providers (e.g. PayPal).
-     * UI should skip displaying amounts for such quotes.
-     */
-    isCustomAction?: boolean;
   };
   /**
    * Metadata about the quote.
@@ -702,7 +697,6 @@ function getBaseUrl(
   environment: RampsEnvironment,
   service: RampsApiService,
 ): string {
-  return "http://localhost:3000"
   const cache = service === RampsApiService.Regions ? '-cache' : '';
 
   switch (environment) {
