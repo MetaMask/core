@@ -48,6 +48,14 @@ export type DataServiceActions<ServiceName extends string> =
   | DataServiceUnsubscribeAction<ServiceName>
   | DataServiceInvalidateQueriesAction<ServiceName>;
 
+export type DataServiceCacheUpdateEvent<ServiceName extends string> = {
+  type: `${ServiceName}:cacheUpdate`;
+  payload: [SubscriptionPayload];
+};
+
+export type DataServiceEvents<ServiceName extends string> =
+  DataServiceCacheUpdateEvent<ServiceName>;
+
 export class BaseDataService<
   ServiceName extends string,
   ServiceMessenger extends Messenger<
@@ -65,7 +73,7 @@ export class BaseDataService<
   readonly #messenger: Messenger<
     ServiceName,
     DataServiceActions<ServiceName>,
-    never
+    DataServiceEvents<ServiceName>
   >;
 
   readonly #client = new QueryClient();
@@ -84,7 +92,7 @@ export class BaseDataService<
     this.#messenger = messenger as unknown as Messenger<
       ServiceName,
       DataServiceActions<ServiceName>,
-      never
+      DataServiceEvents<ServiceName>
     >;
 
     this.#registerMessageHandlers();
@@ -116,8 +124,8 @@ export class BaseDataService<
 
   #setupCacheListener(): void {
     this.#client.getQueryCache().subscribe((event) => {
-      if (this.#subscriptions.has(event.query.queryHash)) {
-        this.#broadcastQueryState(event.query.queryKey);
+      if (['added', 'updated', 'removed'].includes(event.type)) {
+        this.#broadcastCacheUpdate(event.query.queryKey);
       }
     });
   }
@@ -192,7 +200,6 @@ export class BaseDataService<
     return this.#client.invalidateQueries(filters, options);
   }
 
-  // TODO: Determine if this has a better fit with `messenger.publish`.
   #handleSubscribe(
     queryKey: QueryKey,
     subscription: SubscriptionCallback,
@@ -229,17 +236,19 @@ export class BaseDataService<
     });
   }
 
-  #broadcastQueryState(queryKey: QueryKey): void {
+  #broadcastCacheUpdate(queryKey: QueryKey): void {
     const hash = hashQueryKey(queryKey);
     const state = this.#getDehydratedStateForQuery(queryKey);
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const subscribers = this.#subscriptions.get(hash)!;
-    subscribers.forEach((subscriber) =>
-      subscriber({
-        hash,
-        state,
-      }),
-    );
+    const payload = {
+      hash,
+      state,
+    };
+
+    this.#messenger.publish(`${this.name}:cacheUpdate` as const, payload);
+
+    // TODO: Determine if we can leverage `messenger.publish` entirely in order to not keep track of subscriptions manually.
+    const subscribers = this.#subscriptions.get(hash);
+    subscribers?.forEach((subscriber) => subscriber(payload));
   }
 }
