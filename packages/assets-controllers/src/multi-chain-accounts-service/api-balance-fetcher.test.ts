@@ -756,6 +756,50 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(nativeAddr1?.value).toStrictEqual(new BN('1500000000000000000')); // 1.5 ETH
       expect(nativeAddr2?.value).toStrictEqual(new BN('0')); // Zero balance (not returned by API)
     });
+
+    it('should not zero out native balances for addresses excluded from selected-account requests', async () => {
+      const excludedAddress = '0x1111111111111111111111111111111111111111';
+
+      mockAccountAddressToCaipReference.mockReturnValue(
+        `eip155:1:${excludedAddress}`,
+      );
+      mockFetchMultiChainBalancesV4.mockResolvedValue({
+        count: 0,
+        balances: [],
+        unprocessedNetworks: [],
+      });
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      expect(result.balances).toStrictEqual([]);
+    });
+
+    it('should not zero out native balances for addresses excluded from all-accounts requests', async () => {
+      const excludedAddress = '0x1111111111111111111111111111111111111111';
+
+      mockAccountAddressToCaipReference.mockReturnValue(
+        `eip155:1:${excludedAddress}`,
+      );
+      mockFetchMultiChainBalancesV4.mockResolvedValue({
+        count: 0,
+        balances: [],
+        unprocessedNetworks: [],
+      });
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: true,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      expect(result.balances).toStrictEqual([]);
+    });
   });
 
   describe('erc20 token zero balance guarantee', () => {
