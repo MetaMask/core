@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0]
 
-### Uncategorized
-
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-
 ### Added
 
 - Add `fetchMarketOverview` method to `AiDigestService`, with superstruct validation of the `MarketOverview` response shape ([#8109](https://github.com/MetaMask/core/pull/8109)).
