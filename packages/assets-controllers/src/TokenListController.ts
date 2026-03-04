@@ -243,7 +243,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     }
 
     if (!this.#initializePromise) {
-      this.#initializePromise = (async (): Promise<void> => {
+      const executeInit = async (): Promise<void> => {
         try {
           await this.#synchronizeCacheWithStorage();
 
@@ -257,7 +257,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         } finally {
           this.#initializePromise = undefined;
         }
-      })();
+      };
+
+      this.#initializePromise = executeInit();
     }
 
     await this.#initializePromise;
