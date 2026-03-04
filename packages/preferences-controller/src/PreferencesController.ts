@@ -4,7 +4,6 @@ import type {
   ControllerGetStateAction,
 } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
 
