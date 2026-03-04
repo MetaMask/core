@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `setSelectedProvider` no longer fetches payment methods when the selected token is explicitly not supported by the new provider, preventing empty payment method state with no user feedback ([#8103](https://github.com/MetaMask/core/pull/8103))
+
 ## [10.1.0]
 
 ### Added
