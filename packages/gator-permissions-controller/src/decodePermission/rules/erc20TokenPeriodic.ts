@@ -1,4 +1,4 @@
-import { hexToNumber } from '@metamask/utils';
+import { hexToBigInt, hexToNumber, isHexAddress } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
 import type {
@@ -88,13 +88,13 @@ function validateAndDecodeData(
   const periodDuration = hexToNumber(periodDurationRaw);
   const startTime = hexToNumber(startTimeRaw);
 
-  if (!/^0x[0-9a-fA-F]{40}$/u.test(tokenAddress)) {
+  if (!isHexAddress(tokenAddress)) {
     throw new Error(
       'Invalid erc20-token-periodic terms: tokenAddress must be a valid hex string',
     );
   }
 
-  if (hexToNumber(periodAmount) <= 0) {
+  if (hexToBigInt(periodAmount) <= 0n) {
     throw new Error(
       'Invalid erc20-token-periodic terms: periodAmount must be a positive number',
     );

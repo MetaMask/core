@@ -1,4 +1,4 @@
-import { hexToBigInt, hexToNumber } from '@metamask/utils';
+import { hexToBigInt, hexToNumber, isHexAddress } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
 import type {
@@ -95,7 +95,7 @@ function validateAndDecodeData(
   const initialAmountBigInt = hexToBigInt(initialAmount);
   const maxAmountBigInt = hexToBigInt(maxAmount);
 
-  if (!/^0x[0-9a-fA-F]{40}$/u.test(tokenAddress)) {
+  if (!isHexAddress(tokenAddress)) {
     throw new Error(
       'Invalid erc20-token-stream terms: tokenAddress must be a valid hex string',
     );

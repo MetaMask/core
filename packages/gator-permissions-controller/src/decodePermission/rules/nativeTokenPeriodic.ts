@@ -1,4 +1,4 @@
-import { hexToNumber } from '@metamask/utils';
+import { hexToBigInt, hexToNumber } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
 import type {
@@ -85,8 +85,9 @@ function validateAndDecodeData(
   );
   const periodDuration = hexToNumber(periodDurationRaw);
   const startTime = hexToNumber(startTimeRaw);
-
-  if (hexToNumber(periodAmount) <= 0) {
+  const periodAmountBigInt = hexToBigInt(periodAmount);
+  
+  if (periodAmountBigInt <= 0n) {
     throw new Error(
       'Invalid native-token-periodic terms: periodAmount must be a positive number',
     );
