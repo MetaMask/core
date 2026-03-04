@@ -123,11 +123,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   #initializePromise?: Promise<void>;
 
   /**
-   * Tracks whether initialize() has successfully completed.
-   */
-  #isInitialized = false;
-
-  /**
    * Promise that resolves when the current persist operation completes.
    * Used to prevent race conditions between persist operations.
    */
@@ -243,12 +238,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       return;
     }
 
-    if (this.#isInitialized) {
-      return;
-    }
-
-    this.#isInitialized = true;
-
     const executeInit = async (): Promise<void> => {
       try {
         await this.#synchronizeCacheWithStorage();
@@ -259,9 +248,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
           (controllerState) => controllerState.tokensChainsCache,
         );
-      } catch (error) {
-        this.#isInitialized = false;
-        throw error;
+      } catch {
+        // do nothing
       } finally {
         this.#initializePromise = undefined;
       }
@@ -277,13 +265,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * Polling should not run against partially initialized state.
    */
   async #waitForInitialization(): Promise<void> {
-    const initializePromise = this.#initializePromise;
-    if (!initializePromise) {
-      return;
-    }
-
     try {
-      await initializePromise;
+      await this.#initializePromise;
     } catch {
       // do nothing
     }

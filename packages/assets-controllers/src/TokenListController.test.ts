@@ -13,6 +13,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
+import { StorageGetResult } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
@@ -654,8 +655,8 @@ describe('TokenListController', () => {
     let onNetworkStateChangeCallback!: (state: NetworkState) => void;
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      onNetworkStateChange: (cb): void => {
-        onNetworkStateChangeCallback = cb;
+      onNetworkStateChange: (callback): void => {
+        onNetworkStateChangeCallback = callback;
       },
       interval: 100,
       messenger: restrictedMessenger,
@@ -1084,16 +1085,23 @@ describe('TokenListController', () => {
       initializationDelayMs = 50,
     }: {
       initializationDelayMs?: number;
-    } = {}) => {
+    } = {}): {
+      controller: TokenListController;
+      fetchTokenListByChainIdSpy: jest.SpyInstance;
+      resolveMockWaitForInit: () => Promise<void>;
+    } => {
       const messenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
       });
-      messenger.registerActionHandler('StorageService:getItem', () => {
-        return {};
-      });
+      messenger.registerActionHandler(
+        'StorageService:getItem',
+        async (): Promise<StorageGetResult> => {
+          return {};
+        },
+      );
       messenger.registerActionHandler(
         'StorageService:setItem',
-        () => undefined,
+        async () => undefined,
       );
       messenger.registerActionHandler(
         'StorageService:getAllKeys',
@@ -1112,14 +1120,20 @@ describe('TokenListController', () => {
         messenger: restrictedMessenger,
       });
 
+      const resolveMockWaitForInit = async (): Promise<void> => {
+        await jestAdvanceTime({ duration: 50 });
+      };
+
       return {
         controller,
         fetchTokenListByChainIdSpy,
+        resolveMockWaitForInit,
       };
     };
 
     it('waits for initialize to finish before polling', async () => {
-      const { controller, fetchTokenListByChainIdSpy } = arrange();
+      const { controller, fetchTokenListByChainIdSpy, resolveMockWaitForInit } =
+        arrange();
 
       try {
         const initializePromise = controller.initialize();
@@ -1127,10 +1141,9 @@ describe('TokenListController', () => {
           chainId: ChainId.mainnet,
         });
 
-        await Promise.resolve();
         expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
 
-        await jestAdvanceTime({ duration: 50 });
+        await resolveMockWaitForInit();
         await initializePromise;
         await pollPromise;
 
