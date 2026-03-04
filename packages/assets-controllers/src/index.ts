@@ -144,7 +144,11 @@ export {
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
 } from './token-prices-service';
-export { searchTokens, getTrendingTokens } from './token-service';
+export {
+  searchTokens,
+  getTrendingTokens,
+  fetchTokenAssets,
+} from './token-service';
 export { RatesController, Cryptocurrency } from './RatesController';
 export type {
   RatesControllerState,
@@ -241,5 +245,13 @@ export type {
   SortTrendingBy,
   TrendingAsset,
   TokenSearchItem,
+  TokenAsset,
   TokenRwaData,
+  TokenSecurityData,
+  TokenSecurityFeature,
+  TokenSecurityHolder,
+  TokenSecurityMarket,
+  TokenSecurityFees,
+  TokenSecurityFinancialStats,
+  TokenSecurityMetadata,
 } from './token-service';

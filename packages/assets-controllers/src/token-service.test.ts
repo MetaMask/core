@@ -1,9 +1,11 @@
 import { toHex } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
+import type { CaipAssetType } from '@metamask/utils';
 import nock from 'nock';
 
 import type { SortTrendingBy } from './token-service';
 import {
+  fetchTokenAssets,
   fetchTokenListByChainId,
   fetchTokenMetadata,
   getTrendingTokens,
@@ -958,6 +960,177 @@ describe('Token service', () => {
         marketCap: 7610628690.4,
       },
     ];
+
+    const sampleTrendingTokensWithSecurityData = [
+      {
+        assetId: 'eip155:1/erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+        name: 'Wrapped Ether',
+        symbol: 'WETH',
+        decimals: 18,
+        price: '2076.8761460147',
+        aggregatedUsdVolume: 563290706.83,
+        marketCap: 338433.56,
+        labels: ['blue_chip'],
+        priceChangePct: {
+          m5: '0',
+          m15: '0.195',
+          m30: '0.706',
+          h1: '3.39',
+          h6: '6.26',
+          h24: '6.7',
+        },
+        securityData: {
+          resultType: 'Verified',
+          maliciousScore: '0.0',
+          fees: {
+            transfer: 0,
+            transferFeeMaxAmount: null,
+            buy: 0,
+            sell: 0,
+          },
+          features: [
+            {
+              featureId: 'EXTERNAL_FUNCTIONS',
+              type: 'Info',
+              description:
+                'External calls make this token contract highly dependent on other contracts',
+            },
+            {
+              featureId: 'HIGH_REPUTATION_TOKEN',
+              type: 'Benign',
+              description: 'Token with verified high reputation',
+            },
+            {
+              featureId: 'VERIFIED_CONTRACT',
+              type: 'Info',
+              description: 'The token contract is verified',
+            },
+          ],
+          financialStats: {
+            supply: 2.0555493268851862e24,
+            topHolders: [
+              {
+                label: 'contract',
+                name: null,
+                address: '0xf04a5cc80b1e94c69b48f5ee68a08cd2f09a7c3e',
+                holdingPercentage: 21.962,
+              },
+              {
+                label: 'contract',
+                name: null,
+                address: '0x2f0b23f53734252bda2277357e97e1517d6b042a',
+                holdingPercentage: 11.953,
+              },
+            ],
+            holdersCount: 2877494,
+            tradeVolume24h: 801557137,
+            lockedLiquidityPct: 0,
+            markets: [
+              {
+                marketType: 'AMM',
+                marketName: 'uniswap_v3',
+                pairName: 'WETH / USDC',
+                reserveUSD: 94676995.1127,
+              },
+              {
+                marketType: 'AMM',
+                marketName: 'uniswap_v3',
+                pairName: 'WETH / USDT',
+                reserveUSD: 57330581.2498,
+              },
+            ],
+          },
+          metadata: {
+            externalLinks: {
+              homepage: 'https://ethereum.org/en/wrapped-eth',
+              twitterPage: null,
+              telegramChannelId: null,
+            },
+          },
+          created: '2017-12-12T11:17:35',
+        },
+      },
+      {
+        assetId: 'eip155:1/erc20:0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
+        name: 'Wrapped Bitcoin',
+        symbol: 'WBTC',
+        decimals: 8,
+        price: '71179.754177197',
+        aggregatedUsdVolume: 133023037.36,
+        marketCap: 8533496716,
+        priceChangePct: {
+          m5: '0.13',
+          m15: '0.035',
+          m30: '0.702',
+          h1: '2.67',
+          h6: '5.53',
+          h24: '7.15',
+        },
+        securityData: {
+          resultType: 'Verified',
+          maliciousScore: '0.0',
+          fees: {
+            transfer: 0,
+            transferFeeMaxAmount: null,
+            buy: 0,
+            sell: null,
+          },
+          features: [
+            {
+              featureId: 'IS_MINTABLE',
+              type: 'Info',
+              description: 'Token is mintable',
+            },
+            {
+              featureId: 'HIGH_REPUTATION_TOKEN',
+              type: 'Benign',
+              description: 'Token with verified high reputation',
+            },
+            {
+              featureId: 'TRANSFER_PAUSEABLE',
+              type: 'Info',
+              description:
+                'The token owner has the authority to suspend or freeze trading, rendering the token non-tradable and preventing buying or selling',
+            },
+            {
+              featureId: 'VERIFIED_CONTRACT',
+              type: 'Info',
+              description: 'The token contract is verified',
+            },
+          ],
+          financialStats: {
+            supply: 11995665562622,
+            topHolders: [
+              {
+                label: 'contract',
+                name: null,
+                address: '0x5ee5bf7ae06d1be5997a1a72006fe6c607ec6de8',
+                holdingPercentage: 33.806,
+              },
+            ],
+            holdersCount: 147805,
+            tradeVolume24h: 164416843,
+            lockedLiquidityPct: 0,
+            markets: [
+              {
+                marketType: 'UNKNOWN',
+                marketName: 'curve',
+                pairName: 'crvUSD / WBTC',
+                reserveUSD: 94306532.7221,
+              },
+            ],
+          },
+          metadata: {
+            externalLinks: {
+              homepage: 'https://www.wbtc.network/',
+              twitterPage: 'WrappedBTC',
+              telegramChannelId: 'wbtc_community',
+            },
+          },
+          created: '2018-11-24T21:45:52',
+        },
+      },
+    ];
     it('returns empty array if no chains are provided', async () => {
       const result = await getTrendingTokens({ chainIds: [] });
       expect(result).toStrictEqual([]);
@@ -1063,6 +1236,451 @@ describe('Token service', () => {
         includeRwaData: true,
       });
       expect(result).toStrictEqual(sampleTrendingTokens);
+    });
+
+    it('includes includeTokenSecurityData param in the URL and returns securityData', async () => {
+      const testChainId = 'eip155:1';
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true&usePriceApiData=true&includeTokenSecurityData=true`,
+        )
+        .reply(200, sampleTrendingTokensWithSecurityData)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
+        includeTokenSecurityData: true,
+      });
+
+      expect(result).toStrictEqual(sampleTrendingTokensWithSecurityData);
+      expect(result[0].securityData?.resultType).toBe('Verified');
+      expect(result[0].securityData?.maliciousScore).toBe('0.0');
+      expect(result[0].securityData?.features).toHaveLength(3);
+      expect(result[0].securityData?.financialStats.holdersCount).toBe(2877494);
+      expect(result[0].securityData?.financialStats.topHolders).toHaveLength(2);
+      expect(result[1].securityData?.fees.sell).toBeNull();
+    });
+
+    it('does not include includeTokenSecurityData param when not provided', async () => {
+      const testChainId = 'eip155:1';
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true&usePriceApiData=true`,
+        )
+        .reply(200, sampleTrendingTokens)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
+      });
+      expect(result).toStrictEqual(sampleTrendingTokens);
+    });
+
+    it('combines includeTokenSecurityData with other query params', async () => {
+      const testChainId = 'eip155:1';
+      const testMinLiquidity = 200000;
+      const testMinVolume = 1000000;
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=h6_trending&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume}&includeRwaData=false&usePriceApiData=true&includeTokenSecurityData=true`,
+        )
+        .reply(200, sampleTrendingTokensWithSecurityData)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
+        sortBy: 'h6_trending',
+        minLiquidity: testMinLiquidity,
+        minVolume24hUsd: testMinVolume,
+        includeRwaData: false,
+        includeTokenSecurityData: true,
+      });
+      expect(result).toStrictEqual(sampleTrendingTokensWithSecurityData);
+    });
+  });
+
+  describe('searchTokens with includeTokenSecurityData', () => {
+    const sampleSearchResultsWithSecurityData = [
+      {
+        assetId: 'eip155:1/erc20:0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce',
+        symbol: 'SHIB',
+        decimals: 18,
+        name: 'SHIBA INU',
+        securityData: {
+          resultType: 'Verified',
+          maliciousScore: '0.0',
+          fees: {
+            transfer: 0,
+            transferFeeMaxAmount: null,
+            buy: 0,
+            sell: 0,
+          },
+          features: [
+            {
+              featureId: 'HIGH_REPUTATION_TOKEN',
+              type: 'Benign',
+              description: 'Token with verified high reputation',
+            },
+            {
+              featureId: 'LISTED_ON_CENTRALIZED_EXCHANGE',
+              type: 'Benign',
+              description:
+                'The token is listed on a leading, well-known centralized exchange',
+            },
+            {
+              featureId: 'VERIFIED_CONTRACT',
+              type: 'Info',
+              description: 'The token contract is verified',
+            },
+          ],
+          financialStats: {
+            supply: 9.99982335599866e32,
+            topHolders: [
+              {
+                label: 'wallet',
+                name: null,
+                address: '0xdead000000000000000042069420694206942069',
+                holdingPercentage: 41.044,
+              },
+              {
+                label: 'wallet',
+                name: null,
+                address: '0x02e2201576fbbefb52812f2ee7f08eb4774b481e',
+                holdingPercentage: 5.955,
+              },
+            ],
+            holdersCount: 1557078,
+            tradeVolume24h: 107499,
+            lockedLiquidityPct: null,
+            markets: [
+              {
+                marketType: 'UNKNOWN',
+                marketName: 'shibaswap',
+                pairName: 'SHIB / WETH',
+                reserveUSD: 2671998.6275,
+              },
+              {
+                marketType: 'AMM',
+                marketName: 'uniswap_v2',
+                pairName: 'SHIB / WETH',
+                reserveUSD: 540915.3049,
+              },
+            ],
+          },
+          metadata: {
+            externalLinks: {
+              homepage: 'https://shibatoken.com/',
+              twitterPage: 'shibarium_',
+              telegramChannelId: 'ShibaInu_Dogecoinkiller',
+            },
+          },
+          created: '2020-07-31T18:32:43',
+        },
+      },
+    ];
+
+    it('includes includeTokenSecurityData param in the URL and returns securityData', async () => {
+      const searchQuery = 'shiba';
+      const mockResponse = {
+        count: sampleSearchResultsWithSecurityData.length,
+        data: sampleSearchResultsWithSecurityData,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true&includeTokenSecurityData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery, {
+        includeTokenSecurityData: true,
+      });
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResultsWithSecurityData.length,
+        data: sampleSearchResultsWithSecurityData,
+      });
+      expect(results.data[0].securityData?.resultType).toBe('Verified');
+      expect(results.data[0].securityData?.maliciousScore).toBe('0.0');
+      expect(results.data[0].securityData?.features).toHaveLength(3);
+      expect(results.data[0].securityData?.financialStats.holdersCount).toBe(
+        1557078,
+      );
+      expect(
+        results.data[0].securityData?.financialStats.topHolders[0]?.address,
+      ).toBe('0xdead000000000000000042069420694206942069');
+      expect(
+        results.data[0].securityData?.metadata.externalLinks.homepage,
+      ).toBe('https://shibatoken.com/');
+    });
+
+    it('does not include includeTokenSecurityData param when not provided', async () => {
+      const searchQuery = 'shiba';
+      const mockResponse = {
+        count: 1,
+        data: [
+          {
+            assetId:
+              'eip155:1/erc20:0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce',
+            symbol: 'SHIB',
+            decimals: 18,
+            name: 'SHIBA INU',
+          },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results.data[0].securityData).toBeUndefined();
+    });
+  });
+
+  describe('fetchTokenAssets', () => {
+    const oneInchAssetId: CaipAssetType =
+      'eip155:1/erc20:0x111111111117dc0aa78b770fa6a738034120c302';
+    const wethAssetId: CaipAssetType =
+      'eip155:1/erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
+
+    const sampleTokenAssets = [
+      {
+        assetId: oneInchAssetId,
+        symbol: '1INCH',
+        name: '1INCH Token',
+        decimals: 18,
+        securityData: {
+          resultType: 'Verified',
+          maliciousScore: '0.0',
+          fees: {
+            transfer: 0,
+            transferFeeMaxAmount: null,
+            buy: 0,
+            sell: 0,
+          },
+          features: [
+            {
+              featureId: 'LISTED_ON_CENTRALIZED_EXCHANGE',
+              type: 'Benign',
+              description:
+                'The token is listed on a leading, well-known centralized exchange',
+            },
+            {
+              featureId: 'HIGH_REPUTATION_TOKEN',
+              type: 'Benign',
+              description: 'Token with verified high reputation',
+            },
+            {
+              featureId: 'EXTERNAL_FUNCTIONS',
+              type: 'Info',
+              description:
+                'External calls make this token contract highly dependent on other contracts',
+            },
+            {
+              featureId: 'OWNERSHIP_RENOUNCED',
+              type: 'Info',
+              description:
+                'The token owner has renounced ownership, meaning the token is no longer controlled by any entity',
+            },
+            {
+              featureId: 'IS_MINTABLE',
+              type: 'Info',
+              description: 'Token is mintable',
+            },
+            {
+              featureId: 'VERIFIED_CONTRACT',
+              type: 'Info',
+              description: 'The token contract is verified',
+            },
+          ],
+          financialStats: {
+            supply: 1.499999999997e27,
+            topHolders: [
+              {
+                label: 'contract',
+                name: null,
+                address: '0x9a0c8ff858d273f57072d714bca7411d717501d7',
+                holdingPercentage: 16.613,
+              },
+              {
+                label: 'contract',
+                name: null,
+                address: '0x225d3822de44e58ee935440e0c0b829c4232086e',
+                holdingPercentage: 9.62,
+              },
+              {
+                label: 'wallet',
+                name: null,
+                address: '0x6630444cdbd42a024da079615f3bbce8edd5a7ba',
+                holdingPercentage: 8.266,
+              },
+            ],
+            holdersCount: 110817,
+            tradeVolume24h: 632418,
+            lockedLiquidityPct: 0,
+            markets: [
+              {
+                marketType: 'AMM',
+                marketName: 'uniswap-v4-ethereum',
+                pairName: '1INCH / wstETH',
+                reserveUSD: 6630065.1876,
+              },
+              {
+                marketType: 'AMM',
+                marketName: 'uniswap-v4-ethereum',
+                pairName: '1INCH / WBTC',
+                reserveUSD: 3368702.9552,
+              },
+            ],
+          },
+          metadata: {
+            externalLinks: {
+              homepage: 'https://1inch.com/',
+              twitterPage: '1inch',
+              telegramChannelId: 'OneInchNetwork',
+            },
+          },
+          created: '2020-12-23T18:13:31',
+        },
+      },
+    ];
+
+    it('returns empty array if no asset IDs are provided', async () => {
+      const result = await fetchTokenAssets([]);
+      expect(result).toStrictEqual([]);
+    });
+
+    it('fetches a single asset by ID', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(`/assets?assetIds=${encodeURIComponent(oneInchAssetId)}`)
+        .reply(200, sampleTokenAssets)
+        .persist();
+
+      const result = await fetchTokenAssets([oneInchAssetId]);
+      expect(result).toStrictEqual(sampleTokenAssets);
+    });
+
+    it('fetches multiple assets by ID', async () => {
+      const multipleAssets = [
+        ...sampleTokenAssets,
+        {
+          assetId: wethAssetId,
+          symbol: 'WETH',
+          name: 'Wrapped Ether',
+          decimals: 18,
+        },
+      ];
+      const encodedIds = [oneInchAssetId, wethAssetId]
+        .map(encodeURIComponent)
+        .join(',');
+
+      nock(TOKEN_END_POINT_API)
+        .get(`/assets?assetIds=${encodedIds}`)
+        .reply(200, multipleAssets)
+        .persist();
+
+      const result = await fetchTokenAssets([oneInchAssetId, wethAssetId]);
+      expect(result).toStrictEqual(multipleAssets);
+      expect(result).toHaveLength(2);
+    });
+
+    it('includes includeTokenSecurityData param in the URL and returns securityData', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/assets?assetIds=${encodeURIComponent(oneInchAssetId)}&includeTokenSecurityData=true`,
+        )
+        .reply(200, sampleTokenAssets)
+        .persist();
+
+      const result = await fetchTokenAssets([oneInchAssetId], {
+        includeTokenSecurityData: true,
+      });
+
+      expect(result).toStrictEqual(sampleTokenAssets);
+      expect(result[0].securityData?.resultType).toBe('Verified');
+      expect(result[0].securityData?.maliciousScore).toBe('0.0');
+      expect(result[0].securityData?.features).toHaveLength(6);
+      expect(result[0].securityData?.financialStats.holdersCount).toBe(110817);
+      expect(result[0].securityData?.financialStats.topHolders).toHaveLength(3);
+      expect(result[0].securityData?.metadata.externalLinks.homepage).toBe(
+        'https://1inch.com/',
+      );
+      expect(result[0].securityData?.metadata.externalLinks.twitterPage).toBe(
+        '1inch',
+      );
+    });
+
+    it('includes multiple optional flags in the request URL', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/assets?assetIds=${encodeURIComponent(oneInchAssetId)}&includeAggregators=true&includeCoingeckoId=true&includeLabels=true&includeMarketData=true&includeOccurrences=true&includeTokenSecurityData=true&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenAssets)
+        .persist();
+
+      const result = await fetchTokenAssets([oneInchAssetId], {
+        includeAggregators: true,
+        includeCoingeckoId: true,
+        includeLabels: true,
+        includeMarketData: true,
+        includeOccurrences: true,
+        includeTokenSecurityData: true,
+        includeRwaData: true,
+      });
+      expect(result).toStrictEqual(sampleTokenAssets);
+    });
+
+    it('does not append params for undefined options', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/assets?assetIds=${encodeURIComponent(oneInchAssetId)}&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenAssets)
+        .persist();
+
+      const result = await fetchTokenAssets([oneInchAssetId], {
+        includeRwaData: true,
+      });
+      expect(result).toStrictEqual(sampleTokenAssets);
+    });
+
+    it.each([
+      [
+        'non-array response',
+        (): nock.Scope =>
+          nock(TOKEN_END_POINT_API)
+            .get(`/assets?assetIds=${encodeURIComponent(oneInchAssetId)}`)
+            .reply(200, { error: 'Invalid request' }),
+      ],
+      [
+        'network error',
+        (): nock.Scope =>
+          nock(TOKEN_END_POINT_API)
+            .get(`/assets?assetIds=${encodeURIComponent(oneInchAssetId)}`)
+            .replyWithError('Example network error'),
+      ],
+      [
+        '500 error',
+        (): nock.Scope =>
+          nock(TOKEN_END_POINT_API)
+            .get(`/assets?assetIds=${encodeURIComponent(oneInchAssetId)}`)
+            .reply(500),
+      ],
+    ])('returns empty array on %s', async (_label, setupNock) => {
+      setupNock();
+      const result = await fetchTokenAssets([oneInchAssetId]);
+      expect(result).toStrictEqual([]);
     });
   });
 });
