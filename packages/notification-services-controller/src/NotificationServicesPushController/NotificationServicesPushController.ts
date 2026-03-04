@@ -402,7 +402,9 @@ export default class NotificationServicesPushController extends BaseController<
    * @param addresses - Addresses that should be unlinked from push notifications.
    * @returns Whether the delete request succeeded.
    */
-  public async deletePushNotificationLinks(addresses: string[]): Promise<boolean> {
+  public async deletePushNotificationLinks(
+    addresses: string[],
+  ): Promise<boolean> {
     if (!this.#config.isPushFeatureEnabled || addresses.length === 0) {
       return false;
     }

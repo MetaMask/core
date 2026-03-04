@@ -296,7 +296,8 @@ describe('NotificationServicesPushController', () => {
       const { controller, messenger } = arrangeMockMessenger();
       mockAuthBearerTokenCall(messenger);
 
-      const result = await controller.deletePushNotificationLinks(MOCK_ADDRESSES);
+      const result =
+        await controller.deletePushNotificationLinks(MOCK_ADDRESSES);
 
       expect(mocks.deleteLinksAPIMock).toHaveBeenCalledWith({
         bearerToken: MOCK_JWT,
@@ -313,7 +314,8 @@ describe('NotificationServicesPushController', () => {
         isPushFeatureEnabled: false,
       });
 
-      const result = await controller.deletePushNotificationLinks(MOCK_ADDRESSES);
+      const result =
+        await controller.deletePushNotificationLinks(MOCK_ADDRESSES);
 
       expect(mocks.deleteLinksAPIMock).not.toHaveBeenCalled();
       expect(result).toBe(false);
