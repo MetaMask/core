@@ -71,7 +71,7 @@ describe('AiDigestService', () => {
 
       expect(result).toStrictEqual(mockMarketInsightsReport);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://test.com/api/v1/digests?caipAssetType=eip155%3A1%2Ferc20%3A0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+        'http://test.com/api/v1/asset-summary?caipAssetType=eip155%3A1%2Ferc20%3A0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
     });
 
@@ -451,7 +451,7 @@ describe('AiDigestService', () => {
 
       expect(result).toStrictEqual(mockMarketOverview);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://test.com/api/v1/api/v1/market-overview',
+        'http://test.com/api/v1/market-overview',
       );
     });
 

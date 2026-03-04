@@ -128,12 +128,12 @@ export class AiDigestService implements DigestService {
   /**
    * Fetch the market overview report.
    *
-   * Calls `GET ${this.#baseUrl}/api/v1/market-overview`.
+   * Calls `GET ${this.#baseUrl}/market-overview`.
    *
    * @returns The market overview report, or `null` if none exists (404).
    */
   async fetchMarketOverview(): Promise<MarketOverview | null> {
-    const response = await fetch(`${this.#baseUrl}/api/v1/market-overview`);
+    const response = await fetch(`${this.#baseUrl}/market-overview`);
 
     if (response.status === 404) {
       return null;
@@ -157,7 +157,7 @@ export class AiDigestService implements DigestService {
   /**
    * Search for market insights by CAIP-19 asset identifier.
    *
-   * Calls `GET ${this.#baseUrl}/digests?caipAssetType=${encodeURIComponent(caip19Id)}`.
+   * Calls `GET ${this.#baseUrl}/asset-summary?caipAssetType=${encodeURIComponent(caip19Id)}`.
    *
    * @param caip19Id - The CAIP-19 identifier of the asset.
    * @returns The market insights report, or `null` if none exists (404).
@@ -166,7 +166,7 @@ export class AiDigestService implements DigestService {
     caip19Id: CaipAssetType,
   ): Promise<MarketInsightsReport | null> {
     const response = await fetch(
-      `${this.#baseUrl}/digests?caipAssetType=${encodeURIComponent(caip19Id)}`,
+      `${this.#baseUrl}/asset-summary?caipAssetType=${encodeURIComponent(caip19Id)}`,
     );
 
     if (response.status === 404) {

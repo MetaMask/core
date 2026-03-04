@@ -175,7 +175,7 @@ export type AiDigestControllerState = {
 export type DigestService = {
   /**
    * Search for market insights by CAIP-19 asset identifier.
-   * Calls `GET /digests?caipAssetType=<caip19Id>`.
+   * Calls `GET /asset-summary?caipAssetType=<caip19Id>`.
    *
    * @param caip19Id - The CAIP-19 identifier of the asset.
    * @returns The market insights report, or `null` if no insights exist (404).
@@ -184,7 +184,7 @@ export type DigestService = {
 
   /**
    * Fetch the market overview report.
-   * Calls `GET /api/v1/market-overview`.
+   * Calls `GET /market-overview`.
    *
    * @returns The market overview report, or `null` if none exists (404).
    */
