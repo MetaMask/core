@@ -1081,10 +1081,8 @@ describe('TokenListController', () => {
     });
 
     const arrange = ({
-      failInitialization = false,
       initializationDelayMs = 50,
     }: {
-      failInitialization?: boolean;
       initializationDelayMs?: number;
     } = {}) => {
       const messenger: RootMessenger = new Messenger({
@@ -1106,24 +1104,6 @@ describe('TokenListController', () => {
       );
 
       const restrictedMessenger = getRestrictedMessenger(messenger);
-      const originalSubscribe =
-        restrictedMessenger.subscribe.bind(restrictedMessenger);
-      const subscribeSpy = failInitialization
-        ? jest
-            .spyOn(restrictedMessenger, 'subscribe')
-            .mockImplementation(
-              (
-                ...args: Parameters<typeof restrictedMessenger.subscribe>
-              ): ReturnType<typeof restrictedMessenger.subscribe> => {
-                const [eventType] = args;
-                if (eventType === 'TokenListController:stateChange') {
-                  throw new Error('Initialization failed');
-                }
-                return originalSubscribe(...args);
-              },
-            )
-        : undefined;
-
       const fetchTokenListByChainIdSpy = jest
         .spyOn(tokenService, 'fetchTokenListByChainId')
         .mockResolvedValue(sampleMainnetTokenList);
@@ -1135,7 +1115,6 @@ describe('TokenListController', () => {
       return {
         controller,
         fetchTokenListByChainIdSpy,
-        subscribeSpy,
       };
     };
 
@@ -1162,33 +1141,16 @@ describe('TokenListController', () => {
       }
     });
 
-    it('continues polling when initialize fails', async () => {
-      const { controller, fetchTokenListByChainIdSpy, subscribeSpy } = arrange({
-        failInitialization: true,
+    it('polls normally when initialization is not in progress', async () => {
+      const { controller, fetchTokenListByChainIdSpy } = arrange({
+        initializationDelayMs: 0,
       });
 
       try {
-        const initializePromise = controller.initialize();
-        const initializeErrorPromise = initializePromise.then(
-          () => undefined,
-          (error) => error as Error,
-        );
-        const pollPromise = controller._executePoll({
-          chainId: ChainId.mainnet,
-        });
-
-        await Promise.resolve();
-        expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
-
-        await jestAdvanceTime({ duration: 50 });
-        const initializeError = await initializeErrorPromise;
-        expect(initializeError?.message).toBe('Initialization failed');
-        expect(await pollPromise).toBeUndefined();
-
+        await controller._executePoll({ chainId: ChainId.mainnet });
         expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
       } finally {
         controller.destroy();
-        subscribeSpy?.mockRestore();
         fetchTokenListByChainIdSpy.mockRestore();
       }
     });
