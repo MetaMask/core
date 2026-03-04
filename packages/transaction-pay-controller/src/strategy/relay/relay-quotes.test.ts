@@ -35,7 +35,14 @@ import {
   getTokenFiatRate,
 } from '../../utils/token';
 
-jest.mock('../../utils/token');
+jest.mock('../../utils/token', () => ({
+  ...jest.createMockFromModule<typeof import('../../utils/token')>(
+    '../../utils/token',
+  ),
+  normalizeTokenAddress:
+    jest.requireActual<typeof import('../../utils/token')>('../../utils/token')
+      .normalizeTokenAddress,
+}));
 jest.mock('../../utils/gas');
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
@@ -1864,6 +1871,34 @@ describe('Relay Quotes Utils', () => {
       expect(body).toStrictEqual(
         expect.objectContaining({
           originCurrency: NATIVE_TOKEN_ADDRESS,
+        }),
+      );
+    });
+
+    it('updates request if target is polygon native', async () => {
+      const polygonTargetRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        targetChainId: CHAIN_ID_POLYGON,
+        targetTokenAddress: '0x0000000000000000000000000000000000001010',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [polygonTargetRequest],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          destinationCurrency: NATIVE_TOKEN_ADDRESS,
         }),
       );
     });

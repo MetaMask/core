@@ -15,7 +15,7 @@ import type {
 } from '../../types';
 import type { FeatureFlags } from '../../utils/feature-flags';
 import { getFeatureFlags } from '../../utils/feature-flags';
-import { getLiveTokenBalance } from '../../utils/token';
+import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
 import {
   collectTransactionIds,
   getTransaction,
@@ -127,6 +127,7 @@ describe('Relay Submit Utils', () => {
   const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
   const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
   const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
+  const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
 
   const {
     addTransactionMock,
@@ -145,6 +146,9 @@ describe('Relay Submit Utils', () => {
     jest.resetAllMocks();
 
     getLiveTokenBalanceMock.mockResolvedValue('9999999999');
+    normalizeTokenAddressMock.mockImplementation(
+      (tokenAddress) => tokenAddress,
+    );
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
 
     addTransactionMock.mockResolvedValue({
