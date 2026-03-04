@@ -95,6 +95,7 @@ function validateAndDecodeData(
   const initialAmountBigInt = hexToBigInt(initialAmount);
   const maxAmountBigInt = hexToBigInt(maxAmount);
   const amountPerSecondBigInt = hexToBigInt(amountPerSecond);
+
   if (!isHexAddress(tokenAddress)) {
     throw new Error(
       'Invalid erc20-token-stream terms: tokenAddress must be a valid hex string',

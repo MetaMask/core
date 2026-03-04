@@ -88,6 +88,12 @@ function validateAndDecodeData(
   const amountPerSecondBigInt = hexToBigInt(amountPerSecond);
   const startTime = hexToNumber(startTimeRaw);
 
+  if (maxAmountBigInt < initialAmountBigInt) {
+    throw new Error(
+      'Invalid native-token-stream terms: maxAmount must be greater than initialAmount',
+    );
+  }
+
   if (initialAmountBigInt <= 0n) {
     throw new Error(
       'Invalid native-token-stream terms: initialAmount must be a positive number',
