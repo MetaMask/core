@@ -30,7 +30,7 @@ import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
-import { createSentryError } from './utils';
+import { createSentryError, toErrorMessage } from './utils';
 
 /**
  * The context for a provider discovery.
@@ -415,16 +415,61 @@ export class MultichainAccountWallet<
         }
       };
 
+      // Check for provider failures and return an appropriate error message.
+      const getProviderFailuresErrorMessage = (
+        providers: Bip44AccountProvider<Account>[],
+        results: PromiseSettledResult<void>[],
+        { background }: { background: boolean },
+      ): string | null => {
+        const failures = providers.reduce(
+          (providerFailures: string[], provider, index) => {
+            // We assume results and providers are in the same order because they are generated
+            // with `Promise.allSettled(providers.map(...))`.
+            const result = results[index];
+
+            if (result?.status === 'rejected') {
+              const providerName = provider.getName();
+
+              providerFailures.push(
+                `[${providerName}] ${toErrorMessage(result.reason)}`,
+              );
+            }
+
+            return providerFailures;
+          },
+          [],
+        );
+
+        if (failures.length) {
+          return failures.reduce(
+            (message, failure) => `${message}\n- ${failure}`,
+            `Unable to create some accounts${background ? ' (in the background)' : ''}. Providers threw the following errors:\n`,
+          );
+        }
+
+        return null;
+      };
+
       if (options.waitForAllProvidersToFinishCreatingAccounts) {
         // We re-use existing mapping and will extend it with non-EVM accounts.
         const groupStateByGroupIndex = evmGroupStateByGroupIndex;
 
         // We continue updating the group states with non-EVM accounts now.
-        await Promise.all(
+        const results = await Promise.allSettled(
           otherProviders.map((provider) =>
             createNonEvmAccounts(provider, groupStateByGroupIndex),
           ),
         );
+
+        // Check for failures, in this mode, if any of the providers fail, we treat this as an hard-error.
+        const failures = getProviderFailuresErrorMessage(
+          otherProviders,
+          results,
+          { background: false },
+        );
+        if (failures) {
+          throw new Error(failures);
+        }
 
         // We can finalize the group creation and updates now that we have all accounts from all providers.
         await createOrUpdateMultichainAccountGroupsFrom(groupStateByGroupIndex);
@@ -448,23 +493,19 @@ export class MultichainAccountWallet<
           .then(async (results) => {
             // In background mode, we still want to log if there are failures, but we don't want to throw since some
             // accounts might have been created "partially".
-            const failures = results.filter(
-              (result): result is PromiseRejectedResult =>
-                result.status === 'rejected',
+            const failures = getProviderFailuresErrorMessage(
+              otherProviders,
+              results,
+              { background: true },
             );
-            if (failures.length) {
+            if (failures) {
               // We warn there's failures on some providers and thus misalignment, but we still create the group
-              const errorMessage = failures.reduce(
-                (message, failure) => `${message}\n- ${failure.reason.message}`,
-                `Unable to create some accounts in the background. Providers threw the following errors:\n`,
-              );
-
-              console.warn(errorMessage);
-              this.#log(`${WARNING_PREFIX} ${errorMessage}`);
+              console.warn(failures);
+              this.#log(`${WARNING_PREFIX} ${failures}`);
             }
 
             // If some providers succeeded, we still want to update the groups accordingly.
-            if (results.length !== failures.length) {
+            if (results.some((result) => result.status === 'fulfilled')) {
               // We re-finalize everything to update the groups with the accounts from the non-EVM providers as they come in.
               return await createOrUpdateMultichainAccountGroupsFrom(
                 groupStateByGroupIndex,
@@ -477,7 +518,7 @@ export class MultichainAccountWallet<
             // are catching all providers errors with `allSettled`.
             // Since it's a background operation, there's not much we can do unless just logging
             // the error.
-            const errorMessage = `Unexpected error while creating groups in the background: ${(error as Error).message}`;
+            const errorMessage = `Unexpected error while creating groups (in the background): ${(error as Error).message}`;
             console.error(errorMessage);
             this.#log(`${ERROR_PREFIX} ${errorMessage}`, error);
             this.#messenger.captureException?.(

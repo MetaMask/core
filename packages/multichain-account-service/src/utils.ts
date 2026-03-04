@@ -24,3 +24,14 @@ export const createSentryError = (
   }
   return error;
 };
+
+/**
+ * Converts an unknown error value to a string message.
+ *
+ * @param error - The error to convert.
+ * @returns The error message if the error is an `Error` instance, otherwise
+ * the string representation of the value.
+ */
+export function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

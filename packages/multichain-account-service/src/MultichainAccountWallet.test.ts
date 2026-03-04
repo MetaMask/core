@@ -608,7 +608,7 @@ describe('MultichainAccountWallet', () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Unexpected error while creating groups in the background: Unexpected error in background processing',
+        'Unexpected error while creating groups (in the background): Unexpected error in background processing',
       );
       expect(captureExceptionSpy).toHaveBeenCalled();
     });

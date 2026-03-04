@@ -19,7 +19,7 @@ import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { Bip44AccountProvider } from './providers';
 import { isAccountProviderWrapper } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
-import { createSentryError } from './utils';
+import { createSentryError, toErrorMessage } from './utils';
 
 export type GroupState =
   ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
@@ -298,9 +298,7 @@ export class MultichainAccountGroup<
           return accounts;
         } catch (error) {
           // istanbul ignore next
-          this.#log(
-            `${WARNING_PREFIX} ${error instanceof Error ? error.message : String(error)}`,
-          );
+          this.#log(`${WARNING_PREFIX} ${toErrorMessage(error)}`);
           const sentryError = createSentryError(
             `Unable to align accounts with provider "${provider.getName()}"`,
             error as Error,
