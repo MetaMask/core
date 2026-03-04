@@ -490,7 +490,10 @@ export class AccountsController extends BaseController<
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    const accountId = this.state.accountIdByAddress[address];
+    // We need to have a fallback as a cache miss might be attributed to a checksummed address being passed.
+    const accountId =
+      this.state.accountIdByAddress[address] ??
+      this.state.accountIdByAddress[address.toLowerCase()];
     return accountId ? this.getAccount(accountId) : undefined;
   }
 
