@@ -1193,7 +1193,7 @@ export class RampsController extends BaseController<
     const tokenSupportedByProvider =
       !selectedToken ||
       !supportedCryptos ||
-      supportedCryptos[selectedToken.assetId];
+      supportedCryptos[selectedToken.assetId] !== false;
 
     this.update((state) => {
       state.providers.selected = provider;
