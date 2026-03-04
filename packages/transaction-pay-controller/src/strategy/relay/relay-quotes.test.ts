@@ -1023,7 +1023,7 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.isSourceGasFeeToken).toBe(true);
     });
 
-    it('normalizes gas fee token cost for post-quote when combined gas limits exceed relay params', async () => {
+    it('uses gas fee token amount as-is for post-quote when gas is represented as a single combined limit', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -1058,7 +1058,7 @@ describe('Relay Quotes Utils', () => {
       expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
         expect.objectContaining({
           gasFeeToken: expect.objectContaining({
-            amount: toHex(2987143),
+            amount: GAS_FEE_TOKEN_MOCK.amount,
           }),
         }),
       );

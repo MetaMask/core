@@ -538,25 +538,25 @@ describe('relay-max-gas-station', () => {
   });
 
   it('returns phase-1 quote when adjusted source amount is zero or negative', async () => {
-    const phase1Quote = makeQuote({ sourceAmountRaw: '1000' });
-    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
-
-    getGasFeeTokensMock.mockResolvedValue([MATCHING_GAS_FEE_TOKEN]);
-    calculateGasFeeTokenCostMock.mockReturnValue({
-      fiat: '0',
-      human: '0',
-      raw: '1000',
-      usd: '0',
+    const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
+    const probeQuote = makeQuote({
+      isSourceGasFeeToken: true,
+      sourceAmountRaw: '25000',
+      sourceNetworkGasRaw: '100000',
     });
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(probeQuote);
 
-    const request = { ...BASE_REQUEST, sourceTokenAmount: '1000' };
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
     const result = await getRelayMaxGasStationQuote(
       request,
       makeFullRequest(messenger, request),
       getSingleQuote,
     );
 
-    expect(getSingleQuote).toHaveBeenCalledTimes(1);
+    expect(getSingleQuote).toHaveBeenCalledTimes(2);
     expect(result).toBe(phase1Quote);
   });
 
@@ -708,6 +708,42 @@ describe('relay-max-gas-station', () => {
 
     expect(getSingleQuote).toHaveBeenCalledTimes(3);
     expect(result).toBe(phase1Quote);
+  });
+
+  it('returns phase-2 quote when phase-1 gas limits are missing', async () => {
+    const phase1Quote = makeQuote({
+      sourceAmountRaw: '100000',
+      gasLimits: [21000],
+    });
+    phase1Quote.original.metamask = {} as RelayQuote['metamask'];
+    const probeQuote = makeQuote({
+      isSourceGasFeeToken: true,
+      sourceAmountRaw: '25000',
+      sourceNetworkGasRaw: '100',
+    });
+    const phase2Quote = makeQuote({
+      isSourceGasFeeToken: true,
+      gasLimits: [],
+      sourceAmountRaw: '99900',
+      sourceNetworkGasRaw: '100',
+    });
+
+    const getSingleQuote = jest
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(probeQuote)
+      .mockResolvedValueOnce(phase2Quote);
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(3);
+    expect(result).toBe(phase2Quote);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('returns phase-1 quote when phase-2 gas limit array length differs', async () => {
