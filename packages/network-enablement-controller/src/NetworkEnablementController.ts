@@ -381,12 +381,10 @@ export class NetworkEnablementController extends BaseController<
 
       // Enable all popular EVM networks that exist in NetworkController configurations
       POPULAR_NETWORKS.forEach((chainId) => {
-        const { namespace, storageKey } = deriveKeys(chainId as Hex);
+        const { namespace, storageKey } = deriveKeys(chainId);
 
         // Check if network exists in NetworkController configurations
-        if (
-          networkControllerState.networkConfigurationsByChainId[chainId as Hex]
-        ) {
+        if (networkControllerState.networkConfigurationsByChainId[chainId]) {
           // Ensure namespace bucket exists
           this.#ensureNamespaceBucket(state, namespace);
           // Enable the network
@@ -663,13 +661,11 @@ export class NetworkEnablementController extends BaseController<
     const enabledPopularNetworksCount = POPULAR_NETWORKS.reduce(
       (count, chainId) => {
         // Only check networks that actually exist in NetworkController configurations
-        if (
-          !networkControllerState.networkConfigurationsByChainId[chainId as Hex]
-        ) {
+        if (!networkControllerState.networkConfigurationsByChainId[chainId]) {
           return count; // Skip networks that don't exist
         }
 
-        const { namespace, storageKey } = deriveKeys(chainId as Hex);
+        const { namespace, storageKey } = deriveKeys(chainId);
         const isEnabled = this.state.enabledNetworkMap[namespace]?.[storageKey];
         return isEnabled ? count + 1 : count;
       },
