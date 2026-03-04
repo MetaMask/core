@@ -116,6 +116,8 @@ export class BtcAccountProvider extends SnapAccountProvider {
       return this.withSnap(async ({ keyring }) => {
         const accounts: Bip44Account<KeyringAccount>[] = [];
 
+        // TODO: Use `SnapKeyring.createAccounts` when that functionality is implemented on the Snap
+        // itself, instead of creating accounts one by one.
         for (
           let groupIndex = range.from;
           groupIndex <= range.to;
