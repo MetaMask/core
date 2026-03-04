@@ -95,12 +95,14 @@ export class TransactionPayController extends BaseController<
       const config = {
         isMaxAmount: transactionData.isMaxAmount,
         isPostQuote: transactionData.isPostQuote,
+        refundTo: transactionData.refundTo,
       };
 
       callback(config);
 
       transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPostQuote = config.isPostQuote;
+      transactionData.refundTo = config.refundTo;
     });
   }
 
