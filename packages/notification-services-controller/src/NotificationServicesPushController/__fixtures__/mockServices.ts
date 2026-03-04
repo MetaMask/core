@@ -26,6 +26,7 @@ export const mockEndpointUpdatePushNotificationLinks = (
 
 export const mockEndpointDeletePushNotificationLinks = (
   mockReply?: MockReply,
+  requestBody?: nock.RequestBodyMatcher,
 ): nock.Scope => {
   const mockResponse = getMockDeletePushNotificationLinksResponse();
   const reply = mockReply ?? {
@@ -33,7 +34,9 @@ export const mockEndpointDeletePushNotificationLinks = (
     body: mockResponse.response,
   };
 
-  const mockEndpoint = nock(mockResponse.url).delete('').reply(reply.status);
+  const mockEndpoint = nock(mockResponse.url)
+    .delete('', requestBody)
+    .reply(reply.status);
 
   return mockEndpoint;
 };

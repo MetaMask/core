@@ -135,17 +135,33 @@ describe('NotificationServicesPushController Services', () => {
         bearerToken: MOCK_JWT,
         addresses: MOCK_ADDRESSES,
         platform: 'extension',
+        token: MOCK_REG_TOKEN,
       });
 
     it('should return true if links are successfully deleted', async () => {
-      const mockAPI = mockEndpointDeletePushNotificationLinks();
+      const mockAPI = mockEndpointDeletePushNotificationLinks(undefined, {
+        addresses: MOCK_ADDRESSES,
+        registration_token: {
+          platform: 'extension',
+          token: MOCK_REG_TOKEN,
+        },
+      });
       const result = await act();
       expect(mockAPI.isDone()).toBe(true);
       expect(result).toBe(true);
     });
 
     it('should return false if the links API delete fails', async () => {
-      const mockAPI = mockEndpointDeletePushNotificationLinks({ status: 500 });
+      const mockAPI = mockEndpointDeletePushNotificationLinks(
+        { status: 500 },
+        {
+          addresses: MOCK_ADDRESSES,
+          registration_token: {
+            platform: 'extension',
+            token: MOCK_REG_TOKEN,
+          },
+        },
+      );
       const result = await act();
       expect(mockAPI.isDone()).toBe(true);
       expect(result).toBe(false);

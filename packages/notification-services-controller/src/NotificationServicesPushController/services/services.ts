@@ -36,6 +36,7 @@ export type DeletePushTokenRequest = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   registration_token: {
     platform: RegistrationPlatform;
+    token: string;
   };
 };
 
@@ -81,6 +82,7 @@ type DeletePushTokenParams = {
   bearerToken: string;
   addresses: string[];
   platform: RegistrationPlatform;
+  token: string;
   env?: ENV;
 };
 
@@ -98,6 +100,7 @@ export async function deleteLinksAPI(
       addresses: params.addresses,
       registration_token: {
         platform: params.platform,
+        token: params.token,
       },
     };
     const response = await fetch(

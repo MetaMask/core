@@ -293,7 +293,13 @@ describe('NotificationServicesPushController', () => {
 
     it('should call deleteLinksAPI with addresses and platform', async () => {
       const mocks = arrangeServicesMocks();
-      const { controller, messenger } = arrangeMockMessenger();
+      const { controller, messenger } = arrangeMockMessenger({
+        state: {
+          fcmToken: MOCK_FCM_TOKEN,
+          isPushEnabled: true,
+          isUpdatingFCMToken: false,
+        },
+      });
       mockAuthBearerTokenCall(messenger);
 
       const result =
@@ -303,6 +309,7 @@ describe('NotificationServicesPushController', () => {
         bearerToken: MOCK_JWT,
         addresses: MOCK_ADDRESSES,
         platform: 'extension',
+        token: MOCK_FCM_TOKEN,
         env: 'prd',
       });
       expect(result).toBe(true);
@@ -313,6 +320,24 @@ describe('NotificationServicesPushController', () => {
       const { controller } = arrangeMockMessenger({
         isPushFeatureEnabled: false,
       });
+
+      const result =
+        await controller.deletePushNotificationLinks(MOCK_ADDRESSES);
+
+      expect(mocks.deleteLinksAPIMock).not.toHaveBeenCalled();
+      expect(result).toBe(false);
+    });
+
+    it('should return false when there is no token to delete', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        state: {
+          fcmToken: '',
+          isPushEnabled: true,
+          isUpdatingFCMToken: false,
+        },
+      });
+      mockAuthBearerTokenCall(messenger);
 
       const result =
         await controller.deletePushNotificationLinks(MOCK_ADDRESSES);

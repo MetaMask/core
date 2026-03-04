@@ -405,7 +405,11 @@ export default class NotificationServicesPushController extends BaseController<
   public async deletePushNotificationLinks(
     addresses: string[],
   ): Promise<boolean> {
-    if (!this.#config.isPushFeatureEnabled || addresses.length === 0) {
+    if (
+      !this.#config.isPushFeatureEnabled ||
+      addresses.length === 0 ||
+      !this.state.fcmToken
+    ) {
       return false;
     }
 
@@ -415,6 +419,7 @@ export default class NotificationServicesPushController extends BaseController<
         bearerToken,
         addresses,
         platform: this.#config.platform,
+        token: this.state.fcmToken,
         env: this.#config.env ?? 'prd',
       });
     } catch {
