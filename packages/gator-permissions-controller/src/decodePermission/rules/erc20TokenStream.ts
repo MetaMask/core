@@ -94,7 +94,7 @@ function validateAndDecodeData(
   const startTime = hexToNumber(startTimeRaw);
   const initialAmountBigInt = hexToBigInt(initialAmount);
   const maxAmountBigInt = hexToBigInt(maxAmount);
-
+  const amountPerSecondBigInt = hexToBigInt(amountPerSecond);
   if (!isHexAddress(tokenAddress)) {
     throw new Error(
       'Invalid erc20-token-stream terms: tokenAddress must be a valid hex string',
@@ -104,6 +104,12 @@ function validateAndDecodeData(
   if (maxAmountBigInt < initialAmountBigInt) {
     throw new Error(
       'Invalid erc20-token-stream terms: maxAmount must be greater than initialAmount',
+    );
+  }
+
+  if (amountPerSecondBigInt <= 0n) {
+    throw new Error(
+      'Invalid erc20-token-stream terms: amountPerSecond must be a positive number',
     );
   }
 
