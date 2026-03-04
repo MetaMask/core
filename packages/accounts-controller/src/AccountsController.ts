@@ -70,7 +70,7 @@ export type AccountsControllerState = {
     accounts: Record<AccountId, InternalAccount>;
     selectedAccount: string; // id of the selected account
   };
-  accountIdByAddress: Record<string, AccountId>;
+  accountIdByAddress: Record<InternalAccount['address'], AccountId>;
 };
 
 /**
