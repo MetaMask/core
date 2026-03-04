@@ -15,6 +15,7 @@ import type {
   UserRegion,
 } from './RampsController';
 import {
+  normalizeProviderCode,
   RampsController,
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -60,6 +61,20 @@ import type {
 } from './TransakService';
 
 describe('RampsController', () => {
+  describe('normalizeProviderCode', () => {
+    it('strips /providers/ prefix', () => {
+      expect(normalizeProviderCode('/providers/transak')).toBe('transak');
+      expect(normalizeProviderCode('/providers/transak-staging')).toBe(
+        'transak-staging',
+      );
+    });
+
+    it('returns string unchanged when no prefix', () => {
+      expect(normalizeProviderCode('transak')).toBe('transak');
+      expect(normalizeProviderCode('')).toBe('');
+    });
+  });
+
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
     it('includes every RampsService action that RampsController calls', async () => {
       expect.hasAssertions();
@@ -4835,7 +4850,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('returns null when service call throws an error', async () => {
+    it('propagates error when service call throws', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const quote: Quote = {
           provider: '/providers/transak-staging',
@@ -4855,9 +4870,9 @@ describe('RampsController', () => {
           },
         );
 
-        const buyWidget = await controller.getBuyWidgetData(quote);
-
-        expect(buyWidget).toBeNull();
+        await expect(controller.getBuyWidgetData(quote)).rejects.toThrow(
+          'Network error',
+        );
       });
     });
 
@@ -4917,7 +4932,9 @@ describe('RampsController', () => {
           walletAddress: '0xdef',
         });
 
-        expect(controller.state.orders[0]?.providerOrderId).toBe('plain-order-id');
+        expect(controller.state.orders[0]?.providerOrderId).toBe(
+          'plain-order-id',
+        );
       });
     });
   });

@@ -623,6 +623,10 @@ function findRegionFromCode(
   };
 }
 
+export function normalizeProviderCode(providerCode: string): string {
+  return providerCode.replace(/^\/providers\//u, '');
+}
+
 // === ORDER POLLING CONSTANTS ===
 
 const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
@@ -1707,7 +1711,7 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const providerCodeSegment = providerCode.replace('/providers/', '');
+    const providerCodeSegment = normalizeProviderCode(providerCode);
     const previousStatus = order.status;
 
     try {
@@ -1839,7 +1843,8 @@ export class RampsController extends BaseController<
    * actual provider widget URL and optional order ID for polling.
    *
    * @param quote - The quote to fetch the widget URL from.
-   * @returns Promise resolving to the full BuyWidget (url, browser, orderId), or null if not available.
+   * @returns Promise resolving to the full BuyWidget (url, browser, orderId), or null if not available (missing buyURL or empty url in response).
+   * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
    */
   async getBuyWidgetData(quote: Quote): Promise<BuyWidget | null> {
     const buyUrl = quote.quote?.buyURL;
@@ -1847,18 +1852,14 @@ export class RampsController extends BaseController<
       return null;
     }
 
-    try {
-      const buyWidget = await this.messenger.call(
-        'RampsService:getBuyWidgetUrl',
-        buyUrl,
-      );
-      if (!buyWidget?.url) {
-        return null;
-      }
-      return buyWidget;
-    } catch {
+    const buyWidget = await this.messenger.call(
+      'RampsService:getBuyWidgetUrl',
+      buyUrl,
+    );
+    if (!buyWidget?.url) {
       return null;
     }
+    return buyWidget;
   }
 
   /**
@@ -1866,7 +1867,11 @@ export class RampsController extends BaseController<
    * Adds a minimal stub order to controller state; the existing order polling
    * will fetch the full order when the provider has created it.
    *
-   * @param params - orderId (e.g. "/providers/paypal/orders/abc123"), providerCode, walletAddress, chainId (optional).
+   * @param params - Object containing order identifiers and wallet info.
+   * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
+   * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+   * @param params.walletAddress - Wallet address for the order.
+   * @param params.chainId - Optional chain ID for the order.
    */
   addPrecreatedOrder(params: {
     orderId: string;
@@ -1879,7 +1884,7 @@ export class RampsController extends BaseController<
     const orderCode = orderId.includes('/orders/')
       ? orderId.split('/orders/')[1]
       : orderId;
-    const normalizedProviderCode = providerCode.replace('/providers/', '');
+    const normalizedProviderCode = normalizeProviderCode(providerCode);
 
     const stubOrder: RampsOrder = {
       providerOrderId: orderCode,

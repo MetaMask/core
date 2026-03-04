@@ -18,6 +18,7 @@ export type {
 export {
   RampsController,
   getDefaultRampsControllerState,
+  normalizeProviderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 export type {
