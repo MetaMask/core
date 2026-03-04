@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Gate `TokenListController` polling on controller initialization to avoid duplicate token list API requests during startup races ([#8113](https://github.com/MetaMask/core/pull/8113))
+
 ## [100.1.0]
 
 ### Added
