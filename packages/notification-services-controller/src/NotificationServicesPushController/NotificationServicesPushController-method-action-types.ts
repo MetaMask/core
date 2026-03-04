@@ -50,10 +50,25 @@ export type NotificationServicesPushControllerUpdateTriggerPushNotificationsActi
   };
 
 /**
+ * Deletes backend push notification links for the given addresses on the current platform.
+ * This is used when accounts are removed (for example SRP removal), so backend can remove
+ * all associated FCM tokens for those address/platform pairs.
+ *
+ * @param addresses - Addresses that should be unlinked from push notifications.
+ * @returns Whether the delete request succeeded.
+ */
+export type NotificationServicesPushControllerDeletePushNotificationLinksAction =
+  {
+    type: `NotificationServicesPushController:deletePushNotificationLinks`;
+    handler: NotificationServicesPushController['deletePushNotificationLinks'];
+  };
+
+/**
  * Union of all NotificationServicesPushController action types.
  */
 export type NotificationServicesPushControllerMethodActions =
   | NotificationServicesPushControllerSubscribeToPushNotificationsAction
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
-  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction;
+  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
+  | NotificationServicesPushControllerDeletePushNotificationLinksAction;

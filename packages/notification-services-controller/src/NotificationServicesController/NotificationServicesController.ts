@@ -43,12 +43,10 @@ import type {
 } from './types/notification/notification';
 import type { OrderInput } from './types/perps';
 import type {
-  NotificationServicesPushControllerEnablePushNotificationsAction,
-  NotificationServicesPushControllerDisablePushNotificationsAction,
-  NotificationServicesPushControllerSubscribeToPushNotificationsAction,
   NotificationServicesPushControllerStateChangeEvent,
   NotificationServicesPushControllerOnNewNotificationEvent,
 } from '../NotificationServicesPushController';
+import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types';
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';
@@ -229,9 +227,7 @@ type AllowedActions =
   | AuthenticationController.AuthenticationControllerIsSignedInAction
   | AuthenticationController.AuthenticationControllerPerformSignInAction
   // Push Notifications Controller Requests
-  | NotificationServicesPushControllerEnablePushNotificationsAction
-  | NotificationServicesPushControllerDisablePushNotificationsAction
-  | NotificationServicesPushControllerSubscribeToPushNotificationsAction;
+  | NotificationServicesPushControllerMethodActions;
 
 // Events
 export type NotificationServicesControllerStateChangeEvent =
@@ -355,6 +351,16 @@ export class NotificationServicesController extends BaseController<
         // Do nothing, failing silently.
       }
     },
+    deletePushNotificationLinks: async (addresses: string[]): Promise<void> => {
+      try {
+        await this.messenger.call(
+          'NotificationServicesPushController:deletePushNotificationLinks',
+          addresses,
+        );
+      } catch {
+        // Do nothing, failing silently.
+      }
+    },
     subscribe: (): void => {
       this.messenger.subscribe(
         'NotificationServicesPushController:onNewNotifications',
@@ -396,7 +402,23 @@ export class NotificationServicesController extends BaseController<
 
     getNotificationAccounts: (): string[] | null => {
       const { keyrings } = this.messenger.call('KeyringController:getState');
-      const keyringAccounts = keyrings.flatMap((keyring) => keyring.accounts);
+      const keyringAccounts = [
+        ...new Set(
+          keyrings
+            .flatMap((keyring) => keyring.accounts)
+            .map((address) => {
+              try {
+                return toChecksumHexAddress(address);
+              } catch {
+                return null;
+              }
+            })
+            .filter(
+              (address): address is string =>
+                address !== null && isValidHexAddress(address),
+            ),
+        ),
+      ];
       return keyringAccounts.length > 0 ? keyringAccounts : null;
     },
 
@@ -927,6 +949,8 @@ export class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: false })),
         this.#env,
       );
+
+      await this.#pushNotifications.deletePushNotificationLinks(accounts);
     } catch {
       throw new Error('Failed to delete OnChain triggers');
     } finally {

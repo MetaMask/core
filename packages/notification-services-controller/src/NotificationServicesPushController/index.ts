@@ -14,4 +14,6 @@ export type {
   NotificationServicesPushControllerEnablePushNotificationsAction,
   NotificationServicesPushControllerDisablePushNotificationsAction,
   NotificationServicesPushControllerUpdateTriggerPushNotificationsAction,
+  NotificationServicesPushControllerDeletePushNotificationLinksAction,
+  NotificationServicesPushControllerMethodActions,
 } from './NotificationServicesPushController-method-action-types';
