@@ -551,6 +551,58 @@ describe('NotificationServicesController', () => {
       ]);
     });
 
+    it('deduplicates and filters non-Ethereum accounts when creating triggers', async () => {
+      const {
+        messenger,
+        mockGetConfig,
+        mockUpdateNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks({
+        // Mock no existing notifications
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [],
+          }),
+      });
+
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            accounts: [ADDRESS_1, ADDRESS_1.toLowerCase(), 'NotAnAddress'],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-1',
+              name: 'SRP 1',
+            },
+          },
+          {
+            accounts: [ADDRESS_2, '7xKXtg2CW6y7J2wMmkf8VbM8dYb6u3H3V8bLxT64d4oR'],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-2',
+              name: 'SRP 2',
+            },
+          },
+        ],
+      });
+
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.createOnChainTriggers();
+
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
+        ADDRESS_1,
+        ADDRESS_2,
+      ]);
+    });
+
     it('does not register notifications when notifications already exist and not resetting (however does update push registrations)', async () => {
       const {
         messenger,

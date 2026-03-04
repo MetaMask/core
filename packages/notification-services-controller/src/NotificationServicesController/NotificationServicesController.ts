@@ -410,7 +410,14 @@ export default class NotificationServicesController extends BaseController<
 
     getNotificationAccounts: (): string[] | null => {
       const { keyrings } = this.messenger.call('KeyringController:getState');
-      const keyringAccounts = keyrings.flatMap((keyring) => keyring.accounts);
+      const keyringAccounts = [
+        ...new Set(
+          keyrings
+            .flatMap((keyring) => keyring.accounts)
+            .filter((address) => isValidHexAddress(address))
+            .map((address) => toChecksumHexAddress(address)),
+        ),
+      ];
       return keyringAccounts.length > 0 ? keyringAccounts : null;
     },
 
