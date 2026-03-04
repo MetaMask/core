@@ -197,6 +197,11 @@ export type ResourceState<TData, TSelected = null> = {
    * Error message if the fetch failed, or null.
    */
   error: string | null;
+  /**
+   * The current status of the resource: 'idle' | 'loading' | 'success' | 'error'.
+   * Distinguishes between never-fetched ('idle') and successfully-fetched-empty ('success').
+   */
+  status: `${RequestStatus}`;
 };
 
 /**
@@ -338,6 +343,7 @@ function createDefaultResourceState<TData, TSelected = null>(
     selected,
     isLoading: false,
     error: null,
+    status: RequestStatus.IDLE,
   };
 }
 
@@ -828,6 +834,7 @@ export class RampsController extends BaseController<
       this.#pendingResourceCount.set(resourceType, count + 1);
       if (count === 0) {
         this.#setResourceLoading(resourceType, true);
+        this.#setResourceStatus(resourceType, RequestStatus.LOADING);
       }
     }
 
@@ -850,6 +857,7 @@ export class RampsController extends BaseController<
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, null);
+            this.#setResourceStatus(resourceType, RequestStatus.SUCCESS);
           }
         }
         return data;
@@ -868,6 +876,7 @@ export class RampsController extends BaseController<
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, errorMessage);
+            this.#setResourceStatus(resourceType, RequestStatus.ERROR);
           }
         }
         throw error;
@@ -1025,6 +1034,24 @@ export class RampsController extends BaseController<
    */
   #setResourceError(resourceType: ResourceType, error: string | null): void {
     this.#updateResourceField(resourceType, 'error', error);
+  }
+
+  /**
+   * Sets the status for a resource type.
+   *
+   * @param resourceType - The type of resource.
+   * @param status - The status to set ('idle' | 'loading' | 'success' | 'error').
+   */
+  #setResourceStatus(
+    resourceType: ResourceType,
+    status: `${RequestStatus}`,
+  ): void {
+    this.update((state) => {
+      const resource = state[resourceType];
+      if (resource) {
+        (resource as Record<string, unknown>).status = status;
+      }
+    });
   }
 
   /**
