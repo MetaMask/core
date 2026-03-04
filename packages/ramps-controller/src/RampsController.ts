@@ -1183,14 +1183,28 @@ export class RampsController extends BaseController<
       );
     }
 
+    const selectedToken = this.state.tokens.selected;
+    const supportedCryptos = provider.supportedCryptoCurrencies;
+
+    // Only fetch payment methods if the selected token is supported by the new
+    // provider. If it isn't, the payment methods request would fail or return
+    // empty for the wrong reason; the UI will show the Token Not Available modal
+    // so the user can change token or pick a different provider.
+    const tokenSupportedByProvider =
+      !selectedToken ||
+      !supportedCryptos ||
+      supportedCryptos[selectedToken.assetId] === true;
+
     this.update((state) => {
       state.providers.selected = provider;
       resetResource(state, 'paymentMethods');
     });
 
-    this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { provider: provider.id }),
-    );
+    if (tokenSupportedByProvider) {
+      this.#fireAndForget(
+        this.getPaymentMethods(regionCode, { provider: provider.id }),
+      );
+    }
   }
 
   /**
