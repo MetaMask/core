@@ -480,32 +480,39 @@ type RootMessenger = Messenger<
 const mockStorage = new Map<string, unknown>();
 
 const getMessenger = (): RootMessenger => {
-  const messenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   // Register StorageService mock handlers
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (messenger as any).registerActionHandler(
+  messenger.registerActionHandler(
     'StorageService:getItem',
-    (controllerNamespace: string, key: string) => {
+    async (
+      controllerNamespace: string,
+      key: string,
+    ): Promise<StorageGetResult> => {
       const storageKey = `${controllerNamespace}:${key}`;
       const value = mockStorage.get(storageKey);
-      return value ? { result: value } : {};
+      const result = (value ? { result: value } : {}) as StorageGetResult;
+      return result;
     },
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (messenger as any).registerActionHandler(
+  messenger.registerActionHandler(
     'StorageService:setItem',
-    (controllerNamespace: string, key: string, value: unknown) => {
+    async (
+      controllerNamespace: string,
+      key: string,
+      value: unknown,
+    ): Promise<void> => {
       const storageKey = `${controllerNamespace}:${key}`;
       mockStorage.set(storageKey, value);
     },
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (messenger as any).registerActionHandler(
+  messenger.registerActionHandler(
     'StorageService:getAllKeys',
-    (controllerNamespace: string) => {
+    async (controllerNamespace: string): Promise<string[]> => {
       const keys: string[] = [];
       const prefix = `${controllerNamespace}:`;
       mockStorage.forEach((_value, key) => {
@@ -1090,19 +1097,10 @@ describe('TokenListController', () => {
       fetchTokenListByChainIdSpy: jest.SpyInstance;
       resolveMockWaitForInit: () => Promise<void>;
     } => {
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-      messenger.registerActionHandler(
-        'StorageService:getItem',
-        async (): Promise<StorageGetResult> => {
-          return {};
-        },
-      );
-      messenger.registerActionHandler(
-        'StorageService:setItem',
-        async () => undefined,
-      );
+      const messenger = getMessenger();
+
+      // Mock getAllKeys that takes time to resolve
+      messenger.unregisterActionHandler('StorageService:getAllKeys');
       messenger.registerActionHandler(
         'StorageService:getAllKeys',
         () =>
@@ -1135,23 +1133,18 @@ describe('TokenListController', () => {
       const { controller, fetchTokenListByChainIdSpy, resolveMockWaitForInit } =
         arrange();
 
-      try {
-        const initializePromise = controller.initialize();
-        const pollPromise = controller._executePoll({
-          chainId: ChainId.mainnet,
-        });
+      const initializePromise = controller.initialize();
+      const pollPromise = controller._executePoll({
+        chainId: ChainId.mainnet,
+      });
 
-        expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
+      expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
 
-        await resolveMockWaitForInit();
-        await initializePromise;
-        await pollPromise;
+      await resolveMockWaitForInit();
+      await initializePromise;
+      await pollPromise;
 
-        expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      } finally {
-        controller.destroy();
-        fetchTokenListByChainIdSpy.mockRestore();
-      }
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
     });
 
     it('polls normally when initialization is not in progress', async () => {
@@ -1159,13 +1152,8 @@ describe('TokenListController', () => {
         initializationDelayMs: 0,
       });
 
-      try {
-        await controller._executePoll({ chainId: ChainId.mainnet });
-        expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      } finally {
-        controller.destroy();
-        fetchTokenListByChainIdSpy.mockRestore();
-      }
+      await controller._executePoll({ chainId: ChainId.mainnet });
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
     });
   });
 
