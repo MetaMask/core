@@ -355,7 +355,10 @@ export class MultichainAccountWallet<
         });
       });
 
-      // Execute creation of non-EVM accounts in parallel, but sequentially after EVM accounts since they depend on the group creation that happens after we get the EVM accounts (because of the need to update the group state with the non-EVM accounts once they are created).
+      // Execute creation of non-EVM accounts in parallel, but sequentially after EVM accounts
+      // since they depend on the group creation that happens after we get the EVM accounts
+      // (because of the need to update the group state with the non-EVM accounts once they
+      // are created).
       const createNonEvmAccounts = async (
         provider: Bip44AccountProvider<Account>,
         groupStateByGroupIndex: Map<number, GroupState>,
@@ -504,10 +507,11 @@ export class MultichainAccountWallet<
             // If some providers succeeded, we still want to update the groups accordingly.
             if (results.some((result) => result.status === 'fulfilled')) {
               // We re-finalize everything to update the groups with the accounts from the non-EVM providers as they come in.
-              return await createOrUpdateMultichainAccountGroupsFrom(
+              await createOrUpdateMultichainAccountGroupsFrom(
                 groupStateByGroupIndex,
               );
             }
+
             return undefined;
           })
           .catch((error) => {
