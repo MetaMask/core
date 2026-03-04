@@ -620,7 +620,8 @@ describe('NotificationServicesController', () => {
           }),
       });
 
-      const nonChecksummedMixedCaseAddress = '0xd8Da6bf26964af9d7eeD9e03E53415D37aa96045';
+      const nonChecksummedMixedCaseAddress =
+        '0xd8Da6bf26964af9d7eeD9e03E53415D37aa96045';
 
       mockKeyringControllerGetState.mockReturnValue({
         isUnlocked: true,
