@@ -167,13 +167,14 @@ describe('AiDigestController (market overview)', () => {
   it('registers fetchMarketOverview action on messenger', async () => {
     const digestService = createService();
     const messenger = createMessenger();
-    new AiDigestController({ messenger, digestService });
+    const controller = new AiDigestController({ messenger, digestService });
 
     const result = await messenger.call(
       'AiDigestController:fetchMarketOverview',
     );
 
     expect(result).toStrictEqual(mockOverview);
+    expect(controller.state.marketOverview?.data).toStrictEqual(mockOverview);
   });
 
   it('persists fetched overview in state', async () => {
