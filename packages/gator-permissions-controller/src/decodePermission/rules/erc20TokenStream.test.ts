@@ -188,6 +188,32 @@ describe('erc20-token-stream rule', () => {
     );
   });
 
+  it('rejects when initialAmount is 0', () => {
+    const tokenAddress = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex;
+    const initialAmountZero = '0'.repeat(64);
+    const maxAmountHex = 2n.toString(16).padStart(64, '0');
+    const amountPerSecondHex = 1n.toString(16).padStart(64, '0');
+    const startTimeHex = (1715664).toString(16).padStart(64, '0');
+    const terms =
+      `0x${tokenAddress.slice(2)}${initialAmountZero}${maxAmountHex}${amountPerSecondHex}${startTimeHex}` as Hex;
+    const caveats = [
+      expiryCaveat,
+      valueLteCaveat,
+      { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    // this is here as a type guard
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid erc20-token-stream terms: initialAmount must be a positive number',
+    );
+  });
+
   it('rejects when terms have trailing bytes', () => {
     const tokenAddress = '0xcccccccccccccccccccccccccccccccccccccccc' as Hex;
     const validTerms = createERC20StreamingTerms(

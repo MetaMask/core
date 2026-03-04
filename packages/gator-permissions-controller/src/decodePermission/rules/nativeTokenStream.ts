@@ -100,12 +100,6 @@ function validateAndDecodeData(
     );
   }
 
-  if (maxAmountBigInt <= 0n) {
-    throw new Error(
-      'Invalid native-token-stream terms: maxAmount must be a positive number',
-    );
-  }
-
   if (amountPerSecondBigInt <= 0n) {
     throw new Error(
       'Invalid native-token-stream terms: amountPerSecond must be a positive number',

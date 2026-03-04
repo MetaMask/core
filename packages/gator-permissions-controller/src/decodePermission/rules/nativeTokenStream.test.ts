@@ -401,31 +401,6 @@ describe('native-token-stream rule', () => {
     );
   });
 
-  it('rejects native-token-stream when maxAmount is zero', () => {
-    const initialAmountHex = 1n.toString(16).padStart(64, '0');
-    const maxAmountZero = '0'.repeat(64);
-    const amountPerSecondHex = 1n.toString(16).padStart(64, '0');
-    const startTimeHex = (1715664).toString(16).padStart(64, '0');
-    const terms =
-      `0x${initialAmountHex}${maxAmountZero}${amountPerSecondHex}${startTimeHex}` as Hex;
-    const caveats = [
-      expiryCaveat,
-      exactCalldataCaveat,
-      { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
-    ];
-    const result = rule.validateAndDecodePermission(caveats);
-    expect(result.isValid).toBe(false);
-
-    // this is here as a type guard
-    if (result.isValid) {
-      throw new Error('Expected invalid result');
-    }
-
-    expect(result.error.message).toContain(
-      'Invalid native-token-stream terms: maxAmount must be a positive number',
-    );
-  });
-
   it('rejects native-token-stream when amountPerSecond is zero', () => {
     const initialAmountHex = 1n.toString(16).padStart(64, '0');
     const maxAmountHex = 2n.toString(16).padStart(64, '0');

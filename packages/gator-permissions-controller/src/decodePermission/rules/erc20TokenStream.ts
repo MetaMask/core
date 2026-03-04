@@ -108,6 +108,12 @@ function validateAndDecodeData(
     );
   }
 
+  if (initialAmountBigInt <= 0n) {
+    throw new Error(
+      'Invalid erc20-token-stream terms: initialAmount must be a positive number',
+    );
+  }
+
   if (amountPerSecondBigInt <= 0n) {
     throw new Error(
       'Invalid erc20-token-stream terms: amountPerSecond must be a positive number',
