@@ -25,6 +25,7 @@ describe('NotificationServicesPushController', () => {
   ): {
     activatePushNotificationsMock: jest.SpyInstance;
     deactivatePushNotificationsMock: jest.SpyInstance;
+    deleteLinksAPIMock: jest.SpyInstance;
   } => {
     const activatePushNotificationsMock = jest
       .spyOn(services, 'activatePushNotifications')
@@ -34,9 +35,14 @@ describe('NotificationServicesPushController', () => {
       .spyOn(services, 'deactivatePushNotifications')
       .mockResolvedValue(true);
 
+    const deleteLinksAPIMock = jest
+      .spyOn(services, 'deleteLinksAPI')
+      .mockResolvedValue(true);
+
     return {
       activatePushNotificationsMock,
       deactivatePushNotificationsMock,
+      deleteLinksAPIMock,
     };
   };
 
@@ -277,6 +283,40 @@ describe('NotificationServicesPushController', () => {
         },
         controllerEnv: 'prd',
       });
+    });
+  });
+
+  describe('deletePushNotificationLinks', () => {
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should call deleteLinksAPI with addresses and platform', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger();
+      mockAuthBearerTokenCall(messenger);
+
+      const result = await controller.deletePushNotificationLinks(MOCK_ADDRESSES);
+
+      expect(mocks.deleteLinksAPIMock).toHaveBeenCalledWith({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        platform: 'extension',
+        env: 'prd',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should return false when push feature is disabled', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller } = arrangeMockMessenger({
+        isPushFeatureEnabled: false,
+      });
+
+      const result = await controller.deletePushNotificationLinks(MOCK_ADDRESSES);
+
+      expect(mocks.deleteLinksAPIMock).not.toHaveBeenCalled();
+      expect(result).toBe(false);
     });
   });
 

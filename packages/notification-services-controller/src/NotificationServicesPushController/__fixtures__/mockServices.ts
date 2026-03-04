@@ -1,6 +1,9 @@
 import nock from 'nock';
 
-import { getMockUpdatePushNotificationLinksResponse } from '../mocks/mockResponse';
+import {
+  getMockDeletePushNotificationLinksResponse,
+  getMockUpdatePushNotificationLinksResponse,
+} from '../mocks/mockResponse';
 
 type MockReply = {
   status: nock.StatusCode;
@@ -17,6 +20,20 @@ export const mockEndpointUpdatePushNotificationLinks = (
   };
 
   const mockEndpoint = nock(mockResponse.url).post('').reply(reply.status);
+
+  return mockEndpoint;
+};
+
+export const mockEndpointDeletePushNotificationLinks = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const mockResponse = getMockDeletePushNotificationLinksResponse();
+  const reply = mockReply ?? {
+    status: 204,
+    body: mockResponse.response,
+  };
+
+  const mockEndpoint = nock(mockResponse.url).delete('').reply(reply.status);
 
   return mockEndpoint;
 };

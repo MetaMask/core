@@ -11,6 +11,7 @@ import log from 'loglevel';
 import type { ENV } from './services/endpoints';
 import {
   activatePushNotifications,
+  deleteLinksAPI,
   deactivatePushNotifications,
 } from './services/services';
 import type { PushNotificationEnv } from './types';
@@ -48,13 +49,19 @@ export type NotificationServicesPushControllerSubscribeToNotificationsAction = {
   type: `${typeof controllerName}:subscribeToPushNotifications`;
   handler: NotificationServicesPushController['subscribeToPushNotifications'];
 };
+export type NotificationServicesPushControllerDeletePushNotificationLinksAction =
+  {
+    type: `${typeof controllerName}:deletePushNotificationLinks`;
+    handler: NotificationServicesPushController['deletePushNotificationLinks'];
+  };
 
 export type Actions =
   | NotificationServicesPushControllerGetStateAction
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
   | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
-  | NotificationServicesPushControllerSubscribeToNotificationsAction;
+  | NotificationServicesPushControllerSubscribeToNotificationsAction
+  | NotificationServicesPushControllerDeletePushNotificationLinksAction;
 
 type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerTokenAction;
@@ -216,6 +223,10 @@ export default class NotificationServicesPushController extends BaseController<
     this.messenger.registerActionHandler(
       'NotificationServicesPushController:subscribeToPushNotifications',
       this.subscribeToPushNotifications.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'NotificationServicesPushController:deletePushNotificationLinks',
+      this.deletePushNotificationLinks.bind(this),
     );
   }
 
@@ -381,6 +392,32 @@ export default class NotificationServicesPushController extends BaseController<
 
     // Update State
     this.#updatePushState({ type: 'disable' });
+  }
+
+  /**
+   * Deletes backend push notification links for the given addresses on the current platform.
+   * This is used when accounts are removed (for example SRP removal), so backend can remove
+   * all associated FCM tokens for those address/platform pairs.
+   *
+   * @param addresses - Addresses that should be unlinked from push notifications.
+   * @returns Whether the delete request succeeded.
+   */
+  public async deletePushNotificationLinks(addresses: string[]): Promise<boolean> {
+    if (!this.#config.isPushFeatureEnabled || addresses.length === 0) {
+      return false;
+    }
+
+    try {
+      const bearerToken = await this.#getAndAssertBearerToken();
+      return await deleteLinksAPI({
+        bearerToken,
+        addresses,
+        platform: this.#config.platform,
+        env: this.#config.env ?? 'prd',
+      });
+    } catch {
+      return false;
+    }
   }
 
   /**

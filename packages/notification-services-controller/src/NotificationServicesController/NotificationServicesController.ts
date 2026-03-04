@@ -44,6 +44,7 @@ import type { OrderInput } from './types/perps';
 import type {
   NotificationServicesPushControllerEnablePushNotificationsAction,
   NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerDeletePushNotificationLinksAction,
   NotificationServicesPushControllerSubscribeToNotificationsAction,
   NotificationServicesPushControllerStateChangeEvent,
   NotificationServicesPushControllerOnNewNotificationEvent,
@@ -233,6 +234,7 @@ type AllowedActions =
   // Push Notifications Controller Requests
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
+  | NotificationServicesPushControllerDeletePushNotificationLinksAction
   | NotificationServicesPushControllerSubscribeToNotificationsAction;
 
 // Events
@@ -352,6 +354,16 @@ export default class NotificationServicesController extends BaseController<
       try {
         await this.messenger.call(
           'NotificationServicesPushController:disablePushNotifications',
+        );
+      } catch {
+        // Do nothing, failing silently.
+      }
+    },
+    deletePushNotificationLinks: async (addresses: string[]): Promise<void> => {
+      try {
+        await this.messenger.call(
+          'NotificationServicesPushController:deletePushNotificationLinks',
+          addresses,
         );
       } catch {
         // Do nothing, failing silently.
@@ -946,6 +958,8 @@ export default class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: false })),
         this.#env,
       );
+
+      await this.#pushNotifications.deletePushNotificationLinks(accounts);
     } catch {
       throw new Error('Failed to delete OnChain triggers');
     } finally {

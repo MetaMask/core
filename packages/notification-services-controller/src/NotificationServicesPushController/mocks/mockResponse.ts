@@ -2,7 +2,7 @@ import { REGISTRATION_TOKENS_ENDPOINT } from '../services/endpoints';
 
 type MockResponse = {
   url: string | RegExp;
-  requestMethod: 'GET' | 'POST' | 'PUT';
+  requestMethod: 'GET' | 'POST' | 'PUT' | 'DELETE';
   response: unknown;
 };
 
@@ -12,6 +12,14 @@ export const getMockUpdatePushNotificationLinksResponse = (): MockResponse => {
   return {
     url: REGISTRATION_TOKENS_ENDPOINT(),
     requestMethod: 'POST',
+    response: null,
+  } satisfies MockResponse;
+};
+
+export const getMockDeletePushNotificationLinksResponse = (): MockResponse => {
+  return {
+    url: REGISTRATION_TOKENS_ENDPOINT(),
+    requestMethod: 'DELETE',
     response: null,
   } satisfies MockResponse;
 };

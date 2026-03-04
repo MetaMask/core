@@ -47,6 +47,7 @@ import { notificationsConfigCache } from './services/notification-config-cache';
 import type { INotification, OrderInput } from './types';
 import type {
   NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerDeletePushNotificationLinksAction,
   NotificationServicesPushControllerEnablePushNotificationsAction,
   NotificationServicesPushControllerSubscribeToNotificationsAction,
 } from '../NotificationServicesPushController';
@@ -670,7 +671,11 @@ describe('NotificationServicesController', () => {
     };
 
     it('disables notifications for given accounts', async () => {
-      const { messenger, mockUpdateNotifications } = arrangeMocks();
+      const {
+        messenger,
+        mockUpdateNotifications,
+        mockDeletePushNotificationLinks,
+      } = arrangeMocks();
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -679,6 +684,7 @@ describe('NotificationServicesController', () => {
       await controller.disableAccounts([ADDRESS_1]);
 
       expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(mockDeletePushNotificationLinks).toHaveBeenCalledWith([ADDRESS_1]);
     });
 
     it('throws errors when invalid auth', async () => {
@@ -1606,6 +1612,7 @@ function mockNotificationMessenger(): {
   mockIsSignedIn: jest.Mock;
   mockAuthPerformSignIn: jest.Mock;
   mockDisablePushNotifications: jest.Mock;
+  mockDeletePushNotificationLinks: jest.Mock;
   mockEnablePushNotifications: jest.Mock;
   mockSubscribeToPushNotifications: jest.Mock;
   mockKeyringControllerGetState: jest.Mock;
@@ -1630,6 +1637,7 @@ function mockNotificationMessenger(): {
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignIn',
       'NotificationServicesPushController:disablePushNotifications',
+      'NotificationServicesPushController:deletePushNotificationLinks',
       'NotificationServicesPushController:enablePushNotifications',
       'NotificationServicesPushController:subscribeToPushNotifications',
     ],
@@ -1659,6 +1667,11 @@ function mockNotificationMessenger(): {
 
   const mockDisablePushNotifications =
     typedMockAction<NotificationServicesPushControllerDisablePushNotificationsAction>();
+
+  const mockDeletePushNotificationLinks =
+    typedMockAction<NotificationServicesPushControllerDeletePushNotificationLinksAction>().mockResolvedValue(
+      true,
+    );
 
   const mockEnablePushNotifications =
     typedMockAction<NotificationServicesPushControllerEnablePushNotificationsAction>();
@@ -1710,6 +1723,13 @@ function mockNotificationMessenger(): {
 
     if (
       actionType ===
+      'NotificationServicesPushController:deletePushNotificationLinks'
+    ) {
+      return mockDeletePushNotificationLinks(params[0]);
+    }
+
+    if (
+      actionType ===
       'NotificationServicesPushController:enablePushNotifications'
     ) {
       return mockEnablePushNotifications(params[0]);
@@ -1734,6 +1754,7 @@ function mockNotificationMessenger(): {
     mockIsSignedIn,
     mockAuthPerformSignIn,
     mockDisablePushNotifications,
+    mockDeletePushNotificationLinks,
     mockEnablePushNotifications,
     mockSubscribeToPushNotifications,
     mockKeyringControllerGetState,
