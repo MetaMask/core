@@ -1884,6 +1884,9 @@ export class RampsController extends BaseController<
     const orderCode = orderId.includes('/orders/')
       ? orderId.split('/orders/')[1]
       : orderId;
+    if (!orderCode?.trim()) {
+      return;
+    }
     const normalizedProviderCode = normalizeProviderCode(providerCode);
 
     const stubOrder: RampsOrder = {

@@ -4937,6 +4937,18 @@ describe('RampsController', () => {
         );
       });
     });
+
+    it('skips addOrder when orderId ends with /orders/ (empty orderCode)', async () => {
+      await withController(({ controller }) => {
+        controller.addPrecreatedOrder({
+          orderId: '/providers/paypal/orders/',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+        });
+
+        expect(controller.state.orders).toHaveLength(0);
+      });
+    });
   });
 
   describe('destroy', () => {
