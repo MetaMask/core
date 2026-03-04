@@ -414,8 +414,17 @@ export default class NotificationServicesController extends BaseController<
         ...new Set(
           keyrings
             .flatMap((keyring) => keyring.accounts)
-            .filter((address) => isValidHexAddress(address))
-            .map((address) => toChecksumHexAddress(address)),
+            .map((address) => {
+              try {
+                return toChecksumHexAddress(address);
+              } catch {
+                return null;
+              }
+            })
+            .filter(
+              (address): address is string =>
+                Boolean(address) && isValidHexAddress(address),
+            ),
         ),
       ];
       return keyringAccounts.length > 0 ? keyringAccounts : null;
