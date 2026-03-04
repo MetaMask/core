@@ -578,7 +578,10 @@ describe('NotificationServicesController', () => {
             },
           },
           {
-            accounts: [ADDRESS_2, '7xKXtg2CW6y7J2wMmkf8VbM8dYb6u3H3V8bLxT64d4oR'],
+            accounts: [
+              ADDRESS_2,
+              '7xKXtg2CW6y7J2wMmkf8VbM8dYb6u3H3V8bLxT64d4oR',
+            ],
             type: KeyringTypes.hd,
             metadata: {
               id: 'srp-2',
