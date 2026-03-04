@@ -3,7 +3,6 @@ import type { MockAnyNamespace } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
-import sinon from 'sinon';
 
 import type {
   ControllerActions,
@@ -161,10 +160,6 @@ class MessagesController extends BaseController<
 }
 
 describe('BaseController', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
   it('should set initial state', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
@@ -383,7 +378,7 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener1 = sinon.stub();
+    const listener1 = jest.fn();
 
     messenger.subscribe('CountController:stateChange', listener1);
     const { inversePatches } = controller.update(() => {
@@ -392,13 +387,13 @@ describe('BaseController', () => {
 
     controller.applyPatches(inversePatches);
 
-    expect(listener1.callCount).toBe(2);
-    expect(listener1.firstCall.args).toStrictEqual([
+    expect(listener1).toHaveBeenCalledTimes(2);
+    expect(listener1.mock.calls[0]).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
     ]);
 
-    expect(listener1.secondCall.args).toStrictEqual([
+    expect(listener1.mock.calls[1]).toStrictEqual([
       { count: 0 },
       [{ op: 'replace', path: [], value: { count: 0 } }],
     ]);
@@ -412,8 +407,8 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener1 = sinon.stub();
-    const listener2 = sinon.stub();
+    const listener1 = jest.fn();
+    const listener2 = jest.fn();
 
     messenger.subscribe('CountController:stateChange', listener1);
     messenger.subscribe('CountController:stateChange', listener2);
@@ -421,13 +416,13 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toBe(1);
-    expect(listener1.firstCall.args).toStrictEqual([
+    expect(listener1).toHaveBeenCalledTimes(1);
+    expect(listener1.mock.calls[0]).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
     ]);
-    expect(listener2.callCount).toBe(1);
-    expect(listener2.firstCall.args).toStrictEqual([
+    expect(listener2).toHaveBeenCalledTimes(1);
+    expect(listener2.mock.calls[0]).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
     ]);
@@ -441,7 +436,7 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener = sinon.stub();
+    const listener = jest.fn();
     messenger.subscribe(
       'CountController:stateChange',
       listener,
@@ -455,8 +450,8 @@ describe('BaseController', () => {
       return { count: 10 };
     });
 
-    expect(listener.callCount).toBe(1);
-    expect(listener.firstCall.args).toStrictEqual([1, 0]);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0]).toStrictEqual([1, 0]);
   });
 
   it('should not inform a subscriber of state changes if the selected value is unchanged', () => {
@@ -467,7 +462,7 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener = sinon.stub();
+    const listener = jest.fn();
     messenger.subscribe(
       'CountController:stateChange',
       listener,
@@ -482,7 +477,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener.callCount).toBe(0);
+    expect(listener).toHaveBeenCalledTimes(0);
   });
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
@@ -493,7 +488,7 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener1 = sinon.stub();
+    const listener1 = jest.fn();
 
     messenger.subscribe('CountController:stateChange', listener1);
     messenger.subscribe('CountController:stateChange', listener1);
@@ -502,8 +497,8 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toBe(1);
-    expect(listener1.firstCall.args).toStrictEqual([
+    expect(listener1).toHaveBeenCalledTimes(1);
+    expect(listener1.mock.calls[0]).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
     ]);
@@ -517,7 +512,7 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener1 = sinon.stub();
+    const listener1 = jest.fn();
 
     messenger.subscribe('CountController:stateChange', listener1);
     messenger.unsubscribe('CountController:stateChange', listener1);
@@ -525,7 +520,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toBe(0);
+    expect(listener1).toHaveBeenCalledTimes(0);
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
@@ -536,7 +531,7 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener1 = sinon.stub();
+    const listener1 = jest.fn();
 
     messenger.subscribe('CountController:stateChange', listener1);
     messenger.subscribe('CountController:stateChange', listener1);
@@ -545,7 +540,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toBe(0);
+    expect(listener1).toHaveBeenCalledTimes(0);
   });
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
@@ -558,7 +553,7 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener1 = sinon.stub();
+    const listener1 = jest.fn();
 
     expect(() => {
       messenger.unsubscribe('CountController:stateChange', listener1);
@@ -573,8 +568,8 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener1 = sinon.stub();
-    const listener2 = sinon.stub();
+    const listener1 = jest.fn();
+    const listener2 = jest.fn();
 
     messenger.subscribe('CountController:stateChange', listener1);
     messenger.subscribe('CountController:stateChange', listener2);
@@ -583,8 +578,8 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toBe(0);
-    expect(listener2.callCount).toBe(0);
+    expect(listener1).toHaveBeenCalledTimes(0);
+    expect(listener2).toHaveBeenCalledTimes(0);
   });
 
   describe('inter-controller communication', () => {
@@ -789,10 +784,6 @@ describe('BaseController', () => {
 });
 
 describe('deriveStateFromMetadata', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
   it('returns an empty object when deriving state for an unset property', () => {
     const derivedState = deriveStateFromMetadata(
       { count: 1 },

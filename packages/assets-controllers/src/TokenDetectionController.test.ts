@@ -29,7 +29,6 @@ import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
-import sinon from 'sinon';
 
 import { formatAggregatorNames } from './assetsUtil';
 import { TOKEN_END_POINT_API } from './token-service';
@@ -47,8 +46,8 @@ import type {
   TokensControllerState,
 } from './TokensController';
 import { getDefaultTokensState } from './TokensController';
-import { advanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import { jestAdvanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
   buildCustomRpcEndpoint,
   buildInfuraNetworkConfiguration,
@@ -246,18 +245,13 @@ describe('TokenDetectionController', () => {
       .persist();
   });
 
-  afterEach(() => {
-    sinon.restore();
-  });
-
   describe('start', () => {
-    let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('should not poll and detect tokens on interval while keyring is locked', async () => {
@@ -270,14 +264,16 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller }) => {
-          const mockTokens = sinon.stub(controller, 'detectTokens');
+          const mockTokens = jest
+            .spyOn(controller, 'detectTokens')
+            .mockImplementation();
           controller.setIntervalLength(10);
 
           await controller.start();
 
-          expect(mockTokens.calledOnce).toBe(false);
-          await advanceTime({ clock, duration: 15 });
-          expect(mockTokens.calledTwice).toBe(false);
+          expect(mockTokens).not.toHaveBeenCalled();
+          await jestAdvanceTime({ duration: 15 });
+          expect(mockTokens).not.toHaveBeenCalled();
         },
       );
     });
@@ -292,13 +288,15 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller, triggerKeyringUnlock }) => {
-          const mockTokens = sinon.stub(controller, 'detectTokens');
+          const mockTokens = jest
+            .spyOn(controller, 'detectTokens')
+            .mockImplementation();
 
           await controller.start();
           triggerKeyringUnlock();
 
-          await advanceTime({ clock, duration: DEFAULT_INTERVAL * 1.5 });
-          expect(mockTokens.calledTwice).toBe(false);
+          await jestAdvanceTime({ duration: DEFAULT_INTERVAL * 1.5 });
+          expect(mockTokens).not.toHaveBeenCalledTimes(2);
         },
       );
     });
@@ -327,15 +325,17 @@ describe('TokenDetectionController', () => {
           isKeyringUnlocked: true,
         },
         async ({ controller, triggerKeyringLock }) => {
-          const mockTokens = sinon.stub(controller, 'detectTokens');
+          const mockTokens = jest
+            .spyOn(controller, 'detectTokens')
+            .mockImplementation();
           controller.setIntervalLength(10);
 
           await controller.start();
           triggerKeyringLock();
 
-          expect(mockTokens.calledOnce).toBe(true);
-          await advanceTime({ clock, duration: 15 });
-          expect(mockTokens.calledTwice).toBe(false);
+          expect(mockTokens).toHaveBeenCalledTimes(1);
+          await jestAdvanceTime({ duration: 15 });
+          expect(mockTokens).toHaveBeenCalledTimes(1);
         },
       );
     });
@@ -349,14 +349,16 @@ describe('TokenDetectionController', () => {
           },
         },
         async ({ controller }) => {
-          const mockTokens = sinon.stub(controller, 'detectTokens');
+          const mockTokens = jest
+            .spyOn(controller, 'detectTokens')
+            .mockImplementation();
           controller.setIntervalLength(10);
 
           await controller.start();
 
-          expect(mockTokens.calledOnce).toBe(true);
-          await advanceTime({ clock, duration: 15 });
-          expect(mockTokens.calledTwice).toBe(true);
+          expect(mockTokens).toHaveBeenCalledTimes(1);
+          await jestAdvanceTime({ duration: 15 });
+          expect(mockTokens).toHaveBeenCalledTimes(2);
         },
       );
     });
@@ -647,7 +649,7 @@ describe('TokenDetectionController', () => {
             iconUrl: sampleTokenB.image,
           };
           mockTokenListGetState(tokenListState);
-          await advanceTime({ clock, duration: interval });
+          await jestAdvanceTime({ duration: interval });
 
           expect(callActionSpy).toHaveBeenCalledWith(
             'TokensController:addTokens',
@@ -758,13 +760,12 @@ describe('TokenDetectionController', () => {
   });
 
   describe('AccountsController:selectedAccountChange', () => {
-    let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     describe('when "disabled" is false', () => {
@@ -827,7 +828,7 @@ describe('TokenDetectionController', () => {
 
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addTokens',
@@ -883,7 +884,7 @@ describe('TokenDetectionController', () => {
             triggerSelectedAccountChange({
               address: selectedAccount.address,
             } as InternalAccount);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -942,7 +943,7 @@ describe('TokenDetectionController', () => {
               triggerSelectedAccountChange({
                 address: secondSelectedAccount.address,
               } as InternalAccount);
-              await advanceTime({ clock, duration: 1 });
+              await jestAdvanceTime({ duration: 1 });
 
               expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
@@ -1002,7 +1003,7 @@ describe('TokenDetectionController', () => {
             triggerSelectedAccountChange({
               address: secondSelectedAccount.address,
             } as InternalAccount);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1014,13 +1015,12 @@ describe('TokenDetectionController', () => {
   });
 
   describe('PreferencesController:stateChange', () => {
-    let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     describe('when "disabled" is false', () => {
@@ -1098,7 +1098,7 @@ describe('TokenDetectionController', () => {
             });
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).toHaveBeenLastCalledWith(
               'TokensController:addTokens',
@@ -1170,7 +1170,7 @@ describe('TokenDetectionController', () => {
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
 
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             // detectTokens is called once when account changes
             // (preference change doesn't trigger since useTokenDetection was already true by default)
@@ -1233,13 +1233,13 @@ describe('TokenDetectionController', () => {
               ...getDefaultPreferencesState(),
               useTokenDetection: false,
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
               useTokenDetection: true,
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addTokens',
@@ -1304,7 +1304,7 @@ describe('TokenDetectionController', () => {
             });
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1360,7 +1360,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultPreferencesState(),
               useTokenDetection: true,
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1426,7 +1426,7 @@ describe('TokenDetectionController', () => {
             });
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1483,13 +1483,13 @@ describe('TokenDetectionController', () => {
               ...getDefaultPreferencesState(),
               useTokenDetection: false,
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
               useTokenDetection: true,
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1554,7 +1554,7 @@ describe('TokenDetectionController', () => {
             });
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1610,13 +1610,13 @@ describe('TokenDetectionController', () => {
               ...getDefaultPreferencesState(),
               useTokenDetection: false,
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
               useTokenDetection: true,
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1628,13 +1628,12 @@ describe('TokenDetectionController', () => {
   });
 
   describe('NetworkController:networkDidChange', () => {
-    let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     describe('when "disabled" is false', () => {
@@ -1685,7 +1684,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: NetworkType.sepolia,
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1741,7 +1740,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: 'avalanche',
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1799,7 +1798,7 @@ describe('TokenDetectionController', () => {
                 ...getDefaultNetworkControllerState(),
                 selectedNetworkClientId: 'avalanche',
               });
-              await advanceTime({ clock, duration: 1 });
+              await jestAdvanceTime({ duration: 1 });
 
               expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
@@ -1858,7 +1857,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: 'avalanche',
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1870,13 +1869,12 @@ describe('TokenDetectionController', () => {
   });
 
   describe('TokenListController:stateChange', () => {
-    let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     describe('when "disabled" is false', () => {
@@ -1932,7 +1930,7 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState(tokenListState);
 
             triggerTokenListStateChange(tokenListState);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addTokens',
@@ -1973,7 +1971,7 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState(tokenListState);
 
             triggerTokenListStateChange(tokenListState);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -2029,7 +2027,7 @@ describe('TokenDetectionController', () => {
               mockTokenListGetState(tokenListState);
 
               triggerTokenListStateChange(tokenListState);
-              await advanceTime({ clock, duration: 1 });
+              await jestAdvanceTime({ duration: 1 });
 
               expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
@@ -2086,7 +2084,7 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState(tokenListState);
 
             triggerTokenListStateChange(tokenListState);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -2142,13 +2140,13 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState(tokenListState);
             // This should set the tokensChainsCache value
             triggerTokenListStateChange(tokenListState);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             const mockTokens = jest.spyOn(controller, 'detectTokens');
 
             // Re-trigger state change so that incoming list is equal the current list in state
             triggerTokenListStateChange(tokenListState);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
             expect(mockTokens).toHaveBeenCalledTimes(0);
           },
         );
@@ -2201,7 +2199,7 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState(tokenListState);
             // This should set the tokensChainsCache value
             triggerTokenListStateChange(tokenListState);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             const mockTokens = jest.spyOn(controller, 'detectTokens');
 
@@ -2225,7 +2223,7 @@ describe('TokenDetectionController', () => {
                 },
               },
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
             expect(mockTokens).toHaveBeenCalledTimes(0);
           },
         );
@@ -2278,7 +2276,7 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState(tokenListState);
             // This should set the tokensChainsCache value
             triggerTokenListStateChange(tokenListState);
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
 
             const mockTokens = jest.spyOn(controller, 'detectTokens');
 
@@ -2303,7 +2301,7 @@ describe('TokenDetectionController', () => {
                 },
               },
             });
-            await advanceTime({ clock, duration: 1 });
+            await jestAdvanceTime({ duration: 1 });
             expect(mockTokens).toHaveBeenCalledTimes(1);
           },
         );
@@ -2312,13 +2310,12 @@ describe('TokenDetectionController', () => {
   });
 
   describe('startPolling', () => {
-    let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('should call detect tokens with networkClientId and address params', async () => {
@@ -2377,7 +2374,7 @@ describe('TokenDetectionController', () => {
             chainIds: ['0x5'],
             address: '0x3',
           });
-          await advanceTime({ clock, duration: 0 });
+          await jestAdvanceTime({ duration: 0 });
 
           expect(spy.mock.calls).toMatchObject([
             [{ chainIds: ['0xa86a'], selectedAddress: '0x1' }],
@@ -2385,7 +2382,7 @@ describe('TokenDetectionController', () => {
             [{ chainIds: ['0x5'], selectedAddress: '0x3' }],
           ]);
 
-          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+          await jestAdvanceTime({ duration: DEFAULT_INTERVAL });
           expect(spy.mock.calls).toMatchObject([
             [{ chainIds: ['0xa86a'], selectedAddress: '0x1' }],
             [{ chainIds: ['0xa86a'], selectedAddress: '0xdeadbeef' }],

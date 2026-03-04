@@ -344,6 +344,8 @@ export type DataRequest = {
   forceUpdate?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */
   updateInterval?: number;
+  /** Specific CAIP-19 asset IDs for price update */
+  assetsForPriceUpdate?: Caip19AssetId[];
 };
 
 /**
@@ -360,7 +362,22 @@ export type DataResponse = {
   errors?: Record<ChainId, string>;
   /** Detected assets (assets that do not have metadata) */
   detectedAssets?: Record<AccountId, Caip19AssetId[]>;
+  /**
+   * How to apply this response to state. See {@link AssetsUpdateMode}.
+   * Defaults to `'merge'` if omitted.
+   */
+  updateMode?: AssetsUpdateMode;
 };
+
+/**
+ * Type of {@link DataResponse.updateMode}: how the controller applies the response to state.
+ *
+ * - **full**: Response is the full set for the scope. Assets in state but not in the
+ *   response are cleared (except custom assets). Use for initial fetch or full refresh.
+ * - **merge**: Only assets present in the response are updated; nothing is removed.
+ *   Use for event-driven or incremental updates.
+ */
+export type AssetsUpdateMode = 'full' | 'merge';
 
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)

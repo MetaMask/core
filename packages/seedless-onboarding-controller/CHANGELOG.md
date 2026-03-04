@@ -7,8 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+
+### Changed
+
+- `refreshAuthTokens` now coalesces concurrent calls — if a refresh is already in-flight, subsequent callers share the same promise rather than issuing duplicate HTTP requests with the same token ([#7989](https://github.com/MetaMask/core/pull/7989))
+- `refreshAuthTokens` now uses the live `state.refreshToken` value when calling `authenticate` after a successful HTTP refresh, preventing a stale-capture bug that could overwrite a concurrently-renewed token with an older one ([#7989](https://github.com/MetaMask/core/pull/7989))
+- `renewRefreshToken` now queues the old token for revocation only after `#createNewVaultWithAuthData` succeeds, ensuring tokens are not queued if vault creation fails ([#7989](https://github.com/MetaMask/core/pull/7989))
+
+### Fixed
+
+- Fixed `refreshAuthTokens` throwing the generic `FailedToRefreshJWTTokens` error for all HTTP failures — a 401 response (permanently revoked token) now throws `InvalidRefreshToken` instead, giving callers a distinct signal to distinguish permanent from transient failures ([#7989](https://github.com/MetaMask/core/pull/7989))
+
+## [8.0.0]
+
 ### Added
 
+- Add new `SeedlessOnboardingError` class for generic controller errors with support for `cause` and `details` properties ([#7660](https://github.com/MetaMask/core/pull/7660))
+  - Enables proper error chaining by wrapping underlying errors with additional context
+  - Includes `toJSON()` method for serialization in logging/transmission
 - **BREAKING** The `encryptor` constructor param requires `encryptWithKey` method. ([#7800](https://github.com/MetaMask/core/pull/7800))
   - The method is to encrypt the vault with cached encryption key while the wallet is unlocked.
 - Added new public method, `getAccessToken`. ([#7800](https://github.com/MetaMask/core/pull/7800))
@@ -21,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Exclude All the tokens values from the state log explicitly.
 - Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Refactor controller methods to throw `SeedlessOnboardingError` with original error as `cause` for better error tracing ([#7660](https://github.com/MetaMask/core/pull/7660))
+  - Affected methods: `authenticate`, `changePassword`, `#persistLocalEncryptionKey`, `#fetchAndParseSecretMetadata`, `refreshAuthTokens`
 
 ### Fixed
 
@@ -273,7 +292,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.0.0...@metamask/seedless-onboarding-controller@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.1.0...@metamask/seedless-onboarding-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.0.0...@metamask/seedless-onboarding-controller@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.1.0...@metamask/seedless-onboarding-controller@7.0.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@6.0.0...@metamask/seedless-onboarding-controller@6.1.0

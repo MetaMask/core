@@ -98,6 +98,7 @@ export enum BuiltInNetworkName {
   OptimismMainnet = 'optimism-mainnet',
   PolygonMainnet = 'polygon-mainnet',
   SeiMainnet = 'sei-mainnet',
+  MegaETHMainnet = 'megaeth-mainnet',
 }
 
 /**
@@ -125,6 +126,7 @@ export const ChainId = {
   [BuiltInNetworkName.OptimismMainnet]: '0xa', // toHex(10)
   [BuiltInNetworkName.PolygonMainnet]: '0x89', // toHex(137)
   [BuiltInNetworkName.SeiMainnet]: '0x531', // toHex(1329)
+  [BuiltInNetworkName.MegaETHMainnet]: '0x10e6', // toHex(4326)
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "39.0.2",
+  "version": "39.0.4",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/signature-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/signature-controller",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -48,16 +47,16 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^36.0.0",
+    "@metamask/accounts-controller": "^36.0.1",
     "@metamask/approval-controller": "^8.0.0",
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.18.0",
+    "@metamask/controller-utils": "^11.19.0",
     "@metamask/eth-sig-util": "^8.2.0",
-    "@metamask/gator-permissions-controller": "^1.1.2",
+    "@metamask/gator-permissions-controller": "^2.0.0",
     "@metamask/keyring-controller": "^25.1.0",
     "@metamask/logging-controller": "^7.0.1",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/network-controller": "^29.0.0",
+    "@metamask/network-controller": "^30.0.0",
     "@metamask/utils": "^11.9.0",
     "jsonschema": "^1.4.1",
     "lodash": "^4.17.21",

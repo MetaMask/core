@@ -1,6 +1,4 @@
 import { CircuitState, handleWhen } from 'cockatiel';
-import { useFakeTimers } from 'sinon';
-import type { SinonFakeTimers } from 'sinon';
 
 import {
   createServicePolicy,
@@ -11,14 +9,12 @@ import {
 } from './create-service-policy';
 
 describe('createServicePolicy', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   describe('wrapping a service that succeeds on the first try', () => {
@@ -102,7 +98,7 @@ describe('createServicePolicy', () => {
           policy.onDegraded(onDegradedListener);
 
           const promise = policy.execute(mockService);
-          clock.tick(delay);
+          jest.advanceTimersByTime(delay);
           await promise;
 
           expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -120,7 +116,7 @@ describe('createServicePolicy', () => {
           policy.onAvailable(onAvailableListener);
 
           const promise = policy.execute(mockService);
-          clock.tick(delay);
+          jest.advanceTimersByTime(delay);
           await promise;
 
           expect(onAvailableListener).not.toHaveBeenCalled();
@@ -201,7 +197,7 @@ describe('createServicePolicy', () => {
         // It's safe not to await this promise; adding it to the promise queue
         // is enough to prevent this test from running indefinitely.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.runAllAsync();
+        jest.runAllTimersAsync();
         await ignoreRejection(promise);
 
         expect(onBreakListener).not.toHaveBeenCalled();
@@ -224,7 +220,7 @@ describe('createServicePolicy', () => {
         // It's safe not to await this promise; adding it to the promise queue
         // is enough to prevent this test from running indefinitely.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.runAllAsync();
+        jest.runAllTimersAsync();
         await ignoreRejection(promise);
 
         expect(onDegradedListener).not.toHaveBeenCalled();
@@ -247,7 +243,7 @@ describe('createServicePolicy', () => {
         // It's safe not to await this promise; adding it to the promise queue
         // is enough to prevent this test from running indefinitely.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.runAllAsync();
+        jest.runAllTimersAsync();
         await ignoreRejection(promise);
 
         expect(onAvailableListener).not.toHaveBeenCalled();
@@ -272,11 +268,11 @@ describe('createServicePolicy', () => {
           // It's safe not to await these promises; adding them to the promise
           // queue is enough to prevent this test from running indefinitely.
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(0);
+          jest.advanceTimersByTimeAsync(0);
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(176.27932892814937);
+          jest.advanceTimersByTimeAsync(176.27932892814937);
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(186.8886145345685);
+          jest.advanceTimersByTimeAsync(186.8886145345685);
           await ignoreRejection(promise);
 
           expect(mockService).toHaveBeenCalledTimes(1 + DEFAULT_MAX_RETRIES);
@@ -295,7 +291,7 @@ describe('createServicePolicy', () => {
           // It's safe not to await this promise; adding it to the promise queue is
           // enough to prevent this test from running indefinitely.
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.runAllAsync();
+          jest.runAllTimersAsync();
           await ignoreRejection(promise);
 
           expect(onRetryListener).toHaveBeenCalledTimes(DEFAULT_MAX_RETRIES);
@@ -313,7 +309,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
 
             await expect(promise).rejects.toThrow(error);
           });
@@ -332,7 +328,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onBreakListener).not.toHaveBeenCalled();
@@ -351,7 +347,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -371,7 +367,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onAvailableListener).not.toHaveBeenCalled();
@@ -394,7 +390,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
 
               await expect(promise).rejects.toThrow(error);
             });
@@ -416,7 +412,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onBreakListener).not.toHaveBeenCalled();
@@ -438,7 +434,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -461,7 +457,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -483,7 +479,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
 
               await expect(promise).rejects.toThrow(error);
             });
@@ -505,7 +501,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onBreakListener).toHaveBeenCalledTimes(1);
@@ -528,7 +524,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onDegradedListener).not.toHaveBeenCalled();
@@ -550,7 +546,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -570,7 +566,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(firstExecution);
 
               const secondExecution = policy.execute(mockService);
@@ -597,7 +593,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
 
               await expect(promise).rejects.toThrow(
                 new Error(
@@ -623,7 +619,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onBreakListener).toHaveBeenCalledTimes(1);
@@ -646,7 +642,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onDegradedListener).not.toHaveBeenCalled();
@@ -668,7 +664,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -693,15 +689,15 @@ describe('createServicePolicy', () => {
           // It's safe not to await these promises; adding them to the promise
           // queue is enough to prevent this test from running indefinitely.
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(0);
+          jest.advanceTimersByTimeAsync(0);
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(176.27932892814937);
+          jest.advanceTimersByTimeAsync(176.27932892814937);
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(186.8886145345685);
+          jest.advanceTimersByTimeAsync(186.8886145345685);
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(366.8287823691078);
+          jest.advanceTimersByTimeAsync(366.8287823691078);
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.tickAsync(731.8792783578953);
+          jest.advanceTimersByTimeAsync(731.8792783578953);
           await ignoreRejection(promise);
 
           expect(mockService).toHaveBeenCalledTimes(1 + maxRetries);
@@ -723,7 +719,7 @@ describe('createServicePolicy', () => {
           // It's safe not to await this promise; adding it to the promise queue is
           // enough to prevent this test from running indefinitely.
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.runAllAsync();
+          jest.runAllTimersAsync();
           await ignoreRejection(promise);
 
           expect(onRetryListener).toHaveBeenCalledTimes(maxRetries);
@@ -743,7 +739,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
 
               await expect(promise).rejects.toThrow(error);
             });
@@ -763,7 +759,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onBreakListener).not.toHaveBeenCalled();
@@ -783,7 +779,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -804,7 +800,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -824,7 +820,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
 
               await expect(promise).rejects.toThrow(error);
             });
@@ -844,7 +840,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onBreakListener).toHaveBeenCalledTimes(1);
@@ -865,7 +861,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onDegradedListener).not.toHaveBeenCalled();
@@ -885,7 +881,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -903,7 +899,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(firstExecution);
 
               const secondExecution = policy.execute(mockService);
@@ -927,7 +923,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
 
               await expect(promise).rejects.toThrow(
                 new Error(
@@ -951,7 +947,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onBreakListener).toHaveBeenCalledTimes(1);
@@ -972,7 +968,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onDegradedListener).not.toHaveBeenCalled();
@@ -992,7 +988,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -1018,7 +1014,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
 
               await expect(promise).rejects.toThrow(error);
             });
@@ -1042,7 +1038,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onBreakListener).not.toHaveBeenCalled();
@@ -1066,7 +1062,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -1091,7 +1087,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -1115,7 +1111,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
 
               await expect(promise).rejects.toThrow(error);
             });
@@ -1139,7 +1135,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onBreakListener).toHaveBeenCalledTimes(1);
@@ -1164,7 +1160,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onDegradedListener).not.toHaveBeenCalled();
@@ -1188,7 +1184,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -1210,7 +1206,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(firstExecution);
 
               const secondExecution = policy.execute(mockService);
@@ -1239,7 +1235,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
 
               await expect(promise).rejects.toThrow(
                 new Error(
@@ -1267,7 +1263,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onBreakListener).toHaveBeenCalledTimes(1);
@@ -1292,7 +1288,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onDegradedListener).not.toHaveBeenCalled();
@@ -1316,7 +1312,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await ignoreRejection(promise);
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -1352,11 +1348,11 @@ describe('createServicePolicy', () => {
         // It's safe not to await these promises; adding them to the promise
         // queue is enough to prevent this test from running indefinitely.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(0);
+        jest.advanceTimersByTimeAsync(0);
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(176.27932892814937);
+        jest.advanceTimersByTimeAsync(176.27932892814937);
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(186.8886145345685);
+        jest.advanceTimersByTimeAsync(186.8886145345685);
         await promise;
 
         expect(mockService).toHaveBeenCalledTimes(1 + DEFAULT_MAX_RETRIES);
@@ -1378,7 +1374,7 @@ describe('createServicePolicy', () => {
           // It's safe not to await this promise; adding it to the promise queue
           // is enough to prevent this test from running indefinitely.
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.runAllAsync();
+          jest.runAllTimersAsync();
 
           expect(await promise).toStrictEqual({ some: 'data' });
         });
@@ -1401,7 +1397,7 @@ describe('createServicePolicy', () => {
           // It's safe not to await this promise; adding it to the promise queue
           // is enough to prevent this test from running indefinitely.
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          clock.runAllAsync();
+          jest.runAllTimersAsync();
           await promise;
 
           expect(onBreakListener).not.toHaveBeenCalled();
@@ -1437,7 +1433,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await promise;
 
               expect(onDegradedListener).not.toHaveBeenCalled();
@@ -1463,13 +1459,13 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await promise1;
               const promise2 = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await promise2;
 
               expect(onAvailableListener).toHaveBeenCalledTimes(1);
@@ -1498,7 +1494,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await promise;
 
               expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -1525,7 +1521,7 @@ describe('createServicePolicy', () => {
               // It's safe not to await this promise; adding it to the promise
               // queue is enough to prevent this test from running indefinitely.
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              clock.runAllAsync();
+              jest.runAllTimersAsync();
               await promise;
 
               expect(onAvailableListener).not.toHaveBeenCalled();
@@ -1554,7 +1550,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
 
             expect(await promise).toStrictEqual({ some: 'data' });
           });
@@ -1580,7 +1576,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await promise;
 
             expect(onBreakListener).not.toHaveBeenCalled();
@@ -1620,7 +1616,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).not.toHaveBeenCalled();
@@ -1647,13 +1643,13 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise1;
                 const promise2 = policy.execute(mockService);
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise2;
 
                 expect(onAvailableListener).toHaveBeenCalledTimes(1);
@@ -1686,7 +1682,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -1717,7 +1713,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onAvailableListener).not.toHaveBeenCalled();
@@ -1745,7 +1741,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
 
             expect(await promise).toStrictEqual({ some: 'data' });
           });
@@ -1772,7 +1768,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await promise;
 
             expect(onBreakListener).not.toHaveBeenCalled();
@@ -1813,7 +1809,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).not.toHaveBeenCalled();
@@ -1841,13 +1837,13 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise1;
                 const promise2 = policy.execute(mockService);
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise2;
 
                 expect(onAvailableListener).toHaveBeenCalledTimes(1);
@@ -1880,7 +1876,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -1911,7 +1907,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onAvailableListener).not.toHaveBeenCalled();
@@ -1940,7 +1936,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await expect(promise).rejects.toThrow(
               new Error(
                 'Execution prevented because the circuit breaker is open',
@@ -1970,7 +1966,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onBreakListener).toHaveBeenCalledTimes(1);
@@ -1998,7 +1994,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onDegradedListener).not.toHaveBeenCalled();
@@ -2025,7 +2021,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onAvailableListener).not.toHaveBeenCalled();
@@ -2067,9 +2063,9 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await ignoreRejection(firstExecution);
-                clock.tick(duration);
+                jest.advanceTimersByTime(duration);
                 const result = await policy.execute(mockService);
 
                 expect(result).toStrictEqual({ some: 'data' });
@@ -2097,9 +2093,9 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await ignoreRejection(firstExecution);
-                clock.tick(duration);
+                jest.advanceTimersByTime(duration);
                 await policy.execute(mockService);
                 await policy.execute(mockService);
 
@@ -2132,15 +2128,15 @@ describe('createServicePolicy', () => {
         // It's safe not to await these promises; adding them to the promise
         // queue is enough to prevent this test from running indefinitely.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(0);
+        jest.advanceTimersByTimeAsync(0);
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(176.27932892814937);
+        jest.advanceTimersByTimeAsync(176.27932892814937);
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(186.8886145345685);
+        jest.advanceTimersByTimeAsync(186.8886145345685);
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(366.8287823691078);
+        jest.advanceTimersByTimeAsync(366.8287823691078);
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        clock.tickAsync(731.8792783578953);
+        jest.advanceTimersByTimeAsync(731.8792783578953);
         await promise;
 
         expect(mockService).toHaveBeenCalledTimes(1 + maxRetries);
@@ -2165,7 +2161,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
 
             expect(await promise).toStrictEqual({ some: 'data' });
           });
@@ -2190,7 +2186,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await promise;
 
             expect(onBreakListener).not.toHaveBeenCalled();
@@ -2228,7 +2224,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).not.toHaveBeenCalled();
@@ -2253,7 +2249,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
                 await policy.execute(mockService);
 
@@ -2284,7 +2280,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -2312,7 +2308,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onAvailableListener).not.toHaveBeenCalled();
@@ -2339,7 +2335,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
 
             expect(await promise).toStrictEqual({ some: 'data' });
           });
@@ -2364,7 +2360,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await promise;
 
             expect(onBreakListener).not.toHaveBeenCalled();
@@ -2402,7 +2398,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).not.toHaveBeenCalled();
@@ -2427,7 +2423,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
                 await policy.execute(mockService);
 
@@ -2458,7 +2454,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -2486,7 +2482,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onAvailableListener).not.toHaveBeenCalled();
@@ -2513,7 +2509,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
 
             await expect(promise).rejects.toThrow(
               new Error(
@@ -2542,7 +2538,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onBreakListener).toHaveBeenCalledTimes(1);
@@ -2568,7 +2564,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onDegradedListener).not.toHaveBeenCalled();
@@ -2593,7 +2589,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onAvailableListener).not.toHaveBeenCalled();
@@ -2632,9 +2628,9 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await ignoreRejection(firstExecution);
-                clock.tick(duration);
+                jest.advanceTimersByTime(duration);
                 const result = await policy.execute(mockService);
 
                 expect(result).toStrictEqual({ some: 'data' });
@@ -2659,9 +2655,9 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await ignoreRejection(firstExecution);
-                clock.tick(duration);
+                jest.advanceTimersByTime(duration);
                 await policy.execute(mockService);
                 await policy.execute(mockService);
 
@@ -2695,7 +2691,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
 
             expect(await promise).toStrictEqual({ some: 'data' });
           });
@@ -2724,7 +2720,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await promise;
 
             expect(onBreakListener).not.toHaveBeenCalled();
@@ -2767,7 +2763,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).not.toHaveBeenCalled();
@@ -2797,13 +2793,13 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise1;
                 const promise2 = policy.execute(mockService);
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise2;
 
                 expect(onAvailableListener).toHaveBeenCalledTimes(1);
@@ -2838,7 +2834,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -2871,7 +2867,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onAvailableListener).not.toHaveBeenCalled();
@@ -2902,7 +2898,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
 
             expect(await promise).toStrictEqual({ some: 'data' });
           });
@@ -2931,7 +2927,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await promise;
 
             expect(onBreakListener).not.toHaveBeenCalled();
@@ -2974,7 +2970,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).not.toHaveBeenCalled();
@@ -3004,13 +3000,13 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise1;
                 const promise2 = policy.execute(mockService);
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise2;
 
                 expect(onAvailableListener).toHaveBeenCalledTimes(1);
@@ -3045,7 +3041,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onDegradedListener).toHaveBeenCalledTimes(1);
@@ -3078,7 +3074,7 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await promise;
 
                 expect(onAvailableListener).not.toHaveBeenCalled();
@@ -3109,7 +3105,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             await expect(promise).rejects.toThrow(
@@ -3143,7 +3139,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onBreakListener).toHaveBeenCalledTimes(1);
@@ -3173,7 +3169,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onDegradedListener).not.toHaveBeenCalled();
@@ -3202,7 +3198,7 @@ describe('createServicePolicy', () => {
             // It's safe not to await this promise; adding it to the promise
             // queue is enough to prevent this test from running indefinitely.
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            clock.runAllAsync();
+            jest.runAllTimersAsync();
             await ignoreRejection(promise);
 
             expect(onAvailableListener).not.toHaveBeenCalled();
@@ -3246,9 +3242,9 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await ignoreRejection(firstExecution);
-                clock.tick(duration);
+                jest.advanceTimersByTime(duration);
                 const result = await policy.execute(mockService);
 
                 expect(result).toStrictEqual({ some: 'data' });
@@ -3278,9 +3274,9 @@ describe('createServicePolicy', () => {
                 // It's safe not to await this promise; adding it to the promise
                 // queue is enough to prevent this test from running indefinitely.
                 // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                clock.runAllAsync();
+                jest.runAllTimersAsync();
                 await ignoreRejection(firstExecution);
-                clock.tick(duration);
+                jest.advanceTimersByTime(duration);
                 await policy.execute(mockService);
                 await policy.execute(mockService);
 
@@ -3345,7 +3341,7 @@ describe('createServicePolicy', () => {
                 ...optionsWithCircuitBreakDuration,
               });
               policy.onRetry(() => {
-                clock.next();
+                jest.advanceTimersToNextTimer();
               });
               policy.onAvailable(onAvailableListener);
 
@@ -3357,7 +3353,7 @@ describe('createServicePolicy', () => {
               await ignoreRejection(policy.execute(mockService));
               await ignoreRejection(policy.execute(mockService));
               await ignoreRejection(policy.execute(mockService));
-              clock.tick(circuitBreakDuration);
+              jest.advanceTimersByTime(circuitBreakDuration);
 
               await policy.execute(mockService);
               expect(onAvailableListener).toHaveBeenCalledTimes(2);
@@ -3378,7 +3374,7 @@ describe('createServicePolicy', () => {
                 ...optionsWithCircuitBreakDuration,
               });
               policy.onRetry(() => {
-                clock.next();
+                jest.advanceTimersToNextTimer();
               });
               policy.onAvailable(onAvailableListener);
 
@@ -3390,7 +3386,7 @@ describe('createServicePolicy', () => {
               await ignoreRejection(policy.execute(mockService));
               await ignoreRejection(policy.execute(mockService));
               await ignoreRejection(policy.execute(mockService));
-              clock.tick(circuitBreakDuration);
+              jest.advanceTimersByTime(circuitBreakDuration);
 
               await ignoreRejection(policy.execute(mockService));
               expect(onAvailableListener).toHaveBeenCalledTimes(1);
@@ -3408,13 +3404,13 @@ describe('createServicePolicy', () => {
       };
       const policy = createServicePolicy();
       policy.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       // Retry until we break the circuit
       await ignoreRejection(policy.execute(mockService));
       await ignoreRejection(policy.execute(mockService));
       await ignoreRejection(policy.execute(mockService));
-      clock.tick(1000);
+      jest.advanceTimersByTime(1000);
 
       expect(policy.getRemainingCircuitOpenDuration()).toBe(
         DEFAULT_CIRCUIT_BREAK_DURATION - 1000,
@@ -3435,7 +3431,7 @@ describe('createServicePolicy', () => {
       };
       const policy = createServicePolicy();
       policy.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
 
       expect(policy.getCircuitState()).toBe(CircuitState.Closed);
@@ -3446,7 +3442,7 @@ describe('createServicePolicy', () => {
       await ignoreRejection(policy.execute(mockService));
       expect(policy.getCircuitState()).toBe(CircuitState.Open);
 
-      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
       const promise = ignoreRejection(policy.execute(mockService));
       expect(policy.getCircuitState()).toBe(CircuitState.HalfOpen);
       await promise;
@@ -3466,7 +3462,7 @@ describe('createServicePolicy', () => {
       });
       const policy = createServicePolicy();
       policy.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       // Retry until we break the circuit
       await ignoreRejection(policy.execute(mockService));
@@ -3490,7 +3486,7 @@ describe('createServicePolicy', () => {
       });
       const policy = createServicePolicy();
       policy.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       // Retry until we break the circuit
       await ignoreRejection(policy.execute(mockService));
@@ -3517,7 +3513,7 @@ describe('createServicePolicy', () => {
       const onAvailableListener = jest.fn();
       const policy = createServicePolicy();
       policy.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       policy.onAvailable(onAvailableListener);
 
@@ -3542,7 +3538,7 @@ describe('createServicePolicy', () => {
       });
       const policy = createServicePolicy();
       policy.onRetry(() => {
-        clock.next();
+        jest.advanceTimersToNextTimer();
       });
       // Retry until we break the circuit
       await ignoreRejection(policy.execute(mockService));

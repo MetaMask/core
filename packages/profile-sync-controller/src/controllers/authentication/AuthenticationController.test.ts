@@ -6,7 +6,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import AuthenticationController from './AuthenticationController';
+import { AuthenticationController } from './AuthenticationController';
 import type {
   AuthenticationControllerMessenger,
   AuthenticationControllerState,

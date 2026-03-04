@@ -26,12 +26,49 @@ export type AssetsControllerGetAssetsPriceAction = {
 };
 
 /**
+ * Returns exchange rates in the format expected by the bridge controller
+ * (conversionRates, currencyRates, marketData, currentCurrency) so that
+ * when useAssetsControllerForRates is true the bridge can use a single
+ * action instead of MultichainAssetsRatesController, TokenRatesController,
+ * and CurrencyRateController.
+ *
+ * @param options - Optional options for bridge rate conversion.
+ * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and conversionRates use correct user-currency vs USD values; otherwise the bridge USD conversion will be wrong for non-USD currencies.
+ * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
+ */
+export type AssetsControllerGetExchangeRatesForBridgeAction = {
+  type: `AssetsController:getExchangeRatesForBridge`;
+  handler: AssetsController['getExchangeRatesForBridge'];
+};
+
+/**
+ * Returns state in the legacy format expected by transaction-pay-controller
+ * (TokenBalancesController, AccountTrackerController, TokensController,
+ * TokenRatesController, CurrencyRateController shapes) so that when
+ * useAssetsController is true the transaction-pay-controller can use a
+ * single action instead of five separate getState calls.
+ *
+ * @param options - Optional options for legacy rate conversion.
+ * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and marketData use correct user-currency vs USD values; otherwise conversion rates will be wrong for non-USD currencies.
+ * @returns Legacy-compatible state for transaction-pay-controller.
+ */
+export type AssetsControllerGetStateForTransactionPayAction = {
+  type: `AssetsController:getStateForTransactionPay`;
+  handler: AssetsController['getStateForTransactionPay'];
+};
+
+/**
  * Add a custom asset for an account.
  * Custom assets are included in subscription and fetch operations.
  * Adding a custom asset also unhides it if it was previously hidden.
  *
+ * When `pendingMetadata` is provided (e.g. from the extension's pending-tokens
+ * flow), the token metadata is persisted immediately into `assetsInfo` so the
+ * UI can render it without waiting for the next pipeline fetch.
+ *
  * @param accountId - The account ID to add the custom asset for.
  * @param assetId - The CAIP-19 asset ID to add.
+ * @param pendingMetadata - Optional token metadata from the UI (pendingTokens format).
  */
 export type AssetsControllerAddCustomAssetAction = {
   type: `AssetsController:addCustomAsset`;
@@ -90,6 +127,8 @@ export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
   | AssetsControllerGetAssetsPriceAction
+  | AssetsControllerGetExchangeRatesForBridgeAction
+  | AssetsControllerGetStateForTransactionPayAction
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction

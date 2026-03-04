@@ -50,6 +50,14 @@ type Slip44Data = Record<string, Slip44DataEntry>;
  * @see https://github.com/satoshilabs/slips/blob/master/slip-0044.md
  * @see https://chainid.network/chains.json
  */
+/**
+ * Manual overrides for EVM chain IDs where chainid.network returns
+ * an incorrect SLIP-44 value due to chain ID collisions.
+ */
+const EVM_SLIP44_OVERRIDES: ReadonlyMap<number, number> = new Map([
+  [999, 2457], // HyperEVM — chainid.network returns 1 (Wanchain collision)
+]);
+
 export class Slip44Service {
   /**
    * Cache for chainId to slip44 lookups from chainid.network.
@@ -138,6 +146,11 @@ export class Slip44Service {
    * ```
    */
   static async getEvmSlip44(chainId: number): Promise<number> {
+    const override = EVM_SLIP44_OVERRIDES.get(chainId);
+    if (override !== undefined) {
+      return override;
+    }
+
     // Ensure chain data is loaded
     await this.#fetchChainData();
 

@@ -53,8 +53,22 @@ export type RelayQuote = {
     };
   };
   fees: {
+    app?: {
+      amountUsd: string;
+    };
     relayer: {
       amountUsd: string;
+    };
+    subsidized?: {
+      amount: string;
+      amountFormatted: string;
+      amountUsd: string;
+      currency: {
+        address: Hex;
+        chainId: number;
+        decimals: number;
+      };
+      minimumAmount: string;
     };
   };
   metamask: {

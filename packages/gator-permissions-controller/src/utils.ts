@@ -1,45 +1,51 @@
-import { GatorPermissionsMapSerializationError } from './errors';
+import type { SnapId } from '@metamask/snaps-sdk';
+import { HandlerType } from '@metamask/snaps-utils';
+import type { Json } from '@metamask/utils';
+
+import { GatorPermissionsProviderError } from './errors';
+import { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
 import { utilsLog } from './logger';
-import type { GatorPermissionsMap } from './types';
+import type { GatorPermissionsSnapRpcMethod } from './types';
 
 /**
- * Serializes a gator permissions map to a string.
+ * Executes an RPC request against a Snap and returns the typed response.
  *
- * @param gatorPermissionsMap - The gator permissions map to serialize.
- * @returns The serialized gator permissions map.
+ * @param params - The parameters for the request.
+ * @param params.messenger - Messenger that supports SnapController:handleRequest.
+ * @param params.snapId - The Snap ID to target.
+ * @param params.method - The RPC method name (e.g. permissionsProvider_getGrantedPermissions).
+ * @param params.params - Optional JSON-serializable params for the method.
+ * @returns A promise that resolves with the Snap's response (typed by caller).
+ * @throws {GatorPermissionsProviderError} If the Snap request fails.
  */
-export function serializeGatorPermissionsMap(
-  gatorPermissionsMap: GatorPermissionsMap,
-): string {
+export async function executeSnapRpc<TReturn = unknown>({
+  messenger,
+  snapId,
+  method,
+  params,
+}: {
+  messenger: GatorPermissionsControllerMessenger;
+  snapId: SnapId;
+  method: GatorPermissionsSnapRpcMethod | string;
+  params?: Json;
+}): Promise<TReturn> {
   try {
-    return JSON.stringify(gatorPermissionsMap);
-  } catch (error) {
-    utilsLog('Failed to serialize gator permissions map', error);
-    throw new GatorPermissionsMapSerializationError({
-      cause: error as Error,
-      message: 'Failed to serialize gator permissions map',
-      data: gatorPermissionsMap,
+    const response = await messenger.call('SnapController:handleRequest', {
+      snapId,
+      origin: 'metamask',
+      handler: HandlerType.OnRpcRequest,
+      request: {
+        jsonrpc: '2.0',
+        method,
+        ...(params !== undefined && { params }),
+      },
     });
-  }
-}
-
-/**
- * Deserializes a gator permissions map from a string.
- *
- * @param gatorPermissionsMap - The gator permissions map to deserialize.
- * @returns The deserialized gator permissions map.
- */
-export function deserializeGatorPermissionsMap(
-  gatorPermissionsMap: string,
-): GatorPermissionsMap {
-  try {
-    return JSON.parse(gatorPermissionsMap);
+    return response as TReturn;
   } catch (error) {
-    utilsLog('Failed to deserialize gator permissions map', error);
-    throw new GatorPermissionsMapSerializationError({
+    utilsLog('Snap RPC request failed', { method, error });
+    throw new GatorPermissionsProviderError({
+      method: method as GatorPermissionsSnapRpcMethod,
       cause: error as Error,
-      message: 'Failed to deserialize gator permissions map',
-      data: gatorPermissionsMap,
     });
   }
 }

@@ -6,5 +6,6 @@ export const MAX_CACHE_ENTRIES = 50;
 
 export const AiDigestControllerErrorMessage = {
   API_REQUEST_FAILED: 'API request failed',
-  API_RETURNED_ERROR: 'API returned error',
+  API_INVALID_RESPONSE: 'API returned invalid response',
+  INVALID_CAIP_ASSET_TYPE: 'Invalid CAIP asset type',
 } as const;

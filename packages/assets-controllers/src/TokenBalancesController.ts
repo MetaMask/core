@@ -151,7 +151,7 @@ export type AllowedActions =
   | AccountTrackerUpdateNativeBalancesAction
   | AccountTrackerUpdateStakedBalancesAction
   | KeyringControllerGetStateAction
-  | AuthenticationController.AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 export type AllowedEvents =
   | TokensControllerStateChangeEvent

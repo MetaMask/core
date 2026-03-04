@@ -545,7 +545,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -569,7 +569,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=${customLimit}&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=${customLimit}&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -595,7 +595,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${encodedQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${encodedQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -621,7 +621,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -637,46 +637,82 @@ describe('Token service', () => {
       });
     });
 
-    it('should return empty array if the fetch fails with a network error', async () => {
+    it('should return empty array with error if the fetch fails with a network error', async () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .replyWithError('Example network error')
         .persist();
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: expect.stringContaining('Example network error'),
+      });
     });
 
-    it('should return empty array if the fetch fails with 400 error', async () => {
+    it('should return empty array with error if the fetch fails with 400 error', async () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(400, { error: 'Bad Request' })
         .persist();
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: expect.stringContaining("Fetch failed with status '400'"),
+      });
     });
 
-    it('should return empty array if the fetch fails with 500 error', async () => {
+    it('should return empty array with error if the fetch fails with 500 error', async () => {
       const searchQuery = 'USD';
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(500)
         .persist();
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: expect.stringContaining("Fetch failed with status '500'"),
+      });
+    });
+
+    it('should return error for malformed API response', async () => {
+      const searchQuery = 'USD';
+      const malformedResponse = {
+        count: 5,
+        // Missing 'data' array - this is malformed
+        someOtherField: 'value',
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, malformedResponse)
+        .persist();
+
+      const result = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: 'Unexpected API response format',
+      });
     });
 
     it('should handle empty search results', async () => {
@@ -689,7 +725,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -709,7 +745,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -724,15 +760,19 @@ describe('Token service', () => {
       const errorResponse = { error: 'Invalid search query' };
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, errorResponse)
         .persist();
 
       const result = await searchTokens([sampleCaipChainId], searchQuery);
 
-      // Non-array responses should be converted to empty object with count 0
-      expect(result).toStrictEqual({ count: 0, data: [] });
+      // Non-array responses should be converted to empty object with count 0 and error message
+      expect(result).toStrictEqual({
+        count: 0,
+        data: [],
+        error: 'Unexpected API response format',
+      });
     });
 
     it('should handle supported CAIP format chain IDs', async () => {
@@ -757,7 +797,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&limit=10&includeMarketData=false&includeRwaData=true`,
+          `/tokens/search?networks=${encodedChainIds}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -780,7 +820,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&limit=10&includeMarketData=true&includeRwaData=true`,
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=true&includeRwaData=true`,
         )
         .reply(200, mockResponse)
         .persist();
@@ -788,6 +828,107 @@ describe('Token service', () => {
       const results = await searchTokens([sampleCaipChainId], searchQuery, {
         includeMarketData: true,
       });
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
+    });
+
+    it('should clamp limit to 50 for regular queries', async () => {
+      const searchQuery = 'USD';
+      const largeLimit = 100;
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=50&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery, {
+        limit: largeLimit,
+      });
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
+    });
+
+    it('should allow larger limits for Ondo queries up to 500', async () => {
+      const searchQuery = 'Ondo Finance Token';
+      const ondoLimit = 200;
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${encodeURIComponent(searchQuery)}&first=${ondoLimit}&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery, {
+        limit: ondoLimit,
+      });
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
+    });
+
+    it('should clamp very large limits to 50 even for Ondo queries', async () => {
+      const searchQuery = 'Ondo Token';
+      const veryLargeLimit = 1000;
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${encodeURIComponent(searchQuery)}&first=50&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery, {
+        limit: veryLargeLimit,
+      });
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
+    });
+
+    it('should use default limit of 10 when limit is not provided', async () => {
+      const searchQuery = 'USD';
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
 
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,

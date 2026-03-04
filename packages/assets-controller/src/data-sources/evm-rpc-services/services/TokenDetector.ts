@@ -27,6 +27,10 @@ export type TokenDetectorMessenger = {
 };
 
 export type TokenDetectorConfig = {
+  /** Function returning whether token detection is enabled (avoids stale value) */
+  tokenDetectionEnabled?: () => boolean;
+  /** Function returning whether external services are allowed (avoids stale value; default: () => true) */
+  useExternalService?: () => boolean;
   defaultBatchSize?: number;
   defaultTimeoutMs?: number;
   /** Polling interval in ms (default: 3 minutes) */
@@ -72,6 +76,9 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     this.#multicallClient = multicallClient;
     this.#messenger = messenger;
     this.#config = {
+      tokenDetectionEnabled:
+        config?.tokenDetectionEnabled ?? ((): boolean => true),
+      useExternalService: config?.useExternalService ?? ((): boolean => true),
       defaultBatchSize: config?.defaultBatchSize ?? 300,
       defaultTimeoutMs: config?.defaultTimeoutMs ?? 30000,
     };
@@ -100,6 +107,7 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
   async _executePoll(input: DetectionPollingInput): Promise<void> {
     // Check if token list is available for this chain
     const tokensToCheck = this.getTokensToCheck(input.chainId);
+
     if (tokensToCheck.length === 0) {
       // No tokens in list for chain, will retry on next poll
       return;
@@ -150,6 +158,22 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     accountAddress: Address,
     options?: TokenDetectionOptions,
   ): Promise<TokenDetectionResult> {
+    const tokenDetectionEnabled =
+      options?.tokenDetectionEnabled ?? this.#config.tokenDetectionEnabled();
+    const useExternalService =
+      options?.useExternalService ?? this.#config.useExternalService();
+    if (!tokenDetectionEnabled || !useExternalService) {
+      return {
+        chainId,
+        accountId,
+        accountAddress,
+        detectedAssets: [],
+        detectedBalances: [],
+        zeroBalanceAddresses: [],
+        failedAddresses: [],
+        timestamp: Date.now(),
+      };
+    }
     const batchSize = options?.batchSize ?? this.#config.defaultBatchSize;
     const timestamp = Date.now();
 

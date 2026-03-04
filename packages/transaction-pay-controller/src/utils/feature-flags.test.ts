@@ -6,12 +6,15 @@ import {
   DEFAULT_RELAY_FALLBACK_GAS_MAX,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
+  DEFAULT_STRATEGY_ORDER,
   getEIP7702SupportedChains,
   getFeatureFlags,
   getGasBuffer,
   getSlippage,
+  getStrategyOrder,
 } from './feature-flags';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
@@ -383,6 +386,75 @@ describe('Feature Flags Utils', () => {
       const supportedChains = getEIP7702SupportedChains(messenger);
 
       expect(supportedChains).toStrictEqual([]);
+    });
+  });
+
+  describe('getStrategyOrder', () => {
+    it('returns default strategy order when none is set', () => {
+      const strategyOrder = getStrategyOrder(messenger);
+
+      expect(strategyOrder).toStrictEqual(DEFAULT_STRATEGY_ORDER);
+    });
+
+    it('returns strategy order from feature flags', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            strategyOrder: [
+              TransactionPayStrategy.Test,
+              TransactionPayStrategy.Bridge,
+              TransactionPayStrategy.Relay,
+            ],
+          },
+        },
+      });
+
+      const strategyOrder = getStrategyOrder(messenger);
+
+      expect(strategyOrder).toStrictEqual([
+        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Relay,
+      ]);
+    });
+
+    it('filters unknown and duplicate strategies', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            strategyOrder: [
+              TransactionPayStrategy.Test,
+              'unknown-strategy',
+              TransactionPayStrategy.Test,
+              TransactionPayStrategy.Relay,
+            ],
+          },
+        },
+      });
+
+      const strategyOrder = getStrategyOrder(messenger);
+
+      expect(strategyOrder).toStrictEqual([
+        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Relay,
+      ]);
+    });
+
+    it('falls back to default strategy order when all entries are invalid', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            strategyOrder: ['unknown-strategy'],
+          },
+        },
+      });
+
+      const strategyOrder = getStrategyOrder(messenger);
+
+      expect(strategyOrder).toStrictEqual(DEFAULT_STRATEGY_ORDER);
     });
   });
 });

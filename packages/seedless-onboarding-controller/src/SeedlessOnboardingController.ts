@@ -44,7 +44,11 @@ import {
   SeedlessOnboardingControllerErrorMessage,
   Web3AuthNetwork,
 } from './constants';
-import { PasswordSyncError, RecoveryError } from './errors';
+import {
+  PasswordSyncError,
+  RecoveryError,
+  SeedlessOnboardingError,
+} from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { SecretMetadata } from './SecretMetadata';
 import type {
@@ -360,6 +364,13 @@ export class SeedlessOnboardingController<
 
   readonly #vaultOperationMutex = new Mutex();
 
+  /**
+   * In-flight promise for `refreshAuthTokens`.  Any concurrent caller that
+   * arrives while a refresh is already in-progress will share this promise
+   * rather than issuing a second HTTP request with the same refresh token.
+   */
+  #pendingRefreshPromise: Promise<void> | undefined;
+
   readonly toprfClient: ToprfSecureBackup;
 
   readonly #refreshJWTToken: RefreshJWTToken;
@@ -558,8 +569,11 @@ export class SeedlessOnboardingController<
         return authenticationResult;
       } catch (error) {
         log('Error authenticating user', error);
-        throw new Error(
+        throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+          {
+            cause: error,
+          },
         );
       }
     };
@@ -785,8 +799,11 @@ export class SeedlessOnboardingController<
         );
       } catch (error) {
         log('Error changing password', error);
-        throw new Error(
+        throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
+          {
+            cause: error,
+          },
         );
       }
     });
@@ -1102,8 +1119,11 @@ export class SeedlessOnboardingController<
           })
           .catch((error) => {
             log('Error fetching auth pub key', error);
-            throw new Error(
+            throw new SeedlessOnboardingError(
               SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+              {
+                cause: error,
+              },
             );
           });
         globalAuthPubKey = authPubKey;
@@ -1225,8 +1245,11 @@ export class SeedlessOnboardingController<
         throw error;
       }
       log('Error persisting local encryption key', error);
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.FailedToPersistOprfKey,
+        {
+          cause: error,
+        },
       );
     }
   }
@@ -1389,8 +1412,11 @@ export class SeedlessOnboardingController<
       if (this.#isAuthTokenError(error)) {
         throw error;
       }
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
+        {
+          cause: error,
+        },
       );
     }
 
@@ -2056,8 +2082,11 @@ export class SeedlessOnboardingController<
       })
       .catch((error) => {
         log('Error fetching auth pub key', error);
-        throw new Error(
+        throw new SeedlessOnboardingError(
           SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+          {
+            cause: error,
+          },
         );
       });
     const isPasswordOutdated = await this.checkIsPasswordOutdated({
@@ -2079,14 +2108,31 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Refresh expired nodeAuthTokens, accessToken, and metadataAccessToken using the stored refresh token.
+   * Refresh expired nodeAuthTokens, accessToken, and metadataAccessToken using
+   * the stored refresh token.
    *
-   * This method retrieves the refresh token from the vault and uses it to obtain
-   * new nodeAuthTokens when the current ones have expired.
+   * Concurrent callers share a single in-flight HTTP request — if a refresh is
+   * already in-progress the returned promise resolves when that request settles
+   * rather than firing a duplicate request with the same token.
    *
-   * @returns A promise that resolves to the new nodeAuthTokens.
+   * @returns A promise that resolves when the tokens have been refreshed.
    */
   async refreshAuthTokens(): Promise<void> {
+    if (this.#pendingRefreshPromise) {
+      return this.#pendingRefreshPromise;
+    }
+    this.#pendingRefreshPromise = this.#doRefreshAuthTokens().finally(() => {
+      this.#pendingRefreshPromise = undefined;
+    });
+    return this.#pendingRefreshPromise;
+  }
+
+  /**
+   * Internal implementation of token refresh.  Called exclusively by
+   * `refreshAuthTokens` which gates concurrent access via
+   * `#pendingRefreshPromise`.
+   */
+  async #doRefreshAuthTokens(): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
     const { refreshToken } = this.state;
 
@@ -2094,9 +2140,22 @@ export class SeedlessOnboardingController<
       connection: this.state.authConnection,
       refreshToken,
     }).catch((error) => {
-      log('Error refreshing JWT tokens', error);
-      throw new Error(
-        SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+      // Distinguish a server-side token rejection (401) from transient
+      // failures so callers can apply the appropriate recovery strategy.
+      const httpStatusCode = (error as Error & { statusCode?: number })
+        .statusCode;
+      log('Error refreshing JWT tokens', error, { httpStatusCode });
+      const isTokenRevoked =
+        error instanceof Error &&
+        error.name === 'RefreshTokenHttpError' &&
+        httpStatusCode === 401;
+      throw new SeedlessOnboardingError(
+        isTokenRevoked
+          ? SeedlessOnboardingControllerErrorMessage.InvalidRefreshToken
+          : SeedlessOnboardingControllerErrorMessage.FailedToRefreshJWTTokens,
+        {
+          cause: error,
+        },
       );
     });
 
@@ -2104,6 +2163,13 @@ export class SeedlessOnboardingController<
       const { idTokens, accessToken, metadataAccessToken } = res;
       // re-authenticate with the new id tokens to set new node auth tokens
       // NOTE: here we can't provide the `revokeToken` value to the `authenticate` method because `refreshAuthTokens` method can be called when the wallet (vault) is locked
+      // NOTE: use this.state.refreshToken (current value) rather than the
+      // `refreshToken` captured at the start of this method. If renewRefreshToken()
+      // ran concurrently while our HTTP call was in-flight, it will have already
+      // updated state.refreshToken to the new token. Using the captured (now-stale)
+      // value would overwrite that newer token and revert the state, causing the
+      // old token to be used for subsequent refreshes — and once that old token is
+      // revoked (15 s after the renewal), every subsequent refresh will return 401.
       await this.authenticate({
         idTokens,
         accessToken,
@@ -2112,7 +2178,7 @@ export class SeedlessOnboardingController<
         authConnectionId: this.state.authConnectionId,
         groupedAuthConnectionId: this.state.groupedAuthConnectionId,
         userId: this.state.userId,
-        refreshToken,
+        refreshToken: this.state.refreshToken,
         skipLock: true,
       });
 
@@ -2131,8 +2197,11 @@ export class SeedlessOnboardingController<
       }
     } catch (error) {
       log('Error refreshing node auth tokens', error);
-      throw new Error(
+      throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+        {
+          cause: error,
+        },
       );
     }
   }
@@ -2174,17 +2243,16 @@ export class SeedlessOnboardingController<
           state.refreshToken = newRefreshToken;
         });
 
-        // add the old refresh token to the list to be revoked later when possible
-        this.#addRefreshTokenToRevokeList({
-          refreshToken,
-          revokeToken,
-        });
-
         await this.#createNewVaultWithAuthData({
           password,
           rawToprfEncryptionKey,
           rawToprfPwEncryptionKey,
           rawToprfAuthKeyPair,
+        });
+        // add the old refresh token to the list to be revoked later when possible
+        this.#addRefreshTokenToRevokeList({
+          refreshToken,
+          revokeToken,
         });
       }
     });

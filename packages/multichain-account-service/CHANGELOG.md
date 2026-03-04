@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Batch account creation with single `keyring.addAccounts` call.
   - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
   - Significantly reduces lock acquisitions and API calls for batch operations.
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
 
 ## [7.0.0]
 

@@ -28,7 +28,6 @@ import type {
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { Patch } from 'immer';
 import nock from 'nock';
-import * as sinon from 'sinon';
 import { v1 as uuidV1 } from 'uuid';
 
 import { ERC20Standard } from './Standards/ERC20Standard';
@@ -42,7 +41,7 @@ import type {
   TokensControllerState,
 } from './TokensController';
 import { FakeProvider } from '../../../tests/fake-provider';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
@@ -81,10 +80,6 @@ describe('TokensController', () => {
     ContractMock.mockReturnValue(
       buildMockEthersERC721Contract({ supportsInterface: false }),
     );
-  });
-
-  afterEach(() => {
-    sinon.restore();
   });
 
   it('should set default state', async () => {

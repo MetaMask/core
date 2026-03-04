@@ -1,17 +1,24 @@
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { uniq } from 'lodash';
 
 import type { TransactionPayControllerMessenger } from '..';
+import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import { RELAY_URL_BASE } from '../strategy/relay/constants';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
+
+type StrategyOrder = [TransactionPayStrategy, ...TransactionPayStrategy[]];
 
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
+  TransactionPayStrategy.Relay,
+];
 
 type FeatureFlagsRaw = {
   gasBuffer?: {
@@ -32,6 +39,7 @@ type FeatureFlagsRaw = {
   relayQuoteUrl?: string;
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
+  strategyOrder?: string[];
 };
 
 export type FeatureFlags = {
@@ -43,6 +51,34 @@ export type FeatureFlags = {
   relayQuoteUrl: string;
   slippage: number;
 };
+
+/**
+ * Get ordered list of strategies to try.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Ordered strategy list.
+ */
+export function getStrategyOrder(
+  messenger: TransactionPayControllerMessenger,
+): StrategyOrder {
+  const { strategyOrder: strategyPriority } = getFeatureFlagsRaw(messenger);
+
+  if (!Array.isArray(strategyPriority)) {
+    return [...DEFAULT_STRATEGY_ORDER];
+  }
+
+  const validStrategyPriority = uniq(
+    strategyPriority.filter((strategy): strategy is TransactionPayStrategy =>
+      isTransactionPayStrategy(strategy),
+    ),
+  );
+
+  if (!validStrategyPriority.length) {
+    return [...DEFAULT_STRATEGY_ORDER];
+  }
+
+  return validStrategyPriority as StrategyOrder;
+}
 
 /**
  * Get feature flags related to the controller.

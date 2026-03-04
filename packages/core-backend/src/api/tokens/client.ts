@@ -6,7 +6,10 @@
  * - V3 Assets
  */
 
-import type { QueryFunctionContext } from '@tanstack/query-core';
+import type {
+  FetchQueryOptions,
+  QueryFunctionContext,
+} from '@tanstack/query-core';
 
 import type {
   V1TokenSupportedNetworksResponse,
@@ -15,6 +18,7 @@ import type {
   V3AssetsQueryOptions,
 } from './types';
 import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
+import { getQueryOptionsOverrides } from '../shared-types';
 import type { FetchOptions } from '../shared-types';
 
 /**
@@ -40,6 +44,29 @@ export class TokensApiClient extends BaseApiClient {
   // ==========================================================================
 
   /**
+   * Returns the TanStack Query options object for token v1 supported networks.
+   *
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getTokenV1SupportedNetworksQueryOptions(
+    options?: FetchOptions,
+  ): FetchQueryOptions<V1TokenSupportedNetworksResponse> {
+    return {
+      queryKey: ['tokens', 'v1SupportedNetworks'],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<V1TokenSupportedNetworksResponse>(
+          API_URLS.TOKENS,
+          '/v1/supportedNetworks',
+          { signal },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
+      gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
+    };
+  }
+
+  /**
    * Get token supported networks (v1 endpoint).
    *
    * @param options - Fetch options including cache settings.
@@ -48,17 +75,32 @@ export class TokensApiClient extends BaseApiClient {
   async fetchTokenV1SupportedNetworks(
     options?: FetchOptions,
   ): Promise<V1TokenSupportedNetworksResponse> {
-    return this.queryClient.fetchQuery({
-      queryKey: ['tokens', 'v1SupportedNetworks'],
+    return this.queryClient.fetchQuery(
+      this.getTokenV1SupportedNetworksQueryOptions(options),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for token v2 supported networks.
+   *
+   * @param options - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getTokenV2SupportedNetworksQueryOptions(
+    options?: FetchOptions,
+  ): FetchQueryOptions<V2TokenSupportedNetworksResponse> {
+    return {
+      queryKey: ['tokens', 'v2SupportedNetworks'],
       queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V1TokenSupportedNetworksResponse>(
+        this.fetch<V2TokenSupportedNetworksResponse>(
           API_URLS.TOKENS,
-          '/v1/supportedNetworks',
+          '/v2/supportedNetworks',
           { signal },
         ),
+      ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
       gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
-    });
+    };
   }
 
   /**
@@ -71,22 +113,53 @@ export class TokensApiClient extends BaseApiClient {
   async fetchTokenV2SupportedNetworks(
     options?: FetchOptions,
   ): Promise<V2TokenSupportedNetworksResponse> {
-    return this.queryClient.fetchQuery({
-      queryKey: ['tokens', 'v2SupportedNetworks'],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V2TokenSupportedNetworksResponse>(
-          API_URLS.TOKENS,
-          '/v2/supportedNetworks',
-          { signal },
-        ),
-      staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
-      gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
-    });
+    return this.queryClient.fetchQuery(
+      this.getTokenV2SupportedNetworksQueryOptions(options),
+    );
   }
 
   // ==========================================================================
   // V3 ASSETS
   // ==========================================================================
+
+  /**
+   * Returns the TanStack Query options object for v3 assets.
+   *
+   * @param assetIds - Array of CAIP-19 asset IDs.
+   * @param queryOptions - API query options (filters, etc.).
+   * @param fetchOptions - Fetch options including cache settings.
+   * @returns TanStack Query options for use with useQuery, useSuspenseQuery, etc.
+   */
+  getV3AssetsQueryOptions(
+    assetIds: string[],
+    queryOptions?: V3AssetsQueryOptions,
+    fetchOptions?: FetchOptions,
+  ): FetchQueryOptions<V3AssetResponse[]> {
+    return {
+      queryKey: [
+        'tokens',
+        'v3Assets',
+        { assetIds: [...assetIds].sort(), ...queryOptions },
+      ],
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V3AssetResponse[]> => {
+        if (assetIds.length === 0) {
+          return [];
+        }
+        return this.fetch<V3AssetResponse[]>(API_URLS.TOKENS, '/v3/assets', {
+          signal,
+          params: {
+            assetIds,
+            ...queryOptions,
+          },
+        });
+      },
+      ...getQueryOptionsOverrides(fetchOptions),
+      staleTime: fetchOptions?.staleTime ?? STALE_TIMES.TOKEN_METADATA,
+      gcTime: fetchOptions?.gcTime ?? GC_TIMES.EXTENDED,
+    };
+  }
 
   /**
    * Fetch assets by IDs (v3) with caching.
@@ -101,22 +174,11 @@ export class TokensApiClient extends BaseApiClient {
     queryOptions?: V3AssetsQueryOptions,
     fetchOptions?: FetchOptions,
   ): Promise<V3AssetResponse[]> {
-    return this.queryClient.fetchQuery({
-      queryKey: [
-        'tokens',
-        'v3Assets',
-        { assetIds: [...assetIds].sort(), ...queryOptions },
-      ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V3AssetResponse[]>(API_URLS.TOKENS, '/v3/assets', {
-          signal,
-          params: {
-            assetIds,
-            ...queryOptions,
-          },
-        }),
-      staleTime: fetchOptions?.staleTime ?? STALE_TIMES.TOKEN_METADATA,
-      gcTime: fetchOptions?.gcTime ?? GC_TIMES.EXTENDED,
-    });
+    if (assetIds.length === 0) {
+      return [];
+    }
+    return this.queryClient.fetchQuery(
+      this.getV3AssetsQueryOptions(assetIds, queryOptions, fetchOptions),
+    );
   }
 }

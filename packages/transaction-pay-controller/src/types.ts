@@ -135,6 +135,9 @@ export type TransactionPayControllerOptions = {
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
 
+  /** Callback to select ordered PayStrategies for a transaction. */
+  getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
@@ -339,6 +342,9 @@ export type TransactionPayFees = {
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
 
+  /** Fee charged by MetaMask. */
+  metaMask: FiatValue;
+
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
@@ -350,14 +356,6 @@ export type TransactionPayFees = {
 
   /** Network fee for transactions on the target network. */
   targetNetwork: FiatValue;
-
-  /**
-   * Gas cost of the original user transaction on its native network.
-   * Always calculated from the transaction's own gas params via
-   * `calculateTransactionGasCost`, independent of any bridge quote fees.
-   * Only populated on totals, not on individual quotes.
-   */
-  transactionGas?: FiatValue;
 };
 
 /** Quote returned to retrieve a required token using the payment token. */
@@ -384,7 +382,7 @@ export type TransactionPayQuote<OriginalQuote> = {
   strategy: TransactionPayStrategy;
 
   /** Amount of target token provided. */
-  targetAmount: Amount;
+  targetAmount: FiatValue;
 };
 
 /** Request to get quotes for a transaction. */
@@ -434,6 +432,12 @@ export type PayStrategyGetRefreshIntervalRequest = {
 
 /** Strategy used to obtain required tokens for a transaction. */
 export type PayStrategy<OriginalQuote> = {
+  /**
+   * Check if the strategy supports the given request.
+   * Defaults to true if not implemented.
+   */
+  supports?: (request: PayStrategyGetQuotesRequest) => boolean;
+
   /** Retrieve quotes for required tokens. */
   getQuotes: (
     request: PayStrategyGetQuotesRequest,
@@ -479,7 +483,7 @@ export type TransactionPayTotals = {
   sourceAmount: Amount;
 
   /** Total amount of target token provided. */
-  targetAmount: Amount;
+  targetAmount: FiatValue;
 
   /** Overall total cost for the target transaction and all quotes. */
   total: FiatValue;

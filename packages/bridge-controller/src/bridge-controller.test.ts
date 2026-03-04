@@ -29,6 +29,7 @@ import { formatChainIdToCaip } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import {
+  InputAmountPreset,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   MetricsSwapType,
@@ -41,6 +42,7 @@ import mockBridgeQuotesErc20Native from '../tests/mock-quotes-erc20-native.json'
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
 import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import mockBridgeQuotesSolErc20 from '../tests/mock-quotes-sol-erc20.json';
+import { advanceToNthTimerThenFlush } from '../tests/mock-sse';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
@@ -391,19 +393,28 @@ describe('BridgeController', function () {
     const hasSufficientBalanceSpy = jest
       .spyOn(balanceUtils, 'hasSufficientBalance')
       .mockResolvedValue(true);
-    messengerMock.call.mockReturnValue({
-      address: '0x123',
-      provider: jest.fn(),
-      currencyRates: {},
-      marketData: {},
-      conversionRates: {},
-      remoteFeatureFlags: {
-        bridgeConfig: {
-          ...bridgeConfig,
-          sse: { enabled: true, minimumVersion: '13.9.0' },
-        },
+    messengerMock.call.mockImplementation(
+      (...args: Parameters<BridgeControllerMessenger['call']>) => {
+        switch (args[0]) {
+          case 'AuthenticationController:getBearerToken':
+            return 'AUTH_TOKEN';
+          default:
+            return {
+              address: '0x123',
+              provider: jest.fn(),
+              currencyRates: {},
+              marketData: {},
+              conversionRates: {},
+              remoteFeatureFlags: {
+                bridgeConfig: {
+                  ...bridgeConfig,
+                  sse: { enabled: true, minimumVersion: '13.9.0' },
+                },
+              },
+            } as never;
+        }
       },
-    } as never);
+    );
 
     const fetchBridgeQuotesSpy = jest
       .spyOn(fetchUtils, 'fetchBridgeQuotes')
@@ -511,6 +522,7 @@ describe('BridgeController', function () {
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
+      'AUTH_TOKEN',
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
       null,
@@ -974,14 +986,23 @@ describe('BridgeController', function () {
     const hasSufficientBalanceSpy = jest
       .spyOn(balanceUtils, 'hasSufficientBalance')
       .mockResolvedValue(false);
-    messengerMock.call.mockReturnValue({
-      address: '0x123',
-      provider: jest.fn(),
-      currentCurrency: 'usd',
-      currencyRates: {},
-      marketData: {},
-      conversionRates: {},
-    } as never);
+    messengerMock.call.mockImplementation(
+      (...args: Parameters<BridgeControllerMessenger['call']>) => {
+        switch (args[0]) {
+          case 'AuthenticationController:getBearerToken':
+            return 'AUTH_TOKEN';
+          default:
+            return {
+              address: '0x123',
+              provider: jest.fn(),
+              currentCurrency: 'usd',
+              currencyRates: {},
+              marketData: {},
+              conversionRates: {},
+            } as never;
+        }
+      },
+    );
     jest
       .spyOn(selectors, 'selectIsAssetExchangeRateInState')
       .mockReturnValue(true);
@@ -1065,6 +1086,7 @@ describe('BridgeController', function () {
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
+      'AUTH_TOKEN',
       mockFetchFn,
       BRIDGE_PROD_API_BASE_URL,
       null,
@@ -1360,6 +1382,124 @@ describe('BridgeController', function () {
     );
   });
 
+  it('updateBridgeQuoteRequestParams should include undefined Authentication header if getBearerToken throws an error', async function () {
+    jest.useFakeTimers();
+    const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+    messengerMock.call.mockImplementation(
+      (...args: Parameters<BridgeControllerMessenger['call']>) => {
+        switch (args[0]) {
+          case 'AuthenticationController:getBearerToken':
+            throw new Error(
+              'AuthenticationController:getBearerToken not implemented',
+            );
+          default:
+            return {
+              address: '0x123',
+              provider: jest.fn(),
+              currentCurrency: 'usd',
+              currencyRates: {},
+              marketData: {},
+              conversionRates: {},
+            } as never;
+        }
+      },
+    );
+    jest
+      .spyOn(selectors, 'selectIsAssetExchangeRateInState')
+      .mockReturnValue(true);
+
+    const fetchBridgeQuotesSpy = jest
+      .spyOn(fetchUtils, 'fetchBridgeQuotes')
+      .mockImplementationOnce(async () => {
+        return await new Promise((resolve) => {
+          return setTimeout(() => {
+            resolve({
+              quotes: mockBridgeQuotesNativeErc20Eth as never,
+              validationFailures: [],
+            });
+          }, 5000);
+        });
+      });
+
+    const quoteParams = {
+      srcChainId: '0x1',
+      destChainId: '0xa',
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    await advanceToNthTimerThenFlush();
+
+    expect(startPollingSpy).toHaveBeenCalledTimes(1);
+    expect(fetchBridgeQuotesSpy.mock.calls[0][3]).toBeUndefined();
+  });
+
+  it('updateBridgeQuoteRequestParams should include auth token as Authentication header', async function () {
+    jest.useFakeTimers();
+    const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+    messengerMock.call.mockImplementation(
+      (...args: Parameters<BridgeControllerMessenger['call']>) => {
+        switch (args[0]) {
+          case 'AuthenticationController:getBearerToken':
+            return 'AUTH_TOKEN';
+          default:
+            return {
+              address: '0x123',
+              provider: jest.fn(),
+              currentCurrency: 'usd',
+              currencyRates: {},
+              marketData: {},
+              conversionRates: {},
+            } as never;
+        }
+      },
+    );
+    jest
+      .spyOn(selectors, 'selectIsAssetExchangeRateInState')
+      .mockReturnValue(true);
+
+    const fetchBridgeQuotesSpy = jest
+      .spyOn(fetchUtils, 'fetchBridgeQuotes')
+      .mockImplementationOnce(async () => {
+        return await new Promise((resolve) => {
+          return setTimeout(() => {
+            resolve({
+              quotes: mockBridgeQuotesNativeErc20Eth as never,
+              validationFailures: [],
+            });
+          }, 5000);
+        });
+      });
+
+    const quoteParams = {
+      srcChainId: '0x1',
+      destChainId: '0xa',
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+      walletAddress: '0x123',
+      slippage: 0.5,
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteParams,
+      metricsContext,
+    );
+
+    await advanceToNthTimerThenFlush();
+
+    expect(startPollingSpy).toHaveBeenCalledTimes(1);
+    expect(fetchBridgeQuotesSpy.mock.calls[0][3]).toBe('AUTH_TOKEN');
+  });
+
   it.each([
     [
       'should append l1GasFees if srcChain is 10 and srcToken is erc20',
@@ -1411,10 +1551,19 @@ describe('BridgeController', function () {
       const hasSufficientBalanceSpy = jest
         .spyOn(balanceUtils, 'hasSufficientBalance')
         .mockResolvedValue(false);
-      messengerMock.call.mockReturnValue({
-        address: '0x123',
-        provider: jest.fn(),
-      } as never);
+      messengerMock.call.mockImplementation(
+        (...args: Parameters<BridgeControllerMessenger['call']>) => {
+          switch (args[0]) {
+            case 'AuthenticationController:getBearerToken':
+              return 'AUTH_TOKEN';
+            default:
+              return {
+                address: '0x123',
+                provider: jest.fn(),
+              } as never;
+          }
+        },
+      );
 
       for (const [index, quote] of quoteResponse.entries()) {
         if (tradeL1GasFeeError && index === 0) {
@@ -1500,6 +1649,7 @@ describe('BridgeController', function () {
         },
         expect.any(AbortSignal),
         BridgeClientId.EXTENSION,
+        'AUTH_TOKEN',
         mockFetchFn,
         BRIDGE_PROD_API_BASE_URL,
         null,
@@ -1799,6 +1949,10 @@ describe('BridgeController', function () {
         ): ReturnType<BridgeControllerMessenger['call']> => {
           const [actionType, params] = args;
 
+          if (actionType === 'AuthenticationController:getBearerToken') {
+            return 'AUTH_TOKEN';
+          }
+
           if (actionType === 'AccountsController:getAccountByAddress') {
             if (isEvmAccount) {
               return {
@@ -1919,6 +2073,13 @@ describe('BridgeController', function () {
       // Loading state
       jest.advanceTimersByTime(201);
       await flushPromises();
+
+      // Wait for JWT token retrieval
+      if (!isEvmAccount) {
+        jest.advanceTimersToNextTimer();
+        await flushPromises();
+      }
+
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
           quotesLoadingStatus: RequestStatus.LOADING,
@@ -2281,6 +2442,63 @@ describe('BridgeController', function () {
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
+    it('should track InputChanged with an enum quick amount preset label', () => {
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.InputChanged,
+        {
+          input: 'token_amount_source',
+          input_value: '1',
+          input_amount_preset: InputAmountPreset.PERCENT_90,
+        },
+      );
+
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+      expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+        1,
+        UnifiedSwapBridgeEventName.InputChanged,
+        expect.objectContaining({
+          input: 'token_amount_source',
+          input_value: '1',
+          input_amount_preset: InputAmountPreset.PERCENT_90,
+        }),
+      );
+    });
+
+    it('should track InputChanged with arbitrary quick amount preset labels', () => {
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.InputChanged,
+        {
+          input: 'token_amount_source',
+          input_value: '1',
+          input_amount_preset: '85%',
+        },
+      );
+      bridgeController.trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.InputChanged,
+        {
+          input: 'token_amount_source',
+          input_value: '1',
+          input_amount_preset: '95%',
+        },
+      );
+
+      expect(trackMetaMetricsFn).toHaveBeenCalledTimes(2);
+      expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+        1,
+        UnifiedSwapBridgeEventName.InputChanged,
+        expect.objectContaining({
+          input_amount_preset: '85%',
+        }),
+      );
+      expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+        2,
+        UnifiedSwapBridgeEventName.InputChanged,
+        expect.objectContaining({
+          input_amount_preset: '95%',
+        }),
+      );
+    });
+
     it('should track the InputSourceDestinationFlipped event', () => {
       bridgeController.trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.InputSourceDestinationSwitched,
@@ -2597,6 +2815,7 @@ describe('BridgeController', function () {
         UnifiedSwapBridgeEventName.StatusValidationFailed,
         {
           failures: ['Failed to submit tx'],
+          refresh_count: 0,
         },
       );
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -2643,6 +2862,7 @@ describe('BridgeController', function () {
           } as never;
         },
       );
+      bridgeController.setLocation(MetaMetricsSwapsEventSource.TrendingExplore);
     });
 
     it('should not track the event if the account keyring type is not set', async () => {
@@ -2741,6 +2961,7 @@ describe('BridgeController', function () {
             },
           },
         });
+      (messengerMock.call as jest.Mock).mockResolvedValueOnce('AUTH_TOKEN');
       (messengerMock.call as jest.Mock).mockReturnValueOnce(() => ({
         address: '0x123',
       }));
@@ -2801,6 +3022,7 @@ describe('BridgeController', function () {
             },
             null,
             "extension",
+            "AUTH_TOKEN",
             [Function],
             "https://bridge.api.cx.metamask.io",
             "perps",
@@ -2897,6 +3119,7 @@ describe('BridgeController', function () {
             },
             null,
             "extension",
+            "AUTH_TOKEN",
             [Function],
             "https://bridge.api.cx.metamask.io",
             "perps",
@@ -2950,6 +3173,7 @@ describe('BridgeController', function () {
             },
             null,
             "extension",
+            "AUTH_TOKEN",
             [Function],
             "https://bridge.api.cx.metamask.io",
             null,

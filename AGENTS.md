@@ -151,7 +151,7 @@ Each consumer-facing change to a package should be accompanied by one or more en
     - Fixed
     - Security
 - Within a category section, follow these guidelines:
-  - Highlight breaking changes by prefixing them with `**BREAKING:**`. List breaking changes above non-breaking changes in the same category section.
+  - Highlight breaking changes by prefixing them with `**BREAKING:**`. List breaking changes above non-breaking changes in the same category section. A change is breaking if it removes, renames, or changes the signature of any public export (function, type, class, constant), or changes default behavior that consumers rely on.
   - Omit non-consumer facing changes and reverted changes from the changelog.
   - Use a nested list to add more details about the change if it would help engineers. For breaking changes in particular, highlight steps engineers need to take to adapt to the changes.
   - Each changelog entry should be followed by links to the pull request(s) that introduced the change.

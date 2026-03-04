@@ -3,12 +3,14 @@ export {
   AssetsController,
   getDefaultAssetsControllerState,
 } from './AssetsController';
+export type { PendingTokenMetadata } from './AssetsController';
 
 // State and messenger types
 export type {
   AssetsControllerState,
   AssetsControllerMessenger,
   AssetsControllerOptions,
+  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerGetStateAction,
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
@@ -27,6 +29,8 @@ export type {
   AssetsControllerGetCustomAssetsAction,
   AssetsControllerHideAssetAction,
   AssetsControllerUnhideAssetAction,
+  AssetsControllerGetExchangeRatesForBridgeAction,
+  AssetsControllerGetStateForTransactionPayAction,
   AssetsControllerMethodActions,
 } from './AssetsController-method-action-types';
 
@@ -65,6 +69,7 @@ export type {
   DataType,
   DataRequest,
   DataResponse,
+  AssetsUpdateMode,
   // Middleware types
   Context,
   NextFunction,
@@ -91,6 +96,7 @@ export type { DataSourceState, SubscriptionRequest } from './data-sources';
 export { AccountsApiDataSource } from './data-sources';
 
 export type {
+  AccountsApiDataSourceConfig,
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceState,
   AccountsApiDataSourceAllowedActions,
@@ -146,6 +152,7 @@ export { TokenDataSource, PriceDataSource } from './data-sources';
 export type {
   TokenDataSourceOptions,
   TokenDataSourceAllowedActions,
+  PriceDataSourceConfig,
   PriceDataSourceOptions,
 } from './data-sources';
 
@@ -153,7 +160,20 @@ export type {
 export { DetectionMiddleware } from './middlewares';
 
 // Utilities
-export { normalizeAssetId } from './utils';
+export {
+  normalizeAssetId,
+  formatExchangeRatesForBridge,
+  formatStateForTransactionPay,
+} from './utils';
+export type {
+  AccountForLegacyFormat,
+  BridgeConversionRateEntry,
+  BridgeCurrencyRateEntry,
+  BridgeExchangeRatesFormat,
+  BridgeMarketDataEntry,
+  LegacyToken,
+  TransactionPayLegacyFormat,
+} from './utils';
 
 // Selectors
 export {

@@ -6,14 +6,13 @@ import type {
 } from '@metamask/network-controller';
 import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
-import { useFakeTimers } from 'sinon';
 
 import {
   MultichainTrackingHelper,
   MultichainTrackingHelperOptions,
 } from './MultichainTrackingHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
-import { advanceTime } from '../../../../tests/helpers';
+import { jestAdvanceTime } from '../../../../tests/helpers';
 
 jest.mock(
   '@metamask/eth-query',
@@ -473,7 +472,7 @@ describe('MultichainTrackingHelper', () => {
     });
 
     it('should block on attempts to get the lock for the same chainId and key combination', async () => {
-      const clock = useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
       const { helper } = newMultichainTrackingHelper();
 
       const firstReleaseLockPromise = helper.acquireNonceLockForChainIdKey({
@@ -492,7 +491,7 @@ describe('MultichainTrackingHelper', () => {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
         new Promise<null>(async (resolve) => {
-          await advanceTime({ clock, duration: 100 });
+          await jestAdvanceTime({ duration: 100 });
           resolve(null);
         });
 
@@ -505,7 +504,7 @@ describe('MultichainTrackingHelper', () => {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstReleaseLock();
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       secondReleaseLockIfAcquired = await Promise.race([
         secondReleaseLockPromise,
@@ -514,7 +513,7 @@ describe('MultichainTrackingHelper', () => {
 
       expect(secondReleaseLockIfAcquired).toStrictEqual(expect.any(Function));
 
-      clock.restore();
+      jest.useRealTimers();
     });
   });
 

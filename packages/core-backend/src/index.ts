@@ -65,6 +65,22 @@ export type {
 } from './types';
 
 // ============================================================================
+// API PLATFORM CLIENT SERVICE
+// ============================================================================
+
+export {
+  ApiPlatformClientService,
+  apiPlatformClientServiceName,
+} from './ApiPlatformClientService';
+
+export type {
+  ApiPlatformClientServiceOptions,
+  ApiPlatformClientServiceActions,
+  ApiPlatformClientServiceEvents,
+  ApiPlatformClientServiceMessenger,
+} from './ApiPlatformClientService';
+
+// ============================================================================
 // API PLATFORM CLIENT
 // ============================================================================
 
@@ -82,6 +98,7 @@ export {
   GC_TIMES,
   // Helpers
   calculateRetryDelay,
+  getQueryOptionsOverrides,
   shouldRetry,
   // Errors
   HttpError,

@@ -13,7 +13,6 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
-import { useFakeTimers } from 'sinon';
 
 import { POPULAR_NETWORKS } from './constants';
 import { NetworkEnablementController } from './NetworkEnablementController';
@@ -22,7 +21,7 @@ import type {
   NativeAssetIdentifiersMap,
 } from './NetworkEnablementController';
 import { Slip44Service } from './services';
-import { advanceTime } from '../../../tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers';
 
 // Known chainId mappings from chainid.network for mocking
 const chainIdToSlip44: Record<number, number> = {
@@ -142,10 +141,8 @@ const setupController = ({
 };
 
 describe('NetworkEnablementController', () => {
-  let clock: sinon.SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     // Mock Slip44Service.getEvmSlip44 to avoid network calls
     jest
       .spyOn(Slip44Service, 'getEvmSlip44')
@@ -155,7 +152,7 @@ describe('NetworkEnablementController', () => {
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -215,7 +212,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
@@ -272,7 +269,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // Create expected nativeAssetIdentifiers without Linea
     const expectedNativeAssetIdentifiers = {
@@ -334,7 +331,7 @@ describe('NetworkEnablementController', () => {
       } as TransactionMeta, // Simplified structure for testing
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -351,7 +348,7 @@ describe('NetworkEnablementController', () => {
       // Missing transactionMeta entirely
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -368,7 +365,7 @@ describe('NetworkEnablementController', () => {
       transactionMeta: null,
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -379,7 +376,7 @@ describe('NetworkEnablementController', () => {
       transactionMeta: undefined,
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // State should still remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -413,7 +410,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await advanceTime({ clock, duration: 1 });
+    await jestAdvanceTime({ duration: 1 });
 
     // Create expected nativeAssetIdentifiers without Linea
     const expectedNativeAssetIdentifiersForFallback = {
@@ -1382,7 +1379,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // The added network should be enabled (exclusive behavior of network addition)
       expect(controller.isNetworkEnabled('0x2')).toBe(true);
@@ -1546,7 +1543,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
@@ -1767,7 +1764,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
@@ -2046,7 +2043,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Now it should be added but not enabled (keeps current selection in popular mode)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -2087,7 +2084,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Bitcoin should be enabled, all others should be disabled due to exclusive behavior
       expect(
@@ -2294,7 +2291,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Bitcoin testnet should be enabled, others should be disabled (exclusive behavior across all namespaces)
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
@@ -2528,7 +2525,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Tron Nile should be enabled, others should be disabled (exclusive behavior across all namespaces)
       expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(true);
@@ -2904,7 +2901,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Should switch to Avalanche (disable all others, enable Avalanche)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -2937,7 +2934,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Should switch to the non-popular network (disable all others, enable new one)
       expect(controller.isNetworkEnabled('0x999')).toBe(true);
@@ -2970,7 +2967,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Should keep current selection (add Polygon but don't enable it)
       expect(controller.isNetworkEnabled('0x89')).toBe(true); // Polygon enabled
@@ -3004,7 +3001,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       // Should switch to Avalanche since we're not in popular networks mode (2 ≤ 2, not >2)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);

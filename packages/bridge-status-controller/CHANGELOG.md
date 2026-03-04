@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.0.0]
+
+### Added
+
+- Added optional `abTests` property to `BridgeHistoryItem` to persist A/B test context across the transaction lifecycle ([#8007](https://github.com/MetaMask/core/pull/8007))
+- Added optional `abTests` parameter to `StartPollingForBridgeTxStatusArgs` ([#8007](https://github.com/MetaMask/core/pull/8007))
+- Added optional `abTests` parameter to `submitTx` and `submitIntent` methods for A/B test experiment attribution ([#8007](https://github.com/MetaMask/core/pull/8007))
+- `trackUnifiedSwapBridgeEvent` now resolves `ab_tests` from event properties or transaction history and includes it in emitted events ([#8007](https://github.com/MetaMask/core/pull/8007))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^67.1.1` to `^68.0.0` ([#8024](https://github.com/MetaMask/core/pull/8024), [#8051](https://github.com/MetaMask/core/pull/8051), [#8070](https://github.com/MetaMask/core/pull/8070), [#8101](https://github.com/MetaMask/core/pull/8101))
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.19.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031))
+- **BREAKING:** Move intent signing and submission orchestration into `BridgeStatusController`, including internal EIP-712 signing via `KeyringController` and the new `IntentManager` flow. ([#8048](https://github.com/MetaMask/core/pull/8048))
+
+## [67.0.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/gas-fee-controller` from `^26.0.2` to `^26.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/polling-controller` from `^16.0.2` to `^16.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/transaction-controller` from `^62.17.0` to `^62.17.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+- Bump `@metamask/bridge-controller` from `^67.0.0` to `^67.1.1` ([#7995](https://github.com/MetaMask/core/pull/7995), [#7996](https://github.com/MetaMask/core/pull/7996))
+
+## [67.0.0]
+
+### Added
+
+- **BREAKING:** Retrieve JWT token from the ProfileSyncController and include it in bridge request headers ([#7955](https://github.com/MetaMask/core/pull/7955))
+- Bump `@metamask/bridge-controller` from `^66.2.0` to `^67.0.0` ([#7961](https://github.com/MetaMask/core/pull/7961))
+
+## [66.1.0]
+
+### Added
+
+- Added `location` property to `BridgeHistoryItem` to persist the entry point across the transaction lifecycle ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added `location` parameter to `StartPollingForBridgeTxStatusArgs` ([#7931](https://github.com/MetaMask/core/pull/7931))
+- Added optional `location` parameter to `submitTx` method ([#7931](https://github.com/MetaMask/core/pull/7931))
+
+### Changed
+
+- All post-submission events (`Submitted`, `Completed`, `Failed`, `PollingStatusUpdated`, `StatusValidationFailed`) now include the `location` property from `BridgeHistoryItem` ([#7931](https://github.com/MetaMask/core/pull/7931))
+
+### Fixed
+
+- Fix `usd_amount_source` default value in EVM transaction metrics properties from `100` to `0` ([#7899](https://github.com/MetaMask/core/pull/7899))
+
+## [66.0.2]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^66.1.0` to `^66.1.1 ([#7910](https://github.com/MetaMask/core/pull/7910))
+
 ## [66.0.1]
 
 ### Changed
@@ -939,7 +995,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.0...HEAD
+[68.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@67.0.1...@metamask/bridge-status-controller@68.0.0
+[67.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@67.0.0...@metamask/bridge-status-controller@67.0.1
+[67.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.1.0...@metamask/bridge-status-controller@67.0.0
+[66.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.2...@metamask/bridge-status-controller@66.1.0
+[66.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.1...@metamask/bridge-status-controller@66.0.2
 [66.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@66.0.0...@metamask/bridge-status-controller@66.0.1
 [66.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@65.0.1...@metamask/bridge-status-controller@66.0.0
 [65.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@65.0.0...@metamask/bridge-status-controller@65.0.1

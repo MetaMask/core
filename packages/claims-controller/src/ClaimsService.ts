@@ -55,7 +55,7 @@ export type ClaimsServiceActions =
   | ClaimsServiceGenerateMessageForClaimSignatureAction;
 
 export type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 export type ClaimsServiceEvents = never;
 

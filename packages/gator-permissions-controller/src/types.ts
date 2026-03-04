@@ -1,14 +1,4 @@
-import type {
-  PermissionTypes,
-  BasePermission,
-  NativeTokenStreamPermission,
-  NativeTokenPeriodicPermission,
-  Erc20TokenStreamPermission,
-  Erc20TokenPeriodicPermission,
-  Rule,
-  MetaMaskBasePermissionData,
-  Erc20TokenRevocationPermission,
-} from '@metamask/7715-permission-types';
+import type { PermissionTypes, Rule } from '@metamask/7715-permission-types';
 import type { Delegation } from '@metamask/delegation-core';
 import type { Hex } from '@metamask/utils';
 
@@ -17,9 +7,7 @@ import type { Hex } from '@metamask/utils';
  */
 export enum GatorPermissionsControllerErrorCode {
   GatorPermissionsFetchError = 'gator-permissions-fetch-error',
-  GatorPermissionsNotEnabled = 'gator-permissions-not-enabled',
   GatorPermissionsProviderError = 'gator-permissions-provider-error',
-  GatorPermissionsMapSerializationError = 'gator-permissions-map-serialization-error',
   PermissionDecodingError = 'permission-decoding-error',
   OriginNotAllowedError = 'origin-not-allowed-error',
 }
@@ -39,25 +27,11 @@ export enum GatorPermissionsSnapRpcMethod {
 }
 
 /**
- * Represents a custom permission that are not of the standard ERC-7715 permission types.
- */
-export type CustomPermission = BasePermission & {
-  type: 'custom';
-  data: MetaMaskBasePermissionData & Record<string, unknown>;
-};
-
-/**
- * Represents the type of the ERC-7715 permissions that can be granted including custom permissions.
- */
-export type PermissionTypesWithCustom = PermissionTypes | CustomPermission;
-
-/**
- * Represents a ERC-7715 permission request.
+ * Represents an ERC-7715 permission request.
  *
- * @template to - The type of the signer provided, either an AccountSigner or WalletSigner.
- * @template Permission - The type of the permission provided.
+ * @template TPermission - The type of the permission provided.
  */
-export type PermissionRequest<TPermission extends PermissionTypesWithCustom> = {
+export type PermissionRequest<TPermission extends PermissionTypes> = {
   /**
    * hex-encoding of uint256 defined the chain with EIP-155
    */
@@ -84,11 +58,11 @@ export type PermissionRequest<TPermission extends PermissionTypesWithCustom> = {
 };
 
 /**
- * Represents a ERC-7715 permission response.
+ * Represents an ERC-7715 permission response.
  *
- * @template Permission - The type of the permission provided.
+ * @template TPermission - The type of the permission provided.
  */
-export type PermissionResponse<TPermission extends PermissionTypesWithCustom> =
+export type PermissionResponse<TPermission extends PermissionTypes> =
   PermissionRequest<TPermission> & {
     /**
      * Is a catch-all to identify a permission for revoking permissions or submitting
@@ -115,22 +89,12 @@ export type PermissionResponse<TPermission extends PermissionTypesWithCustom> =
   };
 
 /**
- * Represents a sanitized version of the PermissionResponse type.
- * Internal fields (dependencies, to) are removed
+ * Represents a gator ERC-7715 permission entry retrieved from gator permissions snap.
  *
- * @template Permission - The type of the permission provided.
- */
-export type PermissionResponseSanitized<
-  TPermission extends PermissionTypesWithCustom,
-> = Omit<PermissionResponse<TPermission>, 'dependencies' | 'to'>;
-
-/**
- * Represents a gator ERC-7715 granted(ie. signed by a user's account) permission entry that is stored in profile sync.
- *
- * @template Permission - The type of the permission provided
+ * @template TPermission - The type of the permission provided.
  */
 export type StoredGatorPermission<
-  TPermission extends PermissionTypesWithCustom,
+  TPermission extends PermissionTypes = PermissionTypes,
 > = {
   permissionResponse: PermissionResponse<TPermission>;
   siteOrigin: string;
@@ -138,73 +102,31 @@ export type StoredGatorPermission<
 };
 
 /**
- * Represents a sanitized version of the StoredGatorPermission type. Some fields have been removed but the fields are still present in profile sync.
+ * Permission response with internal fields (dependencies, to) removed.
+ * Used when exposing permission data to the client/UI.
  *
- * @template Permission - The type of the permission provided.
+ * @template TPermission - The type of the permission provided.
  */
-export type StoredGatorPermissionSanitized<
-  TPermission extends PermissionTypesWithCustom,
+export type PermissionInfo<TPermission extends PermissionTypes> = Omit<
+  PermissionResponse<TPermission>,
+  'dependencies' | 'to'
+>;
+
+/**
+ * Granted permission with metadata (siteOrigin, optional revocationMetadata).
+ *
+ * @template TPermission - The type of the permission provided.
+ */
+export type PermissionInfoWithMetadata<
+  TPermission extends PermissionTypes = PermissionTypes,
 > = {
-  permissionResponse: PermissionResponseSanitized<TPermission>;
+  permissionResponse: PermissionInfo<TPermission>;
   siteOrigin: string;
   revocationMetadata?: RevocationMetadata;
 };
 
 /**
- * Represents a map of gator permissions by chainId and permission type.
- */
-export type GatorPermissionsMap = {
-  'erc20-token-revocation': {
-    [
-      chainId: Hex
-    ]: StoredGatorPermissionSanitized<Erc20TokenRevocationPermission>[];
-  };
-  'native-token-stream': {
-    [
-      chainId: Hex
-    ]: StoredGatorPermissionSanitized<NativeTokenStreamPermission>[];
-  };
-  'native-token-periodic': {
-    [
-      chainId: Hex
-    ]: StoredGatorPermissionSanitized<NativeTokenPeriodicPermission>[];
-  };
-  'erc20-token-stream': {
-    [
-      chainId: Hex
-    ]: StoredGatorPermissionSanitized<Erc20TokenStreamPermission>[];
-  };
-  'erc20-token-periodic': {
-    [
-      chainId: Hex
-    ]: StoredGatorPermissionSanitized<Erc20TokenPeriodicPermission>[];
-  };
-  other: {
-    [chainId: Hex]: StoredGatorPermissionSanitized<CustomPermission>[];
-  };
-};
-
-/**
- * Represents the supported permission type(e.g. 'native-token-stream', 'native-token-periodic', 'erc20-token-stream', 'erc20-token-periodic') of the gator permissions map.
- */
-export type SupportedGatorPermissionType = keyof GatorPermissionsMap;
-
-/**
- * Represents a map of gator permissions for a given permission type with key of chainId. The value being an array of gator permissions for that chainId.
- */
-export type GatorPermissionsMapByPermissionType<
-  TPermissionType extends SupportedGatorPermissionType,
-> = GatorPermissionsMap[TPermissionType];
-
-/**
- * Represents an array of gator permissions for a given permission type and chainId.
- */
-export type GatorPermissionsListByPermissionTypeAndChainId<
-  TPermissionType extends SupportedGatorPermissionType,
-> = GatorPermissionsMap[TPermissionType][Hex];
-
-/**
- * Represents the details of a delegation, that are required to decode a permission.
+ * Delegation fields required to decode a permission (caveats, delegator, delegate, authority).
  */
 export type DelegationDetails = Pick<
   Delegation<Hex>,
@@ -212,17 +134,17 @@ export type DelegationDetails = Pick<
 >;
 
 /**
- * Represents the metadata for confirmed transaction revocation.
+ * Metadata for a confirmed revocation (e.g. when and how it was recorded).
  */
 export type RevocationMetadata = {
-  // The timestamp at which the revocation was recorded in storage.
+  /** Timestamp when the revocation was recorded in storage. */
   recordedAt: number;
-  // The hash of the transaction that was used to revoke the permission. Optional because we might not have submitted the transaction ourselves.
+  /** Hash of the revocation transaction, if we submitted it. */
   txHash?: Hex | undefined;
 };
 
 /**
- * Parameters for the `permissionsProvider_submitRevocation` method
+ * Parameters for the permissions provider Snap's submitRevocation RPC.
  */
 export type RevocationParams = {
   /**
@@ -237,7 +159,7 @@ export type RevocationParams = {
 };
 
 /**
- * Represents the parameters for adding a pending revocation.
+ * Parameters for adding a pending revocation (tracked until the revocation tx is confirmed).
  */
 export type PendingRevocationParams = {
   /**
@@ -249,3 +171,8 @@ export type PendingRevocationParams = {
    */
   permissionContext: Hex;
 };
+
+/**
+ * Permission type identifier: the `type` field of standard ERC-7715 permissions.
+ */
+export type SupportedPermissionType = PermissionTypes['type'];

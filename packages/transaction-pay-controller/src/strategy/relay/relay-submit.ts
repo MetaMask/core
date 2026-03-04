@@ -11,8 +11,13 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
-import { RELAY_POLLING_INTERVAL, RELAY_STATUS_URL } from './constants';
+import {
+  RELAY_DEPOSIT_TYPES,
+  RELAY_POLLING_INTERVAL,
+  RELAY_STATUS_URL,
+} from './constants';
 import type { RelayQuote, RelayStatusResponse } from './types';
 import { projectLogger } from '../../logger';
 import type {
@@ -21,6 +26,11 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getFeatureFlags } from '../../utils/feature-flags';
+import {
+  getLiveTokenBalance,
+  normalizeTokenAddress,
+  TokenAddressTarget,
+} from '../../utils/token';
 import {
   collectTransactionIds,
   getTransaction,
@@ -31,39 +41,6 @@ import {
 const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
-
-/**
- * Determine the transaction type for a given index in the batch.
- *
- * @param isPostQuote - Whether this is a post-quote flow.
- * @param index - Index of the transaction in the batch.
- * @param originalType - Type of the original transaction (used for post-quote index 0).
- * @param relayParamCount - Number of relay-only params (excludes prepended original tx).
- * @returns The transaction type.
- */
-function getTransactionType(
-  isPostQuote: boolean | undefined,
-  index: number,
-  originalType: TransactionMeta['type'],
-  relayParamCount: number,
-): TransactionMeta['type'] {
-  // Post-quote index 0 is the original transaction
-  if (isPostQuote && index === 0) {
-    return originalType;
-  }
-
-  // Adjust index for post-quote flows where original tx is prepended
-  const relayIndex = isPostQuote ? index - 1 : index;
-
-  // Single relay step is always a deposit (no approval needed)
-  if (relayParamCount === 1) {
-    return TransactionType.relayDeposit;
-  }
-
-  return relayIndex === 0
-    ? TransactionType.tokenMethodApprove
-    : TransactionType.relayDeposit;
-}
 
 /**
  * Submits Relay quotes.
@@ -203,6 +180,63 @@ function normalizeParams(
 }
 
 /**
+ * Validate the source token balance is sufficient for the relay deposit.
+ *
+ * Reads the live balance from TokenBalancesController and compares it against
+ * the quote's required source amount to prevent submitting transactions that
+ * will revert on-chain due to insufficient balance.
+ *
+ * @param quote - Relay quote containing the required source amount.
+ * @param messenger - Controller messenger.
+ */
+async function validateSourceBalance(
+  quote: TransactionPayQuote<RelayQuote>,
+  messenger: TransactionPayControllerMessenger,
+): Promise<void> {
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+
+  const normalizedSourceTokenAddress = normalizeTokenAddress(
+    sourceTokenAddress,
+    sourceChainId,
+    TokenAddressTarget.MetaMask,
+  );
+
+  let currentBalance: string;
+
+  try {
+    currentBalance = await getLiveTokenBalance(
+      messenger,
+      from,
+      sourceChainId,
+      normalizedSourceTokenAddress,
+    );
+  } catch (error) {
+    throw new Error(
+      `Cannot validate payment token balance - ${(error as Error).message}`,
+    );
+  }
+
+  const requiredAmount = new BigNumber(quote.sourceAmount.raw);
+  const balance = new BigNumber(currentBalance);
+
+  log('Validating source balance', {
+    from,
+    sourceChainId,
+    sourceTokenAddress,
+    currentBalance,
+    requiredAmount: requiredAmount.toString(10),
+  });
+
+  if (balance.isLessThan(requiredAmount)) {
+    throw new Error(
+      `Insufficient source token balance for relay deposit. ` +
+        `Required: ${requiredAmount.toString(10)}, ` +
+        `Available: ${balance.toString(10)}`,
+    );
+  }
+}
+
+/**
  * Submit transactions for a relay quote.
  *
  * @param quote - Relay quote.
@@ -222,6 +256,8 @@ async function submitTransactions(
   if (invalidKind) {
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
+
+  await validateSourceBalance(quote, messenger);
 
   const normalizedParams = params.map((singleParams) =>
     normalizeParams(singleParams, messenger),
@@ -316,22 +352,17 @@ async function submitTransactions(
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
-        type: TransactionType.relayDeposit,
+        type: getRelayDepositType(transaction.type),
       },
     );
   } else {
     const gasLimit7702 =
-      gasLimits.length === 1 && normalizedParams.length > 1
+      gasLimits.length === 1 && allParams.length > 1
         ? toHex(gasLimits[0])
         : undefined;
 
-    // gasLimits only covers relay params; for post-quote the original tx
-    // is prepended at index 0 with no gasLimit (chain will estimate).
-    const gasLimitOffset = isPostQuote ? 1 : 0;
-
     const transactions = allParams.map((singleParams, index) => {
-      const gasLimitIndex = index - gasLimitOffset;
-      const gasLimit = gasLimits[gasLimitIndex];
+      const gasLimit = gasLimits[index];
       const gas =
         gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
 
@@ -386,4 +417,52 @@ async function submitTransactions(
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
 
   return hash as Hex;
+}
+
+/**
+ * Determine the transaction type for a given index in the batch.
+ *
+ * @param isPostQuote - Whether this is a post-quote flow.
+ * @param index - Index of the transaction in the batch.
+ * @param originalType - Type of the original transaction (used for post-quote index 0).
+ * @param relayParamCount - Number of relay-only params (excludes prepended original tx).
+ * @returns The transaction type.
+ */
+function getTransactionType(
+  isPostQuote: boolean | undefined,
+  index: number,
+  originalType: TransactionMeta['type'],
+  relayParamCount: number,
+): TransactionMeta['type'] {
+  // Post-quote index 0 is the original transaction
+  if (isPostQuote && index === 0) {
+    return originalType;
+  }
+
+  // Adjust index for post-quote flows where original tx is prepended
+  const relayIndex = isPostQuote ? index - 1 : index;
+
+  const depositType = getRelayDepositType(originalType);
+
+  // Single relay step is always a deposit (no approval needed)
+  if (relayParamCount === 1) {
+    return depositType;
+  }
+
+  return relayIndex === 0 ? TransactionType.tokenMethodApprove : depositType;
+}
+
+/**
+ * Get the relay deposit transaction type based on the parent transaction type.
+ *
+ * @param originalType - Type of the parent transaction.
+ * @returns The mapped relay deposit type, or `relayDeposit` as a fallback.
+ */
+function getRelayDepositType(
+  originalType: TransactionMeta['type'],
+): TransactionType {
+  return (
+    (originalType && RELAY_DEPOSIT_TYPES[originalType]) ??
+    TransactionType.relayDeposit
+  );
 }

@@ -4,7 +4,7 @@ import BN from 'bn.js';
 import { AccountsApiBalanceFetcher } from './api-balance-fetcher';
 import type { ChainIdHex, ChecksumAddress } from './api-balance-fetcher';
 import type { GetBalancesResponse } from './types';
-import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
+import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 import * as ConstantsModule from '../constants';
 
@@ -759,7 +759,7 @@ describe('AccountsApiBalanceFetcher', () => {
   });
 
   describe('erc20 token zero balance guarantee', () => {
-    it('should include erc20 token entry for addresses even when API does not return erc20 balance', async () => {
+    const arrangeBalanceFetcher = (): AccountsApiBalanceFetcher => {
       const responseWithoutErc20: GetBalancesResponse = {
         count: 1,
         // Example of no erc20 balance, but does contain native token balance
@@ -782,8 +782,14 @@ describe('AccountsApiBalanceFetcher', () => {
         }),
       );
 
+      return balanceFetcher;
+    };
+
+    it('should include erc20 token entry for addresses even when API does not return erc20 balance', async () => {
+      balanceFetcher = arrangeBalanceFetcher();
+
       const result = await balanceFetcher.fetch({
-        chainIds: [MOCK_CHAIN_ID],
+        chainIds: ['0x1'],
         queryAllAccounts: false,
         selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
@@ -795,6 +801,44 @@ describe('AccountsApiBalanceFetcher', () => {
         '0x0xaf88d065e77c8cC2239327C5EDb3A432268e5831'.toLowerCase(),
       );
       expect(result.balances[1].value).toStrictEqual(new BN('0')); // balance is zero now since API did not return a value for this token
+    });
+
+    it('should not include erc20 token entry for chains that are not supported by account API', async () => {
+      balanceFetcher = arrangeBalanceFetcher();
+
+      balanceFetcher = new AccountsApiBalanceFetcher(
+        'extension',
+        undefined,
+        () => ({
+          [MOCK_ADDRESS_1]: {
+            '0x1': {
+              [ZERO_ADDRESS]: {},
+            },
+            // Avalanche is not a supported chain, so balances should not be zeroed out
+            '0xa86a': {
+              [ZERO_ADDRESS]: {},
+              '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E': '0x814a20', // USDC AVAX has balance, should not be zeroed out
+            },
+          },
+        }),
+      );
+
+      const result = await balanceFetcher.fetch({
+        chainIds: ['0x1', '0xa86a' as ChainIdHex],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      console.log(result.balances);
+      expect(result.balances).toHaveLength(1);
+      expect(result.balances[0]).toStrictEqual(
+        expect.objectContaining({
+          chainId: '0x1',
+          token: ZERO_ADDRESS,
+          value: expect.any(BN),
+        }),
+      );
     });
   });
 

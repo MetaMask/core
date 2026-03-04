@@ -909,6 +909,11 @@ import { AssetsController } from '@metamask/assets-controller';
 
 const assetsController = new AssetsController({
   messenger: controllerMessenger,
+  queryApiClient,
+  subscribeToBasicFunctionalityChange: (onChange) => {
+    // Extension: subscribe to PreferencesController:stateChange, call onChange(useExternalServices ?? true).
+    // Mobile: subscribe to your app's basic-functionality setting and call onChange(isBasic).
+  },
   state: existingState, // Optional: restore persisted state
   defaultUpdateInterval: 30_000, // Optional: polling hint (30s default)
 });

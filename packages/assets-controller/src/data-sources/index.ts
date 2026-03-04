@@ -6,6 +6,7 @@ export {
 
 export {
   AccountsApiDataSource,
+  type AccountsApiDataSourceConfig,
   type AccountsApiDataSourceOptions,
   type AccountsApiDataSourceState,
   type AccountsApiDataSourceAllowedActions,
@@ -39,6 +40,7 @@ export {
 
 export {
   PriceDataSource,
+  type PriceDataSourceConfig,
   type PriceDataSourceOptions,
 } from './PriceDataSource';
 
@@ -58,3 +60,9 @@ export {
   type SnapDataSourceAllowedActions,
   type SnapDataSourceAllowedEvents,
 } from './SnapDataSource';
+
+export {
+  StakedBalanceDataSource,
+  type StakedBalanceDataSourceConfig,
+  type StakedBalanceDataSourceOptions,
+} from './StakedBalanceDataSource';

@@ -1,71 +1,122 @@
-import type { GatorPermissionsMap } from './types';
-import {
-  deserializeGatorPermissionsMap,
-  serializeGatorPermissionsMap,
-} from './utils';
+import type { SnapId } from '@metamask/snaps-sdk';
+import { HandlerType } from '@metamask/snaps-utils';
 
-const defaultGatorPermissionsMap: GatorPermissionsMap = {
-  'erc20-token-revocation': {},
-  'native-token-stream': {},
-  'native-token-periodic': {},
-  'erc20-token-stream': {},
-  'erc20-token-periodic': {},
-  other: {},
-};
+import { GatorPermissionsProviderError } from './errors';
+import type { GatorPermissionsControllerMessenger } from './GatorPermissionsController';
+import { GatorPermissionsSnapRpcMethod } from './types';
+import { executeSnapRpc } from './utils';
 
-describe('utils - serializeGatorPermissionsMap() tests', () => {
-  it('serializes a gator permissions list to a string', () => {
-    const serializedGatorPermissionsMap = serializeGatorPermissionsMap(
-      defaultGatorPermissionsMap,
+describe('executeSnapRpc', () => {
+  const mockSnapId = 'npm:@metamask/test-snap' as SnapId;
+
+  function createMockMessenger(): { call: jest.Mock } {
+    return { call: jest.fn() };
+  }
+
+  function getMessenger(mock: {
+    call: jest.Mock;
+  }): GatorPermissionsControllerMessenger {
+    return mock as unknown as GatorPermissionsControllerMessenger;
+  }
+
+  it('calls SnapController:handleRequest with correct arguments and returns response', async () => {
+    const response = { result: [1, 2, 3] };
+    const messenger = createMockMessenger();
+    messenger.call.mockResolvedValue(response);
+
+    const result = await executeSnapRpc<typeof response>({
+      messenger: getMessenger(messenger),
+      snapId: mockSnapId,
+      method:
+        GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+    });
+
+    expect(messenger.call).toHaveBeenCalledTimes(1);
+    expect(messenger.call).toHaveBeenCalledWith(
+      'SnapController:handleRequest',
+      expect.objectContaining({
+        snapId: mockSnapId,
+        origin: 'metamask',
+        handler: HandlerType.OnRpcRequest,
+        request: {
+          jsonrpc: '2.0',
+          method:
+            GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+        },
+      }),
     );
+    expect(result).toStrictEqual(response);
+  });
 
-    expect(serializedGatorPermissionsMap).toStrictEqual(
-      JSON.stringify(defaultGatorPermissionsMap),
+  it('includes params in request when provided', async () => {
+    const params = { isRevoked: false };
+    const messenger = createMockMessenger();
+    messenger.call.mockResolvedValue(null);
+
+    await executeSnapRpc({
+      messenger: getMessenger(messenger),
+      snapId: mockSnapId,
+      method:
+        GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+      params,
+    });
+
+    expect(messenger.call).toHaveBeenCalledWith(
+      'SnapController:handleRequest',
+      {
+        snapId: mockSnapId,
+        origin: 'metamask',
+        handler: HandlerType.OnRpcRequest,
+        request: {
+          jsonrpc: '2.0',
+          method:
+            GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+          params,
+        },
+      },
     );
   });
 
-  it('throws an error when serialization fails', () => {
-    const gatorPermissionsMap = {
-      'erc20-token-revocation': {},
-      'native-token-stream': {},
-      'native-token-periodic': {},
-      'erc20-token-stream': {},
-      'erc20-token-periodic': {},
-      other: {},
-    };
+  it('omits params from request when not provided', async () => {
+    const messenger = createMockMessenger();
+    messenger.call.mockResolvedValue(undefined);
 
-    // explicitly cause serialization to fail
-    (gatorPermissionsMap as unknown as { toJSON: () => void }).toJSON =
-      (): void => {
-        throw new Error('Failed serialization');
-      };
+    await executeSnapRpc({
+      messenger: getMessenger(messenger),
+      snapId: mockSnapId,
+      method: GatorPermissionsSnapRpcMethod.PermissionProviderSubmitRevocation,
+    });
 
-    expect(() => {
-      serializeGatorPermissionsMap(gatorPermissionsMap);
-    }).toThrow('Failed to serialize gator permissions map');
-  });
-});
-
-describe('utils - deserializeGatorPermissionsMap() tests', () => {
-  it('deserializes a gator permissions list from a string', () => {
-    const serializedGatorPermissionsMap = serializeGatorPermissionsMap(
-      defaultGatorPermissionsMap,
-    );
-
-    const deserializedGatorPermissionsMap = deserializeGatorPermissionsMap(
-      serializedGatorPermissionsMap,
-    );
-
-    expect(deserializedGatorPermissionsMap).toStrictEqual(
-      defaultGatorPermissionsMap,
-    );
+    const callArgs = messenger.call.mock.calls[0][1];
+    expect(callArgs.request).not.toHaveProperty('params');
   });
 
-  it('throws an error when deserialization fails', () => {
-    const invalidJson = '{"invalid": json}';
+  it('throws GatorPermissionsProviderError when Snap request fails', async () => {
+    const cause = new Error('Snap not found');
+    const messenger = createMockMessenger();
+    messenger.call.mockRejectedValue(cause);
 
-    expect(() => {
-      deserializeGatorPermissionsMap(invalidJson);
-    }).toThrow('Failed to deserialize gator permissions map');
+    await expect(
+      executeSnapRpc({
+        messenger: getMessenger(messenger),
+        snapId: mockSnapId,
+        method:
+          GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+      }),
+    ).rejects.toThrow(GatorPermissionsProviderError);
+
+    await expect(
+      executeSnapRpc({
+        messenger: getMessenger(messenger),
+        snapId: mockSnapId,
+        method:
+          GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+      }),
+    ).rejects.toMatchObject({
+      cause,
+      message: expect.stringContaining(
+        GatorPermissionsSnapRpcMethod.PermissionProviderGetGrantedPermissions,
+      ),
+    });
   });
 });

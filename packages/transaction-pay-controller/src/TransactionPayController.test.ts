@@ -11,6 +11,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPaySourceAmount,
 } from './types';
+import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
@@ -19,6 +20,7 @@ jest.mock('./actions/update-payment-token');
 jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
+jest.mock('./utils/feature-flags');
 
 const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
@@ -30,6 +32,7 @@ describe('TransactionPayController', () => {
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
   const pollTransactionChangesMock = jest.mocked(pollTransactionChanges);
+  const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
 
   /**
@@ -48,7 +51,7 @@ describe('TransactionPayController', () => {
     jest.resetAllMocks();
 
     messenger = getMessengerMock({ skipRegister: true }).messenger;
-
+    getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
     updateQuotesMock.mockResolvedValue(true);
   });
 
@@ -160,6 +163,91 @@ describe('TransactionPayController', () => {
         ),
       ).toBe(TransactionPayStrategy.Test);
     });
+
+    it('does not query feature flag strategy order when getStrategies callback returns values', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategies: (): TransactionPayStrategy[] => [
+          TransactionPayStrategy.Test,
+        ],
+        messenger,
+      });
+
+      getStrategyOrderMock.mockClear();
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Test);
+
+      expect(getStrategyOrderMock).not.toHaveBeenCalled();
+    });
+
+    it('returns relay if getStrategies callback returns empty', async () => {
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Test]);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategies: (): TransactionPayStrategy[] => [],
+        messenger,
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Test);
+    });
+
+    it('falls back to feature flag if getStrategies callback returns invalid first value', async () => {
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Bridge]);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategies: (): TransactionPayStrategy[] =>
+          [undefined] as unknown as TransactionPayStrategy[],
+        messenger,
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Bridge);
+    });
+
+    it('returns default strategy order when no callbacks and no strategy order feature flag', async () => {
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
+
+      createController();
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Relay);
+    });
+
+    it('returns strategy from feature flag when no callbacks are provided', async () => {
+      getStrategyOrderMock.mockReturnValue([
+        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Relay,
+      ]);
+
+      createController();
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Test);
+    });
   });
 
   describe('transaction data update', () => {
@@ -215,6 +303,7 @@ describe('TransactionPayController', () => {
       );
 
       expect(updateQuotesMock).toHaveBeenCalledWith({
+        getStrategies: expect.any(Function),
         messenger,
         transactionData: expect.objectContaining({
           sourceAmounts: [{ sourceAmountHuman: '1.23' }],

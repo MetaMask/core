@@ -1,3 +1,6 @@
+/* eslint-disable camelcase */
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import {
   StatusTypes,
@@ -11,6 +14,7 @@ import {
   formatAddressToAssetId,
   MetricsActionType,
   MetricsSwapType,
+  MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import type {
   QuoteFetchData,
@@ -172,12 +176,16 @@ export const getPriceImpactFromQuote = (
  * @param quoteResponse - The quote response
  * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
  * @param isHardwareAccount - whether the tx is submitted using a hardware wallet
+ * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
+ * @param abTests - A/B test context to attribute events to specific experiments
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
   quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
   isStxEnabledOnClient: boolean,
   isHardwareAccount: boolean,
+  location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
+  abTests?: Record<string, string>,
 ) => {
   const { quote } = quoteResponse;
   return {
@@ -196,6 +204,8 @@ export const getPreConfirmationPropertiesFromQuote = (
     stx_enabled: isStxEnabledOnClient,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
     custom_slippage: false, // TODO detect whether the user changed the default slippage
+    location,
+    ...(abTests && Object.keys(abTests).length > 0 && { ab_tests: abTests }),
   };
 };
 
@@ -253,7 +263,7 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     chain_id_destination: formatChainIdToCaip(transactionMeta.chainId),
     token_symbol_source: transactionMeta.sourceTokenSymbol ?? '',
     token_symbol_destination: transactionMeta.destinationTokenSymbol ?? '',
-    usd_amount_source: 100,
+    usd_amount_source: 0,
     stx_enabled: false,
     token_address_source:
       formatAddressToAssetId(
