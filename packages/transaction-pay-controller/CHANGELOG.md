@@ -9,8 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controllers` from `^100.0.3` to `^100.1.0` ([#8107](https://github.com/MetaMask/core/pull/8107))
+- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.20.0` ([#8104](https://github.com/MetaMask/core/pull/8104))
+
+## [16.2.0]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^67.4.0` to `^68.0.0` ([#8101](https://github.com/MetaMask/core/pull/8101))
+- Bump `@metamask/bridge-status-controller` from `^67.0.1` to `^68.0.0` ([#8101](https://github.com/MetaMask/core/pull/8101))
+
+## [16.1.2]
+
+### Fixed
+
+- Normalize Polygon native token addresses between Relay requests and MetaMask balance checks to avoid undefined token values in quote and submit flows ([#8091](https://github.com/MetaMask/core/pull/8091))
+
+## [16.1.1]
+
+### Changed
+
 - Bump `@metamask/bridge-controller` from `^67.2.0` to `^67.4.0` ([#8051](https://github.com/MetaMask/core/pull/8051), [#8070](https://github.com/MetaMask/core/pull/8070))
 - Bump `@metamask/remote-feature-flag-controller` from `^4.0.0` to `^4.1.0` ([#8041](https://github.com/MetaMask/core/pull/8041))
+
+### Fixed
+
+- Support gasless predict withdraw ([#8067](https://github.com/MetaMask/core/pull/8067))
 
 ## [16.1.0]
 
@@ -446,7 +470,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.2.0...HEAD
+[16.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.2...@metamask/transaction-pay-controller@16.2.0
+[16.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.1...@metamask/transaction-pay-controller@16.1.2
+[16.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.0...@metamask/transaction-pay-controller@16.1.1
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.0.0...@metamask/transaction-pay-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@15.1.2...@metamask/transaction-pay-controller@16.0.0
 [15.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@15.1.1...@metamask/transaction-pay-controller@15.1.2

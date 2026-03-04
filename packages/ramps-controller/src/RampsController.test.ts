@@ -240,6 +240,149 @@ describe('RampsController', () => {
     });
   });
 
+  describe('messenger action handlers', () => {
+    it('handles RampsController:setSelectedToken', async () => {
+      const mockToken: RampsToken = {
+        assetId: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        chainId: 'eip155:1',
+        name: 'USD Coin',
+        symbol: 'USDC',
+        decimals: 6,
+        iconUrl: 'https://example.com/usdc.png',
+        tokenSupported: true,
+      };
+
+      const mockTokensResponse: TokensResponse = {
+        topTokens: [mockToken],
+        allTokens: [mockToken],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              tokens: createResourceState(mockTokensResponse, null),
+            },
+          },
+        },
+        ({ controller, messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async () => ({ payments: [] }),
+          );
+
+          messenger.call('RampsController:setSelectedToken', mockToken.assetId);
+
+          expect(controller.state.tokens.selected).toStrictEqual(mockToken);
+        },
+      );
+    });
+
+    it('handles RampsController:getQuotes', async () => {
+      const mockQuotesResponse: QuotesResponse = {
+        success: [
+          {
+            provider: '/providers/moonpay',
+            quote: {
+              amountIn: 100,
+              amountOut: '0.05',
+              paymentMethod: '/payments/debit-credit-card',
+              amountOutInFiat: 98,
+            },
+            metadata: {
+              reliability: 95,
+              tags: {
+                isBestRate: true,
+                isMostReliable: false,
+              },
+            },
+          },
+        ],
+        sorted: [
+          {
+            sortBy: 'price',
+            ids: ['/providers/moonpay'],
+          },
+        ],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getQuotes',
+          async () => mockQuotesResponse,
+        );
+
+        const quotes = await messenger.call('RampsController:getQuotes', {
+          action: 'buy',
+          amount: 100,
+          assetId: 'eip155:1/slip44:60',
+          fiat: 'USD',
+          paymentMethods: ['/payments/debit-credit-card'],
+          providers: ['/providers/moonpay'],
+          region: 'US',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        });
+
+        expect(quotes).toStrictEqual(mockQuotesResponse);
+      });
+    });
+
+    it('handles RampsController:getOrder', async () => {
+      const mockOrder = {
+        id: '/providers/transak-staging/orders/abc-123',
+        isOnlyLink: false,
+        provider: {
+          id: '/providers/transak-staging',
+          name: 'Transak (Staging)',
+          environmentType: 'STAGING',
+          description: 'Test provider description',
+          hqAddress: '123 Test St',
+          links: [],
+          logos: { light: '', dark: '', height: 24, width: 77 },
+        },
+        success: true,
+        cryptoAmount: 0.05,
+        fiatAmount: 100,
+        cryptoCurrency: { symbol: 'ETH', decimals: 18 },
+        fiatCurrency: { symbol: 'USD', decimals: 2, denomSymbol: '$' },
+        providerOrderId: 'abc-123',
+        providerOrderLink: 'https://transak.com/order/abc-123',
+        createdAt: 1700000000000,
+        paymentMethod: { id: '/payments/debit-credit-card', name: 'Card' },
+        totalFeesFiat: 5,
+        txHash: '',
+        walletAddress: '0xabc',
+        status: RampsOrderStatus.Completed,
+        network: { chainId: '1', name: 'Ethereum Mainnet' },
+        canBeUpdated: false,
+        idHasExpired: false,
+        excludeFromPurchases: false,
+        timeDescriptionPending: '',
+        orderType: 'BUY',
+        exchangeRate: 2000,
+      };
+
+      await withController(async ({ messenger, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => mockOrder,
+        );
+
+        const order = await messenger.call(
+          'RampsController:getOrder',
+          'transak-staging',
+          'abc-123',
+          '0xabc',
+        );
+
+        expect(order).toStrictEqual(mockOrder);
+      });
+    });
+  });
+
   describe('getProviders', () => {
     const mockProviders: Provider[] = [
       {
@@ -2454,6 +2597,126 @@ describe('RampsController', () => {
           );
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+        },
+      );
+    });
+
+    it('skips getPaymentMethods when selected token is explicitly not supported by the new provider', async () => {
+      const unsupportedToken: RampsToken = {
+        assetId: 'eip155:1/slip44:0',
+        chainId: 'eip155:1',
+        name: 'Bitcoin',
+        symbol: 'BTC',
+        decimals: 8,
+        iconUrl: '',
+        tokenSupported: true,
+      };
+
+      const providerWithExclusion: Provider = {
+        ...mockProvider,
+        supportedCryptoCurrencies: {
+          'eip155:1/slip44:60': true,
+          [unsupportedToken.assetId]: false,
+        },
+      };
+
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([providerWithExclusion], null),
+              tokens: createResourceState(null, unsupportedToken),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          controller.setSelectedProvider(providerWithExclusion.id);
+
+          expect(getPaymentMethodsMock).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('fetches getPaymentMethods when provider has no supportedCryptoCurrencies field', async () => {
+      const providerWithoutField: Provider = { ...mockProvider };
+      delete (providerWithoutField as Partial<Provider>)
+        .supportedCryptoCurrencies;
+
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([providerWithoutField], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          controller.setSelectedProvider(providerWithoutField.id);
+
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('fetches getPaymentMethods when selected token is explicitly supported by the new provider', async () => {
+      const supportedToken: RampsToken = {
+        assetId: 'eip155:1/slip44:60',
+        chainId: 'eip155:1',
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        iconUrl: '',
+        tokenSupported: true,
+      };
+
+      const providerWithSupport: Provider = {
+        ...mockProvider,
+        supportedCryptoCurrencies: {
+          [supportedToken.assetId]: true,
+        },
+      };
+
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([providerWithSupport], null),
+              tokens: createResourceState(null, supportedToken),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          controller.setSelectedProvider(providerWithSupport.id);
+
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
         },
       );
     });

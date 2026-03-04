@@ -7,13 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [100.1.0]
+
+### Added
+
+- Export `MAP_CAIP_CURRENCIES` from the package (and from `MultichainAssetsRatesController`) so consumers can resolve selected currency to the same CAIP currency string used by MultichainAssetsRatesController ([#8076](https://github.com/MetaMask/core/pull/8076))
+- Add `includeTokenSecurityData` option to `searchTokens` and `getTrendingTokens` to request token security data from the API ([#8106](https://github.com/MetaMask/core/pull/8106))
+- Add `fetchTokenAssets` function to fetch token metadata by CAIP-19 asset IDs from the `/assets` endpoint ([#8106](https://github.com/MetaMask/core/pull/8106))
+  - Supports optional flags: `includeAggregators`, `includeCoingeckoId`, `includeLabels`, `includeMarketData`, `includeOccurrences`, `includeTokenSecurityData`, `includeRwaData`
+- Export new types `TokenAsset`, `TokenSecurityData`, `TokenSecurityFeature`, `TokenSecurityHolder`, `TokenSecurityMarket`, `TokenSecurityFees`, `TokenSecurityFinancialStats`, and `TokenSecurityMetadata` ([#8106](https://github.com/MetaMask/core/pull/8106))
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.19.0` ([#8031](https://github.com/MetaMask/core/pull/8031))
+- Bump `@metamask/network-enablement-controller` from `^4.1.2` to `^4.2.0` ([#8107](https://github.com/MetaMask/core/pull/8107))
+- Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.20.0` ([#8031](https://github.com/MetaMask/core/pull/8031) [#8104](https://github.com/MetaMask/core/pull/8104))
 
 ### Fixed
 
 - Fix `AccountsApiBalanceFetcher` to apply stricter conditions when zeroing out token balances ([#8044](https://github.com/MetaMask/core/pull/8044))
+- Fix `AccountsApiBalanceFetcher` ERC-20 zeroing to only apply to accounts included in the current request, preventing stale-account entries from being incorrectly reset to zero ([#8095](https://github.com/MetaMask/core/pull/8095))
 
 ## [100.0.3]
 
@@ -2738,7 +2750,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.1.0...HEAD
+[100.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.3...@metamask/assets-controllers@100.1.0
 [100.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.2...@metamask/assets-controllers@100.0.3
 [100.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.1...@metamask/assets-controllers@100.0.2
 [100.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.0...@metamask/assets-controllers@100.0.1
