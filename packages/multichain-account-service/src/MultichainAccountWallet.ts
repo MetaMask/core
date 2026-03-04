@@ -314,24 +314,21 @@ export class MultichainAccountWallet<
       waitForAllProvidersToFinishCreatingAccounts?: boolean;
     },
   ): Promise<MultichainAccountGroup<Account>[]> {
-    const nextGroupIndex = this.getNextGroupIndex();
     const groups: MultichainAccountGroup<Account>[] = [];
 
     // Get existing groups (fromGroupIndex to nextGroupIndex-1).
-    for (
-      let i = fromGroupIndex;
-      i < Math.min(nextGroupIndex, toGroupIndex + 1);
-      i++
-    ) {
-      const group = this.getMultichainAccountGroup(i);
+    let from = fromGroupIndex;
+    const to = toGroupIndex;
+    for (; from <= to; from++) {
+      const group = this.getMultichainAccountGroup(from);
       if (group) {
         groups.push(group);
+      } else {
+        break; // Assuming we have no gap, if the group does not exist, we can stop and create the remaining ones.
       }
     }
 
-    // Create new groups (max(nextGroupIndex, fromGroupIndex) to toGroupIndex).
-    const from = Math.max(nextGroupIndex, fromGroupIndex);
-    const to = toGroupIndex;
+    // Create new groups now.
     if (from <= to) {
       this.#log(`Creating groups from index ${from} to ${to}...`);
 
