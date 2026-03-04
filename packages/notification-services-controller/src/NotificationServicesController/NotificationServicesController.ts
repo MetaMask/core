@@ -8,7 +8,6 @@ import {
   isValidHexAddress,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerStateChangeEvent,
   KeyringControllerGetStateAction,
@@ -397,11 +396,8 @@ export class NotificationServicesController extends BaseController<
 
     getNotificationAccounts: (): string[] | null => {
       const { keyrings } = this.messenger.call('KeyringController:getState');
-      const firstHDKeyring = keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.hd.toString(),
-      );
-      const keyringAccounts = firstHDKeyring?.accounts ?? null;
-      return keyringAccounts;
+      const keyringAccounts = keyrings.flatMap((keyring) => keyring.accounts);
+      return keyringAccounts.length > 0 ? keyringAccounts : null;
     },
 
     /**
