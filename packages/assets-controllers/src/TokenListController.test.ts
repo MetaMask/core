@@ -1671,38 +1671,45 @@ describe('TokenListController', () => {
       );
 
       // Create messenger with getItem that returns error for goerli
-      const messengerWithErrors = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const messengerWithErrors = getMessenger();
 
       // Register getItem handler that returns error for goerli
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:getItem');
+      messengerWithErrors.registerActionHandler(
         'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+        ): Promise<StorageGetResult> => {
           if (key === `tokensChainsCache:${ChainId.goerli}`) {
-            return { error: 'Failed to load chain data' };
+            return {
+              error: 'Failed to load chain data',
+            } as unknown as StorageGetResult;
           }
           const storageKey = `${controllerNamespace}:${key}`;
           const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
+          return (value ? { result: value } : {}) as StorageGetResult;
         },
       );
 
       // Register other handlers normally
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:setItem');
+      messengerWithErrors.registerActionHandler(
         'StorageService:setItem',
-        (controllerNamespace: string, key: string, value: unknown) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+          value: unknown,
+        ): Promise<void> => {
           const storageKey = `${controllerNamespace}:${key}`;
           mockStorage.set(storageKey, value);
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:getAllKeys');
+      messengerWithErrors.registerActionHandler(
         'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
+        async (controllerNamespace: string): Promise<string[]> => {
           const keys: string[] = [];
           const prefix = `${controllerNamespace}:`;
           mockStorage.forEach((_value, key) => {
@@ -1752,43 +1759,14 @@ describe('TokenListController', () => {
 
     it('should handle StorageService errors when saving cache', async () => {
       // Create a messenger with setItem that throws errors
-      const messengerWithErrors = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const messengerWithErrors = getMessenger();
 
       // Register all handlers, but make setItem throw
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:setItem');
+      messengerWithErrors.registerActionHandler(
         'StorageService:setItem',
         () => {
           throw new Error('Storage write failed');
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
-          const keys: string[] = [];
-          const prefix = `${controllerNamespace}:`;
-          mockStorage.forEach((_value, key) => {
-            // Only include keys for this namespace
-            if (key.startsWith(prefix)) {
-              const keyWithoutNamespace = key.substring(prefix.length);
-              keys.push(keyWithoutNamespace);
-            }
-          });
-          return keys;
         },
       );
 
@@ -1830,33 +1808,15 @@ describe('TokenListController', () => {
 
     it('should handle errors during debounced persistence', async () => {
       // Create messenger where setItem throws to cause persistence to fail
-      const messengerWithErrors = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-
-      // Register getItem to return empty
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getItem',
-        () => {
-          return {};
-        },
-      );
+      const messengerWithErrors = getMessenger();
 
       // Register setItem to throw error
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
+      messengerWithErrors.unregisterActionHandler('StorageService:setItem');
+      messengerWithErrors.registerActionHandler(
         'StorageService:setItem',
         () => {
           throw new Error('Failed to save to storage');
         },
-      );
-
-      // Register getAllKeys normally
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messengerWithErrors as any).registerActionHandler(
-        'StorageService:getAllKeys',
-        () => [],
       );
 
       const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
@@ -1907,34 +1867,26 @@ describe('TokenListController', () => {
       let getItemCallCount = 0;
       let getAllKeysCallCount = 0;
 
-      const trackingMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const trackingMessenger = getMessenger();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:getItem');
+      trackingMessenger.registerActionHandler(
         'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+        ): Promise<StorageGetResult> => {
           getItemCallCount += 1;
           const storageKey = `${controllerNamespace}:${key}`;
           const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
+          return (value ? { result: value } : {}) as StorageGetResult;
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
-        'StorageService:setItem',
-        (controllerNamespace: string, key: string, value: unknown) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          mockStorage.set(storageKey, value);
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:getAllKeys');
+      trackingMessenger.registerActionHandler(
         'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
+        async (controllerNamespace: string): Promise<string[]> => {
           getAllKeysCallCount += 1;
           const keys: string[] = [];
           const prefix = `${controllerNamespace}:`;
@@ -1998,34 +1950,26 @@ describe('TokenListController', () => {
       // Track how many times setItem is called
       let setItemCallCount = 0;
 
-      const trackingMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const trackingMessenger = getMessenger();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
-        'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:setItem');
+      trackingMessenger.registerActionHandler(
         'StorageService:setItem',
-        (controllerNamespace: string, key: string, value: unknown) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+          value: unknown,
+        ): Promise<void> => {
           setItemCallCount += 1;
           const storageKey = `${controllerNamespace}:${key}`;
           mockStorage.set(storageKey, value);
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:getAllKeys');
+      trackingMessenger.registerActionHandler(
         'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
+        async (controllerNamespace: string): Promise<string[]> => {
           const keys: string[] = [];
           const prefix = `${controllerNamespace}:`;
           mockStorage.forEach((_value, key) => {
@@ -2078,34 +2022,26 @@ describe('TokenListController', () => {
       // Track setItem calls and which chains are persisted
       const persistedChains: string[] = [];
 
-      const trackingMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
+      const trackingMessenger = getMessenger();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
-        'StorageService:getItem',
-        (controllerNamespace: string, key: string) => {
-          const storageKey = `${controllerNamespace}:${key}`;
-          const value = mockStorage.get(storageKey);
-          return value ? { result: value } : {};
-        },
-      );
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:setItem');
+      trackingMessenger.registerActionHandler(
         'StorageService:setItem',
-        (controllerNamespace: string, key: string, value: unknown) => {
+        async (
+          controllerNamespace: string,
+          key: string,
+          value: unknown,
+        ): Promise<void> => {
           persistedChains.push(key);
           const storageKey = `${controllerNamespace}:${key}`;
           mockStorage.set(storageKey, value);
         },
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (trackingMessenger as any).registerActionHandler(
+      trackingMessenger.unregisterActionHandler('StorageService:getAllKeys');
+      trackingMessenger.registerActionHandler(
         'StorageService:getAllKeys',
-        (controllerNamespace: string) => {
+        async (controllerNamespace: string): Promise<string[]> => {
           const keys: string[] = [];
           const prefix = `${controllerNamespace}:`;
           mockStorage.forEach((_value, key) => {
