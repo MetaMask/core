@@ -6,7 +6,11 @@ import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
-import { NATIVE_TOKEN_ADDRESS, STABLECOINS } from '../constants';
+import {
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+  STABLECOINS,
+} from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
 
 /**
@@ -340,4 +344,51 @@ function getTicker(
   } catch {
     return undefined;
   }
+}
+
+export enum TokenAddressTarget {
+  Relay = 'relay',
+  MetaMask = 'metamask',
+}
+
+/**
+ * Normalize token address formats between MetaMask and Relay for Polygon native
+ * token handling.
+ *
+ * MetaMask uses Polygon's native token contract-like address (`0x...1010`),
+ * while Relay expects the zero address for native tokens.
+ *
+ * @param tokenAddress - Token address to normalize.
+ * @param chainId - Chain ID for the token.
+ * @param target - Optional target system format.
+ * @returns Normalized token address for the target system, or the original
+ * address if no target is provided.
+ */
+export function normalizeTokenAddress(
+  tokenAddress: Hex,
+  chainId: Hex,
+  target?: TokenAddressTarget,
+): Hex {
+  if (chainId !== CHAIN_ID_POLYGON) {
+    return tokenAddress;
+  }
+
+  const nativeTokenAddress = getNativeToken(chainId).toLowerCase() as Hex;
+  const normalizedTokenAddress = tokenAddress.toLowerCase();
+
+  if (
+    target === TokenAddressTarget.Relay &&
+    normalizedTokenAddress === nativeTokenAddress
+  ) {
+    return NATIVE_TOKEN_ADDRESS;
+  }
+
+  if (
+    target === TokenAddressTarget.MetaMask &&
+    normalizedTokenAddress === NATIVE_TOKEN_ADDRESS.toLowerCase()
+  ) {
+    return nativeTokenAddress;
+  }
+
+  return tokenAddress;
 }

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-enablement-controller",
-  "version": "4.1.2",
+  "version": "4.2.0",
   "description": "Provides an interface to the currently enabled network using a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -54,7 +54,7 @@
     "@metamask/multichain-network-controller": "^3.0.4",
     "@metamask/network-controller": "^30.0.0",
     "@metamask/slip44": "^4.3.0",
-    "@metamask/transaction-controller": "^62.19.0",
+    "@metamask/transaction-controller": "^62.20.0",
     "@metamask/utils": "^11.9.0",
     "reselect": "^5.1.1"
   },

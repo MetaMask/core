@@ -103,8 +103,15 @@ import type {
   Asset,
   AssetsControllerStateInternal,
 } from './types';
-import { normalizeAssetId, formatExchangeRatesForBridge } from './utils';
-import type { BridgeExchangeRatesFormat } from './utils';
+import {
+  normalizeAssetId,
+  formatExchangeRatesForBridge,
+  formatStateForTransactionPay,
+} from './utils';
+import type {
+  BridgeExchangeRatesFormat,
+  TransactionPayLegacyFormat,
+} from './utils';
 
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
@@ -139,6 +146,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssetMetadata',
   'getAssetsPrice',
   'getExchangeRatesForBridge',
+  'getStateForTransactionPay',
   'addCustomAsset',
   'removeCustomAsset',
   'getCustomAssets',
@@ -1146,6 +1154,39 @@ export class AssetsController extends BaseController<
     return formatExchangeRatesForBridge({
       assetsPrice: this.state.assetsPrice,
       selectedCurrency: this.state.selectedCurrency,
+      nativeAssetIdentifiers,
+      networkConfigurationsByChainId,
+      usdToSelectedCurrencyRate: options?.usdToSelectedCurrencyRate,
+    });
+  }
+
+  /**
+   * Returns state in the legacy format expected by transaction-pay-controller
+   * (TokenBalancesController, AccountTrackerController, TokensController,
+   * TokenRatesController, CurrencyRateController shapes) so that when
+   * useAssetsController is true the transaction-pay-controller can use a
+   * single action instead of five separate getState calls.
+   *
+   * @param options - Optional options for legacy rate conversion.
+   * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and marketData use correct user-currency vs USD values; otherwise conversion rates will be wrong for non-USD currencies.
+   * @returns Legacy-compatible state for transaction-pay-controller.
+   */
+  getStateForTransactionPay(options?: {
+    usdToSelectedCurrencyRate?: number;
+  }): TransactionPayLegacyFormat {
+    const accounts = this.#selectedAccounts;
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return formatStateForTransactionPay({
+      assetsBalance: this.state.assetsBalance,
+      assetsInfo: this.state.assetsInfo,
+      assetsPrice: this.state.assetsPrice,
+      selectedCurrency: this.state.selectedCurrency,
+      accounts: accounts.map((a) => ({ id: a.id, address: a.address })),
       nativeAssetIdentifiers,
       networkConfigurationsByChainId,
       usdToSelectedCurrencyRate: options?.usdToSelectedCurrencyRate,
@@ -2297,6 +2338,9 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
     this.messenger.unregisterActionHandler(
       'AssetsController:getExchangeRatesForBridge',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getStateForTransactionPay',
     );
     this.messenger.unregisterActionHandler('AssetsController:addCustomAsset');
     this.messenger.unregisterActionHandler(
