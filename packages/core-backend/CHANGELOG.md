@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat!: Expose Accounts-owned controller/service methods through messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-
 ### Added
 
 - Add `includeAggregators` option to `V3AssetsQueryOptions` so the tokens v3 assets API can be called with `includeAggregators: true` to return DEX/aggregator integrations in the response ([#8021](https://github.com/MetaMask/core/pull/8021))
