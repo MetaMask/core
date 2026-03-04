@@ -1191,9 +1191,7 @@ export class RampsController extends BaseController<
     // empty for the wrong reason; the UI will show the Token Not Available modal
     // so the user can change token or pick a different provider.
     const tokenSupportedByProvider =
-      !selectedToken ||
-      !supportedCryptos ||
-      supportedCryptos[selectedToken.assetId] !== false;
+      supportedCryptos?.[selectedToken?.assetId] !== false;
 
     this.update((state) => {
       state.providers.selected = provider;
