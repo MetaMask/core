@@ -202,6 +202,7 @@ export function calculateGasFeeTokenCost({
 export async function estimateGasLimit({
   chainId,
   data,
+  fallbackGas,
   fallbackOnSimulationFailure = false,
   from,
   messenger,
@@ -210,6 +211,10 @@ export async function estimateGasLimit({
 }: {
   chainId: Hex;
   data: Hex;
+  fallbackGas?: {
+    estimate: number;
+    max: number;
+  };
   fallbackOnSimulationFailure?: boolean;
   from: Hex;
   messenger: TransactionPayControllerMessenger;
@@ -257,11 +262,11 @@ export async function estimateGasLimit({
     throw simulationError;
   }
 
-  const fallbackGas = getFallbackGas(messenger);
+  const fallbackGasConfig = fallbackGas ?? getFallbackGas(messenger);
 
   return {
-    estimate: fallbackGas.estimate,
-    max: fallbackGas.max,
+    estimate: fallbackGasConfig.estimate,
+    max: fallbackGasConfig.max,
     usedFallback: true,
     error: estimateGasError ?? simulationError,
   };

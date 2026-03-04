@@ -6,6 +6,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type {
+  AcrossActionRequestBody,
   AcrossGasLimits,
   AcrossQuote,
   AcrossSwapApprovalResponse,
@@ -37,7 +38,7 @@ const UNSUPPORTED_AUTHORIZATION_LIST_ERROR =
 const UNSUPPORTED_DESTINATION_ERROR =
   'Across only supports transfer-style destination flows at the moment';
 
-type AcrossQuoteWithoutGasLimits = Omit<AcrossQuote, 'gasLimits'>;
+type AcrossQuoteWithoutMetaMask = Omit<AcrossQuote, 'metamask'>;
 
 /**
  * Fetch Across quotes.
@@ -118,7 +119,7 @@ async function getSingleQuote(
     tradeType,
   });
 
-  const originalQuote: AcrossQuoteWithoutGasLimits = {
+  const originalQuote: AcrossQuoteWithoutMetaMask = {
     quote,
     request: {
       amount,
@@ -142,14 +143,9 @@ type AcrossApprovalRequest = {
   tradeType: 'exactInput' | 'exactOutput';
 };
 
-type AcrossApprovalFetchRequest = {
-  url: string;
-  options: RequestInit;
-};
-
-function buildAcrossApprovalFetchRequest(
+async function requestAcrossApproval(
   request: AcrossApprovalRequest,
-): AcrossApprovalFetchRequest {
+): Promise<AcrossSwapApprovalResponse> {
   const {
     amount,
     apiBase,
@@ -177,24 +173,18 @@ function buildAcrossApprovalFetchRequest(
     params.set('slippage', String(slippage));
   }
 
-  return {
-    url: `${apiBase}/swap/approval?${params.toString()}`,
-    options: {
-      body: JSON.stringify({ actions: [] }),
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      method: 'POST',
+  const body: AcrossActionRequestBody = { actions: [] };
+  const url = `${apiBase}/swap/approval?${params.toString()}`;
+  const options: RequestInit = {
+    body: JSON.stringify(body),
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
     },
+    method: 'POST',
   };
-}
-
-async function requestAcrossApproval(
-  request: AcrossApprovalRequest,
-): Promise<AcrossSwapApprovalResponse> {
-  const { url, options } = buildAcrossApprovalFetchRequest(request);
   const response = await successfulFetch(url, options);
+
   return (await response.json()) as AcrossSwapApprovalResponse;
 }
 
@@ -254,7 +244,7 @@ function getTransferRecipient(data: Hex): Hex {
 }
 
 async function normalizeQuote(
-  original: AcrossQuoteWithoutGasLimits,
+  original: AcrossQuoteWithoutMetaMask,
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
@@ -310,6 +300,10 @@ async function normalizeQuote(
     fiatRate: targetFiatRate,
   });
 
+  const metamask = {
+    gasLimits,
+  };
+
   return {
     dust,
     estimatedDuration: quote.expectedFillTime ?? 0,
@@ -321,7 +315,7 @@ async function normalizeQuote(
     },
     original: {
       ...original,
-      gasLimits,
+      metamask,
     },
     request,
     sourceAmount,
@@ -454,6 +448,8 @@ async function calculateSourceNetworkCost(
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
 }> {
+  const acrossFallbackGas =
+    getPayStrategiesConfig(messenger).across.fallbackGas;
   const { from } = request;
   const approvalTxns = quote.approvalTxns ?? [];
   const { swapTx } = quote;
@@ -465,6 +461,7 @@ async function calculateSourceNetworkCost(
       const gas = await estimateGasLimit({
         chainId,
         data: approval.data,
+        fallbackGas: acrossFallbackGas,
         from,
         messenger,
         to: approval.to,
@@ -488,6 +485,7 @@ async function calculateSourceNetworkCost(
       ? await estimateGasLimit({
           chainId: swapChainId,
           data: swapTx.data,
+          fallbackGas: acrossFallbackGas,
           from,
           messenger,
           to: swapTx.to,

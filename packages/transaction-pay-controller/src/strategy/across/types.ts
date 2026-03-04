@@ -1,5 +1,25 @@
 import type { Hex } from '@metamask/utils';
 
+/** Structured destination action for Across quote APIs. */
+export type AcrossActionArg = {
+  balanceSourceToken?: string;
+  populateDynamically: boolean;
+  value: string | string[] | string[][];
+};
+
+export type AcrossAction = {
+  args: AcrossActionArg[];
+  functionSignature: string;
+  isNativeTransfer: boolean;
+  populateCallValueDynamically?: boolean;
+  target: Hex;
+  value: string;
+};
+
+export type AcrossActionRequestBody = {
+  actions: AcrossAction[];
+};
+
 export type AcrossToken = {
   address: Hex;
   chainId: number;
@@ -68,7 +88,9 @@ export type AcrossGasLimits = {
 };
 
 export type AcrossQuote = {
-  gasLimits: AcrossGasLimits;
+  metamask: {
+    gasLimits: AcrossGasLimits;
+  };
   quote: AcrossSwapApprovalResponse;
   request: {
     amount: string;

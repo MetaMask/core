@@ -23,10 +23,6 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
-    if (config.across.allowSameChain) {
-      return true;
-    }
-
     // Across doesn't support same-chain swaps (e.g. mUSD conversions).
     return request.requests.every(
       (singleRequest) =>

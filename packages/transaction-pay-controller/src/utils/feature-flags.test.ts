@@ -9,6 +9,7 @@ import {
   DEFAULT_SLIPPAGE,
   DEFAULT_STRATEGY_ORDER,
   getEIP7702SupportedChains,
+  getFallbackGas,
   getFeatureFlags,
   getGasBuffer,
   getPayStrategiesConfig,
@@ -86,6 +87,38 @@ describe('Feature Flags Utils', () => {
         },
         relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
         slippage: SLIPPAGE_MOCK,
+      });
+    });
+  });
+
+  describe('getFallbackGas', () => {
+    it('returns default fallback gas when feature flag is not set', () => {
+      const fallbackGas = getFallbackGas(messenger);
+
+      expect(fallbackGas).toStrictEqual({
+        estimate: DEFAULT_FALLBACK_GAS_ESTIMATE,
+        max: DEFAULT_FALLBACK_GAS_MAX,
+      });
+    });
+
+    it('returns fallback gas from feature flags when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            relayFallbackGas: {
+              estimate: GAS_FALLBACK_ESTIMATE_MOCK,
+              max: GAS_FALLBACK_MAX_MOCK,
+            },
+          },
+        },
+      });
+
+      const fallbackGas = getFallbackGas(messenger);
+
+      expect(fallbackGas).toStrictEqual({
+        estimate: GAS_FALLBACK_ESTIMATE_MOCK,
+        max: GAS_FALLBACK_MAX_MOCK,
       });
     });
   });
@@ -396,9 +429,12 @@ describe('Feature Flags Utils', () => {
 
       expect(config.across).toStrictEqual(
         expect.objectContaining({
-          allowSameChain: false,
           apiBase: DEFAULT_ACROSS_API_BASE,
           enabled: false,
+          fallbackGas: {
+            estimate: DEFAULT_FALLBACK_GAS_ESTIMATE,
+            max: DEFAULT_FALLBACK_GAS_MAX,
+          },
         }),
       );
       expect(config.relay).toStrictEqual(
@@ -415,9 +451,12 @@ describe('Feature Flags Utils', () => {
           confirmations_pay: {
             payStrategies: {
               across: {
-                allowSameChain: true,
                 apiBase: 'https://across.test',
                 enabled: false,
+                fallbackGas: {
+                  estimate: 123,
+                  max: 456,
+                },
               },
               relay: {
                 enabled: false,
@@ -431,9 +470,12 @@ describe('Feature Flags Utils', () => {
 
       expect(config.across).toStrictEqual(
         expect.objectContaining({
-          allowSameChain: true,
           apiBase: 'https://across.test',
           enabled: false,
+          fallbackGas: {
+            estimate: 123,
+            max: 456,
+          },
         }),
       );
       expect(config.relay).toStrictEqual(

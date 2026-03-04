@@ -116,7 +116,7 @@ async function submitTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex | undefined> {
   const { approvalTxns, swapTx } = quote.original.quote;
-  const quoteGasLimits = quote.original.gasLimits;
+  const { gasLimits: quoteGasLimits } = quote.original.metamask;
   const { from } = quote.request;
   const chainId = toHex(swapTx.chainId);
 
@@ -129,7 +129,7 @@ async function submitTransactions(
 
   if (approvalTxns?.length) {
     for (const [index, approval] of approvalTxns.entries()) {
-      const approvalGasLimit = quoteGasLimits?.approval[index]?.estimate;
+      const approvalGasLimit = quoteGasLimits?.approval[index]?.max;
       if (approvalGasLimit === undefined) {
         throw new Error(
           `Missing quote gas limit for Across approval transaction at index ${index}`,
@@ -149,7 +149,7 @@ async function submitTransactions(
     }
   }
 
-  const swapGasLimit = quoteGasLimits?.swap?.estimate;
+  const swapGasLimit = quoteGasLimits?.swap?.max;
   if (swapGasLimit === undefined) {
     throw new Error('Missing quote gas limit for Across swap transaction');
   }
@@ -282,7 +282,7 @@ async function waitForAcrossCompletion(
       status = (await response.json()) as AcrossStatusResponse;
     } catch (error) {
       log('Across status polling request failed', {
-        attempt: attempt + 1,
+        attempt,
         error: String(error),
         transactionHash,
       });

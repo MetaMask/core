@@ -59,9 +59,12 @@ describe('AcrossStrategy', () => {
     jest.resetAllMocks();
     getPayStrategiesConfigMock.mockReturnValue({
       across: {
-        allowSameChain: false,
         apiBase: 'https://across.test',
         enabled: true,
+        fallbackGas: {
+          estimate: 900000,
+          max: 1500000,
+        },
       },
       relay: {
         enabled: true,
@@ -72,9 +75,12 @@ describe('AcrossStrategy', () => {
   it('returns false when across is disabled', () => {
     getPayStrategiesConfigMock.mockReturnValue({
       across: {
-        allowSameChain: false,
         apiBase: 'https://across.test',
         enabled: false,
+        fallbackGas: {
+          estimate: 900000,
+          max: 1500000,
+        },
       },
       relay: {
         enabled: true,
@@ -111,39 +117,7 @@ describe('AcrossStrategy', () => {
     ).toBe(false);
   });
 
-  it('returns true when same-chain swaps are allowed', () => {
-    getPayStrategiesConfigMock.mockReturnValue({
-      across: {
-        allowSameChain: true,
-        apiBase: 'https://across.test',
-        enabled: true,
-      },
-      relay: {
-        enabled: true,
-      },
-    });
-
-    const strategy = new AcrossStrategy();
-    expect(
-      strategy.supports({
-        ...baseRequest,
-        requests: [
-          {
-            from: '0xabc' as Hex,
-            sourceBalanceRaw: '100',
-            sourceChainId: '0x1' as Hex,
-            sourceTokenAddress: '0xabc' as Hex,
-            sourceTokenAmount: '100',
-            targetAmountMinimum: '100',
-            targetChainId: '0x1' as Hex,
-            targetTokenAddress: '0xdef' as Hex,
-          },
-        ],
-      }),
-    ).toBe(true);
-  });
-
-  it('returns false when same-chain swaps are not allowed', () => {
+  it('returns false for same-chain swaps', () => {
     const strategy = new AcrossStrategy();
     expect(
       strategy.supports({

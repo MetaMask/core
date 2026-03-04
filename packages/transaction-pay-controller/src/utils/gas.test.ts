@@ -514,6 +514,30 @@ describe('Gas Utils', () => {
       });
     });
 
+    it('uses provided fallback gas override when estimate throws', async () => {
+      const error = new Error('estimate failed');
+      estimateGasMock.mockRejectedValue(error);
+
+      expect(
+        await estimateGasLimit({
+          chainId: CHAIN_ID_MOCK,
+          data: '0xdead' as Hex,
+          fallbackGas: {
+            estimate: 987,
+            max: 654,
+          },
+          from: '0xabc' as Hex,
+          messenger,
+          to: '0xdef' as Hex,
+        }),
+      ).toStrictEqual({
+        estimate: 987,
+        max: 654,
+        usedFallback: true,
+        error,
+      });
+    });
+
     it('returns fallback gas when estimate returns an invalid gas value', async () => {
       estimateGasMock.mockResolvedValue({
         gas: 'invalid',

@@ -595,6 +595,24 @@ describe('Across Quotes', () => {
     });
 
     it('uses fallback gas estimate when estimation fails', async () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: {
+                enabled: true,
+                apiBase: 'https://test.across.to/api',
+                fallbackGas: {
+                  estimate: 111000,
+                  max: 222000,
+                },
+              },
+            },
+          },
+        },
+      });
+
       estimateGasMock.mockRejectedValue(new Error('Gas estimation failed'));
 
       successfulFetchMock.mockResolvedValue({
@@ -611,13 +629,13 @@ describe('Across Quotes', () => {
       expect(calculateGasCostMock).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
-          gas: 900000,
+          gas: 111000,
         }),
       );
       expect(calculateGasCostMock).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
-          gas: 1500000,
+          gas: 222000,
           isMax: true,
         }),
       );
@@ -679,7 +697,7 @@ describe('Across Quotes', () => {
           gas: 21000,
         }),
       );
-      expect(result[0].original.gasLimits.approval).toStrictEqual([
+      expect(result[0].original.metamask.gasLimits.approval).toStrictEqual([
         {
           estimate: 900000,
           max: 1500000,
@@ -689,7 +707,7 @@ describe('Across Quotes', () => {
           max: 30000,
         },
       ]);
-      expect(result[0].original.gasLimits.swap).toStrictEqual({
+      expect(result[0].original.metamask.gasLimits.swap).toStrictEqual({
         estimate: 21000,
         max: 21000,
       });
@@ -713,7 +731,7 @@ describe('Across Quotes', () => {
       });
 
       expect(estimateGasMock).not.toHaveBeenCalled();
-      expect(result[0].original.gasLimits.swap).toStrictEqual({
+      expect(result[0].original.metamask.gasLimits.swap).toStrictEqual({
         estimate: 24576,
         max: 24576,
       });
@@ -743,7 +761,7 @@ describe('Across Quotes', () => {
       });
 
       expect(estimateGasMock).toHaveBeenCalledTimes(1);
-      expect(result[0].original.gasLimits.swap).toStrictEqual({
+      expect(result[0].original.metamask.gasLimits.swap).toStrictEqual({
         estimate: 21000,
         max: 21000,
       });
@@ -763,7 +781,7 @@ describe('Across Quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result[0].original.gasLimits.approval).toStrictEqual([]);
+      expect(result[0].original.metamask.gasLimits.approval).toStrictEqual([]);
       expect(calculateGasCostMock).toHaveBeenCalledTimes(2);
     });
 

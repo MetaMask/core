@@ -56,9 +56,21 @@ export type FeatureFlags = {
 };
 
 export type AcrossConfigRaw = {
-  allowSameChain?: boolean;
   apiBase?: string;
   enabled?: boolean;
+  fallbackGas?: {
+    estimate?: number;
+    max?: number;
+  };
+};
+
+export type AcrossConfig = {
+  apiBase: string;
+  enabled: boolean;
+  fallbackGas: {
+    estimate: number;
+    max: number;
+  };
 };
 
 export type PayStrategiesConfigRaw = {
@@ -69,11 +81,7 @@ export type PayStrategiesConfigRaw = {
 };
 
 export type PayStrategiesConfig = {
-  across: AcrossConfigRaw & {
-    allowSameChain: boolean;
-    apiBase: string;
-    enabled: boolean;
-  };
+  across: AcrossConfig;
   relay: {
     enabled: boolean;
   };
@@ -161,9 +169,13 @@ export function getPayStrategiesConfig(
   const relayRaw = payStrategies.relay ?? {};
 
   const across = {
-    allowSameChain: acrossRaw.allowSameChain ?? false,
     apiBase: acrossRaw.apiBase ?? DEFAULT_ACROSS_API_BASE,
     enabled: acrossRaw.enabled ?? false,
+    fallbackGas: {
+      estimate:
+        acrossRaw.fallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE,
+      max: acrossRaw.fallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX,
+    },
   };
 
   const relay = {

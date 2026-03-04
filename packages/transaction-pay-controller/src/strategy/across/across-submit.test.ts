@@ -43,9 +43,11 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
     targetNetwork: { usd: '0', fiat: '0' },
   },
   original: {
-    gasLimits: {
-      approval: [{ estimate: 21000, max: 21000 }],
-      swap: { estimate: 22000, max: 22000 },
+    metamask: {
+      gasLimits: {
+        approval: [{ estimate: 21000, max: 21000 }],
+        swap: { estimate: 22000, max: 22000 },
+      },
     },
     quote: {
       approvalTxns: [
@@ -738,11 +740,21 @@ describe('Across Submit', () => {
       }
     });
 
-    it('reuses gas limits from quote when available', async () => {
+    it('reuses max gas limits from quote when available', async () => {
       const noApprovalQuote = {
         ...QUOTE_MOCK,
         original: {
           ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: {
+              ...QUOTE_MOCK.original.metamask.gasLimits,
+              swap: {
+                ...QUOTE_MOCK.original.metamask.gasLimits.swap,
+                estimate: 22000,
+                max: 33000,
+              },
+            },
+          },
           quote: {
             ...QUOTE_MOCK.original.quote,
             approvalTxns: [],
@@ -759,7 +771,7 @@ describe('Across Submit', () => {
 
       const params = addTransactionMock.mock.calls[0][0] as { gas: Hex };
 
-      expect(params.gas).toBe(toHex(22000));
+      expect(params.gas).toBe(toHex(33000));
       expect(estimateGasMock).not.toHaveBeenCalled();
     });
 
@@ -768,9 +780,11 @@ describe('Across Submit', () => {
         ...QUOTE_MOCK,
         original: {
           ...QUOTE_MOCK.original,
-          gasLimits: {
-            ...QUOTE_MOCK.original.gasLimits,
-            swap: undefined,
+          metamask: {
+            gasLimits: {
+              ...QUOTE_MOCK.original.metamask.gasLimits,
+              swap: undefined,
+            },
           },
           quote: {
             ...QUOTE_MOCK.original.quote,
@@ -796,9 +810,11 @@ describe('Across Submit', () => {
         ...QUOTE_MOCK,
         original: {
           ...QUOTE_MOCK.original,
-          gasLimits: {
-            ...QUOTE_MOCK.original.gasLimits,
-            approval: [],
+          metamask: {
+            gasLimits: {
+              ...QUOTE_MOCK.original.metamask.gasLimits,
+              approval: [],
+            },
           },
         },
       } as TransactionPayQuote<AcrossQuote>;

@@ -46,9 +46,12 @@ describe('RelayStrategy', () => {
 
     getPayStrategiesConfigMock.mockReturnValue({
       across: {
-        allowSameChain: false,
         apiBase: 'https://across.test',
         enabled: true,
+        fallbackGas: {
+          estimate: 900000,
+          max: 1500000,
+        },
       },
       relay: {
         enabled: true,
@@ -64,9 +67,12 @@ describe('RelayStrategy', () => {
   it('returns false from supports when relay is disabled', () => {
     getPayStrategiesConfigMock.mockReturnValue({
       across: {
-        allowSameChain: false,
         apiBase: 'https://across.test',
         enabled: true,
+        fallbackGas: {
+          estimate: 900000,
+          max: 1500000,
+        },
       },
       relay: {
         enabled: false,
