@@ -18,11 +18,18 @@ import type {
   DigestService,
   MarketInsightsReport,
   MarketInsightsEntry,
+  MarketOverview,
+  MarketOverviewEntry,
 } from './ai-digest-types';
 
 export type AiDigestControllerFetchMarketInsightsAction = {
   type: `${typeof controllerName}:fetchMarketInsights`;
   handler: AiDigestController['fetchMarketInsights'];
+};
+
+export type AiDigestControllerFetchMarketOverviewAction = {
+  type: `${typeof controllerName}:fetchMarketOverview`;
+  handler: AiDigestController['fetchMarketOverview'];
 };
 
 export type AiDigestControllerGetStateAction = ControllerGetStateAction<
@@ -32,6 +39,7 @@ export type AiDigestControllerGetStateAction = ControllerGetStateAction<
 
 export type AiDigestControllerActions =
   | AiDigestControllerFetchMarketInsightsAction
+  | AiDigestControllerFetchMarketOverviewAction
   | AiDigestControllerGetStateAction;
 
 export type AiDigestControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -56,11 +64,18 @@ export type AiDigestControllerOptions = {
 export function getDefaultAiDigestControllerState(): AiDigestControllerState {
   return {
     marketInsights: {},
+    marketOverview: null,
   };
 }
 
 const aiDigestControllerMetadata: StateMetadata<AiDigestControllerState> = {
   marketInsights: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  marketOverview: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -94,6 +109,10 @@ export class AiDigestController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:fetchMarketInsights`,
       this.fetchMarketInsights.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      `${controllerName}:fetchMarketOverview`,
+      this.fetchMarketOverview.bind(this),
     );
   }
 
@@ -138,6 +157,42 @@ export class AiDigestController extends BaseController<
     this.update((state) => {
       state.marketInsights[caip19Id] = entry;
       this.#evictStaleCachedEntries(state.marketInsights);
+    });
+
+    return data;
+  }
+
+  /**
+   * Fetches the market overview report.
+   * Returns cached data if still fresh, otherwise calls the service.
+   *
+   * @returns The market overview report, or `null` if none exists.
+   */
+  async fetchMarketOverview(): Promise<MarketOverview | null> {
+    const existing = this.state.marketOverview;
+    if (existing) {
+      const age = Date.now() - existing.fetchedAt;
+      if (age < CACHE_DURATION_MS) {
+        return existing.data;
+      }
+    }
+
+    const data = await this.#digestService.fetchMarketOverview();
+
+    if (data === null) {
+      this.update((state) => {
+        state.marketOverview = null;
+      });
+      return null;
+    }
+
+    const entry: MarketOverviewEntry = {
+      fetchedAt: Date.now(),
+      data,
+    };
+
+    this.update((state) => {
+      state.marketOverview = entry;
     });
 
     return data;
