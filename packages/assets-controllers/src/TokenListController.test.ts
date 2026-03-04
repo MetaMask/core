@@ -546,27 +546,6 @@ const getRestrictedMessenger = (
   return tokenListControllerMessenger;
 };
 
-/**
- * Creates a deferred promise that can be resolved/rejected externally.
- *
- * @returns The deferred promise and its controls.
- */
-type Deferred<TData> = {
-  promise: Promise<TData>;
-  resolve: (value: TData | PromiseLike<TData>) => void;
-  reject: (reason?: unknown) => void;
-};
-
-const createDeferred = <TData>(): Deferred<TData> => {
-  let resolve!: (value: TData | PromiseLike<TData>) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<TData>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise;
-    reject = rejectPromise;
-  });
-  return { promise, resolve, reject };
-};
-
 describe('TokenListController', () => {
   beforeEach(() => {
     // Clear mock storage between tests
@@ -1093,120 +1072,125 @@ describe('TokenListController', () => {
   });
 
   describe('_executePoll', () => {
-    it('waits for initialize to finish before polling', async () => {
-      const getAllKeysDeferred = createDeferred<string[]>();
-
-      const messenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messenger as any).registerActionHandler(
-        'StorageService:getItem',
-        () => ({}),
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messenger as any).registerActionHandler(
-        'StorageService:setItem',
-        () => undefined,
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messenger as any).registerActionHandler(
-        'StorageService:getAllKeys',
-        () => getAllKeysDeferred.promise,
-      );
-
-      const restrictedMessenger = getRestrictedMessenger(messenger);
-      const fetchTokenListByChainIdSpy = jest
-        .spyOn(tokenService, 'fetchTokenListByChainId')
-        .mockResolvedValue(sampleMainnetTokenList);
-
-      const controller = new TokenListController({
-        chainId: ChainId.mainnet,
-        messenger: restrictedMessenger,
-      });
-
-      const initializePromise = controller.initialize();
-      const pollPromise = controller._executePoll({ chainId: ChainId.mainnet });
-
-      await Promise.resolve();
-      expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
-
-      getAllKeysDeferred.resolve([]);
-      await initializePromise;
-      await pollPromise;
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-
-      controller.destroy();
+    beforeEach(() => {
+      jest.useFakeTimers();
     });
 
-    it('continues polling when initialize fails', async () => {
-      const getAllKeysDeferred = createDeferred<string[]>();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
-      const messenger = new Messenger({
+    const arrange = ({
+      failInitialization = false,
+      initializationDelayMs = 50,
+    }: {
+      failInitialization?: boolean;
+      initializationDelayMs?: number;
+    } = {}) => {
+      const messenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messenger as any).registerActionHandler(
-        'StorageService:getItem',
-        () => ({}),
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messenger as any).registerActionHandler(
+      messenger.registerActionHandler('StorageService:getItem', () => {
+        return {};
+      });
+      messenger.registerActionHandler(
         'StorageService:setItem',
         () => undefined,
       );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (messenger as any).registerActionHandler(
+      messenger.registerActionHandler(
         'StorageService:getAllKeys',
-        () => getAllKeysDeferred.promise,
+        () =>
+          new Promise<string[]>((resolve) => {
+            setTimeout(() => resolve([]), initializationDelayMs);
+          }),
       );
 
       const restrictedMessenger = getRestrictedMessenger(messenger);
       const originalSubscribe =
         restrictedMessenger.subscribe.bind(restrictedMessenger);
-      jest
-        .spyOn(restrictedMessenger, 'subscribe')
-        .mockImplementation(
-          (
-            ...args: Parameters<typeof restrictedMessenger.subscribe>
-          ): ReturnType<typeof restrictedMessenger.subscribe> => {
-            const [eventType] = args;
-            if (eventType === 'TokenListController:stateChange') {
-              throw new Error('Initialization failed');
-            }
-            return originalSubscribe(...args);
-          },
-        );
+      const subscribeSpy = failInitialization
+        ? jest
+            .spyOn(restrictedMessenger, 'subscribe')
+            .mockImplementation(
+              (
+                ...args: Parameters<typeof restrictedMessenger.subscribe>
+              ): ReturnType<typeof restrictedMessenger.subscribe> => {
+                const [eventType] = args;
+                if (eventType === 'TokenListController:stateChange') {
+                  throw new Error('Initialization failed');
+                }
+                return originalSubscribe(...args);
+              },
+            )
+        : undefined;
 
       const fetchTokenListByChainIdSpy = jest
         .spyOn(tokenService, 'fetchTokenListByChainId')
         .mockResolvedValue(sampleMainnetTokenList);
-
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
       });
 
-      const initializePromise = controller.initialize();
-      const pollPromise = controller._executePoll({ chainId: ChainId.mainnet });
+      return {
+        controller,
+        fetchTokenListByChainIdSpy,
+        subscribeSpy,
+      };
+    };
 
-      await Promise.resolve();
-      expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
+    it('waits for initialize to finish before polling', async () => {
+      const { controller, fetchTokenListByChainIdSpy } = arrange();
 
-      getAllKeysDeferred.resolve([]);
-      await expect(initializePromise).rejects.toThrow('Initialization failed');
-      expect(await pollPromise).toBeUndefined();
+      try {
+        const initializePromise = controller.initialize();
+        const pollPromise = controller._executePoll({
+          chainId: ChainId.mainnet,
+        });
 
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'TokenListController: Initialization failed during poll execution:',
-        expect.any(Error),
-      );
+        await Promise.resolve();
+        expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
 
-      controller.destroy();
-      consoleErrorSpy.mockRestore();
+        await jestAdvanceTime({ duration: 50 });
+        await initializePromise;
+        await pollPromise;
+
+        expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        controller.destroy();
+        fetchTokenListByChainIdSpy.mockRestore();
+      }
+    });
+
+    it('continues polling when initialize fails', async () => {
+      const { controller, fetchTokenListByChainIdSpy, subscribeSpy } = arrange({
+        failInitialization: true,
+      });
+
+      try {
+        const initializePromise = controller.initialize();
+        const initializeErrorPromise = initializePromise.then(
+          () => undefined,
+          (error) => error as Error,
+        );
+        const pollPromise = controller._executePoll({
+          chainId: ChainId.mainnet,
+        });
+
+        await Promise.resolve();
+        expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
+
+        await jestAdvanceTime({ duration: 50 });
+        const initializeError = await initializeErrorPromise;
+        expect(initializeError?.message).toBe('Initialization failed');
+        expect(await pollPromise).toBeUndefined();
+
+        expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        controller.destroy();
+        subscribeSpy?.mockRestore();
+        fetchTokenListByChainIdSpy.mockRestore();
+      }
     });
   });
 

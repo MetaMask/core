@@ -280,11 +280,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
     try {
       await initializePromise;
-    } catch (error) {
-      console.error(
-        'TokenListController: Initialization failed during poll execution:',
-        error,
-      );
+    } catch {
+      // do nothing
     }
   }
 
