@@ -423,7 +423,7 @@ export default class NotificationServicesController extends BaseController<
             })
             .filter(
               (address): address is string =>
-                Boolean(address) && isValidHexAddress(address),
+                address !== null && isValidHexAddress(address),
             ),
         ),
       ];
