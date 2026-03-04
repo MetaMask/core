@@ -1190,8 +1190,10 @@ export class RampsController extends BaseController<
     // provider. If it isn't, the payment methods request would fail or return
     // empty for the wrong reason; the UI will show the Token Not Available modal
     // so the user can change token or pick a different provider.
-    const tokenSupportedByProvider =
-      supportedCryptos?.[selectedToken?.assetId] !== false;
+    const assetId = selectedToken?.assetId;
+    const tokenSupportedByProvider = !(
+      assetId && supportedCryptos?.[assetId] === false
+    );
 
     this.update((state) => {
       state.providers.selected = provider;
