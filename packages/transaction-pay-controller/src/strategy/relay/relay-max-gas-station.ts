@@ -114,17 +114,19 @@ export async function getRelayMaxGasStationQuote(
   }
 
   const sourceAmountBN = new BigNumber(sourceTokenAmount);
-  const initialGasEstimate = await getInitialGasCostEstimate(
-    phase1Quote,
-    context,
-  );
+  const probeCost = await getProbeGasCostInSourceTokenRaw(context);
 
-  if (!initialGasEstimate) {
+  if (!probeCost) {
     return fallbackToPhase1(
       phase1Quote,
       'Unable to estimate gas-station source token cost',
     );
   }
+
+  const initialGasEstimate: GasCostEstimate = {
+    amount: probeCost,
+    source: GasCostEstimateSource.Probe,
+  };
 
   const adjustedSourceAmount = getAdjustedSourceAmount(
     sourceAmountBN,
@@ -288,32 +290,6 @@ async function getAdjustedPhase2Quote(
     });
     return undefined;
   }
-}
-
-async function getInitialGasCostEstimate(
-  quote: TransactionPayQuote<RelayQuote>,
-  context: MaxAmountQuoteContext,
-): Promise<GasCostEstimate | undefined> {
-  const primaryEstimate = await getGasCostFromQuoteOrGasStation(
-    quote,
-    context.messenger,
-    context.request,
-  );
-
-  if (primaryEstimate) {
-    return primaryEstimate;
-  }
-
-  const probeCost = await getProbeGasCostInSourceTokenRaw(context);
-
-  if (!probeCost) {
-    return undefined;
-  }
-
-  return {
-    amount: probeCost,
-    source: GasCostEstimateSource.Probe,
-  };
 }
 
 async function getGasCostFromQuoteOrGasStation(
