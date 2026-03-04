@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getApprovals` method and messenger action to fetch token approvals with security enrichments from the security alerts API ([#8074](https://github.com/MetaMask/core/pull/8074))
+- Export approval-related types: `ApprovalsResponse`, `Approval`, `Allowance`, `ApprovalAsset`, `Exposure`, `Spender`, `ApprovalFeature`, `ApprovalResultType`, `ApprovalFeatureType` ([#8074](https://github.com/MetaMask/core/pull/8074))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.17.0` to `^62.19.0` ([#7996](https://github.com/MetaMask/core/pull/7996), [#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031))
