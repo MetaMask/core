@@ -1188,8 +1188,28 @@ export class RampsController extends BaseController<
       resetResource(state, 'paymentMethods');
     });
 
+    // Use an assetId the new provider supports so the payment-methods API succeeds.
+    // If the selected token is not supported by the new provider (e.g. after "change provider"
+    // from TokenNotAvailableModal), the API would fail or return empty, leaving payment methods
+    // not loading. Use selected token when supported, otherwise a fallback supported asset.
+    const selectedToken = this.state.tokens.selected;
+    const supportedAssetIds = Object.entries(
+      provider.supportedCryptoCurrencies ?? {},
+    )
+      .filter(([, supported]) => supported)
+      .map(([assetId]) => assetId);
+    const assetIdForPaymentMethods =
+      selectedToken && supportedAssetIds.includes(selectedToken.assetId)
+        ? selectedToken.assetId
+        : supportedAssetIds[0] ?? selectedToken?.assetId ?? '';
+
     this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { provider: provider.id }),
+      this.getPaymentMethods(regionCode, {
+        provider: provider.id,
+        ...(assetIdForPaymentMethods
+          ? { assetId: assetIdForPaymentMethods }
+          : {}),
+      }),
     );
   }
 
@@ -1487,17 +1507,19 @@ export class RampsController extends BaseController<
       const tokenSelectionUnchanged = assetIdToUse === currentAssetId;
       const providerSelectionUnchanged = providerToUse === currentProviderId;
 
-      // this is a race condition check to ensure that the selected token and provider in state are the same as the tokens we're requesting for
-      // ex: if the user rapidly changes the token or provider, the in-flight payment methods might not be valid
-      // so this check will ensure that the payment methods are still valid for the token and provider that were requested
-      if (tokenSelectionUnchanged && providerSelectionUnchanged) {
+      // Race condition check: only apply when the provider we requested for is still selected.
+      // When setSelectedProvider used a fallback assetId (selected token not supported by new provider),
+      // tokenSelectionUnchanged is false but we still want to apply payment methods so the UI can show them.
+      if (providerSelectionUnchanged) {
         state.paymentMethods.data = response.payments;
 
-        // this will auto-select the first payment method if the selected payment method is not in the new payment methods
         const currentSelectionStillValid = response.payments.some(
           (pm: PaymentMethod) => pm.id === state.paymentMethods.selected?.id,
         );
-        if (!currentSelectionStillValid) {
+        if (
+          !currentSelectionStillValid ||
+          !tokenSelectionUnchanged // used fallback assetId; reset selection to first
+        ) {
           state.paymentMethods.selected = response.payments[0] ?? null;
         }
       }

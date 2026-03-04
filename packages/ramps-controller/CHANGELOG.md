@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix payment methods not loading after changing provider when the selected token is not supported by the new provider. The controller now requests payment methods using a supported asset (selected token when supported, otherwise the first supported asset from the provider) so the API succeeds and payment methods display. When the response was fetched with a fallback asset, the controller still applies the returned payment methods so the UI is not stuck in a loading or error state ([TRAM-3314](https://consensyssoftware.atlassian.net/browse/TRAM-3314), [TRAM-3315](https://consensyssoftware.atlassian.net/browse/TRAM-3315)).
+
 ### Added
 
 - Added `orders: RampsOrder[]` to controller state with persistence, along with crud methods([#8045](https://github.com/MetaMask/core/pull/8045))
