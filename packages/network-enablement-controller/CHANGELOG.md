@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `listPopularEvmNetworks()` now returns `Hex[]` (e.g. `'0x1'`, `'0x89'`) instead of CAIP-2 chain IDs; `listPopularNetworks()` still returns CAIP-2 for the full combined list ([#8105](https://github.com/MetaMask/core/pull/8105)).
-- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.19.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031))
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.20.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031) [#8104](https://github.com/MetaMask/core/pull/8104))
 
 ## [4.1.2]
 
