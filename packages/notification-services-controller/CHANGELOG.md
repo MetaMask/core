@@ -41,8 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Filter out Product Account announcements notifications older than 3 months ([#7884](https://github.com/MetaMask/core/pull/7884))
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 - Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
-- Register notification accounts from all keyrings instead of only the first HD keyring, so additional SRP accounts are included in notification setup ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
-- Add push token unlink support for account removal by deleting `/api/v2/token` links for `{ address, platform }` pairs when notification accounts are disabled (for example during SRP removal) ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Register notification accounts from all keyrings instead of only the first HD keyring, so notification setup now includes addresses from HD, hardware, imported, and snap keyrings ([#8108](https://github.com/MetaMask/core/pull/8108))
+- Add push token unlink support for account removal by deleting `/api/v2/token` links for `{ address, platform }` pairs when notification accounts are disabled (for example during SRP removal) ([#8108](https://github.com/MetaMask/core/pull/8108))
 
 ## [22.0.0]
 
