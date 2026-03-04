@@ -137,17 +137,17 @@ describe('utils', () => {
 
   describe('constructAccountIdByAddress', () => {
     it('returns the account id by address for a map of accounts', () => {
-      const accounts = createMockInternalAccount({
+      const account = createMockInternalAccount({
         id: '1',
         address: '0x123abc',
       });
 
       const accountIdByAddress = constructAccountIdByAddress({
-        [accounts.id]: accounts,
+        [account.id]: account,
       });
 
       expect(accountIdByAddress).toStrictEqual({
-        '0x123abc': accounts.id,
+        '0x123abc': account.id,
       });
     });
   });
