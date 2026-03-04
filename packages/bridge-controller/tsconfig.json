@@ -15,7 +15,8 @@
     { "path": "../assets-controllers" },
     { "path": "../multichain-network-controller" },
     { "path": "../profile-sync-controller" },
-    { "path": "../remote-feature-flag-controller" }
+    { "path": "../remote-feature-flag-controller" },
+    { "path": "../assets-controller" }
   ],
   "include": ["../../types", "./src", "./tests"]
 }
