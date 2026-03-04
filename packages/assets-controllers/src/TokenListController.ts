@@ -118,6 +118,16 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   #persistDebounceTimer?: ReturnType<typeof setTimeout>;
 
   /**
+   * Promise for the in-flight initialization sequence.
+   */
+  #initializePromise?: Promise<void>;
+
+  /**
+   * Tracks whether initialize() has successfully completed.
+   */
+  #isInitialized = false;
+
+  /**
    * Promise that resolves when the current persist operation completes.
    * Used to prevent race conditions between persist operations.
    */
@@ -228,14 +238,54 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when initialization is complete.
    */
   async initialize(): Promise<void> {
-    await this.#synchronizeCacheWithStorage();
+    if (this.#isInitialized) {
+      return;
+    }
 
-    // Subscribe to state changes to automatically persist tokensChainsCache
-    this.messenger.subscribe(
-      'TokenListController:stateChange',
-      (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
-      (controllerState) => controllerState.tokensChainsCache,
-    );
+    if (!this.#initializePromise) {
+      this.#initializePromise = this.#performInitialization();
+    }
+
+    await this.#initializePromise;
+  }
+
+  /**
+   * Runs the one-time initialization sequence.
+   */
+  async #performInitialization(): Promise<void> {
+    try {
+      await this.#synchronizeCacheWithStorage();
+
+      // Subscribe to state changes to automatically persist tokensChainsCache
+      this.messenger.subscribe(
+        'TokenListController:stateChange',
+        (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
+        (controllerState) => controllerState.tokensChainsCache,
+      );
+      this.#isInitialized = true;
+    } finally {
+      this.#initializePromise = undefined;
+    }
+  }
+
+  /**
+   * Waits for any in-flight initialization to complete.
+   * Polling should not run against partially initialized state.
+   */
+  async #waitForInitialization(): Promise<void> {
+    const initializePromise = this.#initializePromise;
+    if (!initializePromise) {
+      return;
+    }
+
+    try {
+      await initializePromise;
+    } catch (error) {
+      console.error(
+        'TokenListController: Initialization failed during poll execution:',
+        error,
+      );
+    }
   }
 
   /**
@@ -559,6 +609,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when this operation completes.
    */
   async _executePoll({ chainId }: TokenListPollingInput): Promise<void> {
+    await this.#waitForInitialization();
     return this.fetchTokenList(chainId);
   }
 
