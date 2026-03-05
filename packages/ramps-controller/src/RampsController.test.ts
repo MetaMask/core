@@ -288,6 +288,95 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('backfills missing status field on persisted native provider resource states', async () => {
+      const persistedState = {
+        nativeProviders: {
+          transak: {
+            isAuthenticated: false,
+            userDetails: {
+              data: null,
+              selected: null,
+              isLoading: false,
+              error: null,
+            },
+            buyQuote: {
+              data: null,
+              selected: null,
+              isLoading: false,
+              error: null,
+            },
+            kycRequirement: {
+              data: null,
+              selected: null,
+              isLoading: false,
+              error: null,
+            },
+          },
+        },
+      } as unknown as Partial<RampsControllerState>;
+
+      await withController(
+        { options: { state: persistedState } },
+        ({ controller }) => {
+          expect(
+            controller.state.nativeProviders.transak.userDetails.status,
+          ).toBe(RequestStatus.IDLE);
+          expect(
+            controller.state.nativeProviders.transak.buyQuote.status,
+          ).toBe(RequestStatus.IDLE);
+          expect(
+            controller.state.nativeProviders.transak.kycRequirement.status,
+          ).toBe(RequestStatus.IDLE);
+        },
+      );
+    });
+
+    it('preserves existing status field on persisted native provider resource states', async () => {
+      const persistedState = {
+        nativeProviders: {
+          transak: {
+            isAuthenticated: true,
+            userDetails: {
+              data: null,
+              selected: null,
+              isLoading: false,
+              error: null,
+              status: RequestStatus.SUCCESS,
+            },
+            buyQuote: {
+              data: null,
+              selected: null,
+              isLoading: false,
+              error: null,
+              status: RequestStatus.ERROR,
+            },
+            kycRequirement: {
+              data: null,
+              selected: null,
+              isLoading: false,
+              error: null,
+              status: RequestStatus.SUCCESS,
+            },
+          },
+        },
+      } as unknown as Partial<RampsControllerState>;
+
+      await withController(
+        { options: { state: persistedState } },
+        ({ controller }) => {
+          expect(
+            controller.state.nativeProviders.transak.userDetails.status,
+          ).toBe(RequestStatus.SUCCESS);
+          expect(
+            controller.state.nativeProviders.transak.buyQuote.status,
+          ).toBe(RequestStatus.ERROR);
+          expect(
+            controller.state.nativeProviders.transak.kycRequirement.status,
+          ).toBe(RequestStatus.SUCCESS);
+        },
+      );
+    });
   });
 
   describe('messenger action handlers', () => {
@@ -6335,7 +6424,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
-              "status": "idle",
+              "status": "success",
             }
           `);
         });
@@ -6358,6 +6447,9 @@ describe('RampsController', () => {
           expect(
             controller.state.nativeProviders.transak.userDetails.error,
           ).toBe('Auth failed');
+          expect(
+            controller.state.nativeProviders.transak.userDetails.status,
+          ).toBe(RequestStatus.ERROR);
         });
       });
 
@@ -6478,7 +6570,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
-              "status": "idle",
+              "status": "success",
             }
           `);
         });
@@ -6507,6 +6599,9 @@ describe('RampsController', () => {
           expect(controller.state.nativeProviders.transak.buyQuote.error).toBe(
             'Quote failed',
           );
+          expect(
+            controller.state.nativeProviders.transak.buyQuote.status,
+          ).toBe(RequestStatus.ERROR);
         });
       });
 
@@ -6561,7 +6656,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
-              "status": "idle",
+              "status": "success",
             }
           `);
         });
@@ -6584,6 +6679,9 @@ describe('RampsController', () => {
           expect(
             controller.state.nativeProviders.transak.kycRequirement.error,
           ).toBe('KYC failed');
+          expect(
+            controller.state.nativeProviders.transak.kycRequirement.status,
+          ).toBe(RequestStatus.ERROR);
         });
       });
 

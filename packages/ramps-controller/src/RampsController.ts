@@ -761,6 +761,36 @@ export class RampsController extends BaseController<
           typeof state.tokens === 'object' && {
             tokens: { ...defaults.tokens, ...state.tokens },
           }),
+        ...(state.paymentMethods !== null &&
+          typeof state.paymentMethods === 'object' && {
+            paymentMethods: {
+              ...defaults.paymentMethods,
+              ...state.paymentMethods,
+            },
+          }),
+        ...(state.nativeProviders !== null &&
+          typeof state.nativeProviders === 'object' && {
+            nativeProviders: {
+              ...defaults.nativeProviders,
+              ...state.nativeProviders,
+              transak: {
+                ...defaults.nativeProviders.transak,
+                ...state.nativeProviders.transak,
+                userDetails: {
+                  ...defaults.nativeProviders.transak.userDetails,
+                  ...state.nativeProviders.transak?.userDetails,
+                },
+                buyQuote: {
+                  ...defaults.nativeProviders.transak.buyQuote,
+                  ...state.nativeProviders.transak?.buyQuote,
+                },
+                kycRequirement: {
+                  ...defaults.nativeProviders.transak.kycRequirement,
+                  ...state.nativeProviders.transak?.kycRequirement,
+                },
+              },
+            },
+          }),
         // Always reset requests cache on initialization (non-persisted)
         requests: {},
       },
@@ -2114,6 +2144,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.userDetails.isLoading = true;
       state.nativeProviders.transak.userDetails.error = null;
+      state.nativeProviders.transak.userDetails.status = RequestStatus.LOADING;
     });
     try {
       const details = await this.messenger.call(
@@ -2122,6 +2153,8 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.userDetails.data = details;
         state.nativeProviders.transak.userDetails.isLoading = false;
+        state.nativeProviders.transak.userDetails.status =
+          RequestStatus.SUCCESS;
       });
       return details;
     } catch (error) {
@@ -2130,6 +2163,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.userDetails.isLoading = false;
         state.nativeProviders.transak.userDetails.error = errorMessage;
+        state.nativeProviders.transak.userDetails.status = RequestStatus.ERROR;
       });
       throw error;
     }
@@ -2156,6 +2190,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
       state.nativeProviders.transak.buyQuote.error = null;
+      state.nativeProviders.transak.buyQuote.status = RequestStatus.LOADING;
     });
     try {
       const quote = await this.messenger.call(
@@ -2169,6 +2204,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.data = quote;
         state.nativeProviders.transak.buyQuote.isLoading = false;
+        state.nativeProviders.transak.buyQuote.status = RequestStatus.SUCCESS;
       });
       return quote;
     } catch (error) {
@@ -2176,6 +2212,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.isLoading = false;
         state.nativeProviders.transak.buyQuote.error = errorMessage;
+        state.nativeProviders.transak.buyQuote.status = RequestStatus.ERROR;
       });
       throw error;
     }
@@ -2194,6 +2231,8 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.kycRequirement.isLoading = true;
       state.nativeProviders.transak.kycRequirement.error = null;
+      state.nativeProviders.transak.kycRequirement.status =
+        RequestStatus.LOADING;
     });
     try {
       const requirement = await this.messenger.call(
@@ -2203,6 +2242,8 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.data = requirement;
         state.nativeProviders.transak.kycRequirement.isLoading = false;
+        state.nativeProviders.transak.kycRequirement.status =
+          RequestStatus.SUCCESS;
       });
       return requirement;
     } catch (error) {
@@ -2211,6 +2252,8 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.isLoading = false;
         state.nativeProviders.transak.kycRequirement.error = errorMessage;
+        state.nativeProviders.transak.kycRequirement.status =
+          RequestStatus.ERROR;
       });
       throw error;
     }
