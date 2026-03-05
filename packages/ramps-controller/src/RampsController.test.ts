@@ -1240,6 +1240,63 @@ describe('RampsController', () => {
       });
     });
 
+    it('does not regress status to idle when the last concurrent request is stale but an earlier one succeeded', async () => {
+      await withController(async ({ controller }) => {
+        let resolveFirst: (value: string) => void;
+        let resolveSecond: (value: string) => void;
+
+        // Request A is "current" (its result should be applied)
+        // Request B is "stale" (isResultCurrent returns false, so terminalStatus stays undefined)
+        const fetcherA = async (): Promise<string> =>
+          new Promise<string>((resolve) => {
+            resolveFirst = resolve;
+          });
+        const fetcherB = async (): Promise<string> =>
+          new Promise<string>((resolve) => {
+            resolveSecond = resolve;
+          });
+
+        let isACurrentValue = false;
+        const promiseA = controller.executeRequest(
+          'providers-key-a2',
+          fetcherA,
+          {
+            resourceType: 'providers',
+            isResultCurrent: () => isACurrentValue,
+          },
+        );
+        const promiseB = controller.executeRequest(
+          'providers-key-b2',
+          fetcherB,
+          {
+            resourceType: 'providers',
+            isResultCurrent: () => false,
+          },
+        );
+
+        expect(controller.state.providers.status).toBe(RequestStatus.LOADING);
+
+        // Resolve A first while it's current → terminalStatus = SUCCESS, but
+        // count goes from 2 to 1 so status is not written yet
+        isACurrentValue = true;
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveFirst!('result-a');
+        await promiseA;
+
+        // Status not updated yet since count is still 1
+        expect(controller.state.providers.isLoading).toBe(true);
+
+        // Resolve B last while stale → terminalStatus stays undefined in B's closure
+        // Without the fix, this would write IDLE; with the fix it should preserve SUCCESS
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveSecond!('result-b');
+        await promiseB;
+
+        expect(controller.state.providers.isLoading).toBe(false);
+        expect(controller.state.providers.status).toBe(RequestStatus.SUCCESS);
+      });
+    });
+
     it('clears resource loading when ref-count hits zero even if map was cleared (defensive)', async () => {
       await withController(async ({ controller }) => {
         let resolveFetcher: (value: string) => void;

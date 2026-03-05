@@ -686,6 +686,15 @@ export class RampsController extends BaseController<
    */
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
 
+  /**
+   * Tracks the "best" terminal status reached by any concurrent request for a
+   * resource type. Populated when a current result is resolved/rejected, and
+   * cleared when the last in-flight request for that resource finishes and the
+   * status is committed to state.
+   */
+  readonly #resourceTerminalStatus: Map<ResourceType, RequestStatus> =
+    new Map();
+
   readonly #orderPollingMeta: Map<string, OrderPollingMetadata> = new Map();
 
   #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
@@ -891,7 +900,6 @@ export class RampsController extends BaseController<
 
     // Create the fetch promise
     const promise = (async (): Promise<TResult> => {
-      let terminalStatus: RequestStatus | undefined;
       try {
         const data = await fetcher(abortController.signal);
 
@@ -909,7 +917,10 @@ export class RampsController extends BaseController<
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, null);
-            terminalStatus = RequestStatus.SUCCESS;
+            this.#recordResourceTerminalStatus(
+              resourceType,
+              RequestStatus.SUCCESS,
+            );
           }
         }
         return data;
@@ -928,7 +939,10 @@ export class RampsController extends BaseController<
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, errorMessage);
-            terminalStatus = RequestStatus.ERROR;
+            this.#recordResourceTerminalStatus(
+              resourceType,
+              RequestStatus.ERROR,
+            );
           }
         }
         throw error;
@@ -946,10 +960,17 @@ export class RampsController extends BaseController<
           const next = Math.max(0, count - 1);
           if (next === 0) {
             this.#pendingResourceCount.delete(resourceType);
+            // Use the best terminal status recorded by any current result across
+            // all concurrent requests. Fall back to IDLE only if no request for
+            // this resource reported a current result.
+            const effectiveStatus =
+              this.#resourceTerminalStatus.get(resourceType) ??
+              RequestStatus.IDLE;
+            this.#resourceTerminalStatus.delete(resourceType);
             this.#setResourceLoadingAndStatus(
               resourceType,
               false,
-              terminalStatus ?? RequestStatus.IDLE,
+              effectiveStatus,
             );
           } else {
             this.#pendingResourceCount.set(resourceType, next);
@@ -1097,6 +1118,25 @@ export class RampsController extends BaseController<
     status: `${RequestStatus}`,
   ): void {
     this.#updateResourceFields(resourceType, { isLoading: loading, status });
+  }
+
+  /**
+   * Records the terminal status for a resource type, keeping the highest-priority
+   * status seen across concurrent requests. SUCCESS and ERROR both take priority
+   * over a previously recorded IDLE, and SUCCESS takes priority over ERROR so
+   * that a successful peer request is not masked by a failed one.
+   *
+   * @param resourceType - The resource type.
+   * @param status - The terminal status to record (SUCCESS or ERROR).
+   */
+  #recordResourceTerminalStatus(
+    resourceType: ResourceType,
+    status: RequestStatus.SUCCESS | RequestStatus.ERROR,
+  ): void {
+    const current = this.#resourceTerminalStatus.get(resourceType);
+    if (current !== RequestStatus.SUCCESS) {
+      this.#resourceTerminalStatus.set(resourceType, status);
+    }
   }
 
   /**
