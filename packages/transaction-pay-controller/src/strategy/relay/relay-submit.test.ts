@@ -14,7 +14,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import type { FeatureFlags } from '../../utils/feature-flags';
-import { getFeatureFlags } from '../../utils/feature-flags';
+import { isEIP7702Chain, getFeatureFlags } from '../../utils/feature-flags';
 import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
 import {
   collectTransactionIds,
@@ -129,9 +129,12 @@ describe('Relay Submit Utils', () => {
   const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
   const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
 
+  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
+
   const {
     addTransactionMock,
     addTransactionBatchMock,
+    getDelegationTransactionMock,
     findNetworkClientIdByChainIdMock,
     messenger,
   } = getMessengerMock();
@@ -144,6 +147,8 @@ describe('Relay Submit Utils', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+
+    isEIP7702ChainMock.mockReturnValue(false);
 
     getLiveTokenBalanceMock.mockResolvedValue('9999999999');
     normalizeTokenAddressMock.mockImplementation(
@@ -966,6 +971,196 @@ describe('Relay Submit Utils', () => {
       await expect(submitRelayQuotes(request)).rejects.toThrow(
         'Cannot validate payment token balance - RPC timeout',
       );
+    });
+
+    describe('EIP-7702 execute path', () => {
+      const DELEGATION_MANAGER_MOCK = '0xdelegationManager' as Hex;
+      const DELEGATION_DATA_MOCK = '0xdelegationdata' as Hex;
+
+      const DELEGATION_RESULT_MOCK = {
+        authorizationList: [
+          {
+            address: '0xdelegateAddr' as Hex,
+            chainId: '0x1' as Hex,
+            nonce: '0x0' as Hex,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: '0x0' as Hex,
+          },
+        ],
+        data: DELEGATION_DATA_MOCK,
+        to: DELEGATION_MANAGER_MOCK,
+        value: '0x0' as Hex,
+      };
+
+      const EXECUTE_RESPONSE_MOCK = {
+        message: 'Transaction submitted',
+        requestId: REQUEST_ID_MOCK,
+      };
+
+      const FEATURE_FLAGS_MOCK = {
+        relayExecuteUrl: 'https://api.relay.link/execute',
+        relayFallbackGas: { max: 123 },
+      } as FeatureFlags;
+
+      beforeEach(() => {
+        isEIP7702ChainMock.mockReturnValue(true);
+        getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
+        getFeatureFlagsMock.mockReturnValue(FEATURE_FLAGS_MOCK);
+
+        successfulFetchMock
+          .mockResolvedValueOnce({
+            json: async () => EXECUTE_RESPONSE_MOCK,
+          } as Response)
+          .mockResolvedValue({
+            json: async () => STATUS_RESPONSE_MOCK,
+          } as Response);
+      });
+
+      it('calls getDelegationTransaction with source calls as nestedTransactions', async () => {
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).toHaveBeenCalledTimes(1);
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            chainId: CHAIN_ID_MOCK,
+            nestedTransactions: [
+              {
+                data: '0x1234',
+                to: '0xfedcb',
+                value: '0x4d2',
+              },
+            ],
+          }),
+        });
+      });
+
+      it('submits to /execute with delegation data', async () => {
+        await submitRelayQuotes(request);
+
+        expect(successfulFetchMock).toHaveBeenCalledWith(
+          FEATURE_FLAGS_MOCK.relayExecuteUrl,
+          expect.objectContaining({
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              executionKind: 'rawCalls',
+              data: {
+                chainId: 1,
+                to: DELEGATION_MANAGER_MOCK,
+                data: DELEGATION_DATA_MOCK,
+                value: '0',
+                authorizationList: [
+                  {
+                    chainId: 1,
+                    address: '0xdelegateAddr',
+                    nonce: 0,
+                    yParity: 0,
+                    r: '0xr',
+                    s: '0xs',
+                  },
+                ],
+              },
+              executionOptions: {
+                subsidizeFees: false,
+              },
+              requestId: REQUEST_ID_MOCK,
+            }),
+          }),
+        );
+      });
+
+      it('omits authorizationList when delegation has none', async () => {
+        getDelegationTransactionMock.mockResolvedValue({
+          ...DELEGATION_RESULT_MOCK,
+          authorizationList: undefined,
+        });
+
+        await submitRelayQuotes(request);
+
+        const fetchCall = successfulFetchMock.mock.calls[0];
+        const body = JSON.parse(
+          (fetchCall[1] as RequestInit).body as string,
+        ) as Record<string, unknown>;
+        const data = body.data as Record<string, unknown>;
+
+        expect(data.authorizationList).toBeUndefined();
+      });
+
+      it('does not call addTransaction or addTransactionBatch', async () => {
+        await submitRelayQuotes(request);
+
+        expect(addTransactionMock).not.toHaveBeenCalled();
+        expect(addTransactionBatchMock).not.toHaveBeenCalled();
+      });
+
+      it('still validates source balance', async () => {
+        getLiveTokenBalanceMock.mockResolvedValue('500000');
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Insufficient source token balance for relay deposit',
+        );
+
+        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+      });
+
+      it('polls relay status after execute', async () => {
+        await submitRelayQuotes(request);
+
+        expect(successfulFetchMock).toHaveBeenCalledWith(
+          `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
+          { method: 'GET' },
+        );
+      });
+
+      it('returns target hash from relay status', async () => {
+        const result = await submitRelayQuotes(request);
+        expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+      });
+
+      it('includes original transaction in nestedTransactions for post-quote flow', async () => {
+        request.quotes[0].request.isPostQuote = true;
+        request.transaction = {
+          id: ORIGINAL_TRANSACTION_ID_MOCK,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0xrecipient' as Hex,
+            data: '0xorigdata' as Hex,
+            value: '0x100' as Hex,
+          },
+          type: TransactionType.simpleSend,
+        } as TransactionMeta;
+
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            nestedTransactions: [
+              {
+                data: '0xorigdata',
+                to: '0xrecipient',
+                value: '0x100',
+              },
+              {
+                data: '0x1234',
+                to: '0xfedcb',
+                value: '0x4d2',
+              },
+            ],
+          }),
+        });
+      });
+
+      it('uses TransactionController path when chain is not EIP-7702', async () => {
+        isEIP7702ChainMock.mockReturnValue(false);
+
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });

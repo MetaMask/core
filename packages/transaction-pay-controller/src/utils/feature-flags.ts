@@ -5,7 +5,7 @@ import { uniq } from 'lodash';
 import type { TransactionPayControllerMessenger } from '..';
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
-import { RELAY_URL_BASE } from '../strategy/relay/constants';
+import { RELAY_EXECUTE_URL, RELAY_URL_BASE } from '../strategy/relay/constants';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
@@ -14,6 +14,7 @@ type StrategyOrder = [TransactionPayStrategy, ...TransactionPayStrategy[]];
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
+export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
@@ -34,6 +35,7 @@ type FeatureFlagsRaw = {
     >;
   };
   relayDisabledGasStationChains?: Hex[];
+  relayExecuteUrl?: string;
   relayFallbackGas?: {
     estimate?: number;
     max?: number;
@@ -47,6 +49,7 @@ type FeatureFlagsRaw = {
 
 export type FeatureFlags = {
   relayDisabledGasStationChains: Hex[];
+  relayExecuteUrl: string;
   relayFallbackGas: {
     estimate: number;
     max: number;
@@ -131,6 +134,9 @@ export function getFeatureFlags(
 
   const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
 
+  const relayExecuteUrl =
+    featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
+
   const relayQuoteUrl = featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
 
   const relayDisabledGasStationChains =
@@ -140,6 +146,7 @@ export function getFeatureFlags(
 
   const result: FeatureFlags = {
     relayDisabledGasStationChains,
+    relayExecuteUrl,
     relayFallbackGas: {
       estimate,
       max,
@@ -278,20 +285,26 @@ function getCaseInsensitive<Value>(
 }
 
 /**
- * Retrieves the supported EIP-7702 chains from feature flags.
+ * Checks if a chain supports EIP-7702.
  *
  * @param messenger - Controller messenger.
- * @returns Array of chain IDs that support EIP-7702.
+ * @param chainId - Chain ID to check.
+ * @returns Whether the chain supports EIP-7702.
  */
-export function getEIP7702SupportedChains(
+export function isEIP7702Chain(
   messenger: TransactionPayControllerMessenger,
-): Hex[] {
+  chainId: Hex,
+): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
     | { supportedChains?: Hex[] }
     | undefined;
 
-  return eip7702Flags?.supportedChains ?? [];
+  const supportedChains = eip7702Flags?.supportedChains ?? [];
+
+  return supportedChains.some(
+    (supported) => supported.toLowerCase() === chainId.toLowerCase(),
+  );
 }
 
 /**

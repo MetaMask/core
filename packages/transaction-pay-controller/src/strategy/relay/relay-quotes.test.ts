@@ -24,7 +24,7 @@ import type {
 import {
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
-  getEIP7702SupportedChains,
+  isEIP7702Chain,
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
@@ -46,7 +46,7 @@ jest.mock('../../utils/token', () => ({
 jest.mock('../../utils/gas');
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
-  getEIP7702SupportedChains: jest.fn(),
+  isEIP7702Chain: jest.fn(),
   getGasBuffer: jest.fn(),
   getSlippage: jest.fn(),
 }));
@@ -160,7 +160,7 @@ describe('Relay Quotes Utils', () => {
   const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
   const getNativeTokenMock = jest.mocked(getNativeToken);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
-  const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
+  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const getSlippageMock = jest.mocked(getSlippage);
 
@@ -200,9 +200,7 @@ describe('Relay Quotes Utils', () => {
       ...getDefaultRemoteFeatureFlagControllerState(),
     });
 
-    getEIP7702SupportedChainsMock.mockReturnValue([
-      QUOTE_REQUEST_MOCK.sourceChainId,
-    ]);
+    isEIP7702ChainMock.mockReturnValue(true);
     getGasBufferMock.mockReturnValue(1.0);
     getSlippageMock.mockReturnValue(DEFAULT_SLIPPAGE);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
@@ -256,6 +254,7 @@ describe('Relay Quotes Utils', () => {
           destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
           originChainId: 1,
           originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+          originGasOverhead: '300000',
           recipient: QUOTE_REQUEST_MOCK.from,
           tradeType: 'EXPECTED_OUTPUT',
           user: QUOTE_REQUEST_MOCK.from,
@@ -366,6 +365,7 @@ describe('Relay Quotes Utils', () => {
         destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
         originChainId: 1,
         originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+        originGasOverhead: '300000',
         recipient: QUOTE_REQUEST_MOCK.from,
         slippageTolerance: '50',
         tradeType: 'EXPECTED_OUTPUT',
@@ -609,6 +609,8 @@ describe('Relay Quotes Utils', () => {
       } as never);
 
       const relayQuoteUrl = 'https://test.com/quote';
+
+      isEIP7702ChainMock.mockReturnValue(false);
 
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
@@ -1615,9 +1617,7 @@ describe('Relay Quotes Utils', () => {
         } as never);
 
         getTokenBalanceMock.mockReturnValue('1724999999999999');
-        getEIP7702SupportedChainsMock.mockReturnValue([
-          QUOTE_REQUEST_MOCK.sourceChainId,
-        ]);
+        isEIP7702ChainMock.mockReturnValue(true);
 
         const result = await getRelayQuotes({
           messenger,
@@ -1897,7 +1897,7 @@ describe('Relay Quotes Utils', () => {
         '0x0000000000000000000000000000000000001010',
       );
 
-      getEIP7702SupportedChainsMock.mockReturnValue([CHAIN_ID_POLYGON]);
+      isEIP7702ChainMock.mockReturnValue(true);
 
       const polygonToHyperliquidRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
