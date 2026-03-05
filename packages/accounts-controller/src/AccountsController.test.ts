@@ -1,5 +1,8 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { InfuraNetworkType, toChecksumHexAddress } from '@metamask/controller-utils';
+import {
+  InfuraNetworkType,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
