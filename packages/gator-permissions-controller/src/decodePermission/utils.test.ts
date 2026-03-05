@@ -7,7 +7,6 @@ import type { DeployedContractsByName } from './types';
 import {
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
-  isSubset,
   splitHex,
 } from './utils';
 
@@ -225,20 +224,6 @@ describe('createPermissionRulesForChainId', () => {
     expect(nativeStreamRule.caveatAddressesMatch(matchingCaveatAddresses)).toBe(
       true,
     );
-  });
-});
-
-describe('isSubset', () => {
-  it('returns true when subset is contained', () => {
-    expect(isSubset(new Set([1, 2]), new Set([1, 2, 3]))).toBe(true);
-  });
-
-  it('returns false when subset has an extra element', () => {
-    expect(isSubset(new Set([1, 4]), new Set([1, 2, 3]))).toBe(false);
-  });
-
-  it('returns true for empty subset', () => {
-    expect(isSubset(new Set(), new Set([1, 2, 3]))).toBe(true);
   });
 });
 

@@ -192,25 +192,6 @@ export function enforcersMatchRule(
 }
 
 /**
- * Determines whether all elements of `subset` are contained within `superset`.
- *
- * @param subset - The candidate subset to test.
- * @param superset - The set expected to contain all elements of `subset`.
- * @returns `true` if `subset` ⊆ `superset`, otherwise `false`.
- */
-export const isSubset = <TElement>(
-  subset: Set<TElement>,
-  superset: Set<TElement>,
-): boolean => {
-  for (const element of subset) {
-    if (!superset.has(element)) {
-      return false;
-    }
-  }
-  return true;
-};
-
-/**
  * Gets the terms for a given enforcer from a list of caveats.
  *
  * @param args - The arguments to this function.
