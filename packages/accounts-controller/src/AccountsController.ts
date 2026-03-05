@@ -494,11 +494,16 @@ export class AccountsController extends BaseController<
     // We need to have a fallback as a cache miss might be attributed to a checksummed address being passed.
     let accountId = this.state.accountIdByAddress[address];
     if (!accountId) {
+      // FIXME: We should not need lower-cased addresses, but some consumers might
+      // still be using non-normalized addresses. For now we keep it
+      // for convenience, but we will need to remove this fallback
+      // at some point.
+      // NOTE: We should only hit that branch for EVM accounts only.
       const lowercasedAddress = address.toLowerCase();
       accountId = this.state.accountIdByAddress[lowercasedAddress];
       if (accountId) {
         log(
-          `Cache missed for account id: ${accountId}, received address: "${address}", matched address: "${lowercasedAddress}"`,
+          `Cache missed for account ID: ${accountId}, received address: "${address}", matched address: "${lowercasedAddress}"`,
         );
       }
     }

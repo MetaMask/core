@@ -371,7 +371,7 @@ describe('AccountsController', () => {
   });
 
   describe('constructor', () => {
-    it('should construct the accountIdByAddress correctly', () => {
+    it('constructs the accountIdByAddress correctly', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -388,7 +388,7 @@ describe('AccountsController', () => {
       });
     });
 
-    it('should handle empty state', () => {
+    it('handles empty state', () => {
       const { accountsController } = setupAccountsController({
         // @ts-expect-error - We want to test empty state here.
         overrideState: {},
