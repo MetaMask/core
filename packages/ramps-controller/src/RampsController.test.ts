@@ -322,9 +322,9 @@ describe('RampsController', () => {
           expect(
             controller.state.nativeProviders.transak.userDetails.status,
           ).toBe(RequestStatus.IDLE);
-          expect(
-            controller.state.nativeProviders.transak.buyQuote.status,
-          ).toBe(RequestStatus.IDLE);
+          expect(controller.state.nativeProviders.transak.buyQuote.status).toBe(
+            RequestStatus.IDLE,
+          );
           expect(
             controller.state.nativeProviders.transak.kycRequirement.status,
           ).toBe(RequestStatus.IDLE);
@@ -368,9 +368,9 @@ describe('RampsController', () => {
           expect(
             controller.state.nativeProviders.transak.userDetails.status,
           ).toBe(RequestStatus.SUCCESS);
-          expect(
-            controller.state.nativeProviders.transak.buyQuote.status,
-          ).toBe(RequestStatus.ERROR);
+          expect(controller.state.nativeProviders.transak.buyQuote.status).toBe(
+            RequestStatus.ERROR,
+          );
           expect(
             controller.state.nativeProviders.transak.kycRequirement.status,
           ).toBe(RequestStatus.SUCCESS);
@@ -6599,9 +6599,9 @@ describe('RampsController', () => {
           expect(controller.state.nativeProviders.transak.buyQuote.error).toBe(
             'Quote failed',
           );
-          expect(
-            controller.state.nativeProviders.transak.buyQuote.status,
-          ).toBe(RequestStatus.ERROR);
+          expect(controller.state.nativeProviders.transak.buyQuote.status).toBe(
+            RequestStatus.ERROR,
+          );
         });
       });
 
