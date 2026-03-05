@@ -15,7 +15,6 @@ import type {
   FungibleAssetPrice,
   Middleware,
   AssetsControllerStateInternal,
-  AssetPrice,
 } from '../types';
 
 // ============================================================================
@@ -73,7 +72,10 @@ function isPriceableAsset(assetId: Caip19AssetId): boolean {
 }
 
 /** Market data item from spot prices response (same as FungibleAssetPrice without lastUpdated) */
-type SpotPriceMarketData = Omit<FungibleAssetPrice, 'lastUpdated'>;
+type SpotPriceMarketData = Omit<
+  FungibleAssetPrice,
+  'lastUpdated' | 'assetPriceType'
+>;
 
 /**
  * Type guard to check if market data has a valid price
@@ -216,7 +218,7 @@ export class PriceDataSource {
    */
   async #fetchSpotPrices(
     assetIds: string[],
-  ): Promise<Record<Caip19AssetId, AssetPrice>> {
+  ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
     const selectedCurrency = this.#getSelectedCurrency();
 
     let selectedCurrencyPrices: V3SpotPricesResponse;
@@ -243,7 +245,7 @@ export class PriceDataSource {
       ]);
     }
 
-    const prices: Record<Caip19AssetId, AssetPrice> = {};
+    const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};
 
     for (const [assetId, marketData] of Object.entries(
       selectedCurrencyPrices,
@@ -258,6 +260,7 @@ export class PriceDataSource {
       const caipAssetId = assetId as Caip19AssetId;
       prices[caipAssetId] = {
         ...marketData,
+        assetPriceType: 'fungible',
         usdPrice: usdMarketData.price,
         lastUpdated: Date.now(),
       };
