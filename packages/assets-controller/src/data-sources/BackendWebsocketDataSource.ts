@@ -13,6 +13,7 @@ import {
   KnownCaipNamespace,
   toCaipChainId,
 } from '@metamask/utils';
+import BigNumberJS from 'bignumber.js';
 
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
@@ -322,8 +323,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   /**
    * Sync active chains from AccountsApiDataSource.
-   * Called by AssetsController.handleActiveChainsUpdate when the callback is
-   * invoked for BackendWebsocketDataSource (no messenger call; controller already updated).
+   * When the data source invokes the onActiveChainsUpdated callback, the
+   * controller processes the active chains update (no messenger call; controller already updated).
    *
    * @param chains - Updated active chain IDs from AccountsApiDataSource.
    */
@@ -607,13 +608,23 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const isNative = asset.type.includes('/slip44:');
       const tokenType = isNative ? 'native' : 'erc20';
 
-      // Parse balance amount (already in hex format like "0xc350")
-      const balanceAmount = postBalance.amount.startsWith('0x')
+      // We assume decimals are always present; skip malformed updates
+      if (asset.decimals === undefined) {
+        continue;
+      }
+
+      // Parse raw balance (hex like "0x26f0e5" or decimal string)
+      const rawBalanceStr = postBalance.amount.startsWith('0x')
         ? BigInt(postBalance.amount).toString()
         : postBalance.amount;
 
+      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
+      const humanReadableAmount = new BigNumberJS(rawBalanceStr)
+        .dividedBy(new BigNumberJS(10).pow(asset.decimals))
+        .toString();
+
       assetsBalance[accountId][assetId] = {
-        amount: balanceAmount,
+        amount: humanReadableAmount,
       };
 
       assetsMetadata[assetId] = {
@@ -624,7 +635,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       };
     }
 
-    const response: DataResponse = {};
+    const response: DataResponse = { updateMode: 'merge' };
     if (Object.keys(assetsBalance[accountId]).length > 0) {
       response.assetsBalance = assetsBalance;
       response.assetsInfo = assetsMetadata;

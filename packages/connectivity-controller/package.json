@@ -40,7 +40,7 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/connectivity-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/connectivity-controller",
-    "publish:preview": "yarn npm publish --tag preview",
+    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -58,6 +58,7 @@
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
+    "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

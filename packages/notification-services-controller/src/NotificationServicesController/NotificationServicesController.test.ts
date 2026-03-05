@@ -1591,7 +1591,7 @@ function mockNotificationMessenger(): {
   });
 
   const mockGetBearerToken =
-    typedMockAction<AuthenticationController.AuthenticationControllerGetBearerToken>().mockResolvedValue(
+    typedMockAction<AuthenticationController.AuthenticationControllerGetBearerTokenAction>().mockResolvedValue(
       AuthenticationController.Mocks.MOCK_OATH_TOKEN_RESPONSE.access_token,
     );
 

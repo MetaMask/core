@@ -20,12 +20,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number }}
 
-  publish-preview:
-    name: Publish build preview
+  build-preview:
+    name: Build preview
     needs: is-fork-pull-request
-    permissions:
-      pull-requests: write
-    # This ensures we don't publish on forks. We can't trust forks with this token.
     if: ${{ needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
     runs-on: ubuntu-latest
     steps:
@@ -44,8 +41,61 @@ jobs:
         run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
       - run: yarn prepare-preview-builds @metamask-previews ${{ steps.commit-sha.outputs.COMMIT_SHA }}
       - run: yarn build
-      - name: Publish preview build
-        run: yarn publish-previews
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: preview-build-artifacts
+          include-hidden-files: true
+          retention-days: 4
+          path: |
+            ./yarn.lock
+            ./package.json
+            ./packages/*/
+            !./packages/*/node_modules/
+            !./packages/*/src/
+            !./packages/*/tests/
+            !./packages/**/*.test.*
+
+  publish-preview:
+    name: Publish preview
+    needs: build-preview
+    permissions:
+      pull-requests: write
+    environment: default-branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v2
+        with:
+          is-high-risk-environment: true
+      - name: Restore build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: preview-build-artifacts
+      # The artifact package.json files come from the PR branch.
+      # A malicious PR could inject lifecycle scripts (prepack/postpack) that
+      # execute during `yarn npm publish` with the NPM token in the environment
+      # (enableScripts: false does NOT prevent pack/publish lifecycle scripts).
+      # It could also override publishConfig.registry to exfiltrate the token.
+      - name: Validate artifact manifests
+        run: |
+          bad=0
+          for f in packages/**/package.json; do
+            if jq -e '.scripts // {} | keys[] | select(test("^(pre|post)(pack|publish)"))' "$f" > /dev/null 2>&1; then
+              echo "::error::Forbidden lifecycle script in $f"
+              bad=1
+            fi
+            reg=$(jq -r '.publishConfig.registry // ""' "$f")
+            if [[ -n "$reg" && "$reg" != "https://registry.npmjs.org/" ]]; then
+              echo "::error::Unexpected registry in $f: $reg"
+              bad=1
+            fi
+          done
+          exit "$bad"
+      - name: Reconcile workspace state
+        run: yarn install --no-immutable
+      - name: Publish preview builds
+        run: yarn workspaces foreach --no-private --all exec yarn npm publish --tag preview
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
       - name: Generate preview build message
@@ -53,6 +103,5 @@ jobs:
       - name: Post build preview in comment
         run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
         env:
-          COMMIT_SHA: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number }}

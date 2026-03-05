@@ -7,14 +7,15 @@
   },
   "references": [
     { "path": "../account-tree-controller/tsconfig.build.json" },
+    { "path": "../assets-controllers/tsconfig.build.json" },
     { "path": "../base-controller/tsconfig.build.json" },
+    { "path": "../client-controller/tsconfig.build.json" },
     { "path": "../core-backend/tsconfig.build.json" },
     { "path": "../keyring-controller/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" },
     { "path": "../network-enablement-controller/tsconfig.build.json" },
     { "path": "../permission-controller/tsconfig.build.json" },
-    { "path": "../preferences-controller/tsconfig.build.json" },
-    { "path": "../assets-controllers/tsconfig.build.json" }
+    { "path": "../preferences-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"],
   "exclude": ["**/*.test.ts", "**/__fixtures__/"]

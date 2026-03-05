@@ -29,6 +29,7 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { syncContactsWithUserStorage } from './contact-syncing/controller-integration';
 import { setupContactSyncingSubscriptions } from './contact-syncing/setup-subscriptions';
+import type { UserStorageControllerMethodActions } from './UserStorageController-method-action-types';
 import type {
   UserStorageGenericFeatureKey,
   UserStorageGenericPathWithFeatureAndKey,
@@ -39,11 +40,11 @@ import type { NativeScrypt } from '../../shared/types/encryption';
 import { EventQueue } from '../../shared/utils/event-queue';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerGetSessionProfile,
-  AuthenticationControllerIsSignedIn,
-  AuthenticationControllerPerformSignIn,
-} from '../authentication/AuthenticationController';
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerPerformSignInAction,
+} from '../authentication/AuthenticationController-method-action-types';
 
 const controllerName = 'UserStorageController';
 
@@ -139,42 +140,28 @@ type ControllerConfig = {
   };
 };
 
-// Messenger Actions
-type CreateActionsObj<Controller extends keyof UserStorageController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: UserStorageController[K];
-  };
-};
-type ActionsObj = CreateActionsObj<
-  | 'performGetStorage'
-  | 'performGetStorageAllFeatureEntries'
-  | 'performSetStorage'
-  | 'performBatchSetStorage'
-  | 'performDeleteStorage'
-  | 'performBatchDeleteStorage'
-  | 'getStorageKey'
->;
+const MESSENGER_EXPOSED_METHODS = [
+  'performGetStorage',
+  'performGetStorageAllFeatureEntries',
+  'performSetStorage',
+  'performBatchSetStorage',
+  'performDeleteStorage',
+  'performBatchDeleteStorage',
+  'getStorageKey',
+  'performDeleteStorageAllFeatureEntries',
+  'listEntropySources',
+  'setIsBackupAndSyncFeatureEnabled',
+  'setIsContactSyncingInProgress',
+  'syncContactsWithUserStorage',
+] as const;
+
 export type UserStorageControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   UserStorageControllerState
 >;
 export type Actions =
-  | ActionsObj[keyof ActionsObj]
-  | UserStorageControllerGetStateAction;
-export type UserStorageControllerPerformGetStorage =
-  ActionsObj['performGetStorage'];
-export type UserStorageControllerPerformGetStorageAllFeatureEntries =
-  ActionsObj['performGetStorageAllFeatureEntries'];
-export type UserStorageControllerPerformSetStorage =
-  ActionsObj['performSetStorage'];
-export type UserStorageControllerPerformBatchSetStorage =
-  ActionsObj['performBatchSetStorage'];
-export type UserStorageControllerPerformDeleteStorage =
-  ActionsObj['performDeleteStorage'];
-export type UserStorageControllerPerformBatchDeleteStorage =
-  ActionsObj['performBatchDeleteStorage'];
-export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
+  | UserStorageControllerGetStateAction
+  | UserStorageControllerMethodActions;
 
 export type AllowedActions =
   // Keyring Requests
@@ -182,10 +169,10 @@ export type AllowedActions =
   // Snap Requests
   | HandleSnapRequest
   // Auth Requests
-  | AuthenticationControllerGetBearerToken
-  | AuthenticationControllerGetSessionProfile
-  | AuthenticationControllerPerformSignIn
-  | AuthenticationControllerIsSignedIn
+  | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationControllerGetSessionProfileAction
+  | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerIsSignedInAction
   // Contact Syncing
   | AddressBookControllerListAction
   | AddressBookControllerSetAction
@@ -201,7 +188,6 @@ export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
 export type Events = UserStorageControllerStateChangeEvent;
 
 export type AllowedEvents =
-  | UserStorageControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Address Book Events
@@ -223,7 +209,7 @@ export type UserStorageControllerMessenger = Messenger<
  * - data stored on UserStorage is FULLY encrypted, with the only keys stored/managed on the client.
  * - No one can access this data unless they are have the SRP and are able to run the signing snap.
  */
-export default class UserStorageController extends BaseController<
+export class UserStorageController extends BaseController<
   typeof controllerName,
   UserStorageControllerState,
   UserStorageControllerMessenger
@@ -346,8 +332,12 @@ export default class UserStorageController extends BaseController<
       },
     );
 
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     this.#keyringController.setupLockedStateSubscriptions();
-    this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
 
     // Contact Syncing
@@ -356,47 +346,6 @@ export default class UserStorageController extends BaseController<
       getMessenger: () => this.messenger,
       trace: this.#trace,
     });
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'UserStorageController:performGetStorage',
-      this.performGetStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performGetStorageAllFeatureEntries',
-      this.performGetStorageAllFeatureEntries.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performSetStorage',
-      this.performSetStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performBatchSetStorage',
-      this.performBatchSetStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performDeleteStorage',
-      this.performDeleteStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:performBatchDeleteStorage',
-      this.performBatchDeleteStorage.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'UserStorageController:getStorageKey',
-      this.getStorageKey.bind(this),
-    );
   }
 
   /**
@@ -554,7 +503,7 @@ export default class UserStorageController extends BaseController<
    *
    * @returns A promise that resolves to an array of HD keyring metadata IDs.
    */
-  async listEntropySources() {
+  async listEntropySources(): Promise<string[]> {
     if (!this.#isUnlocked) {
       throw new Error(
         'listEntropySources - unable to list entropy sources, wallet is locked',

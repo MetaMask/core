@@ -4255,6 +4255,39 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
       });
 
+      it('should include ab_tests from history in tracked event properties', () => {
+        const abTestsTxMetaId = 'bridgeTxMetaIdAbTests';
+        bridgeStatusController.startPollingForBridgeTxStatus({
+          ...getMockStartPollingForBridgeTxStatusArgs({
+            txMetaId: abTestsTxMetaId,
+            srcTxHash: '0xsrcTxHashAbTests',
+          }),
+          abTests: { token_details_layout: 'treatment' },
+        });
+
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish('TransactionController:transactionFailed', {
+          error: 'tx-error',
+          transactionMeta: {
+            chainId: CHAIN_IDS.ARBITRUM,
+            networkClientId: 'eth-id',
+            time: Date.now(),
+            txParams: {} as unknown as TransactionParams,
+            type: TransactionType.bridge,
+            status: TransactionStatus.failed,
+            id: abTestsTxMetaId,
+          },
+        });
+
+        expect(messengerCallSpy).toHaveBeenCalledWith(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          expect.anything(),
+          expect.objectContaining({
+            ab_tests: { token_details_layout: 'treatment' },
+          }),
+        );
+      });
+
       it('should track failed event for bridge transaction if approval is dropped', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
         mockMessenger.publish('TransactionController:transactionFailed', {

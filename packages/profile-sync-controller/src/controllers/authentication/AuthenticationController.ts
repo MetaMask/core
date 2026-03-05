@@ -18,6 +18,7 @@ import {
   createSnapAllPublicKeysRequest,
   createSnapSignMessageRequest,
 } from './auth-snap-requests';
+import { AuthenticationControllerMethodActions } from './AuthenticationController-method-action-types';
 import type {
   LoginResponse,
   SRPInterface,
@@ -83,38 +84,23 @@ type ControllerConfig = {
   env: Env;
 };
 
-// Messenger Actions
-type CreateActionsObj<Controller extends keyof AuthenticationController> = {
-  [K in Controller]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: AuthenticationController[K];
-  };
-};
-type ActionsObj = CreateActionsObj<
-  | 'performSignIn'
-  | 'performSignOut'
-  | 'getBearerToken'
-  | 'getSessionProfile'
-  | 'getUserProfileLineage'
-  | 'isSignedIn'
->;
+const MESSENGER_EXPOSED_METHODS = [
+  'performSignIn',
+  'performSignOut',
+  'getBearerToken',
+  'getSessionProfile',
+  'getUserProfileLineage',
+  'isSignedIn',
+] as const;
+
 export type Actions =
-  | ActionsObj[keyof ActionsObj]
-  | AuthenticationControllerGetStateAction;
+  | AuthenticationControllerGetStateAction
+  | AuthenticationControllerMethodActions;
+
 export type AuthenticationControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AuthenticationControllerState
 >;
-export type AuthenticationControllerPerformSignIn = ActionsObj['performSignIn'];
-export type AuthenticationControllerPerformSignOut =
-  ActionsObj['performSignOut'];
-export type AuthenticationControllerGetBearerToken =
-  ActionsObj['getBearerToken'];
-export type AuthenticationControllerGetSessionProfile =
-  ActionsObj['getSessionProfile'];
-export type AuthenticationControllerGetUserProfileLineage =
-  ActionsObj['getUserProfileLineage'];
-export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
 
 export type AuthenticationControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -140,7 +126,7 @@ export type AuthenticationControllerMessenger = Messenger<
  * Controller that enables authentication for restricted endpoints.
  * Used for Backup & Sync, Notifications, and other services.
  */
-export default class AuthenticationController extends BaseController<
+export class AuthenticationController extends BaseController<
   typeof controllerName,
   AuthenticationControllerState,
   AuthenticationControllerMessenger
@@ -223,42 +209,10 @@ export default class AuthenticationController extends BaseController<
     );
 
     this.#keyringController.setupLockedStateSubscriptions();
-    this.#registerMessageHandlers();
-  }
 
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getBearerToken',
-      this.getBearerToken.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getSessionProfile',
-      this.getSessionProfile.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:isSignedIn',
-      this.isSignedIn.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:performSignIn',
-      this.performSignIn.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:performSignOut',
-      this.performSignOut.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'AuthenticationController:getUserProfileLineage',
-      this.getUserProfileLineage.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

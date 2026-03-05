@@ -9,7 +9,6 @@ import EthQuery from '@metamask/eth-query';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 import nock, { isDone as nockIsDone } from 'nock';
 import type { Scope as NockScope } from 'nock';
-import { SinonFakeTimers, useFakeTimers } from 'sinon';
 
 import { createNetworkClient } from '../../src/create-network-client';
 import type {
@@ -406,7 +405,6 @@ export async function withMockedCommunications(
 type MockNetworkClient = {
   blockTracker: BlockTracker;
   provider: Provider;
-  clock: sinon.SinonFakeTimers;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   makeRpcCall: (request: MockRequest) => Promise<any>;
@@ -431,13 +429,10 @@ type MockNetworkClient = {
  * have been made.
  *
  * @param promise - The promise which is returned by the RPC call.
- * @param clock - A Sinon clock object which can be used to advance to the next
- * `setTimeout` handler.
  * @returns The given promise.
  */
 export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
   promise: Promise<Type>,
-  clock: SinonFakeTimers,
 ): Promise<Type> {
   let hasPromiseBeenFulfilled = false;
   let numTimesClockHasBeenAdvanced = 0;
@@ -457,7 +452,7 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
   // `hasPromiseBeenFulfilled` is modified asynchronously.
   /* eslint-disable-next-line no-unmodified-loop-condition */
   while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 30) {
-    await clock.runAllAsync();
+    await jest.runAllTimersAsync();
     numTimesClockHasBeenAdvanced += 1;
   }
 
@@ -515,7 +510,7 @@ export async function withNetworkClient<Type>(
   // request the latest block) set up in `eth-json-rpc-middleware`
   // 2. Halting the retry logic in `@metamask/eth-json-rpc-infura` (which also
   // depends on `setTimeout`)
-  const clock = useFakeTimers();
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
 
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
 
@@ -581,7 +576,6 @@ export async function withNetworkClient<Type>(
   const client = {
     blockTracker,
     provider,
-    clock,
     makeRpcCall: curriedMakeRpcCall,
     makeRpcCallsInSeries,
     messenger,
@@ -594,7 +588,7 @@ export async function withNetworkClient<Type>(
   } finally {
     await blockTracker.destroy();
 
-    clock.restore();
+    jest.useRealTimers();
   }
 }
 

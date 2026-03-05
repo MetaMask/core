@@ -60,7 +60,7 @@ import type {
 } from './NftController';
 import { NftController } from './NftController';
 import type { Collection } from './NftDetectionController';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockFindNetworkClientIdByChainId,

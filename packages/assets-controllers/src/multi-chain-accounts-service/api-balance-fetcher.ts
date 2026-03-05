@@ -407,13 +407,29 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       results.push(...apiBalances);
     }
 
+    const isAccountIncludedInRequest = (address: string): boolean =>
+      queryAllAccounts
+        ? allAccounts.some(
+            (currentAccount) =>
+              currentAccount.address.toLowerCase() === address.toLowerCase(),
+          )
+        : selectedAccount.toLowerCase() === address.toLowerCase();
+
     // Add zero native balance entries for addresses that API didn't return
     addressChainMap.forEach((chains, address) => {
       chains.forEach((chainId) => {
         const key = `${address}-${chainId}`;
         const existingBalance = nativeBalancesFromAPI.get(key);
+        const isChainIncludedInRequest = chainIds.includes(chainId);
+        const isChainSupported = this.supports(chainId);
+        const isAccountIncluded = isAccountIncludedInRequest(address);
+        const shouldZeroOutBalance =
+          !existingBalance &&
+          isChainIncludedInRequest &&
+          isChainSupported &&
+          isAccountIncluded;
 
-        if (!existingBalance) {
+        if (shouldZeroOutBalance) {
           // Add zero native balance entry if API succeeded but didn't return one
           results.push({
             success: true,
@@ -436,7 +452,16 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
             const key = `${account.toLowerCase()}-${tokenLowerCase}-${chainId}`;
             const isERC = tokenAddress !== ZERO_ADDRESS;
             const existingBalance = nonNativeBalancesFromAPI.get(key);
-            if (isERC && !existingBalance) {
+            const isChainIncludedInRequest = chainIds.includes(chainId as Hex);
+            const isChainSupported = this.supports(chainId as Hex);
+            const isAccountIncluded = isAccountIncludedInRequest(account);
+            const shouldZeroOutBalance =
+              !existingBalance &&
+              isChainIncludedInRequest &&
+              isChainSupported &&
+              isAccountIncluded;
+
+            if (isERC && shouldZeroOutBalance) {
               results.push({
                 success: true,
                 value: new BN('0'),

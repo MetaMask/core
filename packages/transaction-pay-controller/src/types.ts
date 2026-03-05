@@ -100,6 +100,15 @@ export type TransactionConfig = {
    * and the quote source is derived from the transaction's output token.
    */
   isPostQuote?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request. Use this for post-quote flows where the user's funds originate
+   * from a smart contract account (e.g. Predict Safe proxy) so that refunds
+   * go back to that account rather than the EOA.
+   */
+  refundTo?: Hex;
 };
 
 /** Callback to update transaction config. */
@@ -135,6 +144,9 @@ export type TransactionPayControllerOptions = {
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
 
+  /** Callback to select ordered PayStrategies for a transaction. */
+  getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
@@ -164,6 +176,13 @@ export type TransactionData = {
    * (e.g., bridging output to a different token/chain).
    */
   isPostQuote?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request.
+   */
+  refundTo?: Hex;
 
   /**
    * Token selected for the transaction.
@@ -309,6 +328,13 @@ export type QuoteRequest = {
   /** Whether this is a post-quote flow. */
   isPostQuote?: boolean;
 
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request.
+   */
+  refundTo?: Hex;
+
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
 
@@ -338,6 +364,9 @@ export type TransactionPayFees = {
 
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
+
+  /** Fee charged by MetaMask. */
+  metaMask: FiatValue;
 
   /** Fee charged by the quote provider. */
   provider: FiatValue;
@@ -426,6 +455,12 @@ export type PayStrategyGetRefreshIntervalRequest = {
 
 /** Strategy used to obtain required tokens for a transaction. */
 export type PayStrategy<OriginalQuote> = {
+  /**
+   * Check if the strategy supports the given request.
+   * Defaults to true if not implemented.
+   */
+  supports?: (request: PayStrategyGetQuotesRequest) => boolean;
+
   /** Retrieve quotes for required tokens. */
   getQuotes: (
     request: PayStrategyGetQuotesRequest,

@@ -26,6 +26,7 @@ export class TestStrategy implements PayStrategy<void> {
         dust: { fiat: '0.12', usd: '0.34' },
         estimatedDuration: 5,
         fees: {
+          metaMask: { fiat: '0', usd: '0' },
           provider: { fiat: '1.23', usd: '1.23' },
           sourceNetwork: {
             estimate: {

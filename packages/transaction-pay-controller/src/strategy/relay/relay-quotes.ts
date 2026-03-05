@@ -42,6 +42,8 @@ import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
+  normalizeTokenAddress,
+  TokenAddressTarget,
 } from '../../utils/token';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
@@ -140,6 +142,11 @@ async function getSingleQuote(
     // will be included in the batch separately, not as part of the quote
     if (!request.isPostQuote) {
       await processTransactions(transaction, request, body, messenger);
+    } else if (request.refundTo) {
+      // For post-quote flows, honour the caller-specified refund address so that
+      // failed Relay transactions refund to the correct account (e.g. the Predict
+      // Safe proxy) rather than defaulting to the EOA.
+      body.refundTo = request.refundTo;
     }
 
     const url = getFeatureFlags(messenger).relayQuoteUrl;
@@ -269,13 +276,16 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
     request.targetTokenAddress.toLowerCase() ===
       ARBITRUM_USDC_ADDRESS.toLowerCase();
 
-  const isPolygonNativeSource =
-    request.sourceChainId === CHAIN_ID_POLYGON &&
-    request.sourceTokenAddress === getNativeToken(request.sourceChainId);
-
-  if (isPolygonNativeSource) {
-    newRequest.sourceTokenAddress = NATIVE_TOKEN_ADDRESS;
-  }
+  newRequest.sourceTokenAddress = normalizeTokenAddress(
+    newRequest.sourceTokenAddress,
+    newRequest.sourceChainId,
+    TokenAddressTarget.Relay,
+  );
+  newRequest.targetTokenAddress = normalizeTokenAddress(
+    newRequest.targetTokenAddress,
+    newRequest.targetChainId,
+    TokenAddressTarget.Relay,
+  );
 
   if (isHyperliquidDeposit) {
     newRequest.targetChainId = CHAIN_ID_HYPERCORE;
@@ -319,9 +329,14 @@ async function normalizeQuote(
 
   const subsidizedFeeUsd = getSubsidizedFeeAmountUsd(quote);
 
+  const appFeeUsd = new BigNumber(quote.fees?.app?.amountUsd ?? '0');
+  const metaMaskFee = getFiatValueFromUsd(appFeeUsd, usdToFiatRate);
+
+  // Subtract app fee from provider fee since totalImpact.usd already includes it
+  const providerFeeUsd = calculateProviderFee(quote).minus(appFeeUsd);
   const provider = subsidizedFeeUsd.gt(0)
     ? { usd: '0', fiat: '0' }
-    : getFiatValueFromUsd(calculateProviderFee(quote), usdToFiatRate);
+    : getFiatValueFromUsd(providerFeeUsd, usdToFiatRate);
 
   const {
     gasLimits,
@@ -379,6 +394,7 @@ async function normalizeQuote(
     estimatedDuration: details.timeEstimate,
     fees: {
       isSourceGasFeeToken,
+      metaMask: metaMaskFee,
       provider,
       sourceNetwork,
       targetNetwork,
@@ -686,7 +702,7 @@ async function calculateSourceNetworkGasLimit(
     return relayGas;
   }
 
-  return combinePostQuoteGas(relayGas, params.length, postQuoteTransaction);
+  return combinePostQuoteGas(relayGas, postQuoteTransaction);
 }
 
 /**
@@ -700,7 +716,6 @@ async function calculateSourceNetworkGasLimit(
  * @param relayGas.totalGasEstimate - Estimated gas total.
  * @param relayGas.totalGasLimit - Maximum gas total.
  * @param relayGas.gasLimits - Per-transaction gas limits.
- * @param relayParamCount - Number of relay transaction parameters.
  * @param transaction - Original transaction metadata.
  * @returns Combined gas estimates including the original transaction.
  */
@@ -710,7 +725,6 @@ function combinePostQuoteGas(
     totalGasLimit: number;
     gasLimits: number[];
   },
-  relayParamCount: number,
   transaction: TransactionMeta,
 ): { totalGasEstimate: number; totalGasLimit: number; gasLimits: number[] } {
   const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
@@ -722,14 +736,15 @@ function combinePostQuoteGas(
   }
 
   let { gasLimits } = relayGas;
-  const isEIP7702 = gasLimits.length === 1 && relayParamCount > 1;
+  // TODO: Test EIP-7702 support on the chain as well before assuming single gas limit.
+  const isEIP7702 = gasLimits.length === 1;
 
   if (isEIP7702) {
-    // EIP-7702: single combined gas limit — add the original tx gas
-    // so the atomic batch covers both relay and original transactions.
+    // Single gas limit (either one relay param or 7702 combined) —
+    // add the original tx gas so the batch uses a single 7702 limit.
     gasLimits = [gasLimits[0] + originalTxGas];
   } else {
-    // Non-7702: individual gas limits — prepend the original tx gas
+    // Multiple individual gas limits — prepend the original tx gas
     // so the list order matches relay-submit's transaction order.
     gasLimits = [originalTxGas, ...gasLimits];
   }

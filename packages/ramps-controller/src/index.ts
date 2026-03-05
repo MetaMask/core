@@ -2,9 +2,13 @@ export type {
   RampsControllerActions,
   RampsControllerEvents,
   RampsControllerGetStateAction,
+  RampsControllerSetSelectedTokenAction,
+  RampsControllerGetQuotesAction,
+  RampsControllerGetOrderAction,
   RampsControllerMessenger,
   RampsControllerState,
   RampsControllerStateChangeEvent,
+  RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
   UserRegion,
   ResourceState,
@@ -42,11 +46,18 @@ export type {
   RampsToken,
   TokensResponse,
   BuyWidget,
+  RampsOrder,
+  RampsOrderNetwork,
+  RampsOrderCryptoCurrency,
+  RampsOrderFiatCurrency,
+  RampsOrderPaymentMethod,
+  OrderPaymentDetail,
 } from './RampsService';
 export {
   RampsService,
   RampsEnvironment,
   RampsApiService,
+  RampsOrderStatus,
   RAMPS_SDK_VERSION,
 } from './RampsService';
 export type {
@@ -55,6 +66,8 @@ export type {
   RampsServiceGetPaymentMethodsAction,
   RampsServiceGetQuotesAction,
   RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
 } from './RampsService-method-action-types';
 export type {
   RequestCache,

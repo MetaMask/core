@@ -1,9 +1,16 @@
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
-import { NATIVE_TOKEN_ADDRESS, STABLECOINS } from '../constants';
+import {
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+  STABLECOINS,
+} from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
 
 /**
@@ -232,6 +239,35 @@ export function getTokenFiatRate(
 }
 
 /**
+ * Calculate the human-readable, raw, USD, and fiat representations of a token amount.
+ *
+ * @param rawInput - Raw token amount (decimal string, hex, or BigNumber).
+ * @param decimals - Number of decimals for the token.
+ * @param fiatRates - Fiat rates for the token.
+ * @returns Object containing the amount in raw, human-readable, USD, and fiat formats.
+ */
+export function computeTokenAmounts(
+  rawInput: BigNumber.Value,
+  decimals: number,
+  fiatRates: FiatRates,
+): {
+  raw: string;
+  human: string;
+  usd: string;
+  fiat: string;
+} {
+  const rawValue = new BigNumber(rawInput);
+  const humanValue = rawValue.shiftedBy(-decimals);
+
+  return {
+    raw: rawValue.toFixed(0),
+    human: humanValue.toString(10),
+    usd: humanValue.multipliedBy(fiatRates.usdRate).toString(10),
+    fiat: humanValue.multipliedBy(fiatRates.fiatRate).toString(10),
+  };
+}
+
+/**
  * Get the native token address for a given chain ID.
  *
  * @param chainId - Chain ID.
@@ -247,12 +283,48 @@ export function getNativeToken(chainId: Hex): Hex {
 }
 
 /**
- * Get the ticker for a given chain ID.
+ * Get the live on-chain token balance via an RPC `eth_call` to the ERC-20
+ * `balanceOf` function, or `eth_getBalance` for native tokens.
  *
+ * Unlike {@link getTokenBalance}, this bypasses the cached state in
+ * `TokenBalancesController` and reads directly from the chain.
+ *
+ * @param messenger - Controller messenger.
+ * @param account - Address of the account.
  * @param chainId - Chain ID.
- * @param messenger - Messenger instance.
- * @returns Ticker symbol for the given chain ID or undefined if not found.
+ * @param tokenAddress - Address of the token contract.
+ * @returns Raw token balance as a decimal string.
  */
+export async function getLiveTokenBalance(
+  messenger: TransactionPayControllerMessenger,
+  account: Hex,
+  chainId: Hex,
+  tokenAddress: Hex,
+): Promise<string> {
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    chainId,
+  );
+
+  const { provider } = messenger.call(
+    'NetworkController:getNetworkClientById',
+    networkClientId,
+  );
+
+  const ethersProvider = new Web3Provider(provider);
+  const isNative =
+    tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
+
+  if (isNative) {
+    const balance = await ethersProvider.getBalance(account);
+    return balance.toString();
+  }
+
+  const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
+  const balance = await contract.balanceOf(account);
+  return balance.toString();
+}
+
 function getTicker(
   chainId: Hex,
   messenger: TransactionPayControllerMessenger,
@@ -272,4 +344,51 @@ function getTicker(
   } catch {
     return undefined;
   }
+}
+
+export enum TokenAddressTarget {
+  Relay = 'relay',
+  MetaMask = 'metamask',
+}
+
+/**
+ * Normalize token address formats between MetaMask and Relay for Polygon native
+ * token handling.
+ *
+ * MetaMask uses Polygon's native token contract-like address (`0x...1010`),
+ * while Relay expects the zero address for native tokens.
+ *
+ * @param tokenAddress - Token address to normalize.
+ * @param chainId - Chain ID for the token.
+ * @param target - Optional target system format.
+ * @returns Normalized token address for the target system, or the original
+ * address if no target is provided.
+ */
+export function normalizeTokenAddress(
+  tokenAddress: Hex,
+  chainId: Hex,
+  target?: TokenAddressTarget,
+): Hex {
+  if (chainId !== CHAIN_ID_POLYGON) {
+    return tokenAddress;
+  }
+
+  const nativeTokenAddress = getNativeToken(chainId).toLowerCase() as Hex;
+  const normalizedTokenAddress = tokenAddress.toLowerCase();
+
+  if (
+    target === TokenAddressTarget.Relay &&
+    normalizedTokenAddress === nativeTokenAddress
+  ) {
+    return NATIVE_TOKEN_ADDRESS;
+  }
+
+  if (
+    target === TokenAddressTarget.MetaMask &&
+    normalizedTokenAddress === NATIVE_TOKEN_ADDRESS.toLowerCase()
+  ) {
+    return nativeTokenAddress;
+  }
+
+  return tokenAddress;
 }

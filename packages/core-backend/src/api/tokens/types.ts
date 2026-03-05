@@ -34,6 +34,8 @@ export type V3AssetsQueryOptions = {
   includeLabels?: boolean;
   /** Include RWA data in response */
   includeRwaData?: boolean;
+  /** Include DEX/aggregator integrations in response */
+  includeAggregators?: boolean;
 };
 
 // ============================================================================
