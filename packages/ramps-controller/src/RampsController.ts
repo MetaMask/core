@@ -834,8 +834,11 @@ export class RampsController extends BaseController<
       const count = this.#pendingResourceCount.get(resourceType) ?? 0;
       this.#pendingResourceCount.set(resourceType, count + 1);
       if (count === 0) {
-        this.#setResourceLoading(resourceType, true);
-        this.#setResourceStatus(resourceType, RequestStatus.LOADING);
+        this.#setResourceLoadingAndStatus(
+          resourceType,
+          true,
+          RequestStatus.LOADING,
+        );
       }
     }
 
@@ -896,9 +899,9 @@ export class RampsController extends BaseController<
           const next = Math.max(0, count - 1);
           if (next === 0) {
             this.#pendingResourceCount.delete(resourceType);
-            this.#setResourceLoading(resourceType, false);
-            this.#setResourceStatus(
+            this.#setResourceLoadingAndStatus(
               resourceType,
+              false,
               terminalStatus ?? RequestStatus.IDLE,
             );
           } else {
@@ -1001,35 +1004,27 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Updates a single field (isLoading or error) on a resource state.
-   * All resources share the same ResourceState structure, so we use
-   * dynamic property access to avoid duplicating switch statements.
+   * Updates one or more fields on a resource state atomically in a single
+   * `this.update()` call. All resources share the same ResourceState structure,
+   * so we use dynamic property access to avoid duplicating switch statements.
    *
    * @param resourceType - The type of resource.
-   * @param field - The field to update ('isLoading', 'error', or 'status').
-   * @param value - The value to set.
+   * @param fields - An object mapping field names to their new values.
    */
-  #updateResourceField(
+  #updateResourceFields(
     resourceType: ResourceType,
-    field: 'isLoading' | 'error' | 'status',
-    value: boolean | string | null,
+    fields: Partial<
+      Record<'isLoading' | 'error' | 'status', boolean | string | null>
+    >,
   ): void {
     this.update((state) => {
       const resource = state[resourceType];
       if (resource) {
-        (resource as Record<string, unknown>)[field] = value;
+        for (const [field, value] of Object.entries(fields)) {
+          (resource as Record<string, unknown>)[field] = value;
+        }
       }
     });
-  }
-
-  /**
-   * Sets the loading state for a resource type.
-   *
-   * @param resourceType - The type of resource.
-   * @param loading - Whether the resource is loading.
-   */
-  #setResourceLoading(resourceType: ResourceType, loading: boolean): void {
-    this.#updateResourceField(resourceType, 'isLoading', loading);
   }
 
   /**
@@ -1039,20 +1034,22 @@ export class RampsController extends BaseController<
    * @param error - The error message, or null to clear.
    */
   #setResourceError(resourceType: ResourceType, error: string | null): void {
-    this.#updateResourceField(resourceType, 'error', error);
+    this.#updateResourceFields(resourceType, { error });
   }
 
   /**
-   * Sets the status for a resource type.
+   * Sets the loading state and status for a resource type atomically.
    *
    * @param resourceType - The type of resource.
+   * @param loading - Whether the resource is loading.
    * @param status - The status to set ('idle' | 'loading' | 'success' | 'error').
    */
-  #setResourceStatus(
+  #setResourceLoadingAndStatus(
     resourceType: ResourceType,
+    loading: boolean,
     status: `${RequestStatus}`,
   ): void {
-    this.#updateResourceField(resourceType, 'status', status);
+    this.#updateResourceFields(resourceType, { isLoading: loading, status });
   }
 
   /**
