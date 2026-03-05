@@ -500,9 +500,10 @@ export class AccountsController extends BaseController<
         log(
           `Cache missed for account id: ${accountId}, received address: "${address}", matched address: "${lowercasedAddress}"`,
         );
+        return this.getAccount(accountId);
       }
     }
-    return accountId ? this.getAccount(accountId) : undefined;
+    return undefined;
   }
 
   /**
