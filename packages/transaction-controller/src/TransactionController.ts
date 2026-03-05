@@ -408,6 +408,14 @@ export type TransactionControllerGetGasFeeTokensAction = {
 };
 
 /**
+ * Represents the `TransactionController:isAtomicBatchSupported` action.
+ */
+export type TransactionControllerIsAtomicBatchSupportedAction = {
+  type: `${typeof controllerName}:isAtomicBatchSupported`;
+  handler: TransactionController['isAtomicBatchSupported'];
+};
+
+/**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
@@ -417,6 +425,7 @@ export type TransactionControllerActions =
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
+  | TransactionControllerIsAtomicBatchSupportedAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
   | TransactionControllerGetTransactionsAction
@@ -4656,6 +4665,11 @@ export class TransactionController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:updateTransaction`,
       this.updateTransaction.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:isAtomicBatchSupported`,
+      this.isAtomicBatchSupported.bind(this),
     );
   }
 
