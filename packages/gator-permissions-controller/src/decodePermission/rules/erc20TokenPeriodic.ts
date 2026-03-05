@@ -86,6 +86,7 @@ function validateAndDecodeData(
   const [tokenAddress, periodAmount, periodDurationRaw, startTimeRaw] =
     splitHex(terms, [20, 32, 32, 32]);
   const periodDuration = hexToNumber(periodDurationRaw);
+  const periodAmountBigInt = hexToBigInt(periodAmount);
   const startTime = hexToNumber(startTimeRaw);
 
   if (!isHexAddress(tokenAddress)) {
@@ -94,7 +95,7 @@ function validateAndDecodeData(
     );
   }
 
-  if (hexToBigInt(periodAmount) <= 0n) {
+  if (periodAmountBigInt <= 0n) {
     throw new Error(
       'Invalid erc20-token-periodic terms: periodAmount must be a positive number',
     );
