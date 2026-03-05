@@ -3,6 +3,7 @@ import {
   createLoadingState,
   createSuccessState,
   createErrorState,
+  RequestStatus,
 } from './RequestCache';
 import { createRequestSelector } from './selectors';
 
@@ -18,12 +19,14 @@ function createDefaultResourceState<TData, TSelected = null>(
   selected: TSelected;
   isLoading: boolean;
   error: null;
+  status: `${RequestStatus}`;
 } {
   return {
     data,
     selected,
     isLoading: false,
     error: null,
+    status: RequestStatus.IDLE,
   };
 }
 

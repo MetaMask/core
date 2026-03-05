@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `status` field to `ResourceState` to distinguish between uninitialized and empty-fetched states ([#8116](https://github.com/MetaMask/core/pull/8116))
+
 ## [10.2.0]
 
 ### Fixed

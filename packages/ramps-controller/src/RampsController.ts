@@ -408,6 +408,7 @@ function resetResource(
   resource.selected = def.selected;
   resource.isLoading = def.isLoading;
   resource.error = def.error;
+  resource.status = def.status;
 }
 
 /**
