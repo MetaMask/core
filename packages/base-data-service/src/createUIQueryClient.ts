@@ -9,11 +9,16 @@ import {
   QueryKey,
 } from '@tanstack/query-core';
 
-// When UI messengers are available this should simply be a proper messenger that allows access to DataServiceActions
+import { CacheUpdatePayload } from './BaseDataService';
+
+type SubscriptionCallback = (payload: CacheUpdatePayload) => void;
+type JsonSubscriptionCallback = (data: Json) => void;
+
+// TODO: Figure out if we can replace with a better Messenger type
 type MessengerAdapter = {
   call: (method: string, ...params: Json[]) => Promise<Json | void>;
-  subscribe: (method: string, callback: (data: Json) => void) => void;
-  unsubscribe: (method: string, callback: (data: Json) => void) => void;
+  subscribe: (method: string, callback: JsonSubscriptionCallback) => void;
+  unsubscribe: (method: string, callback: JsonSubscriptionCallback) => void;
 };
 
 /**
@@ -27,15 +32,7 @@ export function createUIQueryClient(
   dataServices: string[],
   messenger: MessengerAdapter,
 ): QueryClient {
-  const subscriptions = new Set<string>();
-
-  const cacheListener = (data: Json): void => {
-    const castData = data as { hash: string; state: Json };
-    if (subscriptions.has(castData.hash)) {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      hydrate(client, castData.state);
-    }
-  };
+  const subscriptions = new Map<string, SubscriptionCallback>();
 
   const getServiceFromQueryKey = (queryKey: QueryKey): string | null => {
     try {
@@ -102,28 +99,29 @@ export function createUIQueryClient(
       event.type === 'observerAdded' &&
       observerCount === 1
     ) {
-      subscriptions.add(hash);
+      const cacheListener = (payload: CacheUpdatePayload): void => {
+        hydrate(client, payload.state);
+      };
 
-      // This is a bit of a mess because we can't pass functions across the process boundary, so we call subscribe
-      // but also register listeners for :cacheUpdate which will be sent to subscribed processes
-      messenger.subscribe(`${service}:cacheUpdate`, cacheListener);
-
-      messenger
-        .call(`${service}:subscribe`, query.queryKey)
-        .then((state) => hydrate(client, state))
-        .catch(console.error);
+      subscriptions.set(hash, cacheListener);
+      messenger.subscribe(
+        `${service}:cacheUpdate:${hash}`,
+        cacheListener as unknown as JsonSubscriptionCallback,
+      );
     } else if (
       event.type === 'observerRemoved' &&
       observerCount === 0 &&
       hasSubscription
     ) {
+      const subscriptionListener = subscriptions.get(
+        hash,
+      ) as unknown as JsonSubscriptionCallback;
+
+      messenger.unsubscribe(
+        `${service}:cacheUpdate:${hash}`,
+        subscriptionListener,
+      );
       subscriptions.delete(hash);
-
-      messenger.unsubscribe(`${service}:cacheUpdate`, cacheListener);
-
-      messenger
-        .call(`${service}:unsubscribe`, query.queryKey)
-        .catch(console.error);
     }
   });
 

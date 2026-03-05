@@ -1,7 +1,11 @@
 import { Messenger } from '@metamask/messenger';
 import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
 
-import { BaseDataService, DataServiceActions } from '../src/BaseDataService';
+import {
+  BaseDataService,
+  DataServiceActions,
+  DataServiceEvents,
+} from '../src/BaseDataService';
 
 export const serviceName = 'ExampleDataService';
 
@@ -20,10 +24,12 @@ export type ExampleDataServiceActions =
   | ExampleDataServiceGetActivityAction
   | DataServiceActions<typeof serviceName>;
 
+export type ExampleDataServiceEvents = DataServiceEvents<typeof serviceName>;
+
 export type ExampleMessenger = Messenger<
   typeof serviceName,
   ExampleDataServiceActions,
-  never
+  ExampleDataServiceEvents
 >;
 
 export type GetAssetsResponse = {
