@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- SnapPlatformWatcher now waits for the Snap platform to be ready again after wallet reset, fixing "Snap platform cannot be used now" when creating Snap-dependent accounts.
+- SnapPlatformWatcher now waits for the Snap platform to be ready again after wallet reset, fixing "Snap platform cannot be used now" when creating Snap-dependent accounts ([#8124](https://github.com/MetaMask/core/pull/8124))
 
 ### Added
 
