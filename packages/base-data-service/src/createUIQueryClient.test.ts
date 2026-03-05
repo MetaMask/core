@@ -1,23 +1,17 @@
 import { Messenger } from '@metamask/messenger';
-import { ExtractActionParameters } from '@metamask/messenger';
-import { Json } from '@metamask/utils';
 import {
-  DehydratedState,
   InfiniteData,
   InfiniteQueryObserver,
   QueryClient,
-  QueryKey,
   QueryObserver,
 } from '@tanstack/query-core';
 
-import { SubscriptionCallback, SubscriptionPayload } from './BaseDataService';
 import { createUIQueryClient } from './createUIQueryClient';
 import {
   ExampleDataService,
   ExampleDataServiceActions,
-  ExampleMessenger,
+  ExampleDataServiceEvents,
   GetActivityResponse,
-  GetAssetsResponse,
   PageParam,
 } from '../tests/ExampleDataService';
 import {
@@ -28,69 +22,25 @@ import {
 
 const DATA_SERVICES = ['ExampleDataService'];
 
-function createClient(serviceMessenger: ExampleMessenger): QueryClient {
-  const subscriptions = new Set<SubscriptionCallback>();
-
-  const listener = (payload: SubscriptionPayload): void => {
-    subscriptions.forEach((callback) => callback(payload));
-  };
-
-  const messengerAdapter = {
-    call: async (
-      method: string,
-      ...params: Json[]
-    ): Promise<
-      void | DehydratedState | GetActivityResponse | GetAssetsResponse
-    > => {
-      if (method === 'ExampleDataService:subscribe') {
-        return serviceMessenger.call(
-          method,
-          params[0] as QueryKey,
-          listener,
-        );
-      } else if (method === 'ExampleDataService:unsubscribe') {
-        return serviceMessenger.call(
-          method,
-          params[0] as QueryKey,
-          listener,
-        );
-      }
-      return serviceMessenger.call(
-        method as ExampleDataServiceActions['type'],
-        ...(params as ExtractActionParameters<ExampleDataServiceActions>),
-      );
-    },
-    subscribe: async (
-      _method: string,
-      callback: SubscriptionCallback,
-    ): Promise<void> => {
-      subscriptions.add(callback);
-    },
-    unsubscribe: async (
-      _method: string,
-      callback: SubscriptionCallback,
-    ): Promise<void> => {
-      subscriptions.delete(callback);
-    },
-  };
-
-  return createUIQueryClient(DATA_SERVICES, messengerAdapter);
-}
-
 function createClients(): {
   service: ExampleDataService;
   clientA: QueryClient;
   clientB: QueryClient;
-  messenger: Messenger<'ExampleDataService', ExampleDataServiceActions>;
+  messenger: Messenger<
+    'ExampleDataService',
+    ExampleDataServiceActions,
+    ExampleDataServiceEvents
+  >;
 } {
   const serviceMessenger = new Messenger<
     'ExampleDataService',
-    ExampleDataServiceActions
+    ExampleDataServiceActions,
+    ExampleDataServiceEvents
   >({ namespace: 'ExampleDataService' });
   const service = new ExampleDataService(serviceMessenger);
 
-  const clientA = createClient(serviceMessenger);
-  const clientB = createClient(serviceMessenger);
+  const clientA = createUIQueryClient(DATA_SERVICES, serviceMessenger);
+  const clientB = createUIQueryClient(DATA_SERVICES, serviceMessenger);
 
   return { service, clientA, clientB, messenger: serviceMessenger };
 }

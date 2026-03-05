@@ -2,7 +2,6 @@ import {
   Messenger,
   ActionConstraint,
   EventConstraint,
-  ActionHandler,
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import {
@@ -20,21 +19,7 @@ import {
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
 
-export type SubscriptionPayload = { hash: string; state: DehydratedState };
-export type SubscriptionCallback = (payload: SubscriptionPayload) => void;
-
-export type DataServiceSubscribeAction<ServiceName extends string> = {
-  type: `${ServiceName}:subscribe`;
-  handler: (
-    queryKey: QueryKey,
-    callback: SubscriptionCallback,
-  ) => DehydratedState;
-};
-
-export type DataServiceUnsubscribeAction<ServiceName extends string> = {
-  type: `${ServiceName}:unsubscribe`;
-  handler: (queryKey: QueryKey, callback: SubscriptionCallback) => void;
-};
+export type CacheUpdatePayload = { hash: string; state: DehydratedState };
 
 export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   type: `${ServiceName}:invalidateQueries`;
@@ -45,17 +30,21 @@ export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
 };
 
 export type DataServiceActions<ServiceName extends string> =
-  | DataServiceSubscribeAction<ServiceName>
-  | DataServiceUnsubscribeAction<ServiceName>
-  | DataServiceInvalidateQueriesAction<ServiceName>;
+  DataServiceInvalidateQueriesAction<ServiceName>;
 
 export type DataServiceCacheUpdateEvent<ServiceName extends string> = {
   type: `${ServiceName}:cacheUpdate`;
-  payload: [SubscriptionPayload];
+  payload: [CacheUpdatePayload];
+};
+
+export type DataServiceGranularCacheUpdateEvent<ServiceName extends string> = {
+  type: `${ServiceName}:cacheUpdate:${string}`;
+  payload: [CacheUpdatePayload];
 };
 
 export type DataServiceEvents<ServiceName extends string> =
-  DataServiceCacheUpdateEvent<ServiceName>;
+  | DataServiceCacheUpdateEvent<ServiceName>
+  | DataServiceGranularCacheUpdateEvent<ServiceName>;
 
 export class BaseDataService<
   ServiceName extends string,
@@ -79,8 +68,6 @@ export class BaseDataService<
 
   readonly #client = new QueryClient();
 
-  readonly #subscriptions: Map<string, Set<SubscriptionCallback>> = new Map();
-
   constructor({
     name,
     messenger,
@@ -101,27 +88,11 @@ export class BaseDataService<
   }
 
   #registerMessageHandlers(): void {
-    // Casts are required since `registerActionHandler` isn't able to extract the method parameters correctly.
-    this.#messenger.registerActionHandler(`${this.name}:subscribe`, ((
-      queryKey: QueryKey,
-      callback: SubscriptionCallback,
-    ) => this.#handleSubscribe(queryKey, callback)) as ActionHandler<
-      DataServiceActions<ServiceName>
-    >);
-
-    this.#messenger.registerActionHandler(`${this.name}:unsubscribe`, ((
-      queryKey: QueryKey,
-      callback: SubscriptionCallback,
-    ) => this.#handleUnsubscribe(queryKey, callback)) as ActionHandler<
-      DataServiceActions<ServiceName>
-    >);
-
-    this.#messenger.registerActionHandler(`${this.name}:invalidateQueries`, ((
-      filters?: InvalidateQueryFilters<Json>,
-      options?: InvalidateOptions,
-    ) => this.invalidateQueries(filters, options)) as ActionHandler<
-      DataServiceActions<ServiceName>
-    >);
+    this.#messenger.registerActionHandler(
+      `${this.name}:invalidateQueries`,
+      (filters?: InvalidateQueryFilters<Json>, options?: InvalidateOptions) =>
+        this.invalidateQueries(filters, options),
+    );
   }
 
   #setupCacheListener(): void {
@@ -202,35 +173,6 @@ export class BaseDataService<
     return this.#client.invalidateQueries(filters, options);
   }
 
-  #handleSubscribe(
-    queryKey: QueryKey,
-    subscription: SubscriptionCallback,
-  ): DehydratedState {
-    const hash = hashQueryKey(queryKey);
-
-    if (!this.#subscriptions.has(hash)) {
-      this.#subscriptions.set(hash, new Set());
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    this.#subscriptions.get(hash)!.add(subscription);
-
-    return this.#getDehydratedState(queryKey);
-  }
-
-  #handleUnsubscribe(
-    queryKey: QueryKey,
-    subscription: SubscriptionCallback,
-  ): void {
-    const hash = hashQueryKey(queryKey);
-    const subscribers = this.#subscriptions.get(hash);
-
-    subscribers?.delete(subscription);
-    if (subscribers?.size === 0) {
-      this.#subscriptions.delete(hash);
-    }
-  }
-
   #getDehydratedState(queryKey: QueryKey): DehydratedState {
     const hash = hashQueryKey(queryKey);
     return dehydrate(this.#client, {
@@ -248,9 +190,9 @@ export class BaseDataService<
     };
 
     this.#messenger.publish(`${this.name}:cacheUpdate` as const, payload);
-
-    // TODO: Determine if we can leverage `messenger.publish` entirely in order to not keep track of subscriptions manually.
-    const subscribers = this.#subscriptions.get(hash);
-    subscribers?.forEach((subscriber) => subscriber(payload));
+    this.#messenger.publish(
+      `${this.name}:cacheUpdate:${hash}` as const,
+      payload,
+    );
   }
 }
