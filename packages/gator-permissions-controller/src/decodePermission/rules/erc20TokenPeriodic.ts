@@ -95,19 +95,19 @@ function validateAndDecodeData(
     );
   }
 
-  if (periodAmountBigInt <= 0n) {
+  if (periodAmountBigInt === 0n) {
     throw new Error(
       'Invalid erc20-token-periodic terms: periodAmount must be a positive number',
     );
   }
 
-  if (periodDuration <= 0) {
+  if (periodDuration === 0) {
     throw new Error(
       'Invalid erc20-token-periodic terms: periodDuration must be a positive number',
     );
   }
 
-  if (startTime <= 0) {
+  if (startTime === 0) {
     throw new Error(
       'Invalid erc20-token-periodic terms: startTime must be a positive number',
     );

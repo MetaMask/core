@@ -182,43 +182,6 @@ describe('erc20-token-revocation rule', () => {
     expect(result.error.message).toContain('Invalid caveats');
   });
 
-  it('rejects when ValueLteEnforcer terms have wrong length', () => {
-    const approveSelectorTerms =
-      '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as const;
-    const zeroAmountTerms =
-      '0x00000000000000000000000000000000000000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000' as const;
-    const shortValueLteTerms = '0x0000' as const; // 2 bytes, need 32
-    const caveats = [
-      expiryCaveat,
-      {
-        enforcer: AllowedCalldataEnforcer,
-        terms: approveSelectorTerms,
-        args: '0x' as const,
-      },
-      {
-        enforcer: AllowedCalldataEnforcer,
-        terms: zeroAmountTerms,
-        args: '0x' as const,
-      },
-      {
-        enforcer: ValueLteEnforcer,
-        terms: shortValueLteTerms,
-        args: '0x' as const,
-      },
-    ];
-    const result = rule.validateAndDecodePermission(caveats);
-    expect(result.isValid).toBe(false);
-
-    // this is here as a type guard
-    if (result.isValid) {
-      throw new Error('Expected invalid result');
-    }
-
-    expect(result.error.message).toContain(
-      'Invalid erc20-token-revocation terms: ValueLteEnforcer terms must be 32 bytes',
-    );
-  });
-
   it('successfully decodes valid erc20-token-revocation caveats', () => {
     const approveSelectorTerms =
       '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as const;

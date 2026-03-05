@@ -8,7 +8,6 @@ import type {
 import {
   ERC20_APPROVE_SELECTOR_TERMS,
   ERC20_APPROVE_ZERO_AMOUNT_TERMS,
-  getByteLength,
   getTermsByEnforcer,
   ZERO_32_BYTES,
 } from '../utils';
@@ -88,14 +87,6 @@ function validateAndDecodeData(
     caveats,
     enforcer: valueLteEnforcer,
   });
-
-  const EXPECTED_VALUE_LTE_TERMS_BYTELENGTH = 32;
-
-  if (getByteLength(valueLteTerms) !== EXPECTED_VALUE_LTE_TERMS_BYTELENGTH) {
-    throw new Error(
-      'Invalid erc20-token-revocation terms: ValueLteEnforcer terms must be 32 bytes',
-    );
-  }
 
   if (valueLteTerms !== ZERO_32_BYTES) {
     throw new Error('Invalid ValueLteEnforcer terms: maxValue must be 0');

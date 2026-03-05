@@ -108,19 +108,19 @@ function validateAndDecodeData(
     );
   }
 
-  if (initialAmountBigInt <= 0n) {
+  if (initialAmountBigInt === 0n) {
     throw new Error(
       'Invalid erc20-token-stream terms: initialAmount must be a positive number',
     );
   }
 
-  if (amountPerSecondBigInt <= 0n) {
+  if (amountPerSecondBigInt === 0n) {
     throw new Error(
       'Invalid erc20-token-stream terms: amountPerSecond must be a positive number',
     );
   }
 
-  if (startTime <= 0) {
+  if (startTime === 0) {
     throw new Error(
       'Invalid erc20-token-stream terms: startTime must be a positive number',
     );
