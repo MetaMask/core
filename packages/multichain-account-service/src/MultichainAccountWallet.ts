@@ -305,7 +305,7 @@ export class MultichainAccountWallet<
    * IMPORTANT: This method assumes the caller has already acquired the wallet lock.
    *
    * @param range - The range of group indices to create.
-   * @param range.from - Starting group index to create (inclusive) (defaults to 0).
+   * @param range.from - Starting group index to create (inclusive).
    * @param range.to - Maximum group index to create (inclusive).
    * @param options - Options to configure the account creation.
    * @param options.waitForAllProvidersToFinishCreatingAccounts - Whether to wait for all
@@ -315,7 +315,7 @@ export class MultichainAccountWallet<
    * @returns Array of created multichain account groups.
    */
   async #createMultichainAccountGroupsRange(
-    { from: rangeFrom = 0, to }: GroupIndexRange,
+    { from: rangeFrom, to }: Required<GroupIndexRange>,
     options: {
       waitForAllProvidersToFinishCreatingAccounts?: boolean;
     },
