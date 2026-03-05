@@ -5,19 +5,6 @@ import { numberToHex } from '@metamask/utils';
 import type { DecodedPermission, PermissionType } from './types';
 import type { PermissionRule } from './types';
 
-/*
- * Decoding can be driven entirely by permission rules:
- *
- *   const permissionRules = createPermissionRulesForChainId(contracts);
- *   const matchingRules = permissionRules.filter(rule => rule.caveatAddressesMatch(caveatAddresses));
- *   // Expect exactly one match for current rule set; then:
- *   const result = matchingRules[0].validateAndDecodePermission(caveats);
- *   if (result.isValid) { ... result.expiry, result.data ... }
- *
- * getPermissionRuleMatchingCaveatTypes and getPermissionDataAndExpiry use these rules
- * internally and preserve the existing throw-on-failure API.
- */
-
 /**
  * Returns the unique permission rule that matches a given set of enforcer
  * contract addresses (caveat types) for a specific chain.
