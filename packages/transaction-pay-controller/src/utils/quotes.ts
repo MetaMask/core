@@ -3,6 +3,7 @@ import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { getStrategiesByName, getStrategyByName } from './strategy';
 import {
@@ -183,7 +184,11 @@ function syncTransaction({
       tx.batchTransactionsOptions = {};
 
       tx.metamaskPay = {
-        bridgeFeeFiat: totals.fees.provider.usd,
+        bridgeFeeFiat: totals.fees.fiatProvider
+          ? new BigNumber(totals.fees.provider.usd)
+              .plus(totals.fees.fiatProvider.usd)
+              .toString(10)
+          : totals.fees.provider.usd,
         chainId: paymentToken.chainId,
         isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
