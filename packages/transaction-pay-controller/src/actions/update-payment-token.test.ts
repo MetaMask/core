@@ -100,11 +100,7 @@ describe('Update Payment Token Action', () => {
       symbol: 'TST',
     });
 
-    expect(transactionDataMock.fiatPayment).toStrictEqual({
-      amount: null,
-      quickBuyOrderId: null,
-      selectedPaymentMethodId: null,
-    });
+    expect(transactionDataMock.fiatPayment).toStrictEqual({});
   });
 
   it('throws if token info not found', () => {

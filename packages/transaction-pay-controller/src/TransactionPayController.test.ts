@@ -83,14 +83,14 @@ describe('TransactionPayController', () => {
   describe('updateFiatPayment', () => {
     it('calls util', () => {
       createController().updateFiatPayment({
-        amount: '20',
+        amountFiat: '20',
         selectedPaymentMethodId: '/payments/debit-credit-card',
         transactionId: TRANSACTION_ID_MOCK,
       });
 
       expect(updateFiatPaymentMock).toHaveBeenCalledWith(
         {
-          amount: '20',
+          amountFiat: '20',
           selectedPaymentMethodId: '/payments/debit-credit-card',
           transactionId: TRANSACTION_ID_MOCK,
         },
@@ -105,13 +105,13 @@ describe('TransactionPayController', () => {
       createController();
 
       messenger.call('TransactionPayController:updateFiatPayment', {
-        amount: '15',
+        amountFiat: '15',
         transactionId: TRANSACTION_ID_MOCK,
       });
 
       expect(updateFiatPaymentMock).toHaveBeenCalledWith(
         {
-          amount: '15',
+          amountFiat: '15',
           transactionId: TRANSACTION_ID_MOCK,
         },
         {
@@ -349,11 +349,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK],
       ).toStrictEqual({
-        fiatPayment: {
-          amount: null,
-          quickBuyOrderId: null,
-          selectedPaymentMethodId: null,
-        },
+        fiatPayment: {},
         isLoading: false,
         sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         tokens: [],

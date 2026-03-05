@@ -40,7 +40,7 @@ describe('Update Fiat Payment Action', () => {
 
     const transactionDataMock = {
       fiatPayment: {
-        amount: '20',
+        amountFiat: '20',
         quickBuyOrderId: '/providers/transak/orders/order-id-1',
         selectedPaymentMethodId: '/payments/bank-transfer',
       },
@@ -49,7 +49,7 @@ describe('Update Fiat Payment Action', () => {
     updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
 
     expect(transactionDataMock.fiatPayment).toStrictEqual({
-      amount: '20',
+      amountFiat: '20',
       quickBuyOrderId: '/providers/transak/orders/order-id-1',
       selectedPaymentMethodId: '/payments/debit-credit-card',
     });
@@ -60,7 +60,7 @@ describe('Update Fiat Payment Action', () => {
 
     updateFiatPayment(
       {
-        amount: '100',
+        amountFiat: '100',
         transactionId: TRANSACTION_ID_MOCK,
       },
       {
@@ -71,7 +71,7 @@ describe('Update Fiat Payment Action', () => {
 
     const transactionDataMock = {
       fiatPayment: {
-        amount: '20',
+        amountFiat: '20',
         quickBuyOrderId: '/providers/transak/orders/order-id-1',
         selectedPaymentMethodId: '/payments/debit-credit-card',
       },
@@ -80,7 +80,7 @@ describe('Update Fiat Payment Action', () => {
     updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
 
     expect(transactionDataMock.fiatPayment).toStrictEqual({
-      amount: '100',
+      amountFiat: '100',
       quickBuyOrderId: '/providers/transak/orders/order-id-1',
       selectedPaymentMethodId: '/payments/debit-credit-card',
     });
@@ -91,7 +91,7 @@ describe('Update Fiat Payment Action', () => {
 
     updateFiatPayment(
       {
-        amount: '5',
+        amountFiat: '5',
         quickBuyOrderId: '/providers/transak/orders/order-id-2',
         transactionId: TRANSACTION_ID_MOCK,
       },
@@ -105,18 +105,17 @@ describe('Update Fiat Payment Action', () => {
     updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
 
     expect(transactionDataMock.fiatPayment).toStrictEqual({
-      amount: '5',
+      amountFiat: '5',
       quickBuyOrderId: '/providers/transak/orders/order-id-2',
-      selectedPaymentMethodId: null,
     });
   });
 
-  it('supports clearing fields with null values', () => {
+  it('updates quick-buy order id without resetting other fields', () => {
     const updateTransactionDataMock = jest.fn();
 
     updateFiatPayment(
       {
-        selectedPaymentMethodId: null,
+        quickBuyOrderId: '/providers/transak/orders/order-id-2',
         transactionId: TRANSACTION_ID_MOCK,
       },
       {
@@ -127,7 +126,7 @@ describe('Update Fiat Payment Action', () => {
 
     const transactionDataMock = {
       fiatPayment: {
-        amount: '20',
+        amountFiat: '20',
         quickBuyOrderId: '/providers/transak/orders/order-id-1',
         selectedPaymentMethodId: '/payments/debit-credit-card',
       },
@@ -136,9 +135,9 @@ describe('Update Fiat Payment Action', () => {
     updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
 
     expect(transactionDataMock.fiatPayment).toStrictEqual({
-      amount: '20',
-      quickBuyOrderId: '/providers/transak/orders/order-id-1',
-      selectedPaymentMethodId: null,
+      amountFiat: '20',
+      quickBuyOrderId: '/providers/transak/orders/order-id-2',
+      selectedPaymentMethodId: '/payments/debit-credit-card',
     });
   });
 
@@ -148,7 +147,7 @@ describe('Update Fiat Payment Action', () => {
     expect(() =>
       updateFiatPayment(
         {
-          amount: '10',
+          amountFiat: '10',
           transactionId: TRANSACTION_ID_MOCK,
         },
         {

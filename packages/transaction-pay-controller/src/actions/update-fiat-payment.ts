@@ -1,5 +1,4 @@
 import { createModuleLogger } from '@metamask/utils';
-import { pickBy } from 'lodash';
 
 import type { TransactionPayControllerMessenger } from '..';
 import { projectLogger } from '../logger';
@@ -26,8 +25,12 @@ export function updateFiatPayment(
   request: UpdateFiatPaymentRequest,
   options: UpdateFiatPaymentOptions,
 ): void {
-  const { transactionId, selectedPaymentMethodId, amount, quickBuyOrderId } =
-    request;
+  const {
+    transactionId,
+    selectedPaymentMethodId,
+    amountFiat,
+    quickBuyOrderId,
+  } = request;
   const { messenger, updateTransactionData } = options;
 
   const transaction = getTransaction(transactionId, messenger);
@@ -39,29 +42,25 @@ export function updateFiatPayment(
   log('Updated fiat payment', {
     transactionId,
     selectedPaymentMethodId,
-    amount,
+    amountFiat,
     quickBuyOrderId,
   });
 
   updateTransactionData(transactionId, (data) => {
-    const currentFiatPayment = data.fiatPayment ?? {
-      amount: null,
-      quickBuyOrderId: null,
-      selectedPaymentMethodId: null,
-    };
+    const currentFiatPayment = data.fiatPayment ?? {};
 
-    const patch = pickBy(
-      {
-        amount,
-        quickBuyOrderId,
-        selectedPaymentMethodId,
-      },
-      (value) => value !== undefined,
-    ) as Partial<typeof currentFiatPayment>;
+    if (amountFiat !== undefined) {
+      currentFiatPayment.amountFiat = amountFiat;
+    }
 
-    data.fiatPayment = {
-      ...currentFiatPayment,
-      ...patch,
-    };
+    if (selectedPaymentMethodId !== undefined) {
+      currentFiatPayment.selectedPaymentMethodId = selectedPaymentMethodId;
+    }
+
+    if (quickBuyOrderId !== undefined) {
+      currentFiatPayment.quickBuyOrderId = quickBuyOrderId;
+    }
+
+    data.fiatPayment = currentFiatPayment;
   });
 }

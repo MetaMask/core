@@ -77,16 +77,16 @@ export type TransactionPayControllerGetStrategyAction = {
   handler: (transaction: TransactionMeta) => TransactionPayStrategy;
 };
 
-/** Action to update the payment token for a transaction. */
-export type TransactionPayControllerUpdatePaymentTokenAction = {
-  type: `${typeof CONTROLLER_NAME}:updatePaymentToken`;
-  handler: (request: UpdatePaymentTokenRequest) => void;
-};
-
 /** Action to update fiat payment state for a transaction. */
 export type TransactionPayControllerUpdateFiatPaymentAction = {
   type: `${typeof CONTROLLER_NAME}:updateFiatPayment`;
   handler: (request: UpdateFiatPaymentRequest) => void;
+};
+
+/** Action to update the payment token for a transaction. */
+export type TransactionPayControllerUpdatePaymentTokenAction = {
+  type: `${typeof CONTROLLER_NAME}:updatePaymentToken`;
+  handler: (request: UpdatePaymentTokenRequest) => void;
 };
 
 /** Action to update transaction configuration using a callback. */
@@ -220,13 +220,13 @@ export type TransactionData = {
 /** Fiat payment state stored per transaction. */
 export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
-  amount: string | null;
+  amountFiat?: string;
 
   /** Selected fiat payment method ID. */
-  selectedPaymentMethodId: string | null;
+  selectedPaymentMethodId?: string;
 
   /** Quick-buy order ID in normalized format (/providers/{provider}/orders/{id}). */
-  quickBuyOrderId: string | null;
+  quickBuyOrderId?: string;
 };
 
 /** A token required by a transaction. */
@@ -547,18 +547,9 @@ export type UpdatePaymentTokenRequest = {
 };
 
 /** Request to update fiat payment state for a transaction. */
-export type UpdateFiatPaymentRequest = {
-  /** Entered fiat amount. */
-  amount?: string | null;
-
-  /** Selected fiat payment method ID. */
-  selectedPaymentMethodId?: string | null;
-
+export type UpdateFiatPaymentRequest = Partial<TransactionFiatPayment> & {
   /** ID of the transaction to update. */
   transactionId: string;
-
-  /** Quick-buy order ID in normalized format (/providers/{provider}/orders/{id}). */
-  quickBuyOrderId?: string | null;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */
