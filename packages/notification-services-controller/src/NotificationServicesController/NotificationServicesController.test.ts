@@ -47,6 +47,7 @@ import { notificationsConfigCache } from './services/notification-config-cache';
 import type { INotification, OrderInput } from './types';
 import type {
   NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerDeletePushNotificationLinksAction,
   NotificationServicesPushControllerEnablePushNotificationsAction,
   NotificationServicesPushControllerSubscribeToNotificationsAction,
 } from '../NotificationServicesPushController';
@@ -498,6 +499,158 @@ describe('NotificationServicesController', () => {
       expect(mockEnablePushNotifications).toHaveBeenCalled();
     });
 
+    it('tracks accounts from all keyrings when creating triggers', async () => {
+      const {
+        messenger,
+        mockGetConfig,
+        mockUpdateNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks({
+        // Mock no existing notifications
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [],
+          }),
+      });
+
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            accounts: [ADDRESS_1],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-1',
+              name: 'SRP 1',
+            },
+          },
+          {
+            accounts: [ADDRESS_2],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-2',
+              name: 'SRP 2',
+            },
+          },
+        ],
+      });
+
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.createOnChainTriggers();
+
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
+        ADDRESS_1,
+        ADDRESS_2,
+      ]);
+    });
+
+    it('deduplicates and filters non-Ethereum accounts when creating triggers', async () => {
+      const {
+        messenger,
+        mockGetConfig,
+        mockUpdateNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks({
+        // Mock no existing notifications
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [],
+          }),
+      });
+
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            accounts: [ADDRESS_1, ADDRESS_1.toLowerCase(), 'NotAnAddress'],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-1',
+              name: 'SRP 1',
+            },
+          },
+          {
+            accounts: [
+              ADDRESS_2,
+              '7xKXtg2CW6y7J2wMmkf8VbM8dYb6u3H3V8bLxT64d4oR',
+            ],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-2',
+              name: 'SRP 2',
+            },
+          },
+        ],
+      });
+
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.createOnChainTriggers();
+
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
+        ADDRESS_1,
+        ADDRESS_2,
+      ]);
+    });
+
+    it('normalizes non-checksummed mixed-case addresses before filtering', async () => {
+      const {
+        messenger,
+        mockGetConfig,
+        mockUpdateNotifications,
+        mockKeyringControllerGetState,
+      } = arrangeMocks({
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [],
+          }),
+      });
+
+      const nonChecksummedMixedCaseAddress =
+        '0xd8Da6bf26964af9d7eeD9e03E53415D37aa96045';
+
+      mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            accounts: [nonChecksummedMixedCaseAddress],
+            type: KeyringTypes.hd,
+            metadata: {
+              id: 'srp-1',
+              name: 'SRP 1',
+            },
+          },
+        ],
+      });
+
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.createOnChainTriggers();
+
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(controller.state.subscriptionAccountsSeen).toStrictEqual([
+        ADDRESS_1,
+      ]);
+    });
+
     it('does not register notifications when notifications already exist and not resetting (however does update push registrations)', async () => {
       const {
         messenger,
@@ -618,7 +771,11 @@ describe('NotificationServicesController', () => {
     };
 
     it('disables notifications for given accounts', async () => {
-      const { messenger, mockUpdateNotifications } = arrangeMocks();
+      const {
+        messenger,
+        mockUpdateNotifications,
+        mockDeletePushNotificationLinks,
+      } = arrangeMocks();
       const controller = new NotificationServicesController({
         messenger,
         env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -627,6 +784,7 @@ describe('NotificationServicesController', () => {
       await controller.disableAccounts([ADDRESS_1]);
 
       expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(mockDeletePushNotificationLinks).toHaveBeenCalledWith([ADDRESS_1]);
     });
 
     it('throws errors when invalid auth', async () => {
@@ -1554,6 +1712,7 @@ function mockNotificationMessenger(): {
   mockIsSignedIn: jest.Mock;
   mockAuthPerformSignIn: jest.Mock;
   mockDisablePushNotifications: jest.Mock;
+  mockDeletePushNotificationLinks: jest.Mock;
   mockEnablePushNotifications: jest.Mock;
   mockSubscribeToPushNotifications: jest.Mock;
   mockKeyringControllerGetState: jest.Mock;
@@ -1578,6 +1737,7 @@ function mockNotificationMessenger(): {
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignIn',
       'NotificationServicesPushController:disablePushNotifications',
+      'NotificationServicesPushController:deletePushNotificationLinks',
       'NotificationServicesPushController:enablePushNotifications',
       'NotificationServicesPushController:subscribeToPushNotifications',
     ],
@@ -1607,6 +1767,11 @@ function mockNotificationMessenger(): {
 
   const mockDisablePushNotifications =
     typedMockAction<NotificationServicesPushControllerDisablePushNotificationsAction>();
+
+  const mockDeletePushNotificationLinks =
+    typedMockAction<NotificationServicesPushControllerDeletePushNotificationLinksAction>().mockResolvedValue(
+      true,
+    );
 
   const mockEnablePushNotifications =
     typedMockAction<NotificationServicesPushControllerEnablePushNotificationsAction>();
@@ -1658,6 +1823,13 @@ function mockNotificationMessenger(): {
 
     if (
       actionType ===
+      'NotificationServicesPushController:deletePushNotificationLinks'
+    ) {
+      return mockDeletePushNotificationLinks(params[0]);
+    }
+
+    if (
+      actionType ===
       'NotificationServicesPushController:enablePushNotifications'
     ) {
       return mockEnablePushNotifications(params[0]);
@@ -1682,6 +1854,7 @@ function mockNotificationMessenger(): {
     mockIsSignedIn,
     mockAuthPerformSignIn,
     mockDisablePushNotifications,
+    mockDeletePushNotificationLinks,
     mockEnablePushNotifications,
     mockSubscribeToPushNotifications,
     mockKeyringControllerGetState,

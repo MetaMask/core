@@ -8,7 +8,6 @@ import {
   isValidHexAddress,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerStateChangeEvent,
   KeyringControllerGetStateAction,
@@ -45,6 +44,7 @@ import type { OrderInput } from './types/perps';
 import type {
   NotificationServicesPushControllerEnablePushNotificationsAction,
   NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerDeletePushNotificationLinksAction,
   NotificationServicesPushControllerSubscribeToNotificationsAction,
   NotificationServicesPushControllerStateChangeEvent,
   NotificationServicesPushControllerOnNewNotificationEvent,
@@ -234,6 +234,7 @@ type AllowedActions =
   // Push Notifications Controller Requests
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
+  | NotificationServicesPushControllerDeletePushNotificationLinksAction
   | NotificationServicesPushControllerSubscribeToNotificationsAction;
 
 // Events
@@ -358,6 +359,16 @@ export default class NotificationServicesController extends BaseController<
         // Do nothing, failing silently.
       }
     },
+    deletePushNotificationLinks: async (addresses: string[]): Promise<void> => {
+      try {
+        await this.messenger.call(
+          'NotificationServicesPushController:deletePushNotificationLinks',
+          addresses,
+        );
+      } catch {
+        // Do nothing, failing silently.
+      }
+    },
     subscribe: (): void => {
       this.messenger.subscribe(
         'NotificationServicesPushController:onNewNotifications',
@@ -399,11 +410,24 @@ export default class NotificationServicesController extends BaseController<
 
     getNotificationAccounts: (): string[] | null => {
       const { keyrings } = this.messenger.call('KeyringController:getState');
-      const firstHDKeyring = keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.hd.toString(),
-      );
-      const keyringAccounts = firstHDKeyring?.accounts ?? null;
-      return keyringAccounts;
+      const keyringAccounts = [
+        ...new Set(
+          keyrings
+            .flatMap((keyring) => keyring.accounts)
+            .map((address) => {
+              try {
+                return toChecksumHexAddress(address);
+              } catch {
+                return null;
+              }
+            })
+            .filter(
+              (address): address is string =>
+                address !== null && isValidHexAddress(address),
+            ),
+        ),
+      ];
+      return keyringAccounts.length > 0 ? keyringAccounts : null;
     },
 
     /**
@@ -950,6 +974,8 @@ export default class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: false })),
         this.#env,
       );
+
+      await this.#pushNotifications.deletePushNotificationLinks(accounts);
     } catch {
       throw new Error('Failed to delete OnChain triggers');
     } finally {
