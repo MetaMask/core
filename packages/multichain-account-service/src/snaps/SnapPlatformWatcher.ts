@@ -7,7 +7,7 @@ import { MultichainAccountServiceMessenger } from '../types';
 export class SnapPlatformWatcher {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  readonly #isReadyOnce: DeferredPromise<void>;
+  #isReadyOnce: DeferredPromise<void>;
 
   #isReady: boolean;
 
@@ -44,15 +44,21 @@ export class SnapPlatformWatcher {
       this.#isReadyOnce.resolve();
     }
 
-    // We still subscribe to state changes to keep track of the platform's readiness.
+    // We must always subscribe to state changes to keep track of the platform's readiness.
     this.#messenger.subscribe(
       'SnapController:stateChange',
       (isReady: boolean) => {
+        const wasReady = this.#isReady;
         this.#isReady = isReady;
 
         if (isReady) {
           logReadyOnce();
           this.#isReadyOnce.resolve();
+        } else if (wasReady) {
+          // Platform was ready, and now it is not.
+          // ensureCanUseSnapPlatform() will wait again.
+          // This is required after the wallet reset.
+          this.#isReadyOnce = createDeferredPromise<void>();
         }
       },
       (state) => state.isReady,

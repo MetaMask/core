@@ -90,20 +90,31 @@ describe('SnapPlatformWatcher', () => {
       expect(resolved).toBe(true);
     });
 
-    it('throws error if platform becomes unavailable after being ready once', async () => {
+    it('waits for platform to be ready again when it becomes unavailable (e.g. after wallet reset)', async () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
       // Make platform ready first.
       publishIsReadyState(rootMessenger, true);
 
-      // Make platform unavailable
+      // Make platform unavailable (e.g. clearState during wallet reset).
       publishIsReadyState(rootMessenger, false);
 
-      // Should throw error since platform is not ready now.
-      await expect(watcher.ensureCanUseSnapPlatform()).rejects.toThrow(
-        'Snap platform cannot be used now.',
-      );
+      // ensureCanUseSnapPlatform() should wait for the next ready, not throw.
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      let resolved = false;
+      void ensurePromise.then(() => {
+        resolved = true;
+        return null;
+      });
+
+      expect(resolved).toBe(false);
+
+      // Platform becomes ready again (e.g. Snap controller re-initialized).
+      publishIsReadyState(rootMessenger, true);
+
+      await ensurePromise;
+      expect(resolved).toBe(true);
     });
 
     it('handles multiple state changes correctly', async () => {
@@ -119,13 +130,10 @@ describe('SnapPlatformWatcher', () => {
       // Make platform unavailable.
       publishIsReadyState(rootMessenger, false);
 
-      // Should fail.
-      await expect(watcher.ensureCanUseSnapPlatform()).rejects.toThrow(
-        'Snap platform cannot be used now.',
-      );
-
-      // Make platform ready again.
+      // ensureCanUseSnapPlatform() now waits for the next ready (does not throw).
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
       publishIsReadyState(rootMessenger, true);
+      await ensurePromise;
 
       // Should work again.
       expect(await watcher.ensureCanUseSnapPlatform()).toBeUndefined();
@@ -190,6 +198,24 @@ describe('SnapPlatformWatcher', () => {
       publishIsReadyState(rootMessenger, true);
       await ensurePromise;
       expect(resolved).toBe(true);
+    });
+
+    it('throws if platform becomes not ready again before the await continuation runs (race guard)', async () => {
+      const { rootMessenger, messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger);
+
+      // Start waiting for the platform.
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+
+      // Make platform ready (resolves the deferred; continuation is queued as microtask).
+      publishIsReadyState(rootMessenger, true);
+      // Before the continuation runs, make platform not ready again.
+      publishIsReadyState(rootMessenger, false);
+
+      // The continuation runs after both publishes; it sees isReady false and throws.
+      await expect(ensurePromise).rejects.toThrow(
+        'Snap platform cannot be used now.',
+      );
     });
 
     it('resolves immediately if platform is already ready', async () => {
