@@ -1,6 +1,7 @@
 import { getStrategiesByName, getStrategyByName } from './strategy';
 import { TransactionPayStrategy } from '../constants';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
+import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 
@@ -21,6 +22,11 @@ describe('Strategy Utils', () => {
       expect(strategy).toBeInstanceOf(RelayStrategy);
     });
 
+    it('returns FiatStrategy if strategy name is Fiat', () => {
+      const strategy = getStrategyByName(TransactionPayStrategy.Fiat);
+      expect(strategy).toBeInstanceOf(FiatStrategy);
+    });
+
     it('throws if strategy name is unknown', () => {
       expect(() => getStrategyByName('UnknownStrategy' as never)).toThrow(
         'Unknown strategy: UnknownStrategy',
@@ -34,15 +40,18 @@ describe('Strategy Utils', () => {
         TransactionPayStrategy.Test,
         TransactionPayStrategy.Bridge,
         TransactionPayStrategy.Relay,
+        TransactionPayStrategy.Fiat,
       ]);
 
-      expect(strategies).toHaveLength(3);
+      expect(strategies).toHaveLength(4);
       expect(strategies[0].name).toBe(TransactionPayStrategy.Test);
       expect(strategies[1].name).toBe(TransactionPayStrategy.Bridge);
       expect(strategies[2].name).toBe(TransactionPayStrategy.Relay);
+      expect(strategies[3].name).toBe(TransactionPayStrategy.Fiat);
       expect(strategies[0].strategy).toBeInstanceOf(TestStrategy);
       expect(strategies[1].strategy).toBeInstanceOf(BridgeStrategy);
       expect(strategies[2].strategy).toBeInstanceOf(RelayStrategy);
+      expect(strategies[3].strategy).toBeInstanceOf(FiatStrategy);
     });
 
     it('skips unknown strategies and calls callback', () => {

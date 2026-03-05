@@ -14,6 +14,7 @@ import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import type { RampsControllerGetQuotesAction } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   AuthorizationList,
@@ -44,6 +45,7 @@ export type AllowedActions =
   | GasFeeControllerActions
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | RampsControllerGetQuotesAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
@@ -162,6 +164,9 @@ export type TransactionPayControllerState = {
 
 /** State relating to a single transaction. */
 export type TransactionData = {
+  /** Fiat payment method state. */
+  fiatPayment?: TransactionFiatPayment;
+
   /** Whether quotes are currently being retrieved. */
   isLoading: boolean;
 
@@ -205,6 +210,18 @@ export type TransactionData = {
 
   /** Calculated totals for the transaction. */
   totals?: TransactionPayTotals;
+};
+
+/** Fiat payment state stored per transaction. */
+export type TransactionFiatPayment = {
+  /** Entered fiat amount for the selected payment method. */
+  amountFiat?: string;
+
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId?: string;
+
+  /** Quick-buy order ID in normalized format (/providers/{provider}/orders/{id}). */
+  quickBuyOrderId?: string;
 };
 
 /** A token required by a transaction. */
@@ -370,6 +387,9 @@ export type TransactionPayFees = {
 
   /** Fee charged by the quote provider. */
   provider: FiatValue;
+
+  /** Fee charged by fiat on-ramp provider. */
+  fiatProvider?: FiatValue;
 
   /** Network fee for transactions on the source network. */
   sourceNetwork: {

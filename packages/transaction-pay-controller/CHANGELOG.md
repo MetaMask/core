@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add MMPay `FiatStrategy` quotes flow ([#8121](https://github.com/MetaMask/core/pull/8121))
+
 ## [16.3.0]
 
 ### Added

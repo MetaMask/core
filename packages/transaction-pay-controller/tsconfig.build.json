@@ -28,6 +28,9 @@
       "path": "../network-controller/tsconfig.build.json"
     },
     {
+      "path": "../ramps-controller/tsconfig.build.json"
+    },
+    {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },
     {
