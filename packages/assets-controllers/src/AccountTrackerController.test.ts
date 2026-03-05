@@ -16,6 +16,7 @@ import type {
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
@@ -444,6 +445,61 @@ describe('AccountTrackerController', () => {
         expect(refreshSpy).toHaveBeenCalled();
       },
     );
+  });
+
+  describe('isHomepageSectionsV1Enabled and getNetworkClientIds', () => {
+    it('when isHomepageSectionsV1Enabled is true, uses listPopularEvmNetworks for refresh (e.g. on keyring unlock)', async () => {
+      await withController(
+        {
+          options: { isHomepageSectionsV1Enabled: () => true },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, messenger, networkEnablementMocks }) => {
+          const refreshSpy = jest
+            .spyOn(controller, 'refresh')
+            .mockResolvedValue();
+
+          messenger.publish('KeyringController:unlock');
+
+          await jest.advanceTimersByTimeAsync(1);
+
+          expect(
+            networkEnablementMocks.listPopularEvmNetworks,
+          ).toHaveBeenCalled();
+          expect(networkEnablementMocks.getState).not.toHaveBeenCalled();
+          expect(refreshSpy).toHaveBeenCalled();
+          const [networkClientIds] = refreshSpy.mock.calls[0];
+          expect(networkClientIds.length).toBeGreaterThan(0);
+          expect(networkClientIds).toContain('mainnet');
+        },
+      );
+    });
+
+    it('when isHomepageSectionsV1Enabled is false, uses enabledNetworkMap for refresh (e.g. on keyring unlock)', async () => {
+      await withController(
+        {
+          options: { isHomepageSectionsV1Enabled: () => false },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, messenger, networkEnablementMocks }) => {
+          const refreshSpy = jest
+            .spyOn(controller, 'refresh')
+            .mockResolvedValue();
+
+          messenger.publish('KeyringController:unlock');
+
+          await jest.advanceTimersByTimeAsync(1);
+
+          expect(networkEnablementMocks.getState).toHaveBeenCalled();
+          expect(
+            networkEnablementMocks.listPopularEvmNetworks,
+          ).not.toHaveBeenCalled();
+          expect(refreshSpy).toHaveBeenCalledWith(['mainnet']);
+        },
+      );
+    });
   });
 
   describe('refresh', () => {
@@ -1894,11 +1950,18 @@ describe('AccountTrackerController', () => {
   });
 });
 
+type NetworkEnablementMocks = {
+  getState: jest.Mock;
+  listPopularEvmNetworks: jest.Mock;
+};
+
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  networkEnablementMocks,
 }: {
   controller: AccountTrackerController;
   messenger: RootMessenger;
+  networkEnablementMocks: NetworkEnablementMocks;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   refresh: (
     networkClientIds: NetworkClientId[],
@@ -2049,6 +2112,27 @@ async function withController<ReturnValue>(
     mockNetworkState,
   );
 
+  const mockGetNetworkEnablementState = jest.fn().mockReturnValue({
+    enabledNetworkMap: {
+      eip155: { [initialChainId]: true },
+    },
+  });
+  messenger.registerActionHandler(
+    'NetworkEnablementController:getState',
+    mockGetNetworkEnablementState,
+  );
+
+  const defaultNetworkState = getDefaultNetworkControllerState();
+  const mockListPopularEvmNetworks = jest
+    .fn()
+    .mockReturnValue(
+      Object.keys(defaultNetworkState.networkConfigurationsByChainId) as Hex[],
+    );
+  messenger.registerActionHandler(
+    'NetworkEnablementController:listPopularEvmNetworks',
+    mockListPopularEvmNetworks,
+  );
+
   messenger.registerActionHandler(
     'KeyringController:getState',
     jest.fn().mockReturnValue({ isUnlocked: true }),
@@ -2068,6 +2152,8 @@ async function withController<ReturnValue>(
     actions: [
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
+      'NetworkEnablementController:getState',
+      'NetworkEnablementController:listPopularEvmNetworks',
       'PreferencesController:getState',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
@@ -2105,6 +2191,10 @@ async function withController<ReturnValue>(
   return await testFunction({
     controller,
     messenger,
+    networkEnablementMocks: {
+      getState: mockGetNetworkEnablementState,
+      listPopularEvmNetworks: mockListPopularEvmNetworks,
+    },
     triggerSelectedAccountChange,
     refresh,
   });
