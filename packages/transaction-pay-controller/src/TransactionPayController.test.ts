@@ -122,18 +122,51 @@ describe('TransactionPayController', () => {
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 
+    it('updates refundTo in state', () => {
+      const controller = createController();
+      const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.refundTo = refundTo;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].refundTo,
+      ).toBe(refundTo);
+    });
+
+    it('clears refundTo when set to undefined', () => {
+      const controller = createController();
+      const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.refundTo = refundTo;
+      });
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.refundTo = undefined;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].refundTo,
+      ).toBeUndefined();
+    });
+
     it('updates multiple config properties at once', () => {
       const controller = createController();
+      const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
 
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
         config.isMaxAmount = true;
         config.isPostQuote = true;
+        config.refundTo = refundTo;
       });
 
       const transactionData =
         controller.state.transactionData[TRANSACTION_ID_MOCK];
       expect(transactionData.isMaxAmount).toBe(true);
       expect(transactionData.isPostQuote).toBe(true);
+      expect(transactionData.refundTo).toBe(refundTo);
     });
   });
 
