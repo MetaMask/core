@@ -1,5 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { InfuraNetworkType } from '@metamask/controller-utils';
+import { InfuraNetworkType, toChecksumHexAddress } from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
@@ -140,6 +140,21 @@ const mockAccount4: InternalAccount = {
       name: 'snap-name',
     },
     importTime: 1955565967656,
+    lastSelected: 1955565967656,
+  },
+};
+
+const mockAccount5: InternalAccount = {
+  id: 'mock-id5',
+  address: '0x4f3e8a2c1d7b6e9f0a5c8d2b1e7f3a6c9d0e4b5a',
+  options: {},
+  methods: [...ETH_EOA_METHODS],
+  type: EthAccountType.Eoa,
+  scopes: [EthScope.Eoa],
+  metadata: {
+    name: '',
+    keyring: { type: KeyringTypes.hd },
+    importTime: 1691565967600,
     lastSelected: 1955565967656,
   },
 };
@@ -3903,6 +3918,23 @@ describe('AccountsController', () => {
       );
 
       expect(account).toStrictEqual(mockNonEvmAccount);
+    });
+
+    it('can handle a checksummed address', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount5.id]: mockAccount5 },
+            selectedAccount: mockAccount5.id,
+          },
+        },
+      });
+
+      const checksummedAddress = toChecksumHexAddress(mockAccount5.address);
+      const account =
+        accountsController.getAccountByAddress(checksummedAddress);
+
+      expect(account).toStrictEqual(mockAccount5);
     });
   });
 
