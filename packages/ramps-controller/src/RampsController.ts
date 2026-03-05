@@ -897,9 +897,10 @@ export class RampsController extends BaseController<
           if (next === 0) {
             this.#pendingResourceCount.delete(resourceType);
             this.#setResourceLoading(resourceType, false);
-            if (terminalStatus !== undefined) {
-              this.#setResourceStatus(resourceType, terminalStatus);
-            }
+            this.#setResourceStatus(
+              resourceType,
+              terminalStatus ?? RequestStatus.IDLE,
+            );
           } else {
             this.#pendingResourceCount.set(resourceType, next);
           }
