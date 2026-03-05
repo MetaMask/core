@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- SnapPlatformWatcher now waits for the Snap platform to be ready again after wallet reset, fixing "Snap platform cannot be used now" when creating Snap-dependent accounts.
+
 ### Added
 
 - Expose missing public `AccountsController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
