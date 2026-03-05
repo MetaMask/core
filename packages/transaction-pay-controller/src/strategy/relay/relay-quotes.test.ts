@@ -35,7 +35,14 @@ import {
   getTokenFiatRate,
 } from '../../utils/token';
 
-jest.mock('../../utils/token');
+jest.mock('../../utils/token', () => ({
+  ...jest.createMockFromModule<typeof import('../../utils/token')>(
+    '../../utils/token',
+  ),
+  normalizeTokenAddress:
+    jest.requireActual<typeof import('../../utils/token')>('../../utils/token')
+      .normalizeTokenAddress,
+}));
 jest.mock('../../utils/gas');
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
@@ -705,7 +712,7 @@ describe('Relay Quotes Utils', () => {
       expect(estimateGasBatchMock).not.toHaveBeenCalled();
     });
 
-    it('prepends original transaction gas to relay gas limits for post-quote', async () => {
+    it('adds original transaction gas to single relay gas limit for post-quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as never);
@@ -734,10 +741,8 @@ describe('Relay Quotes Utils', () => {
         } as TransactionMeta,
       });
 
-      // Original tx gas (0x13498 = 79000) prepended, relay gas (21000) from params
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([
-        79000, 21000,
-      ]);
+      // Single relay gas limit (21000) + original tx gas (0x13498 = 79000) = 100000
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([100000]);
     });
 
     it('prefers nestedTransactions gas over txParams.gas for post-quote', async () => {
@@ -771,9 +776,8 @@ describe('Relay Quotes Utils', () => {
       });
 
       // nestedTransactions gas (0xC350 = 50000) used instead of txParams.gas (79000)
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([
-        50000, 21000,
-      ]);
+      // Single relay gas limit (21000) + original tx gas (50000) = 71000
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([71000]);
     });
 
     it('adds original transaction gas to EIP-7702 combined gas limit for post-quote', async () => {
@@ -832,6 +836,66 @@ describe('Relay Quotes Utils', () => {
 
       // EIP-7702: original tx gas (79000) added to combined relay gas (51000)
       expect(result[0].original.metamask.gasLimits).toStrictEqual([130000]);
+    });
+
+    it('prepends original transaction gas to multiple relay gas limits for post-quote', async () => {
+      const multiStepQuote = {
+        ...QUOTE_MOCK,
+        steps: [
+          {
+            ...QUOTE_MOCK.steps[0],
+            items: [
+              QUOTE_MOCK.steps[0].items[0],
+              {
+                ...QUOTE_MOCK.steps[0].items[0],
+                data: {
+                  ...QUOTE_MOCK.steps[0].items[0].data,
+                  gas: '30000',
+                },
+              },
+            ],
+          },
+        ],
+      } as RelayQuote;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => multiStepQuote,
+      } as never);
+
+      getGasBufferMock.mockReturnValue(1);
+
+      // Multiple gas limits (not 7702 combined): batch returns per-tx limits
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 51000,
+        gasLimits: [21000, 30000],
+      });
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x9' as Hex,
+            data: '0xaaa' as Hex,
+            gas: '0x13498',
+            value: '0',
+          },
+        } as TransactionMeta,
+      });
+
+      // Original tx gas (79000) prepended to relay gas limits [21000, 30000]
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        79000, 21000, 30000,
+      ]);
     });
 
     it('skips original transaction gas when txParams.gas is missing for post-quote', async () => {
@@ -1240,6 +1304,49 @@ describe('Relay Quotes Utils', () => {
             gasFeeToken: {
               ...GAS_FEE_TOKEN_MOCK,
               amount: toHex(1230000 * 2),
+            },
+          }),
+        );
+      });
+
+      it('using gas fee token amount as-is for post-quote with single relay param', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getTokenBalanceMock.mockReturnValue('1724999999999999');
+        getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+        getGasBufferMock.mockReturnValue(1);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              targetAmountMinimum: '0',
+              isPostQuote: true,
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            chainId: '0x1' as Hex,
+            txParams: {
+              from: FROM_MOCK,
+              to: '0x9' as Hex,
+              data: '0xaaa' as Hex,
+              gas: '0x5208',
+              value: '0',
+            },
+          } as TransactionMeta,
+        });
+
+        // Single relay param and single gas limit: hasMultipleTransactions is false,
+        // so gas fee token amount is used as-is (no batch scaling).
+        expect(calculateGasFeeTokenCostMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            gasFeeToken: {
+              ...GAS_FEE_TOKEN_MOCK,
+              amount: GAS_FEE_TOKEN_MOCK.amount,
             },
           }),
         );
@@ -1723,6 +1830,34 @@ describe('Relay Quotes Utils', () => {
       expect(body).toStrictEqual(
         expect.objectContaining({
           originCurrency: NATIVE_TOKEN_ADDRESS,
+        }),
+      );
+    });
+
+    it('updates request if target is polygon native', async () => {
+      const polygonTargetRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        targetChainId: CHAIN_ID_POLYGON,
+        targetTokenAddress: '0x0000000000000000000000000000000000001010',
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [polygonTargetRequest],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          destinationCurrency: NATIVE_TOKEN_ADDRESS,
         }),
       );
     });

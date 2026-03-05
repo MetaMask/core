@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "838.0.0",
+  "version": "850.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -58,7 +58,7 @@
     "@metamask/eslint-config-typescript": "^15.0.0",
     "@metamask/eth-block-tracker": "^15.0.1",
     "@metamask/eth-json-rpc-provider": "^6.0.0",
-    "@metamask/json-rpc-engine": "^10.2.2",
+    "@metamask/json-rpc-engine": "^10.2.3",
     "@metamask/network-controller": "^30.0.0",
     "@metamask/utils": "^11.9.0",
     "@ts-bridge/cli": "^0.6.4",
@@ -108,7 +108,8 @@
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
       "babel-runtime>core-js": false,
       "simple-git-hooks": false,
-      "tsx>esbuild": false
+      "tsx>esbuild": false,
+      "eslint-plugin-import-x>unrs-resolver": false
     }
   }
 }

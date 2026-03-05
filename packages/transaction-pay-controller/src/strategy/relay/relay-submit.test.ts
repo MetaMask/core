@@ -15,7 +15,7 @@ import type {
 } from '../../types';
 import type { FeatureFlags } from '../../utils/feature-flags';
 import { getFeatureFlags } from '../../utils/feature-flags';
-import { getLiveTokenBalance } from '../../utils/token';
+import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
 import {
   collectTransactionIds,
   getTransaction,
@@ -127,6 +127,7 @@ describe('Relay Submit Utils', () => {
   const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
   const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
   const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
+  const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
 
   const {
     addTransactionMock,
@@ -145,6 +146,9 @@ describe('Relay Submit Utils', () => {
     jest.resetAllMocks();
 
     getLiveTokenBalanceMock.mockResolvedValue('9999999999');
+    normalizeTokenAddressMock.mockImplementation(
+      (tokenAddress) => tokenAddress,
+    );
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
 
     addTransactionMock.mockResolvedValue({
@@ -736,8 +740,7 @@ describe('Relay Submit Utils', () => {
         );
       });
 
-      it('does not activate 7702 mode with post-quote gas limits', async () => {
-        // gasLimits covers both original tx and relay step.
+      it('does not activate 7702 mode with multiple post-quote gas limits', async () => {
         request.quotes[0].original.metamask.gasLimits = [21000, 21000];
 
         await submitRelayQuotes(request);
@@ -758,6 +761,35 @@ describe('Relay Submit Utils', () => {
               expect.objectContaining({
                 params: expect.objectContaining({
                   gas: expect.any(String),
+                }),
+                type: TransactionType.relayDeposit,
+              }),
+            ],
+          }),
+        );
+      });
+
+      it('activates 7702 mode with single combined post-quote gas limit', async () => {
+        request.quotes[0].original.metamask.gasLimits = [203093];
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            disable7702: false,
+            disableHook: true,
+            disableSequential: true,
+            gasLimit7702: '0x31955',
+            transactions: [
+              expect.objectContaining({
+                params: expect.objectContaining({
+                  gas: undefined,
+                }),
+                type: TransactionType.simpleSend,
+              }),
+              expect.objectContaining({
+                params: expect.objectContaining({
+                  gas: undefined,
                 }),
                 type: TransactionType.relayDeposit,
               }),

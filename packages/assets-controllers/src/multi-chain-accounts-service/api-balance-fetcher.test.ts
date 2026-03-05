@@ -756,6 +756,50 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(nativeAddr1?.value).toStrictEqual(new BN('1500000000000000000')); // 1.5 ETH
       expect(nativeAddr2?.value).toStrictEqual(new BN('0')); // Zero balance (not returned by API)
     });
+
+    it('should not zero out native balances for addresses excluded from selected-account requests', async () => {
+      const excludedAddress = '0x1111111111111111111111111111111111111111';
+
+      mockAccountAddressToCaipReference.mockReturnValue(
+        `eip155:1:${excludedAddress}`,
+      );
+      mockFetchMultiChainBalancesV4.mockResolvedValue({
+        count: 0,
+        balances: [],
+        unprocessedNetworks: [],
+      });
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      expect(result.balances).toStrictEqual([]);
+    });
+
+    it('should not zero out native balances for addresses excluded from all-accounts requests', async () => {
+      const excludedAddress = '0x1111111111111111111111111111111111111111';
+
+      mockAccountAddressToCaipReference.mockReturnValue(
+        `eip155:1:${excludedAddress}`,
+      );
+      mockFetchMultiChainBalancesV4.mockResolvedValue({
+        count: 0,
+        balances: [],
+        unprocessedNetworks: [],
+      });
+
+      const result = await balanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: true,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      expect(result.balances).toStrictEqual([]);
+    });
   });
 
   describe('erc20 token zero balance guarantee', () => {
@@ -803,6 +847,135 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(result.balances[1].value).toStrictEqual(new BN('0')); // balance is zero now since API did not return a value for this token
     });
 
+    it('should not zero out erc20 balances for accounts excluded from selected-account requests', async () => {
+      const selectedAccountToken =
+        '0x0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+      const excludedAccountToken = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue({
+        count: 1,
+        balances: [createMockNativeTokenBalance({ chainId: 1 })],
+        unprocessedNetworks: [],
+      });
+
+      balanceFetcher = new AccountsApiBalanceFetcher(
+        'extension',
+        undefined,
+        () => ({
+          [MOCK_ADDRESS_1]: {
+            '0x1': {
+              [ZERO_ADDRESS]: {},
+              [selectedAccountToken]: '0x814a20',
+            },
+          },
+          [MOCK_ADDRESS_2]: {
+            '0x1': {
+              [ZERO_ADDRESS]: {},
+              [excludedAccountToken]: '0x814a20',
+            },
+          },
+        }),
+      );
+
+      const result = await balanceFetcher.fetch({
+        chainIds: ['0x1'],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const zeroedSelectedAccountToken = result.balances.find(
+        (balance) =>
+          balance.account === MOCK_ADDRESS_1 &&
+          balance.token === selectedAccountToken.toLowerCase(),
+      );
+      expect(zeroedSelectedAccountToken).toStrictEqual(
+        expect.objectContaining({
+          success: true,
+          value: new BN('0'),
+          account: MOCK_ADDRESS_1,
+          token: selectedAccountToken.toLowerCase(),
+          chainId: '0x1',
+        }),
+      );
+
+      const zeroedExcludedAccountToken = result.balances.find(
+        (balance) =>
+          balance.account === MOCK_ADDRESS_2 &&
+          balance.token === excludedAccountToken.toLowerCase(),
+      );
+      expect(zeroedExcludedAccountToken).toBeUndefined();
+    });
+
+    it('should not zero out erc20 balances for accounts excluded from all-accounts requests', async () => {
+      const includedAccountToken =
+        '0x0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+      const excludedAccount = '0x1111111111111111111111111111111111111111';
+      const excludedAccountToken = '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B';
+
+      mockFetchMultiChainBalancesV4.mockResolvedValue({
+        count: 2,
+        balances: [
+          createMockNativeTokenBalance({
+            accountAddress: `eip155:1:${MOCK_ADDRESS_1}`,
+          }),
+          createMockNativeTokenBalance({
+            balance: '2.0',
+            accountAddress: `eip155:1:${MOCK_ADDRESS_2}`,
+          }),
+        ],
+        unprocessedNetworks: [],
+      });
+
+      balanceFetcher = new AccountsApiBalanceFetcher(
+        'extension',
+        undefined,
+        () => ({
+          [MOCK_ADDRESS_1]: {
+            '0x1': {
+              [ZERO_ADDRESS]: {},
+              [includedAccountToken]: '0x814a20',
+            },
+          },
+          [excludedAccount]: {
+            '0x1': {
+              [ZERO_ADDRESS]: {},
+              [excludedAccountToken]: '0x814a20',
+            },
+          },
+        }),
+      );
+
+      const result = await balanceFetcher.fetch({
+        chainIds: ['0x1'],
+        queryAllAccounts: true,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+      });
+
+      const zeroedIncludedAccountToken = result.balances.find(
+        (balance) =>
+          balance.account === MOCK_ADDRESS_1 &&
+          balance.token === includedAccountToken.toLowerCase(),
+      );
+      expect(zeroedIncludedAccountToken).toStrictEqual(
+        expect.objectContaining({
+          success: true,
+          value: new BN('0'),
+          account: MOCK_ADDRESS_1,
+          token: includedAccountToken.toLowerCase(),
+          chainId: '0x1',
+        }),
+      );
+
+      const zeroedExcludedAccountToken = result.balances.find(
+        (balance) =>
+          balance.account === excludedAccount &&
+          balance.token === excludedAccountToken.toLowerCase(),
+      );
+      expect(zeroedExcludedAccountToken).toBeUndefined();
+    });
+
     it('should not include erc20 token entry for chains that are not supported by account API', async () => {
       balanceFetcher = arrangeBalanceFetcher();
 
@@ -830,7 +1003,6 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      console.log(result.balances);
       expect(result.balances).toHaveLength(1);
       expect(result.balances[0]).toStrictEqual(
         expect.objectContaining({
