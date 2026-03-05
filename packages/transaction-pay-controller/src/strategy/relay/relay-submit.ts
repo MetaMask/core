@@ -257,7 +257,12 @@ async function submitTransactions(
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
 
-  await validateSourceBalance(quote, messenger);
+  // In post-quote flows (e.g. Predict withdraw), the source tokens are held in
+  // the Safe — not the EOA — and only become available after the original tx
+  // executes as part of the batch. Skip the EOA balance check here.
+  if (!quote.request.isPostQuote) {
+    await validateSourceBalance(quote, messenger);
+  }
 
   const normalizedParams = params.map((singleParams) =>
     normalizeParams(singleParams, messenger),
