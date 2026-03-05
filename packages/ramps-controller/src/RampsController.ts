@@ -841,6 +841,7 @@ export class RampsController extends BaseController<
 
     // Create the fetch promise
     const promise = (async (): Promise<TResult> => {
+      let terminalStatus: RequestStatus | undefined;
       try {
         const data = await fetcher(abortController.signal);
 
@@ -858,7 +859,7 @@ export class RampsController extends BaseController<
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, null);
-            this.#setResourceStatus(resourceType, RequestStatus.SUCCESS);
+            terminalStatus = RequestStatus.SUCCESS;
           }
         }
         return data;
@@ -877,7 +878,7 @@ export class RampsController extends BaseController<
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, errorMessage);
-            this.#setResourceStatus(resourceType, RequestStatus.ERROR);
+            terminalStatus = RequestStatus.ERROR;
           }
         }
         throw error;
@@ -896,6 +897,9 @@ export class RampsController extends BaseController<
           if (next === 0) {
             this.#pendingResourceCount.delete(resourceType);
             this.#setResourceLoading(resourceType, false);
+            if (terminalStatus !== undefined) {
+              this.#setResourceStatus(resourceType, terminalStatus);
+            }
           } else {
             this.#pendingResourceCount.set(resourceType, next);
           }
@@ -1001,12 +1005,12 @@ export class RampsController extends BaseController<
    * dynamic property access to avoid duplicating switch statements.
    *
    * @param resourceType - The type of resource.
-   * @param field - The field to update ('isLoading' or 'error').
+   * @param field - The field to update ('isLoading', 'error', or 'status').
    * @param value - The value to set.
    */
   #updateResourceField(
     resourceType: ResourceType,
-    field: 'isLoading' | 'error',
+    field: 'isLoading' | 'error' | 'status',
     value: boolean | string | null,
   ): void {
     this.update((state) => {
@@ -1047,12 +1051,7 @@ export class RampsController extends BaseController<
     resourceType: ResourceType,
     status: `${RequestStatus}`,
   ): void {
-    this.update((state) => {
-      const resource = state[resourceType];
-      if (resource) {
-        (resource as Record<string, unknown>).status = status;
-      }
-    });
+    this.#updateResourceField(resourceType, 'status', status);
   }
 
   /**
