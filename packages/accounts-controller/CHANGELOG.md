@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add logging capabilities ([#8118](https://github.com/MetaMask/core/pull/8118/))
 - Expose missing public `AccountsController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
   - The following actions are now available:
     - `AccountController:loadBackupAction`

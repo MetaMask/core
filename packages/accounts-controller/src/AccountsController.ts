@@ -39,6 +39,7 @@ import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 
 import { AccountsControllerMethodActions } from './AccountsController-method-action-types';
+import { projectLogger as log } from './logger';
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
@@ -616,6 +617,8 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
+    log('Synchronizing accounts with keyrings...');
+
     const keyringAccountIndexes = new Map<string, number>();
 
     const existingInternalAccounts = this.state.internalAccounts.accounts;
@@ -668,6 +671,8 @@ export class AccountsController extends BaseController<
     this.#update((state) => {
       state.internalAccounts.accounts = internalAccounts;
     });
+
+    log('Accounts synchronized!');
   }
 
   /**
@@ -828,6 +833,8 @@ export class AccountsController extends BaseController<
       return;
     }
 
+    log('Synchronizing accounts with keyrings (through :stateChange)...');
+
     // State patches.
     const generatePatch = (): StatePatch => {
       return {
@@ -955,6 +962,8 @@ export class AccountsController extends BaseController<
         }
       },
     );
+
+    log('Accounts synchronized (through :stateChange)!');
 
     // NOTE: Since we also track "updated" accounts with our patches, we could fire a new event
     // like `accountUpdated` (we would still need to check if anything really changed on the account).
