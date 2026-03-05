@@ -578,6 +578,35 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('updates metrics in metadata with fiat provider fee', async () => {
+      calculateTotalsMock.mockReturnValue({
+        ...TOTALS_MOCK,
+        fees: {
+          ...TOTALS_MOCK.fees,
+          fiatProvider: {
+            fiat: '0.11',
+            usd: '0.22',
+          },
+        },
+      });
+
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject({
+        metamaskPay: {
+          bridgeFeeFiat: '9.12',
+          chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
+          networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          targetFiat: TOTALS_MOCK.targetAmount.usd,
+          tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
+          totalFiat: TOTALS_MOCK.total.usd,
+        },
+      });
+    });
+
     it('does nothing if transaction is not unapproved', async () => {
       getTransactionMock.mockReturnValue({
         ...TRANSACTION_META_MOCK,
