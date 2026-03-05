@@ -190,7 +190,7 @@ export type AssetMetadata =
  * Base price attributes.
  */
 export type BaseAssetPrice = {
-  /** Current price in USD */
+  /** Current price in selected currency */
   price: number;
   /** Timestamp of last price update */
   lastUpdated: number;
@@ -200,11 +200,10 @@ export type BaseAssetPrice = {
  * Price data for fungible tokens (native, ERC20, SPL)
  * Matches V3SpotPricesResponse from the Price API.
  */
-export type FungibleAssetPrice = {
+export type FungibleAssetPrice = BaseAssetPrice & {
+  assetPriceType: 'fungible';
   /** CoinGecko ID */
   id?: string;
-  /** Current price in USD */
-  price: number;
   /** Market capitalization */
   marketCap?: number;
   /** All-time high price */
@@ -239,14 +238,15 @@ export type FungibleAssetPrice = {
   pricePercentChange200d?: number;
   /** 1y price change percentage */
   pricePercentChange1y?: number;
-  /** Timestamp of last price update (added by client) */
-  lastUpdated: number;
+  /** Current price in USD */
+  usdPrice: number;
 };
 
 /**
  * Price data for NFT collections
  */
-export type NFTAssetPrice = {
+export type NFTAssetPrice = BaseAssetPrice & {
+  assetPriceType: 'nft';
   /** Floor price */
   floorPrice?: number;
   /** Last sale price */
@@ -257,16 +257,13 @@ export type NFTAssetPrice = {
   averagePrice?: number;
   /** Number of sales in 24h */
   sales24h?: number;
-} & BaseAssetPrice;
+};
 
 /**
  * Union type representing all possible asset price types.
  * All types must be JSON-serializable.
  */
-export type AssetPrice =
-  | FungibleAssetPrice
-  | NFTAssetPrice
-  | (BaseAssetPrice & { [key: string]: Json });
+export type AssetPrice = FungibleAssetPrice | NFTAssetPrice;
 
 // ============================================================================
 // BALANCE TYPES (vary by asset type)
