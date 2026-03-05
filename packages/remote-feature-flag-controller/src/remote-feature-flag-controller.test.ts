@@ -422,6 +422,44 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
+    it('processed test threshold feature flag based on order', async () => {
+      // Test example has a Threshold = 0.380673
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          ...MOCK_FLAGS_WITH_THRESHOLD,
+          testFlagForThreshold: [
+            {
+              name: 'groupC',
+              scope: { type: 'threshold', value: 1 },
+              value: 'valueC',
+            },
+            {
+              name: 'groupA',
+              scope: { type: 'threshold', value: 0.3 },
+              value: 'valueA',
+            },
+            {
+              name: 'groupB',
+              scope: { type: 'threshold', value: 0.5 }, // We expected groupB, but always get groupC.
+              value: 'valueB',
+            },
+          ],
+        },
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+      await controller.updateRemoteFeatureFlags();
+
+      expect(
+        controller.state.remoteFeatureFlags.testFlagForThreshold,
+      ).toStrictEqual({
+        name: 'groupB',
+        value: 'valueB',
+      });
+    });
+
     it('preserves non-threshold feature flags unchanged', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
