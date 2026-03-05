@@ -236,7 +236,6 @@ export class MultichainAccountWallet<
         : `for group index ${to}`;
 
       const errorMessage = `Unable to create ${modeDescription} ${rangeDescription} with provider "${provider.getName()}". Error: ${(error as Error).message}`;
-      console.warn(errorMessage);
       this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
 
       const sentryError = createSentryError(

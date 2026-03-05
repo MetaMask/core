@@ -310,24 +310,28 @@ describe('MultichainAccountWallet', () => {
 
     it('aggregates non-EVM failures when waiting for all providers', async () => {
       const { wallet, providers } = setup({
-        accounts: [[], []],
+        accounts: [[], [], []],
       });
 
-      const [succeedingProvider, failingProvider] = providers;
+      const [succeedingProvider, ...failingProviders] = providers;
 
       succeedingProvider.createAccounts.mockResolvedValueOnce([
         MOCK_HD_ACCOUNT_1,
       ]);
 
-      failingProvider.createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
+      for (const failingProvider of failingProviders) {
+        failingProvider.createAccounts.mockRejectedValueOnce(
+          new Error('Unable to create accounts'),
+        );
+      }
 
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       await wallet.createMultichainAccountGroup(0);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        'Unable to create some accounts for group index 0 with provider "Mocked Provider 1". Error: Unable to create accounts',
+        'Unable to create some accounts (in the background). Providers threw the following errors:' +
+          '\n- [Mocked Provider 1] Unable to create accounts' +
+          '\n- [Mocked Provider 2] Unable to create accounts',
       );
     });
   });
