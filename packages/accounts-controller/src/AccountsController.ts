@@ -492,9 +492,16 @@ export class AccountsController extends BaseController<
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
     // We need to have a fallback as a cache miss might be attributed to a checksummed address being passed.
-    const accountId =
-      this.state.accountIdByAddress[address] ??
-      this.state.accountIdByAddress[address.toLowerCase()];
+    let accountId = this.state.accountIdByAddress[address];
+    if (!accountId) {
+      const lowercasedAddress = address.toLowerCase();
+      accountId = this.state.accountIdByAddress[lowercasedAddress];
+      if (accountId) {
+        log(
+          `Cache missed for account id: ${accountId}, received address: "${address}", matched address: "${lowercasedAddress}"`,
+        );
+      }
+    }
     return accountId ? this.getAccount(accountId) : undefined;
   }
 
