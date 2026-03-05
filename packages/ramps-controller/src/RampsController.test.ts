@@ -252,6 +252,42 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('backfills missing status field on persisted resource states', async () => {
+      const persistedStateWithoutStatus = {
+        countries: { data: [], selected: null, isLoading: false, error: null },
+        providers: { data: [], selected: null, isLoading: false, error: null },
+        tokens: { data: null, selected: null, isLoading: false, error: null },
+      } as unknown as Partial<RampsControllerState>;
+
+      await withController(
+        { options: { state: persistedStateWithoutStatus } },
+        ({ controller }) => {
+          expect(controller.state.countries.status).toBe(RequestStatus.IDLE);
+          expect(controller.state.providers.status).toBe(RequestStatus.IDLE);
+          expect(controller.state.tokens.status).toBe(RequestStatus.IDLE);
+        },
+      );
+    });
+
+    it('preserves existing status field on persisted resource states', async () => {
+      const persistedStateWithStatus = {
+        countries: {
+          data: [],
+          selected: null,
+          isLoading: false,
+          error: null,
+          status: RequestStatus.SUCCESS,
+        },
+      } as unknown as Partial<RampsControllerState>;
+
+      await withController(
+        { options: { state: persistedStateWithStatus } },
+        ({ controller }) => {
+          expect(controller.state.countries.status).toBe(RequestStatus.SUCCESS);
+        },
+      );
+    });
   });
 
   describe('messenger action handlers', () => {
