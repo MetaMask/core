@@ -683,8 +683,7 @@ describe('Relay Quotes Utils', () => {
         json: async () => QUOTE_MOCK,
       } as never);
 
-      const refundTo =
-        '0xsafe000000000000000000000000000000000001' as Hex;
+      const refundTo = '0xsafe000000000000000000000000000000000001' as Hex;
 
       await getRelayQuotes({
         messenger,
