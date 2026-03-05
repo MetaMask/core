@@ -824,8 +824,6 @@ export class AccountsController extends BaseController<
     isUnlocked,
     keyrings,
   }: KeyringControllerState): void {
-    log('Synchronizing accounts with keyrings (through :stateChange)...');
-
     // TODO: Change when accountAdded event is added to the keyring controller.
 
     // We check for keyrings length to be greater than 0 because the extension client may try execute
@@ -834,6 +832,8 @@ export class AccountsController extends BaseController<
     if (!isUnlocked || keyrings.length === 0) {
       return;
     }
+
+    log('Synchronizing accounts with keyrings (through :stateChange)...');
 
     // State patches.
     const generatePatch = (): StatePatch => {
