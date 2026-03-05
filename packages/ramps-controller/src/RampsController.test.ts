@@ -1652,97 +1652,138 @@ describe('RampsController', () => {
         });
       });
     });
-  });
 
-  describe('hydrateState', () => {
-    it('triggers fetching tokens and providers for user region', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              userRegion: createMockUserRegion('us-ca'),
-            },
-          },
-        },
-        async ({ controller, rootMessenger }) => {
-          let tokensCalled = false;
-          let providersCalled = false;
-
-          rootMessenger.registerActionHandler(
-            'RampsService:getTokens',
-            async () => {
-              tokensCalled = true;
-              return { topTokens: [], allTokens: [] };
-            },
-          );
-          rootMessenger.registerActionHandler(
-            'RampsService:getProviders',
-            async () => {
-              providersCalled = true;
-              return { providers: [] };
-            },
-          );
-
-          controller.hydrateState();
-
-          await new Promise((resolve) => setTimeout(resolve, 10));
-
-          expect(tokensCalled).toBe(true);
-          expect(providersCalled).toBe(true);
-        },
-      );
-    });
-
-    it('throws error when userRegion is not set', async () => {
-      await withController(async ({ controller }) => {
-        expect(() => controller.hydrateState()).toThrow(
-          'Region is required. Cannot proceed without valid region information.',
+    it('does not double-fetch when init() called twice concurrently', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let getCountriesCallCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'us-ca',
         );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            getCountriesCallCount += 1;
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => ({ topTokens: [], allTokens: [] }),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => ({ providers: [] }),
+        );
+
+        await Promise.all([controller.init(), controller.init()]);
+        expect(getCountriesCallCount).toBe(1);
       });
     });
 
-    it('calls getTokens and getProviders when hydrating even if state has data', async () => {
-      const existingProviders: Provider[] = [
-        {
-          id: '/providers/test',
-          name: 'Test Provider',
-          environmentType: 'STAGING',
-          description: 'Test',
-          hqAddress: '123 Test St',
-          links: [],
-          logos: { light: '', dark: '', height: 24, width: 77 },
-        },
-      ];
+    it('returns immediately on second init() after first completes', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let getCountriesCallCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'us-ca',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            getCountriesCallCount += 1;
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => ({ topTokens: [], allTokens: [] }),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => ({ providers: [] }),
+        );
+
+        await controller.init();
+        await controller.init();
+        expect(getCountriesCallCount).toBe(1);
+      });
+    });
+
+    it('skips getCountries and geolocation when userRegion and countries exist', async () => {
+      let getCountriesCalled = false;
+      let getGeolocationCalled = false;
       await withController(
         {
           options: {
             state: {
+              countries: createResourceState(createMockCountries()),
               userRegion: createMockUserRegion('us-ca'),
-              providers: createResourceState(existingProviders, null),
             },
           },
         },
         async ({ controller, rootMessenger }) => {
-          let providersCalled = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => {
+              getCountriesCalled = true;
+              return createMockCountries();
+            },
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              getGeolocationCalled = true;
+              return 'us-ca';
+            },
+          );
           rootMessenger.registerActionHandler(
             'RampsService:getTokens',
             async () => ({ topTokens: [], allTokens: [] }),
           );
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
-            async () => {
-              providersCalled = true;
-              return { providers: [] };
-            },
+            async () => ({ providers: [] }),
           );
 
-          controller.hydrateState();
+          await controller.init();
 
-          await new Promise((resolve) => setTimeout(resolve, 10));
-
-          expect(providersCalled).toBe(true);
+          expect(getCountriesCalled).toBe(false);
+          expect(getGeolocationCalled).toBe(false);
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         },
       );
+    });
+
+    it('forceRefresh bypasses idempotency and re-runs full flow', async () => {
+      let getCountriesCallCount = 0;
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getGeolocation',
+          async () => 'us-ca',
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getCountries',
+          async () => {
+            getCountriesCallCount += 1;
+            return createMockCountries();
+          },
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getTokens',
+          async () => ({ topTokens: [], allTokens: [] }),
+        );
+        rootMessenger.registerActionHandler(
+          'RampsService:getProviders',
+          async () => ({ providers: [] }),
+        );
+
+        await controller.init();
+        expect(getCountriesCallCount).toBe(1);
+
+        await controller.init({ forceRefresh: true });
+        expect(getCountriesCallCount).toBe(2);
+      });
     });
   });
 

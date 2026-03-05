@@ -685,6 +685,8 @@ export class RampsController extends BaseController<
 
   #isPolling = false;
 
+  #initPromise: Promise<void> | null = null;
+
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
    * defensive path when get() returns undefined in the finally block.
@@ -1211,17 +1213,48 @@ export class RampsController extends BaseController<
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
    *
-   * If a userRegion already exists (from persistence or manual selection),
-   * this method will skip geolocation fetch and use the existing region.
+   * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
+   * Skips getCountries when countries are already loaded; skips geolocation when
+   * userRegion already exists.
    *
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    await this.getCountries(options);
+    if (!options?.forceRefresh && this.#initPromise !== null) {
+      return this.#initPromise;
+    }
 
-    let regionCode = this.state.userRegion?.regionCode;
-    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    if (options?.forceRefresh) {
+      this.#initPromise = null;
+    }
+
+    const initPromise = this.#runInit(options).then(
+      () => undefined,
+      (error) => {
+        this.#initPromise = null;
+        throw error;
+      },
+    );
+    this.#initPromise = initPromise;
+    return initPromise;
+  }
+
+  async #runInit(options?: ExecuteRequestOptions): Promise<void> {
+    const forceRefresh = options?.forceRefresh === true;
+    const hasCountries = (this.state.countries.data?.length ?? 0) > 0;
+
+    if (forceRefresh || !hasCountries) {
+      await this.getCountries(options);
+    }
+
+    let regionCode: string | undefined;
+    if (forceRefresh) {
+      regionCode = await this.messenger.call('RampsService:getGeolocation');
+    } else {
+      regionCode = this.state.userRegion?.regionCode;
+      regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    }
 
     if (!regionCode) {
       throw new Error(
@@ -1230,13 +1263,6 @@ export class RampsController extends BaseController<
     }
 
     await this.setUserRegion(regionCode, options);
-  }
-
-  hydrateState(options?: ExecuteRequestOptions): void {
-    const regionCode = this.#requireRegion();
-
-    this.#fireAndForget(this.getTokens(regionCode, 'buy', options));
-    this.#fireAndForget(this.getProviders(regionCode, options));
   }
 
   /**
