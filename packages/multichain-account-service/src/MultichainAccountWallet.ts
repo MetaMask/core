@@ -448,7 +448,7 @@ export class MultichainAccountWallet<
         if (failures.length) {
           return failures.reduce(
             (message, failure) => `${message}\n- ${failure}`,
-            `Unable to create some accounts${background ? ' (in the background)' : ''}. Providers threw the following errors:\n`,
+            `Unable to create some accounts${background ? ' (in the background)' : ''}. Providers threw the following errors:`,
           );
         }
 
