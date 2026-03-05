@@ -1891,7 +1891,7 @@ export class RampsController extends BaseController<
         'RampsService:getBuyWidgetUrl',
         buyUrl,
       );
-      return buyWidget.url;
+      return buyWidget.url ?? null;
     } catch {
       return null;
     }
