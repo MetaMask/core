@@ -100,6 +100,15 @@ export type TransactionConfig = {
    * and the quote source is derived from the transaction's output token.
    */
   isPostQuote?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request. Use this for post-quote flows where the user's funds originate
+   * from a smart contract account (e.g. Predict Safe proxy) so that refunds
+   * go back to that account rather than the EOA.
+   */
+  refundTo?: Hex;
 };
 
 /** Callback to update transaction config. */
@@ -167,6 +176,13 @@ export type TransactionData = {
    * (e.g., bridging output to a different token/chain).
    */
   isPostQuote?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request.
+   */
+  refundTo?: Hex;
 
   /**
    * Token selected for the transaction.
@@ -311,6 +327,13 @@ export type QuoteRequest = {
 
   /** Whether this is a post-quote flow. */
   isPostQuote?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request.
+   */
+  refundTo?: Hex;
 
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;

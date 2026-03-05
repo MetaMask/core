@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `refundTo` field to `TransactionConfig`, `TransactionData`, and `QuoteRequest` types, allowing callers to specify an address that receives refunds if a Relay transaction fails ([#8112](https://github.com/MetaMask/core/pull/8112))
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^100.0.3` to `^100.1.0` ([#8107](https://github.com/MetaMask/core/pull/8107))
