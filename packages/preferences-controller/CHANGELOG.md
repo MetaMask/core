@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Remove legacy methods and state ([#8115](https://github.com/MetaMask/core/pull/8115))
+- **BREAKING:** Remove legacy methods and state ([#8115](https://github.com/MetaMask/core/pull/8115))
   - `identities`, `lostIdentities` and `selectedAddress` along with any associated methods were removed.
   - `setSmartAccountOptInForAccounts` was also removed as it is deprecated and not used in the clients.
 
