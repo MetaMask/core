@@ -5076,7 +5076,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('returns null when service returns BuyWidget with empty url', async () => {
+    it('returns empty string when service returns BuyWidget with empty url', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const quote: Quote = {
           provider: '/providers/transak-staging',
