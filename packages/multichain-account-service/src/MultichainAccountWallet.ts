@@ -321,7 +321,7 @@ export class MultichainAccountWallet<
     const groups: MultichainAccountGroup<Account>[] = [];
 
     // Get existing groups (fromGroupIndex to nextGroupIndex-1).
-    let { from } = range;
+    let { from = 0 } = range;
     const { to } = range;
     for (; from <= to; from++) {
       const group = this.getMultichainAccountGroup(from);
