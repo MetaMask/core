@@ -30,7 +30,13 @@ import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
-import { createSentryError, toErrorMessage } from './utils';
+import {
+  assertGroupIndexIsValid,
+  assertGroupIndexRangeIsValid,
+  createSentryError,
+  GroupIndexRange,
+  toErrorMessage,
+} from './utils';
 
 /**
  * The context for a provider discovery.
@@ -298,8 +304,7 @@ export class MultichainAccountWallet<
    *
    * IMPORTANT: This method assumes the caller has already acquired the wallet lock.
    *
-   * @param fromGroupIndex - The starting group index (inclusive).
-   * @param toGroupIndex - The ending group index (inclusive).
+   * @param range - The range of group indices to create.
    * @param options - Options to configure the account creation.
    * @param options.waitForAllProvidersToFinishCreatingAccounts - Whether to wait for all
    * account providers to finish creating their accounts before returning. If `false`, only
@@ -308,8 +313,7 @@ export class MultichainAccountWallet<
    * @returns Array of created multichain account groups.
    */
   async #createMultichainAccountGroupsRange(
-    fromGroupIndex: number,
-    toGroupIndex: number,
+    range: GroupIndexRange,
     options: {
       waitForAllProvidersToFinishCreatingAccounts?: boolean;
     },
@@ -317,8 +321,8 @@ export class MultichainAccountWallet<
     const groups: MultichainAccountGroup<Account>[] = [];
 
     // Get existing groups (fromGroupIndex to nextGroupIndex-1).
-    let from = fromGroupIndex;
-    const to = toGroupIndex;
+    let { from } = range;
+    const { to } = range;
     for (; from <= to; from++) {
       const group = this.getMultichainAccountGroup(from);
       if (group) {
@@ -627,14 +631,7 @@ export class MultichainAccountWallet<
     } = { waitForAllProvidersToFinishCreatingAccounts: false },
   ): Promise<MultichainAccountGroup<Account>> {
     return await this.#withLock('in-progress:create-accounts', async () => {
-      const nextGroupIndex = this.getNextGroupIndex();
-
-      // Validate that we can only create the next available group or an existing one.
-      if (groupIndex > nextGroupIndex) {
-        throw new Error(
-          `You cannot use a group index that is higher than the next available one: expected <=${nextGroupIndex}, got ${groupIndex}`,
-        );
-      }
+      assertGroupIndexIsValid(groupIndex, this.getNextGroupIndex());
 
       // If the group already exists, return it.
       const existingGroup = this.getMultichainAccountGroup(groupIndex);
@@ -647,8 +644,7 @@ export class MultichainAccountWallet<
 
       // Create the group using the private range method.
       const groups = await this.#createMultichainAccountGroupsRange(
-        groupIndex,
-        groupIndex,
+        { from: groupIndex, to: groupIndex },
         options,
       );
 
@@ -663,30 +659,27 @@ export class MultichainAccountWallet<
    *
    * NOTE: This operation WILL lock the wallet's mutex.
    *
-   * @param maxGroupIndex - The maximum group index to create (creates 0 to maxGroupIndex inclusive).
+   * @param range - The range of group indices to create.
+   * @param range.from - Starting group index to create (inclusive) (defaults to 0).
+   * @param range.to - Maximum group index to create (inclusive).
    * @param options - Options to configure the account creation.
    * @param options.waitForAllProvidersToFinishCreatingAccounts - Whether to wait for all
    * account providers to finish creating their accounts before returning. Defaults to false.
-   * @throws If maxGroupIndex is less than 0 or if account creation fails.
+   * @throws If range is invalid (e.g. from is greater than to, from or to is negative, etc.).
    * @returns Array of created multichain account groups.
    */
   async createMultichainAccountGroups(
-    maxGroupIndex: number,
+    { from = 0, to }: GroupIndexRange,
     options: {
       waitForAllProvidersToFinishCreatingAccounts?: boolean;
     } = { waitForAllProvidersToFinishCreatingAccounts: false },
   ): Promise<MultichainAccountGroup<Account>[]> {
     return await this.#withLock('in-progress:create-accounts', async () => {
-      if (maxGroupIndex < 0) {
-        throw new Error('maxGroupIndex must be >= 0');
-      }
+      assertGroupIndexRangeIsValid({ from, to });
+      assertGroupIndexIsValid(from, this.getNextGroupIndex());
 
       // Create groups from 0 to maxGroupIndex using the private range method.
-      return this.#createMultichainAccountGroupsRange(
-        0,
-        maxGroupIndex,
-        options,
-      );
+      return this.#createMultichainAccountGroupsRange({ from, to }, options);
     });
   }
 

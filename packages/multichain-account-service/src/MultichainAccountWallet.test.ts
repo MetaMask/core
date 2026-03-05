@@ -238,7 +238,7 @@ describe('MultichainAccountWallet', () => {
       await expect(
         wallet.createMultichainAccountGroup(groupIndex),
       ).rejects.toThrow(
-        `You cannot use a group index that is higher than the next available one: expected <=1, got ${groupIndex}`,
+        `Bad group index, groupIndex (${groupIndex}) cannot be higher than the next available one (<= 1)`,
       );
     });
 
@@ -418,7 +418,7 @@ describe('MultichainAccountWallet', () => {
         solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
       }
 
-      const groups = await wallet.createMultichainAccountGroups(2);
+      const groups = await wallet.createMultichainAccountGroups({ to: 2 });
 
       expect(groups).toHaveLength(3);
       expect(groups[0].groupIndex).toBe(0);
@@ -465,7 +465,7 @@ describe('MultichainAccountWallet', () => {
         solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
       }
 
-      const groups = await wallet.createMultichainAccountGroups(2);
+      const groups = await wallet.createMultichainAccountGroups({ to: 2 });
 
       expect(groups).toHaveLength(3);
       expect(groups[0].groupIndex).toBe(0); // Existing group.
@@ -493,7 +493,7 @@ describe('MultichainAccountWallet', () => {
       });
 
       // Request groups 0-1 when groups 0-2 exist.
-      const groups = await wallet.createMultichainAccountGroups(1);
+      const groups = await wallet.createMultichainAccountGroups({ to: 1 });
 
       expect(groups).toHaveLength(2);
       expect(groups[0].groupIndex).toBe(0);
@@ -507,9 +507,10 @@ describe('MultichainAccountWallet', () => {
         accounts: [[]],
       });
 
-      await expect(wallet.createMultichainAccountGroups(-1)).rejects.toThrow(
-        'maxGroupIndex must be >= 0',
-      );
+      const badIndex = -1;
+      await expect(
+        wallet.createMultichainAccountGroups({ to: badIndex }),
+      ).rejects.toThrow(`Bad range, to (${badIndex}) must be >= 0`);
     });
 
     it('captures an error with batch mode message when EVM provider fails', async () => {
@@ -523,9 +524,9 @@ describe('MultichainAccountWallet', () => {
 
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
 
-      await expect(wallet.createMultichainAccountGroups(2)).rejects.toThrow(
-        'EVM provider failed',
-      );
+      await expect(
+        wallet.createMultichainAccountGroups({ to: 2 }),
+      ).rejects.toThrow('EVM provider failed');
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
@@ -559,9 +560,12 @@ describe('MultichainAccountWallet', () => {
         .get();
       solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
 
-      const groups = await wallet.createMultichainAccountGroups(0, {
-        waitForAllProvidersToFinishCreatingAccounts: true,
-      });
+      const groups = await wallet.createMultichainAccountGroups(
+        { to: 0 },
+        {
+          waitForAllProvidersToFinishCreatingAccounts: true,
+        },
+      );
 
       expect(groups).toHaveLength(1);
       expect(groups[0].groupIndex).toBe(0);
@@ -602,7 +606,7 @@ describe('MultichainAccountWallet', () => {
       });
 
       // Create groups without waiting (triggers background processing).
-      await wallet.createMultichainAccountGroups(0);
+      await wallet.createMultichainAccountGroups({ to: 0 });
 
       // Wait for background processing to complete.
       await new Promise((resolve) => setTimeout(resolve, 10));

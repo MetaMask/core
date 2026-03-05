@@ -630,7 +630,7 @@ describe('MultichainAccountService', () => {
   });
 
   describe('createMultichainAccountGroups', () => {
-    it('creates multiple multichain account groups up to maxGroupIndex', async () => {
+    it('creates multiple multichain account groups up to toGroupIndex', async () => {
       // Start with group 0 existing to initialize the wallet.
       const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
@@ -680,7 +680,7 @@ describe('MultichainAccountService', () => {
 
       const groups = await service.createMultichainAccountGroups({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 2,
+        toGroupIndex: 2,
       });
 
       expect(groups).toHaveLength(3);
@@ -717,7 +717,7 @@ describe('MultichainAccountService', () => {
         'MultichainAccountService:createMultichainAccountGroups',
         {
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
-          maxGroupIndex: 1,
+          toGroupIndex: 1,
         },
       );
 
@@ -764,7 +764,7 @@ describe('MultichainAccountService', () => {
 
       await service.createMultichainAccountGroups({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        maxGroupIndex: 1,
+        toGroupIndex: 1,
       });
 
       // Should publish event for the new group (group 1).
