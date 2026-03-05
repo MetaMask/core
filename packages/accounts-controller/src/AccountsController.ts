@@ -617,7 +617,7 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
-    log('Forcing accounts synchronization with keyrings...');
+    log('Synchronizing accounts with keyrings...');
 
     const keyringAccountIndexes = new Map<string, number>();
 
@@ -824,9 +824,7 @@ export class AccountsController extends BaseController<
     isUnlocked,
     keyrings,
   }: KeyringControllerState): void {
-    log(
-      'Forcing accounts synchronization with keyrings (through :stateChange)...',
-    );
+    log('Synchronizing accounts with keyrings (through :stateChange)...');
 
     // TODO: Change when accountAdded event is added to the keyring controller.
 
