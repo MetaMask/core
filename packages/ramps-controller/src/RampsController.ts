@@ -746,60 +746,13 @@ export class RampsController extends BaseController<
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
   }: RampsControllerOptions) {
-    const defaults = getDefaultRampsControllerState();
     super({
       messenger,
       metadata: rampsControllerMetadata,
       name: controllerName,
       state: {
-        ...defaults,
+        ...getDefaultRampsControllerState(),
         ...state,
-        // Deep-merge persisted resource states so that new fields added to
-        // ResourceState (e.g. `status`) are backfilled for existing users
-        // whose persisted state pre-dates those fields. Only merge when the
-        // provided value is a plain object (not null or a primitive).
-        ...(state.countries !== null &&
-          typeof state.countries === 'object' && {
-            countries: { ...defaults.countries, ...state.countries },
-          }),
-        ...(state.providers !== null &&
-          typeof state.providers === 'object' && {
-            providers: { ...defaults.providers, ...state.providers },
-          }),
-        ...(state.tokens !== null &&
-          typeof state.tokens === 'object' && {
-            tokens: { ...defaults.tokens, ...state.tokens },
-          }),
-        ...(state.paymentMethods !== null &&
-          typeof state.paymentMethods === 'object' && {
-            paymentMethods: {
-              ...defaults.paymentMethods,
-              ...state.paymentMethods,
-            },
-          }),
-        ...(state.nativeProviders !== null &&
-          typeof state.nativeProviders === 'object' && {
-            nativeProviders: {
-              ...defaults.nativeProviders,
-              ...state.nativeProviders,
-              transak: {
-                ...defaults.nativeProviders.transak,
-                ...state.nativeProviders.transak,
-                userDetails: {
-                  ...defaults.nativeProviders.transak.userDetails,
-                  ...state.nativeProviders.transak?.userDetails,
-                },
-                buyQuote: {
-                  ...defaults.nativeProviders.transak.buyQuote,
-                  ...state.nativeProviders.transak?.buyQuote,
-                },
-                kycRequirement: {
-                  ...defaults.nativeProviders.transak.kycRequirement,
-                  ...state.nativeProviders.transak?.kycRequirement,
-                },
-              },
-            },
-          }),
         // Always reset requests cache on initialization (non-persisted)
         requests: {},
       },
