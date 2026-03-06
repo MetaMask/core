@@ -1,9 +1,9 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
+import { sumAmounts } from './amounts';
 import { calculateTransactionGasCost } from './gas';
 import type {
-  Amount,
   FiatValue,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
@@ -114,24 +114,6 @@ export function calculateTotals({
       fiat: totalFiat,
       usd: totalUsd,
     },
-  };
-}
-
-/**
- * Sum a list of amounts.
- *
- * @param data - List of amounts.
- * @returns Total amount.
- */
-function sumAmounts(data: Amount[]): Amount {
-  const fiatValue = sumFiat(data);
-  const human = sumProperty(data, (item) => item.human);
-  const raw = sumProperty(data, (item) => item.raw);
-
-  return {
-    ...fiatValue,
-    human,
-    raw,
   };
 }
 

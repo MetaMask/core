@@ -118,6 +118,11 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   #persistDebounceTimer?: ReturnType<typeof setTimeout>;
 
   /**
+   * Promise for the in-flight initialization sequence.
+   */
+  #initializePromise?: Promise<void>;
+
+  /**
    * Promise that resolves when the current persist operation completes.
    * Used to prevent race conditions between persist operations.
    */
@@ -228,14 +233,43 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when initialization is complete.
    */
   async initialize(): Promise<void> {
-    await this.#synchronizeCacheWithStorage();
+    if (this.#initializePromise) {
+      await this.#initializePromise;
+      return;
+    }
 
-    // Subscribe to state changes to automatically persist tokensChainsCache
-    this.messenger.subscribe(
-      'TokenListController:stateChange',
-      (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
-      (controllerState) => controllerState.tokensChainsCache,
-    );
+    const executeInit = async (): Promise<void> => {
+      try {
+        await this.#synchronizeCacheWithStorage();
+
+        // Subscribe to state changes to automatically persist tokensChainsCache
+        this.messenger.subscribe(
+          'TokenListController:stateChange',
+          (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
+          (controllerState) => controllerState.tokensChainsCache,
+        );
+      } catch {
+        // do nothing
+      } finally {
+        this.#initializePromise = undefined;
+      }
+    };
+
+    this.#initializePromise = executeInit();
+
+    await this.#initializePromise;
+  }
+
+  /**
+   * Waits for any in-flight initialization to complete.
+   * Polling should not run against partially initialized state.
+   */
+  async #waitForInitialization(): Promise<void> {
+    try {
+      await this.#initializePromise;
+    } catch {
+      // do nothing
+    }
   }
 
   /**
@@ -559,6 +593,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @returns A promise that resolves when this operation completes.
    */
   async _executePoll({ chainId }: TokenListPollingInput): Promise<void> {
+    await this.#waitForInitialization();
     return this.fetchTokenList(chainId);
   }
 

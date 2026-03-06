@@ -1,15 +1,18 @@
 import type { Hex } from '@metamask/utils';
 
 import {
+  DEFAULT_ACROSS_API_BASE,
+  DEFAULT_FALLBACK_GAS_ESTIMATE,
+  DEFAULT_FALLBACK_GAS_MAX,
   DEFAULT_GAS_BUFFER,
-  DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
-  DEFAULT_RELAY_FALLBACK_GAS_MAX,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
   DEFAULT_STRATEGY_ORDER,
   getEIP7702SupportedChains,
+  getFallbackGas,
   getFeatureFlags,
   getGasBuffer,
+  getPayStrategiesConfig,
   getSlippage,
   getStrategyOrder,
 } from './feature-flags';
@@ -49,8 +52,8 @@ describe('Feature Flags Utils', () => {
       expect(featureFlags).toStrictEqual({
         relayDisabledGasStationChains: [],
         relayFallbackGas: {
-          estimate: DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE,
-          max: DEFAULT_RELAY_FALLBACK_GAS_MAX,
+          estimate: DEFAULT_FALLBACK_GAS_ESTIMATE,
+          max: DEFAULT_FALLBACK_GAS_MAX,
         },
         relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
         slippage: DEFAULT_SLIPPAGE,
@@ -88,6 +91,37 @@ describe('Feature Flags Utils', () => {
     });
   });
 
+  describe('getFallbackGas', () => {
+    it('returns default fallback gas when feature flag is not set', () => {
+      const fallbackGas = getFallbackGas(messenger);
+
+      expect(fallbackGas).toStrictEqual({
+        estimate: DEFAULT_FALLBACK_GAS_ESTIMATE,
+        max: DEFAULT_FALLBACK_GAS_MAX,
+      });
+    });
+
+    it('returns fallback gas from feature flags when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            relayFallbackGas: {
+              estimate: GAS_FALLBACK_ESTIMATE_MOCK,
+              max: GAS_FALLBACK_MAX_MOCK,
+            },
+          },
+        },
+      });
+
+      const fallbackGas = getFallbackGas(messenger);
+
+      expect(fallbackGas).toStrictEqual({
+        estimate: GAS_FALLBACK_ESTIMATE_MOCK,
+        max: GAS_FALLBACK_MAX_MOCK,
+      });
+    });
+  });
   describe('getGasBuffer', () => {
     it('returns default gas buffer when none are set', () => {
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);
@@ -386,6 +420,69 @@ describe('Feature Flags Utils', () => {
       const supportedChains = getEIP7702SupportedChains(messenger);
 
       expect(supportedChains).toStrictEqual([]);
+    });
+  });
+
+  describe('getPayStrategiesConfig', () => {
+    it('returns defaults when pay strategies config is missing', () => {
+      const config = getPayStrategiesConfig(messenger);
+
+      expect(config.across).toStrictEqual(
+        expect.objectContaining({
+          apiBase: DEFAULT_ACROSS_API_BASE,
+          enabled: false,
+          fallbackGas: {
+            estimate: DEFAULT_FALLBACK_GAS_ESTIMATE,
+            max: DEFAULT_FALLBACK_GAS_MAX,
+          },
+        }),
+      );
+      expect(config.relay).toStrictEqual(
+        expect.objectContaining({
+          enabled: true,
+        }),
+      );
+    });
+
+    it('returns feature-flag values when provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: {
+                apiBase: 'https://across.test',
+                enabled: false,
+                fallbackGas: {
+                  estimate: 123,
+                  max: 456,
+                },
+              },
+              relay: {
+                enabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      const config = getPayStrategiesConfig(messenger);
+
+      expect(config.across).toStrictEqual(
+        expect.objectContaining({
+          apiBase: 'https://across.test',
+          enabled: false,
+          fallbackGas: {
+            estimate: 123,
+            max: 456,
+          },
+        }),
+      );
+      expect(config.relay).toStrictEqual(
+        expect.objectContaining({
+          enabled: false,
+        }),
+      );
     });
   });
 
