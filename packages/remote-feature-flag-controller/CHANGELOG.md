@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Clarify that threshold-scoped feature flag variations are order-dependent and must be sorted in ascending order by `scope.value`; add unit-test coverage for unsorted variation behavior ([#8129](https://github.com/MetaMask/core/pull/8129))
+
 ## [4.1.0]
 
 ### Added
