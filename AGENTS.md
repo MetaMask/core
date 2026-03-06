@@ -170,10 +170,65 @@ Use `yarn create-package --name <name> --description <description>` to add a new
 
 ## Code guidelines
 
+### TypeScript
+
+- **Strict mode** is enabled (`strict: true`). Never use `any`; the ESLint rule `@typescript-eslint/no-explicit-any` is set to `error`.
+- Target **ES2020**, module system **Node16** (`"module": "Node16"`, `"moduleResolution": "Node16"`).
+- Prefer `type` imports for type-only symbols:
+
+  ```typescript
+  import type { Foo } from './foo';
+  import { bar } from './bar';
+  ```
+
+- Use `satisfies` to validate objects against a type without widening:
+
+  ```typescript
+  const metadata = { ... } satisfies StateMetadata<FooControllerState>;
+  ```
+
+- Use private class fields (`#field`) instead of the `private` keyword for runtime privacy.
+- Avoid type assertions (`as Foo`) unless unavoidable; prefer type guards.
+
+### Formatting (enforced by Prettier)
+
+- Single quotes for strings.
+- 2-space indentation.
+- Trailing commas everywhere (`"trailingComma": "all"`).
+- Semicolons are not enforced, but follow the existing file's style.
+
+### Naming conventions
+
+- **Files:** `kebab-case` (e.g., `foo-controller.ts`, `sample-gas-prices-service.ts`).
+- **Classes/Types/Interfaces:** `PascalCase` (e.g., `FooController`, `FooControllerState`).
+- **Functions/variables:** `camelCase`.
+- **Constants:** `SCREAMING_SNAKE_CASE` for module-level compile-time constants.
+- **Controller names:** exported as a `const controllerName = 'FooController'` string used for messenger namespacing.
+- **State types:** `<Name>State`; **Messenger types:** `<Name>Messenger`; **Action/Event types:** `<Name>Actions` / `<Name>Events`.
+
+### Imports
+
+- Group imports: external packages first, then internal (`./` / `../`) imports.
+- Separate `import type` from value imports for the same module when needed, but ESLint rule `import-x/no-duplicates` is off for TS files — separate type/value imports from the same module are acceptable.
+- Do not use path aliases; use relative paths for intra-package imports.
+
+### Error handling
+
+- Throw typed errors; do not swallow errors silently.
+- In controllers, when catching errors from fire-and-forget async calls, pass them to `this.messenger.captureException?.()`:
+
+  ```typescript
+  someAsyncCall().catch((error) => {
+    this.messenger.captureException?.(error);
+  });
+  ```
+
+- In data services, throw an `HttpError` for non-2xx responses and validate responses before returning data.
+
 ### General package guidelines
 
 - Each package should have an `index.ts` file in `src/` that explicitly lists all exports.
-- Avoid barrel exports (`export * from './file'`).ts`. Instead, explicitly name each export:
+- Avoid barrel exports (`export * from './file'`). Instead, explicitly name each export:
 
   ```typescript
   // Bad
@@ -183,6 +238,15 @@ Use `yarn create-package --name <name> --description <description>` to add a new
   export { FooController } from './foo-controller';
   export type { FooControllerMessenger } from './foo-controller';
   ```
+
+### Testing
+
+- Test files live alongside source files as `*.test.ts` (or in `tests/` for helpers).
+- Use `describe` blocks that mirror the module's structure (one top-level `describe` per class/function, nested `describe` per method).
+- Prefer `toStrictEqual` over `toEqual`; use `toMatchInlineSnapshot` for complex objects.
+- Use `jest.useFakeTimers()` / `jest.useRealTimers()` in `beforeEach`/`afterEach` when time-dependent.
+- Use `@ts-expect-error` (never `@ts-ignore`) with a brief comment when intentionally passing wrong types in tests.
+- Aim for 100% coverage; mock external dependencies via messenger action handlers rather than monkey-patching modules.
 
 ### Controllers
 
@@ -195,9 +259,10 @@ When adding or updating controllers in packages, follow these guidelines:
 - All actions and events the messenger uses from other controllers and services should also be declared in the messenger type.
 - Controllers should initialize state by combining default and provided state. Provided state should be optional.
 - The constructor should take `messenger` and `state` options at a minimum.
+- Export a `getDefault<Name>State()` function that returns a fresh default state object.
 - Make sure to write comprehensive tests for the controller class.
 
-Use the full set of guidelines is in `docs/controller-guidelines.md` for reference.
+Full guidelines: `docs/code-guidelines/controller-guidelines.md`.
 
 Use `SampleGasPricesController` and `SamplePetnamesController` in the `sample-controllers` package as examples for implementation and tests.
 
@@ -217,5 +282,7 @@ When adding or updating data services in packages, follow these guidelines:
 - Validate each request's response (throwing an error if invalid) before returning its data.
 - Service classes should also define `onRetry`, `onBreak`, and `onDegraded` methods.
 - Make sure to write comprehensive tests for the service class.
+
+Full guidelines: `docs/code-guidelines/data-services.md`.
 
 Use the `sample-gas-prices-service/` directory in the `sample-controllers` package as examples for implementation and tests.
