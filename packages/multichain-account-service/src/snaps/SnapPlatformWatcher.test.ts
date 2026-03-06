@@ -1,5 +1,6 @@
 /* eslint-disable no-void */
 import { SnapControllerState } from '@metamask/snaps-controllers';
+import { createDeferredPromise } from '@metamask/utils';
 
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import {
@@ -57,11 +58,22 @@ function publishIsReadyState(messenger: RootMessenger, isReady: boolean): void {
 
 describe('SnapPlatformWatcher', () => {
   describe('constructor', () => {
-    it('initializes with isReady as false', () => {
+    it('initializes with isReady as false when not using ensureOnboardingComplete', () => {
       const { messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
       expect(watcher).toBeDefined();
+      expect(watcher.isReady).toBe(false);
+    });
+
+    it('still tracks Snap platform state when using ensureOnboardingComplete', () => {
+      const { messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger, {
+        ensureOnboardingComplete: (): Promise<void> => Promise.resolve(),
+      });
+
+      expect(watcher).toBeDefined();
+      // isReady reflects SnapController state, not the callback (both are required).
       expect(watcher.isReady).toBe(false);
     });
   });
@@ -192,6 +204,24 @@ describe('SnapPlatformWatcher', () => {
       expect(resolved).toBe(true);
     });
 
+    it('throws if platform becomes not ready again before the await continuation runs (race guard)', async () => {
+      const { rootMessenger, messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger);
+
+      // Start waiting for the platform.
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+
+      // Make platform ready (resolves the deferred; continuation is queued as microtask).
+      publishIsReadyState(rootMessenger, true);
+      // Before the continuation runs, make platform not ready again.
+      publishIsReadyState(rootMessenger, false);
+
+      // The continuation runs after both publishes; it sees isReady false and throws.
+      await expect(ensurePromise).rejects.toThrow(
+        'Snap platform cannot be used now.',
+      );
+    });
+
     it('resolves immediately if platform is already ready', async () => {
       const { messenger, mocks } = setup();
 
@@ -203,6 +233,56 @@ describe('SnapPlatformWatcher', () => {
       const watcher = new SnapPlatformWatcher(messenger);
 
       expect(watcher.isReady).toBe(true);
+    });
+
+    it('waits for ensureOnboardingComplete first when platform is already ready', async () => {
+      const { rootMessenger, messenger } = setup();
+      const { promise: onboardingPromise, resolve: resolveOnboarding } =
+        createDeferredPromise<void>();
+      const ensureOnboardingComplete = jest
+        .fn()
+        .mockReturnValue(onboardingPromise);
+      const watcher = new SnapPlatformWatcher(messenger, {
+        ensureOnboardingComplete,
+      });
+
+      publishIsReadyState(rootMessenger, true);
+
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      let resolved = false;
+      void ensurePromise.then(() => {
+        resolved = true;
+        return null;
+      });
+
+      expect(ensureOnboardingComplete).toHaveBeenCalledTimes(1);
+      expect(resolved).toBe(false);
+
+      resolveOnboarding();
+      await ensurePromise;
+      expect(resolved).toBe(true);
+    });
+
+    it('requires both onboarding complete and Snap platform ready when ensureOnboardingComplete is provided', async () => {
+      const { rootMessenger, messenger } = setup();
+      const ensureOnboardingComplete = jest.fn().mockResolvedValue(undefined);
+      const watcher = new SnapPlatformWatcher(messenger, {
+        ensureOnboardingComplete,
+      });
+
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      let resolved = false;
+      void ensurePromise.then(() => {
+        resolved = true;
+        return null;
+      });
+
+      expect(ensureOnboardingComplete).toHaveBeenCalledTimes(1);
+      expect(resolved).toBe(false);
+
+      publishIsReadyState(rootMessenger, true);
+      await ensurePromise;
+      expect(resolved).toBe(true);
     });
   });
 });
