@@ -170,6 +170,39 @@ describe('erc20-token-periodic rule', () => {
     expect(result.data.startTime).toBe(1715664);
   });
 
+  it('decodes mixed-case token address', () => {
+    const mixedCaseAddress = contracts.ERC20PeriodTransferEnforcer as Hex;
+    const caveats = [
+      expiryCaveat,
+      valueLteCaveat,
+      {
+        enforcer: ERC20PeriodTransferEnforcer,
+        terms: createERC20TokenPeriodTransferTerms(
+          {
+            tokenAddress: mixedCaseAddress,
+            periodAmount: 200n,
+            periodDuration: 86400,
+            startDate: 1715664,
+          },
+          { out: 'hex' },
+        ),
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(true);
+
+    // this is here as a type guard
+    if (!result.isValid) {
+      throw new Error('Expected valid result');
+    }
+
+    expect(result.expiry).toBe(1720000);
+    expect(result.data.tokenAddress.toLowerCase()).toBe(
+      mixedCaseAddress.toLowerCase(),
+    );
+  });
+
   it('rejects when periodDuration is 0', () => {
     const tokenAddress = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
     const periodAmountHex = 100n.toString(16).padStart(64, '0');
