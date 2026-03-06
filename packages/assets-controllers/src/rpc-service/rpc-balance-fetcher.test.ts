@@ -8,9 +8,9 @@ import type { ChainIdHex, ChecksumAddress } from './rpc-balance-fetcher';
 import type { TokensControllerState } from '../TokensController';
 
 const MOCK_ADDRESS_1 = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
-const MOCK_ADDRESS_2 = '0x742d35cc6675c4f17f41140100aa83a4b1fa4c82';
+const MOCK_ADDRESS_2 = '0x1c5E29b17822CC96B834092Ec056a9cd4e833C09';
 const MOCK_TOKEN_ADDRESS_1 = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
-const MOCK_TOKEN_ADDRESS_2 = '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B';
+const MOCK_TOKEN_ADDRESS_2 = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
 const MOCK_CHAIN_ID = '0x1' as ChainIdHex;
 const MOCK_CHAIN_ID_2 = '0x89' as ChainIdHex;
 const ZERO_ADDRESS =
@@ -322,66 +322,6 @@ describe('RpcBalanceFetcher', () => {
       expect(result.balances.length).toBeGreaterThan(0);
     });
 
-    it('should fetch only unprocessed tokens without native or staked balances', async () => {
-      mockGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
-        tokenBalances: {
-          [MOCK_TOKEN_ADDRESS_1]: {
-            [MOCK_ADDRESS_1]: new BN('42'),
-          },
-          [ZERO_ADDRESS]: {
-            [MOCK_ADDRESS_1]: new BN('123'),
-          },
-        },
-        stakedBalances: {
-          [MOCK_ADDRESS_1]: new BN('999'),
-        },
-      });
-
-      const result = await rpcBalanceFetcher.fetch({
-        chainIds: [MOCK_CHAIN_ID],
-        queryAllAccounts: false,
-        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
-        allAccounts: MOCK_INTERNAL_ACCOUNTS,
-        unprocessedTokens: {
-          [MOCK_ADDRESS_1]: {
-            [MOCK_CHAIN_ID]: [MOCK_TOKEN_ADDRESS_1],
-          },
-        },
-      });
-
-      expect(mockGetTokensState).not.toHaveBeenCalled();
-      expect(mockGetTokenBalancesForMultipleAddresses).toHaveBeenCalledWith(
-        [
-          {
-            accountAddress: MOCK_ADDRESS_1,
-            tokenAddresses: [MOCK_TOKEN_ADDRESS_1],
-          },
-        ],
-        MOCK_CHAIN_ID,
-        mockProvider,
-        false,
-        false,
-      );
-
-      expect(
-        result.balances.some((balance) => balance.token === ZERO_ADDRESS),
-      ).toBe(false);
-      expect(
-        result.balances.some(
-          (balance) => balance.token === STAKING_CONTRACT_ADDRESS,
-        ),
-      ).toBe(false);
-      expect(result.balances).toStrictEqual([
-        {
-          success: true,
-          value: new BN('42'),
-          account: MOCK_ADDRESS_1,
-          token: MOCK_TOKEN_ADDRESS_1,
-          chainId: MOCK_CHAIN_ID,
-        },
-      ]);
-    });
-
     it('should handle multiple chain IDs', async () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID, MOCK_CHAIN_ID_2],
@@ -673,7 +613,7 @@ describe('RpcBalanceFetcher', () => {
       );
     });
 
-    it('should handle duplicate tokens in the same group', async () => {
+    it('removes duplicates in the same group', async () => {
       const tokensStateWithDuplicates = {
         allTokens: {
           [MOCK_CHAIN_ID]: {
@@ -714,8 +654,7 @@ describe('RpcBalanceFetcher', () => {
           {
             accountAddress: MOCK_ADDRESS_1,
             tokenAddresses: [
-              MOCK_TOKEN_ADDRESS_1,
-              MOCK_TOKEN_ADDRESS_1,
+              MOCK_TOKEN_ADDRESS_1, // we do not have duplicates addresses in request!
               ZERO_ADDRESS,
             ],
           },

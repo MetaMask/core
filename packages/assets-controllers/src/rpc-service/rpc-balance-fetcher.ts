@@ -341,10 +341,12 @@ function buildAccountTokenGroupsStatic(
   // Add native tokens
   if (queryAllAccounts) {
     allAccounts.forEach((a) => {
-      accountTokenMap[a.address.toLowerCase()] = [ZERO_ADDRESS];
+      accountTokenMap[a.address.toLowerCase()] ??= [];
+      accountTokenMap[a.address.toLowerCase()].push(ZERO_ADDRESS);
     });
   } else {
-    accountTokenMap[selectedAccount.toLowerCase()] = [ZERO_ADDRESS];
+    accountTokenMap[selectedAccount.toLowerCase()] ??= [];
+    accountTokenMap[selectedAccount.toLowerCase()].push(ZERO_ADDRESS);
   }
 
   return {
