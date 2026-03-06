@@ -246,7 +246,34 @@ describe('GeolocationApiService', () => {
         expect(result).toBe('US');
       });
 
-      it('returns UNKNOWN_LOCATION for non-ISO-3166-1 alpha-2 responses', async () => {
+      it('accepts a 2-letter country code', async () => {
+        const mockFetch = createMockFetch('GB');
+        const { service } = getService({ options: { fetch: mockFetch } });
+
+        const result = await service.fetchGeolocation();
+
+        expect(result).toBe('GB');
+      });
+
+      it('accepts a country code with subdivision (ISO 3166-2)', async () => {
+        const mockFetch = createMockFetch('US-NY');
+        const { service } = getService({ options: { fetch: mockFetch } });
+
+        const result = await service.fetchGeolocation();
+
+        expect(result).toBe('US-NY');
+      });
+
+      it('accepts a subdivision code with alphanumeric part', async () => {
+        const mockFetch = createMockFetch('CA-ON');
+        const { service } = getService({ options: { fetch: mockFetch } });
+
+        const result = await service.fetchGeolocation();
+
+        expect(result).toBe('CA-ON');
+      });
+
+      it('returns UNKNOWN_LOCATION for non-ISO responses', async () => {
         const mockFetch = jest
           .fn()
           .mockImplementation(() =>
@@ -272,11 +299,37 @@ describe('GeolocationApiService', () => {
         expect(result).toBe(UNKNOWN_LOCATION);
       });
 
-      it('returns UNKNOWN_LOCATION for three-letter codes', async () => {
+      it('returns UNKNOWN_LOCATION for lowercase subdivision codes', async () => {
+        const mockFetch = jest
+          .fn()
+          .mockImplementation(() =>
+            Promise.resolve(createMockResponse('us-ny', 200)),
+          );
+        const { service } = getService({ options: { fetch: mockFetch } });
+
+        const result = await service.fetchGeolocation();
+
+        expect(result).toBe(UNKNOWN_LOCATION);
+      });
+
+      it('returns UNKNOWN_LOCATION for three-letter country codes', async () => {
         const mockFetch = jest
           .fn()
           .mockImplementation(() =>
             Promise.resolve(createMockResponse('USA', 200)),
+          );
+        const { service } = getService({ options: { fetch: mockFetch } });
+
+        const result = await service.fetchGeolocation();
+
+        expect(result).toBe(UNKNOWN_LOCATION);
+      });
+
+      it('returns UNKNOWN_LOCATION for subdivision codes with too many characters', async () => {
+        const mockFetch = jest
+          .fn()
+          .mockImplementation(() =>
+            Promise.resolve(createMockResponse('US-ABCD', 200)),
           );
         const { service } = getService({ options: { fetch: mockFetch } });
 
@@ -480,19 +533,19 @@ function createMockResponse(body: string, status: number): Response {
 }
 
 /**
- * Creates a mock fetch function that resolves with the given country code.
+ * Creates a mock fetch function that resolves with the given location code.
  * Each call returns a fresh mock Response.
  *
- * @param countryCode - The country code to return.
+ * @param locationCode - The location code to return (e.g. `US`, `US-NY`).
  * @returns A jest mock function.
  */
 function createMockFetch(
-  countryCode: string,
+  locationCode: string,
 ): jest.Mock<Promise<Response>, [string]> {
   return jest
     .fn()
     .mockImplementation(() =>
-      Promise.resolve(createMockResponse(countryCode, 200)),
+      Promise.resolve(createMockResponse(locationCode, 200)),
     );
 }
 

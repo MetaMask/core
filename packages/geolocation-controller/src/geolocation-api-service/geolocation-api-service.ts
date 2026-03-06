@@ -85,11 +85,12 @@ export type FetchGeolocationOptions = {
 };
 
 /**
- * Low-level data service that fetches a country code from the geolocation API.
+ * Low-level data service that fetches a location code from the geolocation API.
  *
  * Responsibilities:
  * - HTTP request to the geolocation endpoint (wrapped in a service policy)
- * - ISO 3166-1 alpha-2 response validation
+ * - ISO 3166-2 response validation (country code with optional subdivision,
+ *   e.g. `US`, `US-NY`, `CA-ON`)
  * - TTL-based in-memory cache
  * - Promise deduplication (concurrent callers share a single in-flight request)
  *
@@ -202,16 +203,16 @@ export class GeolocationApiService {
   }
 
   /**
-   * Returns the geolocation country code. Serves from cache when the TTL has
-   * not expired, otherwise performs a network fetch. Concurrent callers are
+   * Returns the geolocation code. Serves from cache when the TTL has not
+   * expired, otherwise performs a network fetch. Concurrent callers are
    * deduplicated to a single in-flight request.
    *
    * @param options - Optional fetch options.
    * @param options.bypassCache - When true, invalidates the TTL cache. If a
    * request is already in-flight it will be reused (deduplication always
    * applies).
-   * @returns The ISO 3166-1 alpha-2 country code, or {@link UNKNOWN_LOCATION}
-   * when the API returns an empty or invalid body.
+   * @returns An ISO 3166-2 location code (e.g. `US`, `US-NY`, `CA-ON`), or
+   * {@link UNKNOWN_LOCATION} when the API returns an empty or invalid body.
    */
   async fetchGeolocation(options?: FetchGeolocationOptions): Promise<string> {
     if (options?.bypassCache) {
@@ -252,7 +253,7 @@ export class GeolocationApiService {
    * Performs the actual HTTP fetch, wrapped in the service policy for automatic
    * retry and circuit-breaking, and validates the response.
    *
-   * @returns The ISO country code string.
+   * @returns The ISO 3166-2 location code string.
    */
   async #performFetch(): Promise<string> {
     const response = await this.#policy.execute(async () => {
@@ -267,7 +268,9 @@ export class GeolocationApiService {
     });
 
     const raw = (await response.text()).trim();
-    const location = /^[A-Z]{2}$/u.test(raw) ? raw : UNKNOWN_LOCATION;
+    const location = /^[A-Z]{2}(-[A-Z0-9]{1,3})?$/u.test(raw)
+      ? raw
+      : UNKNOWN_LOCATION;
 
     if (location !== UNKNOWN_LOCATION) {
       this.#cachedLocation = location;
