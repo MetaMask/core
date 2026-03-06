@@ -101,13 +101,17 @@ describe('SnapPlatformWatcher', () => {
       expect(resolved).toBe(true);
     });
 
-    it('throws error if platform becomes unavailable after being ready once (SnapController fallback)', async () => {
+    it('throws error if platform becomes unavailable after being ready once', async () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
+      // Make platform ready first.
       publishIsReadyState(rootMessenger, true);
+
+      // Make platform unavailable
       publishIsReadyState(rootMessenger, false);
 
+      // Should throw error since platform is not ready now.
       await expect(watcher.ensureCanUseSnapPlatform()).rejects.toThrow(
         'Snap platform cannot be used now.',
       );
