@@ -7,15 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new optional `ensureOnboardingComplete` callback ([#8124](https://github.com/MetaMask/core/pull/8124))
+  - This allows the service to wait for the user to re-onboard after a wallet reset.
+
 ### Changed
 
-- **SnapPlatformWatcher** accepts optional `ensureOnboardingComplete` in options ([#8124](https://github.com/MetaMask/core/pull/8124))
 - Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
-
-### Fixed
-
-- `SnapPlatformWatcher` now waits for the Snap platform to be ready again after wallet reset ([#8124](https://github.com/MetaMask/core/pull/8124))
-  - Fixing "Snap platform cannot be used now." by additionally waiting for the onboarding to be completed.
 
 ## [7.0.0]
 
