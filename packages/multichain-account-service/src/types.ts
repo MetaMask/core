@@ -37,6 +37,7 @@ import type {
 
 import type { serviceName } from './MultichainAccountService';
 import type { MultichainAccountServiceMethodActions } from './MultichainAccountService-method-action-types';
+
 /**
  * All actions that {@link MultichainAccountService} registers so that other
  * modules can call them.

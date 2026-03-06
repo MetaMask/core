@@ -97,6 +97,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMultichainAccountWallets',
   'createNextMultichainAccountGroup',
   'createMultichainAccountGroup',
+  'createMultichainAccountGroups',
   'setBasicFunctionality',
   'alignWallets',
   'alignWallet',
@@ -605,6 +606,30 @@ export class MultichainAccountService {
   }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>> {
     return await this.#getWallet(entropySource).createMultichainAccountGroup(
       groupIndex,
+    );
+  }
+
+  /**
+   * Creates multiple multichain account groups up to maxGroupIndex.
+   *
+   * @param params - Parameters for creating account groups.
+   * @param params.fromGroupIndex - Starting group index to create (inclusive) (defaults to 0).
+   * @param params.toGroupIndex - Maximum group index to create (inclusive).
+   * @param params.entropySource - The entropy source ID.
+   * @returns Array of created multichain account groups.
+   */
+  async createMultichainAccountGroups({
+    fromGroupIndex = 0,
+    toGroupIndex,
+    entropySource,
+  }: {
+    fromGroupIndex?: number;
+    toGroupIndex: number;
+    entropySource: EntropySourceId;
+  }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>[]> {
+    return await this.#getWallet(entropySource).createMultichainAccountGroups(
+      { from: fromGroupIndex, to: toGroupIndex },
+      { waitForAllProvidersToFinishCreatingAccounts: false },
     );
   }
 

@@ -20,6 +20,7 @@ import type {
   EthKeyring,
   InternalAccount,
 } from '@metamask/keyring-internal-api';
+import { AccountId } from '@metamask/keyring-utils';
 import type { Provider } from '@metamask/network-controller';
 import { add0x, assert, bytesToHex, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -81,6 +82,7 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     scopes: [EthScope.Eoa],
     bip44: {
       deriveIndex: true,
+      deriveIndexRange: true,
     },
   };
 
@@ -191,9 +193,71 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
   ): Promise<Bip44Account<KeyringAccount>[]> {
     assertCreateAccountOptionIsSupported(options, [
       `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
     ]);
 
-    const { entropySource, groupIndex } = options;
+    const { entropySource } = options;
+
+    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+      const { range } = options;
+
+      // Use a single withKeyring call for the entire range.
+      const accountIds = await this.withKeyring<EthKeyring, AccountId[]>(
+        { id: entropySource },
+        async ({ keyring }) => {
+          const existing = await keyring.getAccounts();
+          const result: AccountId[] = [];
+
+          // Collect existing accounts within the range.
+          for (
+            let groupIndex = range.from;
+            groupIndex <= range.to;
+            groupIndex++
+          ) {
+            if (groupIndex < existing.length) {
+              // Account already exists.
+              result.push(this.#getAccountId(existing[groupIndex]));
+            }
+          }
+
+          // Determine if we need to create new accounts.
+          const from = Math.max(range.from, existing.length);
+          if (from <= range.to) {
+            // Validate no gaps: we can only create accounts starting from existing.length.
+            if (from !== existing.length) {
+              throw new Error('Trying to create too many accounts');
+            }
+
+            // Calculate how many new accounts to create.
+            const accountsToCreate = range.to - existing.length + 1;
+
+            // Create all new accounts in one call.
+            const newAccounts = await keyring.addAccounts(accountsToCreate);
+            result.push(
+              ...newAccounts.map((address) => this.#getAccountId(address)),
+            );
+          }
+
+          return result;
+        },
+      );
+
+      const accounts: InternalAccount[] = [];
+      for (const account of this.messenger.call(
+        'AccountsController:getAccounts',
+        accountIds,
+      )) {
+        assertInternalAccountExists(account);
+        this.accounts.add(account.id);
+        accounts.push(account);
+      }
+
+      assertAreBip44Accounts(accounts);
+      return accounts;
+    }
+
+    // Handle Bip44DeriveIndex (single account creation).
+    const { groupIndex } = options;
 
     const [address] = await this.#createAccount({
       entropySource,

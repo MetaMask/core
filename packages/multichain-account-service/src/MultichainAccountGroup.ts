@@ -19,7 +19,7 @@ import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { Bip44AccountProvider } from './providers';
 import { isAccountProviderWrapper } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
-import { createSentryError } from './utils';
+import { createSentryError, toErrorMessage } from './utils';
 
 export type GroupState =
   ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
@@ -108,15 +108,6 @@ export class MultichainAccountGroup<
         }
       }
     }
-
-    if (this.#initialized) {
-      this.#messenger.publish(
-        'MultichainAccountService:multichainAccountGroupUpdated',
-        this,
-      );
-    } else {
-      this.#initialized = true;
-    }
   }
 
   /**
@@ -128,6 +119,8 @@ export class MultichainAccountGroup<
     this.#log('Initializing group state...');
     this.#setState(groupState);
     this.#log('Finished initializing group state...');
+
+    this.#initialized = true;
   }
 
   /**
@@ -139,6 +132,13 @@ export class MultichainAccountGroup<
     this.#log('Updating group state...');
     this.#setState(groupState);
     this.#log('Finished updating group state...');
+
+    if (this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        this,
+      );
+    }
   }
 
   /**
@@ -298,9 +298,7 @@ export class MultichainAccountGroup<
           return accounts;
         } catch (error) {
           // istanbul ignore next
-          this.#log(
-            `${WARNING_PREFIX} ${error instanceof Error ? error.message : String(error)}`,
-          );
+          this.#log(`${WARNING_PREFIX} ${toErrorMessage(error)}`);
           const sentryError = createSentryError(
             `Unable to align accounts with provider "${provider.getName()}"`,
             error as Error,
