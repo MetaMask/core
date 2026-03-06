@@ -4,15 +4,28 @@ import { once } from 'lodash';
 import { projectLogger as log } from '../logger';
 import { MultichainAccountServiceMessenger } from '../types';
 
+export type SnapPlatformWatcherOptions = {
+  /**
+   * Resolves when onboarding is complete.
+   */
+  ensureOnboardingComplete?: () => Promise<void>;
+};
+
 export class SnapPlatformWatcher {
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  #isReadyOnce: DeferredPromise<void>;
+  readonly #ensureOnboardingComplete?: () => Promise<void>;
+
+  readonly #isReadyOnce: DeferredPromise<void>;
 
   #isReady: boolean;
 
-  constructor(messenger: MultichainAccountServiceMessenger) {
+  constructor(
+    messenger: MultichainAccountServiceMessenger,
+    options: SnapPlatformWatcherOptions = {},
+  ) {
     this.#messenger = messenger;
+    this.#ensureOnboardingComplete = options.ensureOnboardingComplete;
 
     this.#isReady = false;
     this.#isReadyOnce = createDeferredPromise<void>();
@@ -25,10 +38,14 @@ export class SnapPlatformWatcher {
   }
 
   async ensureCanUseSnapPlatform(): Promise<void> {
-    // We always wait for the Snap platform to be ready at least once.
+    // When ensureOnboardingComplete is provided, wait for the onboarding first.
+    if (this.#ensureOnboardingComplete !== undefined) {
+      await this.#ensureOnboardingComplete();
+    }
+
+    // In all cases, we also require the Snap platform to be ready and available.
     await this.#isReadyOnce.promise;
 
-    // Then, we check for the current state and see if we can use it.
     if (!this.#isReady) {
       throw new Error('Snap platform cannot be used now.');
     }
@@ -37,28 +54,20 @@ export class SnapPlatformWatcher {
   #watch(): void {
     const logReadyOnce = once(() => log('Snap platform is ready!'));
 
-    // If already ready, resolve immediately.
     const initialState = this.#messenger.call('SnapController:getState');
     if (initialState.isReady) {
       this.#isReady = true;
       this.#isReadyOnce.resolve();
     }
 
-    // We must always subscribe to state changes to keep track of the platform's readiness.
     this.#messenger.subscribe(
       'SnapController:stateChange',
       (isReady: boolean) => {
-        const wasReady = this.#isReady;
         this.#isReady = isReady;
 
         if (isReady) {
           logReadyOnce();
           this.#isReadyOnce.resolve();
-        } else if (wasReady) {
-          // Platform was ready, and now it is not.
-          // ensureCanUseSnapPlatform() will wait again.
-          // This is required after the wallet reset.
-          this.#isReadyOnce = createDeferredPromise<void>();
         }
       },
       (state) => state.isReady,

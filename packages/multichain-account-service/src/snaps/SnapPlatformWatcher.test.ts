@@ -57,11 +57,22 @@ function publishIsReadyState(messenger: RootMessenger, isReady: boolean): void {
 
 describe('SnapPlatformWatcher', () => {
   describe('constructor', () => {
-    it('initializes with isReady as false', () => {
+    it('initializes with isReady as false when not using ensureOnboardingComplete', () => {
       const { messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
       expect(watcher).toBeDefined();
+      expect(watcher.isReady).toBe(false);
+    });
+
+    it('still tracks Snap platform state when using ensureOnboardingComplete', () => {
+      const { messenger } = setup();
+      const watcher = new SnapPlatformWatcher(messenger, {
+        ensureOnboardingComplete: (): Promise<void> => Promise.resolve(),
+      });
+
+      expect(watcher).toBeDefined();
+      // isReady reflects SnapController state, not the callback (both are required).
       expect(watcher.isReady).toBe(false);
     });
   });
@@ -90,52 +101,31 @@ describe('SnapPlatformWatcher', () => {
       expect(resolved).toBe(true);
     });
 
-    it('waits for platform to be ready again when it becomes unavailable (e.g. after wallet reset)', async () => {
+    it('throws error if platform becomes unavailable after being ready once (SnapController fallback)', async () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
-      // Make platform ready first.
       publishIsReadyState(rootMessenger, true);
-
-      // Make platform unavailable (e.g. clearState during wallet reset).
       publishIsReadyState(rootMessenger, false);
 
-      // ensureCanUseSnapPlatform() should wait for the next ready, not throw.
-      const ensurePromise = watcher.ensureCanUseSnapPlatform();
-      let resolved = false;
-      void ensurePromise.then(() => {
-        resolved = true;
-        return null;
-      });
-
-      expect(resolved).toBe(false);
-
-      // Platform becomes ready again (e.g. Snap controller re-initialized).
-      publishIsReadyState(rootMessenger, true);
-
-      await ensurePromise;
-      expect(resolved).toBe(true);
+      await expect(watcher.ensureCanUseSnapPlatform()).rejects.toThrow(
+        'Snap platform cannot be used now.',
+      );
     });
 
     it('handles multiple state changes correctly', async () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
-      // Make platform ready
       publishIsReadyState(rootMessenger, true);
-
-      // Should work
       expect(await watcher.ensureCanUseSnapPlatform()).toBeUndefined();
 
-      // Make platform unavailable.
       publishIsReadyState(rootMessenger, false);
+      await expect(watcher.ensureCanUseSnapPlatform()).rejects.toThrow(
+        'Snap platform cannot be used now.',
+      );
 
-      // ensureCanUseSnapPlatform() now waits for the next ready (does not throw).
-      const ensurePromise = watcher.ensureCanUseSnapPlatform();
       publishIsReadyState(rootMessenger, true);
-      await ensurePromise;
-
-      // Should work again.
       expect(await watcher.ensureCanUseSnapPlatform()).toBeUndefined();
     });
 
@@ -221,7 +211,6 @@ describe('SnapPlatformWatcher', () => {
     it('resolves immediately if platform is already ready', async () => {
       const { messenger, mocks } = setup();
 
-      // Make the platform ready before creating the watcher.
       mocks.SnapController.getState.mockReturnValue({
         isReady: true,
       } as SnapControllerState);
@@ -229,6 +218,28 @@ describe('SnapPlatformWatcher', () => {
       const watcher = new SnapPlatformWatcher(messenger);
 
       expect(watcher.isReady).toBe(true);
+    });
+
+    it('requires both onboarding complete and Snap platform ready when ensureOnboardingComplete is provided', async () => {
+      const { rootMessenger, messenger } = setup();
+      const ensureOnboardingComplete = jest.fn().mockResolvedValue(undefined);
+      const watcher = new SnapPlatformWatcher(messenger, {
+        ensureOnboardingComplete,
+      });
+
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      let resolved = false;
+      void ensurePromise.then(() => {
+        resolved = true;
+        return null;
+      });
+
+      expect(ensureOnboardingComplete).toHaveBeenCalledTimes(1);
+      expect(resolved).toBe(false);
+
+      publishIsReadyState(rootMessenger, true);
+      await ensurePromise;
+      expect(resolved).toBe(true);
     });
   });
 });
