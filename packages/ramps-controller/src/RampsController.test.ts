@@ -15,6 +15,7 @@ import type {
   UserRegion,
 } from './RampsController';
 import {
+  normalizeProviderCode,
   RampsController,
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -60,6 +61,20 @@ import type {
 } from './TransakService';
 
 describe('RampsController', () => {
+  describe('normalizeProviderCode', () => {
+    it('strips /providers/ prefix', () => {
+      expect(normalizeProviderCode('/providers/transak')).toBe('transak');
+      expect(normalizeProviderCode('/providers/transak-staging')).toBe(
+        'transak-staging',
+      );
+    });
+
+    it('returns string unchanged when no prefix', () => {
+      expect(normalizeProviderCode('transak')).toBe('transak');
+      expect(normalizeProviderCode('')).toBe('');
+    });
+  });
+
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
     it('includes every RampsService action that RampsController calls', async () => {
       expect.hasAssertions();
@@ -4893,7 +4908,7 @@ describe('RampsController', () => {
     });
   });
 
-  describe('getWidgetUrl', () => {
+  describe('getBuyWidgetData', () => {
     it('fetches and returns widget URL via RampsService messenger', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const quote: Quote = {
@@ -4916,9 +4931,13 @@ describe('RampsController', () => {
           }),
         );
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await controller.getBuyWidgetData(quote);
 
-        expect(widgetUrl).toBe('https://global.transak.com/?apiKey=test');
+        expect(buyWidget).toStrictEqual({
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
       });
     });
 
@@ -4933,9 +4952,9 @@ describe('RampsController', () => {
           },
         };
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await controller.getBuyWidgetData(quote);
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
       });
     });
 
@@ -4945,13 +4964,13 @@ describe('RampsController', () => {
           provider: '/providers/moonpay',
         } as unknown as Quote;
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await controller.getBuyWidgetData(quote);
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
       });
     });
 
-    it('returns null when service call throws an error', async () => {
+    it('propagates error when service call throws', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const quote: Quote = {
           provider: '/providers/transak-staging',
@@ -4971,9 +4990,9 @@ describe('RampsController', () => {
           },
         );
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
-
-        expect(widgetUrl).toBeNull();
+        await expect(controller.getBuyWidgetData(quote)).rejects.toThrow(
+          'Network error',
+        );
       });
     });
 
@@ -4999,9 +5018,55 @@ describe('RampsController', () => {
           }),
         );
 
-        const widgetUrl = await controller.getWidgetUrl(quote);
+        const buyWidget = await controller.getBuyWidgetData(quote);
 
-        expect(widgetUrl).toBeNull();
+        expect(buyWidget).toBeNull();
+      });
+    });
+  });
+
+  describe('addPrecreatedOrder', () => {
+    it('adds a stub order with Precreated status for polling', async () => {
+      await withController(({ controller }) => {
+        controller.addPrecreatedOrder({
+          orderId: '/providers/paypal/orders/abc123',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+          chainId: '1',
+        });
+
+        expect(controller.state.orders).toHaveLength(1);
+        const stub = controller.state.orders[0];
+        expect(stub?.providerOrderId).toBe('abc123');
+        expect(stub?.provider?.id).toBe('/providers/paypal');
+        expect(stub?.walletAddress).toBe('0xabc');
+        expect(stub?.status).toBe(RampsOrderStatus.Precreated);
+      });
+    });
+
+    it('parses orderCode when orderId has no /orders/ segment', async () => {
+      await withController(({ controller }) => {
+        controller.addPrecreatedOrder({
+          orderId: 'plain-order-id',
+          providerCode: 'transak',
+          walletAddress: '0xdef',
+        });
+
+        expect(controller.state.orders[0]?.providerOrderId).toBe(
+          'plain-order-id',
+        );
+      });
+    });
+
+    it('skips addOrder when orderId ends with /orders/ (empty orderCode)', async () => {
+      await withController(({ controller }) => {
+        controller.addPrecreatedOrder({
+          orderId: '/providers/paypal/orders/',
+          providerCode: 'paypal',
+          walletAddress: '0xabc',
+        });
+
+        expect(controller.state.orders).toHaveLength(0);
       });
     });
   });
