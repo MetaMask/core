@@ -1,6 +1,6 @@
 {
   "name": "@metamask/geolocation-controller",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Centralised geolocation controller with TTL caching and request deduplication",
   "keywords": [
     "MetaMask",
