@@ -267,32 +267,70 @@ export class MultichainAccountGroup<
   async alignAccounts(): Promise<void> {
     this.#log('Aligning accounts...');
 
-    this.#providerToAccounts.clear();
-    this.#accountToProvider.clear();
-
     const results = await Promise.allSettled(
       this.#providers.map(async (provider) => {
+        const providerName = provider.getName();
+
         try {
+          // Existing (old) accounts for that provider (if any).
+          const oldAccounts = new Set(
+            this.#providerToAccounts.get(provider) ?? [],
+          );
+
+          // Remove any previously tracked accounts if provider gets disabled.
+          if (isAccountProviderWrapper(provider) && provider.isDisabled()) {
+            this.#log(
+              `Account provider "${providerName}" is disabled, skipping alignment...`,
+            );
+
+            for (const accountId of oldAccounts) {
+              this.#accountToProvider.delete(accountId);
+            }
+            this.#providerToAccounts.delete(provider);
+
+            return [];
+          }
+
+          // We align accounts no matter what, we cannot guess if providers starts to support new
+          // account types or scopes.
           const accounts = await provider.alignAccounts({
             entropySource: this.wallet.entropySource,
             groupIndex: this.groupIndex,
           });
 
-          const isDisabled =
-            isAccountProviderWrapper(provider) && provider.isDisabled();
+          // Compute a diff between the previously known accounts to see if some accounts got removed
+          // or added during alignment.
+          const newAccounts = new Set(accounts);
+          for (const accountId of accounts) {
+            // If we knew about this account before, it's not new nor removed.
+            if (oldAccounts.has(accountId)) {
+              oldAccounts.delete(accountId);
+              newAccounts.delete(accountId);
+            }
+          }
 
-          if (isDisabled) {
+          const hasRemovedAccounts = oldAccounts.size > 0;
+          const hasAddedAccounts = newAccounts.size > 0;
+          if (hasRemovedAccounts) {
             this.#log(
-              `Account provider "${provider.getName()}" is disabled, skipping alignment...`,
+              `Found ${oldAccounts.size} removed accounts for account provider "${providerName}", removing them from the group...`,
             );
-          } else if (accounts.length > 0) {
+
+            for (const accountId of oldAccounts) {
+              this.#accountToProvider.delete(accountId);
+            }
+          }
+          if (hasAddedAccounts) {
             this.#log(
-              `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
+              `Found ${newAccounts.size} new accounts for account provider "${providerName}", adding them to the group...`,
             );
-            this.#providerToAccounts.set(provider, accounts);
-            for (const accountId of accounts) {
+
+            for (const accountId of newAccounts) {
               this.#accountToProvider.set(accountId, provider);
             }
+          }
+          if (hasRemovedAccounts || hasAddedAccounts) {
+            this.#providerToAccounts.set(provider, accounts);
           }
 
           return accounts;
@@ -302,11 +340,11 @@ export class MultichainAccountGroup<
             `${WARNING_PREFIX} ${error instanceof Error ? error.message : String(error)}`,
           );
           const sentryError = createSentryError(
-            `Unable to align accounts with provider "${provider.getName()}"`,
+            `Unable to align accounts with provider "${providerName}"`,
             error as Error,
             {
               groupIndex: this.groupIndex,
-              provider: provider.getName(),
+              provider: providerName,
             },
           );
           this.#messenger.captureException?.(sentryError);

@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Faster state change during alignment ([#8136](https://github.com/MetaMask/core/pull/8136))
+  - We used to re-create the entire mapping of accounts and their providers during alignment, now we only update the accounts that actually changed or got removed.
+
+### Fixed
+
+- Prevent spurious logs during alignment ([#8136](https://github.com/MetaMask/core/pull/8136))
 
 ## [7.0.0]
 
