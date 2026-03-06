@@ -786,6 +786,11 @@ export enum TransactionType {
   musdConversion = 'musdConversion',
 
   /**
+   * Deposit funds for Across quote via Perps.
+   */
+  perpsAcrossDeposit = 'perpsAcrossDeposit',
+
+  /**
    * Deposit funds to be available for trading via Perps.
    */
   perpsDeposit = 'perpsDeposit',
@@ -805,6 +810,11 @@ export enum TransactionType {
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
+
+  /**
+   * Deposit funds for Across quote via Predict.
+   */
+  predictAcrossDeposit = 'predictAcrossDeposit',
 
   /**
    * Buy a position via Predict.

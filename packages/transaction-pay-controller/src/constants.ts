@@ -33,6 +33,7 @@ export const STABLECOINS: Record<Hex, Hex[]> = {
 };
 
 export enum TransactionPayStrategy {
+  Across = 'across',
   Bridge = 'bridge',
   Relay = 'relay',
   Test = 'test',
