@@ -92,6 +92,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "nativeProviders": {
               "transak": {
@@ -100,6 +101,7 @@ describe('RampsController', () => {
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
                 "isAuthenticated": false,
                 "kycRequirement": {
@@ -107,12 +109,14 @@ describe('RampsController', () => {
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
                 "userDetails": {
                   "data": null,
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
               },
             },
@@ -122,12 +126,14 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "providers": {
               "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "requests": {},
             "tokens": {
@@ -135,6 +141,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "userRegion": null,
           }
@@ -167,6 +174,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "nativeProviders": {
               "transak": {
@@ -175,6 +183,7 @@ describe('RampsController', () => {
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
                 "isAuthenticated": false,
                 "kycRequirement": {
@@ -182,12 +191,14 @@ describe('RampsController', () => {
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
                 "userDetails": {
                   "data": null,
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
               },
             },
@@ -197,12 +208,14 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "providers": {
               "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "requests": {},
             "tokens": {
@@ -210,6 +223,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "userRegion": null,
           }
@@ -743,6 +757,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "nativeProviders": {
               "transak": {
@@ -751,6 +766,7 @@ describe('RampsController', () => {
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
                 "isAuthenticated": false,
                 "kycRequirement": {
@@ -758,12 +774,14 @@ describe('RampsController', () => {
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
                 "userDetails": {
                   "data": null,
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
               },
             },
@@ -773,12 +791,14 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "providers": {
               "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "requests": {},
             "tokens": {
@@ -786,6 +806,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "userRegion": null,
           }
@@ -808,6 +829,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "orders": [],
             "paymentMethods": {
@@ -815,18 +837,21 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "providers": {
               "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "userRegion": null,
           }
@@ -849,6 +874,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "orders": [],
             "providers": {
@@ -856,12 +882,14 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "tokens": {
               "data": null,
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "userRegion": null,
           }
@@ -884,6 +912,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "nativeProviders": {
               "transak": {
@@ -892,6 +921,7 @@ describe('RampsController', () => {
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
                 "isAuthenticated": false,
                 "kycRequirement": {
@@ -899,12 +929,14 @@ describe('RampsController', () => {
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
                 "userDetails": {
                   "data": null,
                   "error": null,
                   "isLoading": false,
                   "selected": null,
+                  "status": "idle",
                 },
               },
             },
@@ -914,12 +946,14 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "providers": {
               "data": [],
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "requests": {},
             "tokens": {
@@ -927,6 +961,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "idle",
             },
             "userRegion": null,
           }
@@ -1077,6 +1112,63 @@ describe('RampsController', () => {
         await promiseB;
 
         expect(controller.state.providers.isLoading).toBe(false);
+      });
+    });
+
+    it('does not regress status to idle when the last concurrent request is stale but an earlier one succeeded', async () => {
+      await withController(async ({ controller }) => {
+        let resolveFirst: (value: string) => void;
+        let resolveSecond: (value: string) => void;
+
+        // Request A is "current" (its result should be applied)
+        // Request B is "stale" (isResultCurrent returns false, so terminalStatus stays undefined)
+        const fetcherA = async (): Promise<string> =>
+          new Promise<string>((resolve) => {
+            resolveFirst = resolve;
+          });
+        const fetcherB = async (): Promise<string> =>
+          new Promise<string>((resolve) => {
+            resolveSecond = resolve;
+          });
+
+        let isACurrentValue = false;
+        const promiseA = controller.executeRequest(
+          'providers-key-a2',
+          fetcherA,
+          {
+            resourceType: 'providers',
+            isResultCurrent: () => isACurrentValue,
+          },
+        );
+        const promiseB = controller.executeRequest(
+          'providers-key-b2',
+          fetcherB,
+          {
+            resourceType: 'providers',
+            isResultCurrent: () => false,
+          },
+        );
+
+        expect(controller.state.providers.status).toBe(RequestStatus.LOADING);
+
+        // Resolve A first while it's current → terminalStatus = SUCCESS, but
+        // count goes from 2 to 1 so status is not written yet
+        isACurrentValue = true;
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveFirst!('result-a');
+        await promiseA;
+
+        // Status not updated yet since count is still 1
+        expect(controller.state.providers.isLoading).toBe(true);
+
+        // Resolve B last while stale → terminalStatus stays undefined in B's closure
+        // Without the fix, this would write IDLE; with the fix it should preserve SUCCESS
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        resolveSecond!('result-b');
+        await promiseB;
+
+        expect(controller.state.providers.isLoading).toBe(false);
+        expect(controller.state.providers.status).toBe(RequestStatus.SUCCESS);
       });
     });
 
@@ -1884,6 +1976,102 @@ describe('RampsController', () => {
           await new Promise((resolve) => setTimeout(resolve, 50));
           expect(controller.state.userRegion?.regionCode).toBe('fr');
           expect(controller.state.providers.data).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('does not inherit stale terminal status after region change aborts a successful request', async () => {
+      const mockTokens: TokensResponse = { topTokens: [], allTokens: [] };
+
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: {
+                regionCode: 'us-ca',
+                state: {
+                  stateId: 'CA',
+                  name: 'California',
+                  supported: { buy: true, sell: true },
+                },
+                country: {
+                  isoCode: 'US',
+                  name: 'United States of America',
+                  flag: '🇺🇸',
+                  currency: 'USD',
+                  phone: { prefix: '+1', placeholder: '', template: '' },
+                  supported: { buy: true, sell: true },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          // Step 1: Launch two concurrent executeRequest calls for 'providers'.
+          // Request A will succeed (isResultCurrent=true), recording SUCCESS in
+          // #resourceTerminalStatus. Request B hangs (will be aborted).
+          let resolveA: (value: string) => void;
+
+          const promiseA = controller.executeRequest(
+            'providers-stale-a',
+            async () =>
+              new Promise<string>((resolve) => {
+                resolveA = resolve;
+              }),
+            { resourceType: 'providers', isResultCurrent: () => true },
+          );
+
+          // Request B hangs — will be aborted by the region change below
+          const promiseB = controller
+            .executeRequest(
+              'providers-stale-b',
+              async (signal) =>
+                new Promise<string>((_resolve, reject) => {
+                  signal.addEventListener('abort', () =>
+                    reject(new Error('aborted')),
+                  );
+                }),
+              { resourceType: 'providers', isResultCurrent: () => true },
+            )
+            // eslint-disable-next-line no-empty-function -- swallow expected abort rejection
+            .catch(() => {});
+
+          // Step 2: Resolve A successfully while B is still in-flight.
+          // count goes 2→1, SUCCESS is recorded in #resourceTerminalStatus but
+          // not committed yet (count > 0 when A finishes).
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          resolveA!('result-a');
+          await promiseA;
+
+          expect(controller.state.providers.isLoading).toBe(true);
+
+          // Step 3: Change region. This calls #abortDependentRequests (aborts B)
+          // and #clearPendingResourceCountForDependentResources (clears count).
+          // The fix also clears #resourceTerminalStatus for dependent resources.
+          // B's finally block sees signal.aborted=true and skips cleanup, so
+          // without the fix the stale SUCCESS remains in #resourceTerminalStatus.
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => mockTokens,
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              throw new Error('FR providers fetch failed');
+            },
+          );
+
+          await controller.setUserRegion('FR');
+          await promiseB;
+
+          // Wait for the fire-and-forget refetches to settle
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          // Step 4: Without the fix, the stale SUCCESS from request A prevented
+          // ERROR from being recorded when the FR request failed, so status
+          // would be 'success'. With the fix it must be 'error'.
+          expect(controller.state.providers.status).toBe(RequestStatus.ERROR);
         },
       );
     });
@@ -4977,7 +5165,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('returns null when service returns BuyWidget with null url', async () => {
+    it('returns null when service returns BuyWidget with undefined url', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const quote: Quote = {
           provider: '/providers/transak-staging',
@@ -4993,7 +5181,7 @@ describe('RampsController', () => {
         rootMessenger.registerActionHandler(
           'RampsService:getBuyWidgetUrl',
           async () => ({
-            url: null,
+            url: undefined as unknown as string,
             browser: 'APP_BROWSER' as const,
             orderId: null,
           }),
@@ -5002,6 +5190,34 @@ describe('RampsController', () => {
         const widgetUrl = await controller.getWidgetUrl(quote);
 
         expect(widgetUrl).toBeNull();
+      });
+    });
+
+    it('returns empty string when service returns BuyWidget with empty url', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const quote: Quote = {
+          provider: '/providers/transak-staging',
+          quote: {
+            amountIn: 100,
+            amountOut: '0.05',
+            paymentMethod: '/payments/debit-credit-card',
+            buyURL:
+              'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+          },
+        };
+
+        rootMessenger.registerActionHandler(
+          'RampsService:getBuyWidgetUrl',
+          async () => ({
+            url: '',
+            browser: 'APP_BROWSER' as const,
+            orderId: null,
+          }),
+        );
+
+        const widgetUrl = await controller.getWidgetUrl(quote);
+
+        expect(widgetUrl).toBe('');
       });
     });
   });
@@ -5336,7 +5552,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'poll-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(pendingOrder);
@@ -5404,7 +5623,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'status-change-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(pendingOrder);
@@ -5441,7 +5663,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'no-change-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(pendingOrder);
@@ -5471,7 +5696,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'terminal-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(pendingOrder);
@@ -5501,7 +5729,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'unknown-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(pendingOrder);
@@ -5531,7 +5762,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'error-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(pendingOrder);
@@ -5581,7 +5815,10 @@ describe('RampsController', () => {
         const orderNoId = createMockOrder({
           providerOrderId: '',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(orderNoId);
@@ -5603,7 +5840,10 @@ describe('RampsController', () => {
         const orderNoWallet = createMockOrder({
           providerOrderId: 'no-wallet-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '',
         });
         controller.addOrder(orderNoWallet);
@@ -5625,7 +5865,10 @@ describe('RampsController', () => {
         const order = createMockOrder({
           providerOrderId: 'strip-prefix-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(order);
@@ -5654,7 +5897,10 @@ describe('RampsController', () => {
         const order = createMockOrder({
           providerOrderId: 'backoff-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(order);
@@ -5684,7 +5930,10 @@ describe('RampsController', () => {
         const order = createMockOrder({
           providerOrderId: 'poll-min-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
           pollingSecondsMinimum: 120,
         });
@@ -5754,7 +6003,10 @@ describe('RampsController', () => {
         const completedOrder = createMockOrder({
           providerOrderId: 'completed-1',
           status: RampsOrderStatus.Completed,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(completedOrder);
@@ -5776,7 +6028,10 @@ describe('RampsController', () => {
         const order = createMockOrder({
           providerOrderId: 'reset-err-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(order);
@@ -5812,7 +6067,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'race-1',
           status: RampsOrderStatus.Pending,
-          provider: { id: '/providers/transak', name: 'Transak' },
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         controller.addOrder(pendingOrder);
@@ -5975,6 +6233,7 @@ describe('RampsController', () => {
                 "error": null,
                 "isLoading": false,
                 "selected": null,
+                "status": "idle",
               },
               "isAuthenticated": false,
               "kycRequirement": {
@@ -5982,12 +6241,14 @@ describe('RampsController', () => {
                 "error": null,
                 "isLoading": false,
                 "selected": null,
+                "status": "idle",
               },
               "userDetails": {
                 "data": null,
                 "error": null,
                 "isLoading": false,
                 "selected": null,
+                "status": "idle",
               },
             }
           `);
@@ -6191,6 +6452,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "success",
             }
           `);
         });
@@ -6213,6 +6475,9 @@ describe('RampsController', () => {
           expect(
             controller.state.nativeProviders.transak.userDetails.error,
           ).toBe('Auth failed');
+          expect(
+            controller.state.nativeProviders.transak.userDetails.status,
+          ).toBe(RequestStatus.ERROR);
         });
       });
 
@@ -6333,6 +6598,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "success",
             }
           `);
         });
@@ -6360,6 +6626,9 @@ describe('RampsController', () => {
           ).toBe(false);
           expect(controller.state.nativeProviders.transak.buyQuote.error).toBe(
             'Quote failed',
+          );
+          expect(controller.state.nativeProviders.transak.buyQuote.status).toBe(
+            RequestStatus.ERROR,
           );
         });
       });
@@ -6415,6 +6684,7 @@ describe('RampsController', () => {
               "error": null,
               "isLoading": false,
               "selected": null,
+              "status": "success",
             }
           `);
         });
@@ -6437,6 +6707,9 @@ describe('RampsController', () => {
           expect(
             controller.state.nativeProviders.transak.kycRequirement.error,
           ).toBe('KYC failed');
+          expect(
+            controller.state.nativeProviders.transak.kycRequirement.status,
+          ).toBe(RequestStatus.ERROR);
         });
       });
 
@@ -7196,6 +7469,7 @@ function createResourceState<TData, TSelected = null>(
     selected,
     isLoading: false,
     error: null,
+    status: RequestStatus.IDLE,
   };
 }
 
@@ -7244,14 +7518,27 @@ function createMockDepositOrder(): TransakDepositOrder {
   };
 }
 
+function createMockProvider(overrides: Partial<Provider> = {}): Provider {
+  return {
+    id: '/providers/test-provider',
+    name: 'Test Provider',
+    environmentType: 'production',
+    description: 'Test provider description',
+    hqAddress: '123 Test St',
+    links: [],
+    logos: { light: '', dark: '', height: 32, width: 32 },
+    ...overrides,
+  };
+}
+
 function createMockOrder(overrides: Partial<RampsOrder> = {}): RampsOrder {
   return {
     id: '/providers/transak-staging/orders/abc-123',
     isOnlyLink: false,
-    provider: {
+    provider: createMockProvider({
       id: '/providers/transak-staging',
       name: 'Transak (Staging)',
-    },
+    }),
     success: true,
     cryptoAmount: 0.05,
     fiatAmount: 100,

@@ -197,6 +197,11 @@ export type ResourceState<TData, TSelected = null> = {
    * Error message if the fetch failed, or null.
    */
   error: string | null;
+  /**
+   * The current status of the resource: 'idle' | 'loading' | 'success' | 'error'.
+   * Distinguishes between never-fetched ('idle') and successfully-fetched-empty ('success').
+   */
+  status: `${RequestStatus}`;
 };
 
 /**
@@ -338,6 +343,7 @@ function createDefaultResourceState<TData, TSelected = null>(
     selected,
     isLoading: false,
     error: null,
+    status: RequestStatus.IDLE,
   };
 }
 
@@ -402,6 +408,7 @@ function resetResource(
   resource.selected = def.selected;
   resource.isLoading = def.isLoading;
   resource.error = def.error;
+  resource.status = def.status;
 }
 
 /**
@@ -679,6 +686,15 @@ export class RampsController extends BaseController<
    */
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
 
+  /**
+   * Tracks the "best" terminal status reached by any concurrent request for a
+   * resource type. Populated when a current result is resolved/rejected, and
+   * cleared when the last in-flight request for that resource finishes and the
+   * status is committed to state.
+   */
+  readonly #resourceTerminalStatus: Map<ResourceType, RequestStatus> =
+    new Map();
+
   readonly #orderPollingMeta: Map<string, OrderPollingMetadata> = new Map();
 
   #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
@@ -698,6 +714,7 @@ export class RampsController extends BaseController<
   #clearPendingResourceCountForDependentResources(): void {
     for (const resourceType of DEPENDENT_RESOURCE_KEYS) {
       this.#pendingResourceCount.delete(resourceType);
+      this.#resourceTerminalStatus.delete(resourceType);
     }
   }
 
@@ -827,7 +844,11 @@ export class RampsController extends BaseController<
       const count = this.#pendingResourceCount.get(resourceType) ?? 0;
       this.#pendingResourceCount.set(resourceType, count + 1);
       if (count === 0) {
-        this.#setResourceLoading(resourceType, true);
+        this.#setResourceLoadingAndStatus(
+          resourceType,
+          true,
+          RequestStatus.LOADING,
+        );
       }
     }
 
@@ -850,6 +871,10 @@ export class RampsController extends BaseController<
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, null);
+            this.#recordResourceTerminalStatus(
+              resourceType,
+              RequestStatus.SUCCESS,
+            );
           }
         }
         return data;
@@ -868,6 +893,10 @@ export class RampsController extends BaseController<
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
             this.#setResourceError(resourceType, errorMessage);
+            this.#recordResourceTerminalStatus(
+              resourceType,
+              RequestStatus.ERROR,
+            );
           }
         }
         throw error;
@@ -885,7 +914,18 @@ export class RampsController extends BaseController<
           const next = Math.max(0, count - 1);
           if (next === 0) {
             this.#pendingResourceCount.delete(resourceType);
-            this.#setResourceLoading(resourceType, false);
+            // Use the best terminal status recorded by any current result across
+            // all concurrent requests. Fall back to IDLE only if no request for
+            // this resource reported a current result.
+            const effectiveStatus =
+              this.#resourceTerminalStatus.get(resourceType) ??
+              RequestStatus.IDLE;
+            this.#resourceTerminalStatus.delete(resourceType);
+            this.#setResourceLoadingAndStatus(
+              resourceType,
+              false,
+              effectiveStatus,
+            );
           } else {
             this.#pendingResourceCount.set(resourceType, next);
           }
@@ -986,35 +1026,27 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Updates a single field (isLoading or error) on a resource state.
-   * All resources share the same ResourceState structure, so we use
-   * dynamic property access to avoid duplicating switch statements.
+   * Updates one or more fields on a resource state atomically in a single
+   * `this.update()` call. All resources share the same ResourceState structure,
+   * so we use dynamic property access to avoid duplicating switch statements.
    *
    * @param resourceType - The type of resource.
-   * @param field - The field to update ('isLoading' or 'error').
-   * @param value - The value to set.
+   * @param fields - An object mapping field names to their new values.
    */
-  #updateResourceField(
+  #updateResourceFields(
     resourceType: ResourceType,
-    field: 'isLoading' | 'error',
-    value: boolean | string | null,
+    fields: Partial<
+      Record<'isLoading' | 'error' | 'status', boolean | string | null>
+    >,
   ): void {
     this.update((state) => {
       const resource = state[resourceType];
       if (resource) {
-        (resource as Record<string, unknown>)[field] = value;
+        for (const [field, value] of Object.entries(fields)) {
+          (resource as Record<string, unknown>)[field] = value;
+        }
       }
     });
-  }
-
-  /**
-   * Sets the loading state for a resource type.
-   *
-   * @param resourceType - The type of resource.
-   * @param loading - Whether the resource is loading.
-   */
-  #setResourceLoading(resourceType: ResourceType, loading: boolean): void {
-    this.#updateResourceField(resourceType, 'isLoading', loading);
   }
 
   /**
@@ -1024,7 +1056,41 @@ export class RampsController extends BaseController<
    * @param error - The error message, or null to clear.
    */
   #setResourceError(resourceType: ResourceType, error: string | null): void {
-    this.#updateResourceField(resourceType, 'error', error);
+    this.#updateResourceFields(resourceType, { error });
+  }
+
+  /**
+   * Sets the loading state and status for a resource type atomically.
+   *
+   * @param resourceType - The type of resource.
+   * @param loading - Whether the resource is loading.
+   * @param status - The status to set ('idle' | 'loading' | 'success' | 'error').
+   */
+  #setResourceLoadingAndStatus(
+    resourceType: ResourceType,
+    loading: boolean,
+    status: `${RequestStatus}`,
+  ): void {
+    this.#updateResourceFields(resourceType, { isLoading: loading, status });
+  }
+
+  /**
+   * Records the terminal status for a resource type, keeping the highest-priority
+   * status seen across concurrent requests. SUCCESS and ERROR both take priority
+   * over a previously recorded IDLE, and SUCCESS takes priority over ERROR so
+   * that a successful peer request is not masked by a failed one.
+   *
+   * @param resourceType - The resource type.
+   * @param status - The terminal status to record (SUCCESS or ERROR).
+   */
+  #recordResourceTerminalStatus(
+    resourceType: ResourceType,
+    status: RequestStatus.SUCCESS | RequestStatus.ERROR,
+  ): void {
+    const current = this.#resourceTerminalStatus.get(resourceType);
+    if (current !== RequestStatus.SUCCESS) {
+      this.#resourceTerminalStatus.set(resourceType, status);
+    }
   }
 
   /**
@@ -2072,6 +2138,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.userDetails.isLoading = true;
       state.nativeProviders.transak.userDetails.error = null;
+      state.nativeProviders.transak.userDetails.status = RequestStatus.LOADING;
     });
     try {
       const details = await this.messenger.call(
@@ -2080,6 +2147,8 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.userDetails.data = details;
         state.nativeProviders.transak.userDetails.isLoading = false;
+        state.nativeProviders.transak.userDetails.status =
+          RequestStatus.SUCCESS;
       });
       return details;
     } catch (error) {
@@ -2088,6 +2157,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.userDetails.isLoading = false;
         state.nativeProviders.transak.userDetails.error = errorMessage;
+        state.nativeProviders.transak.userDetails.status = RequestStatus.ERROR;
       });
       throw error;
     }
@@ -2114,6 +2184,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
       state.nativeProviders.transak.buyQuote.error = null;
+      state.nativeProviders.transak.buyQuote.status = RequestStatus.LOADING;
     });
     try {
       const quote = await this.messenger.call(
@@ -2127,6 +2198,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.data = quote;
         state.nativeProviders.transak.buyQuote.isLoading = false;
+        state.nativeProviders.transak.buyQuote.status = RequestStatus.SUCCESS;
       });
       return quote;
     } catch (error) {
@@ -2134,6 +2206,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.isLoading = false;
         state.nativeProviders.transak.buyQuote.error = errorMessage;
+        state.nativeProviders.transak.buyQuote.status = RequestStatus.ERROR;
       });
       throw error;
     }
@@ -2152,6 +2225,8 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.kycRequirement.isLoading = true;
       state.nativeProviders.transak.kycRequirement.error = null;
+      state.nativeProviders.transak.kycRequirement.status =
+        RequestStatus.LOADING;
     });
     try {
       const requirement = await this.messenger.call(
@@ -2161,6 +2236,8 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.data = requirement;
         state.nativeProviders.transak.kycRequirement.isLoading = false;
+        state.nativeProviders.transak.kycRequirement.status =
+          RequestStatus.SUCCESS;
       });
       return requirement;
     } catch (error) {
@@ -2169,6 +2246,8 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.isLoading = false;
         state.nativeProviders.transak.kycRequirement.error = errorMessage;
+        state.nativeProviders.transak.kycRequirement.status =
+          RequestStatus.ERROR;
       });
       throw error;
     }
