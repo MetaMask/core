@@ -23,7 +23,7 @@ describe('GeolocationApiService', () => {
   });
 
   describe('GeolocationApiService:fetchGeolocation', () => {
-    it('returns the fetched country code', async () => {
+    it('returns the fetched location code', async () => {
       const { rootMessenger } = getService({
         options: { fetch: createMockFetch('GB') },
       });
@@ -264,13 +264,31 @@ describe('GeolocationApiService', () => {
         expect(result).toBe('US-NY');
       });
 
-      it('accepts a subdivision code with alphanumeric part', async () => {
-        const mockFetch = createMockFetch('CA-ON');
+      it('accepts a numeric subdivision code', async () => {
+        const mockFetch = createMockFetch('FR-75');
         const { service } = getService({ options: { fetch: mockFetch } });
 
         const result = await service.fetchGeolocation();
 
-        expect(result).toBe('CA-ON');
+        expect(result).toBe('FR-75');
+      });
+
+      it('accepts a single-character subdivision code', async () => {
+        const mockFetch = createMockFetch('ES-M');
+        const { service } = getService({ options: { fetch: mockFetch } });
+
+        const result = await service.fetchGeolocation();
+
+        expect(result).toBe('ES-M');
+      });
+
+      it('accepts a mixed alphanumeric subdivision code', async () => {
+        const mockFetch = createMockFetch('GB-H9');
+        const { service } = getService({ options: { fetch: mockFetch } });
+
+        const result = await service.fetchGeolocation();
+
+        expect(result).toBe('GB-H9');
       });
 
       it('returns UNKNOWN_LOCATION for non-ISO responses', async () => {
