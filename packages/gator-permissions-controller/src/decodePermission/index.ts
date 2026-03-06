@@ -1,7 +1,11 @@
 export {
-  identifyPermissionByEnforcers,
-  getPermissionDataAndExpiry,
+  findRuleWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
 } from './decodePermission';
+export { createPermissionRulesForContracts } from './rules';
 
-export type { DecodedPermission } from './types';
+export type {
+  DecodedPermission,
+  PermissionRule,
+  ValidateAndDecodeResult,
+} from './types';

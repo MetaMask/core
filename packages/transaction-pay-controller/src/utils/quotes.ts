@@ -71,6 +71,7 @@ export async function updateQuotes(
     isMaxAmount,
     isPostQuote,
     paymentToken: originalPaymentToken,
+    refundTo,
     sourceAmounts,
     tokens,
   } = transactionData;
@@ -95,6 +96,7 @@ export async function updateQuotes(
       isMaxAmount: isMaxAmount ?? false,
       isPostQuote,
       paymentToken,
+      refundTo,
       sourceAmounts,
       tokens,
       transactionId,
@@ -253,6 +255,7 @@ export async function refreshQuotes(
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
+ * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
  * @param request.transactionId - ID of the transaction.
@@ -263,6 +266,7 @@ function buildQuoteRequests({
   isMaxAmount,
   isPostQuote,
   paymentToken,
+  refundTo,
   sourceAmounts,
   tokens,
   transactionId,
@@ -271,6 +275,7 @@ function buildQuoteRequests({
   isMaxAmount: boolean;
   isPostQuote?: boolean;
   paymentToken: TransactionPaymentToken | undefined;
+  refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
   transactionId: string;
@@ -286,6 +291,7 @@ function buildQuoteRequests({
       from,
       isMaxAmount,
       destinationToken: paymentToken,
+      refundTo,
       sourceAmounts,
       transactionId,
     });
@@ -326,6 +332,7 @@ function buildQuoteRequests({
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
+ * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
  * @param request.transactionId - ID of the transaction.
  * @returns Array of quote requests for post-quote flow.
@@ -334,12 +341,14 @@ function buildPostQuoteRequests({
   from,
   isMaxAmount,
   destinationToken,
+  refundTo,
   sourceAmounts,
   transactionId,
 }: {
   from: Hex;
   isMaxAmount: boolean;
   destinationToken: TransactionPaymentToken;
+  refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   transactionId: string;
 }): QuoteRequest[] {
@@ -366,6 +375,7 @@ function buildPostQuoteRequests({
     from,
     isMaxAmount,
     isPostQuote: true,
+    refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     sourceChainId: sourceAmount.sourceChainId,

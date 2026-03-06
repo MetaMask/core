@@ -29,13 +29,17 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
 } from '@metamask/network-controller';
+import type {
+  NetworkEnablementControllerGetStateAction,
+  NetworkEnablementControllerListPopularEvmNetworksAction,
+} from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import { assert } from '@metamask/utils';
+import { assert, KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
@@ -197,6 +201,8 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkEnablementControllerGetStateAction
+  | NetworkEnablementControllerListPopularEvmNetworksAction
   | KeyringControllerGetStateAction;
 
 /**
@@ -262,6 +268,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #isOnboarded: () => boolean;
 
+  readonly #isHomepageSectionsV1Enabled: () => boolean;
+
   /** Track if the keyring is locked */
   #isLocked = true;
 
@@ -278,6 +286,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.allowExternalServices - Disable external HTTP calls (privacy / offline mode).
    * @param options.fetchingEnabled - Function that returns whether the controller is fetching enabled.
    * @param options.isOnboarded - Whether the user has completed onboarding. If false, balance updates are skipped.
+   * @param options.isHomepageSectionsV1Enabled - Whether the homepage sections v1 is enabled.
    */
   constructor({
     interval = 10000,
@@ -289,6 +298,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     allowExternalServices = (): boolean => true,
     fetchingEnabled = (): boolean => true,
     isOnboarded = (): boolean => true,
+    isHomepageSectionsV1Enabled = (): boolean => false,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
@@ -296,6 +306,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
     includeStakedAssets?: boolean;
     accountsApiChainIds?: () => ChainIdHex[];
+    isHomepageSectionsV1Enabled?: () => boolean;
     allowExternalServices?: () => boolean;
     fetchingEnabled?: () => boolean;
     isOnboarded?: () => boolean;
@@ -324,6 +335,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     this.#includeStakedAssets = includeStakedAssets;
     this.#accountsApiChainIds = accountsApiChainIds;
+    this.#isHomepageSectionsV1Enabled = isHomepageSectionsV1Enabled;
 
     // Initialize balance fetchers - Strategy order: API first, then RPC fallback
     this.#balanceFetchers = [
@@ -581,12 +593,37 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );
-    return Object.values(networkConfigurationsByChainId).flatMap(
-      (networkConfiguration) =>
-        networkConfiguration.rpcEndpoints.map(
-          (rpcEndpoint) => rpcEndpoint.networkClientId,
-        ),
+
+    if (this.#isHomepageSectionsV1Enabled()) {
+      const popularEvmChainIds = this.messenger.call(
+        'NetworkEnablementController:listPopularEvmNetworks',
+      );
+      return popularEvmChainIds
+        .map((hexChainId) => {
+          const networkConfig = networkConfigurationsByChainId[hexChainId];
+          return networkConfig?.rpcEndpoints[
+            networkConfig.defaultRpcEndpointIndex
+          ]?.networkClientId;
+        })
+        .filter((id): id is NetworkClientId => id !== undefined);
+    }
+
+    const { enabledNetworkMap } = this.messenger.call(
+      'NetworkEnablementController:getState',
     );
+
+    const evmEnabledStorageKeys = enabledNetworkMap[KnownCaipNamespace.Eip155]
+      ? Object.keys(enabledNetworkMap[KnownCaipNamespace.Eip155])
+      : [];
+
+    return evmEnabledStorageKeys
+      .map((hexChainId) => {
+        const networkConfig = networkConfigurationsByChainId[hexChainId as Hex];
+        return networkConfig?.rpcEndpoints[
+          networkConfig.defaultRpcEndpointIndex
+        ]?.networkClientId;
+      })
+      .filter((id): id is NetworkClientId => id !== undefined);
   }
 
   /**
