@@ -16,13 +16,13 @@ by `scope.value` to get expected bucket behavior.
   {
     "name": "Control is OFF",
     "scope": { "type": "threshold", "value": 0.1 },
-    "value": { "minimumVersion": "7.67.0", "variant": "treatment" }
+    "value": { "minimumVersion": "7.67.0", "variant": "treatment" },
   },
   {
     "name": "Control is ON",
     "scope": { "type": "threshold", "value": 1.0 },
-    "value": { "minimumVersion": "7.67.0", "variant": "control" }
-  }
+    "value": { "minimumVersion": "7.67.0", "variant": "control" },
+  },
 ]
 ```
 
@@ -33,13 +33,13 @@ by `scope.value` to get expected bucket behavior.
   {
     "name": "Control is ON",
     "scope": { "type": "threshold", "value": 1.0 },
-    "value": { "minimumVersion": "7.67.0", "variant": "control" }
+    "value": { "minimumVersion": "7.67.0", "variant": "control" },
   },
   {
     "name": "Control is OFF",
     "scope": { "type": "threshold", "value": 0.1 },
-    "value": { "minimumVersion": "7.67.0", "variant": "treatment" }
-  }
+    "value": { "minimumVersion": "7.67.0", "variant": "treatment" },
+  },
 ]
 ```
 
