@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Optional constructor option `getUseAssetsControllerForRates`: when it returns true, exchange rates are read from the new `@metamask/assets-controller` (`AssetsController:getExchangeRatesForBridge`) instead of `MultichainAssetsRatesController`, `TokenRatesController`, and `CurrencyRateController`. ([#8090](https://github.com/MetaMask/core/pull/8090))
+- Add `AssetPickerOpened` unified swap bridge metrics event with an `asset_location` property to indicate `'source'` or `'destination'`. ([#7985](https://github.com/MetaMask/core/pull/7985))
 
 ### Changed
 
