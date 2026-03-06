@@ -1,8 +1,4 @@
-import {
-  ORIGIN_METAMASK,
-  successfulFetch,
-  toHex,
-} from '@metamask/controller-utils';
+import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import type {
@@ -13,19 +9,24 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  RELAY_DEPOSIT_TYPES,
-  RELAY_POLLING_INTERVAL,
-  RELAY_STATUS_URL,
-} from './constants';
-import type { RelayQuote, RelayStatusResponse } from './types';
+import { RELAY_DEPOSIT_TYPES, RELAY_POLLING_INTERVAL } from './constants';
+import { getRelayStatus, submitRelayExecute } from './relay-api';
+import type {
+  RelayExecuteRequest,
+  RelayQuote,
+  RelayStatusResponse,
+} from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { getFeatureFlags } from '../../utils/feature-flags';
+import {
+  getFeatureFlags,
+  isEIP7702Chain,
+  isRelayExecuteEnabled,
+} from '../../utils/feature-flags';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -96,7 +97,24 @@ async function executeSingleQuote(
 
   await submitTransactions(quote, transaction, messenger);
 
-  const targetHash = await waitForRelayCompletion(quote.original);
+  const targetHash = await waitForRelayCompletion(
+    quote.original,
+    (sourceHash) => {
+      log('Source hash received', sourceHash);
+
+      updateTransaction(
+        {
+          transactionId: transaction.id,
+          messenger,
+          note: 'Add source hash from Relay status',
+        },
+        (tx) => {
+          tx.metamaskPay ??= {};
+          tx.metamaskPay.sourceHash = sourceHash;
+        },
+      );
+    },
+  );
 
   log('Relay request completed', targetHash);
 
@@ -118,9 +136,13 @@ async function executeSingleQuote(
  * Wait for a Relay request to complete.
  *
  * @param quote - Relay quote associated with the request.
+ * @param onSourceHash - Called with the source tx hash as soon as it appears.
  * @returns A promise that resolves when the Relay request is complete.
  */
-async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
+async function waitForRelayCompletion(
+  quote: RelayQuote,
+  onSourceHash?: (hash: Hex) => void,
+): Promise<Hex> {
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
     quote.details.currencyOut.currency.chainId;
@@ -134,17 +156,22 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
   }
 
   const { requestId } = quote.steps[0];
-  const url = `${RELAY_STATUS_URL}?requestId=${requestId}`;
+  let sourceHashEmitted = false;
 
   while (true) {
-    const response = await successfulFetch(url, { method: 'GET' });
-    const status = (await response.json()) as RelayStatusResponse;
+    const status: RelayStatusResponse = await getRelayStatus(requestId);
 
     log('Polled status', status.status, status);
 
+    if (!sourceHashEmitted && status.inTxHashes?.length) {
+      sourceHashEmitted = true;
+      onSourceHash?.(status.inTxHashes[0] as Hex);
+    }
+
     if (status.status === 'success') {
-      const targetHash = status.txHashes?.slice(-1)[0] as Hex;
-      return targetHash ?? FALLBACK_HASH;
+      const targetHash =
+        (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
+      return targetHash;
     }
 
     if (['failure', 'refund', 'refunded'].includes(status.status)) {
@@ -239,6 +266,13 @@ async function validateSourceBalance(
 /**
  * Submit transactions for a relay quote.
  *
+ * On EIP-7702 supported chains, combines the source calls via
+ * getDelegationTransaction and submits through Relay's /execute endpoint
+ * (gasless — Relay's relayer pays origin gas).
+ *
+ * On other chains, adds the transactions directly via the
+ * TransactionController and waits for on-chain confirmation.
+ *
  * @param quote - Relay quote.
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
@@ -281,8 +315,127 @@ async function submitTransactions(
         ]
       : normalizedParams;
 
+  const { sourceChainId } = quote.request;
+
+  if (
+    isRelayExecuteEnabled(messenger) &&
+    isEIP7702Chain(messenger, sourceChainId)
+  ) {
+    return await submitViaRelayExecute(
+      quote,
+      transaction,
+      messenger,
+      allParams,
+    );
+  }
+
+  return await submitViaTransactionController(
+    quote,
+    transaction,
+    messenger,
+    normalizedParams,
+    allParams,
+  );
+}
+
+/**
+ * Submit source transactions via Relay's /execute endpoint.
+ *
+ * Combines all source calls (approve + deposit, and optionally the
+ * original transaction for post-quote flows) into a single EIP-7702
+ * delegation transaction using getDelegationTransaction, then submits
+ * it to Relay's /execute endpoint for gasless execution.
+ *
+ * @param quote - Relay quote.
+ * @param transaction - Original transaction meta.
+ * @param messenger - Controller messenger.
+ * @param allParams - All source transaction params to combine.
+ * @returns Fallback hash (actual hash comes from relay status polling).
+ */
+async function submitViaRelayExecute(
+  quote: TransactionPayQuote<RelayQuote>,
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+  allParams: TransactionParams[],
+): Promise<Hex> {
+  const { from, sourceChainId } = quote.request;
+  const { requestId } = quote.original.steps[0];
+
+  const sourceCallTransaction = {
+    ...transaction,
+    chainId: sourceChainId,
+    nestedTransactions: allParams.map((params) => ({
+      data: (params.data ?? '0x') as Hex,
+      to: params.to as Hex,
+      value: (params.value ?? '0x0') as Hex,
+    })),
+  } as TransactionMeta;
+
+  const delegation = await messenger.call(
+    'TransactionPayController:getDelegationTransaction',
+    { transaction: sourceCallTransaction },
+  );
+
+  log('Delegation result for source calls', delegation);
+
+  const executeBody: RelayExecuteRequest = {
+    executionKind: 'rawCalls',
+    data: {
+      chainId: Number(sourceChainId),
+      to: delegation.to,
+      data: delegation.data,
+      value: String(Number(delegation.value)),
+      ...(delegation.authorizationList?.length
+        ? {
+            authorizationList: delegation.authorizationList.map((auth) => ({
+              chainId: Number(auth.chainId),
+              address: auth.address,
+              nonce: Number(auth.nonce),
+              yParity: Number(auth.yParity),
+              r: auth.r as Hex,
+              s: auth.s as Hex,
+            })),
+          }
+        : {}),
+    },
+    executionOptions: {
+      subsidizeFees: false,
+    },
+    requestId,
+  };
+
+  log('Submitting via Relay /execute', { executeBody, from });
+
+  const result = await submitRelayExecute(messenger, executeBody);
+
+  log('Relay /execute response', result);
+
+  return FALLBACK_HASH;
+}
+
+/**
+ * Submit source transactions via the TransactionController.
+ *
+ * Uses addTransaction for single params or addTransactionBatch for
+ * multiple params. Waits for all transactions to be confirmed on-chain.
+ *
+ * @param quote - Relay quote.
+ * @param transaction - Original transaction meta.
+ * @param messenger - Controller messenger.
+ * @param normalizedParams - Normalized relay-only params (without prepended original tx).
+ * @param allParams - All params including any prepended original tx for post-quote flows.
+ * @returns Hash of the last submitted transaction.
+ */
+async function submitViaTransactionController(
+  quote: TransactionPayQuote<RelayQuote>,
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+  normalizedParams: TransactionParams[],
+  allParams: TransactionParams[],
+): Promise<Hex> {
   const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { isPostQuote } = quote.request;
 
   const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',

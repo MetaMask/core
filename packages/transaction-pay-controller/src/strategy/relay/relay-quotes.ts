@@ -1,7 +1,7 @@
 /* eslint-disable require-atomic-updates */
 
 import { Interface } from '@ethersproject/abi';
-import { successfulFetch, toHex } from '@metamask/controller-utils';
+import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -11,6 +11,7 @@ import {
   getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
 } from './gas-station';
+import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
@@ -37,8 +38,11 @@ import type {
 } from '../../types';
 import { getFiatValueFromUsd } from '../../utils/amounts';
 import {
+  isEIP7702Chain,
+  isRelayExecuteEnabled,
   getFeatureFlags,
   getGasBuffer,
+  getRelayOriginGasOverhead,
   getSlippage,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
@@ -143,12 +147,19 @@ async function getSingleQuote(
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
 
+    const useExecute =
+      isRelayExecuteEnabled(messenger) &&
+      isEIP7702Chain(messenger, sourceChainId);
+
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
       originCurrency: sourceTokenAddress,
+      ...(useExecute
+        ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
+        : {}),
       recipient: from,
       slippageTolerance,
       tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
@@ -166,18 +177,9 @@ async function getSingleQuote(
       body.refundTo = request.refundTo;
     }
 
-    const url = getFeatureFlags(messenger).relayQuoteUrl;
+    log('Request body', body);
 
-    log('Request body', { body, url });
-
-    const response = await successfulFetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-    const quote = (await response.json()) as RelayQuote;
-    quote.request = body;
+    const quote = await fetchRelayQuote(messenger, body);
 
     log('Fetched relay quote', quote);
 
