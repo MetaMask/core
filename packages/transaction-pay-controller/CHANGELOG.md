@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.4.0]
+
 ### Added
 
 - Add a dedicated max-amount gas-station fallback flow for Relay quoting ([#7927](https://github.com/MetaMask/core/pull/7927))
@@ -482,7 +484,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.0...HEAD
+[16.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.3.0...@metamask/transaction-pay-controller@16.4.0
 [16.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.2.0...@metamask/transaction-pay-controller@16.3.0
 [16.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.2...@metamask/transaction-pay-controller@16.2.0
 [16.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.1...@metamask/transaction-pay-controller@16.1.2
