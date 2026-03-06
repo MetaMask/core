@@ -898,7 +898,7 @@ describe('metrics utils', () => {
       expect(result.account_hardware_type).toBe('Ledger');
     });
 
-    it('should normalize Lattice accounts to GridPlus', () => {
+    it('should keep Lattice accounts as Lattice', () => {
       const latticeAccount = {
         id: 'test-account',
         type: 'eip155:eoa' as const,
@@ -917,7 +917,7 @@ describe('metrics utils', () => {
 
       const result = getRequestMetadataFromHistory(mockHistoryItem, latticeAccount);
       expect(result.is_hardware_wallet).toBe(true);
-      expect(result.account_hardware_type).toBe('GridPlus');
+      expect(result.account_hardware_type).toBe('Lattice');
     });
 
     it('should handle missing pricing data', () => {

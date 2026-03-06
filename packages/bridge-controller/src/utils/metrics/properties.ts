@@ -119,7 +119,7 @@ export const getAccountHardwareType = (
     case 'QR Hardware Wallet Device':
       return 'QR Hardware';
     case 'Lattice Hardware':
-      return 'GridPlus';
+      return 'Lattice';
     default:
       return null;
   }

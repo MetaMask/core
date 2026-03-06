@@ -245,7 +245,7 @@ describe('properties', () => {
       ['Ledger Hardware', 'Ledger'],
       ['Trezor Hardware', 'Trezor'],
       ['QR Hardware Wallet Device', 'QR Hardware'],
-      ['Lattice Hardware', 'GridPlus'],
+      ['Lattice Hardware', 'Lattice'],
     ] as const)('maps %s to %s', (keyringType, expected) => {
       const account = {
         metadata: {

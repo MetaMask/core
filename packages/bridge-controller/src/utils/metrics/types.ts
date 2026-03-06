@@ -26,7 +26,7 @@ export type AccountHardwareType =
   | 'Ledger'
   | 'Trezor'
   | 'QR Hardware'
-  | 'GridPlus'
+  | 'Lattice'
   | null;
 
 export type RequestMetadata = {
