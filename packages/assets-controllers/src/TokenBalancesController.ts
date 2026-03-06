@@ -866,18 +866,20 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           const resultUnsupportedTokenChains = Object.entries(
             result.unprocessedTokens ?? {},
           ).flatMap(([_account, chainMap]) => Object.keys(chainMap)) as Hex[];
-
-          remainingChains = Array.from(
+          const unprocessedChainIds = Array.from(
             new Set([
-              ...remainingChains,
               ...resultUnprocessedChains,
               ...resultUnsupportedTokenChains,
             ]),
           );
 
+          remainingChains = Array.from(
+            new Set([...remainingChains, ...unprocessedChainIds]),
+          );
+
           this.messenger
             .call('TokenDetectionController:detectTokens', {
-              chainIds: result.unprocessedChainIds,
+              chainIds: unprocessedChainIds,
               forceRpc: true,
             })
             .catch(() => {
