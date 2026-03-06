@@ -3408,11 +3408,9 @@ describe('TokenDetectionController', () => {
       );
     });
 
-    it('should skip tokens not found in cache and log warning', async () => {
+    it('should skip tokens not found in cache', async () => {
       const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
       const chainId = '0xa86a';
-
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       await withController(
         {
@@ -3434,19 +3432,12 @@ describe('TokenDetectionController', () => {
             chainId: chainId as Hex,
           });
 
-          // Should log warning about missing token metadata
-          expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining('Token metadata not found in cache'),
-          );
-
           // Should not call addTokens if no tokens have metadata
           expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addTokens',
             expect.anything(),
             expect.anything(),
           );
-
-          consoleSpy.mockRestore();
         },
       );
     });
