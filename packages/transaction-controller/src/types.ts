@@ -2125,6 +2125,9 @@ export type MetamaskPayMetadata = {
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
 
+  /** Source chain transaction hash if no local transaction. */
+  sourceHash?: Hex;
+
   /** Total amount of target token provided in fiat currency. */
   targetFiat?: string;
 

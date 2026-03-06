@@ -2,7 +2,7 @@ import { TransactionType } from '@metamask/transaction-controller';
 
 export const RELAY_URL_BASE = 'https://api.relay.link';
 export const RELAY_EXECUTE_URL = `${RELAY_URL_BASE}/execute`;
-export const RELAY_QUOTE_V2_URL = `${RELAY_URL_BASE}/quote/v2`;
+export const RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const RELAY_STATUS_URL = `${RELAY_URL_BASE}/intents/status/v3`;
 export const RELAY_POLLING_INTERVAL = 1000; // 1 Second
 export const TOKEN_TRANSFER_FOUR_BYTE = '0xa9059cbb';

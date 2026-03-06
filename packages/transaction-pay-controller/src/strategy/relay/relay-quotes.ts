@@ -39,8 +39,10 @@ import type {
 import { getFiatValueFromUsd } from '../../utils/amounts';
 import {
   isEIP7702Chain,
+  isRelayExecuteEnabled,
   getFeatureFlags,
   getGasBuffer,
+  getRelayOriginGasOverhead,
   getSlippage,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
@@ -145,7 +147,9 @@ async function getSingleQuote(
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
 
-    const isEIP7702Source = isEIP7702Chain(messenger, sourceChainId);
+    const useExecute =
+      isRelayExecuteEnabled(messenger) &&
+      isEIP7702Chain(messenger, sourceChainId);
 
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
@@ -153,7 +157,9 @@ async function getSingleQuote(
       destinationCurrency: targetTokenAddress,
       originChainId: Number(sourceChainId),
       originCurrency: sourceTokenAddress,
-      ...(isEIP7702Source ? { originGasOverhead: '300000' } : {}),
+      ...(useExecute
+        ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
+        : {}),
       recipient: from,
       slippageTolerance,
       tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
