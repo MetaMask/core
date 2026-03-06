@@ -81,13 +81,7 @@ export async function updateFirstTimeInteraction({
   } = transactionMeta;
 
   let recipient;
-  if (
-    data &&
-    [
-      TransactionType.tokenMethodTransfer,
-      TransactionType.tokenMethodTransferFrom,
-    ].includes(type as TransactionType)
-  ) {
+  if (data && TOKEN_TRANSFER_TYPES.includes(type as TransactionType)) {
     const parsedData = decodeTransactionData(data) as TransactionDescription;
     // _to is for ERC20, ERC721 and USDC
     // to is for ERC1155
