@@ -844,8 +844,8 @@ describe('AccountsApiBalanceFetcher', () => {
       expect(result.balances).toHaveLength(1);
       expect(result.balances[0].token).toStrictEqual(ZERO_ADDRESS);
       expect(result.unprocessedTokens).toStrictEqual({
-        '0x1': {
-          [MOCK_ADDRESS_1]: [trackedToken.toLowerCase()],
+        [MOCK_ADDRESS_1]: {
+          '0x1': [trackedToken.toLowerCase()],
         },
       });
     });
@@ -886,14 +886,14 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      expect(result.unprocessedTokens?.['0x1']).toStrictEqual(
+      expect(result.unprocessedTokens?.[MOCK_ADDRESS_1]).toStrictEqual(
         expect.objectContaining({
-          [MOCK_ADDRESS_1]: [selectedAccountToken.toLowerCase()],
+          '0x1': [selectedAccountToken.toLowerCase()],
         }),
       );
 
       const excludedAccountUnprocessedTokens =
-        result.unprocessedTokens?.['0x1']?.[MOCK_ADDRESS_2];
+        result.unprocessedTokens?.[MOCK_ADDRESS_2]?.['0x1'];
       expect(excludedAccountUnprocessedTokens).toBeUndefined();
     });
 
@@ -942,14 +942,14 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      expect(result.unprocessedTokens?.['0x1']).toStrictEqual(
+      expect(result.unprocessedTokens?.[MOCK_ADDRESS_1]).toStrictEqual(
         expect.objectContaining({
-          [MOCK_ADDRESS_1]: [includedAccountToken.toLowerCase()],
+          '0x1': [includedAccountToken.toLowerCase()],
         }),
       );
 
       const excludedAccountUnprocessedTokens =
-        result.unprocessedTokens?.['0x1']?.[excludedAccount];
+        result.unprocessedTokens?.[excludedAccount]?.['0x1'];
       expect(excludedAccountUnprocessedTokens).toBeUndefined();
     });
 

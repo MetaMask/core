@@ -89,10 +89,11 @@ export class RpcBalanceFetcher implements BalanceFetcher {
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<BalanceFetchResult> {
     // Process all chains in parallel for better performance
     const chainProcessingPromises = chainIds.map(async (chainId) => {
-      const chainUnprocessedTokens = unprocessedTokens?.[chainId];
       const hasUnprocessedTokensForChain = Boolean(
-        chainUnprocessedTokens &&
-          Object.keys(chainUnprocessedTokens).length > 0,
+        unprocessedTokens &&
+          Object.values(unprocessedTokens).some(
+            (tokensByChain) => (tokensByChain[chainId]?.length ?? 0) > 0,
+          ),
       );
 
       let accountTokenGroups: {
@@ -102,7 +103,8 @@ export class RpcBalanceFetcher implements BalanceFetcher {
 
       if (hasUnprocessedTokensForChain) {
         accountTokenGroups = buildUnprocessedAccountTokenGroupsStatic(
-          chainUnprocessedTokens as Record<string, string[]>,
+          unprocessedTokens as UnprocessedTokens,
+          chainId,
           queryAllAccounts,
           selectedAccount,
           allAccounts,
@@ -324,7 +326,8 @@ function buildAccountTokenGroupsStatic(
 }
 
 function buildUnprocessedAccountTokenGroupsStatic(
-  chainUnprocessedTokens: Record<string, string[]>,
+  unprocessedTokens: UnprocessedTokens,
+  chainId: ChainIdHex,
   queryAllAccounts: boolean,
   selectedAccount: ChecksumAddress,
   allAccounts: InternalAccount[],
@@ -335,15 +338,16 @@ function buildUnprocessedAccountTokenGroupsStatic(
       : [selectedAccount.toLowerCase()],
   );
 
-  return Object.entries(chainUnprocessedTokens)
-    .filter(([accountAddress, tokenAddresses]) => {
+  return Object.entries(unprocessedTokens)
+    .filter(([accountAddress, tokensByChain]) => {
+      const tokenAddresses = tokensByChain[chainId];
       return (
         includedAccounts.has(accountAddress.toLowerCase()) &&
-        tokenAddresses.length > 0
+        (tokenAddresses?.length ?? 0) > 0
       );
     })
-    .map(([accountAddress, tokenAddresses]) => ({
+    .map(([accountAddress, tokensByChain]) => ({
       accountAddress: accountAddress as ChecksumAddress,
-      tokenAddresses: tokenAddresses as ChecksumAddress[],
+      tokenAddresses: tokensByChain[chainId] as ChecksumAddress[],
     }));
 }

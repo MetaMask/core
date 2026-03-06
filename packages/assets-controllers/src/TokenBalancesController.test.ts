@@ -6714,8 +6714,8 @@ describe('TokenBalancesController', () => {
             },
           ],
           unprocessedTokens: {
-            [chainId]: {
-              [accountAddress]: [token1],
+            [accountAddress]: {
+              [chainId]: [token1],
             },
           },
         });
@@ -6752,8 +6752,8 @@ describe('TokenBalancesController', () => {
         expect.objectContaining({
           chainIds: [chainId],
           unprocessedTokens: {
-            [chainId]: {
-              [accountAddress]: [token1],
+            [accountAddress]: {
+              [chainId]: [token1],
             },
           },
         }),

@@ -343,8 +343,8 @@ describe('RpcBalanceFetcher', () => {
         selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
         unprocessedTokens: {
-          [MOCK_CHAIN_ID]: {
-            [MOCK_ADDRESS_1]: [MOCK_TOKEN_ADDRESS_1],
+          [MOCK_ADDRESS_1]: {
+            [MOCK_CHAIN_ID]: [MOCK_TOKEN_ADDRESS_1],
           },
         },
       });

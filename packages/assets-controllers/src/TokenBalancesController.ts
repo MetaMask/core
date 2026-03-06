@@ -824,14 +824,26 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     const getUnprocessedTokensForChains = (
       chains: ChainIdHex[],
     ): UnprocessedTokens | undefined => {
-      const filteredUnprocessedTokens = chains.reduce<UnprocessedTokens>(
-        (accumulator, chainId) => {
-          if (unprocessedTokens[chainId]) {
-            accumulator[chainId] = unprocessedTokens[chainId];
+      const chainSet = new Set(chains);
+      const filteredUnprocessedTokens: UnprocessedTokens = {};
+
+      Object.entries(unprocessedTokens).forEach(
+        ([account, unprocessedTokensByChain]) => {
+          const filteredByChain: Record<ChainIdHex, string[]> = {};
+
+          Object.entries(unprocessedTokensByChain).forEach(
+            ([chainId, tokenAddresses]) => {
+              const chainIdHex = chainId as ChainIdHex;
+              if (chainSet.has(chainIdHex) && tokenAddresses.length > 0) {
+                filteredByChain[chainIdHex] = tokenAddresses;
+              }
+            },
+          );
+
+          if (Object.keys(filteredByChain).length > 0) {
+            filteredUnprocessedTokens[account] = filteredByChain;
           }
-          return accumulator;
         },
-        {},
       );
 
       return Object.keys(filteredUnprocessedTokens).length > 0
@@ -847,25 +859,18 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
 
       Object.entries(incomingUnprocessedTokens).forEach(
-        ([chainId, accountsWithTokens]) => {
-          if (!accountsWithTokens) {
-            return;
-          }
+        ([account, tokensByChainId]) => {
+          unprocessedTokens[account] ??= {};
+          const currentTokensByChainId = unprocessedTokens[account];
 
-          const chainIdHex = chainId as ChainIdHex;
-          unprocessedTokens[chainIdHex] ??= {};
-          const currentChainTokens = unprocessedTokens[chainIdHex] as Record<
-            string,
-            string[]
-          >;
-
-          Object.entries(accountsWithTokens).forEach(([account, tokens]) => {
+          Object.entries(tokensByChainId).forEach(([chainId, tokens]) => {
             if (!tokens.length) {
               return;
             }
 
-            currentChainTokens[account] ??= [];
-            const currentAccountTokens = currentChainTokens[account];
+            const chainIdHex = chainId as ChainIdHex;
+            currentTokensByChainId[chainIdHex] ??= [];
+            const currentAccountTokens = currentTokensByChainId[chainIdHex];
             const existingTokenSet = new Set(
               currentAccountTokens.map((token) => token.toLowerCase()),
             );
@@ -880,6 +885,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           });
         },
       );
+    };
+
+    const removeChainFromUnprocessedTokens = (chainId: ChainIdHex): void => {
+      Object.keys(unprocessedTokens).forEach((account) => {
+        delete unprocessedTokens[account][chainId];
+        if (Object.keys(unprocessedTokens[account]).length === 0) {
+          delete unprocessedTokens[account];
+        }
+      });
     };
 
     for (const fetcher of this.#balanceFetchers) {
@@ -909,7 +923,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           );
 
           processed.forEach((chainId) => {
-            delete unprocessedTokens[chainId];
+            removeChainFromUnprocessedTokens(chainId);
           });
         }
 
@@ -932,16 +946,22 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
             });
 
           result.unprocessedChainIds.forEach((chainId) => {
-            delete unprocessedTokens[chainId];
+            removeChainFromUnprocessedTokens(chainId);
           });
         }
 
         if (result.unprocessedTokens) {
           mergeUnprocessedTokens(result.unprocessedTokens);
 
-          const unprocessedTokenChainIds = Object.keys(
-            result.unprocessedTokens,
-          ) as ChainIdHex[];
+          const unprocessedTokenChainIdsSet = new Set<ChainIdHex>();
+          Object.values(result.unprocessedTokens).forEach((tokensByChainId) => {
+            Object.keys(tokensByChainId).forEach((chainId) => {
+              unprocessedTokenChainIdsSet.add(chainId as ChainIdHex);
+            });
+          });
+          const unprocessedTokenChainIds = Array.from(
+            unprocessedTokenChainIdsSet,
+          );
           const currentRemaining = [...remainingChains];
           const chainsToAdd = unprocessedTokenChainIds.filter(
             (chainId) =>

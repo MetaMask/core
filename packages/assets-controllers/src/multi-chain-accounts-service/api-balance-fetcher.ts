@@ -39,9 +39,14 @@ export type ProcessedBalance = {
   chainId: ChainIdHex;
 };
 
-export type UnprocessedTokens = Partial<
-  Record<ChainIdHex, Record<string, string[]>>
->;
+/**
+ * Account -> ChainId -> TokenAddress[]
+ */
+export type UnprocessedTokens = {
+  [account: string]: {
+    [chainId: ChainIdHex]: string[];
+  };
+};
 
 export type BalanceFetchResult = {
   balances: ProcessedBalance[];
@@ -424,18 +429,14 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     const unprocessedTokens: UnprocessedTokens = {};
 
     const addUnprocessedToken = (
-      chainId: ChainIdHex,
       account: string,
+      chainId: ChainIdHex,
       tokenAddress: string,
     ): void => {
-      unprocessedTokens[chainId] ??= {};
-      const chainUnprocessedTokens = unprocessedTokens[chainId] as Record<
-        string,
-        string[]
-      >;
-
-      chainUnprocessedTokens[account] ??= [];
-      const accountUnprocessedTokens = chainUnprocessedTokens[account];
+      unprocessedTokens[account] ??= {};
+      const accountUnprocessedTokensByChain = unprocessedTokens[account];
+      accountUnprocessedTokensByChain[chainId] ??= [];
+      const accountUnprocessedTokens = accountUnprocessedTokensByChain[chainId];
       if (!accountUnprocessedTokens.includes(tokenAddress)) {
         accountUnprocessedTokens.push(tokenAddress);
       }
@@ -491,8 +492,8 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
             if (isERC && shouldZeroOutBalance) {
               addUnprocessedToken(
-                chainId as ChainIdHex,
                 account,
+                chainId as ChainIdHex,
                 tokenLowerCase,
               );
             }
