@@ -449,12 +449,12 @@ describe('RemoteFeatureFlagController', () => {
 
       // Current behavior is order-dependent: first matching threshold wins.
       // Since threshold 1 is first and every generated threshold is <= 1, this variation is always selected.
-      expect(controller.state.remoteFeatureFlags.tokenDetailsV2AbTest).toStrictEqual(
-        {
-          name: 'Control is ON',
-          value: { minimumVersion: '7.67.0', variant: 'control' },
-        },
-      );
+      expect(
+        controller.state.remoteFeatureFlags.tokenDetailsV2AbTest,
+      ).toStrictEqual({
+        name: 'Control is ON',
+        value: { minimumVersion: '7.67.0', variant: 'control' },
+      });
     });
 
     it('preserves non-threshold feature flags unchanged', async () => {
