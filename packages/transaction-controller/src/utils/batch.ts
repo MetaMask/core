@@ -301,6 +301,7 @@ async function addTransactionBatchWith7702(
     gasLimit7702,
     networkClientId,
     origin,
+    actionId,
     overwriteUpgrade,
     requestId,
     requiredAssets,
@@ -428,8 +429,10 @@ async function addTransactionBatchWith7702(
   }
 
   const { result } = await addTransaction(txParams, {
+    actionId,
     batchId,
     gasFeeToken,
+    excludeNativeTokenForFee: userRequest.excludeNativeTokenForFee,
     isGasFeeIncluded: userRequest.isGasFeeIncluded,
     isGasFeeSponsored: userRequest.isGasFeeSponsored,
     nestedTransactions,
