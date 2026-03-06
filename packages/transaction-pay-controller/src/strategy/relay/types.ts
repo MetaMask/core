@@ -73,6 +73,7 @@ export type RelayQuote = {
   };
   metamask: {
     gasLimits: number[];
+    isMaxGasStation?: boolean;
   };
   request: RelayQuoteRequest;
   steps: {
