@@ -121,15 +121,24 @@ describe('SnapPlatformWatcher', () => {
       const { rootMessenger, messenger } = setup();
       const watcher = new SnapPlatformWatcher(messenger);
 
+      // Make platform ready
       publishIsReadyState(rootMessenger, true);
+
+      // Should work
       expect(await watcher.ensureCanUseSnapPlatform()).toBeUndefined();
 
+      // Make platform unavailable.
       publishIsReadyState(rootMessenger, false);
+
+      // Should fail.
       await expect(watcher.ensureCanUseSnapPlatform()).rejects.toThrow(
         'Snap platform cannot be used now.',
       );
 
+      // Make platform ready again.
       publishIsReadyState(rootMessenger, true);
+
+      // Should work again.
       expect(await watcher.ensureCanUseSnapPlatform()).toBeUndefined();
     });
 
@@ -215,6 +224,7 @@ describe('SnapPlatformWatcher', () => {
     it('resolves immediately if platform is already ready', async () => {
       const { messenger, mocks } = setup();
 
+      // Make the platform ready before creating the watcher.
       mocks.SnapController.getState.mockReturnValue({
         isReady: true,
       } as SnapControllerState);
