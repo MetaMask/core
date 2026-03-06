@@ -300,6 +300,108 @@ describe('updateFirstTimeInteraction', () => {
         expect(mockGetAccountAddressRelationship).toHaveBeenCalled();
         expect(mockUpdateTransactionInternal).toHaveBeenCalled();
       });
+
+      it('proceeds for ERC20 when existing tx has same contract (txParams.to) but different decoded recipient', async () => {
+        const tokenContract = '0xcontract';
+        const currentRecipient = '0xrecipientA';
+        const otherRecipient = '0xrecipientB';
+
+        const currentTx: TransactionMeta = {
+          ...mockTransactionMeta,
+          id: 'current-tx',
+          type: TransactionType.tokenMethodTransfer,
+          txParams: {
+            ...mockTransactionMeta.txParams,
+            to: tokenContract,
+            data: '0xdata',
+          },
+        } as unknown as TransactionMeta;
+
+        const existingTxSameContract: TransactionMeta = {
+          ...mockTransactionMeta,
+          id: 'existing-tx',
+          type: TransactionType.tokenMethodTransfer,
+          txParams: {
+            ...mockTransactionMeta.txParams,
+            from: '0xfrom',
+            to: tokenContract,
+            data: '0xother',
+          },
+        } as unknown as TransactionMeta;
+
+        mockDecodeTransactionData
+          .mockReturnValueOnce({
+            name: 'transfer',
+            args: { _to: currentRecipient },
+          } as unknown as ReturnType<typeof decodeTransactionData>)
+          .mockReturnValueOnce({
+            name: 'transfer',
+            args: { _to: otherRecipient },
+          } as unknown as ReturnType<typeof decodeTransactionData>);
+
+        mockGetAccountAddressRelationship.mockResolvedValue({ count: 0 });
+
+        await updateFirstTimeInteraction({
+          existingTransactions: [existingTxSameContract],
+          getTransaction: mockGetTransaction,
+          isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
+          trace: mockTrace,
+          transactionMeta: currentTx,
+          updateTransaction: mockUpdateTransactionInternal,
+        });
+
+        expect(mockGetAccountAddressRelationship).toHaveBeenCalledWith({
+          chainId: 1,
+          to: currentRecipient,
+          from: '0xfrom',
+        });
+        expect(mockUpdateTransactionInternal).toHaveBeenCalled();
+      });
+
+      it('returns early for ERC20 when existing tx has same effective recipient (decoded)', async () => {
+        const tokenContract = '0xcontract';
+        const recipient = '0xrecipientA';
+
+        const currentTx: TransactionMeta = {
+          ...mockTransactionMeta,
+          id: 'current-tx',
+          type: TransactionType.tokenMethodTransfer,
+          txParams: {
+            ...mockTransactionMeta.txParams,
+            to: tokenContract,
+            data: '0xdata',
+          },
+        } as unknown as TransactionMeta;
+
+        const existingTxSameRecipient: TransactionMeta = {
+          ...mockTransactionMeta,
+          id: 'existing-tx',
+          type: TransactionType.tokenMethodTransfer,
+          txParams: {
+            ...mockTransactionMeta.txParams,
+            from: '0xfrom',
+            to: tokenContract,
+            data: '0xother',
+          },
+        } as unknown as TransactionMeta;
+
+        mockDecodeTransactionData.mockReturnValue({
+          name: 'transfer',
+          args: { _to: recipient },
+        } as unknown as ReturnType<typeof decodeTransactionData>);
+
+        await updateFirstTimeInteraction({
+          existingTransactions: [existingTxSameRecipient],
+          getTransaction: mockGetTransaction,
+          isFirstTimeInteractionEnabled: mockIsFirstTimeInteractionEnabled,
+          trace: mockTrace,
+          transactionMeta: currentTx,
+          updateTransaction: mockUpdateTransactionInternal,
+        });
+
+        expect(mockGetAccountAddressRelationship).not.toHaveBeenCalled();
+        expect(mockUpdateTransactionInternal).not.toHaveBeenCalled();
+      });
     });
 
     describe('API integration', () => {

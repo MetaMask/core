@@ -10,6 +10,27 @@ import { projectLogger as log } from '../logger';
 import { TransactionType } from '../types';
 import type { TransactionMeta } from '../types';
 
+const TOKEN_TRANSFER_TYPES = [
+  TransactionType.tokenMethodTransfer,
+  TransactionType.tokenMethodTransferFrom,
+];
+
+/**
+ * Returns the effective recipient for first-time-interaction checks (decoded from data for token transfers).
+ * Used when comparing existing transactions so we match by actual recipient, not txParams.to (contract for ERC20).
+ *
+ * @param tx - Transaction meta with txParams and type
+ * @returns Effective recipient address, or undefined
+ */
+function getEffectiveRecipient(tx: TransactionMeta): string | undefined {
+  const { data, to } = tx?.txParams ?? {};
+  if (data && TOKEN_TRANSFER_TYPES.includes(tx?.type as TransactionType)) {
+    const parsed = decodeTransactionData(data) as TransactionDescription;
+    return (parsed?.args?._to ?? parsed?.args?.to ?? to) as string | undefined;
+  }
+  return to;
+}
+
 type UpdateFirstTimeInteractionRequest = {
   existingTransactions: TransactionMeta[];
   getTransaction: (transactionId: string) => TransactionMeta | undefined;
@@ -60,13 +81,7 @@ export async function updateFirstTimeInteraction({
   } = transactionMeta;
 
   let recipient;
-  if (
-    data &&
-    [
-      TransactionType.tokenMethodTransfer,
-      TransactionType.tokenMethodTransferFrom,
-    ].includes(type as TransactionType)
-  ) {
+  if (data && TOKEN_TRANSFER_TYPES.includes(type as TransactionType)) {
     const parsedData = decodeTransactionData(data) as TransactionDescription;
     // _to is for ERC20, ERC721 and USDC
     // to is for ERC1155
@@ -84,16 +99,17 @@ export async function updateFirstTimeInteraction({
 
   validateParamTo(recipient);
 
+  const recipientLower = recipient?.toLowerCase();
   const existingTransaction = existingTransactions.find(
     (tx) =>
+      tx.id !== transactionId &&
       tx.chainId === chainId &&
-      tx.txParams.from.toLowerCase() === from.toLowerCase() &&
-      tx.txParams.to?.toLowerCase() === to?.toLowerCase() &&
-      tx.id !== transactionId,
+      tx.txParams?.from?.toLowerCase() === from?.toLowerCase() &&
+      getEffectiveRecipient(tx)?.toLowerCase() === recipientLower,
   );
 
-  // Check if there is an existing transaction with the same from, to, and chainId
-  // else we continue to check the account address relationship from API
+  // Skip API call only if we already have a tx with same from and same effective recipient (e.g. duplicate or pending).
+  // For ERC20, effective recipient is decoded from data; using txParams.to would wrongly match any send of that token.
   if (existingTransaction) {
     return;
   }
