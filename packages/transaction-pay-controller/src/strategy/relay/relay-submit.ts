@@ -328,6 +328,26 @@ async function submitTransactions(
     ? sourceTokenAddress
     : undefined;
 
+  console.log('[relay-submit] submitTransactions', {
+    isPostQuote,
+    gasFeeToken,
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceAmount: quote.sourceAmount,
+    sourceNetworkFees: quote.fees.sourceNetwork,
+    gasLimits: quote.original.metamask.gasLimits,
+    allParamsCount: allParams.length,
+    allParamsTo: allParams.map((p) => p.to),
+    relaySteps: quote.original.steps.map((s) => ({
+      id: s.id,
+      itemCount: s.items.length,
+    })),
+    relayDepositData: params.map((p) => ({
+      to: p.to,
+      value: p.value,
+      dataLength: p.data?.length,
+    })),
+  });
+
   const isSameChain =
     quote.original.details.currencyIn.currency.chainId ===
     quote.original.details.currencyOut.currency.chainId;

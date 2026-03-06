@@ -2234,6 +2234,7 @@ export type AddTransactionOptions = {
 
   /** Type of transaction to add, such as 'cancel' or 'swap'. */
   type?: TransactionType;
+
 };
 
 /**

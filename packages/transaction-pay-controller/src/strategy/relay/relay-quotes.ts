@@ -98,10 +98,75 @@ async function getQuoteWithMaxAmountHandling(
   const { isMaxAmount } = request;
 
   if (!isMaxAmount) {
-    return getSingleQuote(request, fullRequest);
+    return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
   return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
+}
+
+/**
+ * For post-quote flows, fetch an initial quote to compute gas cost in source
+ * token, then re-quote with the source amount reduced by the gas cost.
+ * This ensures Relay reserves enough for the gas fee token payment.
+ *
+ * For non-post-quote flows, just returns a single quote.
+ *
+ * @param request - Quote request.
+ * @param fullRequest - Full request context.
+ * @returns The final quote (phase 2 for post-quote, or phase 1 for normal).
+ */
+async function getQuoteWithPostQuoteGasHandling(
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+): Promise<TransactionPayQuote<RelayQuote>> {
+  const phase1Quote = await getSingleQuote(request, fullRequest);
+
+  console.log('[relay-quotes] getQuoteWithPostQuoteGasHandling', {
+    isPostQuote: request.isPostQuote,
+    isSourceGasFeeToken: phase1Quote.fees.isSourceGasFeeToken,
+  });
+
+  if (!request.isPostQuote || !phase1Quote.fees.isSourceGasFeeToken) {
+    return phase1Quote;
+  }
+
+  const gasCostRaw = phase1Quote.fees.sourceNetwork.max.raw;
+
+  const adjustedSourceAmount = new BigNumber(request.sourceTokenAmount)
+    .minus(gasCostRaw)
+    .integerValue(BigNumber.ROUND_DOWN);
+
+  console.log('[relay-quotes] post-quote two-call: subtracting gas from source', {
+    originalSourceAmount: request.sourceTokenAmount,
+    gasCostRaw,
+    adjustedSourceAmount: adjustedSourceAmount.toString(10),
+  });
+
+  if (!adjustedSourceAmount.isGreaterThan(0)) {
+    log('Insufficient balance after gas subtraction for post-quote, using phase 1');
+    return phase1Quote;
+  }
+
+  try {
+    const phase2Quote = await getSingleQuote(
+      {
+        ...request,
+        sourceTokenAmount: adjustedSourceAmount.toFixed(0, BigNumber.ROUND_DOWN),
+      },
+      fullRequest,
+    );
+
+    console.log('[relay-quotes] post-quote phase 2 quote', {
+      isSourceGasFeeToken: phase2Quote.fees.isSourceGasFeeToken,
+      sourceNetworkMax: phase2Quote.fees.sourceNetwork.max.raw,
+      targetAmount: phase2Quote.targetAmount,
+    });
+
+    return phase2Quote;
+  } catch (error) {
+    log('Phase 2 quote failed, falling back to phase 1', { error });
+    return phase1Quote;
+  }
 }
 
 /**

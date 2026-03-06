@@ -145,6 +145,18 @@ export async function checkGasFeeTokenBeforePublish({
 }): Promise<void> {
   const { isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } = transaction;
 
+  console.log('[gas-fee-tokens] checkGasFeeTokenBeforePublish', {
+    selectedGasFeeToken,
+    isGasFeeTokenIgnoredIfBalance,
+    type: transaction.type,
+    metamaskPay: transaction.metamaskPay,
+    nestedTxCount: transaction.nestedTransactions?.length,
+    nestedTxs: transaction.nestedTransactions?.map((nt) => ({
+      type: nt.type,
+      isPostQuote: (nt as Record<string, unknown>).isPostQuote,
+    })),
+  });
+
   if (!selectedGasFeeToken || !isGasFeeTokenIgnoredIfBalance) {
     return;
   }
