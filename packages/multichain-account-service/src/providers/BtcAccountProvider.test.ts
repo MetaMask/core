@@ -98,6 +98,8 @@ class MockBtcKeyring {
 
       return account;
     });
+
+  createAccounts: SnapKeyring['createAccounts'] = jest.fn();
 }
 class MockBtcAccountProvider extends BtcAccountProvider {
   override async ensureCanUseSnapPlatform(): Promise<void> {

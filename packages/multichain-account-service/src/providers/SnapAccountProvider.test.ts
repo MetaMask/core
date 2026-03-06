@@ -213,6 +213,7 @@ const setup = ({
 
   const keyring = {
     createAccount: jest.fn(),
+    createAccounts: jest.fn(),
     removeAccount: jest.fn(),
   };
 

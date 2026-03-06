@@ -69,6 +69,8 @@ class MockTronKeyring {
       return account;
     });
 
+  createAccounts: SnapKeyring['createAccounts'] = jest.fn();
+
   // Add discoverAccounts method to match the provider's usage
   discoverAccounts = jest.fn().mockResolvedValue([]);
 }

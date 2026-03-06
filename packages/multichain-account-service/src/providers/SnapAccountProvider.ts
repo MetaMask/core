@@ -22,6 +22,7 @@ import { createSentryError } from '../utils';
 
 export type RestrictedSnapKeyring = {
   createAccount: (options: Record<string, Json>) => Promise<KeyringAccount>;
+  createAccounts: (options: CreateAccountOptions) => Promise<KeyringAccount[]>;
   removeAccount: (address: string) => Promise<void>;
 };
 
@@ -126,6 +127,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       SnapKeyring['createAccount']
     >(async ({ keyring }) => keyring.createAccount.bind(keyring));
 
+    const createAccounts = await this.#withSnapKeyring<
+      SnapKeyring['createAccounts']
+    >(async ({ keyring }) => keyring.createAccounts.bind(keyring));
+
     return {
       createAccount: async (options) =>
         // We use the "unguarded" account creation here (see explanation above).
@@ -134,6 +139,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
           displayConfirmation: false,
           setSelectedAccount: false,
         }),
+      createAccounts: async (options) =>
+        await createAccounts(this.snapId, options),
       removeAccount: async (address: string) =>
         // Though, when removing account, we can use the normal flow.
         await this.#withSnapKeyring(async ({ keyring }) => {

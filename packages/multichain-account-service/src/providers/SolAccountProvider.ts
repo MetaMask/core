@@ -113,52 +113,50 @@ export class SolAccountProvider extends SnapAccountProvider {
       `${AccountCreationType.Bip44DeriveIndexRange}`,
     ]);
 
-    const { entropySource } = options;
-
-    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
-      const { range } = options;
-      return this.withSnap(async ({ keyring }) => {
-        const accounts: Bip44Account<KeyringAccount>[] = [];
-
-        // TODO: Use `SnapKeyring.createAccounts` when that functionality is implemented on the Snap
-        // itself, instead of creating accounts one by one.
-        for (
-          let groupIndex = range.from;
-          groupIndex <= range.to;
-          groupIndex++
-        ) {
-          const account = await this.withMaxConcurrency(async () => {
-            const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
-            return this.#createAccount({
-              keyring,
-              entropySource,
-              groupIndex,
-              derivationPath,
-            });
-          });
-
-          this.accounts.add(account.id);
-          accounts.push(account);
-        }
-
-        return accounts;
-      });
-    }
-
-    const { groupIndex } = options;
-
     return this.withSnap(async ({ keyring }) => {
       return this.withMaxConcurrency(async () => {
-        const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
-        const account = await this.#createAccount({
-          keyring,
-          entropySource,
-          groupIndex,
-          derivationPath,
-        });
+        let groupIndexOffset = 0;
+        let snapAccounts: KeyringAccount[];
 
-        this.accounts.add(account.id);
-        return [account];
+        const { entropySource } = options;
+
+        if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
+          snapAccounts = await withTimeout(
+            keyring.createAccounts(options),
+            this.config.createAccounts.timeoutMs,
+          );
+
+          // Group indices are sequential, so we just need the starting index.
+          groupIndexOffset = options.range.from;
+        } else {
+          const [snapAccount] = await withTimeout(
+            keyring.createAccounts(options),
+            this.config.createAccounts.timeoutMs,
+          );
+          snapAccounts = [snapAccount];
+
+          // For single account, there will only be 1 account, so we can use the
+          // provided group index directly.
+          groupIndexOffset = options.groupIndex;
+        }
+
+        // NOTE: We still need to convert accounts to proper BIP-44 accounts for now.
+        return snapAccounts.map((snapAccount, index) => {
+          const groupIndex = groupIndexOffset + index;
+          const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
+
+          // Ensure entropy is present before type assertion validation
+          snapAccount.options.entropy = {
+            type: KeyringAccountEntropyTypeOption.Mnemonic,
+            id: entropySource,
+            groupIndex,
+            derivationPath,
+          };
+
+          assertIsBip44Account(snapAccount);
+
+          return snapAccount;
+        });
       });
     });
   }

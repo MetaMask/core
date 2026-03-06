@@ -12,6 +12,7 @@ import type {
   KeyringAccount,
   KeyringCapabilities,
 } from '@metamask/keyring-api';
+import { GroupIndexRange } from 'src/utils';
 
 import {
   AccountProviderWrapper,
@@ -200,4 +201,20 @@ export function mockCreateAccountsOnce(
 
     return created;
   });
+}
+
+/**
+ * Helper to convert a group index range to an array of group indices, inclusive of the
+ * start and end indices.
+ *
+ * @param range - The range.
+ * @param range.from - The starting index of the range (inclusive).
+ * @param range.to - The ending index of the range (inclusive).
+ * @returns An array of group indices from `from` to `to`, inclusive.
+ */
+export function toGroupIndexRangeArray({
+  from = 0,
+  to,
+}: GroupIndexRange): number[] {
+  return Array.from({ length: to - from + 1 }, (_, i) => from + i);
 }
