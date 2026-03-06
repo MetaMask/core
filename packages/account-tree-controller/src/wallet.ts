@@ -100,6 +100,8 @@ export type AccountWalletKeyringObject = {
   metadata: AccountTreeWalletMetadata & {
     keyring: {
       type: KeyringTypes;
+      /** Keyring instance ID, used for keyrings that can have multiple instances (e.g., MPC) */
+      id?: string;
     };
   };
 };
