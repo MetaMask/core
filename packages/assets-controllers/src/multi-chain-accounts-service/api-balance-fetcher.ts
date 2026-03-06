@@ -62,7 +62,7 @@ export type BalanceFetcher = {
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
     jwtToken?: string;
-    unprocessedTokens?: UnprocessedTokens;
+    unprocessedTokens?: UnprocessedTokens; // API Balance Fetcher does not process unprocessed tokens
   }): Promise<BalanceFetchResult>;
 };
 
@@ -234,7 +234,10 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     return results;
   }
 
-  async #fetchBalances(addrs: CaipAccountAddress[], jwtToken?: string) {
+  async #fetchBalances(
+    addrs: CaipAccountAddress[],
+    jwtToken?: string,
+  ): Promise<GetBalancesResponse> {
     // If we have fewer than or equal to the batch size, make a single request
     if (addrs.length <= ACCOUNTS_API_BATCH_SIZE) {
       return await fetchMultiChainBalancesV4(
@@ -290,7 +293,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<BalanceFetchResult> {
     const caipAddrs: CaipAccountAddress[] = [];
 
-    for (const chainId of chainIds.filter((c) => this.supports(c))) {
+    for (const chainId of chainIds.filter((chain) => this.supports(chain))) {
       if (queryAllAccounts) {
         allAccounts.forEach((a) =>
           caipAddrs.push(toCaipAccount(chainId, a.address as ChecksumAddress)),
@@ -492,7 +495,7 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
 
             if (isERC && shouldZeroOutBalance) {
               addUnprocessedToken(
-                account,
+                account.toLowerCase(),
                 chainId as ChainIdHex,
                 tokenLowerCase,
               );

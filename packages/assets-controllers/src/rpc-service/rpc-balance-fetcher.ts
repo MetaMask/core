@@ -89,45 +89,42 @@ export class RpcBalanceFetcher implements BalanceFetcher {
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<BalanceFetchResult> {
     // Process all chains in parallel for better performance
     const chainProcessingPromises = chainIds.map(async (chainId) => {
-      const hasUnprocessedTokensForChain = Boolean(
-        unprocessedTokens &&
-          Object.values(unprocessedTokens).some(
-            (tokensByChain) => (tokensByChain[chainId]?.length ?? 0) > 0,
-          ),
-      );
+      // if there are unprocessed tokens for a chain, it means the chain was partially processed.
+      // because of this, we need to build distinct account <-> token groups to process
+      const hasUnprocessedTokensForChain = queryAllAccounts
+        ? Object.values(unprocessedTokens ?? {}).some((chainMap) =>
+            Boolean(chainMap[chainId] && chainMap[chainId].length > 0),
+          )
+        : Boolean(
+            unprocessedTokens?.[selectedAccount.toLowerCase()]?.[chainId] &&
+              unprocessedTokens[selectedAccount.toLowerCase()][chainId].length >
+                0,
+          );
 
-      let accountTokenGroups: {
-        accountAddress: ChecksumAddress;
-        tokenAddresses: ChecksumAddress[];
-      }[];
+      const tokensState = this.#getTokensState();
+      const { accountTokenGroups, includeNativeAndStaked } =
+        hasUnprocessedTokensForChain
+          ? buildUnprocessedAccountTokenGroupsStatic(
+              chainId,
+              queryAllAccounts,
+              selectedAccount,
+              unprocessedTokens as UnprocessedTokens,
+            )
+          : buildAccountTokenGroupsStatic(
+              chainId,
+              queryAllAccounts,
+              selectedAccount,
+              allAccounts,
+              tokensState.allTokens,
+              tokensState.allDetectedTokens,
+            );
 
-      if (hasUnprocessedTokensForChain) {
-        accountTokenGroups = buildUnprocessedAccountTokenGroupsStatic(
-          unprocessedTokens as UnprocessedTokens,
-          chainId,
-          queryAllAccounts,
-          selectedAccount,
-          allAccounts,
-        );
-      } else {
-        const tokensState = this.#getTokensState();
-        accountTokenGroups = buildAccountTokenGroupsStatic(
-          chainId,
-          queryAllAccounts,
-          selectedAccount,
-          allAccounts,
-          tokensState.allTokens,
-          tokensState.allDetectedTokens,
-        );
-      }
       if (!accountTokenGroups.length) {
         return [];
       }
 
       const provider = this.#getProvider(chainId);
       await this.#ensureFreshBlockData(chainId);
-
-      const includeNativeAndStaked = !hasUnprocessedTokensForChain;
 
       const balanceResult = await safelyExecuteWithTimeout(
         async () => {
@@ -200,10 +197,10 @@ export class RpcBalanceFetcher implements BalanceFetcher {
         // Add staked balance entry for each address
         const checksummedStakingAddress = checksum(stakingContractAddress);
         allAddresses.forEach((address) => {
-          const stakedBalance = stakedBalances?.[address] || null;
+          const stakedBalance = stakedBalances?.[address] ?? null;
           chainResults.push({
             success: true,
-            value: stakedBalance || new BN('0'),
+            value: stakedBalance ?? new BN('0'),
             account: address as ChecksumAddress,
             token: checksummedStakingAddress,
             chainId,
@@ -242,70 +239,37 @@ export class RpcBalanceFetcher implements BalanceFetcher {
   }
 }
 
-/**
- * Merges imported & detected tokens for the requested chain and returns a list
- * of `{ accountAddress, tokenAddresses[] }` suitable for getTokenBalancesForMultipleAddresses.
- *
- * @param chainId - The chain ID to build account token groups for
- * @param queryAllAccounts - Whether to query all accounts or just the selected one
- * @param selectedAccount - The currently selected account
- * @param allAccounts - All available accounts
- * @param allTokens - All tokens from TokensController
- * @param allDetectedTokens - All detected tokens from TokensController
- * @returns Array of account/token groups for multicall
- */
-function buildAccountTokenGroupsStatic(
-  chainId: ChainIdHex,
+type AccountTokenGroup = {
+  accountAddress: ChecksumAddress;
+  tokenAddresses: ChecksumAddress[];
+};
+
+function buildAccountTokenGroups(
   queryAllAccounts: boolean,
   selectedAccount: ChecksumAddress,
-  allAccounts: InternalAccount[],
-  allTokens: TokensControllerState['allTokens'],
-  allDetectedTokens: TokensControllerState['allDetectedTokens'],
-): { accountAddress: ChecksumAddress; tokenAddresses: ChecksumAddress[] }[] {
+  accountTokenMap: { [account: string]: string[] },
+): AccountTokenGroup[] {
   const pairs: {
     accountAddress: ChecksumAddress;
     tokenAddress: ChecksumAddress;
   }[] = [];
 
-  const add = ([account, tokens]: [string, unknown[]]): void => {
+  const add = ([account, tokens]: [string, string[]]): void => {
+    const checksumAccount = checksum(account);
     const shouldInclude =
-      queryAllAccounts || checksum(account) === checksum(selectedAccount);
+      queryAllAccounts || checksumAccount === checksum(selectedAccount);
     if (!shouldInclude) {
       return;
     }
-    tokens.forEach((t: unknown) =>
+    tokens.forEach((token: string) =>
       pairs.push({
-        accountAddress: account as ChecksumAddress,
-        tokenAddress: checksum((t as { address: string }).address),
+        accountAddress: checksumAccount,
+        tokenAddress: checksum(token),
       }),
     );
   };
 
-  Object.entries(allTokens[chainId] ?? {}).forEach(
-    add as (entry: [string, unknown]) => void,
-  );
-  Object.entries(allDetectedTokens[chainId] ?? {}).forEach(
-    add as (entry: [string, unknown]) => void,
-  );
-
-  // Always include native token for relevant accounts
-  if (queryAllAccounts) {
-    allAccounts.forEach((a) => {
-      pairs.push({
-        accountAddress: a.address as ChecksumAddress,
-        tokenAddress: ZERO_ADDRESS,
-      });
-    });
-  } else {
-    pairs.push({
-      accountAddress: selectedAccount,
-      tokenAddress: ZERO_ADDRESS,
-    });
-  }
-
-  if (!pairs.length) {
-    return [];
-  }
+  Object.entries(accountTokenMap).forEach(add);
 
   // group by account
   const map = new Map<ChecksumAddress, ChecksumAddress[]>();
@@ -325,29 +289,103 @@ function buildAccountTokenGroupsStatic(
   }));
 }
 
-function buildUnprocessedAccountTokenGroupsStatic(
-  unprocessedTokens: UnprocessedTokens,
+/**
+ * Merges imported & detected tokens for the requested chain and returns a list
+ * of `{ accountAddress, tokenAddresses[] }` suitable for getTokenBalancesForMultipleAddresses.
+ *
+ * @param chainId - The chain ID to build account token groups for
+ * @param queryAllAccounts - Whether to query all accounts or just the selected one
+ * @param selectedAccount - The currently selected account
+ * @param allAccounts - All available accounts
+ * @param allTokens - All tokens from TokensController
+ * @param allDetectedTokens - All detected tokens from TokensController
+ * @returns Array of account/token groups for multicall
+ */
+function buildAccountTokenGroupsStatic(
   chainId: ChainIdHex,
   queryAllAccounts: boolean,
   selectedAccount: ChecksumAddress,
   allAccounts: InternalAccount[],
-): { accountAddress: ChecksumAddress; tokenAddresses: ChecksumAddress[] }[] {
-  const includedAccounts = new Set<string>(
-    queryAllAccounts
-      ? allAccounts.map((account) => account.address.toLowerCase())
-      : [selectedAccount.toLowerCase()],
+  allTokens: TokensControllerState['allTokens'],
+  allDetectedTokens: TokensControllerState['allDetectedTokens'],
+): {
+  accountTokenGroups: AccountTokenGroup[];
+  includeNativeAndStaked: true;
+} {
+  const accountTokenMap: { [account: string]: string[] } = {};
+
+  // Add all tokens
+  Object.entries(allTokens[chainId] ?? {}).forEach(([account, tokens]) => {
+    const lowercaseAccount = account.toLowerCase();
+    accountTokenMap[lowercaseAccount] = tokens.map((token) =>
+      token.address.toLowerCase(),
+    );
+  });
+
+  // Add all detected tokens
+  Object.entries(allDetectedTokens[chainId] ?? {}).forEach(
+    ([account, tokens]) => {
+      const lowercaseAccount = account.toLowerCase();
+      if (!accountTokenMap[lowercaseAccount]) {
+        accountTokenMap[lowercaseAccount] = [];
+      }
+      accountTokenMap[lowercaseAccount] = Array.from(
+        new Set([
+          ...accountTokenMap[lowercaseAccount],
+          ...tokens.map((token) => token.address.toLowerCase()),
+        ]),
+      );
+    },
   );
 
-  return Object.entries(unprocessedTokens)
-    .filter(([accountAddress, tokensByChain]) => {
-      const tokenAddresses = tokensByChain[chainId];
-      return (
-        includedAccounts.has(accountAddress.toLowerCase()) &&
-        (tokenAddresses?.length ?? 0) > 0
-      );
-    })
-    .map(([accountAddress, tokensByChain]) => ({
-      accountAddress: accountAddress as ChecksumAddress,
-      tokenAddresses: tokensByChain[chainId] as ChecksumAddress[],
-    }));
+  // Add native tokens
+  if (queryAllAccounts) {
+    allAccounts.forEach((a) => {
+      accountTokenMap[a.address.toLowerCase()] = [ZERO_ADDRESS];
+    });
+  } else {
+    accountTokenMap[selectedAccount.toLowerCase()] = [ZERO_ADDRESS];
+  }
+
+  return {
+    accountTokenGroups: buildAccountTokenGroups(
+      queryAllAccounts,
+      selectedAccount,
+      accountTokenMap,
+    ),
+    includeNativeAndStaked: true,
+  };
+}
+
+function buildUnprocessedAccountTokenGroupsStatic(
+  chainId: ChainIdHex,
+  queryAllAccounts: boolean,
+  selectedAccount: ChecksumAddress,
+  unprocessedTokens: UnprocessedTokens,
+): {
+  accountTokenGroups: AccountTokenGroup[];
+  includeNativeAndStaked: false;
+} {
+  const accountTokenMap: { [account: string]: string[] } = {};
+  Object.entries(unprocessedTokens).forEach(([account, tokens]) => {
+    const lowercaseAccount = account.toLowerCase();
+    if (
+      queryAllAccounts ||
+      lowercaseAccount === selectedAccount.toLowerCase()
+    ) {
+      const tokenAddresses =
+        tokens?.[chainId]?.map((tokenAddress) => tokenAddress.toLowerCase()) ??
+        [];
+      accountTokenMap[lowercaseAccount] = tokenAddresses;
+    }
+  });
+
+  return {
+    accountTokenGroups: buildAccountTokenGroups(
+      queryAllAccounts,
+      selectedAccount,
+      accountTokenMap,
+    ),
+    includeNativeAndStaked: false,
+  };
 }

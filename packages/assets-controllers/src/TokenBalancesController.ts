@@ -279,7 +279,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   readonly #isOnboarded: () => boolean;
 
-  readonly #balanceFetchers: BalanceFetcher[];
+  readonly #balanceFetchers: { fetcher: BalanceFetcher; name: string }[];
 
   #allTokens: TokensControllerState['allTokens'] = {};
 
@@ -349,11 +349,21 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     // Always include AccountsApiFetcher - it dynamically checks allowExternalServices() in supports()
     this.#balanceFetchers = [
-      this.#createAccountsApiFetcher(),
-      new RpcBalanceFetcher(this.#getProvider, this.#getNetworkClient, () => ({
-        allTokens: this.#allTokens,
-        allDetectedTokens: this.#detectedTokens,
-      })),
+      {
+        fetcher: this.#createAccountsApiFetcher(),
+        name: 'AccountsApiFetcher',
+      },
+      {
+        fetcher: new RpcBalanceFetcher(
+          this.#getProvider,
+          this.#getNetworkClient,
+          () => ({
+            allTokens: this.#allTokens,
+            allDetectedTokens: this.#detectedTokens,
+          }),
+        ),
+        name: 'RpcFetcher',
+      },
     ];
 
     this.setIntervalLength(interval);
@@ -819,84 +829,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }): Promise<ProcessedBalance[]> {
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
-    const unprocessedTokens: UnprocessedTokens = {};
+    let previousUnprocessedTokens: UnprocessedTokens | undefined;
+    let previousFetcherName: string | undefined;
 
-    const getUnprocessedTokensForChains = (
-      chains: ChainIdHex[],
-    ): UnprocessedTokens | undefined => {
-      const chainSet = new Set(chains);
-      const filteredUnprocessedTokens: UnprocessedTokens = {};
-
-      Object.entries(unprocessedTokens).forEach(
-        ([account, unprocessedTokensByChain]) => {
-          const filteredByChain: Record<ChainIdHex, string[]> = {};
-
-          Object.entries(unprocessedTokensByChain).forEach(
-            ([chainId, tokenAddresses]) => {
-              const chainIdHex = chainId as ChainIdHex;
-              if (chainSet.has(chainIdHex) && tokenAddresses.length > 0) {
-                filteredByChain[chainIdHex] = tokenAddresses;
-              }
-            },
-          );
-
-          if (Object.keys(filteredByChain).length > 0) {
-            filteredUnprocessedTokens[account] = filteredByChain;
-          }
-        },
-      );
-
-      return Object.keys(filteredUnprocessedTokens).length > 0
-        ? filteredUnprocessedTokens
-        : undefined;
-    };
-
-    const mergeUnprocessedTokens = (
-      incomingUnprocessedTokens?: UnprocessedTokens,
-    ): void => {
-      if (!incomingUnprocessedTokens) {
-        return;
-      }
-
-      Object.entries(incomingUnprocessedTokens).forEach(
-        ([account, tokensByChainId]) => {
-          unprocessedTokens[account] ??= {};
-          const currentTokensByChainId = unprocessedTokens[account];
-
-          Object.entries(tokensByChainId).forEach(([chainId, tokens]) => {
-            if (!tokens.length) {
-              return;
-            }
-
-            const chainIdHex = chainId as ChainIdHex;
-            currentTokensByChainId[chainIdHex] ??= [];
-            const currentAccountTokens = currentTokensByChainId[chainIdHex];
-            const existingTokenSet = new Set(
-              currentAccountTokens.map((token) => token.toLowerCase()),
-            );
-
-            tokens.forEach((token) => {
-              const lowerCaseToken = token.toLowerCase();
-              if (!existingTokenSet.has(lowerCaseToken)) {
-                currentAccountTokens.push(token);
-                existingTokenSet.add(lowerCaseToken);
-              }
-            });
-          });
-        },
-      );
-    };
-
-    const removeChainFromUnprocessedTokens = (chainId: ChainIdHex): void => {
-      Object.keys(unprocessedTokens).forEach((account) => {
-        delete unprocessedTokens[account][chainId];
-        if (Object.keys(unprocessedTokens[account]).length === 0) {
-          delete unprocessedTokens[account];
-        }
-      });
-    };
-
-    for (const fetcher of this.#balanceFetchers) {
+    for (const { fetcher, name: fetcherName } of this.#balanceFetchers) {
       const supportedChains = remainingChains.filter((chain) =>
         fetcher.supports(chain),
       );
@@ -911,9 +847,52 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           selectedAccount,
           allAccounts,
           jwtToken,
-          unprocessedTokens: getUnprocessedTokensForChains(supportedChains),
+          unprocessedTokens: previousUnprocessedTokens,
         });
 
+        // Balance Error Reporting - for unprocessed tokens from last fetcher, if balances are retrieved
+        const unprocessedTokensForReporting = previousUnprocessedTokens;
+        if (unprocessedTokensForReporting && result.balances?.length) {
+          const confirmedUnprocessedTokens: {
+            chainId: string;
+            tokenAddress: string;
+          }[] = [];
+
+          // Capture balances that were found (> 0 balance), and was unprocessed
+          result.balances.forEach((bal) => {
+            const lowercaseAccount = bal.account.toLowerCase();
+            const lowercaseTokenAddress = bal.token.toLowerCase();
+
+            const hasResultBalance =
+              bal.success && bal.token && bal.value && !bal.value.isZero();
+            const isUnprocessed = unprocessedTokensForReporting?.[
+              lowercaseAccount
+            ]?.[bal.chainId]?.includes(lowercaseTokenAddress);
+
+            if (hasResultBalance && isUnprocessed) {
+              confirmedUnprocessedTokens.push({
+                chainId: bal.chainId,
+                tokenAddress: lowercaseTokenAddress,
+              });
+            }
+          });
+
+          const confirmedUnprocessedTokenStrings =
+            confirmedUnprocessedTokens.map(
+              (token) => `${token.chainId}:${token.tokenAddress}`,
+            );
+          if (confirmedUnprocessedTokens.length) {
+            console.warn(
+              `TokenBalanceController: fetcher ${previousFetcherName} did not process tokens (instead handled by fetcher ${fetcherName}): ${confirmedUnprocessedTokenStrings.join(', ')}`,
+            );
+          }
+        }
+
+        // Set new previous fields
+        previousUnprocessedTokens = result.unprocessedTokens;
+        previousFetcherName = fetcherName;
+
+        // Add balances, and removed processed chains
         if (result.balances?.length) {
           aggregated.push(...result.balances);
 
@@ -921,20 +900,22 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           remainingChains = remainingChains.filter(
             (chain) => !processed.has(chain),
           );
-
-          processed.forEach((chainId) => {
-            removeChainFromUnprocessedTokens(chainId);
-          });
         }
 
-        if (result.unprocessedChainIds?.length) {
-          const currentRemaining = [...remainingChains];
-          const chainsToAdd = result.unprocessedChainIds.filter(
-            (chainId) =>
-              supportedChains.includes(chainId) &&
-              !currentRemaining.includes(chainId),
+        // Add unprocessed chains (from missing chains or missing tokens)
+        if (result.unprocessedChainIds || result.unprocessedTokens) {
+          const resultUnprocessedChains = result.unprocessedChainIds ?? [];
+          const resultUnsupportedTokenChains = Object.entries(
+            result.unprocessedTokens ?? {},
+          ).flatMap(([_account, chainMap]) => Object.keys(chainMap)) as Hex[];
+
+          remainingChains = Array.from(
+            new Set([
+              ...remainingChains,
+              ...resultUnprocessedChains,
+              ...resultUnsupportedTokenChains,
+            ]),
           );
-          remainingChains.push(...chainsToAdd);
 
           this.messenger
             .call('TokenDetectionController:detectTokens', {
@@ -944,31 +925,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
             .catch(() => {
               // Silently handle token detection errors
             });
-
-          result.unprocessedChainIds.forEach((chainId) => {
-            removeChainFromUnprocessedTokens(chainId);
-          });
-        }
-
-        if (result.unprocessedTokens) {
-          mergeUnprocessedTokens(result.unprocessedTokens);
-
-          const unprocessedTokenChainIdsSet = new Set<ChainIdHex>();
-          Object.values(result.unprocessedTokens).forEach((tokensByChainId) => {
-            Object.keys(tokensByChainId).forEach((chainId) => {
-              unprocessedTokenChainIdsSet.add(chainId as ChainIdHex);
-            });
-          });
-          const unprocessedTokenChainIds = Array.from(
-            unprocessedTokenChainIdsSet,
-          );
-          const currentRemaining = [...remainingChains];
-          const chainsToAdd = unprocessedTokenChainIds.filter(
-            (chainId) =>
-              supportedChains.includes(chainId) &&
-              !currentRemaining.includes(chainId),
-          );
-          remainingChains.push(...chainsToAdd);
         }
       } catch (error) {
         console.warn(
