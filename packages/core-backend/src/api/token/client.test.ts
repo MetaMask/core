@@ -195,6 +195,93 @@ describe('TokenApiClient', () => {
       );
     });
 
+    it('passes includeTokenSecurityData param when fetching v3 trending tokens', async () => {
+      const mockResponse = [
+        {
+          assetId: 'eip155:1/erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          name: 'Wrapped Ether',
+          symbol: 'WETH',
+          decimals: 18,
+          price: '2076.8761460147',
+          aggregatedUsdVolume: 563290706.83,
+          marketCap: 338433.56,
+          labels: ['blue_chip'],
+          priceChangePct: {
+            m5: '0',
+            m15: '0.195',
+            m30: '0.706',
+            h1: '3.39',
+            h6: '6.26',
+            h24: '6.7',
+          },
+          securityData: {
+            resultType: 'Verified',
+            maliciousScore: '0.0',
+            fees: {
+              transfer: 0,
+              transferFeeMaxAmount: null,
+              buy: 0,
+              sell: 0,
+            },
+            features: [
+              {
+                featureId: 'HIGH_REPUTATION_TOKEN',
+                type: 'Benign',
+                description: 'Token with verified high reputation',
+              },
+              {
+                featureId: 'VERIFIED_CONTRACT',
+                type: 'Info',
+                description: 'The token contract is verified',
+              },
+            ],
+            financialStats: {
+              supply: 2.0555493268851862e24,
+              topHolders: [
+                {
+                  label: 'contract',
+                  name: null,
+                  address: '0xf04a5cc80b1e94c69b48f5ee68a08cd2f09a7c3e',
+                  holdingPercentage: 21.962,
+                },
+              ],
+              holdersCount: 2877494,
+              tradeVolume24h: 801557137,
+              lockedLiquidityPct: 0,
+              markets: [
+                {
+                  marketType: 'AMM',
+                  marketName: 'uniswap_v3',
+                  pairName: 'WETH / USDC',
+                  reserveUSD: 94676995.1127,
+                },
+              ],
+            },
+            metadata: {
+              externalLinks: {
+                homepage: 'https://ethereum.org/en/wrapped-eth',
+                twitterPage: null,
+                telegramChannelId: null,
+              },
+            },
+            created: '2017-12-12T11:17:35',
+          },
+        },
+      ];
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.token.fetchV3TrendingTokens(['eip155:1'], {
+        includeTokenSecurityData: true,
+      });
+
+      expect(result).toStrictEqual(mockResponse);
+      expect(result[0].securityData?.resultType).toBe('Verified');
+      expect(result[0].securityData?.maliciousScore).toBe('0.0');
+      expect(result[0].securityData?.financialStats.holdersCount).toBe(2877494);
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).toContain('includeTokenSecurityData=true');
+    });
+
     it('fetches v3 top gainers', async () => {
       const mockResponse = [
         { address: '0xgainer', symbol: 'GAIN', chainId: 1 },

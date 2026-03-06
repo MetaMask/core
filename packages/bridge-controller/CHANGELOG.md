@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Optional constructor option `getUseAssetsControllerForRates`: when it returns true, exchange rates are read from the new `@metamask/assets-controller` (`AssetsController:getExchangeRatesForBridge`) instead of `MultichainAssetsRatesController`, `TokenRatesController`, and `CurrencyRateController`. ([#8090](https://github.com/MetaMask/core/pull/8090))
+
 ### Changed
 
+- Bump `@metamask/assets-controllers` from `^100.0.3` to `^100.1.0` ([#8107](https://github.com/MetaMask/core/pull/8107))
 - Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.20.0` ([#8104](https://github.com/MetaMask/core/pull/8104))
 
 ## [68.0.0]

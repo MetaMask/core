@@ -1,4 +1,5 @@
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
+import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
 import type {
   GetCurrencyRateState,
   MultichainAssetsRatesControllerGetStateAction,
@@ -400,7 +401,8 @@ export type AllowedActions =
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | AssetsControllerGetExchangeRatesForBridgeAction;
 export type AllowedEvents = never;
 
 /**

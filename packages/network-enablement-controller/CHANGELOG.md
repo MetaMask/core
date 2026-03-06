@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0]
+
 ### Added
 
 - Add `listPopularNetworks()` method and `NetworkEnablementController:listPopularNetworks` messenger action. Returns CAIP-2 chain IDs for popular EVM networks (from POPULAR_NETWORKS) and Bitcoin, Solana, and Tron mainnets that are present in NetworkController `networkConfigurationsByChainId` and MultichainNetworkController `multichainNetworkConfigurationsByChainId` respectively ([#8105](https://github.com/MetaMask/core/pull/8105)).
@@ -223,7 +225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.2.0...HEAD
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.2...@metamask/network-enablement-controller@4.2.0
 [4.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.1...@metamask/network-enablement-controller@4.1.2
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.0...@metamask/network-enablement-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.0.0...@metamask/network-enablement-controller@4.1.0

@@ -142,6 +142,11 @@ async function getSingleQuote(
     // will be included in the batch separately, not as part of the quote
     if (!request.isPostQuote) {
       await processTransactions(transaction, request, body, messenger);
+    } else if (request.refundTo) {
+      // For post-quote flows, honour the caller-specified refund address so that
+      // failed Relay transactions refund to the correct account (e.g. the Predict
+      // Safe proxy) rather than defaulting to the EOA.
+      body.refundTo = request.refundTo;
     }
 
     const url = getFeatureFlags(messenger).relayQuoteUrl;

@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Use effective recipient (decoded from tx data for token transfers) when checking for existing transactions in first-time interaction logic ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-
 ## [62.20.0]
 
 ### Changed
