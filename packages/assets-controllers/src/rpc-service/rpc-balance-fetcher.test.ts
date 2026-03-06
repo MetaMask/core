@@ -8,9 +8,9 @@ import type { ChainIdHex, ChecksumAddress } from './rpc-balance-fetcher';
 import type { TokensControllerState } from '../TokensController';
 
 const MOCK_ADDRESS_1 = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
-const MOCK_ADDRESS_2 = '0x1c5E29b17822CC96B834092Ec056a9cd4e833C09';
+const MOCK_ADDRESS_2 = '0x742d35cc6675c4f17f41140100aa83a4b1fa4c82';
 const MOCK_TOKEN_ADDRESS_1 = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
-const MOCK_TOKEN_ADDRESS_2 = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
+const MOCK_TOKEN_ADDRESS_2 = '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B';
 const MOCK_CHAIN_ID = '0x1' as ChainIdHex;
 const MOCK_CHAIN_ID_2 = '0x89' as ChainIdHex;
 const ZERO_ADDRESS =

@@ -263,7 +263,7 @@ function buildAccountTokenGroups(
     }
     tokens.forEach((token: string) =>
       pairs.push({
-        accountAddress: checksumAccount,
+        accountAddress: account as ChecksumAddress,
         tokenAddress: checksum(token),
       }),
     );
@@ -316,23 +316,19 @@ function buildAccountTokenGroupsStatic(
 
   // Add all tokens
   Object.entries(allTokens[chainId] ?? {}).forEach(([account, tokens]) => {
-    const lowercaseAccount = account.toLowerCase();
-    accountTokenMap[lowercaseAccount] = tokens.map((token) =>
-      token.address.toLowerCase(),
-    );
+    accountTokenMap[account] = tokens.map((token) => token.address);
   });
 
   // Add all detected tokens
   Object.entries(allDetectedTokens[chainId] ?? {}).forEach(
     ([account, tokens]) => {
-      const lowercaseAccount = account.toLowerCase();
-      if (!accountTokenMap[lowercaseAccount]) {
-        accountTokenMap[lowercaseAccount] = [];
+      if (!accountTokenMap[account]) {
+        accountTokenMap[account] = [];
       }
-      accountTokenMap[lowercaseAccount] = Array.from(
+      accountTokenMap[account] = Array.from(
         new Set([
-          ...accountTokenMap[lowercaseAccount],
-          ...tokens.map((token) => token.address.toLowerCase()),
+          ...accountTokenMap[account],
+          ...tokens.map((token) => token.address),
         ]),
       );
     },
@@ -341,12 +337,12 @@ function buildAccountTokenGroupsStatic(
   // Add native tokens
   if (queryAllAccounts) {
     allAccounts.forEach((a) => {
-      accountTokenMap[a.address.toLowerCase()] ??= [];
-      accountTokenMap[a.address.toLowerCase()].push(ZERO_ADDRESS);
+      accountTokenMap[a.address] ??= [];
+      accountTokenMap[a.address].push(ZERO_ADDRESS);
     });
   } else {
-    accountTokenMap[selectedAccount.toLowerCase()] ??= [];
-    accountTokenMap[selectedAccount.toLowerCase()].push(ZERO_ADDRESS);
+    accountTokenMap[selectedAccount] ??= [];
+    accountTokenMap[selectedAccount].push(ZERO_ADDRESS);
   }
 
   return {
