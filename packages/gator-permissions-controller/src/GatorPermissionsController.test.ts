@@ -43,6 +43,7 @@ const MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID =
   'local:http://localhost:8082' as SnapId;
 
 const DEFAULT_TEST_CONFIG = {
+  gatorPermissionsProviderSnapId: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
   supportedPermissionTypes: [
     'native-token-stream',
     'native-token-periodic',
@@ -140,6 +141,24 @@ describe('GatorPermissionsController', () => {
       });
 
       expect(controller.state.isFetchingGatorPermissions).toBe(false);
+    });
+
+    it('instantiates successfully without gatorPermissionsProviderSnapId', () => {
+      const configWithoutSnapId = {
+        supportedPermissionTypes: DEFAULT_TEST_CONFIG.supportedPermissionTypes,
+      };
+
+      let controller: GatorPermissionsController | undefined;
+
+      expect(() => {
+        controller = new GatorPermissionsController({
+          messenger: getGatorPermissionsControllerMessenger(),
+          config: configWithoutSnapId,
+        });
+      }).not.toThrow();
+
+      expect(controller).toBeDefined();
+      expect(controller?.state.grantedPermissions).toStrictEqual([]);
     });
   });
 
@@ -709,6 +728,51 @@ describe('GatorPermissionsController', () => {
       expect(() =>
         controller.decodePermissionFromPermissionContextForOrigin({
           origin: controller.gatorPermissionsProviderSnapId,
+          chainId,
+          delegation: {
+            delegate: delegatorAddressA,
+            delegator: delegateAddressB,
+            authority: ROOT_AUTHORITY as Hex,
+            caveats,
+          },
+          metadata: buildMetadata(''),
+        }),
+      ).toThrow('Failed to decode permission');
+    });
+
+    it('throws when caveat terms are invalid for the matched permission rule', () => {
+      const {
+        TimestampEnforcer,
+        NativeTokenStreamingEnforcer,
+        ExactCalldataEnforcer,
+        NonceEnforcer,
+      } = contracts;
+
+      const expiryTerms = createTimestampTerms(
+        { timestampAfterThreshold: 0, timestampBeforeThreshold: 1720000 },
+        { out: 'hex' },
+      );
+
+      // Enforcers match native-token-stream but stream terms are truncated (invalid)
+      const truncatedStreamTerms: Hex = `0x${'00'.repeat(50)}`;
+      const caveats = [
+        {
+          enforcer: TimestampEnforcer,
+          terms: expiryTerms,
+          args: '0x',
+        } as const,
+        {
+          enforcer: NativeTokenStreamingEnforcer,
+          terms: truncatedStreamTerms,
+          args: '0x',
+        } as const,
+        { enforcer: ExactCalldataEnforcer, terms: '0x', args: '0x' } as const,
+        { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+      ];
+
+      expect(() =>
+        controller.decodePermissionFromPermissionContextForOrigin({
+          origin: MOCK_GATOR_PERMISSIONS_PROVIDER_SNAP_ID,
           chainId,
           delegation: {
             delegate: delegatorAddressA,
