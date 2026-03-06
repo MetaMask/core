@@ -1,6 +1,8 @@
 export type {
   TransactionConfig,
   TransactionConfigCallback,
+  TransactionFiatPayment,
+  TransactionFiatPaymentCallback,
   TransactionPayControllerActions,
   TransactionPayControllerEvents,
   TransactionPayControllerGetDelegationTransactionAction,
@@ -9,6 +11,7 @@ export type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPayControllerSetTransactionConfigAction,
+  TransactionPayControllerUpdateFiatPaymentAction,
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
   TransactionPayControllerUpdatePaymentTokenAction,
@@ -17,6 +20,7 @@ export type {
   TransactionPayRequiredToken,
   TransactionPaySourceAmount,
   TransactionPayTotals,
+  UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types';
 export { TransactionPayStrategy } from './constants';

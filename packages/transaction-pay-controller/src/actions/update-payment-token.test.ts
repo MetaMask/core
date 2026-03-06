@@ -99,6 +99,8 @@ describe('Update Payment Token Action', () => {
       decimals: 6,
       symbol: 'TST',
     });
+
+    expect(transactionDataMock.fiatPayment).toStrictEqual({});
   });
 
   it('throws if token info not found', () => {

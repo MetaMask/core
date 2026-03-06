@@ -4,6 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
+import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
 import {
   CONTROLLER_NAME,
@@ -18,6 +19,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
+  UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
@@ -113,6 +115,13 @@ export class TransactionPayController extends BaseController<
     });
   }
 
+  updateFiatPayment(request: UpdateFiatPaymentRequest): void {
+    updateFiatPayment(request, {
+      messenger: this.messenger,
+      updateTransactionData: this.#updateTransactionData.bind(this),
+    });
+  }
+
   #removeTransactionData(transactionId: string): void {
     this.update((state) => {
       delete state.transactionData[transactionId];
@@ -135,6 +144,7 @@ export class TransactionPayController extends BaseController<
 
       if (!current) {
         transactionData[transactionId] = {
+          fiatPayment: {},
           isLoading: false,
           tokens: [],
         };
@@ -196,6 +206,11 @@ export class TransactionPayController extends BaseController<
     this.messenger.registerActionHandler(
       'TransactionPayController:updatePaymentToken',
       this.updatePaymentToken.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      'TransactionPayController:updateFiatPayment',
+      this.updateFiatPayment.bind(this),
     );
   }
 
