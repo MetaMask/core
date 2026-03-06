@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Adds a dedicated max-amount gas-station fallback flow for Relay quoting ([#7927](https://github.com/MetaMask/core/pull/7927))
+- Add Across pay strategy support ([#7886](https://github.com/MetaMask/core/pull/7886))
+
 ## [16.3.0]
 
 ### Added

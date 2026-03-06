@@ -12,12 +12,14 @@ const log = createModuleLogger(projectLogger, 'feature-flags');
 type StrategyOrder = [TransactionPayStrategy, ...TransactionPayStrategy[]];
 
 export const DEFAULT_GAS_BUFFER = 1.0;
-export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
-export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
+export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
+export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
   TransactionPayStrategy.Relay,
+  TransactionPayStrategy.Across,
 ];
 
 type FeatureFlagsRaw = {
@@ -40,6 +42,7 @@ type FeatureFlagsRaw = {
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
   strategyOrder?: string[];
+  payStrategies?: PayStrategiesConfigRaw;
 };
 
 export type FeatureFlags = {
@@ -50,6 +53,38 @@ export type FeatureFlags = {
   };
   relayQuoteUrl: string;
   slippage: number;
+};
+
+export type AcrossConfigRaw = {
+  apiBase?: string;
+  enabled?: boolean;
+  fallbackGas?: {
+    estimate?: number;
+    max?: number;
+  };
+};
+
+export type AcrossConfig = {
+  apiBase: string;
+  enabled: boolean;
+  fallbackGas: {
+    estimate: number;
+    max: number;
+  };
+};
+
+export type PayStrategiesConfigRaw = {
+  across?: AcrossConfigRaw;
+  relay?: {
+    enabled?: boolean;
+  };
+};
+
+export type PayStrategiesConfig = {
+  across: AcrossConfig;
+  relay: {
+    enabled: boolean;
+  };
 };
 
 /**
@@ -92,11 +127,9 @@ export function getFeatureFlags(
   const featureFlags = getFeatureFlagsRaw(messenger);
 
   const estimate =
-    featureFlags.relayFallbackGas?.estimate ??
-    DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE;
+    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
 
-  const max =
-    featureFlags.relayFallbackGas?.max ?? DEFAULT_RELAY_FALLBACK_GAS_MAX;
+  const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
 
   const relayQuoteUrl = featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
 
@@ -105,7 +138,7 @@ export function getFeatureFlags(
 
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
 
-  const result = {
+  const result: FeatureFlags = {
     relayDisabledGasStationChains,
     relayFallbackGas: {
       estimate,
@@ -118,6 +151,53 @@ export function getFeatureFlags(
   log('Feature flags:', { raw: featureFlags, result });
 
   return result;
+}
+
+/**
+ * Get Pay Strategies configuration.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Pay Strategies configuration.
+ */
+export function getPayStrategiesConfig(
+  messenger: TransactionPayControllerMessenger,
+): PayStrategiesConfig {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  const payStrategies = featureFlags.payStrategies ?? {};
+
+  const acrossRaw = payStrategies.across ?? {};
+  const relayRaw = payStrategies.relay ?? {};
+
+  const across = {
+    apiBase: acrossRaw.apiBase ?? DEFAULT_ACROSS_API_BASE,
+    enabled: acrossRaw.enabled ?? false,
+    fallbackGas: {
+      estimate:
+        acrossRaw.fallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE,
+      max: acrossRaw.fallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX,
+    },
+  };
+
+  const relay = {
+    enabled: relayRaw.enabled ?? true,
+  };
+
+  return {
+    across,
+    relay,
+  };
+}
+
+/**
+ * Get fallback gas limits for quote/submit flows.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Fallback gas limits.
+ */
+export function getFallbackGas(
+  messenger: TransactionPayControllerMessenger,
+): FeatureFlags['relayFallbackGas'] {
+  return getFeatureFlags(messenger).relayFallbackGas;
 }
 
 /**

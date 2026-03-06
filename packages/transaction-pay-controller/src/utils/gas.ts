@@ -7,6 +7,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { getFallbackGas, getGasBuffer } from './feature-flags';
 import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token';
 import type { TransactionPayControllerMessenger } from '..';
 import { createModuleLogger, projectLogger } from '../logger';
@@ -196,6 +197,91 @@ export function calculateGasFeeTokenCost({
     raw,
     usd,
   };
+}
+
+export async function estimateGasLimit({
+  chainId,
+  data,
+  fallbackGas,
+  fallbackOnSimulationFailure = false,
+  from,
+  messenger,
+  to,
+  value,
+}: {
+  chainId: Hex;
+  data: Hex;
+  fallbackGas?: {
+    estimate: number;
+    max: number;
+  };
+  fallbackOnSimulationFailure?: boolean;
+  from: Hex;
+  messenger: TransactionPayControllerMessenger;
+  to: Hex;
+  value?: Hex;
+}): Promise<{
+  estimate: number;
+  max: number;
+  usedFallback: boolean;
+  error?: unknown;
+}> {
+  const gasBuffer = getGasBuffer(messenger, chainId);
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    chainId,
+  );
+
+  let estimateGasError: unknown;
+  let simulationError: Error | undefined;
+
+  try {
+    const { gas: gasHex, simulationFails } = await messenger.call(
+      'TransactionController:estimateGas',
+      { from, data, to, value: value ?? '0x0' },
+      networkClientId,
+    );
+
+    if (simulationFails) {
+      simulationError = new Error('Gas simulation failed');
+    } else {
+      const estimatedGas = parseEstimatedGas(gasHex);
+      const bufferedGas = Math.ceil(estimatedGas * gasBuffer);
+
+      return {
+        estimate: bufferedGas,
+        max: bufferedGas,
+        usedFallback: false,
+      };
+    }
+  } catch (caughtError) {
+    estimateGasError = caughtError;
+  }
+
+  if (simulationError !== undefined && !fallbackOnSimulationFailure) {
+    throw simulationError;
+  }
+
+  const fallbackGasConfig = fallbackGas ?? getFallbackGas(messenger);
+
+  return {
+    estimate: fallbackGasConfig.estimate,
+    max: fallbackGasConfig.max,
+    usedFallback: true,
+    error: estimateGasError ?? simulationError,
+  };
+}
+
+function parseEstimatedGas(gasValue: string): number {
+  const parsedGas = gasValue.startsWith('0x')
+    ? new BigNumber(gasValue.slice(2), 16)
+    : new BigNumber(gasValue);
+
+  if (!parsedGas.isFinite() || parsedGas.isNaN()) {
+    throw new Error(`Invalid gas estimate returned: ${gasValue}`);
+  }
+
+  return parsedGas.toNumber();
 }
 
 /**
