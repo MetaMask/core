@@ -1,5 +1,6 @@
 /* eslint-disable no-void */
 import { SnapControllerState } from '@metamask/snaps-controllers';
+import { createDeferredPromise } from '@metamask/utils';
 
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import {
@@ -232,6 +233,34 @@ describe('SnapPlatformWatcher', () => {
       const watcher = new SnapPlatformWatcher(messenger);
 
       expect(watcher.isReady).toBe(true);
+    });
+
+    it('waits for ensureOnboardingComplete first when platform is already ready', async () => {
+      const { rootMessenger, messenger } = setup();
+      const { promise: onboardingPromise, resolve: resolveOnboarding } =
+        createDeferredPromise<void>();
+      const ensureOnboardingComplete = jest
+        .fn()
+        .mockReturnValue(onboardingPromise);
+      const watcher = new SnapPlatformWatcher(messenger, {
+        ensureOnboardingComplete,
+      });
+
+      publishIsReadyState(rootMessenger, true);
+
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      let resolved = false;
+      void ensurePromise.then(() => {
+        resolved = true;
+        return null;
+      });
+
+      expect(ensureOnboardingComplete).toHaveBeenCalledTimes(1);
+      expect(resolved).toBe(false);
+
+      resolveOnboarding();
+      await ensurePromise;
+      expect(resolved).toBe(true);
     });
 
     it('requires both onboarding complete and Snap platform ready when ensureOnboardingComplete is provided', async () => {
