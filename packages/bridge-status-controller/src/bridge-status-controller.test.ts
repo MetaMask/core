@@ -2109,7 +2109,7 @@ describe('BridgeStatusController', () => {
           id: 'test-snap',
         },
         keyring: {
-          type: 'Hardware',
+          type: 'QR Hardware Wallet Device',
         },
       },
       options: { scope: 'solana-chain-id' },

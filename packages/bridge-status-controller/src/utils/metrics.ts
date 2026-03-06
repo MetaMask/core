@@ -4,19 +4,20 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import {
   StatusTypes,
+  getAccountHardwareType,
   formatChainIdToHex,
   isEthUsdt,
   formatChainIdToCaip,
   formatProviderLabel,
   isCustomSlippage,
   getSwapType,
-  isHardwareWallet,
   formatAddressToAssetId,
   MetricsActionType,
   MetricsSwapType,
   MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import type {
+  AccountHardwareType,
   QuoteFetchData,
   QuoteMetadata,
   QuoteResponse,
@@ -183,7 +184,7 @@ export const getPriceImpactFromQuote = (
 export const getPreConfirmationPropertiesFromQuote = (
   quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
   isStxEnabledOnClient: boolean,
-  isHardwareAccount: boolean,
+  accountHardwareType: AccountHardwareType,
   location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
   abTests?: Record<string, string>,
 ) => {
@@ -195,7 +196,8 @@ export const getPreConfirmationPropertiesFromQuote = (
     token_symbol_source: quote.srcAsset.symbol,
     chain_id_destination: formatChainIdToCaip(quote.destChainId),
     token_symbol_destination: quote.destAsset.symbol,
-    is_hardware_wallet: isHardwareAccount,
+    account_hardware_type: accountHardwareType,
+    is_hardware_wallet: accountHardwareType !== null,
     swap_type: getSwapType(
       quoteResponse.quote.srcChainId,
       quoteResponse.quote.destChainId,
@@ -229,13 +231,15 @@ export const getRequestMetadataFromHistory = (
   account?: AccountsControllerState['internalAccounts']['accounts'][string],
 ): RequestMetadata => {
   const { quote, slippagePercentage, isStxEnabled } = historyItem;
+  const accountHardwareType = getAccountHardwareType(account);
 
   return {
     slippage_limit: slippagePercentage,
     custom_slippage: isCustomSlippage(slippagePercentage),
     usd_amount_source: Number(historyItem.pricingData?.amountSentInUsd ?? 0),
     swap_type: getSwapType(quote.srcChainId, quote.destChainId),
-    is_hardware_wallet: isHardwareWallet(account),
+    account_hardware_type: accountHardwareType,
+    is_hardware_wallet: accountHardwareType !== null,
     stx_enabled: isStxEnabled ?? false,
     security_warnings: [],
   };
@@ -249,7 +253,10 @@ export const getRequestMetadataFromHistory = (
  */
 export const getEVMTxPropertiesFromTransactionMeta = (
   transactionMeta: TransactionMeta,
+  account?: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
+  const accountHardwareType = getAccountHardwareType(account);
+
   return {
     source_transaction: [
       TransactionStatus.failed,
@@ -276,7 +283,8 @@ export const getEVMTxPropertiesFromTransactionMeta = (
         transactionMeta.chainId,
       ) ?? ('' as CaipAssetType),
     custom_slippage: false,
-    is_hardware_wallet: false,
+    account_hardware_type: accountHardwareType,
+    is_hardware_wallet: accountHardwareType !== null,
     swap_type:
       transactionMeta.type &&
       [TransactionType.swap, TransactionType.swapApproval].includes(

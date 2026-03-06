@@ -13,10 +13,10 @@ import {
   StatusTypes,
   UnifiedSwapBridgeEventName,
   formatChainIdToCaip,
+  getAccountHardwareType,
   isCrossChain,
   isTronChainId,
   isEvmTxData,
-  isHardwareWallet,
   MetricsActionType,
   MetaMetricsSwapsEventSource,
   isBitcoinTrade,
@@ -260,7 +260,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             this.#trackUnifiedSwapBridgeEvent(
               UnifiedSwapBridgeEventName.Failed,
               historyKey ?? txMetaId,
-              getEVMTxPropertiesFromTransactionMeta(transactionMeta),
+              getEVMTxPropertiesFromTransactionMeta(
+                transactionMeta,
+                this.messenger.call(
+                  'AccountsController:getAccountByAddress',
+                  transactionMeta.txParams.from,
+                ),
+              ),
             );
           }
         }
@@ -1333,12 +1339,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         'Failed to submit cross-chain swap transaction: undefined multichain account',
       );
     }
-    const isHardwareAccount = isHardwareWallet(selectedAccount);
+    const accountHardwareType = getAccountHardwareType(selectedAccount);
 
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
       isStxEnabledOnClient,
-      isHardwareAccount,
+      accountHardwareType,
       location,
       abTests,
     );
@@ -1452,7 +1458,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval
       // Extension does not have this issue
       const requireApproval =
-        this.#clientId === BridgeClientId.MOBILE && isHardwareAccount;
+        this.#clientId === BridgeClientId.MOBILE &&
+        accountHardwareType !== null;
 
       // Handle smart transactions if enabled
       txMeta = await this.#trace(
@@ -1618,11 +1625,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // Build pre-confirmation properties for error tracking parity with submitTx
     const account = this.#getMultichainSelectedAccount(accountAddress);
-    const isHardwareAccount = Boolean(account) && isHardwareWallet(account);
+    const accountHardwareType = getAccountHardwareType(account);
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
       false,
-      isHardwareAccount,
+      accountHardwareType,
       location,
       abTests,
     );

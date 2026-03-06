@@ -67,10 +67,10 @@ import {
 } from './utils/metrics/constants';
 import {
   formatProviderLabel,
+  getAccountHardwareType,
   getRequestParams,
   getSwapTypeFromQuote,
   isCustomSlippage,
-  isHardwareWallet,
   toInputChangedPropertyKey,
   toInputChangedPropertyValue,
 } from './utils/metrics/properties';
@@ -913,15 +913,18 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #getRequestMetadata = (): Omit<
     RequestMetadata,
-    | 'stx_enabled'
-    | 'usd_amount_source'
-    | 'security_warnings'
-    | 'is_hardware_wallet'
+    'stx_enabled' | 'usd_amount_source' | 'security_warnings'
   > => {
+    const accountHardwareType = getAccountHardwareType(
+      this.#getMultichainSelectedAccount(),
+    );
+
     return {
       slippage_limit: this.state.quoteRequest.slippage,
       swap_type: getSwapTypeFromQuote(this.state.quoteRequest),
       custom_slippage: isCustomSlippage(this.state.quoteRequest.slippage),
+      account_hardware_type: accountHardwareType,
+      is_hardware_wallet: accountHardwareType !== null,
     };
   };
 
@@ -959,9 +962,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     };
     switch (eventName) {
       case UnifiedSwapBridgeEventName.ButtonClicked:
+        return {
+          ...getRequestParams(this.state.quoteRequest),
+          ...baseProperties,
+        };
       case UnifiedSwapBridgeEventName.PageViewed:
         return {
           ...getRequestParams(this.state.quoteRequest),
+          ...this.#getRequestMetadata(),
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesValidationFailed:
@@ -975,9 +983,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
-          is_hardware_wallet: isHardwareWallet(
-            this.#getMultichainSelectedAccount(),
-          ),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
         };
@@ -985,9 +990,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
-          is_hardware_wallet: isHardwareWallet(
-            this.#getMultichainSelectedAccount(),
-          ),
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
         };
@@ -995,9 +997,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return {
           ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
-          is_hardware_wallet: isHardwareWallet(
-            this.#getMultichainSelectedAccount(),
-          ),
           error_message: this.state.quoteFetchError,
           has_sufficient_funds: !this.state.quoteRequest.insufficientBal,
           ...baseProperties,
@@ -1009,9 +1008,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...getRequestParams(this.state.quoteRequest),
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
-          is_hardware_wallet: isHardwareWallet(
-            this.#getMultichainSelectedAccount(),
-          ),
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.Failed: {
