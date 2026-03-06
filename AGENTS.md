@@ -15,70 +15,77 @@ This document provides guidance for AI agents working within this repo.
 - **`@metamask/create-release-branch`**, **`MetaMask/action-publish-release`**, and **`MetaMask/action-npm-publish`** for creating and publishing releases
 - **TypeDoc** for generating API documentation
 
+### Repo structure
+
+Configuration follows a hierarchical pattern: root-level files define shared settings and per-package files extend or override them.
+
+```
+.depcheckrc.yml                                  # depcheck config (used by `yarn lint:dependencies`)
+.github/
+├── actions/                                     # Reusable GitHub actions (preferred over workflows/)
+├── workflows/                                   # Reusable GitHub workflows
+│   ├── changelog-check.yml                      # Enforces changelog entries on PRs
+│   ├── create-update-issues.yaml                # Opens issues on major releases
+│   ├── ensure-blocking-pr-labels-absent.yml     # Prevents PRs from being merged with blocking labels
+│   ├── lint-build-test.yml                      # Ensures code is linted, buildable, and tested
+│   ├── main.yml                                 # Orchestrates other workflows
+│   ├── publish-preview.yml                      # Publishes preview builds
+│   └── publish-release.yml                      # Publishes releases to NPM
+├── CODEOWNERS                                   # Maps packages to owning GitHub teams
+├── dependabot.yml                               # Config for Dependabot
+└── pull_request_template.md                     # Default PR description template
+.nvmrc                                           # Pins the Node.js version
+.prettierrc.js                                   # Prettier config for the entire repo
+.yarnrc.yml                                      # Yarn configuration
+docs/                                            # Documentation for contributors/maintainers
+├── code-guidelines/                             # Code style, etc.
+├── getting-started/                             # Start here if you're new
+└── processes/                                   # How to make new releases, update changelogs, etc.
+packages/                                        # Publishable packages (see "Package structure" below)
+└── <package-name>/
+scripts/                                         # Repo maintenance scripts and tools
+└── create-package/
+    └── package-template/                        # Template used when scaffolding a new package
+tests/                                           # Shared test helpers (fake providers, mock networks, etc.)
+types/                                           # Global ambient type declarations
+AGENTS.md                                        # Guidelines for AI agents (this file)
+babel.config.js                                  # Babel config (used for scripts/create-package tests)
+eslint.config.mjs                                # ESLint config for the entire monorepo
+eslint-suppressions.json                         # Temporarily suppressed ESLint violations
+jest.config.packages.js                          # Shared Jest settings for packages/
+jest.config.scripts.js                           # Shared Jest settings for scripts/
+release.config.json                              # Config for @metamask/create-release-branch
+teams.json                                       # Maps teams to issue labels for major-release workflows 
+tsconfig.json                                    # Project references root (used by linter and editors)
+tsconfig.base.json                               # Shared TS compiler options (base for all configs)
+tsconfig.build.json                              # Shared build-only TS settings
+tsconfig.packages.json                           # Shared dev-only TS settings for packages/
+tsconfig.packages.build.json                     # Shared build-only TS settings for packages/
+tsconfig.scripts.json                            # TS settings for scripts/
+yarn.config.cjs                                  # Yarn constraints (run via `yarn constraints` to apply)
+```
+
 ### Package structure
 
-[Yarn workspaces](https://yarnpkg.com/features/workspaces) are used to define and manage multiple packages.
+[Yarn workspaces](https://yarnpkg.com/features/workspaces) are used to define and manage multiple packages. The template in `scripts/create-package/package-template` matches this layout.
 
-Package in this monorepo are represented by subdirectories in `packages/`. Each directory follows this structure:
-
-- `src/` — Files that get built and published when the package is released. May also contain tests (which do not get published).
-- `tests/` — Optional directory that defines helpers or setup for tests.
-- `package.json` — Defines the name of the package, current version, dependencies, etc.
-- `CHANGELOG.md` — Each package has a changelog that lists historical changes.
-- `README.md` — Introduces the package to engineers and provides instructions on how to install and use it.
-- `LICENSE` — Each package has a license that describes how engineers can use it in projects.
-- Configuration files — See below.
-
-Note that the package template in `scripts/create-package/package-template` also uses this same structure.
-
-### Configuration files
-
-The monorepo uses a hierarchical configuration approach for different tools. For most tools, root-level config files define shared settings, while package-level files extend or customize them.
-
-### Contributing teams and codeowners
-
-- `CODEOWNERS` defines which GitHub teams own which packages in the monorepo.
-- `teams.json` instructs the `create-update-issues` GitHub workflow which labels to assign issues that are created when there are new major version releases of packages.
-
-### Yarn
-
-- `.yarnrc.yml` configures Yarn.
-- `yarn.config.cjs` defines Yarn constraints for monorepo packages, run via `yarn constraints`.
-
-#### TypeScript
-
-- `tsconfig.base.json` defines shared development-specific TypeScript settings for all other config files.
-- `tsconfig.build.json` defines shared build-specific TypeScript settings for all other config files.
-- `tsconfig.packages.json` defines shared development-specific TypeScript settings for all directories in `packages/`.
-- `tsconfig.packages.build.json` defines shared build-specific TypeScript settings for all directories in `packages/`.
-- `tsconfig.scripts.json` defines shared TypeScript settings for directories in `scripts/`.
-- `packages/**/tsconfig.json` (and `scripts/create-package/package-template/tsconfig.json`) defines TypeScript settings for each package that are meant to be used by code editors and lint tasks.
-- `packages/**/tsconfig.build.json` (and `scripts/create-package/package-template/tsconfig.build.json`) defines TypeScript settings for each package that are used to produce a build.
-- `scripts/create-package/tsconfig.json` customizes TypeScript settings for the `create-package` tool.
-
-#### Jest
-
-- `jest.config.packages.js` defines shared Jest settings for all directories in `packages/`.
-- `jest.config.scripts.js` defines shared Jest settings for all directories in `scripts/`.
-- `packages/**/jest.config.js` (and `scripts/create-package/package-template/jest.config.js`) customizes Jest settings for each package.
-
-#### ESLint
-
-- `eslint.config.mjs` configures ESLint for the entire monorepo.
-- `eslint-suppressions.json` isn't a config file per se, but defines ESLint errors that are being ignored (temporarily).
-
-#### Prettier
-
-- `.prettierrc.js` configures Prettier for the entire repo.
-
-#### TypeDoc
-
-- `packages/**/typedoc.json` (and `scripts/create-package/package-template/typedoc.js`) defines TypeDoc settings for each package.
-
-#### Other files
-
-- `babel.config.js` configures Babel, which is used for tests within `scripts/create-package`.
-- `release.config.js` configures the `@metamask/create-release-branch` tool.
+```
+packages/<package-name>/
+├── src/                             # Source files; built and published on release
+│   ├── <sub-module>/                # (Optional) Subdirectories for services etc.
+│   ├── index.ts                     # Public API (all exports listed explicitly here)
+│   ├── <name>-controller.ts         # Controller or service implementation
+│   └── <name>-controller.test.ts    # Tests live alongside source files
+├── tests/                           # (Optional) Shared test helpers/setup for this package
+├── CHANGELOG.md                     # Keep-a-Changelog formatted history
+├── LICENSE                          # How consumers may (or may not) use the package
+├── README.md                        # Installation and usage docs
+├── jest.config.js                   # Extends jest.config.packages.js
+├── package.json                     # Package name, version, dependencies
+├── tsconfig.json                    # Extends tsconfig.packages.json (editor + lint)
+├── tsconfig.build.json              # Extends tsconfig.packages.build.json (build)
+└── typedoc.json                     # TypeDoc settings for API doc generation
+```
 
 ## Processes
 
