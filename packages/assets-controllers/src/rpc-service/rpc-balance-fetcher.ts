@@ -9,6 +9,7 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from '../AssetsContractController';
+import type { UnprocessedTokens } from '../multi-chain-accounts-service/api-balance-fetcher';
 import { getTokenBalancesForMultipleAddresses } from '../multicall';
 import type { TokensControllerState } from '../TokensController';
 
@@ -28,6 +29,7 @@ export type ProcessedBalance = {
 export type BalanceFetchResult = {
   balances: ProcessedBalance[];
   unprocessedChainIds?: ChainIdHex[];
+  unprocessedTokens?: UnprocessedTokens;
 };
 
 export type BalanceFetcher = {
@@ -37,6 +39,7 @@ export type BalanceFetcher = {
     queryAllAccounts: boolean;
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
+    unprocessedTokens?: UnprocessedTokens;
   }): Promise<BalanceFetchResult>;
 };
 
@@ -82,18 +85,39 @@ export class RpcBalanceFetcher implements BalanceFetcher {
     queryAllAccounts,
     selectedAccount,
     allAccounts,
+    unprocessedTokens,
   }: Parameters<BalanceFetcher['fetch']>[0]): Promise<BalanceFetchResult> {
     // Process all chains in parallel for better performance
     const chainProcessingPromises = chainIds.map(async (chainId) => {
-      const tokensState = this.#getTokensState();
-      const accountTokenGroups = buildAccountTokenGroupsStatic(
-        chainId,
-        queryAllAccounts,
-        selectedAccount,
-        allAccounts,
-        tokensState.allTokens,
-        tokensState.allDetectedTokens,
+      const chainUnprocessedTokens = unprocessedTokens?.[chainId];
+      const hasUnprocessedTokensForChain = Boolean(
+        chainUnprocessedTokens &&
+          Object.keys(chainUnprocessedTokens).length > 0,
       );
+
+      let accountTokenGroups: {
+        accountAddress: ChecksumAddress;
+        tokenAddresses: ChecksumAddress[];
+      }[];
+
+      if (hasUnprocessedTokensForChain) {
+        accountTokenGroups = buildUnprocessedAccountTokenGroupsStatic(
+          chainUnprocessedTokens as Record<string, string[]>,
+          queryAllAccounts,
+          selectedAccount,
+          allAccounts,
+        );
+      } else {
+        const tokensState = this.#getTokensState();
+        accountTokenGroups = buildAccountTokenGroupsStatic(
+          chainId,
+          queryAllAccounts,
+          selectedAccount,
+          allAccounts,
+          tokensState.allTokens,
+          tokensState.allDetectedTokens,
+        );
+      }
       if (!accountTokenGroups.length) {
         return [];
       }
@@ -101,14 +125,16 @@ export class RpcBalanceFetcher implements BalanceFetcher {
       const provider = this.#getProvider(chainId);
       await this.#ensureFreshBlockData(chainId);
 
+      const includeNativeAndStaked = !hasUnprocessedTokensForChain;
+
       const balanceResult = await safelyExecuteWithTimeout(
         async () => {
           return await getTokenBalancesForMultipleAddresses(
             accountTokenGroups,
             chainId,
             provider,
-            true, // include native
-            true, // include staked
+            includeNativeAndStaked,
+            includeNativeAndStaked,
           );
         },
         true,
@@ -123,23 +149,25 @@ export class RpcBalanceFetcher implements BalanceFetcher {
       const { tokenBalances, stakedBalances } = balanceResult;
       const chainResults: ProcessedBalance[] = [];
 
-      // Add native token entries for all addresses being processed
-      const allAddressesForNative = new Set<string>();
-      accountTokenGroups.forEach((group) => {
-        allAddressesForNative.add(group.accountAddress);
-      });
-
-      // Ensure native token entries exist for all addresses
-      allAddressesForNative.forEach((address) => {
-        const nativeBalance = tokenBalances[ZERO_ADDRESS]?.[address] || null;
-        chainResults.push({
-          success: true,
-          value: nativeBalance || new BN('0'),
-          account: address as ChecksumAddress,
-          token: ZERO_ADDRESS,
-          chainId,
+      if (includeNativeAndStaked) {
+        // Add native token entries for all addresses being processed
+        const allAddressesForNative = new Set<string>();
+        accountTokenGroups.forEach((group) => {
+          allAddressesForNative.add(group.accountAddress);
         });
-      });
+
+        // Ensure native token entries exist for all addresses
+        allAddressesForNative.forEach((address) => {
+          const nativeBalance = tokenBalances[ZERO_ADDRESS]?.[address] || null;
+          chainResults.push({
+            success: true,
+            value: nativeBalance || new BN('0'),
+            account: address as ChecksumAddress,
+            token: ZERO_ADDRESS,
+            chainId,
+          });
+        });
+      }
 
       // Add other token balances
       Object.entries(tokenBalances).forEach(([tokenAddr, balances]) => {
@@ -160,7 +188,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
 
       // Add staked balances for all addresses being processed
       const stakingContractAddress = this.#getStakingContractAddress(chainId);
-      if (stakingContractAddress) {
+      if (includeNativeAndStaked && stakingContractAddress) {
         // Get all unique addresses being processed for this chain
         const allAddresses = new Set<string>();
         accountTokenGroups.forEach((group) => {
@@ -237,7 +265,7 @@ function buildAccountTokenGroupsStatic(
     tokenAddress: ChecksumAddress;
   }[] = [];
 
-  const add = ([account, tokens]: [string, unknown[]]) => {
+  const add = ([account, tokens]: [string, unknown[]]): void => {
     const shouldInclude =
       queryAllAccounts || checksum(account) === checksum(selectedAccount);
     if (!shouldInclude) {
@@ -293,4 +321,29 @@ function buildAccountTokenGroupsStatic(
     accountAddress,
     tokenAddresses,
   }));
+}
+
+function buildUnprocessedAccountTokenGroupsStatic(
+  chainUnprocessedTokens: Record<string, string[]>,
+  queryAllAccounts: boolean,
+  selectedAccount: ChecksumAddress,
+  allAccounts: InternalAccount[],
+): { accountAddress: ChecksumAddress; tokenAddresses: ChecksumAddress[] }[] {
+  const includedAccounts = new Set<string>(
+    queryAllAccounts
+      ? allAccounts.map((account) => account.address.toLowerCase())
+      : [selectedAccount.toLowerCase()],
+  );
+
+  return Object.entries(chainUnprocessedTokens)
+    .filter(([accountAddress, tokenAddresses]) => {
+      return (
+        includedAccounts.has(accountAddress.toLowerCase()) &&
+        tokenAddresses.length > 0
+      );
+    })
+    .map(([accountAddress, tokenAddresses]) => ({
+      accountAddress: accountAddress as ChecksumAddress,
+      tokenAddresses: tokenAddresses as ChecksumAddress[],
+    }));
 }

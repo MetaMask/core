@@ -66,6 +66,7 @@ import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-ba
 import type {
   BalanceFetcher,
   ProcessedBalance,
+  UnprocessedTokens,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
 import type {
@@ -818,6 +819,68 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }): Promise<ProcessedBalance[]> {
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
+    const unprocessedTokens: UnprocessedTokens = {};
+
+    const getUnprocessedTokensForChains = (
+      chains: ChainIdHex[],
+    ): UnprocessedTokens | undefined => {
+      const filteredUnprocessedTokens = chains.reduce<UnprocessedTokens>(
+        (accumulator, chainId) => {
+          if (unprocessedTokens[chainId]) {
+            accumulator[chainId] = unprocessedTokens[chainId];
+          }
+          return accumulator;
+        },
+        {},
+      );
+
+      return Object.keys(filteredUnprocessedTokens).length > 0
+        ? filteredUnprocessedTokens
+        : undefined;
+    };
+
+    const mergeUnprocessedTokens = (
+      incomingUnprocessedTokens?: UnprocessedTokens,
+    ): void => {
+      if (!incomingUnprocessedTokens) {
+        return;
+      }
+
+      Object.entries(incomingUnprocessedTokens).forEach(
+        ([chainId, accountsWithTokens]) => {
+          if (!accountsWithTokens) {
+            return;
+          }
+
+          const chainIdHex = chainId as ChainIdHex;
+          unprocessedTokens[chainIdHex] ??= {};
+          const currentChainTokens = unprocessedTokens[chainIdHex] as Record<
+            string,
+            string[]
+          >;
+
+          Object.entries(accountsWithTokens).forEach(([account, tokens]) => {
+            if (!tokens.length) {
+              return;
+            }
+
+            currentChainTokens[account] ??= [];
+            const currentAccountTokens = currentChainTokens[account];
+            const existingTokenSet = new Set(
+              currentAccountTokens.map((token) => token.toLowerCase()),
+            );
+
+            tokens.forEach((token) => {
+              const lowerCaseToken = token.toLowerCase();
+              if (!existingTokenSet.has(lowerCaseToken)) {
+                currentAccountTokens.push(token);
+                existingTokenSet.add(lowerCaseToken);
+              }
+            });
+          });
+        },
+      );
+    };
 
     for (const fetcher of this.#balanceFetchers) {
       const supportedChains = remainingChains.filter((chain) =>
@@ -834,6 +897,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           selectedAccount,
           allAccounts,
           jwtToken,
+          unprocessedTokens: getUnprocessedTokensForChains(supportedChains),
         });
 
         if (result.balances?.length) {
@@ -843,6 +907,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           remainingChains = remainingChains.filter(
             (chain) => !processed.has(chain),
           );
+
+          processed.forEach((chainId) => {
+            delete unprocessedTokens[chainId];
+          });
         }
 
         if (result.unprocessedChainIds?.length) {
@@ -862,6 +930,25 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
             .catch(() => {
               // Silently handle token detection errors
             });
+
+          result.unprocessedChainIds.forEach((chainId) => {
+            delete unprocessedTokens[chainId];
+          });
+        }
+
+        if (result.unprocessedTokens) {
+          mergeUnprocessedTokens(result.unprocessedTokens);
+
+          const unprocessedTokenChainIds = Object.keys(
+            result.unprocessedTokens,
+          ) as ChainIdHex[];
+          const currentRemaining = [...remainingChains];
+          const chainsToAdd = unprocessedTokenChainIds.filter(
+            (chainId) =>
+              supportedChains.includes(chainId) &&
+              !currentRemaining.includes(chainId),
+          );
+          remainingChains.push(...chainsToAdd);
         }
       } catch (error) {
         console.warn(

@@ -322,6 +322,66 @@ describe('RpcBalanceFetcher', () => {
       expect(result.balances.length).toBeGreaterThan(0);
     });
 
+    it('should fetch only unprocessed tokens without native or staked balances', async () => {
+      mockGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+        tokenBalances: {
+          [MOCK_TOKEN_ADDRESS_1]: {
+            [MOCK_ADDRESS_1]: new BN('42'),
+          },
+          [ZERO_ADDRESS]: {
+            [MOCK_ADDRESS_1]: new BN('123'),
+          },
+        },
+        stakedBalances: {
+          [MOCK_ADDRESS_1]: new BN('999'),
+        },
+      });
+
+      const result = await rpcBalanceFetcher.fetch({
+        chainIds: [MOCK_CHAIN_ID],
+        queryAllAccounts: false,
+        selectedAccount: MOCK_ADDRESS_1 as ChecksumAddress,
+        allAccounts: MOCK_INTERNAL_ACCOUNTS,
+        unprocessedTokens: {
+          [MOCK_CHAIN_ID]: {
+            [MOCK_ADDRESS_1]: [MOCK_TOKEN_ADDRESS_1],
+          },
+        },
+      });
+
+      expect(mockGetTokensState).not.toHaveBeenCalled();
+      expect(mockGetTokenBalancesForMultipleAddresses).toHaveBeenCalledWith(
+        [
+          {
+            accountAddress: MOCK_ADDRESS_1,
+            tokenAddresses: [MOCK_TOKEN_ADDRESS_1],
+          },
+        ],
+        MOCK_CHAIN_ID,
+        mockProvider,
+        false,
+        false,
+      );
+
+      expect(
+        result.balances.some((balance) => balance.token === ZERO_ADDRESS),
+      ).toBe(false);
+      expect(
+        result.balances.some(
+          (balance) => balance.token === STAKING_CONTRACT_ADDRESS,
+        ),
+      ).toBe(false);
+      expect(result.balances).toStrictEqual([
+        {
+          success: true,
+          value: new BN('42'),
+          account: MOCK_ADDRESS_1,
+          token: MOCK_TOKEN_ADDRESS_1,
+          chainId: MOCK_CHAIN_ID,
+        },
+      ]);
+    });
+
     it('should handle multiple chain IDs', async () => {
       await rpcBalanceFetcher.fetch({
         chainIds: [MOCK_CHAIN_ID, MOCK_CHAIN_ID_2],

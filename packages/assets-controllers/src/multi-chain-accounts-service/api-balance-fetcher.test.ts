@@ -802,7 +802,9 @@ describe('AccountsApiBalanceFetcher', () => {
     });
   });
 
-  describe('erc20 token zero balance guarantee', () => {
+  describe('erc20 token unprocessed handling', () => {
+    const trackedToken = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+
     const arrangeBalanceFetcher = (): AccountsApiBalanceFetcher => {
       const responseWithoutErc20: GetBalancesResponse = {
         count: 1,
@@ -820,7 +822,7 @@ describe('AccountsApiBalanceFetcher', () => {
           [MOCK_ADDRESS_1]: {
             '0x1': {
               [ZERO_ADDRESS]: {},
-              '0x0xaf88d065e77c8cC2239327C5EDb3A432268e5831': '0x814a20', // previously had balance, should be zero now if api doesn't return it
+              [trackedToken]: '0x814a20',
             },
           },
         }),
@@ -829,7 +831,7 @@ describe('AccountsApiBalanceFetcher', () => {
       return balanceFetcher;
     };
 
-    it('should include erc20 token entry for addresses even when API does not return erc20 balance', async () => {
+    it('should return missing erc20 balances as unprocessed tokens', async () => {
       balanceFetcher = arrangeBalanceFetcher();
 
       const result = await balanceFetcher.fetch({
@@ -839,17 +841,17 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      expect(result.balances).toHaveLength(2);
+      expect(result.balances).toHaveLength(1);
       expect(result.balances[0].token).toStrictEqual(ZERO_ADDRESS);
-      expect(result.balances[1].token).toBe(
-        '0x0xaf88d065e77c8cC2239327C5EDb3A432268e5831'.toLowerCase(),
-      );
-      expect(result.balances[1].value).toStrictEqual(new BN('0')); // balance is zero now since API did not return a value for this token
+      expect(result.unprocessedTokens).toStrictEqual({
+        '0x1': {
+          [MOCK_ADDRESS_1]: [trackedToken.toLowerCase()],
+        },
+      });
     });
 
-    it('should not zero out erc20 balances for accounts excluded from selected-account requests', async () => {
-      const selectedAccountToken =
-        '0x0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+    it('should not include erc20 tokens for accounts excluded from selected-account requests', async () => {
+      const selectedAccountToken = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
       const excludedAccountToken = '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E';
 
       mockFetchMultiChainBalancesV4.mockResolvedValue({
@@ -884,32 +886,19 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      const zeroedSelectedAccountToken = result.balances.find(
-        (balance) =>
-          balance.account === MOCK_ADDRESS_1 &&
-          balance.token === selectedAccountToken.toLowerCase(),
-      );
-      expect(zeroedSelectedAccountToken).toStrictEqual(
+      expect(result.unprocessedTokens?.['0x1']).toStrictEqual(
         expect.objectContaining({
-          success: true,
-          value: new BN('0'),
-          account: MOCK_ADDRESS_1,
-          token: selectedAccountToken.toLowerCase(),
-          chainId: '0x1',
+          [MOCK_ADDRESS_1]: [selectedAccountToken.toLowerCase()],
         }),
       );
 
-      const zeroedExcludedAccountToken = result.balances.find(
-        (balance) =>
-          balance.account === MOCK_ADDRESS_2 &&
-          balance.token === excludedAccountToken.toLowerCase(),
-      );
-      expect(zeroedExcludedAccountToken).toBeUndefined();
+      const excludedAccountUnprocessedTokens =
+        result.unprocessedTokens?.['0x1']?.[MOCK_ADDRESS_2];
+      expect(excludedAccountUnprocessedTokens).toBeUndefined();
     });
 
-    it('should not zero out erc20 balances for accounts excluded from all-accounts requests', async () => {
-      const includedAccountToken =
-        '0x0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+    it('should not include erc20 tokens for accounts excluded from all-accounts requests', async () => {
+      const includedAccountToken = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
       const excludedAccount = '0x1111111111111111111111111111111111111111';
       const excludedAccountToken = '0xA0b86a33E6441c86c33E1C6B9cD964c0BA2A86B';
 
@@ -953,30 +942,18 @@ describe('AccountsApiBalanceFetcher', () => {
         allAccounts: MOCK_INTERNAL_ACCOUNTS,
       });
 
-      const zeroedIncludedAccountToken = result.balances.find(
-        (balance) =>
-          balance.account === MOCK_ADDRESS_1 &&
-          balance.token === includedAccountToken.toLowerCase(),
-      );
-      expect(zeroedIncludedAccountToken).toStrictEqual(
+      expect(result.unprocessedTokens?.['0x1']).toStrictEqual(
         expect.objectContaining({
-          success: true,
-          value: new BN('0'),
-          account: MOCK_ADDRESS_1,
-          token: includedAccountToken.toLowerCase(),
-          chainId: '0x1',
+          [MOCK_ADDRESS_1]: [includedAccountToken.toLowerCase()],
         }),
       );
 
-      const zeroedExcludedAccountToken = result.balances.find(
-        (balance) =>
-          balance.account === excludedAccount &&
-          balance.token === excludedAccountToken.toLowerCase(),
-      );
-      expect(zeroedExcludedAccountToken).toBeUndefined();
+      const excludedAccountUnprocessedTokens =
+        result.unprocessedTokens?.['0x1']?.[excludedAccount];
+      expect(excludedAccountUnprocessedTokens).toBeUndefined();
     });
 
-    it('should not include erc20 token entry for chains that are not supported by account API', async () => {
+    it('should not include erc20 unprocessed tokens for chains not supported by account API', async () => {
       balanceFetcher = arrangeBalanceFetcher();
 
       balanceFetcher = new AccountsApiBalanceFetcher(
@@ -987,10 +964,11 @@ describe('AccountsApiBalanceFetcher', () => {
             '0x1': {
               [ZERO_ADDRESS]: {},
             },
-            // Avalanche is not a supported chain, so balances should not be zeroed out
+            // Avalanche is not a supported chain, so this token should not be included
+            // in the unprocessed token response.
             '0xa86a': {
               [ZERO_ADDRESS]: {},
-              '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E': '0x814a20', // USDC AVAX has balance, should not be zeroed out
+              '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E': '0x814a20',
             },
           },
         }),
@@ -1011,6 +989,7 @@ describe('AccountsApiBalanceFetcher', () => {
           value: expect.any(BN),
         }),
       );
+      expect(result.unprocessedTokens).toBeUndefined();
     });
   });
 

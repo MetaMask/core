@@ -39,9 +39,14 @@ export type ProcessedBalance = {
   chainId: ChainIdHex;
 };
 
+export type UnprocessedTokens = Partial<
+  Record<ChainIdHex, Record<string, string[]>>
+>;
+
 export type BalanceFetchResult = {
   balances: ProcessedBalance[];
   unprocessedChainIds?: ChainIdHex[];
+  unprocessedTokens?: UnprocessedTokens;
 };
 
 export type BalanceFetcher = {
@@ -52,6 +57,7 @@ export type BalanceFetcher = {
     selectedAccount: ChecksumAddress;
     allAccounts: InternalAccount[];
     jwtToken?: string;
+    unprocessedTokens?: UnprocessedTokens;
   }): Promise<BalanceFetchResult>;
 };
 
@@ -415,6 +421,26 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
           )
         : selectedAccount.toLowerCase() === address.toLowerCase();
 
+    const unprocessedTokens: UnprocessedTokens = {};
+
+    const addUnprocessedToken = (
+      chainId: ChainIdHex,
+      account: string,
+      tokenAddress: string,
+    ): void => {
+      unprocessedTokens[chainId] ??= {};
+      const chainUnprocessedTokens = unprocessedTokens[chainId] as Record<
+        string,
+        string[]
+      >;
+
+      chainUnprocessedTokens[account] ??= [];
+      const accountUnprocessedTokens = chainUnprocessedTokens[account];
+      if (!accountUnprocessedTokens.includes(tokenAddress)) {
+        accountUnprocessedTokens.push(tokenAddress);
+      }
+    };
+
     // Add zero native balance entries for addresses that API didn't return
     addressChainMap.forEach((chains, address) => {
       chains.forEach((chainId) => {
@@ -442,7 +468,9 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       });
     });
 
-    // Add zero erc-20 balance entries for addresses that API didn't return
+    // Track ERC-20 balances that were not returned by Accounts API.
+    // These can then be fetched by a fallback fetcher (RPC) without
+    // overwriting potentially stale balances with zero values.
     if (this.#getUserTokens) {
       const userTokens = this.#getUserTokens();
       Object.entries(userTokens).forEach(([account, chains]) => {
@@ -462,13 +490,11 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
               isAccountIncluded;
 
             if (isERC && shouldZeroOutBalance) {
-              results.push({
-                success: true,
-                value: new BN('0'),
-                account: account as ChecksumAddress,
-                token: tokenLowerCase as ChecksumAddress,
-                chainId: chainId as ChainIdHex,
-              });
+              addUnprocessedToken(
+                chainId as ChainIdHex,
+                account,
+                tokenLowerCase,
+              );
             }
           });
         });
@@ -481,6 +507,10 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
     return {
       balances: results,
       unprocessedChainIds,
+      unprocessedTokens:
+        Object.keys(unprocessedTokens).length > 0
+          ? unprocessedTokens
+          : undefined,
     };
   }
 }

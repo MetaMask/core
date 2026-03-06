@@ -838,9 +838,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         this.#tokensChainsCache[chainId]?.data?.[lowercaseTokenAddress];
 
       if (!tokenData) {
-        console.warn(
-          `Token metadata not found in cache for ${tokenAddress} on chain ${chainId}`,
-        );
         continue;
       }
 
@@ -961,9 +958,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         this.#tokensChainsCache[chainId]?.data?.[lowercaseTokenAddress];
 
       if (!tokenData) {
-        console.warn(
-          `Token metadata not found in cache for ${tokenAddress} on chain ${chainId}`,
-        );
         continue;
       }
 

@@ -477,9 +477,6 @@
     }
   },
   "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 2
     },
