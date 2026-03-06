@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Accept ISO 3166-2 subdivision codes (e.g. `US-NY`, `CA-ON`) from the geolocation API, not just 2-letter country codes ([#8137](https://github.com/MetaMask/core/pull/8137))
+
 ## [0.1.0]
 
 ### Added
