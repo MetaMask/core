@@ -94,7 +94,6 @@ function validateAndDecodeData(
     );
   }
 
-
   if (amountPerSecondBigInt === 0n) {
     throw new Error(
       'Invalid native-token-stream terms: amountPerSecond must be a positive number',
