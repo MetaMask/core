@@ -283,6 +283,24 @@ describe('MultichainAccount', () => {
       expect(providers[1].createAccounts).not.toHaveBeenCalled();
     });
 
+    it('removes accounts from the group when a provider no longer returns them during alignment', async () => {
+      const groupIndex = 0;
+      const { group, providers } = setup({
+        groupIndex,
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT, MOCK_WALLET_1_SOL_ACCOUNT], []],
+      });
+
+      // Provider 0 previously had both accounts but now only returns the EVM one.
+      mockCreateAccountsOnce(providers[0], [MOCK_WALLET_1_EVM_ACCOUNT]);
+
+      await group.alignAccounts();
+
+      expect(group.getAccount(MOCK_WALLET_1_EVM_ACCOUNT.id)).toBe(
+        MOCK_WALLET_1_EVM_ACCOUNT,
+      );
+      expect(group.getAccount(MOCK_WALLET_1_SOL_ACCOUNT.id)).toBeUndefined();
+    });
+
     it('removes accounts from the group when a provider is disabled', async () => {
       const groupIndex = 0;
       const { group, providers } = setup({
