@@ -72,7 +72,10 @@ function isPriceableAsset(assetId: Caip19AssetId): boolean {
 }
 
 /** Market data item from spot prices response (same as FungibleAssetPrice without lastUpdated) */
-type SpotPriceMarketData = Omit<FungibleAssetPrice, 'lastUpdated'>;
+type SpotPriceMarketData = Omit<
+  FungibleAssetPrice,
+  'lastUpdated' | 'assetPriceType'
+>;
 
 /**
  * Type guard to check if market data has a valid price
@@ -189,21 +192,11 @@ export class PriceDataSource {
       }
 
       try {
-        const priceResponse = await this.#fetchSpotPrices(priceableAssetIds);
-
-        response.assetsPrice ??= {};
-
-        for (const [assetId, marketData] of Object.entries(priceResponse)) {
-          if (!isValidMarketData(marketData)) {
-            continue;
-          }
-
-          const caipAssetId = assetId as Caip19AssetId;
-          response.assetsPrice[caipAssetId] = {
-            ...marketData,
-            lastUpdated: Date.now(),
-          };
-        }
+        const spotPrices = await this.#fetchSpotPrices(priceableAssetIds);
+        response.assetsPrice = {
+          ...(response.assetsPrice ?? {}),
+          ...spotPrices,
+        };
       } catch (error) {
         log('Failed to fetch prices via middleware', { error });
       }
@@ -223,11 +216,57 @@ export class PriceDataSource {
    * @param assetIds - Array of CAIP-19 asset IDs
    * @returns Spot prices response
    */
-  async #fetchSpotPrices(assetIds: string[]): Promise<V3SpotPricesResponse> {
-    return this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-      currency: this.#getSelectedCurrency(),
-      includeMarketData: true,
-    });
+  async #fetchSpotPrices(
+    assetIds: string[],
+  ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
+    const selectedCurrency = this.#getSelectedCurrency();
+
+    let selectedCurrencyPrices: V3SpotPricesResponse;
+    let usdPrices: V3SpotPricesResponse;
+    if (selectedCurrency === 'usd') {
+      selectedCurrencyPrices = await this.#apiClient.prices.fetchV3SpotPrices(
+        assetIds,
+        {
+          currency: selectedCurrency,
+          includeMarketData: true,
+        },
+      );
+      usdPrices = selectedCurrencyPrices;
+    } else {
+      [selectedCurrencyPrices, usdPrices] = await Promise.all([
+        this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+          currency: selectedCurrency,
+          includeMarketData: true,
+        }),
+        this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+          currency: 'usd',
+          includeMarketData: true,
+        }),
+      ]);
+    }
+
+    const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};
+
+    for (const [assetId, marketData] of Object.entries(
+      selectedCurrencyPrices,
+    )) {
+      const usdMarketData = usdPrices[assetId];
+
+      // Skip assets with invalid market data (API doesn't have price for this asset is selected currency or USD)
+      if (!isValidMarketData(marketData) || !isValidMarketData(usdMarketData)) {
+        continue;
+      }
+
+      const caipAssetId = assetId as Caip19AssetId;
+      prices[caipAssetId] = {
+        ...marketData,
+        assetPriceType: 'fungible',
+        usdPrice: usdMarketData.price,
+        lastUpdated: Date.now(),
+      };
+    }
+
+    return prices;
   }
 
   /**
@@ -330,22 +369,12 @@ export class PriceDataSource {
     }
 
     try {
-      const priceResponse = await this.#fetchSpotPrices([...assetIds]);
+      const spotPrices = await this.#fetchSpotPrices([...assetIds]);
 
-      response.assetsPrice = {};
-
-      for (const [assetId, marketData] of Object.entries(priceResponse)) {
-        // Skip assets with invalid market data (API doesn't have price for this asset)
-        if (!isValidMarketData(marketData)) {
-          continue;
-        }
-
-        const caipAssetId = assetId as Caip19AssetId;
-        response.assetsPrice[caipAssetId] = {
-          ...marketData,
-          lastUpdated: Date.now(),
-        };
-      }
+      response.assetsPrice = {
+        ...(response.assetsPrice ?? {}),
+        ...spotPrices,
+      };
     } catch (error) {
       log('Failed to fetch prices', { error });
     }
