@@ -82,17 +82,17 @@ describe('TransactionPayController', () => {
 
   describe('updateFiatPayment', () => {
     it('calls util', () => {
+      const callback = jest.fn();
+
       createController().updateFiatPayment({
-        amountFiat: '20',
-        selectedPaymentMethodId: '/payments/debit-credit-card',
         transactionId: TRANSACTION_ID_MOCK,
+        callback,
       });
 
       expect(updateFiatPaymentMock).toHaveBeenCalledWith(
         {
-          amountFiat: '20',
-          selectedPaymentMethodId: '/payments/debit-credit-card',
           transactionId: TRANSACTION_ID_MOCK,
+          callback,
         },
         {
           messenger,
@@ -102,17 +102,19 @@ describe('TransactionPayController', () => {
     });
 
     it('is callable via messenger action handler', () => {
+      const callback = jest.fn();
+
       createController();
 
       messenger.call('TransactionPayController:updateFiatPayment', {
-        amountFiat: '15',
         transactionId: TRANSACTION_ID_MOCK,
+        callback,
       });
 
       expect(updateFiatPaymentMock).toHaveBeenCalledWith(
         {
-          amountFiat: '15',
           transactionId: TRANSACTION_ID_MOCK,
+          callback,
         },
         {
           messenger,

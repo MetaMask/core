@@ -120,6 +120,11 @@ export type TransactionConfig = {
 /** Callback to update transaction config. */
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
 
+/** Callback to update fiat payment state. */
+export type TransactionFiatPaymentCallback = (
+  fiatPayment: TransactionFiatPayment,
+) => void;
+
 export type TransactionPayControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof CONTROLLER_NAME,
@@ -224,9 +229,6 @@ export type TransactionFiatPayment = {
 
   /** Selected fiat payment method ID. */
   selectedPaymentMethodId?: string;
-
-  /** Quick-buy order ID in normalized format (/providers/{provider}/orders/{id}). */
-  quickBuyOrderId?: string;
 };
 
 /** A token required by a transaction. */
@@ -547,9 +549,12 @@ export type UpdatePaymentTokenRequest = {
 };
 
 /** Request to update fiat payment state for a transaction. */
-export type UpdateFiatPaymentRequest = Partial<TransactionFiatPayment> & {
+export type UpdateFiatPaymentRequest = {
   /** ID of the transaction to update. */
   transactionId: string;
+
+  /** Callback to mutate fiat payment state. */
+  callback: TransactionFiatPaymentCallback;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */
