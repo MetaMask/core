@@ -850,6 +850,41 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           unprocessedTokens: previousUnprocessedTokens,
         });
 
+        // Add balances, and removed processed chains
+        if (result.balances?.length) {
+          aggregated.push(...result.balances);
+
+          const processed = new Set(result.balances.map((b) => b.chainId));
+          remainingChains = remainingChains.filter(
+            (chain) => !processed.has(chain),
+          );
+        }
+
+        // Add unprocessed chains (from missing chains or missing tokens)
+        if (result.unprocessedChainIds || result.unprocessedTokens) {
+          const resultUnprocessedChains = result.unprocessedChainIds ?? [];
+          const resultUnsupportedTokenChains = Object.entries(
+            result.unprocessedTokens ?? {},
+          ).flatMap(([_account, chainMap]) => Object.keys(chainMap)) as Hex[];
+
+          remainingChains = Array.from(
+            new Set([
+              ...remainingChains,
+              ...resultUnprocessedChains,
+              ...resultUnsupportedTokenChains,
+            ]),
+          );
+
+          this.messenger
+            .call('TokenDetectionController:detectTokens', {
+              chainIds: result.unprocessedChainIds,
+              forceRpc: true,
+            })
+            .catch(() => {
+              // Silently handle token detection errors
+            });
+        }
+
         // Balance Error Reporting - for unprocessed tokens from last fetcher, if balances are retrieved
         const unprocessedTokensForReporting = previousUnprocessedTokens;
         if (unprocessedTokensForReporting && result.balances?.length) {
@@ -891,41 +926,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         // Set new previous fields
         previousUnprocessedTokens = result.unprocessedTokens;
         previousFetcherName = fetcherName;
-
-        // Add balances, and removed processed chains
-        if (result.balances?.length) {
-          aggregated.push(...result.balances);
-
-          const processed = new Set(result.balances.map((b) => b.chainId));
-          remainingChains = remainingChains.filter(
-            (chain) => !processed.has(chain),
-          );
-        }
-
-        // Add unprocessed chains (from missing chains or missing tokens)
-        if (result.unprocessedChainIds || result.unprocessedTokens) {
-          const resultUnprocessedChains = result.unprocessedChainIds ?? [];
-          const resultUnsupportedTokenChains = Object.entries(
-            result.unprocessedTokens ?? {},
-          ).flatMap(([_account, chainMap]) => Object.keys(chainMap)) as Hex[];
-
-          remainingChains = Array.from(
-            new Set([
-              ...remainingChains,
-              ...resultUnprocessedChains,
-              ...resultUnsupportedTokenChains,
-            ]),
-          );
-
-          this.messenger
-            .call('TokenDetectionController:detectTokens', {
-              chainIds: result.unprocessedChainIds,
-              forceRpc: true,
-            })
-            .catch(() => {
-              // Silently handle token detection errors
-            });
-        }
       } catch (error) {
         console.warn(
           `Balance fetcher failed for chains ${supportedChains.join(', ')}: ${String(error)}`,
