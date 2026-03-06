@@ -130,6 +130,40 @@ describe('erc20-token-stream rule', () => {
     expect(result.error.message).toContain('must be');
   });
 
+  it('decodes mixed-case token address', () => {
+    const mixedCaseAddress = contracts.ERC20StreamingEnforcer as Hex;
+    const caveats = [
+      expiryCaveat,
+      valueLteCaveat,
+      {
+        enforcer: ERC20StreamingEnforcer,
+        terms: createERC20StreamingTerms(
+          {
+            tokenAddress: mixedCaseAddress,
+            initialAmount: 1n,
+            maxAmount: 2n,
+            amountPerSecond: 1n,
+            startTime: 1715664,
+          },
+          { out: 'hex' },
+        ),
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(true);
+
+    // this is here as a type guard
+    if (!result.isValid) {
+      throw new Error('Expected valid result');
+    }
+
+    expect(result.expiry).toBe(1720000);
+    expect(result.data?.tokenAddress.toLowerCase()).toBe(
+      mixedCaseAddress.toLowerCase(),
+    );
+  });
+
   it('decodes zero token address', () => {
     const zeroAddress = '0x0000000000000000000000000000000000000000' as Hex;
     const caveats = [

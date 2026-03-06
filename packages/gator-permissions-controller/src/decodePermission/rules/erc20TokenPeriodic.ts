@@ -1,4 +1,4 @@
-import { hexToBigInt, hexToNumber, isHexAddress } from '@metamask/utils';
+import { hexToBigInt, hexToNumber, isHexChecksumAddress } from '@metamask/utils';
 
 import { makePermissionRule } from './makePermissionRule';
 import type {
@@ -89,7 +89,7 @@ function validateAndDecodeData(
   const periodAmountBigInt = hexToBigInt(periodAmount);
   const startTime = hexToNumber(startTimeRaw);
 
-  if (!isHexAddress(tokenAddress)) {
+  if (!isHexChecksumAddress(tokenAddress)) {
     throw new Error(
       'Invalid erc20-token-periodic terms: tokenAddress must be a valid hex string',
     );
