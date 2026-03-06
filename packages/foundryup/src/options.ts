@@ -139,8 +139,10 @@ function getOptions(
       default: 'nightly',
       coerce: (
         rawVersion: string,
-      ): { version: 'nightly' | `v${string}`; tag: string } => {
-        if (rawVersion.startsWith('nightly')) {
+      ): { version: 'stable' | 'nightly' | `v${string}`; tag: string } => {
+        if (rawVersion === 'stable') {
+          return { version: 'stable', tag: 'stable' };
+        } else if (rawVersion.startsWith('nightly')) {
           return { version: 'nightly', tag: rawVersion };
           // we don't validate the version much, we just trust the user
         } else if (isVersionString(rawVersion)) {
