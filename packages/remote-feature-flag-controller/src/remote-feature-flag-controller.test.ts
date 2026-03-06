@@ -422,6 +422,44 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
+    it('selects the lowest matching threshold when threshold scopes are unordered', async () => {
+      const mockFlags = {
+        unorderedThresholdFlag: [
+          {
+            name: 'control',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'control',
+          },
+          {
+            name: 'treatment',
+            scope: { type: 'threshold', value: 0.1 },
+            value: 'treatment',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+        state: {
+          thresholdCache: {
+            [`${MOCK_METRICS_ID}:unorderedThresholdFlag`]: 0.05,
+          },
+        },
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      expect(
+        controller.state.remoteFeatureFlags.unorderedThresholdFlag,
+      ).toStrictEqual({
+        name: 'treatment',
+        value: 'treatment',
+      });
+    });
+
     it('preserves non-threshold feature flags unchanged', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,

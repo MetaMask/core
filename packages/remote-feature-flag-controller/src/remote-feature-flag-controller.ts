@@ -11,7 +11,6 @@ import type { AbstractClientConfigApiService } from './client-config-api-service
 import type {
   FeatureFlags,
   ServiceResponse,
-  FeatureFlagScopeValue,
 } from './remote-feature-flag-controller-types';
 import {
   calculateThresholdForFlag,
@@ -372,15 +371,13 @@ export class RemoteFeatureFlagController extends BaseController<
           thresholdCacheUpdates[cacheKey] = thresholdValue;
         }
 
-        const threshold = thresholdValue;
-        const selectedGroup = processedValue.find(
-          (featureFlag): featureFlag is FeatureFlagScopeValue => {
-            if (!isFeatureFlagWithScopeValue(featureFlag)) {
-              return false;
-            }
+        const thresholdScopedFlags = processedValue
+          .filter(isFeatureFlagWithScopeValue)
+          .sort((a, b) => a.scope.value - b.scope.value);
 
-            return threshold <= featureFlag.scope.value;
-          },
+        const threshold = thresholdValue;
+        const selectedGroup = thresholdScopedFlags.find(
+          (featureFlag) => threshold <= featureFlag.scope.value,
         );
         if (selectedGroup) {
           processedValue = {
