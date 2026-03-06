@@ -714,6 +714,7 @@ export class RampsController extends BaseController<
   #clearPendingResourceCountForDependentResources(): void {
     for (const resourceType of DEPENDENT_RESOURCE_KEYS) {
       this.#pendingResourceCount.delete(resourceType);
+      this.#resourceTerminalStatus.delete(resourceType);
     }
   }
 

@@ -1980,6 +1980,102 @@ describe('RampsController', () => {
       );
     });
 
+    it('does not inherit stale terminal status after region change aborts a successful request', async () => {
+      const mockTokens: TokensResponse = { topTokens: [], allTokens: [] };
+
+      await withController(
+        {
+          options: {
+            state: {
+              countries: createResourceState(createMockCountries()),
+              userRegion: {
+                regionCode: 'us-ca',
+                state: {
+                  stateId: 'CA',
+                  name: 'California',
+                  supported: { buy: true, sell: true },
+                },
+                country: {
+                  isoCode: 'US',
+                  name: 'United States of America',
+                  flag: '🇺🇸',
+                  currency: 'USD',
+                  phone: { prefix: '+1', placeholder: '', template: '' },
+                  supported: { buy: true, sell: true },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          // Step 1: Launch two concurrent executeRequest calls for 'providers'.
+          // Request A will succeed (isResultCurrent=true), recording SUCCESS in
+          // #resourceTerminalStatus. Request B hangs (will be aborted).
+          let resolveA: (value: string) => void;
+
+          const promiseA = controller.executeRequest(
+            'providers-stale-a',
+            async () =>
+              new Promise<string>((resolve) => {
+                resolveA = resolve;
+              }),
+            { resourceType: 'providers', isResultCurrent: () => true },
+          );
+
+          // Request B hangs — will be aborted by the region change below
+          const promiseB = controller
+            .executeRequest(
+              'providers-stale-b',
+              async (signal) =>
+                new Promise<string>((_resolve, reject) => {
+                  signal.addEventListener('abort', () =>
+                    reject(new Error('aborted')),
+                  );
+                }),
+              { resourceType: 'providers', isResultCurrent: () => true },
+            )
+            // eslint-disable-next-line no-empty-function -- swallow expected abort rejection
+            .catch(() => {});
+
+          // Step 2: Resolve A successfully while B is still in-flight.
+          // count goes 2→1, SUCCESS is recorded in #resourceTerminalStatus but
+          // not committed yet (count > 0 when A finishes).
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          resolveA!('result-a');
+          await promiseA;
+
+          expect(controller.state.providers.isLoading).toBe(true);
+
+          // Step 3: Change region. This calls #abortDependentRequests (aborts B)
+          // and #clearPendingResourceCountForDependentResources (clears count).
+          // The fix also clears #resourceTerminalStatus for dependent resources.
+          // B's finally block sees signal.aborted=true and skips cleanup, so
+          // without the fix the stale SUCCESS remains in #resourceTerminalStatus.
+          rootMessenger.registerActionHandler(
+            'RampsService:getTokens',
+            async () => mockTokens,
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              throw new Error('FR providers fetch failed');
+            },
+          );
+
+          await controller.setUserRegion('FR');
+          await promiseB;
+
+          // Wait for the fire-and-forget refetches to settle
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          // Step 4: Without the fix, the stale SUCCESS from request A prevented
+          // ERROR from being recorded when the FR request failed, so status
+          // would be 'success'. With the fix it must be 'error'.
+          expect(controller.state.providers.status).toBe(RequestStatus.ERROR);
+        },
+      );
+    });
+
     it('does not clear persisted state when setting the same region', async () => {
       const mockTokens: TokensResponse = {
         topTokens: [],
