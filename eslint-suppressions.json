@@ -440,14 +440,6 @@
       "count": 4
     }
   },
-  "packages/assets-controllers/src/multi-chain-accounts-service/api-balance-fetcher.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 1
-    }
-  },
   "packages/assets-controllers/src/multi-chain-accounts-service/multi-chain-accounts.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
@@ -474,14 +466,6 @@
   "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
     "id-length": {
       "count": 17
-    }
-  },
-  "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
-    "id-length": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/selectors/stringify-balance.ts": {
