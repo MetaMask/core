@@ -6,11 +6,11 @@
 import type { GeolocationController } from './GeolocationController';
 
 /**
- * Returns the geolocation country code. Delegates to the
+ * Returns the geolocation code. Delegates to the
  * {@link GeolocationApiService} for network fetching and caching, then
  * updates controller state with the result.
  *
- * @returns The ISO country code string.
+ * @returns The ISO 3166-2 location code string.
  */
 export type GeolocationControllerGetGeolocationAction = {
   type: `GeolocationController:getGeolocation`;
@@ -20,7 +20,7 @@ export type GeolocationControllerGetGeolocationAction = {
 /**
  * Forces a fresh geolocation fetch, bypassing the service's cache.
  *
- * @returns The ISO country code string.
+ * @returns The ISO 3166-2 location code string.
  */
 export type GeolocationControllerRefreshGeolocationAction = {
   type: `GeolocationController:refreshGeolocation`;
