@@ -39,9 +39,7 @@ export class SnapPlatformWatcher {
 
   async ensureCanUseSnapPlatform(): Promise<void> {
     // When ensureOnboardingComplete is provided, wait for the onboarding first.
-    if (this.#ensureOnboardingComplete !== undefined) {
-      await this.#ensureOnboardingComplete();
-    }
+    await this.#ensureOnboardingComplete?.();
 
     // In all cases, we also require the Snap platform to be ready and available.
     await this.#isReadyOnce.promise;
