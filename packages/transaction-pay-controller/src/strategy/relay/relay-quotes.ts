@@ -16,6 +16,7 @@ import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
 import type {
   BatchTransactionParams,
+  GasFeeToken,
   TransactionMeta,
 } from '../../../../transaction-controller/src';
 import {
@@ -41,11 +42,12 @@ import {
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
-import { calculateGasCost } from '../../utils/gas';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
+  getTokenInfo,
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token';
@@ -591,6 +593,64 @@ async function calculateSourceNetworkCost(
     max: max.raw,
   });
 
+  // For post-quote flows (e.g. Predict withdraw), the gas station simulation
+  // will return no tokens because the EOA has no source token balance at quote
+  // time — the tokens are held in the Safe and only become available after the
+  // original tx executes. Skip the simulation entirely and compute the gas fee
+  // token amount directly from the gas cost and token/native exchange rate.
+  if (request.isPostQuote) {
+    const postQuoteGasFeeToken = buildPostQuoteGasFeeToken({
+      chainId: sourceChainId,
+      maxFeePerGas,
+      messenger,
+      sourceTokenAddress,
+      totalGasEstimate,
+    });
+
+    console.log('[relay-quotes] post-quote gas fee token (no simulation)', {
+      postQuoteGasFeeToken: postQuoteGasFeeToken
+        ? {
+            amount: postQuoteGasFeeToken.amount,
+            symbol: postQuoteGasFeeToken.symbol,
+            gas: postQuoteGasFeeToken.gas,
+            rateWei: postQuoteGasFeeToken.rateWei,
+          }
+        : undefined,
+      sourceTokenAddress,
+      totalGasEstimate,
+    });
+
+    if (!postQuoteGasFeeToken) {
+      log('Cannot compute post-quote gas fee token', { sourceTokenAddress });
+      return result;
+    }
+
+    const gasFeeTokenCost = calculateGasFeeTokenCost({
+      chainId: sourceChainId,
+      gasFeeToken: postQuoteGasFeeToken,
+      messenger,
+    });
+
+    console.log('[relay-quotes] post-quote gasFeeTokenCost', {
+      gasFeeTokenCost,
+    });
+
+    if (!gasFeeTokenCost) {
+      return result;
+    }
+
+    log('Using post-quote gas fee token for source network', {
+      gasFeeTokenCost,
+    });
+
+    return {
+      isGasFeeToken: true,
+      estimate: gasFeeTokenCost,
+      max: gasFeeTokenCost,
+      gasLimits,
+    };
+  }
+
   const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
     firstStepData: {
       data,
@@ -953,4 +1013,95 @@ function isStablecoin(chainId: string, tokenAddress: string): boolean {
   return Boolean(
     STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
   );
+}
+
+/**
+ * Build a synthetic GasFeeToken for post-quote flows without simulation.
+ *
+ * In post-quote flows (e.g. Predict withdraw), the EOA has no source token
+ * balance at quote time so the gas station simulation returns nothing. Instead,
+ * compute the required token amount directly:
+ *   gasCostWei = totalGasEstimate * maxFeePerGas
+ *   amount     = gasCostWei / (tokenToNativeRate * 10^(18 - tokenDecimals))
+ *
+ * @param params - Parameters.
+ * @param params.chainId - Source chain ID.
+ * @param params.maxFeePerGas - Max fee per gas from relay quote (string decimal).
+ * @param params.messenger - Controller messenger.
+ * @param params.sourceTokenAddress - Address of the ERC-20 gas fee token.
+ * @param params.totalGasEstimate - Total gas estimate for all transactions.
+ * @returns A synthetic GasFeeToken, or undefined if rates are unavailable.
+ */
+function buildPostQuoteGasFeeToken({
+  chainId,
+  maxFeePerGas,
+  messenger,
+  sourceTokenAddress,
+  totalGasEstimate,
+}: {
+  chainId: Hex;
+  maxFeePerGas: string;
+  messenger: TransactionPayControllerMessenger;
+  sourceTokenAddress: Hex;
+  totalGasEstimate: number;
+}): GasFeeToken | undefined {
+  const tokenInfo = getTokenInfo(messenger, sourceTokenAddress, chainId);
+
+  if (!tokenInfo) {
+    log('Cannot get token info for post-quote gas fee token', {
+      sourceTokenAddress,
+    });
+    return undefined;
+  }
+
+  const rateControllerState = messenger.call(
+    'TokenRatesController:getState',
+  );
+
+  const tokenToNativeRate =
+    rateControllerState.marketData?.[chainId]?.[sourceTokenAddress]?.price;
+
+  if (!tokenToNativeRate) {
+    log('Cannot get token-to-native rate for post-quote gas fee token', {
+      sourceTokenAddress,
+      chainId,
+    });
+    return undefined;
+  }
+
+  const gasCostWei = new BigNumber(totalGasEstimate).multipliedBy(
+    maxFeePerGas,
+  );
+  const rateWei = new BigNumber(tokenToNativeRate).multipliedBy('1e18');
+  const amountHuman = gasCostWei.dividedBy(rateWei);
+  const amountRaw = amountHuman.shiftedBy(tokenInfo.decimals);
+
+  // 10% buffer for price fluctuations
+  const amountWithBuffer = amountRaw.multipliedBy(1.1);
+  const finalAmount = toHex(amountWithBuffer.toFixed(0));
+
+  console.log('[relay-quotes] buildPostQuoteGasFeeToken calc', {
+    totalGasEstimate,
+    maxFeePerGas,
+    gasCostWei: gasCostWei.toString(10),
+    tokenToNativeRate,
+    rateWei: rateWei.toString(10),
+    amountRaw: amountRaw.toString(10),
+    finalAmount,
+    decimals: tokenInfo.decimals,
+    symbol: tokenInfo.symbol,
+  });
+
+  return {
+    amount: finalAmount,
+    balance: '0x0' as Hex,
+    decimals: tokenInfo.decimals,
+    gas: toHex(totalGasEstimate),
+    maxFeePerGas: toHex(maxFeePerGas),
+    maxPriorityFeePerGas: '0x0' as Hex,
+    rateWei: toHex(rateWei.toFixed(0)),
+    recipient: '0x0000000000000000000000000000000000000000' as Hex,
+    symbol: tokenInfo.symbol,
+    tokenAddress: sourceTokenAddress,
+  };
 }
