@@ -14,7 +14,11 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import type { FeatureFlags } from '../../utils/feature-flags';
-import { isEIP7702Chain, getFeatureFlags } from '../../utils/feature-flags';
+import {
+  isEIP7702Chain,
+  isRelayExecuteEnabled,
+  getFeatureFlags,
+} from '../../utils/feature-flags';
 import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
 import {
   collectTransactionIds,
@@ -34,6 +38,7 @@ jest.mock('@metamask/controller-utils', () => ({
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
+const SOURCE_HASH_MOCK = '0xsourcehash';
 const REQUEST_ID_MOCK = '0x1234567890abcdef';
 const ORIGINAL_TRANSACTION_ID_MOCK = '456-789';
 const FROM_MOCK = '0xabcde' as Hex;
@@ -88,6 +93,7 @@ const ORIGINAL_QUOTE_MOCK = {
 
 const STATUS_RESPONSE_MOCK = {
   status: 'success',
+  inTxHashes: [SOURCE_HASH_MOCK],
   txHashes: [TRANSACTION_HASH_MOCK],
 };
 
@@ -130,6 +136,7 @@ describe('Relay Submit Utils', () => {
   const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
 
   const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
+  const isRelayExecuteEnabledMock = jest.mocked(isRelayExecuteEnabled);
 
   const {
     addTransactionMock,
@@ -149,6 +156,7 @@ describe('Relay Submit Utils', () => {
     jest.resetAllMocks();
 
     isEIP7702ChainMock.mockReturnValue(false);
+    isRelayExecuteEnabledMock.mockReturnValue(false);
 
     getLiveTokenBalanceMock.mockResolvedValue('9999999999');
     normalizeTokenAddressMock.mockImplementation(
@@ -602,13 +610,15 @@ describe('Relay Submit Utils', () => {
       const txDraft = { txParams: { nonce: '0x1' } } as TransactionMeta;
       updateTransactionMock.mock.calls.map((call) => call[1](txDraft));
 
-      expect(txDraft).toStrictEqual({
-        isIntentComplete: true,
-        requiredTransactionIds: [TRANSACTION_META_MOCK.id],
-        txParams: {
-          nonce: undefined,
-        },
-      });
+      expect(txDraft).toStrictEqual(
+        expect.objectContaining({
+          isIntentComplete: true,
+          requiredTransactionIds: [TRANSACTION_META_MOCK.id],
+          txParams: {
+            nonce: undefined,
+          },
+        }),
+      );
     });
 
     it('returns target hash', async () => {
@@ -1005,6 +1015,7 @@ describe('Relay Submit Utils', () => {
 
       beforeEach(() => {
         isEIP7702ChainMock.mockReturnValue(true);
+        isRelayExecuteEnabledMock.mockReturnValue(true);
         getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
         getFeatureFlagsMock.mockReturnValue(FEATURE_FLAGS_MOCK);
 
@@ -1120,6 +1131,21 @@ describe('Relay Submit Utils', () => {
         expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
       });
 
+      it('populates sourceHash on transaction metamaskPay from inTxHashes', async () => {
+        await submitRelayQuotes(request);
+
+        const updateCall = updateTransactionMock.mock.calls.find(
+          ([{ note }]) => note === 'Add source hash from Relay status',
+        );
+
+        expect(updateCall).toBeDefined();
+
+        const tx = {} as TransactionMeta;
+        updateCall?.[1](tx);
+
+        expect(tx.metamaskPay?.sourceHash).toBe(SOURCE_HASH_MOCK);
+      });
+
       it('includes original transaction in nestedTransactions for post-quote flow', async () => {
         request.quotes[0].request.isPostQuote = true;
         request.transaction = {
@@ -1155,6 +1181,15 @@ describe('Relay Submit Utils', () => {
 
       it('uses TransactionController path when chain is not EIP-7702', async () => {
         isEIP7702ChainMock.mockReturnValue(false);
+
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('uses TransactionController path when executeEnabled is false', async () => {
+        isRelayExecuteEnabledMock.mockReturnValue(false);
 
         await submitRelayQuotes(request);
 

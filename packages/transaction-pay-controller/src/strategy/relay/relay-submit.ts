@@ -22,7 +22,11 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { isEIP7702Chain, getFeatureFlags } from '../../utils/feature-flags';
+import {
+  getFeatureFlags,
+  isEIP7702Chain,
+  isRelayExecuteEnabled,
+} from '../../utils/feature-flags';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -93,7 +97,24 @@ async function executeSingleQuote(
 
   await submitTransactions(quote, transaction, messenger);
 
-  const targetHash = await waitForRelayCompletion(quote.original);
+  const targetHash = await waitForRelayCompletion(
+    quote.original,
+    (sourceHash) => {
+      log('Source hash received', sourceHash);
+
+      updateTransaction(
+        {
+          transactionId: transaction.id,
+          messenger,
+          note: 'Add source hash from Relay status',
+        },
+        (tx) => {
+          tx.metamaskPay ??= {};
+          tx.metamaskPay.sourceHash = sourceHash;
+        },
+      );
+    },
+  );
 
   log('Relay request completed', targetHash);
 
@@ -115,9 +136,13 @@ async function executeSingleQuote(
  * Wait for a Relay request to complete.
  *
  * @param quote - Relay quote associated with the request.
+ * @param onSourceHash - Called with the source tx hash as soon as it appears.
  * @returns A promise that resolves when the Relay request is complete.
  */
-async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
+async function waitForRelayCompletion(
+  quote: RelayQuote,
+  onSourceHash?: (hash: Hex) => void,
+): Promise<Hex> {
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
     quote.details.currencyOut.currency.chainId;
@@ -131,15 +156,22 @@ async function waitForRelayCompletion(quote: RelayQuote): Promise<Hex> {
   }
 
   const { requestId } = quote.steps[0];
+  let sourceHashEmitted = false;
 
   while (true) {
     const status: RelayStatusResponse = await getRelayStatus(requestId);
 
     log('Polled status', status.status, status);
 
+    if (!sourceHashEmitted && status.inTxHashes?.length) {
+      sourceHashEmitted = true;
+      onSourceHash?.(status.inTxHashes[0] as Hex);
+    }
+
     if (status.status === 'success') {
-      const targetHash = status.txHashes?.slice(-1)[0] as Hex;
-      return targetHash ?? FALLBACK_HASH;
+      const targetHash =
+        (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
+      return targetHash;
     }
 
     if (['failure', 'refund', 'refunded'].includes(status.status)) {
@@ -285,7 +317,10 @@ async function submitTransactions(
 
   const { sourceChainId } = quote.request;
 
-  if (isEIP7702Chain(messenger, sourceChainId)) {
+  if (
+    isRelayExecuteEnabled(messenger) &&
+    isEIP7702Chain(messenger, sourceChainId)
+  ) {
     return await submitViaRelayExecute(
       quote,
       transaction,

@@ -5,7 +5,10 @@ import { uniq } from 'lodash';
 import type { TransactionPayControllerMessenger } from '..';
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
-import { RELAY_EXECUTE_URL, RELAY_URL_BASE } from '../strategy/relay/constants';
+import {
+  RELAY_EXECUTE_URL,
+  RELAY_QUOTE_URL,
+} from '../strategy/relay/constants';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
@@ -15,7 +18,8 @@ export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
-export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
+export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
+export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
@@ -80,6 +84,8 @@ export type PayStrategiesConfigRaw = {
   across?: AcrossConfigRaw;
   relay?: {
     enabled?: boolean;
+    executeEnabled?: boolean;
+    originGasOverhead?: string;
   };
 };
 
@@ -193,6 +199,36 @@ export function getPayStrategiesConfig(
     across,
     relay,
   };
+}
+
+/**
+ * Whether the Relay /execute gasless flow is enabled.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if the execute flow is enabled.
+ */
+export function isRelayExecuteEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  return featureFlags.payStrategies?.relay?.executeEnabled ?? false;
+}
+
+/**
+ * Get the origin gas overhead to include in Relay quote requests
+ * for EIP-7702 chains.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Origin gas overhead as a decimal string.
+ */
+export function getRelayOriginGasOverhead(
+  messenger: TransactionPayControllerMessenger,
+): string {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  return (
+    featureFlags.payStrategies?.relay?.originGasOverhead ??
+    DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD
+  );
 }
 
 /**
