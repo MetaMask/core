@@ -1,17 +1,11 @@
 import type { Caveat } from '@metamask/delegation-core';
-import { getChecksumAddress } from '@metamask/utils';
+import { getChecksumAddress, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { DeployedContractsByName, PermissionType } from './types';
-
-/**
- * A rule that defines the required and allowed enforcers for a permission type.
- */
-export type PermissionRule = {
-  permissionType: PermissionType;
-  requiredEnforcers: Map<Hex, number>;
-  optionalEnforcers: Set<Hex>;
-};
+import type {
+  ChecksumEnforcersByChainId,
+  DeployedContractsByName,
+} from './types';
 
 /**
  * The names of the enforcer contracts for each permission type.
@@ -29,6 +23,30 @@ const ENFORCER_CONTRACT_NAMES = {
 };
 
 /**
+ * 32 bytes of zero (0x + 64 hex chars).
+ */
+export const ZERO_32_BYTES =
+  '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
+
+/** AllowedCalldataEnforcer terms for ERC20 approve selector. */
+export const ERC20_APPROVE_SELECTOR_TERMS =
+  '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as const;
+
+/** AllowedCalldataEnforcer terms for ERC20 approve zero amount. */
+export const ERC20_APPROVE_ZERO_AMOUNT_TERMS =
+  '0x00000000000000000000000000000000000000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000' as const;
+
+/**
+ * Get the byte length of a hex string.
+ *
+ * @param hexString - The hex string to get the byte length of.
+ * @returns The byte length of the hex string.
+ */
+export const getByteLength = (hexString: Hex): number => {
+  return (hexString.length - 2) / 2;
+};
+
+/**
  * Resolves and returns checksummed addresses of all known enforcer contracts
  * for a given `chainId` under the current delegation framework version.
  *
@@ -38,17 +56,7 @@ const ENFORCER_CONTRACT_NAMES = {
  */
 export const getChecksumEnforcersByChainId = (
   contracts: DeployedContractsByName,
-): {
-  erc20StreamingEnforcer: Hex;
-  erc20PeriodicEnforcer: Hex;
-  nativeTokenStreamingEnforcer: Hex;
-  nativeTokenPeriodicEnforcer: Hex;
-  exactCalldataEnforcer: Hex;
-  valueLteEnforcer: Hex;
-  timestampEnforcer: Hex;
-  nonceEnforcer: Hex;
-  allowedCalldataEnforcer: Hex;
-} => {
+): ChecksumEnforcersByChainId => {
   const getChecksumContractAddress = (contractName: string): Hex => {
     const address = contracts[contractName];
 
@@ -105,103 +113,83 @@ export const getChecksumEnforcersByChainId = (
 };
 
 /**
- * Builds the canonical set of permission matching rules for a chain.
+ * Extracts the expiry timestamp from TimestampEnforcer caveat terms.
+ * Terms are 32 bytes: first 16 bytes timestampAfterThreshold (must be 0),
+ * last 16 bytes timestampBeforeThreshold (expiry).
  *
- * Each rule specifies the `permissionType`, the set of `requiredEnforcers`
- * that must be present, and the set of `optionalEnforcers` that may appear in
- * addition to the required set.
- *
- * @param contracts - The deployed contracts for the chain.
- * @returns A list of permission rules used to identify permission types.
- * @throws Propagates any errors from resolving enforcer addresses.
+ * @param terms - The hex-encoded terms from a TimestampEnforcer caveat.
+ * @returns The expiry timestamp in seconds.
+ * @throws If terms are invalid.
  */
-export const createPermissionRulesForChainId: (
-  contracts: DeployedContractsByName,
-) => PermissionRule[] = (contracts: DeployedContractsByName) => {
-  const {
-    erc20StreamingEnforcer,
-    erc20PeriodicEnforcer,
-    nativeTokenStreamingEnforcer,
-    nativeTokenPeriodicEnforcer,
-    exactCalldataEnforcer,
-    valueLteEnforcer,
-    timestampEnforcer,
-    nonceEnforcer,
-    allowedCalldataEnforcer,
-  } = getChecksumEnforcersByChainId(contracts);
-
-  // the optional enforcers are the same for all permission types
-  const optionalEnforcers = new Set<Hex>([timestampEnforcer]);
-
-  const permissionRules: PermissionRule[] = [
-    {
-      requiredEnforcers: new Map<Hex, number>([
-        [nativeTokenStreamingEnforcer, 1],
-        [exactCalldataEnforcer, 1],
-        [nonceEnforcer, 1],
-      ]),
-      optionalEnforcers,
-      permissionType: 'native-token-stream',
-    },
-    {
-      requiredEnforcers: new Map<Hex, number>([
-        [nativeTokenPeriodicEnforcer, 1],
-        [exactCalldataEnforcer, 1],
-        [nonceEnforcer, 1],
-      ]),
-      optionalEnforcers,
-      permissionType: 'native-token-periodic',
-    },
-    {
-      requiredEnforcers: new Map<Hex, number>([
-        [erc20StreamingEnforcer, 1],
-        [valueLteEnforcer, 1],
-        [nonceEnforcer, 1],
-      ]),
-      optionalEnforcers,
-      permissionType: 'erc20-token-stream',
-    },
-    {
-      requiredEnforcers: new Map<Hex, number>([
-        [erc20PeriodicEnforcer, 1],
-        [valueLteEnforcer, 1],
-        [nonceEnforcer, 1],
-      ]),
-      optionalEnforcers,
-      permissionType: 'erc20-token-periodic',
-    },
-    {
-      requiredEnforcers: new Map<Hex, number>([
-        [allowedCalldataEnforcer, 2],
-        [valueLteEnforcer, 1],
-        [nonceEnforcer, 1],
-      ]),
-      optionalEnforcers,
-      permissionType: 'erc20-token-revocation',
-    },
-  ];
-
-  return permissionRules;
+export const extractExpiryFromCaveatTerms = (terms: Hex): number => {
+  if (terms.length !== 66) {
+    throw new Error(
+      `Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got ${terms.length}`,
+    );
+  }
+  const [after, before] = splitHex(terms, [16, 16]);
+  if (hexToNumber(after) !== 0) {
+    throw new Error('Invalid expiry: timestampAfterThreshold must be 0');
+  }
+  const expiry = hexToNumber(before);
+  if (expiry === 0) {
+    throw new Error(
+      'Invalid expiry: timestampBeforeThreshold must be greater than 0',
+    );
+  }
+  return expiry;
 };
 
 /**
- * Determines whether all elements of `subset` are contained within `superset`.
+ * Builds enforcer counts and set from caveat addresses (checksummed).
+ * Used by caveatAddressesMatch.
  *
- * @param subset - The candidate subset to test.
- * @param superset - The set expected to contain all elements of `subset`.
- * @returns `true` if `subset` ⊆ `superset`, otherwise `false`.
+ * @param caveatAddresses - List of enforcer contract addresses (hex).
+ * @returns Counts per enforcer and set of unique enforcers.
  */
-export const isSubset = <TElement>(
-  subset: Set<TElement>,
-  superset: Set<TElement>,
-): boolean => {
-  for (const element of subset) {
-    if (!superset.has(element)) {
+export function buildEnforcerCountsAndSet(caveatAddresses: Hex[]): {
+  counts: Map<Hex, number>;
+  enforcersSet: Set<Hex>;
+} {
+  const counts = new Map<Hex, number>();
+  for (const addr of caveatAddresses.map(getChecksumAddress)) {
+    counts.set(addr, (counts.get(addr) ?? 0) + 1);
+  }
+  return { counts, enforcersSet: new Set(counts.keys()) };
+}
+
+/**
+ * Returns true if the given counts/set match the rule (required counts exact,
+ * no enforcer outside required + optional).
+ *
+ * @param counts - Map of enforcer address to occurrence count.
+ * @param enforcersSet - Set of unique enforcer addresses present.
+ * @param requiredEnforcers - Map of required enforcer to required count.
+ * @param optionalEnforcers - Set of optional enforcer addresses.
+ * @returns True if the counts match the rule.
+ */
+export function enforcersMatchRule(
+  counts: Map<Hex, number>,
+  enforcersSet: Set<Hex>,
+  requiredEnforcers: Map<Hex, number>,
+  optionalEnforcers: Set<Hex>,
+): boolean {
+  const allowedEnforcers = new Set<Hex>([
+    ...optionalEnforcers,
+    ...requiredEnforcers.keys(),
+  ]);
+  for (const addr of enforcersSet) {
+    if (!allowedEnforcers.has(addr)) {
+      return false;
+    }
+  }
+  for (const [addr, requiredCount] of requiredEnforcers.entries()) {
+    if ((counts.get(addr) ?? 0) !== requiredCount) {
       return false;
     }
   }
   return true;
-};
+}
 
 /**
  * Gets the terms for a given enforcer from a list of caveats.
