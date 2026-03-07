@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `perpsAcrossDeposit` and `predictAcrossDeposit` transaction types for Across MetaMask Pay submissions ([#7886](https://github.com/MetaMask/core/pull/7886))
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `36.0.1` to `37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/core-backend` from `6.0.0` to `6.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+
 ## [62.20.0]
 
 ### Changed

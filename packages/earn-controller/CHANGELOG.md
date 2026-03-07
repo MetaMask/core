@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+- Bump `@metamask/account-tree-controller` from `^4.1.1` to `^5.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.20.0` to `^62.21.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 
 ## [11.1.1]
 
