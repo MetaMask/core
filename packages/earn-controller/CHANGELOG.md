@@ -7,12 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [11.1.2]
 
-- Release/847.0.0 ([#8104](https://github.com/MetaMask/core/pull/8104))
-- Release/833.0.0 ([#8031](https://github.com/MetaMask/core/pull/8031))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- Release 828.0.0 ([#8005](https://github.com/MetaMask/core/pull/8005))
+### Changed
+
+- Secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
 
 ## [11.1.1]
 
@@ -360,7 +359,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.2...HEAD
+[11.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.1...@metamask/earn-controller@11.1.2
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.0...@metamask/earn-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.0.0...@metamask/earn-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@10.0.0...@metamask/earn-controller@11.0.0

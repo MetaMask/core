@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [23.0.0]
 
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-- chore: upgrade `typedoc` from `^0.24.8` to `^0.25.13` ([#7898](https://github.com/MetaMask/core/pull/7898))
-- chore: migrate Jest from v27 to v29 ([#7894](https://github.com/MetaMask/core/pull/7894))
+### Changed
+
+- Secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
 
 ### Removed
 
@@ -506,7 +506,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...@metamask/preferences-controller@23.0.0
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...@metamask/preferences-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@21.0.0...@metamask/preferences-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...@metamask/preferences-controller@21.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [69.0.0]
+
 ### Added
 
 - **BREAKING:** Optional constructor option `getUseAssetsControllerForRates`: when it returns true, exchange rates are read from the new `@metamask/assets-controller` (`AssetsController:getExchangeRatesForBridge`) instead of `MultichainAssetsRatesController`, `TokenRatesController`, and `CurrencyRateController`. ([#8090](https://github.com/MetaMask/core/pull/8090))
@@ -1224,7 +1226,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@68.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.0.0...HEAD
+[69.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@68.0.0...@metamask/bridge-controller@69.0.0
 [68.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.4.0...@metamask/bridge-controller@68.0.0
 [67.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.3.0...@metamask/bridge-controller@67.4.0
 [67.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@67.2.0...@metamask/bridge-controller@67.3.0
