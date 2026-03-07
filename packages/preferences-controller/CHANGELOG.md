@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.0.0]
+
+### Changed
+
+- Secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+
 ### Removed
 
 - **BREAKING:** Remove legacy methods and state ([#8115](https://github.com/MetaMask/core/pull/8115))
@@ -500,7 +506,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...@metamask/preferences-controller@23.0.0
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...@metamask/preferences-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@21.0.0...@metamask/preferences-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...@metamask/preferences-controller@21.0.0
