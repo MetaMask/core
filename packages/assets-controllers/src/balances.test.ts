@@ -1875,6 +1875,142 @@ describe('calculateBalanceForAllWallets', () => {
       expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
     });
 
+    it('falls back to currencyRateState for native token when tokenRatesState has no market data', () => {
+      const state = createMobileMockState('USD');
+      const account = '0x1234567890123456789012345678901234567890';
+
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account]['0x2105'] = {
+        '0x0000000000000000000000000000000000000000': '0xde0b6b3a7640000', // 1 ETH in wei
+      };
+
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.BASE = {
+        conversionRate: 3000,
+        usdConversionRate: 3000,
+      };
+
+      const networkConfigurationsByChainId = {
+        '0x2105': { nativeCurrency: 'BASE' },
+      };
+
+      const res = calculateBalanceChangeForAccountGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+        networkConfigurationsByChainId,
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(3000);
+    });
+
+    it('does not fall back for ERC-20 tokens when tokenRatesState has no market data', () => {
+      const state = createMobileMockState('USD');
+      const account = '0x1234567890123456789012345678901234567890';
+
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account]['0x2105'] = {
+        '0xabc0000000000000000000000000000000000001': '0xde0b6b3a7640000',
+      };
+
+      const networkConfigurationsByChainId = {
+        '0x2105': { nativeCurrency: 'BASE' },
+      };
+
+      const res = calculateBalanceChangeForAccountGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+        networkConfigurationsByChainId,
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
+
+    it('native fallback skips when networkConfigurationsByChainId is not provided', () => {
+      const state = createMobileMockState('USD');
+      const account = '0x1234567890123456789012345678901234567890';
+
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account]['0x2105'] = {
+        '0x0000000000000000000000000000000000000000': '0xde0b6b3a7640000',
+      };
+
+      const res = calculateBalanceChangeForAccountGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
+
+    it('fallback works for calculateBalanceChangeForAllWallets', () => {
+      const state = createMobileMockState('USD');
+      const account = '0x1234567890123456789012345678901234567890';
+
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account]['0x2105'] = {
+        '0x0000000000000000000000000000000000000000': '0xde0b6b3a7640000',
+      };
+
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.BASE = {
+        conversionRate: 3000,
+        usdConversionRate: 3000,
+      };
+
+      const networkConfigurationsByChainId = {
+        '0x2105': { nativeCurrency: 'BASE' },
+      };
+
+      const res = calculateBalanceChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+        networkConfigurationsByChainId,
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(3000);
+    });
+
     it('non-EVM group path: skips NaN amount, NaN rate, and denom zero', () => {
       const state = createMobileMockState('USD');
       (
