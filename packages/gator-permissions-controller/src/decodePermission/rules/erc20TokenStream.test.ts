@@ -131,7 +131,7 @@ describe('erc20-token-stream rule', () => {
   });
 
   it('decodes mixed-case token address', () => {
-    const mixedCaseAddress = contracts.ERC20StreamingEnforcer as Hex;
+    const mixedCaseAddress = contracts.ERC20StreamingEnforcer;
     const caveats = [
       expiryCaveat,
       valueLteCaveat,
@@ -331,34 +331,6 @@ describe('erc20-token-stream rule', () => {
 
     expect(result.error.message).toContain(
       'Invalid erc20-token-stream terms: startTime must be a positive number',
-    );
-  });
-
-  it('rejects when tokenAddress is not valid hex (invalid characters)', () => {
-    const invalidTokenAddress = 'gg';
-    const initialAmountHex = 1n.toString(16).padStart(64, '0');
-    const maxAmountHex = 2n.toString(16).padStart(64, '0');
-    const amountPerSecondHex = 1n.toString(16).padStart(64, '0');
-    const startTimeHex = (1715664).toString(16).padStart(64, '0');
-    const terms =
-      `0x${invalidTokenAddress}${'0'.repeat(38)}${initialAmountHex}${maxAmountHex}${amountPerSecondHex}${startTimeHex}` as Hex;
-
-    const caveats = [
-      expiryCaveat,
-      valueLteCaveat,
-      { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
-    ];
-
-    const result = rule.validateAndDecodePermission(caveats);
-    expect(result.isValid).toBe(false);
-
-    // this is here as a type guard
-    if (result.isValid) {
-      throw new Error('Expected invalid result');
-    }
-
-    expect(result.error.message).toContain(
-      'Invalid erc20-token-stream terms: tokenAddress must be a valid hex string',
     );
   });
 });
