@@ -193,4 +193,32 @@ describe('makePermissionRule', () => {
     expect(result.expiry).toBe(1720000);
     expect(validateAndDecodeData).toHaveBeenCalled();
   });
+
+  it('accepts caveat terms with empty hex', () => {
+    const validateAndDecodeData = jest.fn().mockReturnValue({});
+
+    const rule = makePermissionRule({
+      permissionType: 'native-token-stream',
+      timestampEnforcer,
+      optionalEnforcers: [],
+      requiredEnforcers: { [requiredEnforcer]: 1 },
+      validateAndDecodeData,
+    });
+
+    const caveats = [
+      {
+        enforcer: requiredEnforcer,
+        terms: '0x' as Hex,
+        args: '0x' as Hex,
+      },
+    ];
+
+    const result = rule.validateAndDecodePermission(caveats);
+
+    expect(result.isValid).toBe(true);
+    if (!result.isValid) {
+      throw new Error('Expected valid result');
+    }
+    expect(validateAndDecodeData).toHaveBeenCalled();
+  });
 });

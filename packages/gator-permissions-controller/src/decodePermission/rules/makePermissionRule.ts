@@ -72,7 +72,8 @@ export function makePermissionRule({
       }));
       try {
         const invalidTerms = checksumCaveats.filter(
-          ({ terms }) => !isStrictHexString(terms),
+          // isStrictHexString rejects '0x' which is a valid terms value
+          ({ terms }) => terms !== '0x' && !isStrictHexString(terms),
         );
 
         if (invalidTerms.length > 0) {
