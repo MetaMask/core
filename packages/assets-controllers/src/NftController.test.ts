@@ -772,7 +772,7 @@ describe('NftController', () => {
         .mockResolvedValueOnce({})
         // 5. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 3. `NetworkClientController:getNetworkClientById`
+        // 6. `NetworkClientController:getNetworkClientById`
         .mockReturnValueOnce({
           configuration: {
             type: 'infura',
@@ -785,11 +785,7 @@ describe('NftController', () => {
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
-        // 6. `AssetsContractController:getERC721AssetName`
-        .mockResolvedValueOnce('testERC721Name')
-        // 7. `AssetsContractController:getERC721AssetSymbol`
-        .mockResolvedValueOnce('testERC721Symbol')
-        // 3. `NetworkClientController:getNetworkClientById`
+        // 7. `NetworkClientController:getNetworkClientById`
         .mockReturnValueOnce({
           configuration: {
             type: 'infura',
@@ -809,7 +805,7 @@ describe('NftController', () => {
         'https://test-dapp.com',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(10);
+      expect(callActionSpy).toHaveBeenCalledTimes(8);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         5,
         'ApprovalController:addRequest',
@@ -911,11 +907,7 @@ describe('NftController', () => {
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
-        // 8. `AssetsContractController:getERC721AssetName`
-        .mockResolvedValueOnce('testERC721Name')
-        // 9. `AssetsContractController:getERC721AssetSymbol`
-        .mockResolvedValueOnce('testERC721Symbol')
-        // 10. `NetworkClientController:getNetworkClientById`
+        // 8. `NetworkClientController:getNetworkClientById`
         .mockReturnValueOnce({
           configuration: {
             type: 'infura',
@@ -935,7 +927,7 @@ describe('NftController', () => {
         'https://test-dapp.com',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(10);
+      expect(callActionSpy).toHaveBeenCalledTimes(8);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         5,
         'ApprovalController:addRequest',
@@ -1037,11 +1029,7 @@ describe('NftController', () => {
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
-        // 8. `AssetsContractController:getERC721AssetName`
-        .mockResolvedValueOnce('testERC721Name')
-        // 9. `AssetsContractController:getERC721AssetSymbol`
-        .mockResolvedValueOnce('testERC721Symbol')
-        // 10. `NetworkClientController:getNetworkClientById`
+        // 8. `NetworkClientController:getNetworkClientById`
         .mockReturnValueOnce({
           configuration: {
             type: 'infura',
@@ -1061,7 +1049,7 @@ describe('NftController', () => {
         'https://test-dapp.com',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(10);
+      expect(callActionSpy).toHaveBeenCalledTimes(8);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         5,
         'ApprovalController:addRequest',
@@ -1164,11 +1152,7 @@ describe('NftController', () => {
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
-        // 8. `AssetsContractController:getERC721AssetName`
-        .mockResolvedValueOnce('testERC721Name')
-        // 9. `AssetsContractController:getERC721AssetSymbol`
-        .mockResolvedValueOnce('testERC721Symbol')
-        // 10. `NetworkClientController:getNetworkClientById`
+        // 8. `NetworkClientController:getNetworkClientById`
         .mockReturnValueOnce({
           configuration: {
             type: 'infura',
@@ -1188,7 +1172,7 @@ describe('NftController', () => {
         'https://test-dapp.com',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(10);
+      expect(callActionSpy).toHaveBeenCalledTimes(8);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         5,
         'ApprovalController:addRequest',
@@ -1299,11 +1283,7 @@ describe('NftController', () => {
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
-        // 10. `AssetsContractController:getERC721AssetName`
-        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
-        // 11. `AssetsContractController:getERC721AssetSymbol`
-        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
-        // 12. `NetworkClientController:getNetworkClientById`
+        // 10. `NetworkClientController:getNetworkClientById`
         .mockReturnValueOnce({
           configuration: {
             type: 'infura',
@@ -1323,7 +1303,7 @@ describe('NftController', () => {
         'https://etherscan.io',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(12);
+      expect(callActionSpy).toHaveBeenCalledTimes(10);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         7,
         'ApprovalController:addRequest',
@@ -1431,11 +1411,7 @@ describe('NftController', () => {
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
-        // 8. `AssetsContractController:getERC721AssetName`
-        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
-        // 9. `AssetsContractController:getERC721AssetSymbol`
-        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
-        // 9. `NetworkClientController:getNetworkClientById`
+        // 8. `NetworkClientController:getNetworkClientById`
         .mockReturnValueOnce({
           configuration: {
             type: 'infura',
@@ -1456,7 +1432,7 @@ describe('NftController', () => {
         'mainnet',
       );
 
-      expect(callActionSpy).toHaveBeenCalledTimes(12);
+      expect(callActionSpy).toHaveBeenCalledTimes(10);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         7,
         'ApprovalController:addRequest',
@@ -1726,7 +1702,6 @@ describe('NftController', () => {
     it('should add the nft contract to the correct chain in state when source is detected', async () => {
       const { nftController } = setupController({
         options: {},
-        getERC721AssetName: jest.fn().mockResolvedValue('Name'),
       });
 
       await nftController.addNft('0x01', '1', 'mainnet', {
@@ -1752,7 +1727,6 @@ describe('NftController', () => {
       ).toStrictEqual({
         address: '0x01',
         logo: 'url',
-        name: 'Name',
         schemaName: 'standard',
         totalSupply: '0',
       });
@@ -1761,7 +1735,6 @@ describe('NftController', () => {
     it('should add the nft contract to the correct chain in state when source is custom', async () => {
       const { nftController } = setupController({
         options: {},
-        getERC721AssetName: jest.fn().mockResolvedValue('Name'),
       });
 
       await nftController.addNft('0x01', '1', 'sepolia', {
@@ -1785,7 +1758,6 @@ describe('NftController', () => {
       ).toStrictEqual({
         address: '0x01',
         logo: 'url',
-        name: 'Name',
         schemaName: 'standard',
         totalSupply: '0',
       });
@@ -1795,7 +1767,6 @@ describe('NftController', () => {
         options: {
           // chainId: ChainId.mainnet,
         },
-        getERC721AssetName: jest.fn().mockResolvedValue('Name'),
       });
 
       await nftController.addNft('0x01', '1', 'mainnet', {
@@ -1837,7 +1808,6 @@ describe('NftController', () => {
       ).toStrictEqual({
         address: '0x01',
         logo: 'url',
-        name: 'Name',
         totalSupply: '0',
         schemaName: 'standard',
       });
@@ -2231,10 +2201,8 @@ describe('NftController', () => {
       });
     });
 
-    it('should add NFT erc721 and aggregate NFT data from both contract and NFT-API even if call to Get Collections fails', async () => {
+    it('should add NFT erc721 and aggregate NFT data from NFT-API even if call to Get Collections fails', async () => {
       const { nftController } = setupController({
-        getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
-        getERC721AssetSymbol: jest.fn().mockResolvedValue('KDO'),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue(
@@ -2306,15 +2274,11 @@ describe('NftController', () => {
         ][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        name: 'KudosToken',
-        symbol: 'KDO',
         schemaName: ERC721,
       });
     });
-    it('should add NFT erc721 and aggregate NFT data from both contract and NFT-API when  call to Get Collections succeeds', async () => {
+    it('should add NFT erc721 and aggregate NFT data from NFT-API when call to Get Collections succeeds', async () => {
       const { nftController } = setupController({
-        getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
-        getERC721AssetSymbol: jest.fn().mockResolvedValue('KDO'),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue(
@@ -2382,8 +2346,6 @@ describe('NftController', () => {
         ][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        name: 'KudosToken',
-        symbol: 'KDO',
         schemaName: ERC721,
       });
     });
@@ -2435,10 +2397,8 @@ describe('NftController', () => {
       });
     });
 
-    it('should add NFT erc721 and get NFT information only from contract', async () => {
+    it('should add NFT erc721 and get NFT information from tokenURI when NFT API returns 404', async () => {
       const { nftController } = setupController({
-        getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
-        getERC721AssetSymbol: jest.fn().mockResolvedValue('KDO'),
         getERC721TokenURI: jest.fn().mockImplementation((tokenAddress) => {
           switch (tokenAddress) {
             case ERC721_KUDOSADDRESS:
@@ -2491,8 +2451,6 @@ describe('NftController', () => {
         ][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        name: 'KudosToken',
-        symbol: 'KDO',
         schemaName: ERC721,
       });
     });
@@ -3019,10 +2977,6 @@ describe('NftController', () => {
     it('should add NFT with metadata hosted in IPFS', async () => {
       const { nftController, triggerPreferencesStateChange, mockGetAccount } =
         setupController({
-          getERC721AssetName: jest
-            .fn()
-            .mockResolvedValue("Maltjik.jpg's Depressionists"),
-          getERC721AssetSymbol: jest.fn().mockResolvedValue('DPNS'),
           getERC721TokenURI: jest.fn().mockImplementation((tokenAddress) => {
             switch (tokenAddress) {
               case ERC721_DEPRESSIONIST_ADDRESS:
@@ -3053,8 +3007,6 @@ describe('NftController', () => {
         ][0],
       ).toStrictEqual({
         address: ERC721_DEPRESSIONIST_ADDRESS,
-        name: "Maltjik.jpg's Depressionists",
-        symbol: 'DPNS',
         schemaName: ERC721,
       });
       expect(
