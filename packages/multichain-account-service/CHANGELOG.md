@@ -20,6 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Significantly reduces lock acquisitions and API calls for batch operations.
 - Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
 
+### Removed
+
+- **BREAKING:** Remove `MultichainAccountGroup.alignAccounts` method ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Use `MultichainAccountWallet.alignAccountsOf` instead, since this method properly lock the wallet (parent of this group) state.
+
+### Fixed
+
+- Prevent wallet's lock by-pass when creating non-EVM account asynchronously ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - The `waitForAllProvidersToFinishCreatingAccounts` option (when set to `false`) was causing account creation to be asynchronous for non-EVM providers, which was potentially creating accounts after the wallet's internal lock was released.
+  - We now run an internal account alignment operation which locks the wallet properly and runs in the background.
+
 ## [7.0.0]
 
 ### Changed
