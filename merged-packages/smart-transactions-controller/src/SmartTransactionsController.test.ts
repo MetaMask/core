@@ -2194,6 +2194,48 @@ describe('SmartTransactionsController', () => {
         expect(apiCall.isDone()).toBe(true);
       });
     });
+
+    it('sends Authorization header when getBearerToken is provided', async () => {
+      const bearerToken = 'test-bearer-token-123';
+      await withController(
+        {
+          options: {
+            getBearerToken: async () => Promise.resolve(bearerToken),
+          },
+        },
+        async ({ controller }) => {
+          const apiCall = nock(API_BASE_URL)
+            .post(`/networks/${ethereumChainIdDec}/cancel`)
+            .matchHeader('Authorization', `Bearer ${bearerToken}`)
+            .reply(200, { message: 'successful' });
+
+          await controller.cancelSmartTransaction('uuid1');
+
+          expect(apiCall.isDone()).toBe(true);
+        },
+      );
+    });
+
+    it('sends Authorization header to Sentinel /network when getBearerToken is provided', async () => {
+      const bearerToken = 'test-bearer-token-456';
+      await withController(
+        {
+          options: {
+            getBearerToken: async () => Promise.resolve(bearerToken),
+          },
+        },
+        async ({ controller }) => {
+          const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+            .get(`/network`)
+            .matchHeader('Authorization', `Bearer ${bearerToken}`)
+            .reply(200, createSuccessLivenessApiResponse());
+
+          await controller.fetchLiveness();
+
+          expect(apiCall.isDone()).toBe(true);
+        },
+      );
+    });
   });
 
   describe('getTransactions', () => {
