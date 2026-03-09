@@ -26,12 +26,14 @@ import {
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
+  getEIP7702SupportedChains,
   isEIP7702Chain,
   isRelayExecuteEnabled,
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
 import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+import * as quoteGasUtils from '../../utils/quote-gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -46,9 +48,14 @@ jest.mock('../../utils/token', () => ({
     jest.requireActual<typeof import('../../utils/token')>('../../utils/token')
       .normalizeTokenAddress,
 }));
-jest.mock('../../utils/gas');
+jest.mock('../../utils/gas', () => ({
+  ...jest.requireActual('../../utils/gas'),
+  calculateGasCost: jest.fn(),
+  calculateGasFeeTokenCost: jest.fn(),
+}));
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
+  getEIP7702SupportedChains: jest.fn(),
   isEIP7702Chain: jest.fn(),
   isRelayExecuteEnabled: jest.fn(),
   getGasBuffer: jest.fn(),
@@ -168,6 +175,7 @@ describe('Relay Quotes Utils', () => {
   const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
   const getNativeTokenMock = jest.mocked(getNativeToken);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
+  const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
   const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
   const isRelayExecuteEnabledMock = jest.mocked(isRelayExecuteEnabled);
   const getGasBufferMock = jest.mocked(getGasBuffer);
@@ -209,6 +217,9 @@ describe('Relay Quotes Utils', () => {
       ...getDefaultRemoteFeatureFlagControllerState(),
     });
 
+    getEIP7702SupportedChainsMock.mockReturnValue([
+      QUOTE_REQUEST_MOCK.sourceChainId,
+    ]);
     isEIP7702ChainMock.mockReturnValue(true);
     isRelayExecuteEnabledMock.mockReturnValue(false);
     getGasBufferMock.mockReturnValue(1.0);
@@ -2676,6 +2687,41 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('falls back to per-transaction estimation when the source chain does not support EIP-7702', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.steps[0].items[0].data.gas = '30000';
+      quoteMock.steps[0].items.push({
+        data: {
+          chainId: 1,
+          from: FROM_MOCK,
+          to: '0x3' as Hex,
+          data: '0x456' as Hex,
+        },
+      } as never);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      isEIP7702ChainMock.mockReturnValue(false);
+      estimateGasMock.mockResolvedValue({
+        gas: toHex(50000),
+        simulationFails: undefined,
+      });
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+      expect(estimateGasMock).toHaveBeenCalledTimes(1);
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        30000, 50000,
+      ]);
+    });
+
     it('uses fallback gas when estimateGasBatch fails', async () => {
       const quoteMock = cloneDeep(QUOTE_MOCK);
       quoteMock.steps[0].items.push({
@@ -2743,6 +2789,168 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('reuses populated relay params when later transactions omit estimation fields', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      delete quoteMock.steps[0].items[0].data.gas;
+      quoteMock.steps[0].items.push({
+        data: {},
+      } as never);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasMock.mockResolvedValue({
+        gas: toHex(50000),
+        simulationFails: undefined,
+      });
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+      expect(findNetworkClientIdByChainIdMock).toHaveBeenNthCalledWith(
+        1,
+        '0x1',
+      );
+      expect(findNetworkClientIdByChainIdMock).toHaveBeenNthCalledWith(
+        2,
+        '0x1',
+      );
+      expect(estimateGasMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          data: '0x123',
+          from: FROM_MOCK,
+          to: '0x2',
+          value: '0x0',
+        }),
+        NETWORK_CLIENT_ID_MOCK,
+      );
+    });
+
+    it('preserves falsy fallback relay params when later transactions omit estimation fields', async () => {
+      const estimateQuoteGasLimitsSpy = jest.spyOn(
+        quoteGasUtils,
+        'estimateQuoteGasLimits',
+      );
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+
+      quoteMock.steps[0].items = [
+        {
+          ...quoteMock.steps[0].items[0],
+          data: {
+            chainId: 0,
+            data: '' as Hex,
+            from: '' as Hex,
+            to: '' as Hex,
+          },
+        },
+        {
+          ...quoteMock.steps[0].items[0],
+          data: {
+            chainId: 1,
+            data: '0x456' as Hex,
+            from: FROM_MOCK,
+            to: '0x3' as Hex,
+          },
+        },
+        {
+          ...quoteMock.steps[0].items[0],
+          data: {},
+        },
+      ];
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      estimateQuoteGasLimitsSpy.mockResolvedValueOnce({
+        gasLimits: [
+          { estimate: 21000, max: 21000, source: 'estimated' },
+          { estimate: 22000, max: 22000, source: 'estimated' },
+          { estimate: 23000, max: 23000, source: 'estimated' },
+        ],
+        totalGasEstimate: 66000,
+        totalGasLimit: 66000,
+        usedBatch: false,
+      });
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateQuoteGasLimitsSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          allowBatch: false,
+          transactions: [
+            expect.objectContaining({
+              chainId: '0x0',
+              data: '',
+              from: '',
+              to: '',
+            }),
+            expect.objectContaining({
+              chainId: '0x1',
+              data: '0x456',
+              from: FROM_MOCK,
+              to: '0x3',
+            }),
+            expect.objectContaining({
+              chainId: '0x0',
+              data: '',
+              from: '',
+              to: '',
+            }),
+          ],
+        }),
+      );
+
+      estimateQuoteGasLimitsSpy.mockRestore();
+    });
+
+    it('uses placeholder relay params when no estimation fields are provided', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.steps[0].items = [
+        {
+          ...quoteMock.steps[0].items[0],
+          data: {},
+        },
+      ];
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasMock.mockResolvedValue({
+        gas: toHex(50000),
+        simulationFails: undefined,
+      });
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+      expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith('0x0');
+      expect(estimateGasMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: '0x',
+          from: '0x0000000000000000000000000000000000000000',
+          to: '0x0000000000000000000000000000000000000000',
+          value: '0x0',
+        }),
+        NETWORK_CLIENT_ID_MOCK,
+      );
+    });
+
     describe('gas buffer support', () => {
       it('applies buffer to single transaction gas estimate', async () => {
         const quoteMock = cloneDeep(QUOTE_MOCK);
@@ -2770,16 +2978,15 @@ describe('Relay Quotes Utils', () => {
         );
       });
 
-      it('applies buffer to batch transaction gas estimates when estimates do not match params', async () => {
+      it('applies buffer to per-entry batch gas estimates when transactions are estimated', async () => {
         const quoteMock = cloneDeep(QUOTE_MOCK);
-        quoteMock.steps[0].items[0].data.gas = '30000';
+        delete quoteMock.steps[0].items[0].data.gas;
         quoteMock.steps[0].items.push({
           data: {
             chainId: 1,
             from: FROM_MOCK,
             to: '0x3' as Hex,
             data: '0x456' as Hex,
-            gas: '40000',
           },
         } as never);
 
@@ -2884,7 +3091,6 @@ describe('Relay Quotes Utils', () => {
             from: FROM_MOCK,
             to: '0x3' as Hex,
             data: '0x456' as Hex,
-            gas: '40000',
           },
         } as never);
 

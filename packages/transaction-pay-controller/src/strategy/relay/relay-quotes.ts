@@ -8,17 +8,14 @@ import { BigNumber } from 'bignumber.js';
 
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
 import {
-  getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
 } from './gas-station';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
-import type {
-  BatchTransactionParams,
-  TransactionMeta,
-} from '../../../../transaction-controller/src';
+import type { TransactionMeta } from '../../../../transaction-controller/src';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -38,14 +35,14 @@ import type {
 } from '../../types';
 import { getFiatValueFromUsd } from '../../utils/amounts';
 import {
-  isEIP7702Chain,
-  isRelayExecuteEnabled,
   getFeatureFlags,
-  getGasBuffer,
   getRelayOriginGasOverhead,
   getSlippage,
+  isEIP7702Chain,
+  isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -771,9 +768,52 @@ async function calculateSourceNetworkGasLimit(
   totalGasLimit: number;
   gasLimits: number[];
 }> {
-  return params.length === 1
-    ? calculateSourceNetworkGasLimitSingle(params[0], messenger, fromOverride)
-    : calculateSourceNetworkGasLimitBatch(params, messenger, fromOverride);
+  const fallbackChainId = params.find(
+    (singleParams) => singleParams.chainId !== undefined,
+  )?.chainId;
+  const fallbackFrom = params.find(
+    (singleParams) => singleParams.from !== undefined,
+  )?.from;
+  const fallbackTo = params.find(
+    (singleParams) => singleParams.to !== undefined,
+  )?.to;
+  const fallbackData = params.find(
+    (singleParams) => singleParams.data !== undefined,
+  )?.data;
+
+  const relayGasResult = await estimateQuoteGasLimits({
+    allowBatch: params.every(
+      (singleParams) =>
+        singleParams.chainId !== undefined &&
+        singleParams.from !== undefined &&
+        singleParams.to !== undefined &&
+        singleParams.data !== undefined,
+    ),
+    fallbackGas: getFeatureFlags(messenger).relayFallbackGas,
+    fallbackOnSimulationFailure: true,
+    messenger,
+    transactions: params.map((singleParams) => ({
+      chainId: toHex(singleParams.chainId ?? fallbackChainId ?? 0),
+      data: singleParams.data ?? fallbackData ?? '0x',
+      from:
+        fromOverride ??
+        singleParams.from ??
+        fallbackFrom ??
+        '0x0000000000000000000000000000000000000000',
+      gas: fromOverride ? undefined : singleParams.gas,
+      to:
+        singleParams.to ??
+        fallbackTo ??
+        '0x0000000000000000000000000000000000000000',
+      value: singleParams.value ?? '0',
+    })),
+  });
+
+  return {
+    gasLimits: relayGasResult.gasLimits.map((gasLimit) => gasLimit.max),
+    totalGasEstimate: relayGasResult.totalGasEstimate,
+    totalGasLimit: relayGasResult.totalGasLimit,
+  };
 }
 
 /**
@@ -866,197 +906,6 @@ function getTransferRecipient(data: Hex): Hex {
   return new Interface(['function transfer(address to, uint256 amount)'])
     .decodeFunctionData('transfer', data)
     .to.toLowerCase();
-}
-
-async function calculateSourceNetworkGasLimitSingle(
-  params: RelayQuote['steps'][0]['items'][0]['data'],
-  messenger: TransactionPayControllerMessenger,
-  fromOverride?: Hex,
-): Promise<{
-  totalGasEstimate: number;
-  totalGasLimit: number;
-  gasLimits: number[];
-}> {
-  const paramGasLimit = params.gas
-    ? new BigNumber(params.gas).toNumber()
-    : undefined;
-
-  if (paramGasLimit && !fromOverride) {
-    log('Using single gas limit from params', { paramGasLimit });
-
-    return {
-      totalGasEstimate: paramGasLimit,
-      totalGasLimit: paramGasLimit,
-      gasLimits: [paramGasLimit],
-    };
-  }
-
-  try {
-    const {
-      chainId: chainIdNumber,
-      data,
-      from: paramsFrom,
-      to,
-      value: valueString,
-    } = params;
-
-    const from = fromOverride ?? paramsFrom;
-    const chainId = toHex(chainIdNumber);
-    const value = toHex(valueString ?? '0');
-    const gasBuffer = getGasBuffer(messenger, chainId);
-
-    const networkClientId = messenger.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
-    );
-
-    const { gas: gasHex, simulationFails } = await messenger.call(
-      'TransactionController:estimateGas',
-      { from, data, to, value },
-      networkClientId,
-    );
-
-    const estimatedGas = new BigNumber(gasHex).toNumber();
-    const bufferedGas = Math.ceil(estimatedGas * gasBuffer);
-
-    if (!simulationFails) {
-      log('Estimated gas limit for single transaction', {
-        chainId,
-        estimatedGas,
-        bufferedGas,
-        gasBuffer,
-      });
-
-      return {
-        totalGasEstimate: bufferedGas,
-        totalGasLimit: bufferedGas,
-        gasLimits: [bufferedGas],
-      };
-    }
-  } catch (error) {
-    log('Failed to estimate gas limit for single transaction', error);
-  }
-
-  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
-
-  log('Using fallback gas for single transaction', { fallbackGas });
-
-  return {
-    totalGasEstimate: fallbackGas.estimate,
-    totalGasLimit: fallbackGas.max,
-    gasLimits: [fallbackGas.max],
-  };
-}
-
-/**
- * Calculate the gas limits for a batch of transactions.
- *
- * @param params - Array of transaction parameters.
- * @param messenger - Controller messenger.
- * @param fromOverride - Optional address to use as `from` in gas estimation.
- * @returns - Gas limits.
- */
-async function calculateSourceNetworkGasLimitBatch(
-  params: RelayQuote['steps'][0]['items'][0]['data'][],
-  messenger: TransactionPayControllerMessenger,
-  fromOverride?: Hex,
-): Promise<{
-  totalGasEstimate: number;
-  totalGasLimit: number;
-  gasLimits: number[];
-}> {
-  try {
-    const { chainId: chainIdNumber, from: paramsFrom } = params[0];
-    const from = fromOverride ?? paramsFrom;
-    const chainId = toHex(chainIdNumber);
-    const gasBuffer = getGasBuffer(messenger, chainId);
-
-    const transactions: BatchTransactionParams[] = params.map(
-      (singleParams) => ({
-        ...singleParams,
-        gas:
-          !fromOverride && singleParams.gas
-            ? toHex(singleParams.gas)
-            : undefined,
-        maxFeePerGas: undefined,
-        maxPriorityFeePerGas: undefined,
-        value: toHex(singleParams.value ?? '0'),
-      }),
-    );
-
-    const paramGasLimits = params.map((singleParams) =>
-      singleParams.gas ? new BigNumber(singleParams.gas).toNumber() : undefined,
-    );
-
-    const { totalGasLimit, gasLimits } = await messenger.call(
-      'TransactionController:estimateGasBatch',
-      {
-        chainId,
-        from,
-        transactions,
-      },
-    );
-
-    const bufferedGasLimits = gasLimits.map((limit, index) => {
-      const useBuffer =
-        gasLimits.length === 1 || paramGasLimits[index] !== gasLimits[index];
-
-      const buffer = useBuffer ? gasBuffer : 1;
-
-      return Math.ceil(limit * buffer);
-    });
-
-    const bufferedTotalGasLimit = bufferedGasLimits.reduce(
-      (acc, limit) => acc + limit,
-      0,
-    );
-
-    log('Estimated gas limit for batch', {
-      chainId,
-      totalGasLimit,
-      gasLimits,
-      bufferedTotalGasLimit,
-      bufferedGasLimits,
-      gasBuffer,
-    });
-
-    return {
-      totalGasEstimate: bufferedTotalGasLimit,
-      totalGasLimit: bufferedTotalGasLimit,
-      gasLimits: bufferedGasLimits,
-    };
-  } catch (error) {
-    log('Failed to estimate gas limit for batch', error);
-  }
-
-  const fallbackGas = getFeatureFlags(messenger).relayFallbackGas;
-
-  const totalGasEstimate = params.reduce((acc, singleParams) => {
-    const gas = singleParams.gas ?? fallbackGas.estimate;
-    return acc + new BigNumber(gas).toNumber();
-  }, 0);
-
-  const gasLimits = params.map((singleParams) => {
-    const gas = singleParams.gas ?? fallbackGas.max;
-    return new BigNumber(gas).toNumber();
-  });
-
-  const totalGasLimit = gasLimits.reduce(
-    (acc, singleGasLimit) => acc + singleGasLimit,
-    0,
-  );
-
-  log('Using fallback gas for batch', {
-    totalGasEstimate,
-    totalGasLimit,
-    gasLimits,
-  });
-
-  return {
-    totalGasEstimate,
-    totalGasLimit,
-    gasLimits,
-  };
 }
 
 function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {

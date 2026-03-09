@@ -6,6 +6,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { getAcrossOrderedTransactions } from './transactions';
 import type {
   AcrossAction,
   AcrossActionRequestBody,
@@ -25,7 +26,8 @@ import type {
 } from '../../types';
 import { getFiatValueFromUsd, sumAmounts } from '../../utils/amounts';
 import { getPayStrategiesConfig, getSlippage } from '../../utils/feature-flags';
-import { calculateGasCost, estimateGasLimit } from '../../utils/gas';
+import { calculateGasCost } from '../../utils/gas';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
 import { TOKEN_TRANSFER_FOUR_BYTE } from '../relay/constants';
 
@@ -499,69 +501,91 @@ async function calculateSourceNetworkCost(
   const acrossFallbackGas =
     getPayStrategiesConfig(messenger).across.fallbackGas;
   const { from } = request;
-  const approvalTxns = quote.approvalTxns ?? [];
+  const orderedTransactions = getAcrossOrderedTransactions({ quote });
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
+  const gasEstimates = await estimateQuoteGasLimits({
+    fallbackGas: acrossFallbackGas,
+    messenger,
+    transactions: orderedTransactions.map((transaction) => ({
+      chainId: toHex(transaction.chainId),
+      data: transaction.data,
+      from,
+      gas: transaction.gas,
+      to: transaction.to,
+      value: transaction.value ?? '0x0',
+    })),
+  });
 
-  const approvalGasResults = await Promise.all(
-    approvalTxns.map(async (approval) => {
-      const chainId = toHex(approval.chainId);
-      const gas = await estimateGasLimit({
-        chainId,
-        data: approval.data,
-        fallbackGas: acrossFallbackGas,
-        from,
-        messenger,
-        to: approval.to,
-        value: approval.value ?? '0x0',
+  const batchGasLimit =
+    gasEstimates.usedBatch &&
+    gasEstimates.gasLimits.length === 1 &&
+    orderedTransactions.length > 1
+      ? gasEstimates.gasLimits[0]
+      : undefined;
+
+  if (batchGasLimit) {
+    const estimate = calculateGasCost({
+      chainId: swapChainId,
+      gas: batchGasLimit.estimate,
+      maxFeePerGas: swapTx.maxFeePerGas,
+      maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
+      messenger,
+    });
+    const max = calculateGasCost({
+      chainId: swapChainId,
+      gas: batchGasLimit.max,
+      isMax: true,
+      maxFeePerGas: swapTx.maxFeePerGas,
+      maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
+      messenger,
+    });
+
+    return {
+      sourceNetwork: {
+        estimate,
+        max,
+      },
+      gasLimits: {
+        batch: {
+          estimate: batchGasLimit.estimate,
+          max: batchGasLimit.max,
+        },
+      },
+    };
+  }
+
+  orderedTransactions.forEach((transaction, index) => {
+    const gasEstimate = gasEstimates.gasLimits[index];
+
+    if (gasEstimate?.source === 'fallback') {
+      log('Gas estimate failed, using fallback', {
+        error: gasEstimate.error,
+        transactionType: transaction.kind,
       });
+    }
 
-      if (gas.usedFallback) {
-        log('Gas estimate failed, using fallback', {
-          error: gas.error,
-          transactionType: 'approval',
-        });
-      }
+    if (transaction.kind === 'swap' && gasEstimate?.source === 'provided') {
+      log('Using Across-provided swap gas limit', {
+        gas: gasEstimate.estimate,
+        transactionType: transaction.kind,
+      });
+    }
+  });
 
-      return { chainId, gas };
-    }),
-  );
+  const approvalCount = quote.approvalTxns?.length ?? 0;
+  const approvalGasLimits = gasEstimates.gasLimits.slice(0, approvalCount);
+  const swapGas = gasEstimates.gasLimits[approvalCount];
 
-  const swapGasFromQuote = parseAcrossSwapGasLimit(swapTx.gas);
-  const swapGas =
-    swapGasFromQuote === undefined
-      ? await estimateGasLimit({
-          chainId: swapChainId,
-          data: swapTx.data,
-          fallbackGas: acrossFallbackGas,
-          from,
-          messenger,
-          to: swapTx.to,
-          value: swapTx.value ?? '0x0',
-        })
-      : {
-          estimate: swapGasFromQuote,
-          max: swapGasFromQuote,
-          usedFallback: false,
-        };
-
-  if (swapGasFromQuote !== undefined) {
-    log('Using Across-provided swap gas limit', {
-      gas: swapGasFromQuote,
-      transactionType: 'swap',
-    });
-  } else if (swapGas.usedFallback) {
-    log('Gas estimate failed, using fallback', {
-      error: swapGas.error,
-      transactionType: 'swap',
-    });
+  if (!swapGas) {
+    throw new Error('Across swap gas estimate missing');
   }
 
   const estimate = sumAmounts([
-    ...approvalGasResults.map(({ chainId, gas }) =>
+    ...approvalGasLimits.map((gasEstimate, index) =>
       calculateGasCost({
-        chainId,
-        gas: gas.estimate,
+        chainId: toHex(quote.approvalTxns?.[index]?.chainId ?? swapTx.chainId),
+        gas: gasEstimate.estimate,
         messenger,
       }),
     ),
@@ -575,10 +599,10 @@ async function calculateSourceNetworkCost(
   ]);
 
   const max = sumAmounts([
-    ...approvalGasResults.map(({ chainId, gas }) =>
+    ...approvalGasLimits.map((gasEstimate, index) =>
       calculateGasCost({
-        chainId,
-        gas: gas.max,
+        chainId: toHex(quote.approvalTxns?.[index]?.chainId ?? swapTx.chainId),
+        gas: gasEstimate.max,
         isMax: true,
         messenger,
       }),
@@ -599,9 +623,9 @@ async function calculateSourceNetworkCost(
       max,
     },
     gasLimits: {
-      approval: approvalGasResults.map(({ gas }) => ({
-        estimate: gas.estimate,
-        max: gas.max,
+      approval: approvalGasLimits.map((gasEstimate) => ({
+        estimate: gasEstimate.estimate,
+        max: gasEstimate.max,
       })),
       swap: {
         estimate: swapGas.estimate,
@@ -609,25 +633,4 @@ async function calculateSourceNetworkCost(
       },
     },
   };
-}
-
-function parseAcrossSwapGasLimit(gas?: string): number | undefined {
-  if (!gas) {
-    return undefined;
-  }
-
-  const parsedGas = gas.startsWith('0x')
-    ? new BigNumber(gas.slice(2), 16)
-    : new BigNumber(gas);
-
-  if (
-    !parsedGas.isFinite() ||
-    parsedGas.isNaN() ||
-    !parsedGas.isInteger() ||
-    parsedGas.lte(0)
-  ) {
-    return undefined;
-  }
-
-  return parsedGas.toNumber();
 }

@@ -47,7 +47,7 @@ export type AcrossFees = {
 };
 
 export type AcrossApprovalTransaction = {
-  chainId: number;
+  chainId?: number;
   to: Hex;
   data: Hex;
   value?: Hex;
@@ -76,15 +76,15 @@ export type AcrossSwapApprovalResponse = {
   swapTx: AcrossSwapTransaction;
 };
 
+export type AcrossGasLimit = {
+  estimate: number;
+  max: number;
+};
+
 export type AcrossGasLimits = {
-  approval: {
-    estimate: number;
-    max: number;
-  }[];
-  swap: {
-    estimate: number;
-    max: number;
-  };
+  approval?: AcrossGasLimit[];
+  batch?: AcrossGasLimit;
+  swap?: AcrossGasLimit;
 };
 
 export type AcrossQuote = {

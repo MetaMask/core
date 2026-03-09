@@ -10,6 +10,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 import { submitAcrossQuotes } from './across-submit';
+import * as acrossTransactions from './transactions';
 import type { AcrossQuote } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../../constants';
@@ -209,6 +210,53 @@ describe('Across Submit', () => {
       );
     });
 
+    it('submits a 7702 batch when the quote contains a combined batch gas limit', async () => {
+      const batchGasQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: {
+              batch: {
+                estimate: 43000,
+                max: 64000,
+              },
+            },
+          },
+        },
+      } as unknown as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [batchGasQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          disableHook: true,
+          disableSequential: true,
+          gasLimit7702: toHex(64000),
+          transactions: [
+            expect.objectContaining({
+              params: expect.not.objectContaining({
+                gas: expect.anything(),
+              }),
+              type: TransactionType.tokenMethodApprove,
+            }),
+            expect.objectContaining({
+              params: expect.not.objectContaining({
+                gas: expect.anything(),
+              }),
+              type: TransactionType.perpsAcrossDeposit,
+            }),
+          ],
+        }),
+      );
+    });
+
     it('submits a single transaction when no approvals', async () => {
       const noApprovalQuote = {
         ...QUOTE_MOCK,
@@ -325,6 +373,47 @@ describe('Across Submit', () => {
           type: TransactionType.perpsAcrossDeposit,
         }),
       );
+    });
+
+    it('falls back to the Across deposit type when an ordered swap transaction has no explicit type', async () => {
+      const orderedTransactionsSpy = jest.spyOn(
+        acrossTransactions,
+        'getAcrossOrderedTransactions',
+      );
+      const noApprovalQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      orderedTransactionsSpy.mockReturnValueOnce([
+        {
+          ...QUOTE_MOCK.original.quote.swapTx,
+          kind: 'swap',
+          type: undefined,
+        },
+      ]);
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [noApprovalQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.perpsAcrossDeposit,
+        }),
+      );
+
+      orderedTransactionsSpy.mockRestore();
     });
 
     it('removes nonce from skipped transaction', async () => {
