@@ -3469,27 +3469,12 @@ describe('NftController', () => {
       });
     });
 
-    it('should skip a contract that fails getNetworkClientById and still add the remaining NFTs', async () => {
-      const { nftController, nftControllerMessenger } = setupController({});
+    it('should skip an NFT whose chain ID is not registered and still add the remaining NFTs', async () => {
+      // Chain ID 0x999 is not registered in any mock network client config, so
+      // findNetworkClientIdByChainId throws for it naturally — no spy needed.
+      const UNREGISTERED_CHAIN_ID = 0x999;
 
-      // Make getNetworkClientById throw for 'sepolia' to simulate a mid-batch
-      // network lookup failure (e.g., network switched during detection).
-      const originalCall = nftControllerMessenger.call.bind(
-        nftControllerMessenger,
-      );
-      jest
-        .spyOn(nftControllerMessenger, 'call')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementation((action: any, ...args: any[]): any => {
-          if (
-            action === 'NetworkController:getNetworkClientById' &&
-            args[0] === 'sepolia'
-          ) {
-            throw new Error('Network unavailable');
-          }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (originalCall as (...a: any[]) => any)(action, ...args);
-        });
+      const { nftController } = setupController({});
 
       await nftController.addNfts(
         [
@@ -3512,7 +3497,7 @@ describe('NftController', () => {
               image: null,
               description: null,
               standard: ERC721,
-              chainId: 11155111, // sepolia — getNetworkClientById will throw
+              chainId: UNREGISTERED_CHAIN_ID,
             },
           },
           {
@@ -3540,9 +3525,9 @@ describe('NftController', () => {
         { address: '0x01', tokenId: '1' },
         { address: '0x03', tokenId: '3' },
       ]);
-      // NFT 2 (sepolia) should not have been added
+      // NFT 2 (unknown chain) should not have been added
       expect(
-        nftController.state.allNfts[OWNER_ACCOUNT.address]?.['0xaa36a7'],
+        nftController.state.allNfts[OWNER_ACCOUNT.address]?.['0x999'],
       ).toBeUndefined();
     });
 
