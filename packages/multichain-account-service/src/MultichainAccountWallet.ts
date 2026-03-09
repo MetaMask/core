@@ -204,17 +204,18 @@ export class MultichainAccountWallet<
   }
 
   /**
-   * Gets the EVM account provider (always at index 0).
+   * Gets the providers and ensure the EVM provider is located at index 0.
    *
-   * @returns The EVM account provider.
+   * @returns The account providers.
    */
-  #getEvmProvider(): Bip44AccountProvider<Account> {
-    const [evmProvider] = this.#providers;
+  #getProviders(): Bip44AccountProvider<Account>[] {
+    const [evmProvider, ...otherProviders] = this.#providers;
     assert(
       evmProvider instanceof EvmAccountProvider,
       'EVM account provider must be first',
     );
-    return evmProvider;
+
+    return [evmProvider, ...otherProviders];
   }
 
   /**
@@ -608,18 +609,31 @@ export class MultichainAccountWallet<
     assertGroupIndexRangeIsValid({ from, to });
     assertGroupIndexIsValid(from, this.getNextGroupIndex());
 
+    const [evmProvider, ...otherProviders] = this.#getProviders();
     const providers = options.waitForAllProvidersToFinishCreatingAccounts
       ? this.#providers
-      : [this.#getEvmProvider()];
+      : [evmProvider];
 
     const groups = await this.#createMultichainAccountGroupsRange(
       { from, to },
       providers,
     );
 
+    // We need to run a post-alignment since non-EVM accounts have not
+    // been created yet.
     if (!options.waitForAllProvidersToFinishCreatingAccounts) {
+      const alignOtherAccounts = async (): Promise<void> => {
+        this.#log(`Aligning accounts... (post)`);
+
+        await this.#withLock('in-progress:alignment', async () => {
+          await this.#alignAccountsForRange({ from, to }, otherProviders);
+        });
+
+        this.#log('Aligned accounts! (post)');
+      };
+
       // eslint-disable-next-line no-void
-      void this.alignAccounts();
+      void alignOtherAccounts();
     }
 
     return groups;

@@ -103,6 +103,17 @@ function setup({
   return { wallet, providers: providersList, messenger: serviceMessenger };
 }
 
+async function waitForOtherProvidersToHaveBeenCalled(
+  providers: MockAccountProvider[] = [],
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  for (const provider of providers) {
+    await new Promise<void>((resolve) => {
+      setTimeout(() => resolve(), 0);
+    });
+  }
+}
+
 describe('MultichainAccountWallet', () => {
   afterEach(() => {
     jest.clearAllTimers();
@@ -296,7 +307,7 @@ describe('MultichainAccountWallet', () => {
       );
     });
 
-    it('schedules alignAccounts after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
+    it('defers non-EVM account creation to alignment after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
       const groupIndex = 1;
 
       const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -312,18 +323,21 @@ describe('MultichainAccountWallet', () => {
         accounts: [[mockEvmAccount0], []], // EVM has group 0, SOL has none
       });
 
-      const [evmProvider] = providers;
+      const [evmProvider, solProvider] = providers;
       evmProvider.createAccounts.mockResolvedValueOnce([mockEvmAccount1]);
       evmProvider.getAccounts.mockReturnValueOnce([mockEvmAccount1]);
       evmProvider.getAccount.mockReturnValueOnce(mockEvmAccount1);
 
-      const alignAccountsSpy = jest
-        .spyOn(wallet, 'alignAccounts')
-        .mockResolvedValue(undefined);
-
       await wallet.createMultichainAccountGroup(groupIndex);
 
-      expect(alignAccountsSpy).toHaveBeenCalled();
+      // Alignment fires as fire-and-forget, so wait for this.
+      await waitForOtherProvidersToHaveBeenCalled([solProvider]);
+
+      expect(solProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: wallet.entropySource,
+        range: { from: groupIndex, to: groupIndex },
+      });
     });
   });
 
@@ -453,10 +467,6 @@ describe('MultichainAccountWallet', () => {
       ];
       evmProvider.createAccounts.mockResolvedValueOnce(evmAccounts);
 
-      const alignAccountsSpy = jest
-        .spyOn(wallet, 'alignAccounts')
-        .mockResolvedValue(undefined);
-
       // With wait=false (default), only the EVM provider creates accounts immediately.
       const groups = await wallet.createMultichainAccountGroups({ to: 2 });
 
@@ -466,10 +476,18 @@ describe('MultichainAccountWallet', () => {
       expect(groups[2].groupIndex).toBe(2);
       expect(wallet.getAccountGroups()).toHaveLength(3);
 
-      // Only EVM provider is called; SOL is deferred to alignment.
+      // EVM is called for creation; SOL is called by fire-and-forget alignment
+      // covering the full batch range via the Bip44DeriveIndexRange API.
       expect(evmProvider.createAccounts).toHaveBeenCalled();
-      expect(solProvider.createAccounts).not.toHaveBeenCalled();
-      expect(alignAccountsSpy).toHaveBeenCalled();
+
+      // Alignment fires as fire-and-forget, so wait for this.
+      await waitForOtherProvidersToHaveBeenCalled([solProvider]);
+
+      expect(solProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: wallet.entropySource,
+        range: { from: 0, to: 2 },
+      });
     });
 
     it('returns existing groups and creates new ones when some groups already exist (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
@@ -622,7 +640,7 @@ describe('MultichainAccountWallet', () => {
       expect(alignAccountsSpy).not.toHaveBeenCalled();
     });
 
-    it('schedules alignAccounts after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
+    it('defers non-EVM account creation to alignment after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
       const { wallet, providers } = setup({
         accounts: [[], []],
       });
@@ -635,14 +653,16 @@ describe('MultichainAccountWallet', () => {
         .get();
       evmProvider.createAccounts.mockResolvedValueOnce([evmAccount]);
 
-      const alignAccountsSpy = jest
-        .spyOn(wallet, 'alignAccounts')
-        .mockResolvedValue(undefined);
-
       await wallet.createMultichainAccountGroups({ to: 0 });
 
-      expect(solProvider.createAccounts).not.toHaveBeenCalled();
-      expect(alignAccountsSpy).toHaveBeenCalled();
+      // Alignment fires as fire-and-forget, so wait for this.
+      await waitForOtherProvidersToHaveBeenCalled([solProvider]);
+
+      expect(solProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: wallet.entropySource,
+        range: { from: 0, to: 0 },
+      });
     });
 
     it('updates an existing group when created accounts overlap with it (gap scenario)', async () => {
