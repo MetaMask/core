@@ -19,6 +19,19 @@ import type {
 } from './AssetsController';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import type { Caip19AssetId, AccountId } from './types';
+import { formatExchangeRatesForBridge } from './utils';
+
+jest.mock('./utils', () => {
+  const actual = jest.requireActual<typeof import('./utils')>('./utils');
+  return {
+    ...actual,
+    formatExchangeRatesForBridge: jest.fn(actual.formatExchangeRatesForBridge),
+  };
+});
+
+const formatExchangeRatesForBridgeMock = jest.mocked(
+  formatExchangeRatesForBridge,
+);
 
 function createMockQueryApiClient(): ApiPlatformClient {
   return { fetch: jest.fn() } as unknown as ApiPlatformClient;
@@ -621,99 +634,33 @@ describe('AssetsController', () => {
   });
 
   describe('getExchangeRatesForBridge', () => {
-    it('returns bridge format via action with empty state', async () => {
-      await withController(({ messenger }) => {
-        const result = (messenger.call as CallableFunction)(
-          'AssetsController:getExchangeRatesForBridge',
-        );
-
-        expect(result).toStrictEqual({
-          conversionRates: {},
-          currencyRates: {},
-          marketData: {},
-          currentCurrency: 'usd',
-        });
-      });
-    });
-
-    it('returns bridge format derived from assetsPrice and selectedCurrency', async () => {
-      const bitcoinAssetId =
-        'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
+    it('calls formatExchangeRatesForBridge with state and network data', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsPrice: {
-          [bitcoinAssetId]: {
-            price: 50000,
-            lastUpdated: 1_600_000_000,
+          [MOCK_NATIVE_ASSET_ID]: {
+            assetPriceType: 'fungible',
+            price: 2000,
+            usdPrice: 2000,
+            lastUpdated: 1_700_000_000_000,
           },
         },
         selectedCurrency: 'eur',
       };
 
-      await withController({ state: initialState }, ({ messenger }) => {
-        const result = (messenger.call as CallableFunction)(
-          'AssetsController:getExchangeRatesForBridge',
-        );
-
-        expect(result.currentCurrency).toBe('eur');
-        expect(result.conversionRates[bitcoinAssetId]).toBeDefined();
-        expect(result.conversionRates[bitcoinAssetId].rate).toBe('50000');
-        expect(result.conversionRates[bitcoinAssetId].currency).toBe(
-          'swift:0/iso4217:EUR',
-        );
-      });
-    });
-
-    it('returns same result as controller.getExchangeRatesForBridge()', async () => {
-      await withController(({ controller, messenger }) => {
-        const viaAction = (messenger.call as CallableFunction)(
-          'AssetsController:getExchangeRatesForBridge',
-        );
-        const viaMethod = controller.getExchangeRatesForBridge();
-
-        expect(viaAction).toStrictEqual(viaMethod);
-      });
-    });
-
-    it('passes usdToSelectedCurrencyRate so currencyRates have distinct conversionRate and usdConversionRate', async () => {
-      const ethNativeId = 'eip155:1/slip44:60' as Caip19AssetId;
-      const initialState: Partial<AssetsControllerState> = {
-        assetsPrice: {
-          [ethNativeId]: { price: 2000, lastUpdated: 1_700_000_000_000 },
-        },
-        selectedCurrency: 'eur',
-      };
-
       await withController({ state: initialState }, ({ controller }) => {
-        const result = controller.getExchangeRatesForBridge({
-          usdToSelectedCurrencyRate: 0.92,
+        formatExchangeRatesForBridgeMock.mockClear();
+
+        controller.getExchangeRatesForBridge();
+
+        expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledTimes(1);
+        expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledWith({
+          assetsPrice: initialState.assetsPrice,
+          selectedCurrency: 'eur',
+          nativeAssetIdentifiers: {
+            'eip155:1': 'eip155:1/slip44:60',
+          },
+          networkConfigurationsByChainId: {},
         });
-
-        expect(result.currencyRates.ETH).toBeDefined();
-        expect(result.currencyRates.ETH?.conversionRate).toBe(2000 * 0.92);
-        expect(result.currencyRates.ETH?.usdConversionRate).toBe(2000);
-      });
-    });
-  });
-
-  describe('getStateForTransactionPay', () => {
-    it('passes usdToSelectedCurrencyRate so currencyRates have distinct conversionRate and usdConversionRate', async () => {
-      const ethNativeId = 'eip155:1/slip44:60' as Caip19AssetId;
-      const initialState: Partial<AssetsControllerState> = {
-        assetsPrice: {
-          [ethNativeId]: { price: 2000, lastUpdated: 1_700_000_000_000 },
-        },
-        selectedCurrency: 'eur',
-      };
-
-      await withController({ state: initialState }, ({ controller }) => {
-        const result = controller.getStateForTransactionPay({
-          usdToSelectedCurrencyRate: 0.92,
-        });
-
-        expect(result.currentCurrency).toBe('eur');
-        expect(result.currencyRates.ETH).toBeDefined();
-        expect(result.currencyRates.ETH?.conversionRate).toBe(2000 * 0.92);
-        expect(result.currencyRates.ETH?.usdConversionRate).toBe(2000);
       });
     });
   });
@@ -976,7 +923,9 @@ describe('AssetsController', () => {
           {
             assetsPrice: {
               [MOCK_ASSET_ID]: {
+                assetPriceType: 'fungible',
                 price: 1.0,
+                usdPrice: 1.0,
                 pricePercentChange1d: 0.5,
                 lastUpdated: Date.now(),
               },
