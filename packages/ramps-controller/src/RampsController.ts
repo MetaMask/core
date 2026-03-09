@@ -1950,7 +1950,13 @@ export class RampsController extends BaseController<
         state.orders[idx] = {
           ...state.orders[idx],
           ...order,
+          providerOrderId: orderCode,
         } as Draft<RampsOrder>;
+      } else {
+        state.orders.push({
+          ...order,
+          providerOrderId: orderCode,
+        } as Draft<RampsOrder>);
       }
     });
 
