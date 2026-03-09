@@ -99,7 +99,7 @@ export const getE2EIdentifierFromJwt = (token: string): string => {
   try {
     const parts = token.split('.');
     if (parts.length === 3) {
-      const { sub } = JSON.parse(atob(parts[1] as string));
+      const { sub } = JSON.parse(atob(parts[1]));
       if (typeof sub === 'string' && sub.length > 0) {
         return sub;
       }

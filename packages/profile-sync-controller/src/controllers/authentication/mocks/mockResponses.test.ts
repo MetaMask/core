@@ -43,29 +43,33 @@ describe('getE2EIdentifierFromJwt()', () => {
 describe('getMockAuthAccessTokenResponse()', () => {
   it('wraps the e2eIdentifier in a JWT when assertion is present', () => {
     const mock = getMockAuthAccessTokenResponse();
-    const response = (mock.response as (body?: string) => { access_token: string })(
-      'assertion=MOCK_SRP_IDENTIFIER_1',
-    );
+    const response =
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      (mock.response as (body?: string) => { access_token: string })(
+        'assertion=MOCK_SRP_IDENTIFIER_1',
+      );
 
     const token = response.access_token;
-    expect(token.split('.').length).toBe(3);
+    expect(token.split('.')).toHaveLength(3);
     expect(getE2EIdentifierFromJwt(token)).toBe('MOCK_SRP_IDENTIFIER_1');
   });
 
   it('returns the default OIDC access token when no assertion is present', () => {
     const mock = getMockAuthAccessTokenResponse();
-    const response = (mock.response as (body?: string) => { access_token: string })(
-      '',
-    );
+    const response =
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      (mock.response as (body?: string) => { access_token: string })('');
 
     expect(response.access_token).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
   });
 
   it('produces JWTs with a far-future exp claim', () => {
     const mock = getMockAuthAccessTokenResponse();
-    const response = (mock.response as (body?: string) => { access_token: string })(
-      'assertion=test-id',
-    );
+    const response =
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      (mock.response as (body?: string) => { access_token: string })(
+        'assertion=test-id',
+      );
 
     const payload = JSON.parse(atob(response.access_token.split('.')[1]));
     expect(payload.exp).toBe(4102444800);
