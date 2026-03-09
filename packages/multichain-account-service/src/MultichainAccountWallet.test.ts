@@ -694,7 +694,7 @@ describe('MultichainAccountWallet', () => {
       expect(wallet.getMultichainAccountGroup(2)).toBeDefined();
     });
 
-    it('logs a warning when no accounts are created for a group index in range', async () => {
+    it('does not throw if a group cannot be created if it has no accounts', async () => {
       const { wallet, providers } = setup({
         accounts: [[]],
       });
@@ -708,7 +708,7 @@ describe('MultichainAccountWallet', () => {
         .get();
       evmProvider.createAccounts.mockResolvedValueOnce([account0]);
 
-      // Request range [0..1] — group 1 has no accounts → warning log is triggered.
+      // Request range [0..1] BUT group 1 has no accounts.
       const groups = await wallet.createMultichainAccountGroups(
         { from: 0, to: 1 },
         { waitForAllProvidersToFinishCreatingAccounts: true },
