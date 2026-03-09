@@ -1384,7 +1384,7 @@
       "count": 2
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/profile-sync-controller/src/controllers/authentication/__fixtures__/mockServices.ts": {
