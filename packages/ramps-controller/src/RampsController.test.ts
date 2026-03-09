@@ -5171,6 +5171,25 @@ describe('RampsController', () => {
       });
     });
 
+    it('adds order to state when not found (e.g. race after PayPal return)', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => mockOrder,
+        );
+
+        expect(controller.state.orders).toHaveLength(0);
+
+        await controller.getOrder('transak-staging', 'abc-123', '0xabc');
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.providerOrderId).toBe('abc-123');
+        expect(controller.state.orders[0]?.status).toBe(
+          RampsOrderStatus.Completed,
+        );
+      });
+    });
+
     it('preserves existing fields not present in the API response', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const existingOrder = createMockOrder({
