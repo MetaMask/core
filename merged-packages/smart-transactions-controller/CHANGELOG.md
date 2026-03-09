@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.7.0]
+
+### Added
+
+- Authenticate calls to transaction api ([#570](https://github.com/MetaMask/smart-transactions-controller/pull/570))
+
 ## [22.6.0]
 
 ### Added
@@ -728,7 +734,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.7.0...HEAD
+[22.7.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.6.0...v22.7.0
 [22.6.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.5.0...v22.6.0
 [22.5.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.4.0...v22.5.0
 [22.4.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.3.0...v22.4.0
