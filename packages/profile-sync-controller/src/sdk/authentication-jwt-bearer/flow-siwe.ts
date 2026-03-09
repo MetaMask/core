@@ -70,9 +70,7 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
     return this.#signer.address;
   }
 
-  async getUserProfileLineage(
-    _entropySourceId?: string,
-  ): Promise<UserProfileLineage> {
+  async getUserProfileLineage(): Promise<UserProfileLineage> {
     const accessToken = await this.getAccessToken();
     return await getUserProfileLineage(this.#config.env, accessToken);
   }
