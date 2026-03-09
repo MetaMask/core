@@ -4673,6 +4673,10 @@ describe('SeedlessOnboardingController', () => {
             // Unlock controller first
             await controller.submitPassword(OLD_PASSWORD);
 
+            // Capture before the call — proactive renewRefreshToken inside
+            // refreshAuthTokens will rotate state.refreshToken afterwards.
+            const originalRefreshToken = controller.state.refreshToken;
+
             const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
             const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
 
@@ -4713,7 +4717,7 @@ describe('SeedlessOnboardingController', () => {
             // Verify that getNewRefreshToken was called
             expect(mockRefreshJWTToken).toHaveBeenCalledWith({
               connection: controller.state.authConnection,
-              refreshToken: controller.state.refreshToken,
+              refreshToken: originalRefreshToken,
             });
 
             // Verify that recoverEncKey was called twice (once failed, once succeeded)
@@ -5192,6 +5196,10 @@ describe('SeedlessOnboardingController', () => {
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             await controller.submitPassword(MOCK_PASSWORD);
 
+            // Capture before the call — proactive renewRefreshToken inside
+            // refreshAuthTokens will rotate state.refreshToken afterwards.
+            const originalRefreshToken = controller.state.refreshToken;
+
             // Mock authenticate for token refresh
             jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -5202,7 +5210,7 @@ describe('SeedlessOnboardingController', () => {
 
             expect(mockRefreshJWTToken).toHaveBeenCalledWith({
               connection: controller.state.authConnection,
-              refreshToken: controller.state.refreshToken,
+              refreshToken: originalRefreshToken,
             });
 
             expect(toprfClient.authenticate).toHaveBeenCalledWith({
@@ -5560,7 +5568,7 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
-      it('should use live state.refreshToken in authenticate when token was rotated concurrently', async () => {
+      it('should not pass refreshToken to authenticate during token refresh', async () => {
         await withController(
           {
             state: getMockInitialControllerState({
@@ -5568,55 +5576,123 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ controller, mockRefreshJWTToken }) => {
-            const originalRefreshToken = controller.state.refreshToken;
-            const rotatedRefreshToken = 'rotated-refresh-token-from-renew';
-
-            let resolveRefresh!: () => void;
-            const refreshBarrier = new Promise<void>((resolve) => {
-              resolveRefresh = resolve;
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['newIdToken'],
+              metadataAccessToken: 'mock-metadata-access-token',
+              accessToken,
             });
 
-            mockRefreshJWTToken.mockImplementation(async () => {
-              await refreshBarrier;
-              return {
-                idTokens: ['newIdToken'],
-                metadataAccessToken: 'mock-metadata-access-token',
-                accessToken,
-              };
-            });
-
-            // Spy on the controller's own authenticate method — this is the
-            // call that receives the refreshToken parameter. The inner
-            // toprfClient.authenticate call does not carry refreshToken.
+            // Spy on the controller's own authenticate method to verify that
+            // refreshToken is intentionally omitted. Passing it here would risk
+            // overwriting a token that renewRefreshToken rotated concurrently.
             const authenticateSpy = jest
               .spyOn(controller, 'authenticate')
-              .mockResolvedValue();
+              .mockResolvedValue({
+                nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+                isNewUser: false,
+              });
 
-            // Start the refresh — it is now blocked at the HTTP call.
-            const refreshPromise = controller.refreshAuthTokens();
+            await controller.refreshAuthTokens();
 
-            // Simulate renewRefreshToken writing a new token to state while the
-            // HTTP call is in-flight. refreshAuthTokens holds no controller lock,
-            // so these two can genuinely overlap in production.
-            // @ts-expect-error Accessing protected method for testing
-            controller.update((state) => {
-              state.refreshToken = rotatedRefreshToken;
+            expect(authenticateSpy).not.toHaveBeenCalledWith(
+              expect.objectContaining({ refreshToken: expect.anything() }),
+            );
+          },
+        );
+      });
+
+      it('should proactively call renewRefreshToken after vault update when vault is unlocked', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+              vaultEncryptionKey,
+              vaultEncryptionSalt,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            mockRenewRefreshToken,
+            mockRefreshJWTToken,
+          }) => {
+            await controller.submitPassword(MOCK_PASSWORD);
+
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['newIdToken'],
+              metadataAccessToken: 'mock-metadata-access-token',
+              accessToken,
             });
 
-            // Release the HTTP call and let refreshAuthTokens complete.
-            resolveRefresh();
-            await refreshPromise;
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
 
-            // authenticate must have received the live state value, not the
-            // value captured at the start of the method. Using the stale
-            // captured value would overwrite the newer token in state, causing
-            // all subsequent refreshes to 401 once the old token is revoked.
-            expect(authenticateSpy).toHaveBeenCalledWith(
-              expect.objectContaining({ refreshToken: rotatedRefreshToken }),
+            await controller.refreshAuthTokens();
+
+            expect(mockRenewRefreshToken).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not call renewRefreshToken when vault is locked', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, toprfClient, mockRenewRefreshToken }) => {
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            await controller.refreshAuthTokens();
+
+            expect(mockRenewRefreshToken).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should swallow renewRefreshToken errors and still resolve when vault is unlocked', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+              vaultEncryptionKey,
+              vaultEncryptionSalt,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            mockRenewRefreshToken,
+            mockRefreshJWTToken,
+          }) => {
+            await controller.submitPassword(MOCK_PASSWORD);
+
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['newIdToken'],
+              metadataAccessToken: 'mock-metadata-access-token',
+              accessToken,
+            });
+
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            // Make the proactive renewal fail — the error is caught and logged.
+            mockRenewRefreshToken.mockRejectedValueOnce(
+              new Error('renewal failed'),
             );
-            expect(authenticateSpy).not.toHaveBeenCalledWith(
-              expect.objectContaining({ refreshToken: originalRefreshToken }),
-            );
+
+            // refreshAuthTokens must still resolve even when renewal fails.
+            expect(await controller.refreshAuthTokens()).toBeUndefined();
           },
         );
       });
@@ -6258,6 +6334,62 @@ describe('SeedlessOnboardingController', () => {
           // user's only valid refresh token for revocation.
           expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(
             0,
+          );
+        },
+      );
+    });
+
+    it('should work without a password when vault is already unlocked', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_REVOKE_TOKEN,
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
+          }),
+        },
+        async ({ controller, mockRenewRefreshToken }) => {
+          // Unlock the vault first so #cachedDecryptedVaultData is populated.
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          // Call without a password — should use cached vault data directly.
+          await controller.renewRefreshToken();
+
+          expect(mockRenewRefreshToken).toHaveBeenCalledWith({
+            connection: controller.state.authConnection,
+            revokeToken: MOCK_REVOKE_TOKEN,
+          });
+        },
+      );
+    });
+
+    it('should throw VaultError when vault is locked and no password is provided', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(controller.renewRefreshToken()).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.VaultError,
           );
         },
       );
