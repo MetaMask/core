@@ -819,16 +819,12 @@ export class NftController extends BaseController<
   }
 
   /**
-   * Request NFT contract information, merging on-chain data with metadata
-   * already received from the NFT API.
-   *
-   * Each field (name, symbol) is fetched from the chain independently: if the
-   * API already supplied a value for a field, the RPC call for that field is
-   * skipped. Both calls are issued in parallel when both are needed.
+   * Builds NFT contract information from metadata already received from the
+   * NFT API. No on-chain RPC calls are made.
    *
    * @param contractAddress - Hex address of the NFT contract.
    * @param nftMetadataFromApi - NFT information received from the API.
-   * @returns Promise resolving to the aggregated NFT contract information.
+   * @returns The aggregated NFT contract information.
    */
   #getNftContractInformation(
     contractAddress: string,
@@ -1598,7 +1594,6 @@ export class NftController extends BaseController<
     userAddress: string,
     source: Source = Source.Custom,
   ): Promise<void> {
-    // Make sure the user address is valid
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     if (!addressToSearch) {
       return;
@@ -1609,7 +1604,6 @@ export class NftController extends BaseController<
       nfts.map((nft) => nft.nftMetadata),
     );
 
-    // Loop through each NFT and add the NFT contract to the list
     const nftContractsToAdd: (NftContractToAdd & {
       chainId: Hex;
       tokenId: string;
@@ -1635,7 +1629,6 @@ export class NftController extends BaseController<
       });
     }
 
-    // Add the NFT contracts to state
     const { contracts: newNftContracts } = await this.#addNftContracts(
       addressToSearch,
       nftContractsToAdd,

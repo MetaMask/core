@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Optimize NFT Controller state writes from O(2n) to O(2) for NFT detection by batching contract and NFT additions ([#8079](https://github.com/MetaMask/core/pull/8079))
+- Remove on-chain ERC-721 RPC fallback for contract name and symbol in `NftController`; contract metadata is now sourced exclusively from the NFT API, eliminating `getERC721AssetName`/`getERC721AssetSymbol` calls during NFT detection ([#8079](https://github.com/MetaMask/core/pull/8079))
 - When `isHomepageSectionsV1Enabled` is true, `AccountTrackerController` now uses all popular EVM networks (via `NetworkEnablementController:listPopularEvmNetworks`) for balance refresh on account change and keyring unlock, instead of only the enabled networks from `NetworkEnablementController` state ([#8117](https://github.com/MetaMask/core/pull/8117))
 
 ### Fixed
