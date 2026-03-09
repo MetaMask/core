@@ -793,14 +793,14 @@ describe('MultichainAccountService', () => {
       await service.alignWallets();
 
       expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_2.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
     });
   });
@@ -822,9 +822,9 @@ describe('MultichainAccountService', () => {
       await service.alignWallet(MOCK_HD_KEYRING_1.metadata.id);
 
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
     });
   });
@@ -965,9 +965,9 @@ describe('MultichainAccountService', () => {
       );
 
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
     });
 
@@ -987,14 +987,14 @@ describe('MultichainAccountService', () => {
       await messenger.call('MultichainAccountService:alignWallets');
 
       expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_2.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
     });
 

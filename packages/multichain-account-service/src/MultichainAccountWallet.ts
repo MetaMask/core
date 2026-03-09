@@ -313,6 +313,62 @@ export class MultichainAccountWallet<
   }
 
   /**
+   * Build group state for a range of group indices by calling all providers in parallel.
+   *
+   * This is a non-locking shared core used by both creation and alignment paths.
+   *
+   * @param from - Starting group index (inclusive).
+   * @param to - Ending group index (inclusive).
+   * @param providers - The providers to create accounts for.
+   * @returns The collected group state and any provider failure messages.
+   */
+  async #buildGroupStateForRange(
+    from: number,
+    to: number,
+    providers: Bip44AccountProvider<Account>[],
+  ): Promise<{
+    groupStateByGroupIndex: Map<number, GroupState>;
+    failures: string[];
+  }> {
+    const groupStateByGroupIndex = new Map<number, GroupState>();
+
+    const results = await Promise.allSettled(
+      providers.map(async (provider) => {
+        const providerName = provider.getName();
+        const accounts = await this.#createAccountsRangeForProvider(
+          provider,
+          from,
+          to,
+        );
+        accounts.forEach((account) => {
+          const { groupIndex } = account.options.entropy;
+          let groupState = groupStateByGroupIndex.get(groupIndex);
+          if (!groupState) {
+            groupState = {};
+            groupStateByGroupIndex.set(groupIndex, groupState);
+          }
+          if (!groupState[providerName]) {
+            groupState[providerName] = [];
+          }
+          groupState[providerName].push(account.id);
+        });
+      }),
+    );
+
+    const failures = providers.reduce((messages: string[], provider, index) => {
+      const result = results[index];
+      if (result?.status === 'rejected') {
+        messages.push(
+          `[${provider.getName()}] ${toErrorMessage(result.reason)}`,
+        );
+      }
+      return messages;
+    }, []);
+
+    return { groupStateByGroupIndex, failures };
+  }
+
+  /**
    * Internal method to create a range of multichain account groups.
    *
    * This method acquires the wallet lock internally and creates accounts for all
@@ -346,47 +402,10 @@ export class MultichainAccountWallet<
       if (from <= to) {
         this.#log(`Creating groups from index ${from} to ${to}...`);
 
-        const groupStateByGroupIndex = new Map<number, GroupState>();
-
-        // Create accounts for all given providers in parallel.
-        const results = await Promise.allSettled(
-          providers.map(async (provider) => {
-            const providerName = provider.getName();
-            const accounts = await this.#createAccountsRangeForProvider(
-              provider,
-              from,
-              to,
-            );
-
-            accounts.forEach((account) => {
-              const { groupIndex } = account.options.entropy;
-              let groupState = groupStateByGroupIndex.get(groupIndex);
-              if (!groupState) {
-                groupState = {};
-                groupStateByGroupIndex.set(groupIndex, groupState);
-              }
-              if (!groupState[providerName]) {
-                groupState[providerName] = [];
-              }
-              groupState[providerName].push(account.id);
-            });
-          }),
-        );
+        const { groupStateByGroupIndex, failures } =
+          await this.#buildGroupStateForRange(from, to, providers);
 
         // Check for provider failures — always treated as hard errors.
-        const failures = providers.reduce(
-          (messages: string[], provider, index) => {
-            const result = results[index];
-            if (result?.status === 'rejected') {
-              messages.push(
-                `[${provider.getName()}] ${toErrorMessage(result.reason)}`,
-              );
-            }
-            return messages;
-          },
-          [],
-        );
-
         if (failures.length) {
           throw new Error(
             failures.reduce(
@@ -419,6 +438,41 @@ export class MultichainAccountWallet<
 
       return groups;
     });
+  }
+
+  /**
+   * Align accounts for a range of group indices (non-locking).
+   *
+   * Calls all providers in parallel via the batch API. Provider failures are
+   * logged as warnings (best-effort); no error is thrown.
+   *
+   * @param range - The range of group indices to align.
+   * @param range.from - Starting group index (inclusive).
+   * @param range.to - Ending group index (inclusive).
+   * @param providers - The providers to align accounts for.
+   */
+  async #alignAccountsRange(
+    { from, to }: Required<GroupIndexRange>,
+    providers: Bip44AccountProvider<Account>[],
+  ): Promise<void> {
+    const { groupStateByGroupIndex, failures } =
+      await this.#buildGroupStateForRange(from, to, providers);
+
+    if (failures.length) {
+      const error = failures.reduce(
+        (message, failure) => `${message}\n- ${failure}`,
+        'Unable to align some accounts. Providers threw the following errors:',
+      );
+      console.warn(error);
+      this.#log(`${WARNING_PREFIX} ${error}`);
+    }
+
+    for (let groupIndex = from; groupIndex <= to; groupIndex++) {
+      const groupState = groupStateByGroupIndex.get(groupIndex);
+      if (groupState) {
+        this.#createOrUpdateMultichainAccountGroup(groupIndex, groupState);
+      }
+    }
   }
 
   /**
@@ -590,24 +644,20 @@ export class MultichainAccountWallet<
   }
 
   /**
-   * Align all multichain account groups.
-   *
-   * NOTE: This operation WILL NOT lock the wallet's mutex.
-   */
-  async #alignAccounts(): Promise<void> {
-    const groups = this.getMultichainAccountGroups();
-    await Promise.all(groups.map((group) => group.alignAccounts()));
-  }
-
-  /**
    * Align all accounts from each existing multichain account groups.
    *
    * NOTE: This operation WILL lock the wallet's mutex.
    */
   async alignAccounts(): Promise<void> {
-    await this.#withLock('in-progress:alignment', async () => {
-      await this.#alignAccounts();
-    });
+    const nextGroupIndex = this.getNextGroupIndex();
+    if (nextGroupIndex > 0) {
+      await this.#withLock('in-progress:alignment', async () => {
+        await this.#alignAccountsRange(
+          { from: 0, to: nextGroupIndex - 1 },
+          this.#providers,
+        );
+      });
+    }
   }
 
   /**
@@ -621,7 +671,10 @@ export class MultichainAccountWallet<
     await this.#withLock('in-progress:alignment', async () => {
       const group = this.getMultichainAccountGroup(groupIndex);
       if (group) {
-        await group.alignAccounts();
+        await this.#alignAccountsRange(
+          { from: groupIndex, to: groupIndex },
+          this.#providers,
+        );
       }
     });
   }
@@ -743,7 +796,13 @@ export class MultichainAccountWallet<
 
       // Align missing accounts from group. This is required to create missing account from non-discovered
       // indexes for some providers.
-      await this.#alignAccounts();
+      const nextGroupIndex = this.getNextGroupIndex();
+      if (nextGroupIndex > 0) {
+        await this.#alignAccountsRange(
+          { from: 0, to: nextGroupIndex - 1 },
+          this.#providers,
+        );
+      }
 
       return providerContexts.flatMap((context) => context.accounts);
     });
