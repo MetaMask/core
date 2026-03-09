@@ -14,6 +14,7 @@ import {
   AccountCreationType,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { createDeferredPromise } from '@metamask/utils';
 
 import type { WalletState } from './MultichainAccountWallet';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -102,7 +103,6 @@ function setup({
   return { wallet, providers: providersList, messenger: serviceMessenger };
 }
 
-
 describe('MultichainAccountWallet', () => {
   afterEach(() => {
     jest.clearAllTimers();
@@ -178,6 +178,10 @@ describe('MultichainAccountWallet', () => {
         accounts: [[], []], // 2 providers: EVM + SOL
       });
 
+      const alignAccountsPromise = createDeferredPromise();
+      const alignAccountsSpy = jest.spyOn(wallet, 'alignAccounts');
+      alignAccountsSpy.mockImplementation(() => alignAccountsPromise.promise); // Prevent actual alignment during this test.
+
       const [evmProvider, solProvider] = providers;
       const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
@@ -187,10 +191,6 @@ describe('MultichainAccountWallet', () => {
       evmProvider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
       evmProvider.getAccount.mockReturnValueOnce(mockNextEvmAccount);
 
-      const alignAccountsOfSpy = jest
-        .spyOn(wallet, 'alignAccountsOf')
-        .mockResolvedValue(undefined);
-
       // By default (wait=false), only the EVM provider creates accounts immediately.
       // Non-EVM account creation is deferred to a subsequent alignAccountsOf call.
       const specificGroup =
@@ -199,10 +199,10 @@ describe('MultichainAccountWallet', () => {
 
       // Only the EVM provider is called during group creation.
       expect(evmProvider.createAccounts).toHaveBeenCalled();
-      expect(solProvider.createAccounts).not.toHaveBeenCalled();
+      expect(solProvider.createAccounts).not.toHaveBeenCalled(); // alignAccounts's promise is not resolved yet, so SOL provider should not be called yet.
 
-      // alignAccountsOf is scheduled (fire-and-forget) to create non-EVM accounts.
-      expect(alignAccountsOfSpy).toHaveBeenCalledWith(groupIndex);
+      // alignAccounts is scheduled (fire-and-forget) to create non-EVM accounts.
+      expect(alignAccountsSpy).toHaveBeenCalled();
     });
 
     it('returns the same reference when re-creating using the same index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
@@ -295,7 +295,7 @@ describe('MultichainAccountWallet', () => {
       );
     });
 
-    it('schedules alignAccountsOf after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
+    it('schedules alignAccounts after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
       const groupIndex = 1;
 
       const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
@@ -316,13 +316,13 @@ describe('MultichainAccountWallet', () => {
       evmProvider.getAccounts.mockReturnValueOnce([mockEvmAccount1]);
       evmProvider.getAccount.mockReturnValueOnce(mockEvmAccount1);
 
-      const alignAccountsOfSpy = jest
-        .spyOn(wallet, 'alignAccountsOf')
+      const alignAccountsSpy = jest
+        .spyOn(wallet, 'alignAccounts')
         .mockResolvedValue(undefined);
 
       await wallet.createMultichainAccountGroup(groupIndex);
 
-      expect(alignAccountsOfSpy).toHaveBeenCalledWith(groupIndex);
+      expect(alignAccountsSpy).toHaveBeenCalled();
     });
   });
 
@@ -673,7 +673,10 @@ describe('MultichainAccountWallet', () => {
         .withUuid()
         .get();
       // Provider returns accounts for both gap (1) and existing (2) indices.
-      evmProvider.createAccounts.mockResolvedValueOnce([account1, account2Updated]);
+      evmProvider.createAccounts.mockResolvedValueOnce([
+        account1,
+        account2Updated,
+      ]);
 
       // Request range [0..2]: pre-loop pushes group 0, then creates [1..2].
       // Group 1 is new (created), group 2 already exists (updated — hits update branch).
