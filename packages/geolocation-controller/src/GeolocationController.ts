@@ -22,7 +22,7 @@ export const controllerName = 'GeolocationController';
  * State for the {@link GeolocationController}.
  */
 export type GeolocationControllerState = {
-  /** ISO 3166-1 alpha-2 country code, or "UNKNOWN" if not yet determined. */
+  /** ISO 3166-2 location code (e.g. "US", "US-NY", "CA-ON"), or "UNKNOWN" if not yet determined. */
   location: string;
   /** Current status of the geolocation fetch lifecycle. */
   status: GeolocationRequestStatus;
@@ -182,11 +182,11 @@ export class GeolocationController extends BaseController<
   }
 
   /**
-   * Returns the geolocation country code. Delegates to the
+   * Returns the geolocation code. Delegates to the
    * {@link GeolocationApiService} for network fetching and caching, then
    * updates controller state with the result.
    *
-   * @returns The ISO country code string.
+   * @returns The ISO 3166-2 location code string.
    */
   async getGeolocation(): Promise<string> {
     return this.#fetchAndUpdate();
@@ -195,7 +195,7 @@ export class GeolocationController extends BaseController<
   /**
    * Forces a fresh geolocation fetch, bypassing the service's cache.
    *
-   * @returns The ISO country code string.
+   * @returns The ISO 3166-2 location code string.
    */
   async refreshGeolocation(): Promise<string> {
     this.update((draft) => {
@@ -210,7 +210,7 @@ export class GeolocationController extends BaseController<
    *
    * @param options - Options forwarded to the service.
    * @param options.bypassCache - When true, the service skips its TTL cache.
-   * @returns The ISO country code string.
+   * @returns The ISO 3166-2 location code string.
    */
   async #fetchAndUpdate(options?: { bypassCache?: boolean }): Promise<string> {
     this.update((draft) => {
