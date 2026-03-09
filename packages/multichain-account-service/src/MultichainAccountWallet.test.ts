@@ -102,14 +102,6 @@ function setup({
   return { wallet, providers: providersList, messenger: serviceMessenger };
 }
 
-async function waitForProvidersToFinishCreatingAccounts(
-  providers: MockAccountProvider[],
-): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  for (const _ of providers) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  }
-}
 
 describe('MultichainAccountWallet', () => {
   afterEach(() => {
@@ -183,7 +175,7 @@ describe('MultichainAccountWallet', () => {
       const groupIndex = 0;
 
       const { wallet, providers } = setup({
-        accounts: [[], []], // 1 provider
+        accounts: [[], []], // 2 providers: EVM + SOL
       });
 
       const [evmProvider, solProvider] = providers;
@@ -191,31 +183,26 @@ describe('MultichainAccountWallet', () => {
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(groupIndex)
         .get();
-      // 1. Create the accounts for the new index and returns their IDs.
       evmProvider.createAccounts.mockResolvedValueOnce([mockNextEvmAccount]);
-      // 2. When the wallet creates a new multichain account group, it will query
-      // all accounts for this given index (so similar to the one we just created).
       evmProvider.getAccounts.mockReturnValueOnce([mockNextEvmAccount]);
-      // 3. Required when we call `getAccounts` (below) on the multichain account.
       evmProvider.getAccount.mockReturnValueOnce(mockNextEvmAccount);
 
-      solProvider.createAccounts.mockResolvedValueOnce([MOCK_SOL_ACCOUNT_1]);
-      solProvider.getAccounts.mockReturnValueOnce([MOCK_SOL_ACCOUNT_1]);
-      solProvider.getAccount.mockReturnValueOnce(MOCK_SOL_ACCOUNT_1);
+      const alignAccountsOfSpy = jest
+        .spyOn(wallet, 'alignAccountsOf')
+        .mockResolvedValue(undefined);
 
-      // By default, we are not waiting for all providers to finish creating accounts, so the group should be created
-      // BUT we only have the guarantee to have EVM accounts in the group, as the SOL provider might still be creating
-      // the account asynchronously.
+      // By default (wait=false), only the EVM provider creates accounts immediately.
+      // Non-EVM account creation is deferred to a subsequent alignAccountsOf call.
       const specificGroup =
         await wallet.createMultichainAccountGroup(groupIndex);
       expect(specificGroup.groupIndex).toBe(groupIndex);
 
-      await waitForProvidersToFinishCreatingAccounts(providers);
+      // Only the EVM provider is called during group creation.
+      expect(evmProvider.createAccounts).toHaveBeenCalled();
+      expect(solProvider.createAccounts).not.toHaveBeenCalled();
 
-      const internalAccounts = specificGroup.getAccounts();
-      expect(internalAccounts).toHaveLength(2);
-      expect(internalAccounts[0].type).toBe(EthAccountType.Eoa);
-      expect(internalAccounts[1].type).toBe(SolAccountType.DataAccount);
+      // alignAccountsOf is scheduled (fire-and-forget) to create non-EVM accounts.
+      expect(alignAccountsOfSpy).toHaveBeenCalledWith(groupIndex);
     });
 
     it('returns the same reference when re-creating using the same index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
@@ -308,35 +295,87 @@ describe('MultichainAccountWallet', () => {
       );
     });
 
-    it('aggregates non-EVM failures when waiting for all providers', async () => {
+    it('schedules alignAccountsOf after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
+      const groupIndex = 1;
+
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(groupIndex)
+        .get();
+
       const { wallet, providers } = setup({
-        accounts: [[], [], []],
+        accounts: [[mockEvmAccount0], []], // EVM has group 0, SOL has none
       });
 
-      const [succeedingProvider, ...failingProviders] = providers;
+      const [evmProvider] = providers;
+      evmProvider.createAccounts.mockResolvedValueOnce([mockEvmAccount1]);
+      evmProvider.getAccounts.mockReturnValueOnce([mockEvmAccount1]);
+      evmProvider.getAccount.mockReturnValueOnce(mockEvmAccount1);
 
-      succeedingProvider.createAccounts.mockResolvedValueOnce([
-        MOCK_HD_ACCOUNT_1,
-      ]);
+      const alignAccountsOfSpy = jest
+        .spyOn(wallet, 'alignAccountsOf')
+        .mockResolvedValue(undefined);
 
-      for (const failingProvider of failingProviders) {
-        failingProvider.createAccounts.mockRejectedValueOnce(
-          new Error('Unable to create accounts'),
-        );
-      }
+      await wallet.createMultichainAccountGroup(groupIndex);
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      await wallet.createMultichainAccountGroup(0);
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Unable to create some accounts (in the background). Providers threw the following errors:' +
-          '\n- [Mocked Provider 1] Unable to create accounts' +
-          '\n- [Mocked Provider 2] Unable to create accounts',
-      );
+      expect(alignAccountsOfSpy).toHaveBeenCalledWith(groupIndex);
     });
   });
 
   describe('createNextMultichainAccountGroup', () => {
+    it('does not schedule alignment (uses all providers synchronously)', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { wallet, providers } = setup({
+        accounts: [
+          [mockEvmAccount], // EVM provider.
+          [mockSolAccount], // Solana provider.
+        ],
+      });
+
+      const mockNextEvmAccount = MockAccountBuilder.from(mockEvmAccount)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockNextSolAccount = MockAccountBuilder.from(mockSolAccount)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .withUuid()
+        .get();
+
+      const [evmAccountProvider, solAccountProvider] = providers;
+      for (const [mockAccountProvider, mockNextAccount] of [
+        [evmAccountProvider, mockNextEvmAccount],
+        [solAccountProvider, mockNextSolAccount],
+      ] as const) {
+        mockAccountProvider.createAccounts.mockResolvedValueOnce([
+          mockNextAccount,
+        ]);
+        mockAccountProvider.getAccounts.mockReturnValueOnce([mockNextAccount]);
+        mockAccountProvider.getAccount.mockReturnValueOnce(mockNextAccount);
+      }
+
+      const alignAccountsOfSpy = jest.spyOn(wallet, 'alignAccountsOf');
+      const alignAccountsSpy = jest.spyOn(wallet, 'alignAccounts');
+
+      await wallet.createNextMultichainAccountGroup();
+
+      // createNextMultichainAccountGroup uses wait=true, so no alignment is scheduled.
+      expect(alignAccountsOfSpy).not.toHaveBeenCalled();
+      expect(alignAccountsSpy).not.toHaveBeenCalled();
+    });
+
     it('creates the next multichain account group (with multiple providers)', async () => {
       const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
@@ -389,7 +428,7 @@ describe('MultichainAccountWallet', () => {
   });
 
   describe('createMultichainAccountGroups', () => {
-    it('creates multiple groups from 0 to maxGroupIndex when no groups exist', async () => {
+    it('creates multiple groups from 0 to maxGroupIndex when no groups exist (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
       const { wallet, providers } = setup({
         accounts: [[], []],
       });
@@ -413,15 +452,11 @@ describe('MultichainAccountWallet', () => {
       ];
       evmProvider.createAccounts.mockResolvedValueOnce(evmAccounts);
 
-      // Mock SOL provider for each group.
-      for (let i = 0; i <= 2; i++) {
-        const solAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-          .withGroupIndex(i)
-          .get();
-        solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
-      }
+      const alignAccountsSpy = jest
+        .spyOn(wallet, 'alignAccounts')
+        .mockResolvedValue(undefined);
 
+      // With wait=false (default), only the EVM provider creates accounts immediately.
       const groups = await wallet.createMultichainAccountGroups({ to: 2 });
 
       expect(groups).toHaveLength(3);
@@ -429,9 +464,14 @@ describe('MultichainAccountWallet', () => {
       expect(groups[1].groupIndex).toBe(1);
       expect(groups[2].groupIndex).toBe(2);
       expect(wallet.getAccountGroups()).toHaveLength(3);
+
+      // Only EVM provider is called; SOL is deferred to alignment.
+      expect(evmProvider.createAccounts).toHaveBeenCalled();
+      expect(solProvider.createAccounts).not.toHaveBeenCalled();
+      expect(alignAccountsSpy).toHaveBeenCalled();
     });
 
-    it('returns existing groups and creates new ones when some groups already exist', async () => {
+    it('returns existing groups and creates new ones when some groups already exist (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
       const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
@@ -460,15 +500,9 @@ describe('MultichainAccountWallet', () => {
       ];
       evmProvider.createAccounts.mockResolvedValueOnce(evmAccounts);
 
-      // Mock SOL provider for groups 1 and 2.
-      for (let i = 1; i <= 2; i++) {
-        const solAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-          .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-          .withGroupIndex(i)
-          .get();
-        solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
-      }
+      jest.spyOn(wallet, 'alignAccounts').mockResolvedValue(undefined);
 
+      // With wait=false (default), only EVM accounts are created immediately.
       const groups = await wallet.createMultichainAccountGroups({ to: 2 });
 
       expect(groups).toHaveLength(3);
@@ -476,6 +510,9 @@ describe('MultichainAccountWallet', () => {
       expect(groups[1].groupIndex).toBe(1); // New group.
       expect(groups[2].groupIndex).toBe(2); // New group.
       expect(wallet.getAccountGroups()).toHaveLength(3);
+
+      // SOL provider is not called during group creation; it's deferred to alignment.
+      expect(solProvider.createAccounts).not.toHaveBeenCalled();
     });
 
     it('returns all existing groups when maxGroupIndex is less than nextGroupIndex', async () => {
@@ -495,6 +532,8 @@ describe('MultichainAccountWallet', () => {
       const { wallet } = setup({
         accounts: [[mockEvmAccount0, mockEvmAccount1, mockEvmAccount2]],
       });
+
+      jest.spyOn(wallet, 'alignAccounts').mockResolvedValue(undefined);
 
       // Request groups 0-1 when groups 0-2 exist.
       const groups = await wallet.createMultichainAccountGroups({ to: 1 });
@@ -543,7 +582,7 @@ describe('MultichainAccountWallet', () => {
       );
     });
 
-    it('waits for all providers when waitForAllProvidersToFinishCreatingAccounts is true', async () => {
+    it('creates accounts for all providers synchronously when waitForAllProvidersToFinishCreatingAccounts is true', async () => {
       const { wallet, providers } = setup({
         accounts: [[], []],
       });
@@ -564,6 +603,8 @@ describe('MultichainAccountWallet', () => {
         .get();
       solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
 
+      const alignAccountsSpy = jest.spyOn(wallet, 'alignAccounts');
+
       const groups = await wallet.createMultichainAccountGroups(
         { to: 0 },
         {
@@ -574,51 +615,103 @@ describe('MultichainAccountWallet', () => {
       expect(groups).toHaveLength(1);
       expect(groups[0].groupIndex).toBe(0);
 
-      // Verify both providers were called.
+      // Both providers are called synchronously; no alignment is scheduled.
       expect(evmProvider.createAccounts).toHaveBeenCalled();
       expect(solProvider.createAccounts).toHaveBeenCalled();
+      expect(alignAccountsSpy).not.toHaveBeenCalled();
     });
 
-    it('captures unexpected errors in background group creation', async () => {
-      const { wallet, providers, messenger } = setup({
+    it('schedules alignAccounts after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
+      const { wallet, providers } = setup({
         accounts: [[], []],
       });
 
       const [evmProvider, solProvider] = providers;
 
-      // Mock EVM provider.
       const evmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
         .get();
       evmProvider.createAccounts.mockResolvedValueOnce([evmAccount]);
 
-      // Mock SOL provider to fail during background account creation.
-      // This will cause the .then() handler to have failures to process.
-      solProvider.createAccounts.mockRejectedValueOnce(
-        new Error('Provider failure'),
-      );
+      const alignAccountsSpy = jest
+        .spyOn(wallet, 'alignAccounts')
+        .mockResolvedValue(undefined);
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      // Spy on console.warn and make it throw during background processing.
-      // This simulates an unexpected error in the .then() handler, which should
-      // be caught by the catch block at lines 475-486.
-      jest.spyOn(console, 'warn').mockImplementation(() => {
-        throw new Error('Unexpected error in background processing');
-      });
-
-      // Create groups without waiting (triggers background processing).
       await wallet.createMultichainAccountGroups({ to: 0 });
 
-      // Wait for background processing to complete.
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(solProvider.createAccounts).not.toHaveBeenCalled();
+      expect(alignAccountsSpy).toHaveBeenCalled();
+    });
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Unexpected error while creating groups (in the background): Unexpected error in background processing',
+    it('updates an existing group when created accounts overlap with it (gap scenario)', async () => {
+      const account0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const account2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .withUuid()
+        .get();
+
+      // Wallet with groups 0 and 2, gap at 1.
+      const { wallet, providers } = setup({
+        accounts: [[account0, account2]],
+      });
+
+      const [evmProvider] = providers;
+
+      const account1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .withUuid()
+        .get();
+      const account2Updated = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .withUuid()
+        .get();
+      // Provider returns accounts for both gap (1) and existing (2) indices.
+      evmProvider.createAccounts.mockResolvedValueOnce([account1, account2Updated]);
+
+      // Request range [0..2]: pre-loop pushes group 0, then creates [1..2].
+      // Group 1 is new (created), group 2 already exists (updated — hits update branch).
+      const groups = await wallet.createMultichainAccountGroups(
+        { from: 0, to: 2 },
+        { waitForAllProvidersToFinishCreatingAccounts: true },
       );
-      expect(captureExceptionSpy).toHaveBeenCalled();
+
+      expect(groups).toHaveLength(2); // group 0 (pre-loop) + group 1 (created)
+      expect(groups[0].groupIndex).toBe(0);
+      expect(groups[1].groupIndex).toBe(1);
+      // Group 2 was updated (not re-created), still exists.
+      expect(wallet.getMultichainAccountGroup(2)).toBeDefined();
+    });
+
+    it('logs a warning when no accounts are created for a group index in range', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[]],
+      });
+
+      const [evmProvider] = providers;
+
+      // Provider only returns an account for group 0, not group 1 in the range [0..1].
+      const account0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      evmProvider.createAccounts.mockResolvedValueOnce([account0]);
+
+      // Request range [0..1] — group 1 has no accounts → warning log is triggered.
+      const groups = await wallet.createMultichainAccountGroups(
+        { from: 0, to: 1 },
+        { waitForAllProvidersToFinishCreatingAccounts: true },
+      );
+
+      expect(groups).toHaveLength(1);
+      expect(groups[0].groupIndex).toBe(0);
+      expect(wallet.getMultichainAccountGroup(1)).toBeUndefined();
     });
   });
 
