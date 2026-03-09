@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `ProfileMetricsService` recreates access token on each API call attempt ([#8149](https://github.com/MetaMask/core/pull/8149))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
