@@ -5,12 +5,15 @@ import {
   DEFAULT_FALLBACK_GAS_ESTIMATE,
   DEFAULT_FALLBACK_GAS_MAX,
   DEFAULT_GAS_BUFFER,
+  DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
   DEFAULT_STRATEGY_ORDER,
   getFallbackGas,
   DEFAULT_RELAY_EXECUTE_URL,
+  getRelayOriginGasOverhead,
   isEIP7702Chain,
+  isRelayExecuteEnabled,
   getFeatureFlags,
   getGasBuffer,
   getPayStrategiesConfig,
@@ -428,6 +431,71 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isEIP7702Chain(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+  });
+
+  describe('isRelayExecuteEnabled', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when executeEnabled is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                executeEnabled: true,
+              },
+            },
+          },
+        },
+      });
+
+      expect(isRelayExecuteEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when executeEnabled is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                executeEnabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getRelayOriginGasOverhead', () => {
+    it('returns default when no feature flags are set', () => {
+      expect(getRelayOriginGasOverhead(messenger)).toBe(
+        DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
+      );
+    });
+
+    it('returns configured value when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                originGasOverhead: '500000',
+              },
+            },
+          },
+        },
+      });
+
+      expect(getRelayOriginGasOverhead(messenger)).toBe('500000');
     });
   });
 

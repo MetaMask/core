@@ -22,9 +22,11 @@ import type {
   QuoteRequest,
 } from '../../types';
 import {
+  DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
   isEIP7702Chain,
+  isRelayExecuteEnabled,
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
@@ -47,6 +49,7 @@ jest.mock('../../utils/gas');
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
   isEIP7702Chain: jest.fn(),
+  isRelayExecuteEnabled: jest.fn(),
   getGasBuffer: jest.fn(),
   getSlippage: jest.fn(),
 }));
@@ -161,6 +164,7 @@ describe('Relay Quotes Utils', () => {
   const getNativeTokenMock = jest.mocked(getNativeToken);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
   const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
+  const isRelayExecuteEnabledMock = jest.mocked(isRelayExecuteEnabled);
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const getSlippageMock = jest.mocked(getSlippage);
 
@@ -201,6 +205,7 @@ describe('Relay Quotes Utils', () => {
     });
 
     isEIP7702ChainMock.mockReturnValue(true);
+    isRelayExecuteEnabledMock.mockReturnValue(false);
     getGasBufferMock.mockReturnValue(1.0);
     getSlippageMock.mockReturnValue(DEFAULT_SLIPPAGE);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
@@ -254,12 +259,54 @@ describe('Relay Quotes Utils', () => {
           destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
           originChainId: 1,
           originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
-          originGasOverhead: '300000',
           recipient: QUOTE_REQUEST_MOCK.from,
           tradeType: 'EXPECTED_OUTPUT',
           user: QUOTE_REQUEST_MOCK.from,
         }),
       );
+
+      expect(body.originGasOverhead).toBeUndefined();
+    });
+
+    it('includes originGasOverhead when relay execute is enabled on EIP-7702 chain', async () => {
+      isRelayExecuteEnabledMock.mockReturnValue(true);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.originGasOverhead).toBe(DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD);
+    });
+
+    it('omits originGasOverhead when relay execute is enabled but chain does not support EIP-7702', async () => {
+      isRelayExecuteEnabledMock.mockReturnValue(true);
+      isEIP7702ChainMock.mockReturnValue(false);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.originGasOverhead).toBeUndefined();
     });
 
     it('sends request with EXACT_INPUT trade type when isMaxAmount is true', async () => {
@@ -365,7 +412,6 @@ describe('Relay Quotes Utils', () => {
         destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
         originChainId: 1,
         originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
-        originGasOverhead: '300000',
         recipient: QUOTE_REQUEST_MOCK.from,
         slippageTolerance: '50',
         tradeType: 'EXPECTED_OUTPUT',

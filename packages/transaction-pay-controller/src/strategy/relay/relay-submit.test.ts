@@ -1100,6 +1100,49 @@ describe('Relay Submit Utils', () => {
         expect(data.authorizationList).toBeUndefined();
       });
 
+      it('uses fallback values for missing data and value in source params', async () => {
+        const quoteWithoutDataOrValue = {
+          ...request.quotes[0],
+          original: {
+            ...ORIGINAL_QUOTE_MOCK,
+            steps: [
+              {
+                ...ORIGINAL_QUOTE_MOCK.steps[0],
+                items: [
+                  {
+                    ...ORIGINAL_QUOTE_MOCK.steps[0].items[0],
+                    data: {
+                      ...ORIGINAL_QUOTE_MOCK.steps[0].items[0].data,
+                      data: undefined,
+                      value: undefined,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        } as TransactionPayQuote<RelayQuote>;
+
+        request = {
+          ...request,
+          quotes: [quoteWithoutDataOrValue],
+        };
+
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            nestedTransactions: [
+              {
+                data: '0x',
+                to: '0xfedcb',
+                value: '0x0',
+              },
+            ],
+          }),
+        });
+      });
+
       it('does not call addTransaction or addTransactionBatch', async () => {
         await submitRelayQuotes(request);
 
@@ -1168,6 +1211,37 @@ describe('Relay Submit Utils', () => {
                 data: '0xorigdata',
                 to: '0xrecipient',
                 value: '0x100',
+              },
+              {
+                data: '0x1234',
+                to: '0xfedcb',
+                value: '0x4d2',
+              },
+            ],
+          }),
+        });
+      });
+
+      it('uses fallback values when original transaction has no data or value in post-quote flow', async () => {
+        request.quotes[0].request.isPostQuote = true;
+        request.transaction = {
+          id: ORIGINAL_TRANSACTION_ID_MOCK,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0xrecipient' as Hex,
+          },
+          type: TransactionType.simpleSend,
+        } as TransactionMeta;
+
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            nestedTransactions: [
+              {
+                data: '0x',
+                to: '0xrecipient',
+                value: '0x0',
               },
               {
                 data: '0x1234',
