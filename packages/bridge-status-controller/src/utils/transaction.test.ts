@@ -2249,16 +2249,22 @@ describe('Bridge Status Controller Transaction Utils', () => {
         [TransactionType.bridge]: '0xbridgeData',
       };
 
-      // Test with bridge transaction (not swap)
-      findAndUpdateTransactionsInBatch({
+      // Test with bridge transaction — should match batch type for 7702
+      const result = findAndUpdateTransactionsInBatch({
         messenger: mockMessagingSystem,
         batchId,
         txDataByType,
         updateTransactionFn: mockUpdateTransactionFn,
       });
 
-      // Should not match since it's looking for bridge but finds batch type
-      expect(mockUpdateTransactionFn).not.toHaveBeenCalled();
+      // Should match since 7702 bridge transactions use batch type
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'tx1', type: TransactionType.bridge }),
+        'Update tx type to bridge',
+      );
+      expect(result.tradeMeta).toStrictEqual(
+        expect.objectContaining({ id: 'tx1', type: TransactionType.bridge }),
+      );
     });
   });
 
