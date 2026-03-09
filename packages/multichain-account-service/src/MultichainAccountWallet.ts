@@ -279,37 +279,35 @@ export class MultichainAccountWallet<
   #createOrUpdateMultichainAccountGroup(
     groupIndex: number,
     groupState: GroupState,
-  ): [MultichainAccountGroup<Account>, boolean] {
+  ): MultichainAccountGroup<Account> {
     let group = this.#accountGroups.get(groupIndex);
     if (group) {
       // NOTE: This will publish an update event automatically.
       group.update(groupState);
 
       this.#log(`Group updated: [${group.id}]`);
+    } else {
+      group = new MultichainAccountGroup({
+        wallet: this,
+        providers: this.#providers,
+        groupIndex,
+        messenger: this.#messenger,
+      });
+      group.init(groupState);
 
-      return [group, false];
+      this.#accountGroups.set(groupIndex, group);
+
+      this.#log(`Group created: [${group.id}]`);
+
+      if (this.#initialized) {
+        this.#messenger.publish(
+          'MultichainAccountService:multichainAccountGroupCreated',
+          group,
+        );
+      }
     }
 
-    group = new MultichainAccountGroup({
-      wallet: this,
-      providers: this.#providers,
-      groupIndex,
-      messenger: this.#messenger,
-    });
-    group.init(groupState);
-
-    this.#accountGroups.set(groupIndex, group);
-
-    this.#log(`New group created: [${group.id}]`);
-
-    if (this.#initialized) {
-      this.#messenger.publish(
-        'MultichainAccountService:multichainAccountGroupCreated',
-        group,
-      );
-    }
-
-    return [group, true];
+    return group;
   }
 
   /**
@@ -387,7 +385,7 @@ export class MultichainAccountWallet<
     return await this.#withLock('in-progress:create-accounts', async () => {
       const groups: MultichainAccountGroup<Account>[] = [];
 
-      // Get existing groups (fromGroupIndex to nextGroupIndex-1).
+      // Get existing groups (fromGroupIndex to nextGroupIndex - 1).
       let from = rangeFrom;
       for (; from <= to; from++) {
         const group = this.getMultichainAccountGroup(from);
@@ -420,14 +418,12 @@ export class MultichainAccountWallet<
           const groupState = groupStateByGroupIndex.get(groupIndex);
 
           if (groupState) {
-            const [group, created] = this.#createOrUpdateMultichainAccountGroup(
+            const group = this.#createOrUpdateMultichainAccountGroup(
               groupIndex,
               groupState,
             );
 
-            if (created) {
-              groups.push(group);
-            }
+            groups.push(group);
           } else {
             this.#log(
               `${WARNING_PREFIX} Failed to create new group for group index: ${groupIndex} because no accounts were created for it`,

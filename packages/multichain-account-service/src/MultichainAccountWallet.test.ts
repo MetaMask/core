@@ -686,9 +686,10 @@ describe('MultichainAccountWallet', () => {
         { waitForAllProvidersToFinishCreatingAccounts: true },
       );
 
-      expect(groups).toHaveLength(2); // group 0 (pre-loop) + group 1 (created)
+      expect(groups).toHaveLength(3); // group 0 (pre-loop) + group 1 (created) + group 2 (updated).
       expect(groups[0].groupIndex).toBe(0);
       expect(groups[1].groupIndex).toBe(1);
+      expect(groups[2].groupIndex).toBe(2);
       // Group 2 was updated (not re-created), still exists.
       expect(wallet.getMultichainAccountGroup(2)).toBeDefined();
     });
