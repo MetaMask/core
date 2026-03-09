@@ -166,6 +166,10 @@ jest.mock('uuid', () => {
  * `AccountsController:getSelectedAccount` action.
  * @param args.bulkScanUrlsMock - Used to construct mock versions of the
  * `PhishingController:bulkScanUrls` action.
+ * @param args.approvalAddRequest - When provided, registered directly as the
+ * `ApprovalController:addRequest` action handler instead of creating a real
+ * ApprovalController. Use this when the test needs to assert on or auto-resolve
+ * approval requests without the full approval flow.
  * @param args.defaultSelectedAccount - The default selected account to use in
  * @param args.displayNftMedia - The default displayNftMedia to use in
  * @returns A collection of test controllers and mocks.
