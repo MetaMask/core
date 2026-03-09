@@ -79,11 +79,14 @@ export function formatExchangeRatesForBridge(params: {
   const marketData: Record<string, Record<string, BridgeMarketDataEntry>> = {};
 
   const currencyCaip = MAP_CAIP_CURRENCIES[selectedCurrency.toLowerCase()];
-
-  // TODO Protect against undefined by returning early
-
-  // TODO Check if this is a correct offset
-  const expirationOffset = 60;
+  if (!currencyCaip) {
+    return {
+      conversionRates: {},
+      currencyRates: {},
+      marketData: {},
+      currentCurrency: selectedCurrency,
+    };
+  }
 
   const fungibleAssetsPrice = Object.entries(assetsPrice).reduce<
     Record<Caip19AssetId, FungibleAssetPrice>
@@ -100,10 +103,9 @@ export function formatExchangeRatesForBridge(params: {
       continue;
     }
 
-    // TODO Remove this branching, lastUpdated always has the same format
-    const conversionTime =
-      lastUpdated > 1e12 ? lastUpdated / 1000 : lastUpdated;
-    const expirationTime = conversionTime + expirationOffset;
+    const lastUpdatedInSeconds = lastUpdated / 1000;
+    const expirationOffsetInSeconds = 60;
+    const expirationTime = lastUpdatedInSeconds + expirationOffsetInSeconds;
 
     try {
       const parsed = parseCaipAssetType(assetId as Caip19AssetId);
@@ -156,7 +158,7 @@ export function formatExchangeRatesForBridge(params: {
 
         if (parsed.assetNamespace === 'slip44' && nativeAssetId) {
           currencyRates[nativeCurrencySymbol] = {
-            conversionDate: conversionTime,
+            conversionDate: lastUpdatedInSeconds,
             conversionRate: price,
             usdConversionRate: usdPrice,
           };
@@ -165,7 +167,7 @@ export function formatExchangeRatesForBridge(params: {
         conversionRates[assetId] = {
           rate: String(price),
           currency: currencyCaip,
-          conversionTime,
+          conversionTime: lastUpdatedInSeconds,
           expirationTime,
           marketData: priceData,
         };
