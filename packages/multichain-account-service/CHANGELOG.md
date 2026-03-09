@@ -390,8 +390,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.0.1...HEAD
-[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.0.0...@metamask/multichain-account-service@7.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.0.0...@metamask/multichain-account-service@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@6.0.0...@metamask/multichain-account-service@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...@metamask/multichain-account-service@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.0.0...@metamask/multichain-account-service@5.1.0
