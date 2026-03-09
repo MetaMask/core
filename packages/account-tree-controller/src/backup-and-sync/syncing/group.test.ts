@@ -49,6 +49,8 @@ describe('BackupAndSync - Syncing - Group', () => {
   let mockWallet: AccountWalletEntropyObject;
 
   beforeEach(() => {
+    mockGetLocalGroupsForEntropyWallet.mockReturnValue([]);
+
     mockContext = {
       controller: {
         state: {

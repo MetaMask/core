@@ -1,3 +1,5 @@
+import { toMultichainAccountWalletId } from '@metamask/account-api';
+
 import { compareAndSyncMetadata } from './metadata';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import { backupAndSyncLogger } from '../../logger';
@@ -14,10 +16,7 @@ import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
-import {
-  getLocalGroupForEntropyWallet,
-  getLocalGroupsForEntropyWallet,
-} from '../utils';
+import { getLocalGroupsForEntropyWallet } from '../utils';
 
 /**
  * Creates multiple multichain account groups in batch (from 0 to maxGroupIndex).
@@ -43,6 +42,15 @@ export const createMultichainAccountGroupsBatch = async (
     `Creating ${numberOfAccountGroupsToCreate} account groups (batch) for entropy source: ${entropySourceId}`,
   );
 
+  // Capture the set of group indices that already exist before the batch call,
+  // so we can correctly identify newly created groups after the call completes.
+  const walletId = toMultichainAccountWalletId(entropySourceId);
+  const existingGroupIndices = new Set(
+    getLocalGroupsForEntropyWallet(context, walletId).map(
+      (group) => group.metadata.entropy.groupIndex,
+    ),
+  );
+
   try {
     // Call the batched creation method (this is idempotent).
     const groups = await context.messenger.call(
@@ -59,11 +67,7 @@ export const createMultichainAccountGroupsBatch = async (
       // TODO: A group should not be null here, but EVM provider might fail to create some groups sometimes, which means
       // we can end up having an "empty group" for some time.
       if (group) {
-        const didGroupAlreadyExist = getLocalGroupForEntropyWallet(
-          context,
-          entropySourceId,
-          group.groupIndex,
-        );
+        const didGroupAlreadyExist = existingGroupIndices.has(group.groupIndex);
 
         if (!didGroupAlreadyExist) {
           context.emitAnalyticsEventFn({
