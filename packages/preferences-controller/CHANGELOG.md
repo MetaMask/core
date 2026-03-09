@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.0.0]
 
-### Changed
-
-- Secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-
 ### Removed
 
 - **BREAKING:** Remove legacy methods and state ([#8115](https://github.com/MetaMask/core/pull/8115))
