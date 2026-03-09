@@ -5569,7 +5569,7 @@ describe('TransactionController', () => {
           maxFeePerGas: '0x1',
         }),
       )
-        .toThrow(`TransactionsController: Can only call ${fnName} on an unapproved transaction.
+        .toThrow(`TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.
       Current tx status: ${status}`);
     });
 

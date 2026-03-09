@@ -21,7 +21,10 @@ import {
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_CONTRACT_ADDRESSES } from './constants/swaps';
 import { TraceName } from './constants/traces';
-import { selectIsAssetExchangeRateInState } from './selectors';
+import {
+  ExchangeRateSourcesForLookup,
+  selectIsAssetExchangeRateInState,
+} from './selectors';
 import { RequestStatus } from './types';
 import type {
   L1GasFees,
@@ -196,6 +199,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     customBridgeApiBaseUrl?: string;
   };
 
+  /**
+   * Returns whether to use AssetsController for exchange rates.
+   * Set via constructor option getUseAssetsControllerForRates; defaults to false.
+   *
+   * @returns True when exchange rates should be read from AssetsController:getExchangeRatesForBridge.
+   */
+  readonly #getUseAssetsControllerForRates: () => boolean;
+
   constructor({
     messenger,
     state,
@@ -206,6 +217,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     config,
     trackMetaMetricsFn,
     traceFn,
+    getUseAssetsControllerForRates,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -224,6 +236,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       properties: CrossChainSwapsEventProperties<EventName>,
     ) => void;
     traceFn?: TraceCallback;
+    /**
+     * When provided, called to determine whether to use AssetsController for exchange rates.
+     * When true, rates are read from AssetsController:getExchangeRatesForBridge instead of
+     * MultichainAssetsRatesController, TokenRatesController, and CurrencyRateController.
+     */
+    getUseAssetsControllerForRates?: () => boolean;
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -245,6 +263,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#trackMetaMetricsFn = trackMetaMetricsFn;
     this.#config = config ?? {};
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#getUseAssetsControllerForRates =
+      getUseAssetsControllerForRates ?? (() => false);
 
     // Register action handlers
     this.messenger.registerActionHandler(
@@ -399,7 +419,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   };
 
-  readonly #getExchangeRateSources = () => {
+  readonly #getExchangeRateSources = (): ExchangeRateSourcesForLookup => {
+    if (this.#getUseAssetsControllerForRates()) {
+      return {
+        ...this.messenger.call('AssetsController:getExchangeRatesForBridge'),
+        historicalPrices: {},
+        ...this.state,
+      };
+    }
     return {
       ...this.messenger.call('MultichainAssetsRatesController:getState'),
       ...this.messenger.call('CurrencyRateController:getState'),
@@ -453,9 +480,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       );
     }
 
-    const currency = this.messenger.call(
-      'CurrencyRateController:getState',
-    ).currentCurrency;
+    const currency = this.#getUseAssetsControllerForRates()
+      ? this.messenger.call('AssetsController:getExchangeRatesForBridge')
+          .currentCurrency
+      : this.messenger.call('CurrencyRateController:getState').currentCurrency;
 
     if (assetIds.size === 0) {
       return;

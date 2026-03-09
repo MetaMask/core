@@ -14,6 +14,7 @@ import type {
   MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
+import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -310,7 +311,8 @@ type AllowedActions =
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
   | RemoteFeatureFlagControllerGetStateAction
-  | AuthenticationControllerGetBearerTokenAction;
+  | AuthenticationControllerGetBearerTokenAction
+  | KeyringControllerSignTypedMessageAction;
 
 /**
  * The external events available to the BridgeStatusController.

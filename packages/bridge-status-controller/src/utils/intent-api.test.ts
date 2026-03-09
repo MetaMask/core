@@ -4,6 +4,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
   IntentApiImpl,
+  mapIntentOrderStatusToTransactionStatus,
   translateIntentOrderToBridgeStatus,
 } from './intent-api';
 import type { IntentSubmissionParams } from './intent-api';
@@ -26,6 +27,9 @@ describe('IntentApiImpl', () => {
   const makeFetchMock = (): any =>
     jest.fn<ReturnType<FetchFunction>, Parameters<FetchFunction>>();
 
+  const makeGetJwtMock = (): (() => Promise<string | undefined>) =>
+    jest.fn().mockResolvedValue(undefined);
+
   const validIntentOrderResponse = {
     id: 'order-1',
     status: IntentOrderStatus.SUBMITTED,
@@ -34,7 +38,7 @@ describe('IntentApiImpl', () => {
 
   it('submitIntent calls POST /submitOrder with JSON body and returns response', async () => {
     const fetchFn = makeFetchMock().mockResolvedValue(validIntentOrderResponse);
-    const api = new IntentApiImpl(baseUrl, fetchFn);
+    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     const params = makeParams();
     const result = await api.submitIntent(params, clientId);
@@ -53,7 +57,7 @@ describe('IntentApiImpl', () => {
 
   it('submitIntent rethrows Errors with a prefixed message', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('boom'));
-    const api = new IntentApiImpl(baseUrl, fetchFn);
+    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
       'Failed to submit intent: boom',
@@ -62,7 +66,7 @@ describe('IntentApiImpl', () => {
 
   it('submitIntent throws generic error when rejection is not an Error', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue('boom');
-    const api = new IntentApiImpl(baseUrl, fetchFn);
+    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
       'Failed to submit intent',
@@ -71,7 +75,7 @@ describe('IntentApiImpl', () => {
 
   it('getOrderStatus calls GET /getOrderStatus with encoded query params and returns response', async () => {
     const fetchFn = makeFetchMock().mockResolvedValue(validIntentOrderResponse);
-    const api = new IntentApiImpl(baseUrl, fetchFn);
+    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     const orderId = 'order-1';
     const aggregatorId = 'My Agg/With Spaces';
@@ -103,7 +107,7 @@ describe('IntentApiImpl', () => {
 
   it('getOrderStatus rethrows Errors with a prefixed message', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('nope'));
-    const api = new IntentApiImpl(baseUrl, fetchFn);
+    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     await expect(api.getOrderStatus('o', 'a', '1', clientId)).rejects.toThrow(
       'Failed to get order status: nope',
@@ -112,7 +116,7 @@ describe('IntentApiImpl', () => {
 
   it('getOrderStatus throws generic error when rejection is not an Error', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue({ message: 'nope' });
-    const api = new IntentApiImpl(baseUrl, fetchFn);
+    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     await expect(api.getOrderStatus('o', 'a', '1', clientId)).rejects.toThrow(
       'Failed to get order status',
@@ -124,7 +128,7 @@ describe('IntentApiImpl', () => {
       foo: 'bar', // invalid IntentOrder shape
     } as any);
 
-    const api = new IntentApiImpl(baseUrl, fetchFn);
+    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
       'Failed to submit intent: Invalid submitOrder response',
@@ -136,7 +140,7 @@ describe('IntentApiImpl', () => {
       foo: 'bar', // invalid IntentOrder shape
     } as any);
 
-    const api = new IntentApiImpl(baseUrl, fetchFn);
+    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     await expect(
       api.getOrderStatus('order-1', 'agg', '1', clientId),
@@ -222,6 +226,94 @@ describe('IntentApiImpl', () => {
       expect(emptyMetadataWithTxHash.status.srcChain.txHash).toBe(
         '0xfallbackhash',
       );
+    });
+
+    it('uses fallbackTxHash for txHash when intentOrder.txHash is absent', () => {
+      const translation = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-fallback',
+          status: IntentOrderStatus.SUBMITTED,
+          metadata: {},
+        },
+        1,
+        '0xfallback',
+      );
+
+      expect(translation.txHash).toBe('0xfallback');
+      expect(translation.status.srcChain.txHash).toBe('0xfallback');
+    });
+
+    it('returns empty txHash when neither intentOrder.txHash nor fallback exist', () => {
+      const translation = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-nohash',
+          status: IntentOrderStatus.SUBMITTED,
+          metadata: {},
+        },
+        1,
+      );
+
+      expect(translation.txHash).toBe('');
+      expect(translation.status.srcChain.txHash).toBe('');
+    });
+
+    it('maps confirmed intent to COMPLETE status', () => {
+      const translation = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-confirmed',
+          status: IntentOrderStatus.CONFIRMED,
+          txHash: '0xhash',
+          metadata: {},
+        },
+        1,
+      );
+      expect(translation.status.status).toBe(StatusTypes.COMPLETE);
+    });
+
+    it('maps failed and expired intents to FAILED status', () => {
+      const failed = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-failed',
+          status: IntentOrderStatus.FAILED,
+          metadata: {},
+        },
+        1,
+        '0xfallback',
+      );
+      expect(failed.status.status).toBe(StatusTypes.FAILED);
+
+      const expired = translateIntentOrderToBridgeStatus(
+        {
+          id: 'order-expired',
+          status: IntentOrderStatus.EXPIRED,
+          metadata: {},
+        },
+        1,
+      );
+      expect(expired.status.status).toBe(StatusTypes.FAILED);
+    });
+  });
+
+  describe('mapIntentOrderStatusToTransactionStatus', () => {
+    it('maps CONFIRMED and COMPLETED to confirmed', () => {
+      expect(
+        mapIntentOrderStatusToTransactionStatus(IntentOrderStatus.CONFIRMED),
+      ).toBe(TransactionStatus.confirmed);
+      expect(
+        mapIntentOrderStatusToTransactionStatus(IntentOrderStatus.COMPLETED),
+      ).toBe(TransactionStatus.confirmed);
+    });
+
+    it('maps FAILED, EXPIRED and CANCELLED to failed', () => {
+      expect(
+        mapIntentOrderStatusToTransactionStatus(IntentOrderStatus.FAILED),
+      ).toBe(TransactionStatus.failed);
+      expect(
+        mapIntentOrderStatusToTransactionStatus(IntentOrderStatus.EXPIRED),
+      ).toBe(TransactionStatus.failed);
+      expect(
+        mapIntentOrderStatusToTransactionStatus(IntentOrderStatus.CANCELLED),
+      ).toBe(TransactionStatus.failed);
     });
   });
 });

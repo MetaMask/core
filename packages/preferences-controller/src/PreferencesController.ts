@@ -3,33 +3,9 @@ import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
 } from '@metamask/base-controller';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
-import type {
-  KeyringControllerState,
-  KeyringControllerStateChangeEvent,
-} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
-
-/**
- * A representation of a MetaMask identity
- */
-export type Identity = {
-  /**
-   * The address of the identity
-   */
-  address: string;
-  /**
-   * The timestamp for when this identity was first added
-   */
-  importTime?: number;
-  /**
-   * The name of the identity
-   */
-  name: string;
-};
 
 /**
  * A type union of the name for each chain that is supported by Etherscan or
@@ -60,10 +36,6 @@ export type PreferencesState = {
    */
   featureFlags: { [feature: string]: boolean };
   /**
-   * Map of addresses to Identity objects
-   */
-  identities: { [address: string]: Identity };
-  /**
    * The configured IPFS gateway
    */
   ipfsGateway: string;
@@ -76,10 +48,6 @@ export type PreferencesState = {
    */
   isMultiAccountBalancesEnabled: boolean;
   /**
-   * Map of lost addresses to Identity objects
-   */
-  lostIdentities: { [address: string]: Identity };
-  /**
    * Controls whether the OpenSea API is used
    */
   displayNftMedia: boolean;
@@ -87,10 +55,6 @@ export type PreferencesState = {
    * Controls whether "security alerts" are enabled
    */
   securityAlertsEnabled: boolean;
-  /**
-   * The current selected address
-   */
-  selectedAddress: string;
   /**
    * Controls whether incoming transactions are enabled, per-chain (for Etherscan-supported chains)
    */
@@ -142,12 +106,6 @@ export type PreferencesState = {
    */
   smartAccountOptIn: boolean;
   /**
-   * User to opt in for smart account upgrade for specific accounts.
-   *
-   * @deprecated This preference is deprecated and will be removed in the future.
-   */
-  smartAccountOptInForAccounts: Hex[];
-  /**
    * Controls token filtering controls
    */
   tokenNetworkFilter: Record<string, boolean>;
@@ -158,12 +116,6 @@ const metadata = {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
-    usedInUi: true,
-  },
-  identities: {
-    includeInStateLogs: true,
-    persist: true,
-    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   ipfsGateway: {
@@ -184,12 +136,6 @@ const metadata = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-  lostIdentities: {
-    includeInStateLogs: true,
-    persist: true,
-    includeInDebugSnapshot: false,
-    usedInUi: false,
-  },
   displayNftMedia: {
     includeInStateLogs: true,
     persist: true,
@@ -200,12 +146,6 @@ const metadata = {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
-    usedInUi: true,
-  },
-  selectedAddress: {
-    includeInStateLogs: true,
-    persist: true,
-    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   showTestNetworks: {
@@ -280,12 +220,6 @@ const metadata = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-  smartAccountOptInForAccounts: {
-    includeInStateLogs: true,
-    persist: true,
-    includeInDebugSnapshot: true,
-    usedInUi: true,
-  },
   tokenNetworkFilter: {
     includeInStateLogs: true,
     persist: true,
@@ -310,12 +244,10 @@ export type PreferencesControllerActions = PreferencesControllerGetStateAction;
 
 export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
 
-type AllowedEvents = KeyringControllerStateChangeEvent;
-
 export type PreferencesControllerMessenger = Messenger<
   typeof name,
   PreferencesControllerActions,
-  PreferencesControllerEvents | AllowedEvents
+  PreferencesControllerEvents
 >;
 
 /**
@@ -326,14 +258,11 @@ export type PreferencesControllerMessenger = Messenger<
 export function getDefaultPreferencesState(): PreferencesState {
   return {
     featureFlags: {},
-    identities: {},
     ipfsGateway: 'https://ipfs.io/ipfs/',
     isIpfsGatewayEnabled: true,
     isMultiAccountBalancesEnabled: true,
-    lostIdentities: {},
     displayNftMedia: false,
     securityAlertsEnabled: false,
-    selectedAddress: '',
     showIncomingTransactions: {
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.MAINNET]: true,
       [ETHERSCAN_SUPPORTED_CHAIN_IDS.GOERLI]: true,
@@ -374,7 +303,6 @@ export function getDefaultPreferencesState(): PreferencesState {
     privacyMode: false,
     dismissSmartAccountSuggestionEnabled: false,
     smartAccountOptIn: true,
-    smartAccountOptInForAccounts: [],
     tokenNetworkFilter: {},
   };
 }
@@ -410,81 +338,6 @@ export class PreferencesController extends BaseController<
         ...state,
       },
     });
-
-    messenger.subscribe(
-      'KeyringController:stateChange',
-      (keyringState: KeyringControllerState) => {
-        const accounts = new Set<string>();
-        for (const keyring of keyringState.keyrings) {
-          for (const account of keyring.accounts) {
-            accounts.add(account);
-          }
-        }
-        if (accounts.size > 0) {
-          this.#syncIdentities(Array.from(accounts));
-        }
-      },
-    );
-  }
-
-  /**
-   * Adds identities to state.
-   *
-   * @param addresses - List of addresses to use to generate new identities.
-   */
-  addIdentities(addresses: string[]): void {
-    const checksummedAddresses = addresses.map((address) =>
-      toChecksumHexAddress(address),
-    );
-    this.update((state) => {
-      const { identities } = state;
-      for (const address of checksummedAddresses) {
-        if (identities[address]) {
-          continue;
-        }
-        const identityCount = Object.keys(identities).length;
-
-        identities[address] = {
-          name: `Account ${identityCount + 1}`,
-          address,
-          importTime: Date.now(),
-        };
-      }
-    });
-  }
-
-  /**
-   * Removes an identity from state.
-   *
-   * @param address - Address of the identity to remove.
-   */
-  removeIdentity(address: string): void {
-    const checksumAddress = toChecksumHexAddress(address);
-    const { identities } = this.state;
-    if (!identities[checksumAddress]) {
-      return;
-    }
-    this.update((state) => {
-      delete state.identities[checksumAddress];
-      if (checksumAddress === state.selectedAddress) {
-        state.selectedAddress = Object.keys(state.identities)[0];
-      }
-    });
-  }
-
-  /**
-   * Associates a new label with an identity.
-   *
-   * @param address - Address of the identity to associate.
-   * @param label - New label to assign.
-   */
-  setAccountLabel(address: string, label: string): void {
-    const checksumAddress = toChecksumHexAddress(address);
-    this.update((state) => {
-      const identity = state.identities[checksumAddress] || {};
-      identity.name = label;
-      state.identities[checksumAddress] = identity;
-    });
   }
 
   /**
@@ -496,51 +349,6 @@ export class PreferencesController extends BaseController<
   setFeatureFlag(feature: string, activated: boolean): void {
     this.update((state) => {
       state.featureFlags[feature] = activated;
-    });
-  }
-
-  /**
-   * Synchronizes the current identity list with new identities.
-   *
-   * @param addresses - List of addresses corresponding to identities to sync.
-   */
-  #syncIdentities(addresses: string[]): void {
-    const checksumAddresses = addresses.map((address: string) =>
-      toChecksumHexAddress(address),
-    );
-
-    this.update((state) => {
-      const { identities } = state;
-      const newlyLost: { [address: string]: Identity } = {};
-
-      for (const [address, identity] of Object.entries(identities)) {
-        if (!checksumAddresses.includes(address)) {
-          newlyLost[address] = identity;
-          delete identities[address];
-        }
-      }
-
-      for (const [address, identity] of Object.entries(newlyLost)) {
-        state.lostIdentities[address] = identity;
-      }
-    });
-    this.addIdentities(checksumAddresses);
-
-    if (!checksumAddresses.includes(this.state.selectedAddress)) {
-      this.update((state) => {
-        state.selectedAddress = checksumAddresses[0];
-      });
-    }
-  }
-
-  /**
-   * Sets selected address.
-   *
-   * @param selectedAddress - Ethereum address.
-   */
-  setSelectedAddress(selectedAddress: string): void {
-    this.update((state) => {
-      state.selectedAddress = toChecksumHexAddress(selectedAddress);
     });
   }
 
@@ -753,19 +561,6 @@ export class PreferencesController extends BaseController<
   setSmartAccountOptIn(smartAccountOptIn: boolean): void {
     this.update((state) => {
       state.smartAccountOptIn = smartAccountOptIn;
-    });
-  }
-
-  /**
-   * Add account to list of accounts for which user has optedin
-   * smart account upgrade.
-   *
-   * @param accounts - accounts for which user wants to optin for smart account upgrade
-   * @deprecated This method is deprecated and will be removed in the future.
-   */
-  setSmartAccountOptInForAccounts(accounts: Hex[] = []): void {
-    this.update((state) => {
-      state.smartAccountOptInForAccounts = accounts;
     });
   }
 

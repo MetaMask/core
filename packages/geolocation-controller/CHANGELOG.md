@@ -1,0 +1,24 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.1]
+
+### Fixed
+
+- Accept ISO 3166-2 subdivision codes (e.g. `US-NY`, `CA-ON`) from the geolocation API, not just 2-letter country codes ([#8137](https://github.com/MetaMask/core/pull/8137))
+
+## [0.1.0]
+
+### Added
+
+- Initial release ([#8037](https://github.com/MetaMask/core/pull/8037))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.1...HEAD
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/geolocation-controller@0.1.0...@metamask/geolocation-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/geolocation-controller@0.1.0

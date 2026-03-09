@@ -57,6 +57,7 @@ export function updatePaymentToken(
 
   updateTransactionData(transactionId, (data) => {
     data.paymentToken = paymentToken;
+    data.fiatPayment = {};
   });
 }
 

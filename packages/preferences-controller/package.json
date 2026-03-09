@@ -48,8 +48,6 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.0.0",
-    "@metamask/controller-utils": "^11.19.0",
-    "@metamask/keyring-controller": "^25.1.0",
     "@metamask/messenger": "^0.3.0"
   },
   "devDependencies": {
@@ -59,7 +57,6 @@
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
-    "lodash": "^4.17.21",
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",

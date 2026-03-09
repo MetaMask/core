@@ -863,6 +863,45 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('includes refundTo in post-quote request when set in transaction data', async () => {
+      const refundTo = '0xsafe000000000000000000000000000000000001' as Hex;
+
+      await run({
+        transactionData: {
+          ...POST_QUOTE_TRANSACTION_DATA,
+          refundTo,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              isPostQuote: true,
+              refundTo,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('omits refundTo from post-quote request when not set', async () => {
+      await run({
+        transactionData: POST_QUOTE_TRANSACTION_DATA,
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              isPostQuote: true,
+              refundTo: undefined,
+            }),
+          ],
+        }),
+      );
+    });
+
     it('does not fetch quotes when sourceAmounts is empty (same-token filtered in source-amounts)', async () => {
       const sameTokenData: TransactionData = {
         ...POST_QUOTE_TRANSACTION_DATA,

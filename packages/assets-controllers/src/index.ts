@@ -144,7 +144,11 @@ export {
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
 } from './token-prices-service';
-export { searchTokens, getTrendingTokens } from './token-service';
+export {
+  searchTokens,
+  getTrendingTokens,
+  fetchTokenAssets,
+} from './token-service';
 export { RatesController, Cryptocurrency } from './RatesController';
 export type {
   RatesControllerState,
@@ -185,6 +189,7 @@ export {
   MultichainAssetsRatesController,
   getDefaultMultichainAssetsRatesControllerState,
 } from './MultichainAssetsRatesController';
+export { MAP_CAIP_CURRENCIES } from './MultichainAssetsRatesController';
 
 export type {
   MultichainAssetsRatesControllerState,
@@ -220,7 +225,11 @@ export type {
   AllWalletsBalance,
 } from './balances';
 export { calculateBalanceForAllWallets } from './balances';
-export type { BalanceChangePeriod, BalanceChangeResult } from './balances';
+export type {
+  BalanceChangePeriod,
+  BalanceChangeResult,
+  NetworkConfigurationNativeCurrency,
+} from './balances';
 export {
   calculateBalanceChangeForAllWallets,
   calculateBalanceChangeForAccountGroup,
@@ -240,5 +249,13 @@ export type {
   SortTrendingBy,
   TrendingAsset,
   TokenSearchItem,
+  TokenAsset,
   TokenRwaData,
+  TokenSecurityData,
+  TokenSecurityFeature,
+  TokenSecurityHolder,
+  TokenSecurityMarket,
+  TokenSecurityFees,
+  TokenSecurityFinancialStats,
+  TokenSecurityMetadata,
 } from './token-service';

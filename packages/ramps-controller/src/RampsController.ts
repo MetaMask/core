@@ -436,9 +436,37 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Sets selected token in the {@link RampsController}.
+ */
+export type RampsControllerSetSelectedTokenAction = {
+  type: 'RampsController:setSelectedToken';
+  handler: RampsController['setSelectedToken'];
+};
+
+/**
+ * Fetches quotes via the {@link RampsController}.
+ */
+export type RampsControllerGetQuotesAction = {
+  type: 'RampsController:getQuotes';
+  handler: RampsController['getQuotes'];
+};
+
+/**
+ * Fetches an order via the {@link RampsController}.
+ */
+export type RampsControllerGetOrderAction = {
+  type: 'RampsController:getOrder';
+  handler: RampsController['getOrder'];
+};
+
+/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerActions = RampsControllerGetStateAction;
+export type RampsControllerActions =
+  | RampsControllerGetStateAction
+  | RampsControllerGetOrderAction
+  | RampsControllerGetQuotesAction
+  | RampsControllerSetSelectedTokenAction;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -716,6 +744,23 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+
+    this.#registerActionHandlers();
+  }
+
+  #registerActionHandlers(): void {
+    this.messenger.registerActionHandler(
+      'RampsController:getOrder',
+      this.getOrder.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'RampsController:getQuotes',
+      this.getQuotes.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'RampsController:setSelectedToken',
+      this.setSelectedToken.bind(this),
+    );
   }
 
   /**
@@ -1138,14 +1183,28 @@ export class RampsController extends BaseController<
       );
     }
 
+    const selectedToken = this.state.tokens.selected;
+    const supportedCryptos = provider.supportedCryptoCurrencies;
+
+    // Only fetch payment methods if the selected token is supported by the new
+    // provider. If it isn't, the payment methods request would fail or return
+    // empty for the wrong reason; the UI will show the Token Not Available modal
+    // so the user can change token or pick a different provider.
+    const assetId = selectedToken?.assetId;
+    const tokenSupportedByProvider = !(
+      assetId && supportedCryptos?.[assetId] === false
+    );
+
     this.update((state) => {
       state.providers.selected = provider;
       resetResource(state, 'paymentMethods');
     });
 
-    this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { provider: provider.id }),
-    );
+    if (tokenSupportedByProvider) {
+      this.#fireAndForget(
+        this.getPaymentMethods(regionCode, { provider: provider.id }),
+      );
+    }
   }
 
   /**

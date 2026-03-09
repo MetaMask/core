@@ -2156,7 +2156,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - The ID of the transaction to update.
    * @param previousGas - Previous gas values to update.
-   * @param previousGas.gasLimit - Maxmimum number of units of gas to use for this transaction.
+   * @param previousGas.gasLimit - Maximum number of units of gas to use for this transaction.
    * @param previousGas.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
    * @param previousGas.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
    * @returns The updated transactionMeta.
@@ -2181,7 +2181,10 @@ export class TransactionController extends BaseController<
       );
     }
 
-    validateIfTransactionUnapproved(transactionMeta, 'updatePreviousGasParams');
+    validateIfTransactionUnapprovedOrSubmitted(
+      transactionMeta,
+      'updatePreviousGasParams',
+    );
 
     const transactionPreviousGas = {
       previousGas: {

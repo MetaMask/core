@@ -407,6 +407,14 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
       results.push(...apiBalances);
     }
 
+    const isAccountIncludedInRequest = (address: string): boolean =>
+      queryAllAccounts
+        ? allAccounts.some(
+            (currentAccount) =>
+              currentAccount.address.toLowerCase() === address.toLowerCase(),
+          )
+        : selectedAccount.toLowerCase() === address.toLowerCase();
+
     // Add zero native balance entries for addresses that API didn't return
     addressChainMap.forEach((chains, address) => {
       chains.forEach((chainId) => {
@@ -414,8 +422,12 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
         const existingBalance = nativeBalancesFromAPI.get(key);
         const isChainIncludedInRequest = chainIds.includes(chainId);
         const isChainSupported = this.supports(chainId);
+        const isAccountIncluded = isAccountIncludedInRequest(address);
         const shouldZeroOutBalance =
-          !existingBalance && isChainIncludedInRequest && isChainSupported;
+          !existingBalance &&
+          isChainIncludedInRequest &&
+          isChainSupported &&
+          isAccountIncluded;
 
         if (shouldZeroOutBalance) {
           // Add zero native balance entry if API succeeded but didn't return one
@@ -442,8 +454,12 @@ export class AccountsApiBalanceFetcher implements BalanceFetcher {
             const existingBalance = nonNativeBalancesFromAPI.get(key);
             const isChainIncludedInRequest = chainIds.includes(chainId as Hex);
             const isChainSupported = this.supports(chainId as Hex);
+            const isAccountIncluded = isAccountIncludedInRequest(account);
             const shouldZeroOutBalance =
-              !existingBalance && isChainIncludedInRequest && isChainSupported;
+              !existingBalance &&
+              isChainIncludedInRequest &&
+              isChainSupported &&
+              isAccountIncluded;
 
             if (isERC && shouldZeroOutBalance) {
               results.push({

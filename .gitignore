@@ -21,7 +21,6 @@ examples/*/docs
 packages/*/coverage
 packages/*/dist
 packages/*/docs
-!packages/core-backend/docs
 scripts/coverage
 
 # yarn v3 (w/o zero-install)
@@ -36,8 +35,3 @@ scripts/coverage
 
 # typescript
 packages/*/*.tsbuildinfo
-
-# Emacs
-\#*\#
-.#*
-.~
