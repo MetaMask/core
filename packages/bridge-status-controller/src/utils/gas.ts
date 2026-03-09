@@ -63,7 +63,7 @@ export const getTxGasEstimates = ({
 };
 
 export const calculateGasFees = async (
-  disable7702: boolean,
+  skipGasFields: boolean,
   messenger: BridgeStatusControllerMessenger,
   estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee,
   { chainId: _, gasLimit, ...trade }: TxData,
@@ -71,7 +71,7 @@ export const calculateGasFees = async (
   chainId: Hex,
   txFee?: { maxFeePerGas: string; maxPriorityFeePerGas: string },
 ) => {
-  if (!disable7702) {
+  if (skipGasFields) {
     return {};
   }
   if (txFee) {

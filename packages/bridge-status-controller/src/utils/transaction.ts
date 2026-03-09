@@ -300,7 +300,7 @@ export const rekeyHistoryItemInState = (
 };
 
 export const toBatchTxParams = (
-  disable7702: boolean,
+  skipGasFields: boolean,
   { chainId, gasLimit, ...trade }: TxData,
   {
     maxFeePerGas,
@@ -314,7 +314,7 @@ export const toBatchTxParams = (
     to: trade.to as `0x${string}`,
     value: trade.value as `0x${string}`,
   };
-  if (!disable7702) {
+  if (skipGasFields) {
     return params;
   }
 
@@ -373,14 +373,16 @@ export const getAddTransactionBatchParams = async ({
     hexChainId,
   );
 
+  // Gas fields should be omitted only when gas is sponsored via 7702
+  const skipGasFields = gasIncluded7702 === true;
   // Enable 7702 batching when the quote includes gasless 7702 support,
   // or when the account is already delegated (to avoid the in-flight
   // transaction limit for delegated accounts)
-  const disable7702 = gasIncluded7702 !== true && !isDelegatedAccount;
+  const disable7702 = !skipGasFields && !isDelegatedAccount;
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
     const gasFees = await calculateGasFees(
-      disable7702,
+      skipGasFields,
       messenger,
       estimateGasFeeFn,
       resetApproval,
@@ -392,12 +394,12 @@ export const getAddTransactionBatchParams = async ({
       type: isBridgeTx
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
-      params: toBatchTxParams(disable7702, resetApproval, gasFees),
+      params: toBatchTxParams(skipGasFields, resetApproval, gasFees),
     });
   }
   if (approval) {
     const gasFees = await calculateGasFees(
-      disable7702,
+      skipGasFields,
       messenger,
       estimateGasFeeFn,
       approval,
@@ -409,11 +411,11 @@ export const getAddTransactionBatchParams = async ({
       type: isBridgeTx
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
-      params: toBatchTxParams(disable7702, approval, gasFees),
+      params: toBatchTxParams(skipGasFields, approval, gasFees),
     });
   }
   const gasFees = await calculateGasFees(
-    disable7702,
+    skipGasFields,
     messenger,
     estimateGasFeeFn,
     trade,
@@ -423,7 +425,7 @@ export const getAddTransactionBatchParams = async ({
   );
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-    params: toBatchTxParams(disable7702, trade, gasFees),
+    params: toBatchTxParams(skipGasFields, trade, gasFees),
     assetsFiatValues: {
       sending: sentAmount?.valueInCurrency?.toString(),
       receiving: toTokenAmount?.valueInCurrency?.toString(),
