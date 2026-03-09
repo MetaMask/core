@@ -4,6 +4,9 @@ import type { LoginResponse } from '../authentication';
 /**
  * Creates a minimal JWT string with the given payload claims.
  * The signature is fake — only the payload matters for expiration checks.
+ *
+ * @param payload - The payload claims to include in the JWT.
+ * @returns A JWT string with the given payload claims.
  */
 function createTestJwt(payload: Record<string, unknown>): string {
   const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));

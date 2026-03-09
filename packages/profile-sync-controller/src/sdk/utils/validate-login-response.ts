@@ -41,9 +41,7 @@ function isJwtExpired(token: string): boolean {
     if (parts.length !== 3) {
       return true;
     }
-    const base64 = (parts[1] as string)
-      .replace(/-/gu, '+')
-      .replace(/_/gu, '/');
+    const base64 = parts[1].replace(/-/gu, '+').replace(/_/gu, '/');
     const { exp } = JSON.parse(atob(base64));
     return typeof exp !== 'number' || exp * 1000 <= Date.now();
   } catch {
