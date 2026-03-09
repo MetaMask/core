@@ -95,7 +95,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       expect(mockCreateMultichainAccountGroupsBatch).toHaveBeenCalledWith(
         mockContext,
         testEntropySourceId,
-        3,
+        2, // Group index is zero-based, so maxGroupIndex is number of groups - 1.
         testProfileId,
         BackupAndSyncAnalyticsEvent.LegacyGroupAddedFromAccount,
       );

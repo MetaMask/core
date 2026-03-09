@@ -24,7 +24,7 @@ export const performLegacyAccountSyncing = async (
   context: BackupAndSyncContext,
   entropySourceId: string,
   profileId: ProfileId,
-) => {
+): Promise<void> => {
   // 1. Get legacy account syncing data
   const legacyAccountsFromUserStorage = await getAllLegacyUserStorageAccounts(
     context,
@@ -52,10 +52,11 @@ export const performLegacyAccountSyncing = async (
     // Creating multichain account group is idempotent, so we can safely
     // re-create every groups starting from 0.
     // Use batch creation for better performance.
+    const maxGroupIndex = numberOfAccountGroupsToCreate - 1; // Group index is zero-based.
     await createMultichainAccountGroupsBatch(
       context,
       entropySourceId,
-      numberOfAccountGroupsToCreate,
+      maxGroupIndex,
       profileId,
       BackupAndSyncAnalyticsEvent.LegacyGroupAddedFromAccount,
     );
