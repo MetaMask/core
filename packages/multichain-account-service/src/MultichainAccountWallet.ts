@@ -447,7 +447,7 @@ export class MultichainAccountWallet<
    * @param range.to - Ending group index (inclusive).
    * @param providers - The providers to align accounts for.
    */
-  async #alignAccountsRange(
+  async #alignAccountsForRange(
     { from, to }: Required<GroupIndexRange>,
     providers: Bip44AccountProvider<Account>[],
   ): Promise<void> {
@@ -651,7 +651,7 @@ export class MultichainAccountWallet<
       this.#log('Aligning accounts...');
 
       await this.#withLock('in-progress:alignment', async () => {
-        await this.#alignAccountsRange(
+        await this.#alignAccountsForRange(
           { from: 0, to: nextGroupIndex - 1 },
           this.#providers,
         );
@@ -675,7 +675,7 @@ export class MultichainAccountWallet<
       this.#log(`Aligning accounts for group "${group.id}"...`);
 
       await this.#withLock('in-progress:alignment', async () => {
-        await this.#alignAccountsRange(
+        await this.#alignAccountsForRange(
           { from: groupIndex, to: groupIndex },
           this.#providers,
         );
@@ -804,7 +804,7 @@ export class MultichainAccountWallet<
       // indexes for some providers.
       const nextGroupIndex = this.getNextGroupIndex();
       if (nextGroupIndex > 0) {
-        await this.#alignAccountsRange(
+        await this.#alignAccountsForRange(
           { from: 0, to: nextGroupIndex - 1 },
           this.#providers,
         );
