@@ -145,8 +145,8 @@ export const PriceImpactThresholdSchema = type({
   // and warning/danger will be set as required fields.
   gasless: number(), // Percentage value in decimal format (eg 0.02 is 2%)
   normal: number(), // Percentage value in decimal format
-  warning: optional(number()), // Percentage in integer format (eg 2 is 2%)
-  danger: optional(number()), // Percentage in integer format
+  warning: optional(number()), // Percentage value in decimal format
+  danger: optional(number()), // Percentage value in decimal format
 });
 
 const GenericQuoteRequestSchema = type({
