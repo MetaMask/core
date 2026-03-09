@@ -141,7 +141,7 @@ describe('BackupAndSync - Syncing - Group', () => {
 
       jest
         .spyOn(mockContext.messenger, 'call')
-        .mockResolvedValue([{ id: 'group-0' }]);
+        .mockResolvedValue([{ id: 'group-0', groupIndex: 0 }]);
 
       await createLocalGroupsFromUserStorage(
         mockContext,
@@ -150,6 +150,44 @@ describe('BackupAndSync - Syncing - Group', () => {
         'test-profile',
       );
 
+      expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledTimes(1);
+      expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
+        action: BackupAndSyncAnalyticsEvent.GroupAdded,
+        profileId: 'test-profile',
+      });
+    });
+
+    it('only emits analytics for newly created groups, not pre-existing ones', async () => {
+      const groups: UserStorageSyncedWalletGroup[] = [
+        { groupIndex: 0 },
+        { groupIndex: 1 },
+        { groupIndex: 2 },
+      ];
+
+      // Group 0 already exists locally before the batch call.
+      mockGetLocalGroupsForEntropyWallet.mockReturnValue([
+        {
+          id: 'entropy:test-entropy/0',
+          metadata: { entropy: { groupIndex: 0 } },
+        } as unknown as AccountGroupMultichainAccountObject,
+      ]);
+
+      // Batch returns all 3 groups (existing + newly created).
+      jest.spyOn(mockContext.messenger, 'call').mockResolvedValue([
+        { id: 'entropy:test-entropy/0', groupIndex: 0 },
+        { id: 'entropy:test-entropy/1', groupIndex: 1 },
+        { id: 'entropy:test-entropy/2', groupIndex: 2 },
+      ]);
+
+      await createLocalGroupsFromUserStorage(
+        mockContext,
+        groups,
+        'test-entropy',
+        'test-profile',
+      );
+
+      // Analytics should only fire for groups 1 and 2 (group 0 already existed).
+      expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledTimes(2);
       expect(mockContext.emitAnalyticsEventFn).toHaveBeenCalledWith({
         action: BackupAndSyncAnalyticsEvent.GroupAdded,
         profileId: 'test-profile',
