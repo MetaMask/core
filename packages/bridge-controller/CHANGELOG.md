@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `36.0.1` to `37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/assets-controller` from `2.2.0` to `2.3.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/multichain-network-controller` from `3.0.4` to `3.0.5` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Update price impact danger field to error in bridge ([#8150](https://github.com/MetaMask/core/pull/8150))
 - Update price impact threshold LD config schema to include new unified properties ([#8143](https://github.com/MetaMask/core/pull/8143))
 
 ## [68.0.0]
