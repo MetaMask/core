@@ -2,10 +2,12 @@ import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { clone, cloneDeep } from 'lodash';
 
+import { getFallbackGas, getGasBuffer } from './feature-flags';
 import {
   calculateGasCost,
   calculateGasFeeTokenCost,
   calculateTransactionGasCost,
+  estimateGasLimit,
 } from './gas';
 import { getTokenBalance, getTokenFiatRate } from './token';
 import type { GasFeeEstimates } from '../../../gas-fee-controller/src';
@@ -16,6 +18,11 @@ import type {
 import { getMessengerMock } from '../tests/messenger-mock';
 
 jest.mock('./token');
+jest.mock('./feature-flags', () => ({
+  ...jest.requireActual('./feature-flags'),
+  getGasBuffer: jest.fn(),
+  getFallbackGas: jest.fn(),
+}));
 
 const GAS_USED_MOCK = toHex(21000);
 const GAS_LIMIT_NO_BUFFER_MOCK = toHex(30000);
@@ -55,15 +62,28 @@ const GAS_FEE_CONTROLLER_STATE_MOCK = {
 };
 
 describe('Gas Utils', () => {
+  const getGasBufferMock = jest.mocked(getGasBuffer);
+  const getFallbackGasMock = jest.mocked(getFallbackGas);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getTokenBalanceMock = jest.mocked(getTokenBalance);
-  const { messenger, getGasFeeControllerStateMock } = getMessengerMock();
+  const {
+    estimateGasMock,
+    findNetworkClientIdByChainIdMock,
+    messenger,
+    getGasFeeControllerStateMock,
+  } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
 
     getGasFeeControllerStateMock.mockReturnValue(GAS_FEE_CONTROLLER_STATE_MOCK);
     getTokenBalanceMock.mockReturnValue('147000000000000');
+    getFallbackGasMock.mockReturnValue({
+      estimate: 123,
+      max: 456,
+    });
+    getGasBufferMock.mockReturnValue(1.5);
+    findNetworkClientIdByChainIdMock.mockReturnValue('network-client-id');
 
     getTokenFiatRateMock.mockReturnValue({
       usdRate: '4000',
@@ -393,6 +413,154 @@ describe('Gas Utils', () => {
       });
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('estimateGasLimit', () => {
+    it('returns buffered gas estimate when simulation succeeds', async () => {
+      estimateGasMock.mockResolvedValue({
+        gas: '0x5208',
+        simulationFails: undefined,
+      });
+
+      expect(
+        await estimateGasLimit({
+          chainId: CHAIN_ID_MOCK,
+          data: '0xdead' as Hex,
+          from: '0xabc' as Hex,
+          messenger,
+          to: '0xdef' as Hex,
+          value: '0x1' as Hex,
+        }),
+      ).toStrictEqual({
+        estimate: Math.ceil(21000 * 1.5),
+        max: Math.ceil(21000 * 1.5),
+        usedFallback: false,
+      });
+    });
+
+    it('throws when estimate reports simulation failure by default', async () => {
+      estimateGasMock.mockResolvedValue({
+        gas: '0x5208',
+        simulationFails: {
+          debug: {},
+        },
+      });
+
+      await expect(
+        estimateGasLimit({
+          chainId: CHAIN_ID_MOCK,
+          data: '0xdead' as Hex,
+          from: '0xabc' as Hex,
+          messenger,
+          to: '0xdef' as Hex,
+        }),
+      ).rejects.toThrow('Gas simulation failed');
+    });
+
+    it('returns fallback gas when estimate reports simulation failure and fallback is enabled', async () => {
+      estimateGasMock.mockResolvedValue({
+        gas: '0x5208',
+        simulationFails: {
+          debug: {},
+        },
+      });
+
+      const result = await estimateGasLimit({
+        chainId: CHAIN_ID_MOCK,
+        data: '0xdead' as Hex,
+        fallbackOnSimulationFailure: true,
+        from: '0xabc' as Hex,
+        messenger,
+        to: '0xdef' as Hex,
+      });
+
+      expect(result).toMatchObject({
+        estimate: 123,
+        max: 456,
+        usedFallback: true,
+      });
+      expect(result.error).toBeInstanceOf(Error);
+      expect((result.error as Error).message).toBe('Gas simulation failed');
+
+      expect(estimateGasMock).toHaveBeenCalledWith(
+        {
+          from: '0xabc',
+          data: '0xdead',
+          to: '0xdef',
+          value: '0x0',
+        },
+        'network-client-id',
+      );
+    });
+
+    it('returns fallback gas when estimate throws', async () => {
+      const error = new Error('estimate failed');
+      estimateGasMock.mockRejectedValue(error);
+
+      expect(
+        await estimateGasLimit({
+          chainId: CHAIN_ID_MOCK,
+          data: '0xdead' as Hex,
+          from: '0xabc' as Hex,
+          messenger,
+          to: '0xdef' as Hex,
+        }),
+      ).toStrictEqual({
+        estimate: 123,
+        max: 456,
+        usedFallback: true,
+        error,
+      });
+    });
+
+    it('uses provided fallback gas override when estimate throws', async () => {
+      const error = new Error('estimate failed');
+      estimateGasMock.mockRejectedValue(error);
+
+      expect(
+        await estimateGasLimit({
+          chainId: CHAIN_ID_MOCK,
+          data: '0xdead' as Hex,
+          fallbackGas: {
+            estimate: 987,
+            max: 654,
+          },
+          from: '0xabc' as Hex,
+          messenger,
+          to: '0xdef' as Hex,
+        }),
+      ).toStrictEqual({
+        estimate: 987,
+        max: 654,
+        usedFallback: true,
+        error,
+      });
+    });
+
+    it('returns fallback gas when estimate returns an invalid gas value', async () => {
+      estimateGasMock.mockResolvedValue({
+        gas: 'invalid',
+        simulationFails: undefined,
+      });
+
+      const result = await estimateGasLimit({
+        chainId: CHAIN_ID_MOCK,
+        data: '0xdead' as Hex,
+        from: '0xabc' as Hex,
+        messenger,
+        to: '0xdef' as Hex,
+      });
+
+      expect(result).toMatchObject({
+        estimate: 123,
+        max: 456,
+        usedFallback: true,
+      });
+      expect(result.error).toBeInstanceOf(Error);
+      expect((result.error as Error).message).toBe(
+        'Invalid gas estimate returned: invalid',
+      );
     });
   });
 });

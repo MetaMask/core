@@ -30,12 +30,12 @@ import { projectLogger } from '../../logger';
 import type {
   Amount,
   FiatRates,
-  FiatValue,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { getFiatValueFromUsd } from '../../utils/amounts';
 import {
   getFeatureFlags,
   getGasBuffer,
@@ -446,25 +446,6 @@ function calculateDustUsd(quote: RelayQuote, request: QuoteRequest): BigNumber {
   );
 
   return dustRaw.shiftedBy(-targetDecimals).multipliedBy(targetUsdRate);
-}
-
-/**
- * Converts USD value to fiat value.
- *
- * @param usdValue - USD value.
- * @param usdToFiatRate - USD to fiat rate.
- * @returns Fiat value.
- */
-function getFiatValueFromUsd(
-  usdValue: BigNumber,
-  usdToFiatRate: BigNumber,
-): FiatValue {
-  const fiatValue = usdValue.multipliedBy(usdToFiatRate);
-
-  return {
-    usd: usdValue.toString(10),
-    fiat: fiatValue.toString(10),
-  };
 }
 
 /**
