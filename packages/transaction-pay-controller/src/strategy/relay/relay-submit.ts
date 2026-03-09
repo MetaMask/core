@@ -384,7 +384,7 @@ async function submitViaRelayExecute(
       chainId: Number(sourceChainId),
       to: delegation.to,
       data: delegation.data,
-      value: String(Number(delegation.value)),
+      value: new BigNumber(delegation.value).toFixed(),
       ...(delegation.authorizationList?.length
         ? {
             authorizationList: delegation.authorizationList.map((auth) => ({
