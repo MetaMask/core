@@ -642,7 +642,9 @@ describe('AssetsController', () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsPrice: {
           [bitcoinAssetId]: {
+            assetPriceType: 'fungible',
             price: 50000,
+            usdPrice: 50000,
             lastUpdated: 1_600_000_000,
           },
         },
@@ -674,45 +676,51 @@ describe('AssetsController', () => {
       });
     });
 
-    it('passes usdToSelectedCurrencyRate so currencyRates have distinct conversionRate and usdConversionRate', async () => {
+    it('reads price and usdPrice directly so currencyRates have distinct conversionRate and usdConversionRate', async () => {
       const ethNativeId = 'eip155:1/slip44:60' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {
         assetsPrice: {
-          [ethNativeId]: { price: 2000, lastUpdated: 1_700_000_000_000 },
+          [ethNativeId]: {
+            assetPriceType: 'fungible',
+            price: 1840,
+            usdPrice: 2000,
+            lastUpdated: 1_700_000_000_000,
+          },
         },
         selectedCurrency: 'eur',
       };
 
       await withController({ state: initialState }, ({ controller }) => {
-        const result = controller.getExchangeRatesForBridge({
-          usdToSelectedCurrencyRate: 0.92,
-        });
+        const result = controller.getExchangeRatesForBridge();
 
         expect(result.currencyRates.ETH).toBeDefined();
-        expect(result.currencyRates.ETH?.conversionRate).toBe(2000 * 0.92);
+        expect(result.currencyRates.ETH?.conversionRate).toBe(1840);
         expect(result.currencyRates.ETH?.usdConversionRate).toBe(2000);
       });
     });
   });
 
   describe('getStateForTransactionPay', () => {
-    it('passes usdToSelectedCurrencyRate so currencyRates have distinct conversionRate and usdConversionRate', async () => {
+    it('reads price and usdPrice directly so currencyRates have distinct conversionRate and usdConversionRate', async () => {
       const ethNativeId = 'eip155:1/slip44:60' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {
         assetsPrice: {
-          [ethNativeId]: { price: 2000, lastUpdated: 1_700_000_000_000 },
+          [ethNativeId]: {
+            assetPriceType: 'fungible',
+            price: 1840,
+            usdPrice: 2000,
+            lastUpdated: 1_700_000_000_000,
+          },
         },
         selectedCurrency: 'eur',
       };
 
       await withController({ state: initialState }, ({ controller }) => {
-        const result = controller.getStateForTransactionPay({
-          usdToSelectedCurrencyRate: 0.92,
-        });
+        const result = controller.getStateForTransactionPay();
 
         expect(result.currentCurrency).toBe('eur');
         expect(result.currencyRates.ETH).toBeDefined();
-        expect(result.currencyRates.ETH?.conversionRate).toBe(2000 * 0.92);
+        expect(result.currencyRates.ETH?.conversionRate).toBe(1840);
         expect(result.currencyRates.ETH?.usdConversionRate).toBe(2000);
       });
     });
@@ -976,7 +984,9 @@ describe('AssetsController', () => {
           {
             assetsPrice: {
               [MOCK_ASSET_ID]: {
+                assetPriceType: 'fungible',
                 price: 1.0,
+                usdPrice: 1.0,
                 pricePercentChange1d: 0.5,
                 lastUpdated: Date.now(),
               },

@@ -2,10 +2,17 @@ import {
   formatStateForTransactionPay,
   AccountForLegacyFormat,
 } from './formatStateForTransactionPay';
-import type { AssetBalance, AssetMetadata, AssetPrice } from '../types';
+import type { AssetBalance, AssetMetadata, FungibleAssetPrice } from '../types';
 
-function price(overrides: Partial<AssetPrice> & { price: number }): AssetPrice {
-  return { lastUpdated: 0, ...overrides } as AssetPrice;
+function price(
+  overrides: Partial<FungibleAssetPrice> & { price: number },
+): FungibleAssetPrice {
+  return {
+    assetPriceType: 'fungible',
+    lastUpdated: 0,
+    usdPrice: overrides.price,
+    ...overrides,
+  };
 }
 
 const ETH_NATIVE_ID = 'eip155:1/slip44:60';
@@ -259,24 +266,27 @@ describe('formatStateForTransactionPay', () => {
     expect(result.marketData['0x1']?.[NATIVE_ADDRESS]).toBeDefined();
   });
 
-  it('uses usdToSelectedCurrencyRate for currencyRates when selectedCurrency is not usd', () => {
+  it('uses price for conversionRate and usdPrice for usdConversionRate when selectedCurrency is not usd', () => {
     const result = formatStateForTransactionPay({
       accounts: [],
       assetsBalance: {},
       assetsInfo: {},
       assetsPrice: {
-        [ETH_NATIVE_ID]: price({ price: 2000, lastUpdated: 1_700_000_000_000 }),
+        [ETH_NATIVE_ID]: price({
+          price: 1840,
+          usdPrice: 2000,
+          lastUpdated: 1_700_000_000_000,
+        }),
       },
       selectedCurrency: 'eur',
       nativeAssetIdentifiers: EVM_NATIVE_IDS,
       networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
-      usdToSelectedCurrencyRate: 0.92,
     });
 
     expect(result.currentCurrency).toBe('eur');
     expect(result.currencyRates.ETH).toStrictEqual({
       conversionDate: 1_700_000_000,
-      conversionRate: 2000 * 0.92,
+      conversionRate: 1840,
       usdConversionRate: 2000,
     });
   });

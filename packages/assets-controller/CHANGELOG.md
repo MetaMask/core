@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `getStateForTransactionPay()` and `formatStateForTransactionPay()` now accept optional `usdToSelectedCurrencyRate` (rate: 1 USD = N units of selected currency). When `selectedCurrency` is not USD, passing this rate ensures `currencyRates` and `marketData` use correct user-currency vs USD values; previously they incorrectly used USD price for both
+- `formatExchangeRatesForBridge` and `formatStateForTransactionPay` now read both `price` (selected currency) and `usdPrice` (USD) directly from asset price data ([#]())
 
 ## [2.2.0]
 
