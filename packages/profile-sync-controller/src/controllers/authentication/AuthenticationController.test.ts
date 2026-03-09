@@ -355,6 +355,63 @@ describe('AuthenticationController', () => {
         expect.any(Error),
       );
     });
+
+    it('resolves undefined entropySourceId to primary and stores token', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+      arrangeAuthAPIs();
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      const result = await controller.getBearerToken();
+      expect(result).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
+
+      expect(mockSnapGetAllPublicKeys).toHaveBeenCalled();
+      expect(controller.state.isSignedIn).toBe(true);
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]],
+      ).toBeDefined();
+    });
+
+    it('returns the same token for undefined and explicit primary entropySourceId', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger } = createMockAuthenticationMessenger();
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      const resultUndefined = await controller.getBearerToken();
+      const resultExplicit = await controller.getBearerToken(
+        MOCK_ENTROPY_SOURCE_IDS[0],
+      );
+      expect(resultUndefined).toBe(resultExplicit);
+    });
+
+    it('caches the primary entropySourceId resolution across calls', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      await controller.getBearerToken();
+      await controller.getBearerToken();
+      await controller.getBearerToken();
+
+      // getAllPublicKeys should only be called once despite multiple getBearerToken calls
+      expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('getSessionProfile', () => {

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `AuthenticationController` silently discarding tokens when `entropySourceId` is `undefined`, which caused persistent HTTP 401 errors for `ProfileMetricsController` and other consumers
+  - `getBearerToken`, `getSessionProfile`, and `getUserProfileLineage` now resolve `undefined` `entropySourceId` to the primary SRP entropy source ID via the message-signing snap before delegating to the auth SDK
+  - This also eliminates a login deduplication race condition where `getBearerToken(undefined)` and `getBearerToken("primary-srp-id")` would trigger two independent OIDC logins for the same identity
+- Update `getUserProfileLineage` to accept an optional `entropySourceId` parameter
+
 ### Added
 
 - Expose missing public `UserStorageController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))

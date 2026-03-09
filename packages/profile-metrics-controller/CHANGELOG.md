@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Move bearer token acquisition inside the retry loop in `ProfileMetricsService.submitMetrics` so each retry attempt fetches a fresh token instead of reusing a potentially stale one
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))

@@ -141,6 +141,8 @@ export class AuthenticationController extends BaseController<
 
   #isUnlocked = false;
 
+  #cachedPrimaryEntropySourceId?: string;
+
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
       const { isUnlocked } = this.messenger.call('KeyringController:getState');
@@ -219,43 +221,33 @@ export class AuthenticationController extends BaseController<
   async #getLoginResponseFromState(
     entropySourceId?: string,
   ): Promise<LoginResponse | null> {
-    if (entropySourceId) {
-      if (!this.state.srpSessionData?.[entropySourceId]) {
-        return null;
-      }
-      return this.state.srpSessionData[entropySourceId];
-    }
-
-    const primarySrpLoginResponse = Object.values(
-      this.state.srpSessionData || {},
-    )?.[0];
-
-    if (!primarySrpLoginResponse) {
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    if (!this.state.srpSessionData?.[resolvedId]) {
       return null;
     }
-
-    return primarySrpLoginResponse;
+    return this.state.srpSessionData[resolvedId];
   }
 
   async #setLoginResponseToState(
     loginResponse: LoginResponse,
     entropySourceId?: string,
   ) {
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
     const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
-      if (entropySourceId) {
-        state.isSignedIn = true;
-        if (!state.srpSessionData) {
-          state.srpSessionData = {};
-        }
-        state.srpSessionData[entropySourceId] = {
-          ...loginResponse,
-          profile: {
-            ...loginResponse.profile,
-            metaMetricsId,
-          },
-        };
+      state.isSignedIn = true;
+      if (!state.srpSessionData) {
+        state.srpSessionData = {};
       }
+      state.srpSessionData[resolvedId] = {
+        ...loginResponse,
+        profile: {
+          ...loginResponse.profile,
+          metaMetricsId,
+        },
+      };
     });
   }
 
@@ -263,6 +255,15 @@ export class AuthenticationController extends BaseController<
     if (!this.#isUnlocked) {
       throw new Error(`${methodName} - unable to proceed, wallet is locked`);
     }
+  }
+
+  async #getPrimaryEntropySourceId(): Promise<string> {
+    if (this.#cachedPrimaryEntropySourceId) {
+      return this.#cachedPrimaryEntropySourceId;
+    }
+    const allPublicKeys = await this.#snapGetAllPublicKeys();
+    this.#cachedPrimaryEntropySourceId = allPublicKeys[0][0];
+    return this.#cachedPrimaryEntropySourceId;
   }
 
   public async performSignIn(): Promise<string[]> {
@@ -297,7 +298,9 @@ export class AuthenticationController extends BaseController<
 
   public async getBearerToken(entropySourceId?: string): Promise<string> {
     this.#assertIsUnlocked('getBearerToken');
-    return await this.#auth.getAccessToken(entropySourceId);
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getAccessToken(resolvedId);
   }
 
   /**
@@ -312,12 +315,18 @@ export class AuthenticationController extends BaseController<
     entropySourceId?: string,
   ): Promise<UserProfile> {
     this.#assertIsUnlocked('getSessionProfile');
-    return await this.#auth.getUserProfile(entropySourceId);
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getUserProfile(resolvedId);
   }
 
-  public async getUserProfileLineage(): Promise<UserProfileLineage> {
+  public async getUserProfileLineage(
+    entropySourceId?: string,
+  ): Promise<UserProfileLineage> {
     this.#assertIsUnlocked('getUserProfileLineage');
-    return await this.#auth.getUserProfileLineage();
+    const resolvedId =
+      entropySourceId ?? (await this.#getPrimaryEntropySourceId());
+    return await this.#auth.getUserProfileLineage(resolvedId);
   }
 
   public isSignedIn(): boolean {

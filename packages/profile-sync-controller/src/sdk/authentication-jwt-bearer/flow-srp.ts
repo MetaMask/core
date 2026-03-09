@@ -140,8 +140,10 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return await this.#options.signing.getIdentifier(entropySourceId);
   }
 
-  async getUserProfileLineage(): Promise<UserProfileLineage> {
-    const accessToken = await this.getAccessToken();
+  async getUserProfileLineage(
+    entropySourceId?: string,
+  ): Promise<UserProfileLineage> {
+    const accessToken = await this.getAccessToken(entropySourceId);
     return await getUserProfileLineage(this.#config.env, accessToken);
   }
 
