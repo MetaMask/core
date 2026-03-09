@@ -133,8 +133,20 @@ export const ChainConfigurationSchema = type({
 });
 
 export const PriceImpactThresholdSchema = type({
-  gasless: number(),
-  normal: number(),
+  // TODO:
+  // We are moving into a unified approach where
+  // price impact thresholds will be segmented by
+  // importance rather than transaction type.
+  // The introduction of warning/danger will first be handled
+  // by mobile, followed by extension and then removal of gasless/normal
+  // from LD configs.
+  // To make the migration easier, we define all fields as optional for now.
+  // After the migration takes place, gasless/normal will be removed
+  // and warning/danger will be set as required fields.
+  gasless: number(), // Percentage value in decimal format (eg 0.02 is 2%)
+  normal: number(), // Percentage value in decimal format
+  warning: optional(number()), // Percentage value in decimal format
+  danger: optional(number()), // Percentage value in decimal format
 });
 
 const GenericQuoteRequestSchema = type({

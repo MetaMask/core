@@ -72,7 +72,6 @@ function getAmountFromBalance(balance: AssetBalance): string {
  * @param params.accounts - List of accounts (id + address) to map state for.
  * @param params.nativeAssetIdentifiers - Optional CAIP-2 chain ID to native asset ID.
  * @param params.networkConfigurationsByChainId - Optional chain ID to network config (for native symbol).
- * @param params.usdToSelectedCurrencyRate - Optional rate: 1 USD = this many units of selected currency. Required for correct currencyRates when selectedCurrency is not 'usd'; when omitted, conversionRate and usdConversionRate will be equal (incorrect for non-USD).
  * @returns Legacy-compatible state for transaction-pay-controller.
  */
 export function formatStateForTransactionPay(params: {
@@ -83,7 +82,6 @@ export function formatStateForTransactionPay(params: {
   accounts: AccountForLegacyFormat[];
   nativeAssetIdentifiers?: Record<string, string>;
   networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
-  usdToSelectedCurrencyRate?: number;
 }): TransactionPayLegacyFormat {
   const {
     assetsBalance,
@@ -93,7 +91,6 @@ export function formatStateForTransactionPay(params: {
     accounts,
     nativeAssetIdentifiers = {},
     networkConfigurationsByChainId = {},
-    usdToSelectedCurrencyRate,
   } = params;
 
   const tokenBalances: TransactionPayLegacyFormat['tokenBalances'] = {};
@@ -151,22 +148,15 @@ export function formatStateForTransactionPay(params: {
         continue;
       }
       const chainIdHex = numberToHex(parseInt(chainIdParsed.reference, 10));
-      const baseMeta =
-        metadata && typeof metadata === 'object' && 'decimals' in metadata
-          ? (metadata as { decimals: number; symbol: string; name?: string })
-          : null;
-      if (!baseMeta) {
-        continue;
-      }
       const address =
         parsed.assetNamespace === 'slip44'
           ? '0x0000000000000000000000000000000000000000'
           : toChecksumAddress(String(parsed.assetReference));
       const token: LegacyToken = {
         address,
-        decimals: Number(baseMeta.decimals),
-        symbol: baseMeta.symbol ?? '',
-        name: baseMeta.name,
+        decimals: metadata.decimals,
+        symbol: metadata.symbol,
+        name: metadata.name,
       };
       allTokensByChain[chainIdHex] ??= [];
       if (
@@ -192,7 +182,6 @@ export function formatStateForTransactionPay(params: {
     selectedCurrency,
     nativeAssetIdentifiers,
     networkConfigurationsByChainId,
-    usdToSelectedCurrencyRate,
   });
 
   return {
