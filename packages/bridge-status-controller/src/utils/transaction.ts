@@ -468,6 +468,11 @@ export const findAndUpdateTransactionsInBatch = ({
   // This is a workaround to update the tx type after the tx is signed
   // TODO: remove this once the tx type for batch txs is preserved in the tx controller
   Object.entries(txDataByType).forEach(([txType, txData]) => {
+    // Skip types not present in the batch (e.g. swap entry is undefined for bridge txs)
+    if (txData === undefined) {
+      return;
+    }
+
     // Find transaction by batchId and either matching data or delegation characteristics
     const txMeta = txs.find((tx) => {
       if (tx.batchId !== batchId) {
