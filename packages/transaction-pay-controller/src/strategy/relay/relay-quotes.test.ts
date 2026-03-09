@@ -1246,6 +1246,60 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('returns phase 1 quote when gas cost exceeds source amount for post-quote flows', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      getTokenBalanceMock.mockReturnValue('0');
+      calculateGasFeeTokenCostMock.mockReturnValue({
+        fiat: '999',
+        human: '999',
+        isGasFeeToken: true,
+        raw: '999000000000000000000',
+        usd: '999',
+      });
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            sourceTokenAmount: '1',
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(1);
+    });
+
+    it('falls back to native cost when gas fee token cost calculation fails for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      getTokenBalanceMock.mockReturnValue('0');
+      calculateGasFeeTokenCostMock.mockReturnValue(undefined);
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+    });
+
     it('falls back to phase 1 quote when phase 2 fetch fails for post-quote flows', async () => {
       successfulFetchMock
         .mockResolvedValueOnce({ json: async () => QUOTE_MOCK } as never)
