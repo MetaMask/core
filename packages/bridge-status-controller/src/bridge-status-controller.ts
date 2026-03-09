@@ -1463,6 +1463,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#clientId === BridgeClientId.MOBILE && isHardwareAccount;
 
       // Handle smart transactions if enabled
+      let isDelegatedAccount = false;
       txMeta = await this.#trace(
         {
           name: isBridgeTx
@@ -1483,7 +1484,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           // Delegated accounts only allow 1 in-flight tx, so approve + swap
           // must be batched into a single transaction
           const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
-          const isDelegatedAccount = await (async (): Promise<boolean> => {
+          isDelegatedAccount = await (async (): Promise<boolean> => {
             try {
               const atomicBatchSupport = await this.messenger.call(
                 'TransactionController:isAtomicBatchSupported',
@@ -1589,7 +1590,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const isNonBatchEvm =
         !isNonEvmChainId(quoteResponse.quote.srcChainId) &&
         !isStxEnabledOnClient &&
-        !quoteResponse.quote.gasIncluded7702;
+        !quoteResponse.quote.gasIncluded7702 &&
+        !isDelegatedAccount;
 
       if (!isNonBatchEvm) {
         // Add swap or bridge tx to history
