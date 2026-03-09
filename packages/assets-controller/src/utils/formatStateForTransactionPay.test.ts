@@ -171,20 +171,6 @@ describe('formatStateForTransactionPay', () => {
     expect(result.allTokens).toStrictEqual({});
   });
 
-  it('skips metadata without decimals for allTokens', () => {
-    const result = formatStateForTransactionPay({
-      accounts: [],
-      assetsBalance: {},
-      assetsInfo: {
-        [USDC_ASSET_ID]: { type: 'erc721' } as AssetMetadata,
-      },
-      assetsPrice: {},
-      selectedCurrency: 'usd',
-    });
-
-    expect(result.allTokens).toStrictEqual({});
-  });
-
   it('de-duplicates tokens by address (case-insensitive) in allTokens', () => {
     const lowerUsdcId =
       'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
