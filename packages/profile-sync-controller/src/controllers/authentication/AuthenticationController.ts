@@ -283,6 +283,7 @@ export class AuthenticationController extends BaseController<
   }
 
   public performSignOut(): void {
+    this.#cachedPrimaryEntropySourceId = undefined;
     this.update((state) => {
       state.isSignedIn = false;
       state.srpSessionData = undefined;
