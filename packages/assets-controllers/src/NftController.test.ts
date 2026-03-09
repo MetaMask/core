@@ -181,6 +181,7 @@ function setupController({
   getAccount,
   getSelectedAccount,
   bulkScanUrlsMock,
+  approvalAddRequest,
   mockNetworkClientConfigurationsByNetworkClientId = {},
   defaultSelectedAccount = OWNER_ACCOUNT,
   mockGetNetworkClientIdByChainId = {},
@@ -223,6 +224,7 @@ function setupController({
     Promise<BulkPhishingDetectionScanResponse>,
     [string[]]
   >;
+  approvalAddRequest?: jest.Mock;
   mockNetworkClientConfigurationsByNetworkClientId?: Record<
     NetworkClientId,
     NetworkClientConfiguration
@@ -330,20 +332,32 @@ function setupController({
     mockGetERC1155TokenURI,
   );
 
-  const approvalControllerMessenger = new Messenger<
-    'ApprovalController',
-    MessengerActions<ApprovalControllerMessenger>,
-    MessengerEvents<ApprovalControllerMessenger>,
-    RootMessenger
-  >({
-    namespace: 'ApprovalController',
-    parent: messenger,
-  });
+  let approvalController: ApprovalController;
 
-  const approvalController = new ApprovalController({
-    messenger: approvalControllerMessenger,
-    showApprovalRequest: jest.fn(),
-  });
+  if (approvalAddRequest) {
+    messenger.registerActionHandler(
+      'ApprovalController:addRequest',
+      approvalAddRequest,
+    );
+    // Provide a stub so callers can still destructure `approvalController`
+    // without needing to branch. The stub is intentionally minimal.
+    approvalController = { addRequest: approvalAddRequest } as never;
+  } else {
+    const approvalControllerMessenger = new Messenger<
+      'ApprovalController',
+      MessengerActions<ApprovalControllerMessenger>,
+      MessengerEvents<ApprovalControllerMessenger>,
+      RootMessenger
+    >({
+      namespace: 'ApprovalController',
+      parent: messenger,
+    });
+
+    approvalController = new ApprovalController({
+      messenger: approvalControllerMessenger,
+      showApprovalRequest: jest.fn(),
+    });
+  }
 
   // Register the phishing controller mock if provided
   if (bulkScanUrlsMock) {
@@ -647,11 +661,11 @@ describe('NftController', () => {
     });
 
     it('should error if the user does not own the suggested ERC721 NFT', async function () {
-      const { nftController, nftControllerMessenger } = setupController({
+      const addRequestMock = jest.fn();
+      const { nftController } = setupController({
         getERC721OwnerOf: jest.fn().mockImplementation(() => '0x12345abcefg'),
+        approvalAddRequest: addRequestMock,
       });
-
-      const callActionSpy = jest.spyOn(nftControllerMessenger, 'call');
 
       await expect(() =>
         nftController.watchNft(
@@ -661,12 +675,7 @@ describe('NftController', () => {
           'mainnet',
         ),
       ).rejects.toThrow('Suggested NFT is not owned by the selected account');
-      // First call is getInternalAccount. Second call is the approval request.
-      expect(callActionSpy).not.toHaveBeenNthCalledWith(
-        2,
-        'ApprovalController:addRequest',
-        expect.any(Object),
-      );
+      expect(addRequestMock).not.toHaveBeenCalled();
     });
 
     it('should error if the call to isNftOwner fail', async function () {
@@ -686,11 +695,11 @@ describe('NftController', () => {
     });
 
     it('should error if the user does not own the suggested ERC1155 NFT', async function () {
-      const { nftController, nftControllerMessenger } = setupController({
+      const addRequestMock = jest.fn();
+      const { nftController, mockGetAccount } = setupController({
         getERC1155BalanceOf: jest.fn().mockImplementation(() => new BN(0)),
+        approvalAddRequest: addRequestMock,
       });
-
-      const callActionSpy = jest.spyOn(nftControllerMessenger, 'call');
 
       await expect(() =>
         nftController.watchNft(
@@ -700,12 +709,9 @@ describe('NftController', () => {
           'mainnet',
         ),
       ).rejects.toThrow('Suggested NFT is not owned by the selected account');
-      // First call is to get InternalAccount
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        1,
-        'AccountsController:getAccount',
-        expect.any(String),
-      );
+      // getAccount must be called to look up the owner to compare against
+      expect(mockGetAccount).toHaveBeenCalledWith(expect.any(String));
+      expect(addRequestMock).not.toHaveBeenCalled();
     });
 
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled and IPFS gateway enabled', async function () {
@@ -719,19 +725,21 @@ describe('NftController', () => {
             description: 'testERC721Description',
           }),
         );
+
+      const addRequestMock = jest.fn().mockResolvedValue(undefined);
       const {
         nftController,
-        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
+        mockGetERC721AssetName,
+        mockGetERC721AssetSymbol,
       } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
         getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
-        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
-        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
+        approvalAddRequest: addRequestMock,
       });
 
       triggerSelectedAccountChange(OWNER_ACCOUNT);
@@ -744,60 +752,7 @@ describe('NftController', () => {
       const requestId = 'approval-request-id-1';
 
       jest.spyOn(Date, 'now').mockReturnValue(1);
-
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest
-        .spyOn(nftControllerMessenger, 'call')
-        // 1. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 2. `AssetsContractController:getERC721OwnerOf`
-        .mockResolvedValueOnce(OWNER_ADDRESS)
-        // 3. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 3. `AssetsContractController:getERC721TokenURI`
-        .mockResolvedValueOnce('https://testtokenuri.com')
-        // 4. `ApprovalController:addRequest`
-        .mockResolvedValueOnce({})
-        // 5. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 6. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 7. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
 
       await nftController.watchNft(
         ERC721_NFT,
@@ -805,10 +760,9 @@ describe('NftController', () => {
         'https://test-dapp.com',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(8);
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
-        'ApprovalController:addRequest',
+
+      expect(addRequestMock).toHaveBeenCalledTimes(1);
+      expect(addRequestMock).toHaveBeenCalledWith(
         {
           id: requestId,
           origin: 'https://test-dapp.com',
@@ -827,8 +781,9 @@ describe('NftController', () => {
         },
         true,
       );
-
-      jest.restoreAllMocks();
+      // No on-chain RPC fallback for name/symbol — sourced from API only
+      expect(mockGetERC721AssetName).not.toHaveBeenCalled();
+      expect(mockGetERC721AssetSymbol).not.toHaveBeenCalled();
     });
 
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled and IPFS gateway enabled', async function () {
@@ -842,19 +797,21 @@ describe('NftController', () => {
             description: 'testERC721Description',
           }),
         );
+
+      const addRequestMock = jest.fn().mockResolvedValue(undefined);
       const {
         nftController,
-        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
+        mockGetERC721AssetName,
+        mockGetERC721AssetSymbol,
       } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
         getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
-        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
-        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
+        approvalAddRequest: addRequestMock,
       });
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
@@ -866,60 +823,7 @@ describe('NftController', () => {
       const requestId = 'approval-request-id-1';
 
       jest.spyOn(Date, 'now').mockReturnValue(1);
-
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest
-        .spyOn(nftControllerMessenger, 'call')
-        // 1. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 2. `AssetsContractController:getERC721OwnerOf`
-        .mockResolvedValueOnce(OWNER_ADDRESS)
-        // 3. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 4. `AssetsContractController:getERC721TokenURI`
-        .mockResolvedValueOnce('https://testtokenuri.com')
-        // 5. `ApprovalController:addRequest`
-        .mockResolvedValueOnce({})
-        // 6. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 7. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 8. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
 
       await nftController.watchNft(
         ERC721_NFT,
@@ -927,10 +831,9 @@ describe('NftController', () => {
         'https://test-dapp.com',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(8);
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
-        'ApprovalController:addRequest',
+
+      expect(addRequestMock).toHaveBeenCalledTimes(1);
+      expect(addRequestMock).toHaveBeenCalledWith(
         {
           id: requestId,
           origin: 'https://test-dapp.com',
@@ -949,8 +852,9 @@ describe('NftController', () => {
         },
         true,
       );
-
-      jest.restoreAllMocks();
+      // No on-chain RPC fallback for name/symbol — sourced from API only
+      expect(mockGetERC721AssetName).not.toHaveBeenCalled();
+      expect(mockGetERC721AssetSymbol).not.toHaveBeenCalled();
     });
 
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled and IPFS gateway disabled', async function () {
@@ -964,19 +868,21 @@ describe('NftController', () => {
             description: 'testERC721Description',
           }),
         );
+
+      const addRequestMock = jest.fn().mockResolvedValue(undefined);
       const {
         nftController,
-        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
+        mockGetERC721AssetName,
+        mockGetERC721AssetSymbol,
       } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
         getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
-        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
-        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
+        approvalAddRequest: addRequestMock,
       });
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
@@ -988,60 +894,7 @@ describe('NftController', () => {
       const requestId = 'approval-request-id-1';
 
       jest.spyOn(Date, 'now').mockReturnValue(1);
-
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest
-        .spyOn(nftControllerMessenger, 'call')
-        // 1. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 2. `AssetsContractController:getERC721OwnerOf`
-        .mockResolvedValueOnce(OWNER_ADDRESS)
-        // 3. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 4. `AssetsContractController:getERC721TokenURI`
-        .mockResolvedValueOnce('https://testtokenuri.com')
-        // 5. `ApprovalController:addRequest`
-        .mockResolvedValueOnce({})
-        // 6. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 7. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 8. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
 
       await nftController.watchNft(
         ERC721_NFT,
@@ -1049,10 +902,9 @@ describe('NftController', () => {
         'https://test-dapp.com',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(8);
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
-        'ApprovalController:addRequest',
+
+      expect(addRequestMock).toHaveBeenCalledTimes(1);
+      expect(addRequestMock).toHaveBeenCalledWith(
         {
           id: requestId,
           origin: 'https://test-dapp.com',
@@ -1071,8 +923,9 @@ describe('NftController', () => {
         },
         true,
       );
-
-      jest.restoreAllMocks();
+      // No on-chain RPC fallback for name/symbol — sourced from API only
+      expect(mockGetERC721AssetName).not.toHaveBeenCalled();
+      expect(mockGetERC721AssetSymbol).not.toHaveBeenCalled();
     });
 
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API enabled and IPFS gateway disabled', async function () {
@@ -1086,19 +939,21 @@ describe('NftController', () => {
             description: 'testERC721Description',
           }),
         );
+
+      const addRequestMock = jest.fn().mockResolvedValue(undefined);
       const {
         nftController,
-        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
+        mockGetERC721AssetName,
+        mockGetERC721AssetSymbol,
       } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
         getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
-        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
-        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
+        approvalAddRequest: addRequestMock,
       });
 
       triggerSelectedAccountChange(OWNER_ACCOUNT);
@@ -1111,60 +966,7 @@ describe('NftController', () => {
       const requestId = 'approval-request-id-1';
 
       jest.spyOn(Date, 'now').mockReturnValue(1);
-
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest
-        .spyOn(nftControllerMessenger, 'call')
-        // 1. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 2. `AssetsContractController:getERC721OwnerOf`
-        .mockResolvedValueOnce(OWNER_ADDRESS)
-        // 3. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 4. `AssetsContractController:getERC721TokenURI`
-        .mockResolvedValueOnce('https://testtokenuri.com')
-        // 5. `ApprovalController:addRequest`
-        .mockResolvedValueOnce({})
-        // 6. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 7. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 8. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
 
       await nftController.watchNft(
         ERC721_NFT,
@@ -1172,10 +974,9 @@ describe('NftController', () => {
         'https://test-dapp.com',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(8);
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
-        'ApprovalController:addRequest',
+
+      expect(addRequestMock).toHaveBeenCalledTimes(1);
+      expect(addRequestMock).toHaveBeenCalledWith(
         {
           id: requestId,
           origin: 'https://test-dapp.com',
@@ -1194,8 +995,9 @@ describe('NftController', () => {
         },
         true,
       );
-
-      jest.restoreAllMocks();
+      // No on-chain RPC fallback for name/symbol — sourced from API only
+      expect(mockGetERC721AssetName).not.toHaveBeenCalled();
+      expect(mockGetERC721AssetSymbol).not.toHaveBeenCalled();
     });
 
     it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API disabled', async function () {
@@ -1210,9 +1012,9 @@ describe('NftController', () => {
           }),
         );
 
+      const addRequestMock = jest.fn().mockResolvedValue(undefined);
       const {
         nftController,
-        nftControllerMessenger,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
@@ -1227,6 +1029,7 @@ describe('NftController', () => {
         getERC1155TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
+        approvalAddRequest: addRequestMock,
       });
 
       triggerSelectedAccountChange(OWNER_ACCOUNT);
@@ -1235,67 +1038,11 @@ describe('NftController', () => {
         isIpfsGatewayEnabled: true,
         displayNftMedia: false,
       });
+
       const requestId = 'approval-request-id-1';
 
       jest.spyOn(Date, 'now').mockReturnValue(1);
-
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest
-        .spyOn(nftControllerMessenger, 'call')
-        // 1. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 2. `AssetsContractController:getERC721OwnerOf`
-        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
-        // 3. `AssetsContractController:getERC1155BalanceOf`
-        .mockResolvedValueOnce(new BN(1))
-        // 4. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 5. `AssetsContractController:getERC721TokenURI`
-        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
-        // 6. `AssetsContractController:getERC1155TokenURI`
-        .mockResolvedValueOnce('https://testtokenuri.com')
-        // 7. `ApprovalController:addRequest`
-        .mockResolvedValueOnce({})
-        // 8. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 9. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 10. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
 
       await nftController.watchNft(
         ERC1155_NFT,
@@ -1303,10 +1050,9 @@ describe('NftController', () => {
         'https://etherscan.io',
         'mainnet',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(10);
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        7,
-        'ApprovalController:addRequest',
+
+      expect(addRequestMock).toHaveBeenCalledTimes(1);
+      expect(addRequestMock).toHaveBeenCalledWith(
         {
           id: requestId,
           origin: 'https://etherscan.io',
@@ -1325,8 +1071,6 @@ describe('NftController', () => {
         },
         true,
       );
-
-      jest.restoreAllMocks();
     });
 
     it('should handle ERC1155 type and add to suggestedNfts with the OpenSea API enabled', async function () {
@@ -1341,11 +1085,8 @@ describe('NftController', () => {
           }),
         );
 
-      const {
-        nftController,
-        nftControllerMessenger,
-        triggerPreferencesStateChange,
-      } = setupController({
+      const addRequestMock = jest.fn().mockResolvedValue(undefined);
+      const { nftController, triggerPreferencesStateChange } = setupController({
         getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
         getERC721OwnerOf: jest
           .fn()
@@ -1357,73 +1098,18 @@ describe('NftController', () => {
         getERC1155TokenURI: jest
           .fn()
           .mockResolvedValue('https://testtokenuri.com'),
+        approvalAddRequest: addRequestMock,
       });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
         displayNftMedia: true,
       });
+
       const requestId = 'approval-request-id-1';
 
       jest.spyOn(Date, 'now').mockReturnValue(1);
-
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
-
-      const callActionSpy = jest
-        .spyOn(nftControllerMessenger, 'call')
-        // 1. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 2. `AssetsContractController:getERC721OwnerOf`
-        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
-        // 3. `AssetsContractController:getERC1155BalanceOf`
-        .mockResolvedValueOnce(new BN(1))
-        // 4. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 4. `AssetsContractController:getERC721TokenURI`
-        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
-        // 5. `AssetsContractController:getERC1155TokenURI`
-        .mockResolvedValueOnce('https://testtokenuri.com')
-        // 6. `ApprovalController:addRequest`
-        .mockResolvedValueOnce({})
-        // 7. `AccountsController:getAccount`
-        .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 9. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any)
-        // 8. `NetworkClientController:getNetworkClientById`
-        .mockReturnValueOnce({
-          configuration: {
-            type: 'infura',
-            network: 'mainnet',
-            failoverRpcUrls: [],
-            infuraProjectId: 'test-infura-project-id',
-            chainId: '0x1',
-            ticker: 'ETH',
-            rpcUrl: 'https://mainnet.infura.io/v3/test-infura-project-id',
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
 
       await nftController.watchNft(
         ERC1155_NFT,
@@ -1432,10 +1118,8 @@ describe('NftController', () => {
         'mainnet',
       );
 
-      expect(callActionSpy).toHaveBeenCalledTimes(10);
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        7,
-        'ApprovalController:addRequest',
+      expect(addRequestMock).toHaveBeenCalledTimes(1);
+      expect(addRequestMock).toHaveBeenCalledWith(
         {
           id: requestId,
           origin: 'https://etherscan.io',
@@ -1454,8 +1138,6 @@ describe('NftController', () => {
         },
         true,
       );
-
-      jest.restoreAllMocks();
     });
 
     it('should add the NFT to the correct chainId/selectedAddress in state when passed a userAddress in the options argument', async function () {
