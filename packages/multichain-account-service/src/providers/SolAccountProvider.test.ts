@@ -588,4 +588,24 @@ describe('SolAccountProvider', () => {
       expect(mocks.trace).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('isDisabled', () => {
+    it('returns false when the provider is enabled (default)', () => {
+      const { provider } = setup();
+      expect(provider.isDisabled()).toBe(false);
+    });
+
+    it('returns true after setEnabled(false)', () => {
+      const { provider } = setup();
+      provider.setEnabled(false);
+      expect(provider.isDisabled()).toBe(true);
+    });
+
+    it('returns false after re-enabling', () => {
+      const { provider } = setup();
+      provider.setEnabled(false);
+      provider.setEnabled(true);
+      expect(provider.isDisabled()).toBe(false);
+    });
+  });
 });
