@@ -1,7 +1,11 @@
 /* eslint-disable require-atomic-updates */
 
 import { Interface } from '@ethersproject/abi';
-import { successfulFetch, toHex } from '@metamask/controller-utils';
+import {
+  successfulFetch,
+  toChecksumHexAddress,
+  toHex,
+} from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -1097,8 +1101,9 @@ function buildPostQuoteGasFeeToken({
   // rateWei is needed by the gas station / EIP-7702 layer downstream
   const rateControllerState = messenger.call('TokenRatesController:getState');
 
+  const checksumAddress = toChecksumHexAddress(sourceTokenAddress) as Hex;
   const tokenToNativeRate =
-    rateControllerState.marketData?.[chainId]?.[sourceTokenAddress]?.price;
+    rateControllerState.marketData?.[chainId]?.[checksumAddress]?.price;
 
   if (!tokenToNativeRate) {
     log('Cannot get token-to-native rate for post-quote gas fee token', {

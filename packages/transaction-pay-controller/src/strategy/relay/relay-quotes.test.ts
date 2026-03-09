@@ -1,4 +1,8 @@
-import { successfulFetch, toHex } from '@metamask/controller-utils';
+import {
+  successfulFetch,
+  toChecksumHexAddress,
+  toHex,
+} from '@metamask/controller-utils';
 import type {
   GasFeeToken,
   TransactionMeta,
@@ -216,7 +220,9 @@ describe('Relay Quotes Utils', () => {
     getTokenRatesControllerStateMock.mockReturnValue({
       marketData: {
         [QUOTE_REQUEST_MOCK.sourceChainId]: {
-          [QUOTE_REQUEST_MOCK.sourceTokenAddress]: { price: 10.0 },
+          [toChecksumHexAddress(QUOTE_REQUEST_MOCK.sourceTokenAddress)]: {
+            price: 10.0,
+          },
         },
       },
     } as never);
