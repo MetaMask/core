@@ -1115,13 +1115,13 @@ describe('RampsController', () => {
       });
     });
 
-    it('does not regress status to idle when the last concurrent request is stale but an earlier one succeeded', async () => {
+    it('sets status to idle when the last concurrent request is stale (last-write-wins)', async () => {
       await withController(async ({ controller }) => {
         let resolveFirst: (value: string) => void;
         let resolveSecond: (value: string) => void;
 
         // Request A is "current" (its result should be applied)
-        // Request B is "stale" (isResultCurrent returns false, so terminalStatus stays undefined)
+        // Request B is "stale" (isResultCurrent returns false)
         const fetcherA = async (): Promise<string> =>
           new Promise<string>((resolve) => {
             resolveFirst = resolve;
@@ -1151,8 +1151,7 @@ describe('RampsController', () => {
 
         expect(controller.state.providers.status).toBe(RequestStatus.LOADING);
 
-        // Resolve A first while it's current → terminalStatus = SUCCESS, but
-        // count goes from 2 to 1 so status is not written yet
+        // Resolve A first while it's current, count goes from 2 to 1 so status is not written yet
         isACurrentValue = true;
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         resolveFirst!('result-a');
@@ -1161,14 +1160,13 @@ describe('RampsController', () => {
         // Status not updated yet since count is still 1
         expect(controller.state.providers.isLoading).toBe(true);
 
-        // Resolve B last while stale → terminalStatus stays undefined in B's closure
-        // Without the fix, this would write IDLE; with the fix it should preserve SUCCESS
+        // Resolve B last while stale → terminalStatus is IDLE (last-write-wins)
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         resolveSecond!('result-b');
         await promiseB;
 
         expect(controller.state.providers.isLoading).toBe(false);
-        expect(controller.state.providers.status).toBe(RequestStatus.SUCCESS);
+        expect(controller.state.providers.status).toBe(RequestStatus.IDLE);
       });
     });
 
