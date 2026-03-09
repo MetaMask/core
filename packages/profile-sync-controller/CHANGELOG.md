@@ -26,9 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `AuthenticationController` silently discarding tokens when `entropySourceId` is `undefined`, which caused persistent HTTP 401 errors for `ProfileMetricsController` and other consumers ([#8144](https://github.com/MetaMask/core/pull/8144))
+- Fix `AuthenticationController` silently discarding tokens when `entropySourceId` is `undefined` ([#8144](https://github.com/MetaMask/core/pull/8144))
   - `getBearerToken`, `getSessionProfile`, and `getUserProfileLineage` now resolve `undefined` `entropySourceId` to the primary SRP entropy source ID via the message-signing snap before delegating to the auth SDK
   - This also eliminates a login deduplication race condition where `getBearerToken(undefined)` and `getBearerToken("primary-srp-id")` would trigger two independent OIDC logins for the same identity
+- Add client-side JWT `exp` claim validation to prevent stale cached tokens from being returned ([#8144](https://github.com/MetaMask/core/pull/8144))
+  - `#getAuthSession` in both `SRPJwtBearerAuth` and `SIWEJwtBearerAuth` now decodes the JWT `exp` claim and rejects tokens that have actually expired, regardless of client-side TTL tracking (`obtainedAt`/`expiresIn`)
 - Update `getUserProfileLineage` to accept an optional `entropySourceId` parameter ([#8144](https://github.com/MetaMask/core/pull/8144))
 
 ## [27.1.0]

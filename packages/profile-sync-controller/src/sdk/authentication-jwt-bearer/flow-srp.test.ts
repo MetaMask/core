@@ -167,4 +167,46 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
     // Should NOT apply any delay
     expect(mockDelay).not.toHaveBeenCalled();
   });
+
+  it('triggers a fresh login when the cached JWT exp claim is in the past', async () => {
+    const expiredExp = Math.floor(Date.now() / 1000) - 3600;
+    const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({ exp: expiredExp }));
+    const expiredJwt = `${header}.${payload}.fake-sig`;
+
+    const { auth, store } = createAuth();
+    store.value = {
+      profile: MOCK_PROFILE,
+      token: {
+        accessToken: expiredJwt,
+        expiresIn: 86400,
+        obtainedAt: Date.now(),
+      },
+    };
+
+    const token = await auth.getAccessToken();
+    expect(token).toBe('access');
+    expect(mockGetNonce).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns the cached token when JWT exp claim is still in the future', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 3600;
+    const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({ exp: futureExp }));
+    const validJwt = `${header}.${payload}.fake-sig`;
+
+    const { auth, store } = createAuth();
+    store.value = {
+      profile: MOCK_PROFILE,
+      token: {
+        accessToken: validJwt,
+        expiresIn: 86400,
+        obtainedAt: Date.now(),
+      },
+    };
+
+    const token = await auth.getAccessToken();
+    expect(token).toBe(validJwt);
+    expect(mockGetNonce).not.toHaveBeenCalled();
+  });
 });
