@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.1]
 
+### Added
+
+- Add new optional `ensureOnboardingComplete` callback ([#8124](https://github.com/MetaMask/core/pull/8124))
+  - This allows the service to wait for the user to re-onboard after a wallet reset.
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))

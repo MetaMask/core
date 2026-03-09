@@ -225,7 +225,11 @@ export type {
   AllWalletsBalance,
 } from './balances';
 export { calculateBalanceForAllWallets } from './balances';
-export type { BalanceChangePeriod, BalanceChangeResult } from './balances';
+export type {
+  BalanceChangePeriod,
+  BalanceChangeResult,
+  NetworkConfigurationNativeCurrency,
+} from './balances';
 export {
   calculateBalanceChangeForAllWallets,
   calculateBalanceChangeForAccountGroup,
