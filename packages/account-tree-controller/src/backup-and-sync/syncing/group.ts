@@ -14,7 +14,10 @@ import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
-import { getLocalGroupsForEntropyWallet } from '../utils';
+import {
+  getLocalGroupForEntropyWallet,
+  getLocalGroupsForEntropyWallet,
+} from '../utils';
 
 /**
  * Creates multiple multichain account groups in batch (from 0 to maxGroupIndex).
@@ -34,14 +37,14 @@ export const createMultichainAccountGroupsBatch = async (
   maxGroupIndex: number,
   profileId: ProfileId,
   analyticsAction: BackupAndSyncAnalyticsAction,
-): Promise<string[]> => {
+): Promise<void> => {
   const numberOfAccountGroupsToCreate = maxGroupIndex + 1; // maxGroupIndex is zero-based, so we add 1 to get the count.
   backupAndSyncLogger(
     `Creating ${numberOfAccountGroupsToCreate} account groups (batch) for entropy source: ${entropySourceId}`,
   );
 
   try {
-    // Call the batched creation method.
+    // Call the batched creation method (this is idempotent).
     const groups = await context.messenger.call(
       'MultichainAccountService:createMultichainAccountGroups',
       {
@@ -51,27 +54,27 @@ export const createMultichainAccountGroupsBatch = async (
       },
     );
 
-    // Emit analytics event for each newly created group.
-    // Note: groups array contains all groups (existing + newly created).
-    const createdGroupIds: string[] = [];
-
+    // Contains all groups (existing + newly created).
     for (const group of groups) {
       // TODO: A group should not be null here, but EVM provider might fail to create some groups sometimes, which means
       // we can end up having an "empty group" for some time.
       if (group) {
-        createdGroupIds.push(group.id);
+        const didGroupAlreadyExist = getLocalGroupForEntropyWallet(
+          context,
+          entropySourceId,
+          group.groupIndex,
+        );
 
-        // Emit analytics event.
-        context.emitAnalyticsEventFn({
-          action: analyticsAction,
-          profileId,
-        });
+        if (!didGroupAlreadyExist) {
+          context.emitAnalyticsEventFn({
+            action: analyticsAction,
+            profileId,
+          });
+        }
       }
     }
 
     backupAndSyncLogger(`Successfully created ${groups.length} groups (batch)`);
-
-    return createdGroupIds;
   } catch (error) {
     // This can happen if the Snap Keyring is not ready yet when invoking
     // `MultichainAccountService:createMultichainAccountGroups`.
@@ -85,8 +88,6 @@ export const createMultichainAccountGroupsBatch = async (
       // istanbul ignore next
       error instanceof Error ? error.message : String(error),
     );
-
-    return [];
   }
 };
 
