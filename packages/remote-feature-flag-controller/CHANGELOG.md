@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Sort threshold-scoped variations by ascending scope value before selecting a group, so unordered threshold arrays are evaluated correctly. ([#8128](https://github.com/MetaMask/core/pull/8128))
+
 ## [4.1.0]
 
 ### Added
