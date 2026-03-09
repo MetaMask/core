@@ -2538,6 +2538,7 @@ describe('BridgeStatusController', () => {
     const setupEventTrackingMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockImplementationOnce(jest.fn()); // track event
+      mockCall.mockReturnValueOnce([]); // isAtomicBatchSupported
     };
 
     const setupApprovalMocks = (mockCall: jest.Mock) => {
@@ -2854,7 +2855,7 @@ describe('BridgeStatusController', () => {
       expect(estimateGasFeeFn).toHaveBeenCalledTimes(3);
       expect(addTransactionFn).not.toHaveBeenCalled();
       expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(9);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(10);
     });
 
     it('should throw an error if approval tx fails', async () => {
@@ -3021,6 +3022,7 @@ describe('BridgeStatusController', () => {
         },
       });
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockReturnValueOnce([]); // isAtomicBatchSupported
 
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
@@ -3103,6 +3105,7 @@ describe('BridgeStatusController', () => {
         },
       });
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockReturnValueOnce([]); // isAtomicBatchSupported
 
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
@@ -3364,6 +3367,7 @@ describe('BridgeStatusController', () => {
     const setupEventTrackingMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockImplementationOnce(jest.fn()); // track event
+      mockCall.mockReturnValueOnce([]); // isAtomicBatchSupported
     };
 
     const setupApprovalMocks = () => {
@@ -3422,11 +3426,12 @@ describe('BridgeStatusController', () => {
       const { approvalTxId } = controller.state.txHistory[result.id];
       expect(approvalTxId).toBe('test-approval-tx-id');
       expect(addTransactionFn).toHaveBeenCalledTimes(2);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(11);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(12);
     });
 
     it('should successfully submit an EVM swap transaction with featureId', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce([]); // isAtomicBatchSupported
       setupApprovalMocks();
       setupBridgeMocks();
 
@@ -3450,7 +3455,7 @@ describe('BridgeStatusController', () => {
         FeatureId.PERPS,
       );
       expect(addTransactionFn).toHaveBeenCalledTimes(2);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(10);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(11);
       expect(mockMessengerCall.mock.calls).toMatchSnapshot();
     });
 
@@ -3501,7 +3506,7 @@ describe('BridgeStatusController', () => {
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       expect(addTransactionFn).not.toHaveBeenCalled();
       expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(6);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(7);
       expect(controller.state.txHistory[result.id]).toMatchSnapshot();
     });
 
@@ -3835,7 +3840,7 @@ describe('BridgeStatusController', () => {
       expect(estimateGasFeeFn).not.toHaveBeenCalled();
       expect(addTransactionFn).not.toHaveBeenCalled();
       expect(addTransactionBatchFn).not.toHaveBeenCalled();
-      expect(mockMessengerCall).toHaveBeenCalledTimes(4);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(5);
     });
 
     it('should throw error if batched tx is not found', async () => {
@@ -3874,7 +3879,32 @@ describe('BridgeStatusController', () => {
       expect(estimateGasFeeFn).toHaveBeenCalledTimes(2);
       expect(addTransactionFn).not.toHaveBeenCalled();
       expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(8);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(9);
+    });
+
+    it('should gracefully handle isAtomicBatchSupported failure', async () => {
+      // Manually set up mocks without setupEventTrackingMocks
+      // to control the isAtomicBatchSupported mock
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount); // getAccountByAddress
+      mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockRejectedValueOnce(
+        new Error('isAtomicBatchSupported failed'),
+      ); // isAtomicBatchSupported throws
+      setupApprovalMocks();
+      setupBridgeMocks();
+
+      const { controller } = getController(mockMessengerCall);
+      const result = await controller.submitTx(
+        (mockEvmQuoteResponse.trade as TxData).from,
+        mockEvmQuoteResponse,
+        false, // STX disabled - uses non-batch path
+      );
+      controller.stopAllPolling();
+
+      // Should fall back to non-batch path when isAtomicBatchSupported throws
+      expect(addTransactionFn).toHaveBeenCalledTimes(2);
+      expect(addTransactionBatchFn).not.toHaveBeenCalled();
+      expect(result).toBeDefined();
     });
   });
 
