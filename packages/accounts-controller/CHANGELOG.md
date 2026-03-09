@@ -20,10 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `AccountController:loadBackupAction`
   - Corresponding action types (e.g. `AccountControllerLoadBackupAction`) are available as well.
 
-### Changed
-
-- Move mocks out of build ([#8033](https://github.com/MetaMask/core/pull/8033))
-
 ### Deprecated
 
 - Mark `AccountsController`, all of its public methods, and all exported types as deprecated in favor of `AccountTreeController`, `MultichainAccountService`, and Keyring API v2 ([#8027](https://github.com/MetaMask/core/pull/8027))
