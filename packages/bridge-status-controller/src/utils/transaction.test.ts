@@ -2033,7 +2033,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].params).toHaveProperty('gas');
       expect(result.transactions[0].params).toHaveProperty('maxFeePerGas');
-      expect(result.transactions[0].params).toHaveProperty('maxPriorityFeePerGas');
+      expect(result.transactions[0].params).toHaveProperty(
+        'maxPriorityFeePerGas',
+      );
     });
 
     it('should enable 7702 and omit gas fields when isDelegatedAccount is true and gasIncluded7702 is true', async () => {
@@ -2062,7 +2064,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].params).not.toHaveProperty('gas');
       expect(result.transactions[0].params).not.toHaveProperty('maxFeePerGas');
-      expect(result.transactions[0].params).not.toHaveProperty('maxPriorityFeePerGas');
+      expect(result.transactions[0].params).not.toHaveProperty(
+        'maxPriorityFeePerGas',
+      );
     });
   });
 
