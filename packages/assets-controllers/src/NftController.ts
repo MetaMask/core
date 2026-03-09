@@ -828,49 +828,16 @@ export class NftController extends BaseController<
    *
    * @param contractAddress - Hex address of the NFT contract.
    * @param nftMetadataFromApi - NFT information received from the API.
-   * @param networkClientId - Network client to use for any on-chain calls.
    * @returns Promise resolving to the aggregated NFT contract information.
    */
-  async #getNftContractInformation(
+  #getNftContractInformation(
     contractAddress: string,
     nftMetadataFromApi: NftMetadata,
-    networkClientId: NetworkClientId,
-  ): Promise<
-    Partial<ApiNftContract> &
-      Pick<ApiNftContract, 'address'> &
-      Pick<ApiNftContract, 'collection'>
-  > {
-    const apiName = nftMetadataFromApi.collection?.name;
-    const apiSymbol = nftMetadataFromApi.collection?.symbol;
-
-    const needsOnChainName = apiName === null || apiName === undefined;
-    const needsOnChainSymbol = apiSymbol === null || apiSymbol === undefined;
-
-    // TODO for calls to blockchain we need to explicitly pass the
-    // currentNetworkClientId since its relying on the provider
-    const [onChainName, onChainSymbol] = await Promise.all([
-      needsOnChainName
-        ? safelyExecute(() =>
-            this.messenger.call(
-              'AssetsContractController:getERC721AssetName',
-              contractAddress,
-              networkClientId,
-            ),
-          )
-        : Promise.resolve(undefined),
-      needsOnChainSymbol
-        ? safelyExecute(() =>
-            this.messenger.call(
-              'AssetsContractController:getERC721AssetSymbol',
-              contractAddress,
-              networkClientId,
-            ),
-          )
-        : Promise.resolve(undefined),
-    ]);
-
-    const name = apiName ?? onChainName;
-    const symbol = apiSymbol ?? onChainSymbol;
+  ): Partial<ApiNftContract> &
+    Pick<ApiNftContract, 'address'> &
+    Pick<ApiNftContract, 'collection'> {
+    const name = nftMetadataFromApi.collection?.name;
+    const symbol = nftMetadataFromApi.collection?.symbol;
 
     if (
       name !== undefined ||
@@ -1110,10 +1077,9 @@ export class NftController extends BaseController<
           // this doesn't work currently for detection if the user switches networks while the detection is processing
           // will be fixed once detection uses networkClientIds
           // get name and symbol if ERC721 then put together the metadata
-          const contractInformation = await this.#getNftContractInformation(
+          const contractInformation = this.#getNftContractInformation(
             checksumHexAddress,
             nftMetadata,
-            networkClientId,
           );
 
           // If the nft is auto-detected we want some valid metadata to be present
