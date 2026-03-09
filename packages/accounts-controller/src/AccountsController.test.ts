@@ -1255,6 +1255,116 @@ describe('AccountsController', () => {
         expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
       });
 
+      it('publishes accountsAdded event with all added accounts', async () => {
+        const messenger = buildMessenger();
+
+        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
+            },
+          ],
+        };
+
+        const accountsAddedListener = jest.fn();
+        messenger.subscribe(
+          'AccountsController:accountsAdded',
+          accountsAddedListener,
+        );
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(accountsAddedListener).toHaveBeenCalledTimes(1);
+        expect(accountsAddedListener).toHaveBeenCalledWith([
+          expect.objectContaining({ id: mockAccount2.id }),
+        ]);
+      });
+
+      it('publishes accountsAdded after all individual accountAdded events', async () => {
+        const messenger = buildMessenger();
+
+        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
+            },
+          ],
+        };
+
+        const mockEventsOrder = jest.fn();
+        messenger.subscribe('AccountsController:accountAdded', () => {
+          mockEventsOrder('AccountsController:accountAdded');
+        });
+        messenger.subscribe('AccountsController:accountsAdded', () => {
+          mockEventsOrder('AccountsController:accountsAdded');
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(mockEventsOrder).toHaveBeenNthCalledWith(
+          1,
+          'AccountsController:accountAdded',
+        );
+        expect(mockEventsOrder).toHaveBeenNthCalledWith(
+          2,
+          'AccountsController:accountsAdded',
+        );
+      });
+
       it('publishes accountAdded event', async () => {
         const messenger = buildMessenger();
 
@@ -1626,6 +1736,118 @@ describe('AccountsController', () => {
           mockAccount3.id,
         );
       });
+
+      it('publishes accountsRemoved event with all removed accounts', async () => {
+        const messenger = buildMessenger();
+
+        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount3.id]: mockAccount3,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount3.address]: mockAccount3.id,
+            },
+          },
+          messenger,
+        });
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
+            },
+          ],
+        };
+
+        const accountsRemovedListener = jest.fn();
+        messenger.subscribe(
+          'AccountsController:accountsRemoved',
+          accountsRemovedListener,
+        );
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(accountsRemovedListener).toHaveBeenCalledTimes(1);
+        expect(accountsRemovedListener).toHaveBeenCalledWith([mockAccount3.id]);
+      });
+
+      it('publishes accountsRemoved after all individual accountRemoved events', async () => {
+        const messenger = buildMessenger();
+
+        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount3.id]: mockAccount3,
+              },
+              selectedAccount: mockAccount.id,
+            },
+            accountIdByAddress: {
+              [mockAccount.address]: mockAccount.id,
+              [mockAccount3.address]: mockAccount3.id,
+            },
+          },
+          messenger,
+        });
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+              metadata: {
+                id: 'mock-id',
+                name: 'mock-name',
+              },
+            },
+          ],
+        };
+
+        const mockEventsOrder = jest.fn();
+        messenger.subscribe('AccountsController:accountRemoved', () => {
+          mockEventsOrder('AccountsController:accountRemoved');
+        });
+        messenger.subscribe('AccountsController:accountsRemoved', () => {
+          mockEventsOrder('AccountsController:accountsRemoved');
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(mockEventsOrder).toHaveBeenNthCalledWith(
+          1,
+          'AccountsController:accountRemoved',
+        );
+        expect(mockEventsOrder).toHaveBeenNthCalledWith(
+          2,
+          'AccountsController:accountsRemoved',
+        );
+      });
     });
 
     it('handle keyring reinitialization', async () => {
@@ -1821,6 +2043,9 @@ describe('AccountsController', () => {
       messenger.subscribe('AccountsController:accountAdded', () => {
         mockEventsOrder('AccountsController:accountAdded');
       });
+      messenger.subscribe('AccountsController:accountsAdded', () => {
+        mockEventsOrder('AccountsController:accountsAdded');
+      });
       messenger.subscribe('AccountsController:selectedAccountChange', () => {
         mockEventsOrder('AccountsController:selectedAccountChange');
       });
@@ -1839,6 +2064,10 @@ describe('AccountsController', () => {
       );
       expect(mockEventsOrder).toHaveBeenNthCalledWith(
         2,
+        'AccountsController:accountsAdded',
+      );
+      expect(mockEventsOrder).toHaveBeenNthCalledWith(
+        3,
         'AccountsController:selectedAccountChange',
       );
     });

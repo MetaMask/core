@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `:accounts{Added,Removed}` batch events ([#8151](https://github.com/MetaMask/core/pull/8151))
+  - Those new events can be used instead of single `:accountAdded` and `:accountRemoved` events to reduce the number of events emitted during batch operations (e.g. `KeyringController` state re-synchronization).
+
 ## [37.0.0]
 
 ### Added
