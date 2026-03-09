@@ -1574,36 +1574,61 @@ export class NftController extends BaseController<
       nfts.map((nft) => nft.nftMetadata),
     );
 
-    // Contracts are batched first so we can resolve accepted contracts
-    // before building the NFT list for the second batch write.
-    const nftContractsToAdd: NftContractToAdd[] = [];
+    // Resolve network client IDs per item up front. Items that fail (e.g.,
+    // the user removes a network during detection) are skipped individually
+    // so the rest of the batch is unaffected. Resolved data is bundled into
+    // one object per NFT to avoid index-alignment issues between the two loops.
+    const resolvedNfts: {
+      contractToAdd: NftContractToAdd;
+      tokenId: string;
+      checksumHexAddress: string;
+      hexChainId: Hex;
+      sanitizedMetadata: NftMetadata;
+    }[] = [];
 
     for (const [index, nft] of nfts.entries()) {
-      const checksumHexAddress = toChecksumHexAddress(nft.tokenAddress);
-      const hexChainId = toHex(nft.nftMetadata.chainId);
-      const networkClientId = this.messenger.call(
-        'NetworkController:findNetworkClientIdByChainId',
-        hexChainId,
-      );
+      try {
+        const checksumHexAddress = toChecksumHexAddress(nft.tokenAddress);
+        const hexChainId = toHex(nft.nftMetadata.chainId);
+        const networkClientId = this.messenger.call(
+          'NetworkController:findNetworkClientIdByChainId',
+          hexChainId,
+        );
 
-      nftContractsToAdd.push({
-        networkClientId,
-        tokenAddress: checksumHexAddress,
-        source,
-        nftMetadata: sanitizedNftMetadata[index],
-      });
+        resolvedNfts.push({
+          contractToAdd: {
+            networkClientId,
+            tokenAddress: checksumHexAddress,
+            source,
+            nftMetadata: sanitizedNftMetadata[index],
+          },
+          tokenId: nft.tokenId,
+          checksumHexAddress,
+          hexChainId,
+          sanitizedMetadata: sanitizedNftMetadata[index],
+        });
+      } catch (error) {
+        console.error(
+          'Failed to resolve network for NFT',
+          nft.tokenAddress,
+          error,
+        );
+      }
     }
 
     const { contracts: newNftContracts } = await this.#addNftContracts(
       addressToSearch,
-      nftContractsToAdd,
+      resolvedNfts.map((item) => item.contractToAdd),
     );
 
     const nftsToAdd: NftToAdd[] = [];
 
-    for (const [index, nft] of nfts.entries()) {
-      const checksumHexAddress = toChecksumHexAddress(nft.tokenAddress);
-      const hexChainId = toHex(nft.nftMetadata.chainId);
+    for (const {
+      checksumHexAddress,
+      tokenId,
+      hexChainId,
+      sanitizedMetadata,
+    } of resolvedNfts) {
       const nftContract = newNftContracts[hexChainId]?.find(
         (contract) =>
           contract.address.toLowerCase() === checksumHexAddress.toLowerCase(),
@@ -1611,8 +1636,8 @@ export class NftController extends BaseController<
       if (nftContract) {
         nftsToAdd.push({
           tokenAddress: checksumHexAddress,
-          tokenId: nft.tokenId,
-          nftMetadata: sanitizedNftMetadata[index],
+          tokenId,
+          nftMetadata: sanitizedMetadata,
           nftContract,
           chainId: hexChainId,
           source,
