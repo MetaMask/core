@@ -485,14 +485,16 @@ export const findAndUpdateTransactionsInBatch = ({
         // For 7702 transactions, we need to match based on transaction type
         // since the data field might be different (batch execute call)
         if (
-          txType === TransactionType.swap &&
+          (txType === TransactionType.swap ||
+            txType === TransactionType.bridge) &&
           tx.type === TransactionType.batch
         ) {
           return true;
         }
         // Also check if it's an approval transaction for 7702
         if (
-          txType === TransactionType.swapApproval &&
+          (txType === TransactionType.swapApproval ||
+            txType === TransactionType.bridgeApproval) &&
           tx.txParams.data === txData
         ) {
           return true;
