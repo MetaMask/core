@@ -34,6 +34,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type {
+  IsAtomicBatchSupportedResultEntry,
   TransactionController,
   TransactionMeta,
   TransactionParams,
@@ -1358,6 +1359,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
     let approvalTxId: string | undefined;
+    let isDelegatedAccount = false;
     const startTime = Date.now();
 
     const isBridgeTx = isCrossChain(
@@ -1463,7 +1465,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#clientId === BridgeClientId.MOBILE && isHardwareAccount;
 
       // Handle smart transactions if enabled
-      let isDelegatedAccount = false;
       txMeta = await this.#trace(
         {
           name: isBridgeTx
@@ -1489,12 +1490,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               const atomicBatchSupport = await this.messenger.call(
                 'TransactionController:isAtomicBatchSupported',
                 {
-                  address: quoteResponse.trade.from as Hex,
+                  address: (quoteResponse.trade as TxData).from as Hex,
                   chainIds: [hexChainId],
                 },
               );
               return atomicBatchSupport.some(
-                (entry) => entry.isSupported && entry.delegationAddress,
+                (entry: IsAtomicBatchSupportedResultEntry) =>
+                  entry.isSupported && entry.delegationAddress,
               );
             } catch {
               return false;
