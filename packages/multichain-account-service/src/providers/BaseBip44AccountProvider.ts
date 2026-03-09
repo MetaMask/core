@@ -66,21 +66,6 @@ export type Bip44AccountProvider<
    */
   isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
   /**
-   * Align the accounts with the given entropy source and group index.
-   *
-   * @param options - The options for aligning the accounts.
-   * @param options.entropySource - The entropy source.
-   * @param options.groupIndex - The group index.
-   * @returns The already and newly aligned accounts IDs.
-   */
-  alignAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Account['id'][]>;
-  /**
    * Create accounts for the provider.
    *
    * @param options - The options for creating the accounts.
