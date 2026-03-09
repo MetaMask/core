@@ -68,19 +68,7 @@ export class MultichainAccountGroup<
     this.#providerToAccounts = new Map();
     this.#accountToProvider = new Map();
 
-    this.#log = MultichainAccountGroup.createMultichainAccountGroupLogger(this);
-  }
-
-  /**
-   * Create a logger for the multichain account group.
-   *
-   * @param group - The multichain account group.
-   * @returns The logger for the multichain account group.
-   */
-  static createMultichainAccountGroupLogger<
-    Account extends Bip44Account<KeyringAccount>,
-  >(group: MultichainAccountGroup<Account>): Logger {
-    return createModuleLogger(log, `[${group.id}]`);
+    this.#log = createModuleLogger(log, `[${this.#id}]`);
   }
 
   /**
