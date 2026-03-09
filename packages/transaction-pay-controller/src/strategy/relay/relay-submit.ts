@@ -404,11 +404,11 @@ async function submitViaRelayExecute(
     requestId,
   };
 
-  log('Submitting via Relay /execute', { executeBody, from });
+  log('Submitting via Relay execute', { executeBody, from });
 
   const result = await submitRelayExecute(messenger, executeBody);
 
-  log('Relay /execute response', result);
+  log('Relay execute response', result);
 
   return FALLBACK_HASH;
 }
