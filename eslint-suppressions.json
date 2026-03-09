@@ -1624,11 +1624,6 @@
       "count": 1
     }
   },
-  "packages/profile-sync-controller/src/sdk/utils/validate-login-response.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/profile-sync-controller/src/shared/encryption/cache.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
