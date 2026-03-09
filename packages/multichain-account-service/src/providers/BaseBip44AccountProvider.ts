@@ -1,6 +1,5 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { AccountProvider, Bip44Account } from '@metamask/account-api';
-import { AccountCreationType } from '@metamask/keyring-api';
 import type {
   CreateAccountOptions,
   EntropySourceId,
@@ -193,22 +192,6 @@ export abstract class BaseBip44AccountProvider<
     );
 
     return result as CallbackResult;
-  }
-
-  async alignAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Account['id'][]> {
-    const accounts = await this.createAccounts({
-      type: AccountCreationType.Bip44DeriveIndex,
-      entropySource,
-      groupIndex,
-    });
-    const accountIds = accounts.map((account) => account.id);
-    return accountIds;
   }
 
   abstract get capabilities(): KeyringCapabilities;

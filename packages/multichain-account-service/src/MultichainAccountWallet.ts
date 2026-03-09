@@ -650,13 +650,18 @@ export class MultichainAccountWallet<
    */
   async alignAccounts(): Promise<void> {
     const nextGroupIndex = this.getNextGroupIndex();
+
     if (nextGroupIndex > 0) {
+      this.#log('Aligning accounts...');
+
       await this.#withLock('in-progress:alignment', async () => {
         await this.#alignAccountsRange(
           { from: 0, to: nextGroupIndex - 1 },
           this.#providers,
         );
       });
+
+      this.#log('Aligned!');
     }
   }
 
@@ -668,15 +673,20 @@ export class MultichainAccountWallet<
    * @param groupIndex - The group index to align.
    */
   async alignAccountsOf(groupIndex: number): Promise<void> {
-    await this.#withLock('in-progress:alignment', async () => {
-      const group = this.getMultichainAccountGroup(groupIndex);
-      if (group) {
+    const group = this.getMultichainAccountGroup(groupIndex);
+
+    if (group) {
+      this.#log(`Aligning accounts for group "${group.id}"...`);
+
+      await this.#withLock('in-progress:alignment', async () => {
         await this.#alignAccountsRange(
           { from: groupIndex, to: groupIndex },
           this.#providers,
         );
-      }
-    });
+      });
+
+      this.#log(`Aligned accounts for group "${group.id}"!`);
+    }
   }
 
   /**
