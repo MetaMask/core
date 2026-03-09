@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Rename first-init-fetch measurement from MetaMetrics to Sentry: option `trackMetaMetricsEvent` is now `reportFirstInitFetchToSentry`, and type `AssetsControllerFirstInitFetchMetaMetricsPayload` is now `AssetsControllerFirstInitFetchSentryPayload`. Consumers should report the payload to Sentry (e.g. via addBreadcrumb or setMeasurement) instead of MetaMetrics.
+
 ## [2.4.0]
 
 ### Changed

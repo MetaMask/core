@@ -13,7 +13,7 @@ import {
   getDefaultAssetsControllerState,
 } from './AssetsController';
 import type {
-  AssetsControllerFirstInitFetchMetaMetricsPayload,
+  AssetsControllerFirstInitFetchSentryPayload,
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
@@ -79,13 +79,13 @@ type WithControllerOptions = {
   isBasicFunctionality?: () => boolean;
   /**
    * When set, registers ClientController:getState so the controller sees this UI state.
-   * Required for tests that rely on asset tracking running (e.g. trackMetaMetricsEvent on unlock).
+   * Required for tests that rely on asset tracking running (e.g. reportFirstInitFetchToSentry on unlock).
    */
   clientControllerState?: { isUiOpen: boolean };
-  /** Extra options passed to AssetsController constructor (e.g. trackMetaMetricsEvent). */
+  /** Extra options passed to AssetsController constructor (e.g. reportFirstInitFetchToSentry). */
   controllerOptions?: Partial<{
-    trackMetaMetricsEvent: (
-      payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+    reportFirstInitFetchToSentry: (
+      payload: AssetsControllerFirstInitFetchSentryPayload,
     ) => void;
     priceDataSourceConfig: PriceDataSourceConfig;
     isEnabled: () => boolean;
@@ -1198,13 +1198,13 @@ describe('AssetsController', () => {
       });
     });
 
-    it('invokes trackMetaMetricsEvent with first init fetch duration on unlock', async () => {
-      const trackMetaMetricsEvent = jest.fn();
+    it('invokes reportFirstInitFetchToSentry with first init fetch duration on unlock', async () => {
+      const reportFirstInitFetchToSentry = jest.fn();
 
       await withController(
         {
           clientControllerState: { isUiOpen: true },
-          controllerOptions: { trackMetaMetricsEvent },
+          controllerOptions: { reportFirstInitFetchToSentry },
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
@@ -1218,16 +1218,16 @@ describe('AssetsController', () => {
           // Allow #start() -> getAssets() to resolve so the callback runs
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
-          expect(trackMetaMetricsEvent).toHaveBeenCalledWith(
+          expect(reportFirstInitFetchToSentry).toHaveBeenCalledTimes(1);
+          expect(reportFirstInitFetchToSentry).toHaveBeenCalledWith(
             expect.objectContaining({
               durationMs: expect.any(Number),
               chainIds: expect.any(Array),
               durationByDataSource: expect.any(Object),
             }),
           );
-          const payload = trackMetaMetricsEvent.mock
-            .calls[0][0] as AssetsControllerFirstInitFetchMetaMetricsPayload;
+          const payload = reportFirstInitFetchToSentry.mock
+            .calls[0][0] as AssetsControllerFirstInitFetchSentryPayload;
           expect(payload.durationMs).toBeGreaterThanOrEqual(0);
           expect(Array.isArray(payload.chainIds)).toBe(true);
           expect(typeof payload.durationByDataSource).toBe('object');
@@ -1235,13 +1235,13 @@ describe('AssetsController', () => {
       );
     });
 
-    it('invokes trackMetaMetricsEvent only once per session until lock', async () => {
-      const trackMetaMetricsEvent = jest.fn();
+    it('invokes reportFirstInitFetchToSentry only once per session until lock', async () => {
+      const reportFirstInitFetchToSentry = jest.fn();
 
       await withController(
         {
           clientControllerState: { isUiOpen: true },
-          controllerOptions: { trackMetaMetricsEvent },
+          controllerOptions: { reportFirstInitFetchToSentry },
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
@@ -1256,7 +1256,7 @@ describe('AssetsController', () => {
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
+          expect(reportFirstInitFetchToSentry).toHaveBeenCalledTimes(1);
         },
       );
     });

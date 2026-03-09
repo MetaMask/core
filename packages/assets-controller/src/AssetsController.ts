@@ -294,11 +294,11 @@ export type AssetsControllerMessenger = Messenger<
 // ============================================================================
 
 /**
- * Payload for the first init/fetch MetaMetrics event.
- * Passed to the optional trackMetaMetricsEvent callback when the initial
+ * Payload for the first init/fetch measurement reported to Sentry.
+ * Passed to the optional reportFirstInitFetchToSentry callback when the initial
  * asset fetch completes after unlock or app open.
  */
-export type AssetsControllerFirstInitFetchMetaMetricsPayload = {
+export type AssetsControllerFirstInitFetchSentryPayload = {
   /** Duration of the first init fetch in milliseconds (wall-clock). */
   durationMs: number;
   /** Chain IDs requested in the fetch (e.g. ['eip155:1', 'eip155:137']). */
@@ -345,10 +345,10 @@ export type AssetsControllerOptions = {
   rpcDataSourceConfig?: RpcDataSourceConfig;
   /**
    * Optional callback invoked when the first init/fetch completes (e.g. after unlock).
-   * Use this to track first init fetch duration in MetaMetrics.
+   * Use this to report first init fetch duration to Sentry (e.g. via addBreadcrumb or setMeasurement).
    */
-  trackMetaMetricsEvent?: (
-    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+  reportFirstInitFetchToSentry?: (
+    payload: AssetsControllerFirstInitFetchSentryPayload,
   ) => void;
   /** Optional configuration for AccountsApiDataSource. */
   accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
@@ -519,9 +519,9 @@ export class AssetsController extends BaseController<
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
-  /** Optional callback for first init/fetch MetaMetrics (duration). */
-  readonly #trackMetaMetricsEvent?: (
-    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
+  /** Optional callback for first init/fetch Sentry measurement (duration). */
+  readonly #reportFirstInitFetchToSentry?: (
+    payload: AssetsControllerFirstInitFetchSentryPayload,
   ) => void;
 
   /** Whether we have already reported first init fetch for this session (reset on #stop). */
@@ -614,7 +614,7 @@ export class AssetsController extends BaseController<
     subscribeToBasicFunctionalityChange,
     queryApiClient,
     rpcDataSourceConfig,
-    trackMetaMetricsEvent,
+    reportFirstInitFetchToSentry,
     accountsApiDataSourceConfig,
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
@@ -632,7 +632,7 @@ export class AssetsController extends BaseController<
     this.#isEnabled = isEnabled();
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
-    this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
+    this.#reportFirstInitFetchToSentry = reportFirstInitFetchToSentry;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
     this.#onActiveChainsUpdated = (
@@ -1054,10 +1054,10 @@ export class AssetsController extends BaseController<
       const updateMode =
         options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
       await this.#updateState({ ...response, updateMode });
-      if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
+      if (this.#reportFirstInitFetchToSentry && !this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
         const durationMs = Date.now() - startTime;
-        this.#trackMetaMetricsEvent({
+        this.#reportFirstInitFetchToSentry({
           durationMs,
           chainIds,
           durationByDataSource,
