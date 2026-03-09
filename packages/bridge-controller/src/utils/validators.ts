@@ -143,8 +143,8 @@ export const PriceImpactThresholdSchema = type({
   // To make the migration easier, we define all fields as optional for now.
   // After the migration takes place, gasless/normal will be removed
   // and warning/danger will be set as required fields.
-  gasless: optional(number()), // Percentage value in decimal format (eg 0.02 is 2%)
-  normal: optional(number()), // Percentage value in decimal format
+  gasless: number(), // Percentage value in decimal format (eg 0.02 is 2%)
+  normal: number(), // Percentage value in decimal format
   warning: optional(number()), // Percentage in integer format (eg 2 is 2%)
   danger: optional(number()), // Percentage in integer format
 });
