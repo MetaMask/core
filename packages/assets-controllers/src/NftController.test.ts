@@ -3468,6 +3468,132 @@ describe('NftController', () => {
         tokenId: '1',
       });
     });
+
+    it('should skip a contract that fails getNetworkClientById and still add the remaining NFTs', async () => {
+      const { nftController, nftControllerMessenger } = setupController({});
+
+      // Make getNetworkClientById throw for 'sepolia' to simulate a mid-batch
+      // network lookup failure (e.g., network switched during detection).
+      const originalCall = nftControllerMessenger.call.bind(
+        nftControllerMessenger,
+      );
+      jest
+        .spyOn(nftControllerMessenger, 'call')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .mockImplementation((action: any, ...args: any[]): any => {
+          if (
+            action === 'NetworkController:getNetworkClientById' &&
+            args[0] === 'sepolia'
+          ) {
+            throw new Error('Network unavailable');
+          }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (originalCall as (...a: any[]) => any)(action, ...args);
+        });
+
+      await nftController.addNfts(
+        [
+          {
+            tokenAddress: '0x01',
+            tokenId: '1',
+            nftMetadata: {
+              name: 'NFT 1',
+              image: null,
+              description: null,
+              standard: ERC721,
+              chainId: 1,
+            },
+          },
+          {
+            tokenAddress: '0x02',
+            tokenId: '2',
+            nftMetadata: {
+              name: 'NFT 2',
+              image: null,
+              description: null,
+              standard: ERC721,
+              chainId: 11155111, // sepolia — getNetworkClientById will throw
+            },
+          },
+          {
+            tokenAddress: '0x03',
+            tokenId: '3',
+            nftMetadata: {
+              name: 'NFT 3',
+              image: null,
+              description: null,
+              standard: ERC721,
+              chainId: 1,
+            },
+          },
+        ],
+        OWNER_ACCOUNT.address,
+      );
+
+      // NFTs 1 and 3 (mainnet) should be added despite NFT 2 failing
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+      ).toHaveLength(2);
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+      ).toMatchObject([
+        { address: '0x01', tokenId: '1' },
+        { address: '0x03', tokenId: '3' },
+      ]);
+      // NFT 2 (sepolia) should not have been added
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address]?.['0xaa36a7'],
+      ).toBeUndefined();
+    });
+
+    it('should fire onNftAdded callbacks only after all NFT state has been written', async () => {
+      let stateWhenFirstCallbackFired: NftControllerState | undefined;
+      const mockOnNftAdded = jest.fn();
+
+      const { nftController } = setupController({
+        options: { onNftAdded: mockOnNftAdded },
+      });
+
+      mockOnNftAdded.mockImplementationOnce(() => {
+        stateWhenFirstCallbackFired = nftController.state;
+      });
+
+      await nftController.addNfts(
+        [
+          {
+            tokenAddress: '0x01',
+            tokenId: '1',
+            nftMetadata: {
+              name: 'NFT 1',
+              image: null,
+              description: null,
+              standard: ERC721,
+              chainId: 1,
+            },
+          },
+          {
+            tokenAddress: '0x02',
+            tokenId: '2',
+            nftMetadata: {
+              name: 'NFT 2',
+              image: null,
+              description: null,
+              standard: ERC721,
+              chainId: 1,
+            },
+          },
+        ],
+        OWNER_ACCOUNT.address,
+      );
+
+      expect(mockOnNftAdded).toHaveBeenCalledTimes(2);
+      // Both NFTs must already be in state when the first callback fires
+      expect(
+        stateWhenFirstCallbackFired?.allNfts[OWNER_ACCOUNT.address][
+          ChainId.mainnet
+        ],
+      ).toHaveLength(2);
+    });
   });
 
   describe('addNftVerifyOwnership', () => {
