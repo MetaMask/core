@@ -88,7 +88,7 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
     typeof data === 'object' &&
     data !== null &&
     'price' in data &&
-    typeof (data as SpotPriceMarketData).price === 'number'
+    typeof data.price === 'number'
   );
 }
 
