@@ -26,9 +26,12 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
+  TransactionControllerAddTransactionAction,
+  TransactionControllerAddTransactionBatchAction,
   TransactionControllerGetStateAction,
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerTransactionFailedEvent,
+  TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
@@ -36,6 +39,7 @@ import type { CaipAssetType } from '@metamask/utils';
 import type { BridgeStatusController } from './bridge-status-controller';
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 import type { StatusResponseSchema } from './utils/validators';
+import { TransactionControllerEstimateGasFeeAction } from '../../transaction-controller/src/TransactionController';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -315,6 +319,10 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | HandleSnapRequest
   | TransactionControllerGetStateAction
+  | TransactionControllerUpdateTransactionAction
+  | TransactionControllerAddTransactionAction
+  | TransactionControllerAddTransactionBatchAction
+  | TransactionControllerEstimateGasFeeAction
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
   | GetGasFeeState

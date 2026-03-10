@@ -129,14 +129,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     customBridgeApiBaseUrl: string;
   };
 
-  readonly #addTransactionFn: typeof TransactionController.prototype.addTransaction;
-
-  readonly #addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
-
-  readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
-
-  readonly #estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
-
   readonly #trace: TraceCallback;
 
   constructor({
@@ -144,10 +136,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     state,
     clientId,
     fetchFn,
-    addTransactionFn,
-    addTransactionBatchFn,
-    updateTransactionFn,
-    estimateGasFeeFn,
     config,
     traceFn,
   }: {
@@ -155,10 +143,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     state?: Partial<BridgeStatusControllerState>;
     clientId: BridgeClientId;
     fetchFn: FetchFunction;
-    addTransactionFn: typeof TransactionController.prototype.addTransaction;
-    addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
-    updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
-    estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
     config?: {
       customBridgeApiBaseUrl?: string;
     };
@@ -177,10 +161,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
-    this.#addTransactionFn = addTransactionFn;
-    this.#addTransactionBatchFn = addTransactionBatchFn;
-    this.#updateTransactionFn = updateTransactionFn;
-    this.#estimateGasFeeFn = estimateGasFeeFn;
     this.#config = {
       customBridgeApiBaseUrl:
         config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
@@ -188,7 +168,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#trace = traceFn ?? (((_request, fn) => fn?.()) as TraceCallback);
     this.#intentManager = new IntentManager({
       messenger: this.messenger,
-      updateTransactionFn: this.#updateTransactionFn,
       customBridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
       fetchFn: this.#fetchFn,
       getJwt: this.#getJwt,
@@ -1135,8 +1114,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     actionId?: string;
   }): Promise<TransactionMeta> => {
     // Use provided actionId (for pre-submission history) or generate one
-    const actionId = providedActionId ?? generateActionId().toString();
-
+    const actionId = providedActionId ?? generateActionId();
     const selectedAccount = this.messenger.call(
       'AccountsController:getAccountByAddress',
       trade.from,
@@ -1184,7 +1162,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       )),
     };
 
-    const { result } = await this.#addTransactionFn(
+    const { result } = await this.messenger.call(
+      'TransactionController:addTransaction',
       transactionParamsWithMaxGas,
       requestOptions,
     );
@@ -1227,11 +1206,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { gasFeeEstimates } = this.messenger.call(
       'GasFeeController:getState',
     );
-    const { estimates: txGasFeeEstimates } = await this.#estimateGasFeeFn({
-      transactionParams,
-      chainId,
-      networkClientId,
-    });
+    const { estimates: txGasFeeEstimates } = await this.messenger.call(
+      'TransactionController:estimateGasFee',
+      { transactionParams, chainId, networkClientId },
+    );
     const { maxFeePerGas, maxPriorityFeePerGas } = getTxGasEstimates({
       networkGasFeeEstimates: gasFeeEstimates,
       txGasFeeEstimates,
@@ -1267,7 +1245,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }> => {
     const transactionParams = await getAddTransactionBatchParams({
       messenger: this.messenger,
-      estimateGasFeeFn: this.#estimateGasFeeFn,
       ...args,
     });
     const txDataByType = {
@@ -1285,11 +1262,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       )?.params.data,
     };
 
-    const { batchId } = await this.#addTransactionBatchFn(transactionParams);
+    const { batchId } = await this.messenger.call(
+      'TransactionController:addTransactionBatch',
+      transactionParams,
+    );
 
     const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
       messenger: this.messenger,
-      updateTransactionFn: this.#updateTransactionFn,
       batchId,
       txDataByType,
     });
@@ -1653,6 +1632,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const requireApproval =
         isHardwareAccount && this.#clientId === BridgeClientId.MOBILE;
+
       // Handle approval silently for better UX in intent flows
       const approvalTxMeta = await this.#handleApprovalTx(
         isBridgeTx,
@@ -1722,7 +1702,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         gasPrice: '0x3b9aca00', // 1 Gwei - will be converted to EIP-1559 fees if network supports it
       };
 
-      const { transactionMeta: txMetaPromise } = await this.#addTransactionFn(
+      const { transactionMeta: txMetaPromise } = await this.messenger.call(
+        'TransactionController:addTransaction',
         intentTransactionParams,
         {
           origin: 'metamask',

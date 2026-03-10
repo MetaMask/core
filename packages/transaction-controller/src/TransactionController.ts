@@ -325,6 +325,11 @@ export type TransactionControllerEstimateGasBatchAction = {
   handler: TransactionController['estimateGasBatch'];
 };
 
+export type TransactionControllerEstimateGasFeeAction = {
+  type: `${typeof controllerName}:estimateGasFee`;
+  handler: TransactionController['estimateGasFee'];
+};
+
 /**
  * Adds external provided transaction to state as confirmed transaction.
  *
@@ -416,6 +421,7 @@ export type TransactionControllerActions =
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
+  | TransactionControllerEstimateGasFeeAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
@@ -4631,6 +4637,11 @@ export class TransactionController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:estimateGasBatch`,
       this.estimateGasBatch.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:estimateGasFee`,
+      this.estimateGasFee.bind(this),
     );
 
     this.messenger.registerActionHandler(

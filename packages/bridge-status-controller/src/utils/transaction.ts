@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import {
   ChainId,
@@ -343,14 +344,12 @@ export const getAddTransactionBatchParams = async ({
     toTokenAmount,
   },
   requireApproval = false,
-  estimateGasFeeFn,
 }: {
   messenger: BridgeStatusControllerMessenger;
   isBridgeTx: boolean;
   trade: TxData;
   quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> &
     Partial<QuoteMetadata>;
-  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
   approval?: TxData;
   resetApproval?: TxData;
   requireApproval?: boolean;
@@ -379,7 +378,6 @@ export const getAddTransactionBatchParams = async ({
     const gasFees = await calculateGasFees(
       disable7702,
       messenger,
-      estimateGasFeeFn,
       resetApproval,
       networkClientId,
       hexChainId,
@@ -396,7 +394,6 @@ export const getAddTransactionBatchParams = async ({
     const gasFees = await calculateGasFees(
       disable7702,
       messenger,
-      estimateGasFeeFn,
       approval,
       networkClientId,
       hexChainId,
@@ -412,7 +409,6 @@ export const getAddTransactionBatchParams = async ({
   const gasFees = await calculateGasFees(
     disable7702,
     messenger,
-    estimateGasFeeFn,
     trade,
     networkClientId,
     hexChainId,
@@ -444,12 +440,10 @@ export const getAddTransactionBatchParams = async ({
 
 export const findAndUpdateTransactionsInBatch = ({
   messenger,
-  updateTransactionFn,
   batchId,
   txDataByType,
 }: {
   messenger: BridgeStatusControllerMessenger;
-  updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
   batchId: string;
   txDataByType: { [key in TransactionType]?: string };
 }) => {
@@ -502,7 +496,11 @@ export const findAndUpdateTransactionsInBatch = ({
 
     if (txMeta) {
       const updatedTx = { ...txMeta, type: txType as TransactionType };
-      updateTransactionFn(updatedTx, `Update tx type to ${txType}`);
+      messenger.call(
+        'TransactionController:updateTransaction',
+        updatedTx,
+        `Update tx type to ${txType}`,
+      );
       txBatch[
         [TransactionType.bridgeApproval, TransactionType.swapApproval].includes(
           txType as TransactionType,

@@ -10,6 +10,7 @@ export type {
   TransactionControllerEvents,
   TransactionControllerEstimateGasAction,
   TransactionControllerEstimateGasBatchAction,
+  TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetNonceLockAction,
   TransactionControllerGetStateAction,

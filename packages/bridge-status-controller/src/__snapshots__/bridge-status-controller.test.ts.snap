@@ -591,6 +591,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHar
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": true,
+      "type": "bridgeApproval",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
   [
@@ -603,6 +640,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHar
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": true,
+      "type": "bridge",
+    },
   ],
   [
     "TransactionController:getState",
@@ -830,6 +904,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridgeApproval",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
   [
@@ -842,6 +953,40 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": undefined,
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridge",
+    },
   ],
   [
     "TransactionController:getState",
@@ -1069,6 +1214,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridgeApproval",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
   [
@@ -1081,6 +1263,40 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": undefined,
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridge",
+    },
   ],
   [
     "TransactionController:getState",
@@ -1265,58 +1481,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 3`] = `
 [
   [
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 4`] = `
-[
-  [
-    {
-      "disable7702": true,
-      "from": "0xaccount1",
-      "isGasFeeIncluded": false,
-      "isGasFeeSponsored": false,
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": false,
-      "transactions": [
-        {
-          "assetsFiatValues": {
-            "receiving": "2.9999",
-            "sending": "2.00",
-          },
-          "params": {
-            "data": "0xdata",
-            "from": "0xaccount1",
-            "gas": "0x5208",
-            "maxFeePerGas": "0x0",
-            "maxPriorityFeePerGas": "0x0",
-            "to": "0xbridgeContract",
-            "value": "0x0",
-          },
-          "type": "bridge",
-        },
-      ],
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 5`] = `
-[
-  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     {
@@ -1375,7 +1539,76 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransactionBatch",
+    {
+      "disable7702": true,
+      "from": "0xaccount1",
+      "isGasFeeIncluded": false,
+      "isGasFeeSponsored": false,
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "transactions": [
+        {
+          "assetsFiatValues": {
+            "receiving": "2.9999",
+            "sending": "2.00",
+          },
+          "params": {
+            "data": "0xdata",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xbridgeContract",
+            "value": "0x0",
+          },
+          "type": "bridge",
+        },
+      ],
+    },
+  ],
+  [
     "TransactionController:getState",
+  ],
+  [
+    "TransactionController:updateTransaction",
+    {
+      "batchId": "batchId1",
+      "chainId": "0xa4b1",
+      "hash": "0xevmTxHash",
+      "id": "test-tx-id",
+      "status": "unapproved",
+      "time": 1234567890,
+      "txParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gasLimit": "0x5208",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+      "txReceipt": {
+        "effectiveGasPrice": "0x1880a",
+        "gasUsed": "0x2c92a",
+      },
+      "type": "bridge",
+    },
+    "Update tx type to bridge",
   ],
 ]
 `;
@@ -1575,6 +1808,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridgeApproval",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
   [
@@ -1587,6 +1857,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridge",
+    },
   ],
   [
     "TransactionController:getState",
@@ -1814,6 +2121,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridgeApproval",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
   [
@@ -1826,6 +2170,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridge",
+    },
   ],
   [
     "TransactionController:getState",
@@ -2009,121 +2390,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 3`] = `
 [
   [
-    {
-      "chainId": "0x1",
-      "networkClientId": "arbitrum-client-id",
-      "transactionParams": {
-        "chainId": "0x1",
-        "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
-        "to": "0xtokenContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum-client-id",
-      "transactionParams": {
-        "chainId": "0xa4b1",
-        "data": "0xapprovalData",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
-        "to": "0xtokenContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "chainId": "0xa4b1",
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 4`] = `
-[
-  [
-    {
-      "chainId": "0x1",
-      "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xtokenContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum-client-id",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridgeApproval",
-    },
-  ],
-  [
-    {
-      "chainId": "0xa4b1",
-      "data": "0xapprovalData",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xtokenContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum-client-id",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridgeApproval",
-    },
-  ],
-  [
-    {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridge",
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 5`] = `
-[
-  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
@@ -2168,6 +2434,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0x1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0x1",
+        "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0x1",
+      "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridgeApproval",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
   [
@@ -2182,6 +2485,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridgeApproval",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
   [
@@ -2194,6 +2534,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridge",
+    },
   ],
   [
     "TransactionController:getState",
@@ -2352,51 +2729,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 3`] = `
 [
   [
-    {
-      "chainId": "0xa4b1",
-      "data": "0xapprovalData",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xtokenContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum-client-id",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridgeApproval",
-    },
-  ],
-  [
-    {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridge",
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 4`] = `
-[
-  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
@@ -2441,6 +2773,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridgeApproval",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
   [
@@ -2453,6 +2822,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridge",
+    },
   ],
   [
     "TransactionController:getState",
@@ -2611,51 +3017,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 3`] = `
 [
   [
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "chainId": "0xa4b1",
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 4`] = `
-[
-  [
-    {
-      "chainId": "0xa4b1",
-      "data": "0xdata",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xbridgeContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridge",
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 5`] = `
-[
-  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
@@ -2700,6 +3061,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridge",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
 ]
@@ -2708,31 +3106,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx fails 1`] = `
 [
   [
-    {
-      "chainId": "0xa4b1",
-      "data": "0xapprovalData",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xtokenContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum-client-id",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridgeApproval",
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx fails 2`] = `
-[
-  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
@@ -2775,6 +3148,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridgeApproval",
+    },
   ],
 ]
 `;
@@ -2782,31 +3192,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta does not exist 1`] = `
 [
   [
-    {
-      "chainId": "0xa4b1",
-      "data": "0xapprovalData",
-      "from": "0xaccount1",
-      "gas": "0x5208",
-      "gasLimit": "21000",
-      "maxFeePerGas": undefined,
-      "maxPriorityFeePerGas": undefined,
-      "to": "0xtokenContract",
-      "value": "0x0",
-    },
-    {
-      "actionId": "1234567890.456",
-      "networkClientId": "arbitrum-client-id",
-      "origin": "metamask",
-      "requireApproval": false,
-      "type": "bridgeApproval",
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta does not exist 2`] = `
-[
-  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
@@ -2849,6 +3234,43 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "bridgeApproval",
+    },
   ],
   [
     "TransactionController:getState",
@@ -3138,83 +3560,6 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 3`] = `
 [
   [
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "data": "0xapprovalData",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "to": "0xtokenContract",
-        "value": "0x0",
-      },
-    },
-  ],
-  [
-    {
-      "chainId": "0xa4b1",
-      "networkClientId": "arbitrum",
-      "transactionParams": {
-        "data": "0xdata",
-        "from": "0xaccount1",
-        "gas": "21000",
-        "to": "0xbridgeContract",
-        "value": "0x0",
-      },
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 4`] = `
-[
-  [
-    {
-      "disable7702": true,
-      "from": "0xaccount1",
-      "isGasFeeIncluded": false,
-      "isGasFeeSponsored": false,
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": false,
-      "transactions": [
-        {
-          "params": {
-            "data": "0xapprovalData",
-            "from": "0xaccount1",
-            "gas": "0x5208",
-            "maxFeePerGas": "0x0",
-            "maxPriorityFeePerGas": "0x0",
-            "to": "0xtokenContract",
-            "value": "0x0",
-          },
-          "type": "swapApproval",
-        },
-        {
-          "assetsFiatValues": {
-            "receiving": "2.9999",
-            "sending": "2.00",
-          },
-          "params": {
-            "data": "0xdata",
-            "from": "0xaccount1",
-            "gas": "0x5208",
-            "maxFeePerGas": "0x0",
-            "maxPriorityFeePerGas": "0x0",
-            "to": "0xbridgeContract",
-            "value": "0x0",
-          },
-          "type": "swap",
-        },
-      ],
-    },
-  ],
-]
-`;
-
-exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 5`] = `
-[
-  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
@@ -3259,10 +3604,101 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransactionBatch",
+    {
+      "disable7702": true,
+      "from": "0xaccount1",
+      "isGasFeeIncluded": false,
+      "isGasFeeSponsored": false,
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "transactions": [
+        {
+          "params": {
+            "data": "0xapprovalData",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xtokenContract",
+            "value": "0x0",
+          },
+          "type": "swapApproval",
+        },
+        {
+          "assetsFiatValues": {
+            "receiving": "2.9999",
+            "sending": "2.00",
+          },
+          "params": {
+            "data": "0xdata",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xbridgeContract",
+            "value": "0x0",
+          },
+          "type": "swap",
+        },
+      ],
+    },
+  ],
+  [
     "TransactionController:getState",
+  ],
+  [
+    "TransactionController:updateTransaction",
+    {
+      "batchId": "batchId1",
+      "chainId": "0xa4b1",
+      "hash": "0xevmTxHash",
+      "id": "test-tx-id",
+      "status": "unapproved",
+      "time": 1234567890,
+      "txParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gasLimit": "0x5208",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+      "type": "swap",
+    },
+    "Update tx type to swap",
   ],
 ]
 `;
@@ -3328,6 +3764,43 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
     "GasFeeController:getState",
   ],
   [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "swapApproval",
+    },
+  ],
+  [
     "TransactionController:getState",
   ],
   [
@@ -3340,6 +3813,43 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "swap",
+    },
   ],
   [
     "TransactionController:getState",
@@ -3536,6 +4046,43 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   ],
   [
     "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "swap",
+    },
   ],
   [
     "TransactionController:getState",
