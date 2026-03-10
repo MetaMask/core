@@ -3900,7 +3900,7 @@ describe('Transaction Controller State Change Integration', () => {
       ],
     );
 
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => process.nextTick(resolve));
 
     expect(bulkScanTokensSpy).toHaveBeenCalledWith({
       chainId: mockTransaction.chainId.toLowerCase(),
@@ -3929,7 +3929,7 @@ describe('Transaction Controller State Change Integration', () => {
         },
       ],
     );
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => process.nextTick(resolve));
 
     expect(bulkScanTokensSpy).toHaveBeenCalledWith({
       chainId: mockTransaction.chainId.toLowerCase(),
@@ -3959,7 +3959,7 @@ describe('Transaction Controller State Change Integration', () => {
       ],
     );
 
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => process.nextTick(resolve));
 
     expect(bulkScanTokensSpy).not.toHaveBeenCalled();
   });
@@ -3981,7 +3981,7 @@ describe('Transaction Controller State Change Integration', () => {
       ],
     );
 
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => process.nextTick(resolve));
 
     expect(bulkScanTokensSpy).not.toHaveBeenCalled();
   });
@@ -4003,7 +4003,7 @@ describe('Transaction Controller State Change Integration', () => {
       ],
     );
 
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => process.nextTick(resolve));
 
     expect(bulkScanTokensSpy).not.toHaveBeenCalled();
   });
@@ -4025,7 +4025,7 @@ describe('Transaction Controller State Change Integration', () => {
       ],
     );
 
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => process.nextTick(resolve));
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       'Error processing transaction state change:',
@@ -4058,7 +4058,7 @@ describe('Transaction Controller State Change Integration', () => {
       ],
     );
 
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => process.nextTick(resolve));
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       'Error scanning tokens for chain 0x1:',
@@ -4227,7 +4227,7 @@ describe('Address poisoning detection', () => {
       },
     });
 
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => process.nextTick(resolve));
 
     expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toMatchObject([
       {
@@ -4282,7 +4282,7 @@ describe('Address poisoning detection', () => {
       ],
     );
 
-    await new Promise(process.nextTick);
+    await new Promise((resolve) => process.nextTick(resolve));
 
     expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toMatchObject([
       {
@@ -4322,6 +4322,7 @@ describe('Address poisoning detection', () => {
       }),
     );
 
+    // eslint-disable-next-line no-new -- controller registers messenger handlers as a side effect
     new PhishingController({
       messenger,
     });
