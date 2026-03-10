@@ -181,7 +181,10 @@ type SnapRequestArgs<T> = {
   params: T;
 };
 
-const MESSENGER_EXPOSED_METHODS = ['updateAssetsRates'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'updateAssetsRates',
+  'fetchHistoricalPricesForAsset',
+] as const;
 
 /**
  * Controller that manages multichain token conversion rates.

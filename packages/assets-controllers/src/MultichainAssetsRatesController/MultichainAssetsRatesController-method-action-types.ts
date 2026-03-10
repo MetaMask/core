@@ -16,7 +16,21 @@ export type MultichainAssetsRatesControllerUpdateAssetsRatesAction = {
 };
 
 /**
+ * Fetches historical prices for the current account
+ *
+ * @param asset - The asset to fetch historical prices for.
+ * @param account - optional account to fetch historical prices for
+ * @returns The historical prices.
+ */
+export type MultichainAssetsRatesControllerFetchHistoricalPricesForAssetAction =
+  {
+    type: `MultichainAssetsRatesController:fetchHistoricalPricesForAsset`;
+    handler: MultichainAssetsRatesController['fetchHistoricalPricesForAsset'];
+  };
+
+/**
  * Union of all MultichainAssetsRatesController action types.
  */
 export type MultichainAssetsRatesControllerMethodActions =
-  MultichainAssetsRatesControllerUpdateAssetsRatesAction;
+  | MultichainAssetsRatesControllerUpdateAssetsRatesAction
+  | MultichainAssetsRatesControllerFetchHistoricalPricesForAssetAction;
