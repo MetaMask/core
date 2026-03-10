@@ -5,12 +5,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionControllerState } from '@metamask/transaction-controller';
 import { strict as assert } from 'assert';
 import nock, { cleanAll, isDone, pendingMocks } from 'nock';
-import {
-  TransactionStatus,
-  type TransactionControllerState,
-} from '@metamask/transaction-controller';
 
 import {
   ListNames,
@@ -92,7 +90,10 @@ function setupMessenger(): {
   });
 
   rootMessenger.delegate({
-    actions: ['AddressBookController:getState', 'TransactionController:getState'],
+    actions: [
+      'AddressBookController:getState',
+      'TransactionController:getState',
+    ],
     events: [
       'AddressBookController:stateChange',
       'TransactionController:stateChange',
@@ -4100,24 +4101,30 @@ describe('Address poisoning detection', () => {
       },
     });
 
-    rootMessenger.registerActionHandler('TransactionController:getState', () => ({
-      ...getDefaultTransactionControllerState(),
-      transactions: [confirmedTransaction],
-    }));
+    rootMessenger.registerActionHandler(
+      'TransactionController:getState',
+      () => ({
+        ...getDefaultTransactionControllerState(),
+        transactions: [confirmedTransaction],
+      }),
+    );
 
-    rootMessenger.registerActionHandler('AddressBookController:getState', () => ({
-      addressBook: {
-        '0x1': {
-          [ADDRESS_BOOK_RECIPIENT]: {
-            address: ADDRESS_BOOK_RECIPIENT,
-            name: 'Known recipient',
-            chainId: '0x1',
-            memo: '',
-            isEns: false,
+    rootMessenger.registerActionHandler(
+      'AddressBookController:getState',
+      () => ({
+        addressBook: {
+          '0x1': {
+            [ADDRESS_BOOK_RECIPIENT]: {
+              address: ADDRESS_BOOK_RECIPIENT,
+              name: 'Known recipient',
+              chainId: '0x1',
+              memo: '',
+              isEns: false,
+            },
           },
         },
-      },
-    }));
+      }),
+    );
 
     const controller = new PhishingController({
       messenger,
@@ -4147,23 +4154,29 @@ describe('Address poisoning detection', () => {
   it('ignores non-confirmed transactions when hydrating known recipients', () => {
     const { messenger, rootMessenger } = setupMessenger();
 
-    rootMessenger.registerActionHandler('TransactionController:getState', () => ({
-      ...getDefaultTransactionControllerState(),
-      transactions: [
-        createMockTransaction('unapproved-tx', [], {
-          status: TransactionStatus.unapproved,
-          txParams: {
-            from: TEST_ADDRESSES.FROM_ADDRESS,
-            to: ADDRESS_BOOK_RECIPIENT,
-            value: '0x0' as `0x${string}`,
-          },
-        }),
-      ],
-    }));
+    rootMessenger.registerActionHandler(
+      'TransactionController:getState',
+      () => ({
+        ...getDefaultTransactionControllerState(),
+        transactions: [
+          createMockTransaction('unapproved-tx', [], {
+            status: TransactionStatus.unapproved,
+            txParams: {
+              from: TEST_ADDRESSES.FROM_ADDRESS,
+              to: ADDRESS_BOOK_RECIPIENT,
+              value: '0x0' as `0x${string}`,
+            },
+          }),
+        ],
+      }),
+    );
 
-    rootMessenger.registerActionHandler('AddressBookController:getState', () => ({
-      addressBook: {},
-    }));
+    rootMessenger.registerActionHandler(
+      'AddressBookController:getState',
+      () => ({
+        addressBook: {},
+      }),
+    );
 
     const controller = new PhishingController({
       messenger,
@@ -4177,14 +4190,20 @@ describe('Address poisoning detection', () => {
   it('updates known recipients when address book state changes', async () => {
     const { messenger, rootMessenger } = setupMessenger();
 
-    rootMessenger.registerActionHandler('TransactionController:getState', () => ({
-      ...getDefaultTransactionControllerState(),
-      transactions: [],
-    }));
+    rootMessenger.registerActionHandler(
+      'TransactionController:getState',
+      () => ({
+        ...getDefaultTransactionControllerState(),
+        transactions: [],
+      }),
+    );
 
-    rootMessenger.registerActionHandler('AddressBookController:getState', () => ({
-      addressBook: {},
-    }));
+    rootMessenger.registerActionHandler(
+      'AddressBookController:getState',
+      () => ({
+        addressBook: {},
+      }),
+    );
 
     const controller = new PhishingController({
       messenger,
@@ -4194,22 +4213,19 @@ describe('Address poisoning detection', () => {
       [],
     );
 
-    rootMessenger.publish(
-      'AddressBookController:stateChange',
-      {
-        addressBook: {
-          '0x1': {
-            [ADDRESS_BOOK_RECIPIENT]: {
-              address: ADDRESS_BOOK_RECIPIENT,
-              name: 'Known recipient',
-              chainId: '0x1',
-              memo: '',
-              isEns: false,
-            },
+    rootMessenger.publish('AddressBookController:stateChange', {
+      addressBook: {
+        '0x1': {
+          [ADDRESS_BOOK_RECIPIENT]: {
+            address: ADDRESS_BOOK_RECIPIENT,
+            name: 'Known recipient',
+            chainId: '0x1',
+            memo: '',
+            isEns: false,
           },
         },
       },
-    );
+    });
 
     await new Promise(process.nextTick);
 
@@ -4226,14 +4242,20 @@ describe('Address poisoning detection', () => {
   it('updates known recipients when confirmed transactions change', async () => {
     const { messenger, rootMessenger } = setupMessenger();
 
-    rootMessenger.registerActionHandler('TransactionController:getState', () => ({
-      ...getDefaultTransactionControllerState(),
-      transactions: [],
-    }));
+    rootMessenger.registerActionHandler(
+      'TransactionController:getState',
+      () => ({
+        ...getDefaultTransactionControllerState(),
+        transactions: [],
+      }),
+    );
 
-    rootMessenger.registerActionHandler('AddressBookController:getState', () => ({
-      addressBook: {},
-    }));
+    rootMessenger.registerActionHandler(
+      'AddressBookController:getState',
+      () => ({
+        addressBook: {},
+      }),
+    );
 
     const controller = new PhishingController({
       messenger,
@@ -4275,24 +4297,30 @@ describe('Address poisoning detection', () => {
   it('exposes checkAddressPoisoning through the controller messenger', async () => {
     const { messenger, rootMessenger } = setupMessenger();
 
-    rootMessenger.registerActionHandler('TransactionController:getState', () => ({
-      ...getDefaultTransactionControllerState(),
-      transactions: [],
-    }));
+    rootMessenger.registerActionHandler(
+      'TransactionController:getState',
+      () => ({
+        ...getDefaultTransactionControllerState(),
+        transactions: [],
+      }),
+    );
 
-    rootMessenger.registerActionHandler('AddressBookController:getState', () => ({
-      addressBook: {
-        '0x1': {
-          [ADDRESS_BOOK_RECIPIENT]: {
-            address: ADDRESS_BOOK_RECIPIENT,
-            name: 'Known recipient',
-            chainId: '0x1',
-            memo: '',
-            isEns: false,
+    rootMessenger.registerActionHandler(
+      'AddressBookController:getState',
+      () => ({
+        addressBook: {
+          '0x1': {
+            [ADDRESS_BOOK_RECIPIENT]: {
+              address: ADDRESS_BOOK_RECIPIENT,
+              name: 'Known recipient',
+              chainId: '0x1',
+              memo: '',
+              isEns: false,
+            },
           },
         },
-      },
-    }));
+      }),
+    );
 
     new PhishingController({
       messenger,
