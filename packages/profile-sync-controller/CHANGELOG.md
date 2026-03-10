@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Add client-side JWT `exp` claim validation to prevent stale cached tokens from being returned ([#8144](https://github.com/MetaMask/core/pull/8144))
+  - `validateLoginResponse` now decodes the JWT `exp` claim and rejects tokens that have actually expired, regardless of client-side TTL tracking (`obtainedAt`/`expiresIn`)
+  - Non-JWT access tokens are now rejected as invalid. In production this has no effect (access tokens are always JWTs from the OIDC server), but E2E test mocks that use raw identifier strings as access tokens must be updated. `getMockAuthAccessTokenResponse` now wraps identifiers in a JWT; consumers should use `getE2EIdentifierFromJwt` (newly exported) to extract the identifier from the bearer token in mock servers.
 - **BREAKING:** Standardize names of `AuthenticationController` and `UserStorageController` messenger action types ([#7976](https://github.com/MetaMask/core/pull/7976/))
   - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `AuthenticationControllerPerformSignIn` -> `AuthenticationControllerPerformSignInAction`). You will need to update imports appropriately.
   - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AuthenticationController` and `UserStorageController` messengers.
@@ -29,9 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `AuthenticationController` silently discarding tokens when `entropySourceId` is `undefined` ([#8144](https://github.com/MetaMask/core/pull/8144))
   - `getBearerToken`, `getSessionProfile`, and `getUserProfileLineage` now resolve `undefined` `entropySourceId` to the primary SRP entropy source ID via the message-signing snap before delegating to the auth SDK
   - This also eliminates a login deduplication race condition where `getBearerToken(undefined)` and `getBearerToken("primary-srp-id")` would trigger two independent OIDC logins for the same identity
-- Add client-side JWT `exp` claim validation to prevent stale cached tokens from being returned ([#8144](https://github.com/MetaMask/core/pull/8144))
-  - `validateLoginResponse` now decodes the JWT `exp` claim and rejects tokens that have actually expired, regardless of client-side TTL tracking (`obtainedAt`/`expiresIn`)
-  - **BREAKING:** Non-JWT access tokens are now rejected as invalid. In production this has no effect (access tokens are always JWTs from the OIDC server), but E2E test mocks that use raw identifier strings as access tokens must be updated. `getMockAuthAccessTokenResponse` now wraps identifiers in a JWT; consumers should use `getE2EIdentifierFromJwt` (newly exported) to extract the identifier from the bearer token in mock servers.
 - Update `getUserProfileLineage` to accept an optional `entropySourceId` parameter ([#8144](https://github.com/MetaMask/core/pull/8144))
 
 ## [27.1.0]
