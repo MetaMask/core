@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Token expiry checks now use a 90% lifetime threshold for proactive refresh: access tokens and metadata access tokens are refreshed when less than 10% of their lifetime remains (requires `iat`), while node auth tokens fall back to exact-expiry checking ([#8139](https://github.com/MetaMask/core/pull/8139))
+- `authenticate` now accepts an optional `refreshToken` parameter — it is only written to state when provided, preventing a concurrent `renewRefreshToken` rotation from being silently overwritten when called from token-refresh paths ([#8148](https://github.com/MetaMask/core/pull/8148))
+- `#doRefreshAuthTokens` now proactively calls `renewRefreshToken` after a successful JWT refresh (without requiring a password) to keep the refresh/revoke token pair fresh ([#8148](https://github.com/MetaMask/core/pull/8148))
+- `renewRefreshToken` now accepts an optional `password` parameter and a `skipLock` option — when the vault is already unlocked the cached vault data is used directly, avoiding a redundant vault decryption; when the vault is locked a password is still required ([#8148](https://github.com/MetaMask/core/pull/8148))
+- Token expiry checks now use a 90% lifetime threshold for proactive refresh: access tokens and metadata access tokens are refreshed when less than 10% of their lifetime remains (requires `iat`), while node auth tokens fall back to exact-expiry checking ([#8148](https://github.com/MetaMask/core/pull/8148))
 
 ## [8.1.0]
 
