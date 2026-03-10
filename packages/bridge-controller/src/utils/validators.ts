@@ -339,7 +339,7 @@ export const IntentSchema = type({
   /**
    * Optional settlement contract address used for execution.
    */
-  settlementContract: optional(HexAddressSchema),
+  settlementContract: HexAddressSchema,
 
   /**
    * Optional EIP-712 typed data payload for signing.

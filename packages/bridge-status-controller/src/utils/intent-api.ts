@@ -2,9 +2,9 @@ import { getClientHeaders, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
-  IntentOrder,
+  SubmitIntentResponse,
   IntentOrderStatus,
-  validateIntentOrderResponse,
+  validateSubmitIntentResponse,
 } from './validators';
 import type { FetchFunction, StatusResponse } from '../types';
 
@@ -21,13 +21,13 @@ export type IntentApi = {
   submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-  ): Promise<IntentOrder>;
+  ): Promise<SubmitIntentResponse>;
   getOrderStatus(
     orderId: string,
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-  ): Promise<IntentOrder>;
+  ): Promise<SubmitIntentResponse>;
 };
 
 export type GetJwtFn = () => Promise<string | undefined>;
@@ -48,7 +48,7 @@ export class IntentApiImpl implements IntentApi {
   async submitIntent(
     params: IntentSubmissionParams,
     clientId: string,
-  ): Promise<IntentOrder> {
+  ): Promise<SubmitIntentResponse> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
     try {
       const jwt = await this.#getJwt();
@@ -60,7 +60,7 @@ export class IntentApiImpl implements IntentApi {
         },
         body: JSON.stringify(params),
       });
-      if (!validateIntentOrderResponse(response)) {
+      if (!validateSubmitIntentResponse(response)) {
         throw new Error('Invalid submitOrder response');
       }
       return response;
@@ -77,7 +77,7 @@ export class IntentApiImpl implements IntentApi {
     aggregatorId: string,
     srcChainId: string,
     clientId: string,
-  ): Promise<IntentOrder> {
+  ): Promise<SubmitIntentResponse> {
     const endpoint = `${this.#baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {
       const jwt = await this.#getJwt();
@@ -85,7 +85,7 @@ export class IntentApiImpl implements IntentApi {
         method: 'GET',
         headers: getClientHeaders({ clientId, jwt }),
       });
-      if (!validateIntentOrderResponse(response)) {
+      if (!validateSubmitIntentResponse(response)) {
         throw new Error('Invalid getOrderStatus response');
       }
       return response;
@@ -105,7 +105,7 @@ export type IntentBridgeStatus = {
 };
 
 export const translateIntentOrderToBridgeStatus = (
-  intentOrder: IntentOrder,
+  intentOrder: SubmitIntentResponse,
   srcChainId: number,
   fallbackTxHash?: string,
 ): IntentBridgeStatus => {
