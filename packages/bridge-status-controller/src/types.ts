@@ -148,7 +148,7 @@ export type BridgeHistoryItem = {
    * Kept separate so migration can run both payloads in parallel.
    * This field is an array of test objects.
    */
-  activeAbTests?: Record<string, string>[];
+  activeAbTests?: { key: string; value: string }[];
   /**
    * Attempts tracking for exponential backoff on failed fetches.
    * We track the number of attempts and the last attempt time for each txMetaId that has failed at least once
