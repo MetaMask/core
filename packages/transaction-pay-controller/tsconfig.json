@@ -8,6 +8,9 @@
       "path": "../app-metadata-controller"
     },
     {
+      "path": "../assets-controller"
+    },
+    {
       "path": "../assets-controllers"
     },
     {
