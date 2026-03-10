@@ -5,6 +5,9 @@
   },
   "references": [
     {
+      "path": "../app-metadata-controller"
+    },
+    {
       "path": "../assets-controllers"
     },
     {

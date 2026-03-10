@@ -1,5 +1,10 @@
 import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import {
+  createModuleLogger,
+  isValidSemVerRange,
+  isValidSemVerVersion,
+  satisfiesVersionRange,
+} from '@metamask/utils';
 import { uniq } from 'lodash';
 
 import type { TransactionPayControllerMessenger } from '..';
@@ -28,6 +33,11 @@ export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
 ];
 
 type FeatureFlagsRaw = {
+  assetsUnifyState?: {
+    enabled: boolean;
+    featureVersion: string | null;
+    minimumVersion: string | null;
+  };
   gasBuffer?: {
     default?: number;
     perChainConfig?: Record<
@@ -295,6 +305,45 @@ export function getSlippage(
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
   log('Using default slippage', { chainId, tokenAddress, slippage });
   return slippage;
+}
+
+export function getAssetsUnifyStateFeature(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  const { assetsUnifyState } = featureFlags;
+
+  if (!assetsUnifyState?.enabled) {
+    return false;
+  }
+
+  const AssetsUnifyStateFeatureVersion = '1';
+
+  return (
+    assetsUnifyState.featureVersion === AssetsUnifyStateFeatureVersion &&
+    hasMinimumRequiredVersion(messenger, assetsUnifyState.minimumVersion)
+  );
+}
+
+function hasMinimumRequiredVersion(
+  messenger: TransactionPayControllerMessenger,
+  minRequiredVersion: string | null,
+): boolean {
+  if (!minRequiredVersion) {
+    return true;
+  }
+
+  const appVersion = messenger.call(
+    'AppMetadataController:getState',
+  )?.currentAppVersion;
+
+  const semverRange = `>=${minRequiredVersion}`;
+
+  return (
+    isValidSemVerVersion(appVersion) &&
+    isValidSemVerRange(semverRange) &&
+    satisfiesVersionRange(appVersion, semverRange)
+  );
 }
 
 /**

@@ -1,3 +1,5 @@
+import type { AppMetadataControllerGetStateAction } from '@metamask/app-metadata-controller';
+import type { AssetsControllerGetStateAction } from '@metamask/assets-controller';
 import type {
   CurrencyRateControllerActions,
   TokenBalancesControllerGetStateAction,
@@ -38,6 +40,8 @@ import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
+  | AppMetadataControllerGetStateAction
+  | AssetsControllerGetStateAction
   | BridgeControllerActions
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions
@@ -158,6 +162,9 @@ export type TransactionPayControllerOptions = {
 
   /** Callback to select ordered PayStrategies for a transaction. */
   getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
+
+  /** Callback to determine whether to use AssetsController for state. */
+  getUseAssetsController?: () => boolean;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;

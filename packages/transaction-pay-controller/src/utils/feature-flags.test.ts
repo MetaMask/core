@@ -9,6 +9,7 @@ import {
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
   DEFAULT_STRATEGY_ORDER,
+  getAssetsUnifyStateFeature,
   getFallbackGas,
   DEFAULT_RELAY_EXECUTE_URL,
   getRelayOriginGasOverhead,
@@ -38,8 +39,11 @@ const TOKEN_ADDRESS_DIFFERENT_MOCK = '0xdef789abc012' as Hex;
 const TOKEN_SPECIFIC_SLIPPAGE_MOCK = 0.02;
 
 describe('Feature Flags Utils', () => {
-  const { messenger, getRemoteFeatureFlagControllerStateMock } =
-    getMessengerMock();
+  const {
+    messenger,
+    getAppMetadataControllerStateMock,
+    getRemoteFeatureFlagControllerStateMock,
+  } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -559,6 +563,121 @@ describe('Feature Flags Utils', () => {
           enabled: false,
         }),
       );
+    });
+  });
+
+  describe('getAssetsUnifyStateFeature', () => {
+    it('returns false when assetsUnifyState is not set', () => {
+      const result = getAssetsUnifyStateFeature(messenger);
+
+      expect(result).toBe(false);
+    });
+
+    it('returns false when assetsUnifyState.enabled is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            assetsUnifyState: {
+              enabled: false,
+              featureVersion: '1',
+              minimumVersion: null,
+            },
+          },
+        },
+      });
+
+      const result = getAssetsUnifyStateFeature(messenger);
+
+      expect(result).toBe(false);
+    });
+
+    it('returns false when featureVersion does not match expected version', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            assetsUnifyState: {
+              enabled: true,
+              featureVersion: '2',
+              minimumVersion: null,
+            },
+          },
+        },
+      });
+
+      const result = getAssetsUnifyStateFeature(messenger);
+
+      expect(result).toBe(false);
+    });
+
+    it('returns true when minimumVersion is null', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            assetsUnifyState: {
+              enabled: true,
+              featureVersion: '1',
+              minimumVersion: null,
+            },
+          },
+        },
+      });
+
+      const result = getAssetsUnifyStateFeature(messenger);
+
+      expect(result).toBe(true);
+    });
+
+    it('returns false when app version does not satisfy minimumVersion', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            assetsUnifyState: {
+              enabled: true,
+              featureVersion: '1',
+              minimumVersion: '2.0.0',
+            },
+          },
+        },
+      });
+      getAppMetadataControllerStateMock.mockReturnValue({
+        currentAppVersion: '1.0.0',
+        previousAppVersion: '',
+        previousMigrationVersion: 0,
+        currentMigrationVersion: 0,
+      });
+
+      const result = getAssetsUnifyStateFeature(messenger);
+
+      expect(result).toBe(false);
+    });
+
+    it('returns true when app version satisfies minimumVersion', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            assetsUnifyState: {
+              enabled: true,
+              featureVersion: '1',
+              minimumVersion: '1.0.0',
+            },
+          },
+        },
+      });
+      getAppMetadataControllerStateMock.mockReturnValue({
+        currentAppVersion: '2.0.0',
+        previousAppVersion: '',
+        previousMigrationVersion: 0,
+        currentMigrationVersion: 0,
+      });
+
+      const result = getAssetsUnifyStateFeature(messenger);
+
+      expect(result).toBe(true);
     });
   });
 

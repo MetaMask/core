@@ -1,3 +1,4 @@
+import type { AppMetadataControllerGetStateAction } from '@metamask/app-metadata-controller';
 import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
@@ -45,6 +46,10 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 export function getMessengerMock({
   skipRegister,
 }: { skipRegister?: boolean } = {}) {
+  const getAppMetadataControllerStateMock: jest.MockedFn<
+    AppMetadataControllerGetStateAction['handler']
+  > = jest.fn();
+
   const getControllerStateMock: jest.MockedFn<
     TransactionPayControllerGetStateAction['handler']
   > = jest.fn();
@@ -241,12 +246,18 @@ export function getMessengerMock({
       'TransactionController:estimateGasBatch',
       estimateGasBatchMock,
     );
+
+    messenger.registerActionHandler(
+      'AppMetadataController:getState',
+      getAppMetadataControllerStateMock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
 
   return {
     addTransactionMock,
+    getAppMetadataControllerStateMock,
     addTransactionBatchMock,
     estimateGasMock,
     estimateGasBatchMock,

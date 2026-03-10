@@ -49,6 +49,8 @@ export function getTokenBalance(
   chainId: Hex,
   tokenAddress: Hex,
 ): string {
+  // TODO AssetsController use new state
+
   const tokenBalanceControllerState = messenger.call(
     'TokenBalancesController:getState',
   );
@@ -98,6 +100,7 @@ export function getAllTokenBalances(
   chainId: Hex;
   tokenAddress: Hex;
 }[] {
+  // TODO AssetsController use new state
   const tokenBalanceControllerState = messenger.call(
     'TokenBalancesController:getState',
   );
@@ -145,6 +148,7 @@ export function getTokenInfo(
   tokenAddress: Hex,
   chainId: Hex,
 ): { decimals: number; symbol: string } | undefined {
+  // TODO AssetsController use new state
   const controllerState = messenger.call('TokensController:getState');
   const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
 
@@ -188,6 +192,7 @@ export function getTokenFiatRate(
   tokenAddress: Hex,
   chainId: Hex,
 ): FiatRates | undefined {
+  // TODO AssetsController use new state
   const ticker = getTicker(chainId, messenger);
 
   if (!ticker) {
