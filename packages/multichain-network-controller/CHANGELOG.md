@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.5]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.1` to `^37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+
 ## [3.0.4]
 
 ### Changed
@@ -233,7 +239,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Handle both EVM and non-EVM network and account switching for the associated network.
   - Act as a proxy for the `NetworkController` (for EVM network changes).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.5...HEAD
+[3.0.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.4...@metamask/multichain-network-controller@3.0.5
 [3.0.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.3...@metamask/multichain-network-controller@3.0.4
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.2...@metamask/multichain-network-controller@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.1...@metamask/multichain-network-controller@3.0.2

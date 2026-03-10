@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [100.2.0]
+
 ### Added
 
 - Add optional `networkConfigurationsByChainId` parameter to `calculateBalanceForAllWallets`, `calculateBalanceChangeForAllWallets`, and `calculateBalanceChangeForAccountGroup`. When provided, native (and staked-native) token balances fall back to `CurrencyRateController` when `TokenRatesController` has no market data for the chain, so aggregated balance can be displayed when only a native-currency rate is available. Export type `NetworkConfigurationNativeCurrency` for consumers passing network configs into these functions ([#8141](https://github.com/MetaMask/core/pull/8141))
@@ -16,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optimize NFT Controller state writes from O(2n) to O(2) for NFT detection by batching contract and NFT additions ([#8079](https://github.com/MetaMask/core/pull/8079))
 - Remove on-chain ERC-721 RPC fallback for contract name and symbol in `NftController`; contract metadata is now sourced exclusively from the NFT API, eliminating `getERC721AssetName`/`getERC721AssetSymbol` calls during NFT detection. NFT contracts that previously had `name` or `symbol` populated via on-chain calls will no longer have those fields if the NFT API does not supply them ([#8079](https://github.com/MetaMask/core/pull/8079))
 - When `isHomepageSectionsV1Enabled` is true, `AccountTrackerController` now uses all popular EVM networks (via `NetworkEnablementController:listPopularEvmNetworks`) for balance refresh on account change and keyring unlock, instead of only the enabled networks from `NetworkEnablementController` state ([#8117](https://github.com/MetaMask/core/pull/8117))
+- Bump `@metamask/account-tree-controller` from `4.1.1` to `5.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `36.0.1` to `37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/core-backend` from `6.0.0` to `6.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/multichain-account-service` from `7.0.0` to `7.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/preferences-controller` from `22.1.0` to `23.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `62.20.0` to `62.21.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 
 ### Fixed
 
@@ -2765,7 +2773,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.2.0...HEAD
+[100.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.1.0...@metamask/assets-controllers@100.2.0
 [100.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.3...@metamask/assets-controllers@100.1.0
 [100.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.2...@metamask/assets-controllers@100.0.3
 [100.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.1...@metamask/assets-controllers@100.0.2
