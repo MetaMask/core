@@ -1946,17 +1946,17 @@ export class RampsController extends BaseController<
       const idx = state.orders.findIndex(
         (existing) => existing.providerOrderId === orderCode,
       );
-      if (idx !== -1) {
+      if (idx === -1) {
+        state.orders.push({
+          ...order,
+          providerOrderId: orderCode,
+        } as Draft<RampsOrder>);
+      } else {
         state.orders[idx] = {
           ...state.orders[idx],
           ...order,
           providerOrderId: orderCode,
         } as Draft<RampsOrder>;
-      } else {
-        state.orders.push({
-          ...order,
-          providerOrderId: orderCode,
-        } as Draft<RampsOrder>);
       }
     });
 
