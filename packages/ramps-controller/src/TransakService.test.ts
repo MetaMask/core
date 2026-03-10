@@ -559,6 +559,33 @@ describe('TransakService', () => {
 
       await expect(promise).rejects.toThrow("failed with status '400'");
     });
+
+    it('throws a TransakApiError with numeric errorCode and apiMessage from rate-limit response', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/login')
+        .reply(400, {
+          error: {
+            statusCode: 400,
+            message: 'You can request a new OTP after 1 minute.',
+            errorCode: 1019,
+          },
+        });
+
+      const { service } = getService();
+
+      const promise = service.sendUserOtp('test@example.com');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toBeInstanceOf(TransakApiError);
+      await expect(promise).rejects.toThrow(
+        expect.objectContaining({
+          httpStatus: 400,
+          errorCode: '1019',
+          apiMessage: 'You can request a new OTP after 1 minute.',
+        }),
+      );
+    });
   });
 
   describe('verifyUserOtp', () => {
@@ -747,6 +774,7 @@ describe('TransakService', () => {
         expect.objectContaining({
           httpStatus: 422,
           errorCode: '3001',
+          apiMessage: 'Validation error',
         }),
       );
       await expect(promise).rejects.toBeInstanceOf(TransakApiError);
@@ -770,6 +798,61 @@ describe('TransakService', () => {
         expect.objectContaining({
           httpStatus: 500,
           errorCode: undefined,
+          apiMessage: undefined,
+        }),
+      );
+    });
+
+    it('throws a TransakApiError without errorCode when errorCode is null', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(400, {
+          error: {
+            errorCode: null,
+            message: 'Error message',
+          },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getUserDetails();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow(
+        expect.objectContaining({
+          httpStatus: 400,
+          errorCode: undefined,
+          apiMessage: 'Error message',
+        }),
+      );
+    });
+
+    it('throws a TransakApiError without apiMessage when message is not a string', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .get('/api/v2/user/')
+        .query(true)
+        .reply(400, {
+          error: {
+            errorCode: 9999,
+            message: 12345,
+          },
+        });
+
+      const { service } = getService();
+      authenticateService(service);
+
+      const promise = service.getUserDetails();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow(
+        expect.objectContaining({
+          httpStatus: 400,
+          errorCode: '9999',
+          apiMessage: undefined,
         }),
       );
     });
@@ -874,6 +957,7 @@ describe('TransakService', () => {
         expect.objectContaining({
           httpStatus: 400,
           errorCode: '2002',
+          apiMessage: 'Invalid field',
         }),
       );
     });
@@ -1445,6 +1529,7 @@ describe('TransakService', () => {
         expect.objectContaining({
           httpStatus: 422,
           errorCode: '5001',
+          apiMessage: 'Validation failed',
         }),
       );
     });
@@ -1988,6 +2073,7 @@ describe('TransakService', () => {
         expect.objectContaining({
           httpStatus: 409,
           errorCode: '4010',
+          apiMessage: 'Cannot cancel',
         }),
       );
     });

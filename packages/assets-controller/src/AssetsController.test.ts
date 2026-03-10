@@ -19,6 +19,19 @@ import type {
 } from './AssetsController';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import type { Caip19AssetId, AccountId } from './types';
+import { formatExchangeRatesForBridge } from './utils';
+
+jest.mock('./utils', () => {
+  const actual = jest.requireActual<typeof import('./utils')>('./utils');
+  return {
+    ...actual,
+    formatExchangeRatesForBridge: jest.fn(actual.formatExchangeRatesForBridge),
+  };
+});
+
+const formatExchangeRatesForBridgeMock = jest.mocked(
+  formatExchangeRatesForBridge,
+);
 
 function createMockQueryApiClient(): ApiPlatformClient {
   return { fetch: jest.fn() } as unknown as ApiPlatformClient;
@@ -620,6 +633,38 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('getExchangeRatesForBridge', () => {
+    it('calls formatExchangeRatesForBridge with state and network data', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsPrice: {
+          [MOCK_NATIVE_ASSET_ID]: {
+            assetPriceType: 'fungible',
+            price: 2000,
+            usdPrice: 2000,
+            lastUpdated: 1_700_000_000_000,
+          },
+        },
+        selectedCurrency: 'eur',
+      };
+
+      await withController({ state: initialState }, ({ controller }) => {
+        formatExchangeRatesForBridgeMock.mockClear();
+
+        controller.getExchangeRatesForBridge();
+
+        expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledTimes(1);
+        expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledWith({
+          assetsPrice: initialState.assetsPrice,
+          selectedCurrency: 'eur',
+          nativeAssetIdentifiers: {
+            'eip155:1': 'eip155:1/slip44:60',
+          },
+          networkConfigurationsByChainId: {},
+        });
+      });
+    });
+  });
+
   describe('handleActiveChainsUpdate', () => {
     it('calls getAssets with added enabled chains when chains are added', async () => {
       await withController(async ({ controller }) => {
@@ -878,7 +923,9 @@ describe('AssetsController', () => {
           {
             assetsPrice: {
               [MOCK_ASSET_ID]: {
+                assetPriceType: 'fungible',
                 price: 1.0,
+                usdPrice: 1.0,
                 pricePercentChange1d: 0.5,
                 lastUpdated: Date.now(),
               },

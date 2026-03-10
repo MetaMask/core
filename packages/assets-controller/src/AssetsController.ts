@@ -103,7 +103,15 @@ import type {
   Asset,
   AssetsControllerStateInternal,
 } from './types';
-import { normalizeAssetId } from './utils';
+import {
+  normalizeAssetId,
+  formatExchangeRatesForBridge,
+  formatStateForTransactionPay,
+} from './utils';
+import type {
+  BridgeExchangeRatesFormat,
+  TransactionPayLegacyFormat,
+} from './utils';
 
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
@@ -137,6 +145,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssetsBalance',
   'getAssetMetadata',
   'getAssetsPrice',
+  'getExchangeRatesForBridge',
+  'getStateForTransactionPay',
   'addCustomAsset',
   'removeCustomAsset',
   'getCustomAssets',
@@ -1119,6 +1129,58 @@ export class AssetsController extends BaseController<
     }
 
     return result;
+  }
+
+  /**
+   * Returns exchange rates in the format expected by the bridge controller
+   * (conversionRates, currencyRates, marketData, currentCurrency) so that
+   * when useAssetsControllerForRates is true the bridge can use a single
+   * action instead of MultichainAssetsRatesController, TokenRatesController,
+   * and CurrencyRateController.
+   *
+   * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
+   */
+  getExchangeRatesForBridge(): BridgeExchangeRatesFormat {
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return formatExchangeRatesForBridge({
+      assetsPrice: this.state.assetsPrice,
+      selectedCurrency: this.state.selectedCurrency,
+      nativeAssetIdentifiers,
+      networkConfigurationsByChainId,
+    });
+  }
+
+  /**
+   * Returns state in the legacy format expected by transaction-pay-controller
+   * (TokenBalancesController, AccountTrackerController, TokensController,
+   * TokenRatesController, CurrencyRateController shapes) so that when
+   * useAssetsController is true the transaction-pay-controller can use a
+   * single action instead of five separate getState calls.
+   *
+   * @returns Legacy-compatible state for transaction-pay-controller.
+   */
+  getStateForTransactionPay(): TransactionPayLegacyFormat {
+    const accounts = this.#selectedAccounts;
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return formatStateForTransactionPay({
+      assetsBalance: this.state.assetsBalance,
+      assetsInfo: this.state.assetsInfo,
+      assetsPrice: this.state.assetsPrice,
+      selectedCurrency: this.state.selectedCurrency,
+      accounts: accounts.map((a) => ({ id: a.id, address: a.address })),
+      nativeAssetIdentifiers,
+      networkConfigurationsByChainId,
+    });
   }
 
   // ============================================================================
@@ -2264,6 +2326,12 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getExchangeRatesForBridge',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getStateForTransactionPay',
+    );
     this.messenger.unregisterActionHandler('AssetsController:addCustomAsset');
     this.messenger.unregisterActionHandler(
       'AssetsController:removeCustomAsset',

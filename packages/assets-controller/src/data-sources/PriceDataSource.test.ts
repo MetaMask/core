@@ -208,7 +208,9 @@ describe('PriceDataSource', () => {
       { currency: 'usd', includeMarketData: true },
     );
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toStrictEqual({
+      assetPriceType: 'fungible',
       price: 2500,
+      usdPrice: 2500,
       pricePercentChange1d: 2.5,
       lastUpdated: expect.any(Number),
       marketCap: 1000000000,
@@ -241,7 +243,9 @@ describe('PriceDataSource', () => {
       { currency: 'usd', includeMarketData: true },
     );
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toStrictEqual({
+      assetPriceType: 'fungible',
       price: 2500,
+      usdPrice: 2500,
       pricePercentChange1d: 2.5,
       lastUpdated: expect.any(Number),
       marketCap: 1000000000,
@@ -680,7 +684,9 @@ describe('PriceDataSource', () => {
       { currency: 'usd', includeMarketData: true },
     );
     expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
+      assetPriceType: 'fungible',
       price: 1.0,
+      usdPrice: 1.0,
       pricePercentChange1d: 2.5,
       lastUpdated: expect.any(Number),
       marketCap: 1000000000,
@@ -714,7 +720,9 @@ describe('PriceDataSource', () => {
       { currency: 'usd', includeMarketData: true },
     );
     expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
+      assetPriceType: 'fungible',
       price: 1.0,
+      usdPrice: 1.0,
       pricePercentChange1d: 2.5,
       lastUpdated: expect.any(Number),
       marketCap: 1000000000,
@@ -787,7 +795,12 @@ describe('PriceDataSource', () => {
     const context = createMiddlewareContext({
       response: {
         assetsPrice: {
-          [anotherAsset]: { price: 1.0, lastUpdated: Date.now() },
+          [anotherAsset]: {
+            assetPriceType: 'fungible',
+            price: 1.0,
+            usdPrice: 1.0,
+            lastUpdated: Date.now(),
+          },
         },
         detectedAssets: {
           'mock-account-id': [MOCK_TOKEN_ASSET],

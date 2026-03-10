@@ -75,7 +75,8 @@ export class JsonRpcServer<
    * @param options.onError - The callback to handle errors thrown by the
    * engine. Errors always result in a failed response object, containing a
    * JSON-RPC 2.0 serialized version of the original error. If you need to
-   * access the original error, use the `onError` callback.
+   * access the original error, use the `onError` callback. If the `onError`
+   * callback itself throws or rejects, the error is silently ignored.
    * @param options.engine - The engine to use. Mutually exclusive with
    * `middleware`.
    * @param options.middleware - The middleware to use. Mutually exclusive with
@@ -178,7 +179,16 @@ export class JsonRpcServer<
         };
       }
     } catch (error) {
-      this.#onError?.(error);
+      try {
+        const maybePromise: unknown = this.#onError?.(error);
+        if (maybePromise instanceof Promise) {
+          maybePromise.catch(() => {
+            // Prevent unhandled promise rejection.
+          });
+        }
+      } catch {
+        // onError must not prevent handle() from honoring its "never throws" contract.
+      }
 
       if (isRequest) {
         return {

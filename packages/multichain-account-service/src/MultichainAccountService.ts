@@ -51,6 +51,10 @@ export type MultichainAccountServiceOptions = {
     [SOL_ACCOUNT_PROVIDER_NAME]?: SolAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
+  /**
+   * When provided, used to prevent using Snap platform before onboarding completion.
+   */
+  ensureOnboardingComplete?: () => Promise<void>;
 };
 
 /**
@@ -135,12 +139,15 @@ export class MultichainAccountService {
    * @param options.providers - Optional list of account
    * @param options.providerConfigs - Optional provider configs
    * @param options.config - Optional config.
+   * @param options.ensureOnboardingComplete - Optional callback to ensure
+   * onboarding is completed before using the Snap platform.
    */
   constructor({
     messenger,
     providers = [],
     providerConfigs,
     config,
+    ensureOnboardingComplete,
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
@@ -168,7 +175,9 @@ export class MultichainAccountService {
       ...providers,
     ];
 
-    this.#watcher = new SnapPlatformWatcher(messenger);
+    this.#watcher = new SnapPlatformWatcher(messenger, {
+      ensureOnboardingComplete,
+    });
 
     this.#messenger.registerMethodActionHandlers(
       this,
