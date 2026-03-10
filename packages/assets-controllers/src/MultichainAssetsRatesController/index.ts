@@ -8,6 +8,7 @@ export type {
 } from './MultichainAssetsRatesController';
 export type {
   MultichainAssetsRatesControllerUpdateAssetsRatesAction,
+  MultichainAssetsRatesControllerFetchHistoricalPricesForAssetAction,
 } from './MultichainAssetsRatesController-method-action-types';
 
 export {

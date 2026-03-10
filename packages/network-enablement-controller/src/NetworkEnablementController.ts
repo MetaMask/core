@@ -19,7 +19,7 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
-import { NetworkEnablementControllerMethodActions } from './NetworkEnablementController-method-action-types';
+import type { NetworkEnablementControllerMethodActions } from './NetworkEnablementController-method-action-types';
 import { Slip44Service } from './services';
 import {
   deriveKeys,
