@@ -6,9 +6,6 @@ export type {
   NetworkEnablementControllerActions,
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerMessenger,
-  NetworkEnablementControllerListPopularNetworksAction,
-  NetworkEnablementControllerListPopularEvmNetworksAction,
-  NetworkEnablementControllerListPopularMultichainNetworksAction,
   NativeAssetIdentifier,
   NativeAssetIdentifiersMap,
   NetworkConfig,
@@ -22,6 +19,9 @@ export type {
   NetworkEnablementControllerInitNativeAssetIdentifiersAction,
   NetworkEnablementControllerDisableNetworkAction,
   NetworkEnablementControllerIsNetworkEnabledAction,
+  NetworkEnablementControllerListPopularEvmNetworksAction,
+  NetworkEnablementControllerListPopularMultichainNetworksAction,
+  NetworkEnablementControllerListPopularNetworksAction,
 } from './NetworkEnablementController-method-action-types';
 
 export {

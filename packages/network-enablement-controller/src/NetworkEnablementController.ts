@@ -37,6 +37,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'enableNetworkInNamespace',
   'enableAllPopularNetworks',
   'isNetworkEnabled',
+  'listPopularNetworks',
+  'listPopularEvmNetworks',
+  'listPopularMultichainNetworks',
 ] as const;
 
 /**

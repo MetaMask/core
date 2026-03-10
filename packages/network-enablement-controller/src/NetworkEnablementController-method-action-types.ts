@@ -139,6 +139,44 @@ export type NetworkEnablementControllerIsNetworkEnabledAction = {
 };
 
 /**
+ * Returns popular EVM network chain IDs in hex form, restricted to networks
+ * that exist in NetworkController (networkConfigurationsByChainId). Source list
+ * is POPULAR_NETWORKS.
+ *
+ * @returns Hex chain IDs for popular EVM networks that are configured.
+ */
+export type NetworkEnablementControllerListPopularEvmNetworksAction = {
+  type: `NetworkEnablementController:listPopularEvmNetworks`;
+  handler: NetworkEnablementController['listPopularEvmNetworks'];
+};
+
+/**
+ * Returns popular multichain (Bitcoin, Solana, Tron) mainnet chain IDs in
+ * CAIP-2 form, restricted to networks that exist in MultichainNetworkController
+ * (multichainNetworkConfigurationsByChainId).
+ *
+ * @returns CAIP-2 chain IDs for Bitcoin, Solana, and Tron mainnets that are configured.
+ */
+export type NetworkEnablementControllerListPopularMultichainNetworksAction = {
+  type: `NetworkEnablementController:listPopularMultichainNetworks`;
+  handler: NetworkEnablementController['listPopularMultichainNetworks'];
+};
+
+/**
+ * Returns the list of popular network chain IDs in CAIP-2 form, restricted to
+ * networks that exist in NetworkController (networkConfigurationsByChainId) and
+ * MultichainNetworkController (multichainNetworkConfigurationsByChainId). EVM
+ * popular networks come from POPULAR_NETWORKS; multichain popular are Bitcoin,
+ * Solana, and Tron mainnets.
+ *
+ * @returns CAIP-2 chain IDs for popular EVM networks and multichain mainnets that are configured.
+ */
+export type NetworkEnablementControllerListPopularNetworksAction = {
+  type: `NetworkEnablementController:listPopularNetworks`;
+  handler: NetworkEnablementController['listPopularNetworks'];
+};
+
+/**
  * Union of all NetworkEnablementController action types.
  */
 export type NetworkEnablementControllerMethodActions =
@@ -148,4 +186,7 @@ export type NetworkEnablementControllerMethodActions =
   | NetworkEnablementControllerInitAction
   | NetworkEnablementControllerInitNativeAssetIdentifiersAction
   | NetworkEnablementControllerDisableNetworkAction
-  | NetworkEnablementControllerIsNetworkEnabledAction;
+  | NetworkEnablementControllerIsNetworkEnabledAction
+  | NetworkEnablementControllerListPopularEvmNetworksAction
+  | NetworkEnablementControllerListPopularMultichainNetworksAction
+  | NetworkEnablementControllerListPopularNetworksAction;
