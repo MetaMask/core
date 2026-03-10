@@ -4,6 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { TransactionPayController } from '.';
+import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
 import { TransactionPayStrategy } from './constants';
 import { getMessengerMock } from './tests/messenger-mock';
@@ -16,6 +17,7 @@ import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
 
+jest.mock('./actions/update-fiat-payment');
 jest.mock('./actions/update-payment-token');
 jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
@@ -28,6 +30,7 @@ const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 
 describe('TransactionPayController', () => {
+  const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
@@ -68,6 +71,50 @@ describe('TransactionPayController', () => {
           transactionId: TRANSACTION_ID_MOCK,
           tokenAddress: TOKEN_ADDRESS_MOCK,
           chainId: CHAIN_ID_MOCK,
+        },
+        {
+          messenger,
+          updateTransactionData: expect.any(Function),
+        },
+      );
+    });
+  });
+
+  describe('updateFiatPayment', () => {
+    it('calls util', () => {
+      const callback = jest.fn();
+
+      createController().updateFiatPayment({
+        transactionId: TRANSACTION_ID_MOCK,
+        callback,
+      });
+
+      expect(updateFiatPaymentMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          callback,
+        },
+        {
+          messenger,
+          updateTransactionData: expect.any(Function),
+        },
+      );
+    });
+
+    it('is callable via messenger action handler', () => {
+      const callback = jest.fn();
+
+      createController();
+
+      messenger.call('TransactionPayController:updateFiatPayment', {
+        transactionId: TRANSACTION_ID_MOCK,
+        callback,
+      });
+
+      expect(updateFiatPaymentMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          callback,
         },
         {
           messenger,
@@ -304,6 +351,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK],
       ).toStrictEqual({
+        fiatPayment: {},
         isLoading: false,
         sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         tokens: [],

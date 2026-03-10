@@ -1,11 +1,17 @@
 import { getStrategiesByName, getStrategyByName } from './strategy';
 import { TransactionPayStrategy } from '../constants';
+import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 
 describe('Strategy Utils', () => {
   describe('getStrategyByName', () => {
+    it('returns AcrossStrategy if strategy name is Across', () => {
+      const strategy = getStrategyByName(TransactionPayStrategy.Across);
+      expect(strategy).toBeInstanceOf(AcrossStrategy);
+    });
+
     it('returns TestStrategy if strategy name is Test', () => {
       const strategy = getStrategyByName(TransactionPayStrategy.Test);
       expect(strategy).toBeInstanceOf(TestStrategy);

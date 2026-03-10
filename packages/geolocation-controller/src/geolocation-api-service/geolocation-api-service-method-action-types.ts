@@ -6,15 +6,15 @@
 import type { GeolocationApiService } from './geolocation-api-service';
 
 /**
- * Returns the geolocation country code. Serves from cache when the TTL has
- * not expired, otherwise performs a network fetch. Concurrent callers are
+ * Returns the geolocation code. Serves from cache when the TTL has not
+ * expired, otherwise performs a network fetch. Concurrent callers are
  * deduplicated to a single in-flight request.
  *
  * @param options - Optional fetch options.
  * @param options.bypassCache - When true, invalidates the cache and forces a
  * fresh network request.
- * @returns The ISO 3166-1 alpha-2 country code, or `UNKNOWN_LOCATION`
- * when the API returns an empty or invalid body.
+ * @returns An ISO 3166-2 location code (e.g. `US`, `US-NY`, `CA-ON`), or
+ * `UNKNOWN_LOCATION` when the API returns an empty or invalid body.
  */
 export type GeolocationApiServiceFetchGeolocationAction = {
   type: `GeolocationApiService:fetchGeolocation`;

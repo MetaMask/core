@@ -2,12 +2,11 @@ import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { createPermissionRulesForContracts } from './rules';
 import type { DeployedContractsByName } from './types';
 import {
-  createPermissionRulesForChainId,
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
-  isSubset,
   splitHex,
 } from './utils';
 
@@ -85,7 +84,7 @@ describe('createPermissionRulesForChainId', () => {
     // native-token-periodic
     // erc20-token-revocation
     const permissionTypeCount = 5;
-    const rules = createPermissionRulesForChainId(contracts);
+    const rules = createPermissionRulesForContracts(contracts);
     expect(rules).toHaveLength(permissionTypeCount);
 
     const byType = Object.fromEntries(
@@ -192,19 +191,39 @@ describe('createPermissionRulesForChainId', () => {
       ]),
     );
   });
-});
 
-describe('isSubset', () => {
-  it('returns true when subset is contained', () => {
-    expect(isSubset(new Set([1, 2]), new Set([1, 2, 3]))).toBe(true);
-  });
+  it('each rule has caveatAddressesMatch and validateAndDecodePermission', () => {
+    const contracts = buildContracts();
+    const rules = createPermissionRulesForContracts(contracts);
+    const {
+      nativeTokenStreamingEnforcer,
+      exactCalldataEnforcer,
+      nonceEnforcer,
+      timestampEnforcer,
+    } = getChecksumEnforcersByChainId(contracts);
 
-  it('returns false when subset has an extra element', () => {
-    expect(isSubset(new Set([1, 4]), new Set([1, 2, 3]))).toBe(false);
-  });
+    for (const rule of rules) {
+      expect(typeof rule.caveatAddressesMatch).toBe('function');
+      expect(typeof rule.validateAndDecodePermission).toBe('function');
+    }
 
-  it('returns true for empty subset', () => {
-    expect(isSubset(new Set(), new Set([1, 2, 3]))).toBe(true);
+    const nativeStreamRule = rules.find(
+      (candidate) => candidate.permissionType === 'native-token-stream',
+    );
+    expect(nativeStreamRule).toBeDefined();
+    if (!nativeStreamRule) {
+      throw new Error('Rule not found');
+    }
+
+    const matchingCaveatAddresses: Hex[] = [
+      nativeTokenStreamingEnforcer,
+      exactCalldataEnforcer,
+      nonceEnforcer,
+      timestampEnforcer,
+    ];
+    expect(nativeStreamRule.caveatAddressesMatch(matchingCaveatAddresses)).toBe(
+      true,
+    );
   });
 });
 

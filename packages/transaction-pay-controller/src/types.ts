@@ -77,6 +77,12 @@ export type TransactionPayControllerGetStrategyAction = {
   handler: (transaction: TransactionMeta) => TransactionPayStrategy;
 };
 
+/** Action to update fiat payment state for a transaction. */
+export type TransactionPayControllerUpdateFiatPaymentAction = {
+  type: `${typeof CONTROLLER_NAME}:updateFiatPayment`;
+  handler: (request: UpdateFiatPaymentRequest) => void;
+};
+
 /** Action to update the payment token for a transaction. */
 export type TransactionPayControllerUpdatePaymentTokenAction = {
   type: `${typeof CONTROLLER_NAME}:updatePaymentToken`;
@@ -114,6 +120,11 @@ export type TransactionConfig = {
 /** Callback to update transaction config. */
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
 
+/** Callback to update fiat payment state. */
+export type TransactionFiatPaymentCallback = (
+  fiatPayment: TransactionFiatPayment,
+) => void;
+
 export type TransactionPayControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof CONTROLLER_NAME,
@@ -125,6 +136,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerSetTransactionConfigAction
+  | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =
@@ -162,6 +174,9 @@ export type TransactionPayControllerState = {
 
 /** State relating to a single transaction. */
 export type TransactionData = {
+  /** Fiat payment method state. */
+  fiatPayment?: TransactionFiatPayment;
+
   /** Whether quotes are currently being retrieved. */
   isLoading: boolean;
 
@@ -205,6 +220,15 @@ export type TransactionData = {
 
   /** Calculated totals for the transaction. */
   totals?: TransactionPayTotals;
+};
+
+/** Fiat payment state stored per transaction. */
+export type TransactionFiatPayment = {
+  /** Entered fiat amount for the selected payment method. */
+  amountFiat?: string;
+
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId?: string;
 };
 
 /** A token required by a transaction. */
@@ -522,6 +546,15 @@ export type UpdatePaymentTokenRequest = {
 
   /** Chain ID of the new payment token. */
   chainId: Hex;
+};
+
+/** Request to update fiat payment state for a transaction. */
+export type UpdateFiatPaymentRequest = {
+  /** ID of the transaction to update. */
+  transactionId: string;
+
+  /** Callback to mutate fiat payment state. */
+  callback: TransactionFiatPaymentCallback;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */
