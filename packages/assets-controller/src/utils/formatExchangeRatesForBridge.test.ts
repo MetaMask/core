@@ -1,14 +1,22 @@
 import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
-import type { AssetPrice } from '../types';
+import type { FungibleAssetPrice } from '../types';
 
 /**
- * Builds minimal AssetPrice for tests (lastUpdated required by BaseAssetPrice).
+ * Builds minimal AssetPrice for tests. Defaults usdPrice to the same
+ * value as price (convenient for USD-denominated tests).
  *
  * @param overrides - Price fields; must include price.
  * @returns AssetPrice suitable for formatExchangeRatesForBridge input.
  */
-function price(overrides: Partial<AssetPrice> & { price: number }): AssetPrice {
-  return { lastUpdated: 0, ...overrides } as AssetPrice;
+function price(
+  overrides: Partial<FungibleAssetPrice> & { price: number },
+): FungibleAssetPrice {
+  return {
+    assetPriceType: 'fungible',
+    lastUpdated: 0,
+    usdPrice: overrides.price,
+    ...overrides,
+  };
 }
 
 /** Minimal nativeAssetIdentifiers for EVM tests (from NetworkEnablementController shape). */
@@ -40,7 +48,7 @@ describe('formatExchangeRatesForBridge', () => {
     const bitcoinAssetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
     const result = formatExchangeRatesForBridge({
       assetsPrice: {
-        [bitcoinAssetId]: price({ price: 50000, lastUpdated: 1000000 }),
+        [bitcoinAssetId]: price({ price: 50000, lastUpdated: 1000000000 }),
       },
       selectedCurrency: 'usd',
     });
@@ -68,18 +76,6 @@ describe('formatExchangeRatesForBridge', () => {
       'swift:0/iso4217:EUR',
     );
     expect(result.currentCurrency).toBe('eur');
-  });
-
-  it('falls back to USD when selectedCurrency is not in MAP_CAIP_CURRENCIES', () => {
-    const assetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
-    const result = formatExchangeRatesForBridge({
-      assetsPrice: { [assetId]: price({ price: 1 }) },
-      selectedCurrency: 'unknown-currency',
-    });
-
-    expect(result.conversionRates[assetId].currency).toBe(
-      'swift:0/iso4217:USD',
-    );
   });
 
   it('does not include EVM assets in conversionRates', () => {
@@ -129,19 +125,6 @@ describe('formatExchangeRatesForBridge', () => {
     });
     const nativeAddress = '0x0000000000000000000000000000000000000000';
     expect(result.marketData['0x89']?.[nativeAddress]?.currency).toBe('POL');
-  });
-
-  it('falls back to ETH when networkConfigurationsByChainId has no nativeCurrency for chain', () => {
-    const ethNativeId = 'eip155:1/slip44:60';
-    const result = formatExchangeRatesForBridge({
-      assetsPrice: { [ethNativeId]: price({ price: 2000 }) },
-      selectedCurrency: 'usd',
-      nativeAssetIdentifiers: { 'eip155:1': ethNativeId },
-      networkConfigurationsByChainId: {},
-    });
-
-    expect(result.currencyRates.ETH).toBeDefined();
-    expect(result.currencyRates.ETH?.conversionRate).toBe(2000);
   });
 
   it('includes EVM native asset in marketData and currencyRates', () => {
@@ -222,14 +205,12 @@ describe('formatExchangeRatesForBridge', () => {
     expect(usdcEntry.low1d).toBe(0.99);
   });
 
-  it('skips entries with invalid or negative price', () => {
+  it('skips entries with negative price', () => {
     const validId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
     const result = formatExchangeRatesForBridge({
       assetsPrice: {
         [validId]: price({ price: 100 }),
         'eip155:1/slip44:60': price({ price: -1 }),
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501':
-          {} as unknown as AssetPrice,
       },
       selectedCurrency: 'usd',
     });
@@ -327,38 +308,38 @@ describe('formatExchangeRatesForBridge', () => {
     );
   });
 
-  it('uses usdToSelectedCurrencyRate for currencyRates when selectedCurrency is not usd', () => {
+  it('uses price for currencyRates conversionRate and usdPrice for usdConversionRate when selectedCurrency is not usd', () => {
     const ethNativeId = 'eip155:1/slip44:60';
     const result = formatExchangeRatesForBridge({
       assetsPrice: {
-        [ethNativeId]: price({ price: 2000, lastUpdated: 1_700_000_000_000 }),
+        [ethNativeId]: price({
+          price: 1840,
+          usdPrice: 2000,
+          lastUpdated: 1_700_000_000_000,
+        }),
       },
       selectedCurrency: 'eur',
       nativeAssetIdentifiers: { 'eip155:1': ethNativeId },
       networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
-      usdToSelectedCurrencyRate: 0.92,
     });
 
     expect(result.currencyRates.ETH).toStrictEqual({
       conversionDate: 1_700_000_000,
-      conversionRate: 2000 * 0.92,
+      conversionRate: 1840,
       usdConversionRate: 2000,
     });
   });
 
-  it('uses usdToSelectedCurrencyRate for non-EVM conversionRates rate in selected currency', () => {
+  it('uses price directly for non-EVM conversionRates rate in selected currency', () => {
     const bitcoinAssetId = 'bip122:000000000019d6689c085ae165831e93/slip44:0';
     const result = formatExchangeRatesForBridge({
       assetsPrice: {
-        [bitcoinAssetId]: price({ price: 50000 }),
+        [bitcoinAssetId]: price({ price: 46000, usdPrice: 50000 }),
       },
       selectedCurrency: 'eur',
-      usdToSelectedCurrencyRate: 0.92,
     });
 
-    expect(result.conversionRates[bitcoinAssetId].rate).toBe(
-      String(50000 * 0.92),
-    );
+    expect(result.conversionRates[bitcoinAssetId].rate).toBe(String(46000));
     expect(result.conversionRates[bitcoinAssetId].currency).toBe(
       'swift:0/iso4217:EUR',
     );

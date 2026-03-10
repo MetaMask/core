@@ -1,5 +1,5 @@
 import type { Caveat } from '@metamask/delegation-core';
-import { getChecksumAddress } from '@metamask/utils';
+import { getChecksumAddress, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type {
@@ -71,6 +71,15 @@ export function makePermissionRule({
         enforcer: getChecksumAddress(caveat.enforcer),
       }));
       try {
+        const invalidTerms = checksumCaveats.filter(
+          // isStrictHexString rejects '0x' which is a valid terms value
+          ({ terms }) => terms !== '0x' && !isStrictHexString(terms),
+        );
+
+        if (invalidTerms.length > 0) {
+          throw new Error('Invalid terms: must be a hex string');
+        }
+
         let expiry: number | null = null;
 
         const expiryTerms = getTermsByEnforcer({

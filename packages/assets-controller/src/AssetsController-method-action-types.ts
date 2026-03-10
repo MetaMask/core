@@ -32,8 +32,6 @@ export type AssetsControllerGetAssetsPriceAction = {
  * action instead of MultichainAssetsRatesController, TokenRatesController,
  * and CurrencyRateController.
  *
- * @param options - Optional options for bridge rate conversion.
- * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and conversionRates use correct user-currency vs USD values; otherwise the bridge USD conversion will be wrong for non-USD currencies.
  * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
  */
 export type AssetsControllerGetExchangeRatesForBridgeAction = {
@@ -48,8 +46,6 @@ export type AssetsControllerGetExchangeRatesForBridgeAction = {
  * useAssetsController is true the transaction-pay-controller can use a
  * single action instead of five separate getState calls.
  *
- * @param options - Optional options for legacy rate conversion.
- * @param options.usdToSelectedCurrencyRate - When selectedCurrency is not 'usd', pass 1 USD = this many units of selected currency so that currencyRates and marketData use correct user-currency vs USD values; otherwise conversion rates will be wrong for non-USD currencies.
  * @returns Legacy-compatible state for transaction-pay-controller.
  */
 export type AssetsControllerGetStateForTransactionPayAction = {
