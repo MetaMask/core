@@ -69,21 +69,63 @@ export const getMockAuthLoginResponse = () => {
 
 export const MOCK_OATH_TOKEN_RESPONSE = SDK_MOCK_OIDC_TOKEN_RESPONSE;
 
+const MOCK_JWT_FAR_FUTURE_EXP = 4102444800; // 2100-01-01
+
+/**
+ * Wraps a plain-text identifier in a minimal JWT so that client-side
+ * JWT validation (exp check) passes in E2E tests. The identifier is
+ * stored in the `sub` claim and can be extracted via {@link getE2EIdentifierFromJwt}.
+ *
+ * @param identifier - The plain-text E2E identifier to wrap.
+ * @returns A JWT-shaped string containing the identifier.
+ */
+const wrapInMockJwt = (identifier: string): string => {
+  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
+  const payload = btoa(
+    JSON.stringify({ sub: identifier, exp: MOCK_JWT_FAR_FUTURE_EXP }),
+  );
+  return `${header}.${payload}.mock`;
+};
+
+/**
+ * Extracts the E2E identifier (`sub` claim) from a mock JWT created
+ * by {@link wrapInMockJwt}. Falls back to returning the raw token if
+ * decoding fails (backward compatibility with raw-identifier headers).
+ *
+ * @param token - A bearer token string (JWT or raw identifier).
+ * @returns The decoded identifier, or the original token as-is.
+ */
+export const getE2EIdentifierFromJwt = (token: string): string => {
+  try {
+    const parts = token.split('.');
+    if (parts.length === 3) {
+      const { sub } = JSON.parse(atob(parts[1]));
+      if (typeof sub === 'string' && sub.length > 0) {
+        return sub;
+      }
+    }
+  } catch {
+    // not a JWT — fall through
+  }
+  return token;
+};
+
 export const getMockAuthAccessTokenResponse = () => {
   return {
     url: MOCK_OIDC_TOKEN_URL,
     requestMethod: 'POST',
     response: (requestJsonBody?: string) => {
-      // We end up setting the access token to the e2eIdentifier in the test environment
-      // This is then attached to every request's Authorization header
-      // and used to segregate data in the test environment
+      // We wrap the e2eIdentifier in a JWT so client-side JWT validation passes.
+      // The mock server extracts the identifier back via getE2EIdentifierFromJwt.
       const e2eIdentifier = new URLSearchParams(requestJsonBody).get(
         'assertion',
       );
 
       return {
         ...MOCK_OATH_TOKEN_RESPONSE,
-        access_token: e2eIdentifier ?? MOCK_OATH_TOKEN_RESPONSE.access_token,
+        access_token: e2eIdentifier
+          ? wrapInMockJwt(e2eIdentifier)
+          : MOCK_OATH_TOKEN_RESPONSE.access_token,
       };
     },
   } satisfies MockResponse;
