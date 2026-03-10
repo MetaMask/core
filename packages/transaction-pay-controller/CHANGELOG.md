@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support EIP-7702 gasless swaps via Relay `execute` endpoint for source transaction submission ([#8133](https://github.com/MetaMask/core/pull/8133))
-- Add configurable Relay execute and quote URLs via feature flags for proxy support ([#8133](https://github.com/MetaMask/core/pull/8133))
+- Support gasless Relay deposits via `execute` endpoint ([#8133](https://github.com/MetaMask/core/pull/8133))
 
 ## [16.4.1]
 
