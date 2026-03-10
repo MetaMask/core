@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.3]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
 ### Fixed
 
 - Move bearer token acquisition inside the retry loop in `ProfileMetricsService.submitMetrics` so each retry attempt fetches a fresh token instead of reusing a potentially stale one ([#8144](https://github.com/MetaMask/core/pull/8144))
