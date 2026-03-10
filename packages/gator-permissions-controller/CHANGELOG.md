@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
 ### Changed
 
-- Improves permission validation during decoding ([#7844](https://github.com/MetaMask/core/pull/7844))
+- Improves permission validation during decoding ([#7844](https://github.com/MetaMask/core/pull/7844), [#8127](https://github.com/MetaMask/core/pull/8127))
   - Validates `ExactCalldataEnforcer` and `ValueLteEnforcer` caveat terms
   - Validates that `periodAmount` is positive in `erc20-token-periodic` and `native-token-periodic` permission types
   - Validates that `tokenAddress` is a valid hex string in `erc20-token-periodic` and `erc20-token-stream` permission types
@@ -170,7 +172,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.0.0...@metamask/gator-permissions-controller@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.2...@metamask/gator-permissions-controller@2.0.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.1...@metamask/gator-permissions-controller@1.1.2
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@1.1.0...@metamask/gator-permissions-controller@1.1.1

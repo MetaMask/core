@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `RemoteFeatureFlagController` methods through its messenger ([#8161](https://github.com/MetaMask/core/pull/8161))
+  - The following actions are now available:
+    - `RemoteFeatureFlagController:enable`
+    - `RemoteFeatureFlagController:disable`
+  - Corresponding action types (e.g. `RemoteFeatureFlagControllerEnableAction`) are available as well.
+
 ## [4.1.0]
 
 ### Added
