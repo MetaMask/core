@@ -422,6 +422,41 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
+    it('selects the first matching threshold variation when variations are unsorted', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          ...MOCK_FLAGS,
+          tokenDetailsV2AbTest: [
+            {
+              name: 'Control is ON',
+              scope: { type: 'threshold', value: 1 },
+              value: { minimumVersion: '7.67.0', variant: 'control' },
+            },
+            {
+              name: 'Control is OFF',
+              scope: { type: 'threshold', value: 0.1 },
+              value: { minimumVersion: '7.67.0', variant: 'treatment' },
+            },
+          ],
+        },
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await controller.updateRemoteFeatureFlags();
+
+      // Current behavior is order-dependent: first matching threshold wins.
+      // Since threshold 1 is first and every generated threshold is <= 1, this variation is always selected.
+      expect(
+        controller.state.remoteFeatureFlags.tokenDetailsV2AbTest,
+      ).toStrictEqual({
+        name: 'Control is ON',
+        value: { minimumVersion: '7.67.0', variant: 'control' },
+      });
+    });
+
     it('preserves non-threshold feature flags unchanged', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
