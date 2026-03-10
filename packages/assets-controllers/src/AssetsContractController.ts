@@ -101,6 +101,12 @@ export type BalanceMap = {
 const name = 'AssetsContractController';
 
 /**
+ * The union of all internal messenger actions available to the {@link AssetsContractControllerMessenger}.
+ */
+export type AssetsContractControllerActions =
+  AssetsContractControllerMethodActions;
+
+/**
  * The union of all internal messenger events available to the {@link AssetsContractControllerMessenger}.
  */
 export type AssetsContractControllerEvents = never;
@@ -126,7 +132,7 @@ export type AllowedEvents =
  */
 export type AssetsContractControllerMessenger = Messenger<
   typeof name,
-  AssetsContractControllerMethodActions | AllowedActions,
+  AssetsContractControllerActions | AllowedActions,
   AssetsContractControllerEvents | AllowedEvents
 >;
 

@@ -13,6 +13,7 @@ export type {
   AccountTrackerControllerUpdateStakedBalancesAction,
 } from './AccountTrackerController-method-action-types';
 export type {
+  AssetsContractControllerActions,
   AssetsContractControllerEvents,
   AssetsContractControllerMessenger,
   BalanceMap,
