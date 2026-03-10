@@ -355,6 +355,95 @@ describe('AuthenticationController', () => {
         expect.any(Error),
       );
     });
+
+    it('resolves undefined entropySourceId to primary and stores token', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+      arrangeAuthAPIs();
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      const result = await controller.getBearerToken();
+      expect(result).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
+
+      expect(mockSnapGetAllPublicKeys).toHaveBeenCalled();
+      expect(controller.state.isSignedIn).toBe(true);
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]],
+      ).toBeDefined();
+    });
+
+    it('returns the same token for undefined and explicit primary entropySourceId', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger } = createMockAuthenticationMessenger();
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      const resultUndefined = await controller.getBearerToken();
+      const resultExplicit = await controller.getBearerToken(
+        MOCK_ENTROPY_SOURCE_IDS[0],
+      );
+      expect(resultUndefined).toBe(resultExplicit);
+    });
+
+    it('caches the primary entropySourceId resolution across calls', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+      const originalState = mockSignedInState();
+      const controller = new AuthenticationController({
+        messenger,
+        state: originalState,
+        metametrics,
+      });
+
+      await controller.getBearerToken();
+      await controller.getBearerToken();
+      await controller.getBearerToken();
+
+      // getAllPublicKeys should only be called once despite multiple getBearerToken calls
+      expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws when snap returns no entropy sources', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+      mockSnapGetAllPublicKeys.mockResolvedValue([]);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      await expect(controller.getBearerToken()).rejects.toThrow(
+        'No entropy sources found from snap',
+      );
+    });
+
+    it('throws when primary entropy source ID is undefined', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+      mockSnapGetAllPublicKeys.mockResolvedValue([[undefined, 'MOCK_KEY']]);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      await expect(controller.getBearerToken()).rejects.toThrow(
+        'Primary entropy source ID is undefined',
+      );
+    });
   });
 
   describe('getSessionProfile', () => {
@@ -657,7 +746,7 @@ describe('metadata', () => {
               "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
             },
             "token": {
-              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjQxMDI0NDQ4MDB9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
               "expiresIn": 1000,
               "obtainedAt": 0,
             },
@@ -669,7 +758,7 @@ describe('metadata', () => {
               "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
             },
             "token": {
-              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjQxMDI0NDQ4MDB9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
               "expiresIn": 1000,
               "obtainedAt": 0,
             },
@@ -704,7 +793,7 @@ describe('metadata', () => {
               "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
             },
             "token": {
-              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjQxMDI0NDQ4MDB9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
               "expiresIn": 1000,
               "obtainedAt": 0,
             },
@@ -716,7 +805,7 @@ describe('metadata', () => {
               "profileId": "f88227bd-b615-41a3-b0be-467dd781a4ad",
             },
             "token": {
-              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+              "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjQxMDI0NDQ4MDB9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
               "expiresIn": 1000,
               "obtainedAt": 0,
             },

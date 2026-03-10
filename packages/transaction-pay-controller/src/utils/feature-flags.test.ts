@@ -5,11 +5,15 @@ import {
   DEFAULT_FALLBACK_GAS_ESTIMATE,
   DEFAULT_FALLBACK_GAS_MAX,
   DEFAULT_GAS_BUFFER,
+  DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
   DEFAULT_STRATEGY_ORDER,
-  getEIP7702SupportedChains,
   getFallbackGas,
+  DEFAULT_RELAY_EXECUTE_URL,
+  getRelayOriginGasOverhead,
+  isEIP7702Chain,
+  isRelayExecuteEnabled,
   getFeatureFlags,
   getGasBuffer,
   getPayStrategiesConfig,
@@ -51,6 +55,7 @@ describe('Feature Flags Utils', () => {
 
       expect(featureFlags).toStrictEqual({
         relayDisabledGasStationChains: [],
+        relayExecuteUrl: DEFAULT_RELAY_EXECUTE_URL,
         relayFallbackGas: {
           estimate: DEFAULT_FALLBACK_GAS_ESTIMATE,
           max: DEFAULT_FALLBACK_GAS_MAX,
@@ -81,6 +86,7 @@ describe('Feature Flags Utils', () => {
 
       expect(featureFlags).toStrictEqual({
         relayDisabledGasStationChains: RELAY_GAS_STATION_DISABLED_CHAINS_MOCK,
+        relayExecuteUrl: DEFAULT_RELAY_EXECUTE_URL,
         relayFallbackGas: {
           estimate: GAS_FALLBACK_ESTIMATE_MOCK,
           max: GAS_FALLBACK_MAX_MOCK,
@@ -385,31 +391,38 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getEIP7702SupportedChains', () => {
-    it('returns empty array when no feature flags are set', () => {
-      const supportedChains = getEIP7702SupportedChains(messenger);
-
-      expect(supportedChains).toStrictEqual([]);
+  describe('isEIP7702Chain', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isEIP7702Chain(messenger, CHAIN_ID_MOCK)).toBe(false);
     });
 
-    it('returns supported chains from feature flags', () => {
-      const expectedChains = [CHAIN_ID_MOCK, CHAIN_ID_DIFFERENT_MOCK];
-
+    it('returns true for a supported chain', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_eip_7702: {
-            supportedChains: expectedChains,
+            supportedChains: [CHAIN_ID_MOCK, CHAIN_ID_DIFFERENT_MOCK],
           },
         },
       });
 
-      const supportedChains = getEIP7702SupportedChains(messenger);
-
-      expect(supportedChains).toStrictEqual(expectedChains);
+      expect(isEIP7702Chain(messenger, CHAIN_ID_MOCK)).toBe(true);
     });
 
-    it('returns empty array when confirmations_eip_7702 exists but supportedChains is undefined', () => {
+    it('returns false for an unsupported chain', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_eip_7702: {
+            supportedChains: [CHAIN_ID_DIFFERENT_MOCK],
+          },
+        },
+      });
+
+      expect(isEIP7702Chain(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('returns false when supportedChains is undefined', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
@@ -417,9 +430,72 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      const supportedChains = getEIP7702SupportedChains(messenger);
+      expect(isEIP7702Chain(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+  });
 
-      expect(supportedChains).toStrictEqual([]);
+  describe('isRelayExecuteEnabled', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when executeEnabled is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                executeEnabled: true,
+              },
+            },
+          },
+        },
+      });
+
+      expect(isRelayExecuteEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when executeEnabled is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                executeEnabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getRelayOriginGasOverhead', () => {
+    it('returns default when no feature flags are set', () => {
+      expect(getRelayOriginGasOverhead(messenger)).toBe(
+        DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
+      );
+    });
+
+    it('returns configured value when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                originGasOverhead: '500000',
+              },
+            },
+          },
+        },
+      });
+
+      expect(getRelayOriginGasOverhead(messenger)).toBe('500000');
     });
   });
 

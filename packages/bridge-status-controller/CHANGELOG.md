@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.0.2]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/bridge-controller` from `^69.0.0` to `^69.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
 ## [68.0.1]
 
 ### Changed
@@ -1003,7 +1010,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.2...HEAD
+[68.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.1...@metamask/bridge-status-controller@68.0.2
 [68.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.0...@metamask/bridge-status-controller@68.0.1
 [68.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@67.0.1...@metamask/bridge-status-controller@68.0.0
 [67.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@67.0.0...@metamask/bridge-status-controller@67.0.1

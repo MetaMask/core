@@ -198,11 +198,11 @@ export class ProfileMetricsService {
    * @returns The response from the API.
    */
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
-    const authToken = await this.#messenger.call(
-      'AuthenticationController:getBearerToken',
-      data.entropySourceId ?? undefined,
-    );
     await this.#policy.execute(async () => {
+      const authToken = await this.#messenger.call(
+        'AuthenticationController:getBearerToken',
+        data.entropySourceId ?? undefined,
+      );
       const url = new URL(`${this.#baseURL}/profile/accounts`);
       const localResponse = await this.#fetch(url, {
         method: 'PUT',

@@ -10,10 +10,7 @@ import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
 } from '../../types';
-import {
-  getEIP7702SupportedChains,
-  getFeatureFlags,
-} from '../../utils/feature-flags';
+import { getFeatureFlags, isEIP7702Chain } from '../../utils/feature-flags';
 import { calculateGasFeeTokenCost } from '../../utils/gas';
 
 const log = createModuleLogger(projectLogger, 'relay-gas-station');
@@ -41,11 +38,7 @@ export function getGasStationEligibility(
   sourceChainId: QuoteRequest['sourceChainId'],
 ): GasStationEligibility {
   const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
-  const supportedChains = getEIP7702SupportedChains(messenger);
-  const chainSupportsGasStation = supportedChains.some(
-    (supportedChainId) =>
-      supportedChainId.toLowerCase() === sourceChainId.toLowerCase(),
-  );
+  const chainSupportsGasStation = isEIP7702Chain(messenger, sourceChainId);
 
   const isDisabledChain = relayDisabledGasStationChains.includes(sourceChainId);
 

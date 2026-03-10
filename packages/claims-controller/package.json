@@ -1,6 +1,6 @@
 {
   "name": "@metamask/claims-controller",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Controller handling shield subscription claims logic",
   "keywords": [
     "MetaMask",
@@ -55,7 +55,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^25.1.0",
-    "@metamask/profile-sync-controller": "^27.1.0",
+    "@metamask/profile-sync-controller": "^28.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
