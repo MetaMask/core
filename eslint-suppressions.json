@@ -169,10 +169,7 @@
   },
   "packages/assets-controllers/src/AssetsContractController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 6
-    },
-    "id-length": {
-      "count": 1
+      "count": 5
     }
   },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
@@ -213,7 +210,7 @@
   },
   "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
+      "count": 6
     },
     "@typescript-eslint/no-misused-promises": {
       "count": 3
@@ -362,7 +359,7 @@
   },
   "packages/assets-controllers/src/TokensController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 14
+      "count": 13
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
