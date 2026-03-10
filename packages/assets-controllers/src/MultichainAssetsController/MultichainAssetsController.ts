@@ -41,6 +41,7 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
 
+import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types';
 import { getChainIdsCaveat } from './utils';
 
 const controllerName = 'MultichainAssetsController';
@@ -77,21 +78,6 @@ export function getDefaultMultichainAssetsControllerState(): MultichainAssetsCon
   return { accountsAssets: {}, assetsMetadata: {}, allIgnoredAssets: {} };
 }
 
-export type MultichainAssetsControllerGetAssetMetadataAction = {
-  type: `${typeof controllerName}:getAssetMetadata`;
-  handler: MultichainAssetsController['getAssetMetadata'];
-};
-
-export type MultichainAssetsControllerIgnoreAssetsAction = {
-  type: `${typeof controllerName}:ignoreAssets`;
-  handler: MultichainAssetsController['ignoreAssets'];
-};
-
-export type MultichainAssetsControllerAddAssetsAction = {
-  type: `${typeof controllerName}:addAssets`;
-  handler: MultichainAssetsController['addAssets'];
-};
-
 /**
  * Returns the state of the {@link MultichainAssetsController}.
  */
@@ -114,9 +100,7 @@ export type MultichainAssetsControllerStateChangeEvent =
  */
 export type MultichainAssetsControllerActions =
   | MultichainAssetsControllerGetStateAction
-  | MultichainAssetsControllerGetAssetMetadataAction
-  | MultichainAssetsControllerIgnoreAssetsAction
-  | MultichainAssetsControllerAddAssetsAction;
+  | MultichainAssetsControllerMethodActions;
 
 /**
  * Events emitted by {@link MultichainAssetsController}.
@@ -193,6 +177,12 @@ const assetsControllerMetadata: StateMetadata<MultichainAssetsControllerState> =
     },
   };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'getAssetMetadata',
+  'ignoreAssets',
+  'addAssets',
+] as const;
+
 // TODO: make this controller extends StaticIntervalPollingController and update all assetsMetadata once a day.
 
 export class MultichainAssetsController extends BaseController<
@@ -237,7 +227,7 @@ export class MultichainAssetsController extends BaseController<
       async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
     );
 
-    this.#registerMessageHandlers();
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
   async #handleAccountAssetListUpdatedEvent(
@@ -251,27 +241,6 @@ export class MultichainAssetsController extends BaseController<
   async #handleOnAccountAddedEvent(account: InternalAccount) {
     return this.#withControllerLock(async () =>
       this.#handleOnAccountAdded(account),
-    );
-  }
-
-  /**
-   * Constructor helper for registering the controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers() {
-    this.messenger.registerActionHandler(
-      'MultichainAssetsController:getAssetMetadata',
-      this.getAssetMetadata.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'MultichainAssetsController:ignoreAssets',
-      this.ignoreAssets.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      'MultichainAssetsController:addAssets',
-      this.addAssets.bind(this),
     );
   }
 

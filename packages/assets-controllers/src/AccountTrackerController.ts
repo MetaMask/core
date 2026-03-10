@@ -44,6 +44,7 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 
+import type { AccountTrackerControllerMethodActions } from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import type {
   AssetsContractController,
@@ -166,28 +167,11 @@ export type AccountTrackerControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * The action that can be performed to update multiple native token balances in batch.
- */
-export type AccountTrackerUpdateNativeBalancesAction = {
-  type: `${typeof controllerName}:updateNativeBalances`;
-  handler: AccountTrackerController['updateNativeBalances'];
-};
-
-/**
- * The action that can be performed to update multiple staked balances in batch.
- */
-export type AccountTrackerUpdateStakedBalancesAction = {
-  type: `${typeof controllerName}:updateStakedBalances`;
-  handler: AccountTrackerController['updateStakedBalances'];
-};
-
-/**
  * The actions that can be performed using the {@link AccountTrackerController}.
  */
 export type AccountTrackerControllerActions =
   | AccountTrackerControllerGetStateAction
-  | AccountTrackerUpdateNativeBalancesAction
-  | AccountTrackerUpdateStakedBalancesAction;
+  | AccountTrackerControllerMethodActions;
 
 /**
  * The messenger of the {@link AccountTrackerController} for communication.
@@ -245,6 +229,11 @@ type AccountTrackerPollingInput = {
   networkClientIds: NetworkClientId[];
   queryAllAccounts?: boolean;
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'updateNativeBalances',
+  'updateStakedBalances',
+] as const;
 
 /**
  * Controller that tracks the network balances for all user accounts.
@@ -426,7 +415,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       },
     );
 
-    this.#registerMessageHandlers();
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
   /**
@@ -1037,18 +1026,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         state.accountsByChainId = nextAccountsByChainId;
       });
     }
-  }
-
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:updateNativeBalances` as const,
-      this.updateNativeBalances.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:updateStakedBalances` as const,
-      this.updateStakedBalances.bind(this),
-    );
   }
 }
 

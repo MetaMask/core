@@ -6,6 +6,9 @@ export type {
   MultichainAssetsRatesControllerStateChange,
   MultichainAssetsRatesControllerMessenger,
 } from './MultichainAssetsRatesController';
+export type {
+  MultichainAssetsRatesControllerUpdateAssetsRatesAction,
+} from './MultichainAssetsRatesController-method-action-types';
 
 export {
   MultichainAssetsRatesController,
