@@ -1618,13 +1618,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     abTests?: Record<string, string>;
     activeAbTests?: Record<string, string>;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
-    const {
-      quoteResponse,
-      accountAddress,
-      location,
-      abTests,
-      activeAbTests,
-    } = params;
+    const { quoteResponse, accountAddress, location, abTests, activeAbTests } =
+      params;
 
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
