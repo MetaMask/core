@@ -1,9 +1,9 @@
 import { toChecksumAddress } from '@ethereumjs/util';
 import { MAP_CAIP_CURRENCIES } from '@metamask/assets-controllers';
-import { numberToHex } from '@metamask/utils';
+import { KnownCaipNamespace, numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
-import type { AssetPrice, Caip19AssetId } from '../types';
+import type { AssetPrice, FungibleAssetPrice, Caip19AssetId } from '../types';
 
 /**
  * Bridge-compatible conversion rate entry (MultichainAssetsRatesController shape).
@@ -49,12 +49,6 @@ export type BridgeExchangeRatesFormat = {
   currentCurrency: string;
 };
 
-function getPriceNumber(price: AssetPrice): number {
-  return typeof price === 'object' && price !== null && 'price' in price
-    ? Number((price as { price: number }).price)
-    : Number.NaN;
-}
-
 /**
  * Converts AssetsController state (assetsPrice, selectedCurrency) into the
  * same format the bridge expects from MultichainAssetsRatesController,
@@ -62,11 +56,10 @@ function getPriceNumber(price: AssetPrice): number {
  * a single action when useAssetsControllerForRates is true.
  *
  * @param params - Conversion parameters.
- * @param params.assetsPrice - Map of CAIP-19 asset ID to price data. Prices are in USD.
+ * @param params.assetsPrice - Map of CAIP-19 asset ID to price data (must include both `price` and `usdPrice`).
  * @param params.selectedCurrency - ISO 4217 currency code (e.g. 'usd').
  * @param params.nativeAssetIdentifiers - Optional map of CAIP-2 chain ID to native asset ID (e.g. from NetworkEnablementController state). When provided, used for EVM native lookups.
  * @param params.networkConfigurationsByChainId - Optional map of Hex chain ID to network config (e.g. from NetworkController state). Used to resolve native currency symbol via `nativeCurrency`; keys are Hex (e.g. '0x1').
- * @param params.usdToSelectedCurrencyRate - Optional rate: 1 USD = this many units of selected currency. Required for correct bridge USD conversion when selectedCurrency is not 'usd'. When omitted and selectedCurrency !== 'usd', currencyRates will use the same value for conversionRate and usdConversionRate (ratio 1), which produces incorrect USD rates.
  * @returns Bridge-compatible conversionRates, currencyRates, marketData, currentCurrency.
  */
 export function formatExchangeRatesForBridge(params: {
@@ -74,77 +67,73 @@ export function formatExchangeRatesForBridge(params: {
   selectedCurrency: string;
   nativeAssetIdentifiers?: Record<string, string>;
   networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
-  usdToSelectedCurrencyRate?: number;
 }): BridgeExchangeRatesFormat {
   const {
     assetsPrice,
     selectedCurrency,
     nativeAssetIdentifiers = {},
     networkConfigurationsByChainId = {},
-    usdToSelectedCurrencyRate,
   } = params;
   const conversionRates: Record<string, BridgeConversionRateEntry> = {};
   const currencyRates: Record<string, BridgeCurrencyRateEntry> = {};
   const marketData: Record<string, Record<string, BridgeMarketDataEntry>> = {};
 
-  // Same as MultichainAssetsRatesController: resolve CAIP currency from selectedCurrency, default to USD
-  const currencyCaip =
-    MAP_CAIP_CURRENCIES[selectedCurrency.toLowerCase()] ??
-    MAP_CAIP_CURRENCIES.usd;
+  const currencyCaip = MAP_CAIP_CURRENCIES[selectedCurrency.toLowerCase()];
+  if (!currencyCaip) {
+    return {
+      conversionRates: {},
+      currencyRates: {},
+      marketData: {},
+      currentCurrency: selectedCurrency,
+    };
+  }
 
-  const expirationOffset = 60;
+  const fungibleAssetsPrice = Object.entries(assetsPrice).reduce<
+    Record<Caip19AssetId, FungibleAssetPrice>
+  >((acc, [assetId, priceData]) => {
+    if (priceData.assetPriceType === 'fungible') {
+      acc[assetId as Caip19AssetId] = priceData;
+    }
+    return acc;
+  }, {});
 
-  // Price in assetsPrice is in USD. For bridge: conversionRate = in user's currency, usdConversionRate = in USD.
-  const isUsd = selectedCurrency.toLowerCase() === 'usd';
-  const rateUserCurrencyPerUsd = isUsd ? 1 : (usdToSelectedCurrencyRate ?? 1);
-
-  for (const [assetId, priceData] of Object.entries(assetsPrice)) {
-    const price = getPriceNumber(priceData);
-    if (Number.isNaN(price) || price < 0) {
+  for (const [assetId, priceData] of Object.entries(fungibleAssetsPrice)) {
+    const { price, usdPrice, lastUpdated } = priceData;
+    if (price < 0) {
       continue;
     }
 
-    const lastUpdated =
-      typeof priceData === 'object' &&
-      priceData !== null &&
-      'lastUpdated' in priceData
-        ? Number((priceData as { lastUpdated: number }).lastUpdated)
-        : Date.now();
-    const conversionTime =
-      lastUpdated > 1e12 ? lastUpdated / 1000 : lastUpdated;
-    const expirationTime = conversionTime + expirationOffset;
+    const lastUpdatedInSeconds = lastUpdated / 1000;
+    const expirationOffsetInSeconds = 60;
+    const expirationTime = lastUpdatedInSeconds + expirationOffsetInSeconds;
 
     try {
       const parsed = parseCaipAssetType(assetId as Caip19AssetId);
       const chainIdParsed = parseCaipChainId(parsed.chainId);
-      const chainRef = chainIdParsed.reference;
 
-      // conversionRates: only non-EVM assets (bridge uses this for non-EVM chains). Rate in selected currency.
-      if (chainIdParsed.namespace !== 'eip155') {
-        const priceInUserCurrency = price * rateUserCurrencyPerUsd;
-        conversionRates[assetId] = {
-          rate: String(priceInUserCurrency),
-          currency: currencyCaip,
-          conversionTime,
-          expirationTime,
-          marketData:
-            typeof priceData === 'object' && priceData !== null
-              ? (priceData as Record<string, unknown>)
-              : undefined,
-        };
-      }
+      if (chainIdParsed.namespace === KnownCaipNamespace.Eip155) {
+        const chainIdHex = numberToHex(parseInt(chainIdParsed.reference, 10));
 
-      if (chainIdParsed.namespace === 'eip155') {
-        const chainIdHex = numberToHex(parseInt(chainRef, 10));
-        const nativeAssetId = nativeAssetIdentifiers[parsed.chainId] ?? null;
-        const symbol =
-          networkConfigurationsByChainId[chainIdHex]?.nativeCurrency ?? 'ETH';
-        const nativePrice =
-          nativeAssetId && assetsPrice[nativeAssetId]
-            ? getPriceNumber(assetsPrice[nativeAssetId])
-            : Number.NaN;
+        const nativeAssetId = nativeAssetIdentifiers[parsed.chainId] as
+          | Caip19AssetId
+          | undefined;
 
-        let tokenAddress: string | null = null;
+        const nativeCurrencySymbol =
+          networkConfigurationsByChainId[chainIdHex]?.nativeCurrency;
+
+        const nativeAssetUsdPrice =
+          nativeAssetId && fungibleAssetsPrice[nativeAssetId]?.usdPrice;
+
+        if (
+          !nativeAssetId ||
+          !nativeCurrencySymbol ||
+          nativeAssetUsdPrice === undefined
+        ) {
+          // If we do not have a native asset for that chain or a price for it, the asset needs to be skipped
+          continue;
+        }
+
+        let tokenAddress: string | undefined;
         if (parsed.assetNamespace === 'erc20') {
           tokenAddress = toChecksumAddress(String(parsed.assetReference));
         } else if (parsed.assetNamespace === 'slip44') {
@@ -153,20 +142,14 @@ export function formatExchangeRatesForBridge(params: {
 
         if (tokenAddress && nativeAssetId) {
           const priceInNative =
-            !Number.isNaN(nativePrice) && nativePrice > 0
-              ? price / nativePrice
-              : price;
+            nativeAssetUsdPrice > 0 ? usdPrice / nativeAssetUsdPrice : usdPrice;
           if (!marketData[chainIdHex]) {
             marketData[chainIdHex] = {};
           }
-          const baseMarketData =
-            typeof priceData === 'object' && priceData !== null
-              ? (priceData as Record<string, unknown>)
-              : {};
           marketData[chainIdHex][tokenAddress] = {
-            ...baseMarketData,
+            ...priceData,
             price: priceInNative,
-            currency: symbol,
+            currency: nativeCurrencySymbol,
             assetId,
             chainId: chainIdHex,
             tokenAddress,
@@ -174,13 +157,20 @@ export function formatExchangeRatesForBridge(params: {
         }
 
         if (parsed.assetNamespace === 'slip44' && nativeAssetId) {
-          // conversionRate = native price in user's currency; usdConversionRate = native price in USD (bridge uses ratio for USD conversion)
-          currencyRates[symbol] = {
-            conversionDate: conversionTime,
-            conversionRate: price * rateUserCurrencyPerUsd,
-            usdConversionRate: price,
+          currencyRates[nativeCurrencySymbol] = {
+            conversionDate: lastUpdatedInSeconds,
+            conversionRate: price,
+            usdConversionRate: usdPrice,
           };
         }
+      } else {
+        conversionRates[assetId] = {
+          rate: String(price),
+          currency: currencyCaip,
+          conversionTime: lastUpdatedInSeconds,
+          expirationTime,
+          marketData: priceData,
+        };
       }
     } catch {
       // Skip malformed asset IDs

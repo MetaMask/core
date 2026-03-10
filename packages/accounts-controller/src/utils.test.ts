@@ -3,10 +3,12 @@ import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
 import {
+  constructAccountIdByAddress,
   getEvmGroupIndexFromAddressIndex,
   isNormalKeyringType,
   isSimpleKeyringType,
 } from './utils';
+import { createMockInternalAccount } from '../tests/mocks';
 
 describe('utils', () => {
   describe('isNormalKeyringType', () => {
@@ -130,6 +132,23 @@ describe('utils', () => {
       expect(consoleSpy).toHaveBeenCalledWith(
         `! Unable to get group index for HD account: "${badAddress}"`,
       );
+    });
+  });
+
+  describe('constructAccountIdByAddress', () => {
+    it('returns the account id by address for a map of accounts', () => {
+      const account = createMockInternalAccount({
+        id: '1',
+        address: '0x123abc',
+      });
+
+      const accountIdByAddress = constructAccountIdByAddress({
+        [account.id]: account,
+      });
+
+      expect(accountIdByAddress).toStrictEqual({
+        '0x123abc': account.id,
+      });
     });
   });
 });

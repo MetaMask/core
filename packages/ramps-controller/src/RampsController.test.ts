@@ -2600,6 +2600,126 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('skips getPaymentMethods when selected token is explicitly not supported by the new provider', async () => {
+      const unsupportedToken: RampsToken = {
+        assetId: 'eip155:1/slip44:0',
+        chainId: 'eip155:1',
+        name: 'Bitcoin',
+        symbol: 'BTC',
+        decimals: 8,
+        iconUrl: '',
+        tokenSupported: true,
+      };
+
+      const providerWithExclusion: Provider = {
+        ...mockProvider,
+        supportedCryptoCurrencies: {
+          'eip155:1/slip44:60': true,
+          [unsupportedToken.assetId]: false,
+        },
+      };
+
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([providerWithExclusion], null),
+              tokens: createResourceState(null, unsupportedToken),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          controller.setSelectedProvider(providerWithExclusion.id);
+
+          expect(getPaymentMethodsMock).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('fetches getPaymentMethods when provider has no supportedCryptoCurrencies field', async () => {
+      const providerWithoutField: Provider = { ...mockProvider };
+      delete (providerWithoutField as Partial<Provider>)
+        .supportedCryptoCurrencies;
+
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([providerWithoutField], null),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          controller.setSelectedProvider(providerWithoutField.id);
+
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('fetches getPaymentMethods when selected token is explicitly supported by the new provider', async () => {
+      const supportedToken: RampsToken = {
+        assetId: 'eip155:1/slip44:60',
+        chainId: 'eip155:1',
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        iconUrl: '',
+        tokenSupported: true,
+      };
+
+      const providerWithSupport: Provider = {
+        ...mockProvider,
+        supportedCryptoCurrencies: {
+          [supportedToken.assetId]: true,
+        },
+      };
+
+      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([providerWithSupport], null),
+              tokens: createResourceState(null, supportedToken),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            getPaymentMethodsMock,
+          );
+
+          controller.setSelectedProvider(providerWithSupport.id);
+
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(getPaymentMethodsMock).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
   });
 
   describe('setSelectedToken', () => {

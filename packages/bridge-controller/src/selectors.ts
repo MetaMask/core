@@ -70,6 +70,25 @@ type RemoteFeatureFlagControllerState = {
     bridgeConfig: unknown;
   };
 };
+
+/**
+ * Minimal shape required for exchange-rate lookups (used by getExchangeRateByChainIdAndAddress).
+ * Uses types from assets-controllers; marketData and conversionRates also accept the bridge format.
+ */
+export type ExchangeRateSourcesForLookup = Pick<
+  BridgeControllerState,
+  'assetExchangeRates'
+> &
+  Partial<Pick<CurrencyRateState, 'currencyRates'>> &
+  Partial<Pick<MultichainAssetsRatesControllerState, 'historicalPrices'>> & {
+    marketData?:
+      | TokenRatesControllerState['marketData']
+      | Record<string, Record<string, { price?: number; currency?: string }>>;
+    conversionRates?:
+      | MultichainAssetsRatesControllerState['conversionRates']
+      | Record<string, { rate: string }>;
+  };
+
 export type BridgeAppState = BridgeControllerState & {
   gasFeeEstimatesByChainId: GasFeeEstimatesByChainId;
 } & ExchangeRateControllerState & {
@@ -122,7 +141,7 @@ export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
 );
 
 const getExchangeRateByChainIdAndAddress = (
-  exchangeRateSources: ExchangeRateControllerState,
+  exchangeRateSources: ExchangeRateSourcesForLookup,
   chainId?: GenericQuoteRequest['srcChainId'],
   rawAddress?: GenericQuoteRequest['srcTokenAddress'],
 ): ExchangeRate => {
@@ -151,27 +170,35 @@ const getExchangeRateByChainIdAndAddress = (
   }
   // If the chain is a non-EVM chain, use the conversion rate from the multichain assets controller
   if (isNonEvmChainId(chainId)) {
-    const multichainAssetExchangeRate = conversionRates?.[assetId];
-    if (multichainAssetExchangeRate) {
+    const conversionRatesByKey = conversionRates as
+      | Record<string, { rate?: string }>
+      | undefined;
+    const multichainAssetExchangeRate = conversionRatesByKey?.[assetId];
+    const rate = multichainAssetExchangeRate?.rate;
+    if (rate) {
       // The multichain rate is denominated in the user's selected currency.
       // To get a USD rate, find the user's-currency-to-USD conversion factor from any EVM native currency rate.
       const nativeCurrencyRate = Object.values(currencyRates ?? {}).find(
-        (rate) => rate?.conversionRate && rate?.usdConversionRate,
+        (rateEntry) =>
+          rateEntry?.conversionRate !== undefined &&
+          rateEntry?.conversionRate !== null &&
+          rateEntry?.usdConversionRate !== undefined &&
+          rateEntry?.usdConversionRate !== null,
       );
       const usersCurrencyToUsdRate =
-        nativeCurrencyRate?.conversionRate &&
-        nativeCurrencyRate?.usdConversionRate
+        nativeCurrencyRate?.conversionRate !== undefined &&
+        nativeCurrencyRate?.conversionRate !== null &&
+        nativeCurrencyRate?.usdConversionRate !== undefined &&
+        nativeCurrencyRate?.usdConversionRate !== null
           ? new BigNumber(nativeCurrencyRate.usdConversionRate).div(
               nativeCurrencyRate.conversionRate,
             )
           : undefined;
       const usdExchangeRate = usersCurrencyToUsdRate
-        ? new BigNumber(multichainAssetExchangeRate.rate)
-            .times(usersCurrencyToUsdRate)
-            .toString()
+        ? new BigNumber(rate).times(usersCurrencyToUsdRate).toString()
         : undefined;
       return {
-        exchangeRate: multichainAssetExchangeRate.rate,
+        exchangeRate: rate,
         usdExchangeRate,
       };
     }
@@ -183,27 +210,35 @@ const getExchangeRateByChainIdAndAddress = (
     const evmNativeExchangeRate = currencyRates?.[symbol];
     if (evmNativeExchangeRate) {
       return {
-        exchangeRate: evmNativeExchangeRate?.conversionRate?.toString(),
-        usdExchangeRate: evmNativeExchangeRate?.usdConversionRate?.toString(),
+        exchangeRate: evmNativeExchangeRate.conversionRate?.toString(),
+        usdExchangeRate: evmNativeExchangeRate.usdConversionRate?.toString(),
       };
     }
     return {};
   }
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   if (!isNonEvmChainId(chainId)) {
-    const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
+    const marketDataByChain =
+      (marketData as
+        | Record<string, Record<string, { price?: number; currency?: string }>>
+        | undefined) ?? {};
+    const evmTokenExchangeRates =
+      marketDataByChain[formatChainIdToHex(chainId)];
     const evmTokenExchangeRateForAddress = isStrictHexString(address)
       ? evmTokenExchangeRates?.[address]
       : null;
-    const nativeCurrencyRate = evmTokenExchangeRateForAddress
-      ? currencyRates[evmTokenExchangeRateForAddress?.currency]
-      : undefined;
+    const currencyKey = evmTokenExchangeRateForAddress?.currency;
+    const nativeCurrencyRate =
+      currencyKey !== undefined && currencyKey !== null
+        ? currencyRates?.[currencyKey]
+        : undefined;
+    const price = evmTokenExchangeRateForAddress?.price ?? 0;
     if (evmTokenExchangeRateForAddress && nativeCurrencyRate) {
       return {
-        exchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+        exchangeRate: new BigNumber(price)
           .multipliedBy(nativeCurrencyRate.conversionRate ?? 0)
           .toString(),
-        usdExchangeRate: new BigNumber(evmTokenExchangeRateForAddress.price)
+        usdExchangeRate: new BigNumber(price)
           .multipliedBy(nativeCurrencyRate.usdConversionRate ?? 0)
           .toString(),
       };

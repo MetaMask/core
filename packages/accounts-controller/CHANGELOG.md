@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.0.0]
+
 ### Added
 
+- Add `accountIdByAddress` mapping to state ([#7893](https://github.com/MetaMask/core/pull/7893))
+  - This state was added to improve lookup times for an account by address from O(n) to O(1).
+  - `getAccountByAddress` also leverages this new map, thus, should be slightly faster too.
+- Add logging capabilities ([#8118](https://github.com/MetaMask/core/pull/8118/))
 - Expose missing public `AccountsController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
   - The following actions are now available:
     - `AccountController:loadBackupAction`
@@ -715,7 +721,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.0.0...HEAD
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.1...@metamask/accounts-controller@37.0.0
 [36.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.0...@metamask/accounts-controller@36.0.1
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.2...@metamask/accounts-controller@36.0.0
 [35.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.1...@metamask/accounts-controller@35.0.2
