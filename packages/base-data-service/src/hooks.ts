@@ -9,6 +9,9 @@ import {
   UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
 
+// We provide re-exports of the underlying TanStack Query hooks with narrower types,
+// removing `staleTime` and `queryFn` which aren't useful when using data services.
+
 export function useQuery<
   TQueryFnData = unknown,
   TError = unknown,
