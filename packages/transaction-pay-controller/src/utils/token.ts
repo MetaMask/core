@@ -142,34 +142,30 @@ export function getTokenInfo(
 ): { decimals: number; symbol: string } | undefined {
   const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
 
-  let getAllTokens;
+  let allTokens;
   if (assetsUnifyStateFeatureEnabled) {
-    const assetsControllerState = messenger.call(
+    allTokens = messenger.call(
       'AssetsController:getStateForTransactionPay',
-    );
-
-    getAllTokens = (): TokensControllerState['allTokens'] | undefined =>
-      assetsControllerState?.allTokens;
+    )?.allTokens;
   } else {
-    getAllTokens = (): TokensControllerState['allTokens'] | undefined =>
-      messenger.call('TokensController:getState')?.allTokens;
+    allTokens = messenger.call('TokensController:getState')?.allTokens;
   }
 
-  return _getTokenInfo(messenger, tokenAddress, chainId, getAllTokens);
+  return _getTokenInfo(messenger, tokenAddress, chainId, allTokens);
 }
 
 function _getTokenInfo(
   messenger: TransactionPayControllerMessenger,
   tokenAddress: Hex,
   chainId: Hex,
-  getAllTokens: () => TokensControllerState['allTokens'] | undefined,
+  allTokens: TokensControllerState['allTokens'] | undefined,
 ): { decimals: number; symbol: string } | undefined {
   const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
 
   const isNative =
     normalizedTokenAddress === getNativeToken(chainId).toLowerCase();
 
-  const token = Object.values(getAllTokens()?.[chainId] ?? {})
+  const token = Object.values(allTokens?.[chainId] ?? {})
     .flat()
     .find(
       (singleToken) =>
@@ -208,30 +204,28 @@ export function getTokenFiatRate(
 ): FiatRates | undefined {
   const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
 
-  let getMarketData;
-  let getCurrencyRates;
+  let marketData;
+  let currencyRates;
   if (assetsUnifyStateFeatureEnabled) {
     const assetsControllerState = messenger.call(
       'AssetsController:getStateForTransactionPay',
     );
 
-    getMarketData = (): TokenRatesControllerState['marketData'] | undefined =>
-      assetsControllerState?.marketData;
-    getCurrencyRates = (): CurrencyRateState['currencyRates'] | undefined =>
-      assetsControllerState?.currencyRates;
+    marketData = assetsControllerState?.marketData;
+    currencyRates = assetsControllerState?.currencyRates;
   } else {
-    getMarketData = (): TokenRatesControllerState['marketData'] | undefined =>
-      messenger.call('TokenRatesController:getState')?.marketData;
-    getCurrencyRates = (): CurrencyRateState['currencyRates'] | undefined =>
-      messenger.call('CurrencyRateController:getState')?.currencyRates;
+    marketData = messenger.call('TokenRatesController:getState')?.marketData;
+    currencyRates = messenger.call(
+      'CurrencyRateController:getState',
+    )?.currencyRates;
   }
 
   return _getTokenFiatRate(
     messenger,
     tokenAddress,
     chainId,
-    getMarketData,
-    getCurrencyRates,
+    marketData,
+    currencyRates,
   );
 }
 
@@ -239,8 +233,8 @@ function _getTokenFiatRate(
   messenger: TransactionPayControllerMessenger,
   tokenAddress: Hex,
   chainId: Hex,
-  getMarketData: () => TokenRatesControllerState['marketData'] | undefined,
-  getCurrencyRates: () => CurrencyRateState['currencyRates'] | undefined,
+  marketData: TokenRatesControllerState['marketData'] | undefined,
+  currencyRates: CurrencyRateState['currencyRates'] | undefined,
 ): FiatRates | undefined {
   const ticker = getTicker(chainId, messenger);
 
@@ -252,7 +246,7 @@ function _getTokenFiatRate(
   const isNative = normalizedTokenAddress === getNativeToken(chainId);
 
   const tokenToNativeRate =
-    getMarketData()?.[chainId]?.[normalizedTokenAddress]?.price;
+    marketData?.[chainId]?.[normalizedTokenAddress]?.price;
 
   if (tokenToNativeRate === undefined && !isNative) {
     return undefined;
@@ -261,7 +255,7 @@ function _getTokenFiatRate(
   const {
     conversionRate: nativeToFiatRate,
     usdConversionRate: nativeToUsdRate,
-  } = getCurrencyRates()?.[ticker] ?? {
+  } = currencyRates?.[ticker] ?? {
     conversionRate: null,
     usdConversionRate: null,
   };
