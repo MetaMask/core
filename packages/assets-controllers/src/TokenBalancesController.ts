@@ -69,12 +69,12 @@ import type {
   UnprocessedTokens,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
+import type { TokenBalancesControllerMethodActions } from './TokenBalancesController-method-action-types';
 import type {
   TokenDetectionControllerAddDetectedTokensViaPollingAction,
   TokenDetectionControllerAddDetectedTokensViaWsAction,
   TokenDetectionControllerDetectTokensAction,
 } from './TokenDetectionController-method-action-types';
-import type { TokenBalancesControllerMethodActions } from './TokenBalancesController-method-action-types';
 import type {
   TokensControllerGetStateAction,
   TokensControllerState,

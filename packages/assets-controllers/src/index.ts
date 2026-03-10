@@ -226,9 +226,9 @@ export type {
   MultichainAssetsRatesControllerStateChange,
   MultichainAssetsRatesControllerMessenger,
 } from './MultichainAssetsRatesController';
-export type {
-  MultichainAssetsRatesControllerUpdateAssetsRatesAction,
-} from './MultichainAssetsRatesController/MultichainAssetsRatesController-method-action-types';
+
+export type { MultichainAssetsRatesControllerUpdateAssetsRatesAction } from './MultichainAssetsRatesController/MultichainAssetsRatesController-method-action-types';
+
 export { TokenSearchDiscoveryDataController } from './TokenSearchDiscoveryDataController';
 export type {
   TokenDisplayData,
