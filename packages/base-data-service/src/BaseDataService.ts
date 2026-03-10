@@ -3,8 +3,10 @@ import {
   ActionConstraint,
   EventConstraint,
 } from '@metamask/messenger';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
+  DefaultOptions,
   DehydratedState,
   FetchInfiniteQueryOptions,
   FetchQueryOptions,
@@ -12,6 +14,7 @@ import {
   InvalidateOptions,
   InvalidateQueryFilters,
   QueryClient,
+  QueryClientConfig,
   QueryKey,
   WithRequired,
   dehydrate,
@@ -46,6 +49,13 @@ export type DataServiceEvents<ServiceName extends string> =
   | DataServiceCacheUpdateEvent<ServiceName>
   | DataServiceGranularCacheUpdateEvent<ServiceName>;
 
+// Defaults to apply to all data service queries if no default option specified
+const queryClientDefaults: DefaultOptions = {
+  queries: {
+    staleTime: inMilliseconds(1, Duration.Minute),
+  },
+};
+
 export class BaseDataService<
   ServiceName extends string,
   ServiceMessenger extends Messenger<
@@ -66,14 +76,18 @@ export class BaseDataService<
     DataServiceEvents<ServiceName>
   >;
 
-  readonly #client = new QueryClient();
+  protected messenger: ServiceMessenger;
+
+  readonly #client: QueryClient;
 
   constructor({
     name,
     messenger,
+    clientConfig = {},
   }: {
     name: ServiceName;
     messenger: ServiceMessenger;
+    clientConfig?: QueryClientConfig;
   }) {
     this.name = name;
 
@@ -82,6 +96,15 @@ export class BaseDataService<
       DataServiceActions<ServiceName>,
       DataServiceEvents<ServiceName>
     >;
+    this.messenger = messenger;
+
+    this.#client = new QueryClient({
+      ...clientConfig,
+      defaultOptions: {
+        ...queryClientDefaults,
+        ...clientConfig.defaultOptions,
+      },
+    });
 
     this.#registerMessageHandlers();
     this.#setupCacheListener();
