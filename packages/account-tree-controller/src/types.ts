@@ -1,8 +1,8 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import type {
   AccountId,
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRemovedEvent,
+  AccountsControllerAccountsAddedEvent,
+  AccountsControllerAccountsRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerListMultichainAccountsAction,
@@ -120,8 +120,8 @@ export type AccountTreeControllerSelectedAccountGroupChangeEvent = {
 };
 
 export type AllowedEvents =
-  | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountsAddedEvent
+  | AccountsControllerAccountsRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent
   | UserStorageController.UserStorageControllerStateChangeEvent
   | MultichainAccountServiceWalletStatusChangeEvent;

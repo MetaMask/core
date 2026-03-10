@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Use `:accounts{Added,Removed}` batched events to reduce number of state updates ([#8160](https://github.com/MetaMask/core/pull/8160))
+
 ## [5.0.1]
 
 ### Changed
