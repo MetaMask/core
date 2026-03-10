@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added optional `activeAbTests` context support so Unified SwapBridge events can include `active_ab_tests` independently of `ab_tests`. ([#8152](https://github.com/MetaMask/core/pull/8152))
+- Added optional `activeAbTests` context support so Unified SwapBridge events can include `active_ab_tests` independently of `ab_tests`. ([#8168](https://github.com/MetaMask/core/pull/8168))
 
 ## [68.0.2]
 
