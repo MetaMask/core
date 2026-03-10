@@ -184,7 +184,9 @@ export class BaseDataService<
       },
     })) as InfiniteData<TData>;
 
-    const pageIndex = result.pageParams.indexOf(pageParam);
+    const pageIndex = result.pageParams.findIndex((param) =>
+      deepEqual(param, pageParam),
+    );
 
     return result.pages[pageIndex];
   }

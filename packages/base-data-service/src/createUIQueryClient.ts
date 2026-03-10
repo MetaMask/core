@@ -133,10 +133,15 @@ export function createUIQueryClient(
     const [filters, options] = parseFilterArgs(arg1, arg2, arg3);
 
     const queries = client.getQueryCache().findAll(filters);
-    await Promise.all(
-      queries.map(async (query) => {
-        const service = getServiceFromQueryKey(query.queryKey);
 
+    const services = [
+      ...new Set(
+        queries.map((query) => getServiceFromQueryKey(query.queryKey)),
+      ),
+    ];
+
+    await Promise.all(
+      services.map(async (service) => {
         if (!service) {
           return null;
         }
