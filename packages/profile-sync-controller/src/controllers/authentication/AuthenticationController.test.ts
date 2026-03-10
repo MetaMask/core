@@ -412,6 +412,38 @@ describe('AuthenticationController', () => {
       // getAllPublicKeys should only be called once despite multiple getBearerToken calls
       expect(mockSnapGetAllPublicKeys).toHaveBeenCalledTimes(1);
     });
+
+    it('throws when snap returns no entropy sources', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+      mockSnapGetAllPublicKeys.mockResolvedValue([]);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      await expect(controller.getBearerToken()).rejects.toThrow(
+        'No entropy sources found from snap',
+      );
+    });
+
+    it('throws when primary entropy source ID is undefined', async () => {
+      const metametrics = createMockAuthMetaMetrics();
+      const { messenger, mockSnapGetAllPublicKeys } =
+        createMockAuthenticationMessenger();
+      mockSnapGetAllPublicKeys.mockResolvedValue([[undefined, 'MOCK_KEY']]);
+
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics,
+      });
+
+      await expect(controller.getBearerToken()).rejects.toThrow(
+        'Primary entropy source ID is undefined',
+      );
+    });
   });
 
   describe('getSessionProfile', () => {

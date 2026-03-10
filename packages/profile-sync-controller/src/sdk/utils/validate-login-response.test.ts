@@ -64,6 +64,15 @@ describe('validateLoginResponse()', () => {
     );
   });
 
+  it('returns false when the JWT exp claim is a float', () => {
+    const floatExpJwt = createTestJwt({
+      exp: Math.floor(Date.now() / 1000) + 3600.5,
+    });
+    expect(validateLoginResponse(createValidLoginResponse(floatExpJwt))).toBe(
+      false,
+    );
+  });
+
   it('returns false when the access token is malformed', () => {
     expect(validateLoginResponse(createValidLoginResponse('not-a-jwt'))).toBe(
       false,

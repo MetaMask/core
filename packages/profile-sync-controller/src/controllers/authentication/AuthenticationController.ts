@@ -262,7 +262,21 @@ export class AuthenticationController extends BaseController<
       return this.#cachedPrimaryEntropySourceId;
     }
     const allPublicKeys = await this.#snapGetAllPublicKeys();
-    this.#cachedPrimaryEntropySourceId = allPublicKeys[0][0];
+
+    if (allPublicKeys.length === 0) {
+      throw new Error(
+        '#getPrimaryEntropySourceId - No entropy sources found from snap',
+      );
+    }
+
+    const primaryId = allPublicKeys[0][0];
+    if (!primaryId) {
+      throw new Error(
+        '#getPrimaryEntropySourceId - Primary entropy source ID is undefined',
+      );
+    }
+
+    this.#cachedPrimaryEntropySourceId = primaryId;
     return this.#cachedPrimaryEntropySourceId;
   }
 
