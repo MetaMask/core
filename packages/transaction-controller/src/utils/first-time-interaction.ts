@@ -76,20 +76,10 @@ export async function updateFirstTimeInteraction({
   const {
     chainId,
     id: transactionId,
-    txParams: { data, from, to },
-    type,
+    txParams: { from },
   } = transactionMeta;
 
-  let recipient;
-  if (data && TOKEN_TRANSFER_TYPES.includes(type as TransactionType)) {
-    const parsedData = decodeTransactionData(data) as TransactionDescription;
-    // _to is for ERC20, ERC721 and USDC
-    // to is for ERC1155
-    recipient = parsedData?.args?._to ?? parsedData?.args?.to;
-  }
-
-  // Use as fallback if no recipient is found from decode or no data is present
-  recipient ??= to;
+  const recipient = getEffectiveRecipient(transactionMeta);
 
   const request: GetAccountAddressRelationshipRequest = {
     chainId: hexToNumber(chainId),
