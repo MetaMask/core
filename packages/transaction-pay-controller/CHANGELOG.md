@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Support gasless withdraw for post-quote flows (e.g. Predict) when EOA has no native balance or source token by computing a synthetic gas fee token from the fiat gas estimate ([#8146](https://github.com/MetaMask/core/pull/8146))
+- Support gasless withdraw for post-quote flows (e.g. Predict Withdraw) when transaction would provide sufficient token balance for gas fee token ([#8146](https://github.com/MetaMask/core/pull/8146))
 
 ## [16.4.0]
 
