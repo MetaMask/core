@@ -1321,7 +1321,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
     abTests?: Record<string, string>,
-    activeAbTests?: Record<string, string>,
+    activeAbTests?: Record<string, string>[],
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
     this.messenger.call(
       'BridgeController:stopPollingForQuotes',
@@ -1616,7 +1616,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
-    activeAbTests?: Record<string, string>;
+    activeAbTests?: Record<string, string>[];
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
     const { quoteResponse, accountAddress, location, abTests, activeAbTests } =
       params;
@@ -1856,7 +1856,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           ab_tests: resolvedAbTests,
         }),
       ...(resolvedActiveAbTests &&
-        Object.keys(resolvedActiveAbTests).length > 0 && {
+        resolvedActiveAbTests.length > 0 && {
           active_ab_tests: resolvedActiveAbTests,
         }),
     };

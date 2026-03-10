@@ -4263,7 +4263,7 @@ describe('BridgeStatusController', () => {
             srcTxHash: '0xsrcTxHashAbTests',
           }),
           abTests: { token_details_layout: 'treatment' },
-          activeAbTests: { bridge_quote_sorting: 'variant_b' },
+          activeAbTests: [{ bridge_quote_sorting: 'variant_b' }],
         });
 
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
@@ -4285,7 +4285,7 @@ describe('BridgeStatusController', () => {
           expect.anything(),
           expect.objectContaining({
             ab_tests: { token_details_layout: 'treatment' },
-            active_ab_tests: { bridge_quote_sorting: 'variant_b' },
+            active_ab_tests: [{ bridge_quote_sorting: 'variant_b' }],
           }),
         );
       });

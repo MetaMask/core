@@ -973,7 +973,7 @@ describe('metrics utils', () => {
   describe('getPreConfirmationPropertiesFromQuote', () => {
     it('should include both ab_tests and active_ab_tests when both sets are provided', () => {
       const abTests = { token_details_layout: 'treatment' };
-      const activeAbTests = { bridge_quote_sorting: 'variant_b' };
+      const activeAbTests = [{ bridge_quote_sorting: 'variant_b' }];
       const result = getPreConfirmationPropertiesFromQuote(
         {
           quote: mockHistoryItem.quote,
