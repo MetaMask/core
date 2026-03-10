@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added more unit test coverage for intents and EVM transactions. Also refactored some mocks and code blocks to improve testability ([#8186](https://github.com/MetaMask/core/pull/8186))
 
+### Changed
+
+- **BREAKING:** `BridgeStatusControllerMessenger` must now allow `TransactionController:isAtomicBatchSupported` action ([#8125](https://github.com/MetaMask/core/pull/8125))
+
 ### Fixed
 
 - Delegated accounts (EIP-7702) now use batched transactions to avoid in-flight transaction limit ([#8125](https://github.com/MetaMask/core/pull/8125))
