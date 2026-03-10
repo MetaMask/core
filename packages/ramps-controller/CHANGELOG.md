@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: move ramps-controller PR #8100 changelog entry to Unreleased ([#8169](https://github.com/MetaMask/core/pull/8169))
+- Revert "Release/858.0.0" ([#8167](https://github.com/MetaMask/core/pull/8167))
+
 ### Changed
 
 - **BREAKING:** Replace `getWidgetUrl` with `getBuyWidgetData` (returns `BuyWidget | null`); add `addPrecreatedOrder` for custom-action ramp flows (e.g., PayPal) ([#8100](https://github.com/MetaMask/core/pull/8100))
