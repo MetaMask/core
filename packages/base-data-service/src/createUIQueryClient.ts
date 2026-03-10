@@ -72,11 +72,7 @@ export function createUIQueryClient(
             options.pageParam,
           )) as Json;
         },
-        // TODO: Decide on values for these.
-        staleTime: Infinity,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: false,
-        refetchOnMount: false,
+        staleTime: 0,
       },
     },
   });
