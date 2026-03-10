@@ -246,11 +246,15 @@ type RequiredEventContextFromClientBase = {
  * This combines the event-specific properties from RequiredEventContextFromClientBase
  * with an optional `location` property. When `location` is omitted, the controller
  * falls back to the value stored via `setLocation()` (defaults to MainView).
+ *
+ * `ab_tests` is the legacy field and `active_ab_tests` is the newer field.
+ * Both are kept for a migration window and are treated as separate payloads.
  */
 export type RequiredEventContextFromClient = {
   [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
     location?: MetaMetricsSwapsEventSource;
     ab_tests?: Record<string, string>;
+    active_ab_tests?: { key: string; value: string }[];
   };
 };
 
@@ -313,6 +317,9 @@ export type EventPropertiesFromControllerState = {
 /**
  * trackUnifiedSwapBridgeEvent payload properties consist of required properties from the client
  * and properties from the bridge controller
+ *
+ * `ab_tests` will be deprecated in favor of `active_ab_tests` in the future.
+ * `ab_tests` and `active_ab_tests` intentionally coexist during migration.
  */
 export type CrossChainSwapsEventProperties<
   T extends UnifiedSwapBridgeEventName,
@@ -321,6 +328,7 @@ export type CrossChainSwapsEventProperties<
       action_type: MetricsActionType;
       location: MetaMetricsSwapsEventSource;
       ab_tests?: Record<string, string>;
+      active_ab_tests?: { key: string; value: string }[];
     }
   | Pick<EventPropertiesFromControllerState, T>[T]
   | Pick<RequiredEventContextFromClient, T>[T];

@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.1.0]
+
 ### Changed
 
 - Debounce `KeyringController:stateChange` handler to reduce redundant notification subscription calls during rapid account syncing ([#7980](https://github.com/MetaMask/core/pull/7980))
 - Filter out Product Account announcements notifications older than 3 months ([#7884](https://github.com/MetaMask/core/pull/7884))
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
 
 ## [22.0.0]
 
@@ -664,7 +667,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@22.1.0...HEAD
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@22.0.0...@metamask/notification-services-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@21.0.0...@metamask/notification-services-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@20.0.0...@metamask/notification-services-controller@21.0.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@19.0.0...@metamask/notification-services-controller@20.0.0
