@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Token expiry checks now use a 90% lifetime threshold for proactive refresh: access tokens and metadata access tokens are refreshed when less than 10% of their lifetime remains (requires `iat`), while node auth tokens fall back to exact-expiry checking ([#8139](https://github.com/MetaMask/core/pull/8139))
+
 ## [8.1.0]
 
 ### Changed

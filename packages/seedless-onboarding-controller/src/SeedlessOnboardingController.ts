@@ -2543,8 +2543,8 @@ export class SeedlessOnboardingController<
     const firstAuthToken = nodeAuthTokens[0]?.authToken;
     // node auth token is base64 encoded json object
     const decodedToken = decodeNodeAuthToken(firstAuthToken);
-    // check if the token is expired
-    return decodedToken.exp < Date.now() / 1000;
+    // Node auth tokens do not carry a reliable iat field — use exact expiry.
+    return isTokenNearExpiry(decodedToken.exp);
   }
 
   /**
@@ -2558,7 +2558,7 @@ export class SeedlessOnboardingController<
       const { metadataAccessToken } = this.state;
       // assertIsAuthenticatedUser will throw if metadataAccessToken is missing
       const decodedToken = decodeJWTToken(metadataAccessToken as string);
-      return decodedToken.exp < Math.floor(Date.now() / 1000);
+      return isTokenNearExpiry(decodedToken.exp, decodedToken.iat);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
     }
@@ -2578,11 +2578,33 @@ export class SeedlessOnboardingController<
         return true; // Consider missing token as expired
       }
       const decodedToken = decodeJWTToken(accessToken);
-      return decodedToken.exp < Math.floor(Date.now() / 1000);
+      return isTokenNearExpiry(decodedToken.exp, decodedToken.iat);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
     }
   }
+}
+
+/**
+ * Determine whether a token should be proactively refreshed.
+ *
+ * When `iat` is provided: returns `true` when less than 10% of the token's
+ * lifetime remains (i.e. we are in the last 10% before expiry).
+ * When `iat` is omitted (e.g. node auth tokens): returns `true` when the token
+ * is already expired.
+ *
+ * @param exp - Token expiration time in seconds (Unix epoch).
+ * @param iat - Optional issued-at time in seconds (Unix epoch). Required for 10% threshold.
+ * @returns True if the token should be refreshed.
+ */
+function isTokenNearExpiry(exp: number, iat?: number): boolean {
+  const now = Date.now() / 1000;
+  if (iat === undefined) {
+    return now >= exp;
+  }
+  const remaining = exp - now;
+  const lifetime = exp - iat;
+  return remaining <= 0.1 * lifetime;
 }
 
 /**

@@ -4407,6 +4407,58 @@ describe('SeedlessOnboardingController', () => {
           },
         );
       });
+
+      it('should return true when node auth token is past its expiry', async () => {
+        const expiredToken = createMockNodeAuthToken({
+          exp: Math.floor(Date.now() / 1000) - 1,
+        });
+        await withController(
+          {
+            state: {
+              ...getMockInitialControllerState({
+                withMockAuthenticatedUser: true,
+              }),
+              // assertIsAuthenticatedUser requires ≥ 3 tokens; only the first is checked
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS.map((token, i) => ({
+                ...token,
+                authToken: i === 0 ? expiredToken : token.authToken,
+              })),
+            },
+          },
+          async ({ controller }) => {
+            jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
+
+            const isExpired = controller.checkNodeAuthTokenExpired();
+            expect(isExpired).toBe(true);
+          },
+        );
+      });
+
+      it('should return false when node auth token has not yet reached its expiry', async () => {
+        const validToken = createMockNodeAuthToken({
+          exp: Math.floor(Date.now() / 1000) + 7000,
+        });
+        await withController(
+          {
+            state: {
+              ...getMockInitialControllerState({
+                withMockAuthenticatedUser: true,
+              }),
+              // assertIsAuthenticatedUser requires ≥ 3 tokens; only the first is checked
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS.map((token, idx) => ({
+                ...token,
+                authToken: idx === 0 ? validToken : token.authToken,
+              })),
+            },
+          },
+          async ({ controller }) => {
+            jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
+
+            const isExpired = controller.checkNodeAuthTokenExpired();
+            expect(isExpired).toBe(false);
+          },
+        );
+      });
     });
 
     describe('checkIsPasswordOutdated with token refresh', () => {
@@ -5771,8 +5823,11 @@ describe('SeedlessOnboardingController', () => {
 
   describe('checkMetadataAccessTokenExpired', () => {
     it('should return false if metadata access token is not expired', async () => {
-      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const validToken = createMockJWTToken({ exp: futureExp });
+      const now = Math.floor(Date.now() / 1000);
+      const validToken = createMockJWTToken({
+        iat: now,
+        exp: now + 3600, // 1 hour lifetime, 0% elapsed
+      });
 
       await withController(
         {
@@ -5794,8 +5849,11 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should return true if metadata access token is expired', async () => {
-      const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const expiredToken = createMockJWTToken({ exp: pastExp });
+      const now = Math.floor(Date.now() / 1000);
+      const expiredToken = createMockJWTToken({
+        iat: now - 7200,
+        exp: now - 3600, // issued 2 h ago, expired 1 h ago
+      });
 
       await withController(
         {
@@ -5812,6 +5870,58 @@ describe('SeedlessOnboardingController', () => {
 
           const result = controller.checkMetadataAccessTokenExpired();
           expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return true when 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; 9 001 s have elapsed → just past the 90 % mark
+      const tokenAt90Percent = createMockJWTToken({
+        iat: now - 9001,
+        exp: now + 999,
+      });
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            metadataAccessToken: tokenAt90Percent,
+          }),
+        },
+        async ({ controller }) => {
+          jest
+            .spyOn(controller, 'checkMetadataAccessTokenExpired')
+            .mockRestore();
+
+          const result = controller.checkMetadataAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return false when less than 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; only 3 000 s have elapsed → well below the 90 % mark
+      const tokenBelow90Percent = createMockJWTToken({
+        iat: now - 3000,
+        exp: now + 7000,
+      });
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            metadataAccessToken: tokenBelow90Percent,
+          }),
+        },
+        async ({ controller }) => {
+          jest
+            .spyOn(controller, 'checkMetadataAccessTokenExpired')
+            .mockRestore();
+
+          const result = controller.checkMetadataAccessTokenExpired();
+          expect(result).toBe(false);
         },
       );
     });
@@ -5849,8 +5959,11 @@ describe('SeedlessOnboardingController', () => {
 
   describe('checkAccessTokenExpired', () => {
     it('should return false if access token is not expired', async () => {
-      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const validToken = createMockJWTToken({ exp: futureExp });
+      const now = Math.floor(Date.now() / 1000);
+      const validToken = createMockJWTToken({
+        iat: now,
+        exp: now + 3600, // 1 hour lifetime, 0% elapsed
+      });
 
       await withController(
         {
@@ -5870,8 +5983,11 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should return true if access token is expired', async () => {
-      const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const expiredToken = createMockJWTToken({ exp: pastExp });
+      const now = Math.floor(Date.now() / 1000);
+      const expiredToken = createMockJWTToken({
+        iat: now - 7200,
+        exp: now - 3600, // issued 2 h ago, expired 1 h ago
+      });
 
       await withController(
         {
@@ -5886,6 +6002,54 @@ describe('SeedlessOnboardingController', () => {
 
           const result = controller.checkAccessTokenExpired();
           expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return true when 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; 9 001 s have elapsed → just past the 90 % mark
+      const tokenAt90Percent = createMockJWTToken({
+        iat: now - 9001,
+        exp: now + 999,
+      });
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            accessToken: tokenAt90Percent,
+          }),
+        },
+        async ({ controller }) => {
+          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+
+          const result = controller.checkAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return false when less than 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; only 3 000 s have elapsed → well below the 90 % mark
+      const tokenBelow90Percent = createMockJWTToken({
+        iat: now - 3000,
+        exp: now + 7000,
+      });
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            accessToken: tokenBelow90Percent,
+          }),
+        },
+        async ({ controller }) => {
+          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+
+          const result = controller.checkAccessTokenExpired();
+          expect(result).toBe(false);
         },
       );
     });
