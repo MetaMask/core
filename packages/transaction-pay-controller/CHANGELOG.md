@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Add `AppMetadataControllerGetStateAction` and `AssetsControllerGetStateForTransactionPayAction` to the `AllowedActions` messenger type ([#8163](https://github.com/MetaMask/core/pull/8163))
 - Support gasless Relay deposits via `execute` endpoint ([#8133](https://github.com/MetaMask/core/pull/8133))
+
+### Changed
+
+- `getTokenBalance`, `getTokenInfo`, and `getTokenFiatRate` now source token metadata, balances, and pricing from `AssetsController:getStateForTransactionPay` when the `assetsUnifyState` remote feature flag is enabled, falling back to individual controller state calls otherwise ([#8163](https://github.com/MetaMask/core/pull/8163))
 
 ## [16.4.1]
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `BridgeExchangeRatesFormat` type now uses canonical `@metamask/assets-controllers` state types instead of locally-defined bridge rate entry types ([#8163](https://github.com/MetaMask/core/pull/8163))
+
+
 ## [2.3.0]
 
 ### Added

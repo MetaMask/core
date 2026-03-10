@@ -163,9 +163,6 @@ export type TransactionPayControllerOptions = {
   /** Callback to select ordered PayStrategies for a transaction. */
   getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
 
-  /** Callback to determine whether to use AssetsController for state. */
-  getUseAssetsController?: () => boolean;
-
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
