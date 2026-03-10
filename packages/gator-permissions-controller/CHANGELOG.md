@@ -9,15 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0]
 
-### Uncategorized
-
-- Validate terms is Hex, rather than validating each erc20 token address individually ([#8127](https://github.com/MetaMask/core/pull/8127))
-- Exclude test folder from `@metamask/gator-permissions-controller` build artifact ([#7925](https://github.com/MetaMask/core/pull/7925))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-
 ### Changed
 
-- Improves permission validation during decoding ([#7844](https://github.com/MetaMask/core/pull/7844))
+- Improves permission validation during decoding ([#7844](https://github.com/MetaMask/core/pull/7844), [#8127](https://github.com/MetaMask/core/pull/8127))
   - Validates `ExactCalldataEnforcer` and `ValueLteEnforcer` caveat terms
   - Validates that `periodAmount` is positive in `erc20-token-periodic` and `native-token-periodic` permission types
   - Validates that `tokenAddress` is a valid hex string in `erc20-token-periodic` and `erc20-token-stream` permission types
