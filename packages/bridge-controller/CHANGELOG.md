@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Check whether `selectedQuote` exists in `selectBridgeQuotes.sortedQuotes` before returning it as the `activeQuote`. Fall back on the `recommendedQuote` if selectedQuote is stale ([#8154](https://github.com/MetaMask/core/pull/8154))
+
 ## [69.0.1]
 
 ### Changed
