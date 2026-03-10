@@ -1,4 +1,5 @@
 export * from './PhishingController';
+export { findSimilarAddresses } from './address-poisoning';
 export type {
   LegacyPhishingDetectorList,
   PhishingDetectorList,
@@ -11,6 +12,8 @@ export type {
   PhishingDetectionScanResult,
   AddressScanResult,
   BulkTokenScanResponse,
+  SimilarAddressMatch,
+  SimilarityOptions,
 } from './types';
 export type { TokenScanCacheData } from './types';
 export { TokenScanResultType } from './types';

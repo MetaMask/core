@@ -1,3 +1,8 @@
+import type {
+  AddressBookControllerGetStateAction,
+  AddressBookControllerState,
+  AddressBookControllerStateChangeEvent,
+} from '@metamask/address-book-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   StateMetadata,
@@ -10,12 +15,16 @@ import {
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  TransactionControllerGetStateAction,
+  TransactionControllerState,
   TransactionControllerStateChangeEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import type { Patch } from 'immer';
 import { toASCII } from 'punycode/punycode.js';
 
+import { findSimilarAddresses } from './address-poisoning';
 import { CacheManager } from './CacheManager';
 import type { CacheEntry } from './CacheManager';
 import { convertListToTrie, insertToTrie, matchedPathPrefix } from './PathTrie';
@@ -35,6 +44,7 @@ import type {
   TokenScanApiResponse,
   AddressScanCacheData,
   AddressScanResult,
+  SimilarAddressMatch,
 } from './types';
 import {
   applyDiffs,
@@ -399,6 +409,11 @@ export type PhishingControllerScanAddressAction = {
   handler: PhishingController['scanAddress'];
 };
 
+export type PhishingControllerCheckAddressPoisoningAction = {
+  type: `${typeof controllerName}:checkAddressPoisoning`;
+  handler: PhishingController['checkAddressPoisoning'];
+};
+
 export type PhishingControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   PhishingControllerState
@@ -410,7 +425,8 @@ export type PhishingControllerActions =
   | TestOrigin
   | PhishingControllerBulkScanUrlsAction
   | PhishingControllerBulkScanTokensAction
-  | PhishingControllerScanAddressAction;
+  | PhishingControllerScanAddressAction
+  | PhishingControllerCheckAddressPoisoningAction;
 
 export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -422,12 +438,16 @@ export type PhishingControllerEvents = PhishingControllerStateChangeEvent;
 /**
  * The external actions available to the PhishingController.
  */
-type AllowedActions = never;
+type AllowedActions =
+  | AddressBookControllerGetStateAction
+  | TransactionControllerGetStateAction;
 
 /**
  * The external events available to the PhishingController.
  */
-export type AllowedEvents = TransactionControllerStateChangeEvent;
+export type AllowedEvents =
+  | AddressBookControllerStateChangeEvent
+  | TransactionControllerStateChangeEvent;
 
 export type PhishingControllerMessenger = Messenger<
   typeof controllerName,
@@ -472,6 +492,12 @@ export class PhishingController extends BaseController<
 
   readonly #addressScanCache: CacheManager<AddressScanCacheData>;
 
+  readonly #knownRecipients: Set<string>;
+
+  readonly #transactionRecipients: Set<string>;
+
+  readonly #addressBookRecipients: Set<string>;
+
   #inProgressHotlistUpdate?: Promise<void>;
 
   #inProgressStalelistUpdate?: Promise<void>;
@@ -479,8 +505,12 @@ export class PhishingController extends BaseController<
   #isProgressC2DomainBlocklistUpdate?: Promise<void>;
 
   readonly #transactionControllerStateChangeHandler: (
-    state: { transactions: TransactionMeta[] },
+    state: TransactionControllerState,
     patches: Patch[],
+  ) => void;
+
+  readonly #addressBookControllerStateChangeHandler: (
+    state: AddressBookControllerState,
   ) => void;
 
   /**
@@ -525,8 +555,13 @@ export class PhishingController extends BaseController<
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
+    this.#knownRecipients = new Set();
+    this.#transactionRecipients = new Set();
+    this.#addressBookRecipients = new Set();
     this.#transactionControllerStateChangeHandler =
       this.#onTransactionControllerStateChange.bind(this);
+    this.#addressBookControllerStateChangeHandler =
+      this.#onAddressBookControllerStateChange.bind(this);
     this.#urlScanCache = new CacheManager<PhishingDetectionScanResult>({
       cacheTTL: urlScanCacheTTL,
       maxCacheSize: urlScanCacheMaxSize,
@@ -561,10 +596,19 @@ export class PhishingController extends BaseController<
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
+    this.#hydrateKnownRecipients();
+    this.#subscribeToAddressBookControllerStateChange();
     this.#subscribeToTransactionControllerStateChange();
   }
 
-  #subscribeToTransactionControllerStateChange() {
+  #subscribeToAddressBookControllerStateChange(): void {
+    this.messenger.subscribe(
+      'AddressBookController:stateChange',
+      this.#addressBookControllerStateChangeHandler,
+    );
+  }
+
+  #subscribeToTransactionControllerStateChange(): void {
     this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
@@ -599,6 +643,11 @@ export class PhishingController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:scanAddress` as const,
       this.scanAddress.bind(this),
+    );
+
+    this.messenger.registerActionHandler(
+      `${controllerName}:checkAddressPoisoning` as const,
+      this.checkAddressPoisoning.bind(this),
     );
   }
 
@@ -642,10 +691,14 @@ export class PhishingController extends BaseController<
    * @param patches - Array of Immer patches only for transaction-level changes
    */
   #onTransactionControllerStateChange(
-    _state: { transactions: TransactionMeta[] },
+    _state: TransactionControllerState,
     patches: Patch[],
-  ) {
+  ): void {
     try {
+      if (patches.some((patch) => patch.path[0] === 'transactions')) {
+        this.#setKnownRecipientsFromTransactionState(_state);
+      }
+
       const tokensByChain = new Map<string, Set<string>>();
 
       for (const patch of patches) {
@@ -670,6 +723,10 @@ export class PhishingController extends BaseController<
     }
   }
 
+  #onAddressBookControllerStateChange(state: AddressBookControllerState): void {
+    this.#setKnownRecipientsFromAddressBookState(state);
+  }
+
   /**
    * Collect token addresses from a transaction and group them by chain
    *
@@ -679,7 +736,7 @@ export class PhishingController extends BaseController<
   #getTokensFromTransaction(
     transaction: TransactionMeta,
     tokensByChain: Map<string, Set<string>>,
-  ) {
+  ): void {
     // extract token addresses from simulation data
     const tokenAddresses = transaction.simulationData?.tokenBalanceChanges?.map(
       (tokenChange) => tokenChange.address.toLowerCase(),
@@ -707,7 +764,7 @@ export class PhishingController extends BaseController<
    *
    * @param tokensByChain - Map of chainId to token addresses
    */
-  #scanTokensByChain(tokensByChain: Map<string, Set<string>>) {
+  #scanTokensByChain(tokensByChain: Map<string, Set<string>>): void {
     for (const [chainId, tokenSet] of tokensByChain) {
       if (tokenSet.size > 0) {
         const tokens = Array.from(tokenSet);
@@ -721,11 +778,131 @@ export class PhishingController extends BaseController<
     }
   }
 
+  #hydrateKnownRecipients(): void {
+    this.#hydrateKnownRecipientsFromTransactionState();
+    this.#hydrateKnownRecipientsFromAddressBookState();
+  }
+
+  #hydrateKnownRecipientsFromTransactionState(): void {
+    try {
+      const state = this.messenger.call('TransactionController:getState');
+      this.#setKnownRecipientsFromTransactionState(state);
+    } catch {
+      // Some environments may not provide transaction state hydration.
+    }
+  }
+
+  #hydrateKnownRecipientsFromAddressBookState(): void {
+    try {
+      const state = this.messenger.call('AddressBookController:getState');
+      this.#setKnownRecipientsFromAddressBookState(state);
+    } catch {
+      // Some environments may not provide address book state hydration.
+    }
+  }
+
+  #setKnownRecipientsFromTransactionState(
+    state: TransactionControllerState,
+  ): void {
+    this.#transactionRecipients.clear();
+    for (const address of this.#getConfirmedTransactionRecipients(
+      state.transactions,
+    )) {
+      this.#transactionRecipients.add(address);
+    }
+    this.#rebuildKnownRecipients();
+  }
+
+  #setKnownRecipientsFromAddressBookState(
+    state: AddressBookControllerState,
+  ): void {
+    this.#addressBookRecipients.clear();
+    for (const address of this.#getAddressBookRecipients(state)) {
+      this.#addressBookRecipients.add(address);
+    }
+    this.#rebuildKnownRecipients();
+  }
+
+  #rebuildKnownRecipients(): void {
+    this.#knownRecipients.clear();
+
+    for (const address of this.#transactionRecipients) {
+      this.#knownRecipients.add(address);
+    }
+
+    for (const address of this.#addressBookRecipients) {
+      this.#knownRecipients.add(address);
+    }
+  }
+
+  #getConfirmedTransactionRecipients(
+    transactions: TransactionMeta[],
+  ): Set<string> {
+    return new Set(
+      transactions.flatMap((transaction) =>
+        this.#getRecipientAddressesFromTransaction(transaction),
+      ),
+    );
+  }
+
+  #getAddressBookRecipients(state: AddressBookControllerState): Set<string> {
+    return new Set(
+      Object.values(state.addressBook)
+        .flatMap((entriesByAddress) => Object.values(entriesByAddress))
+        .map((entry) => entry.address.toLowerCase()),
+    );
+  }
+
+  #getRecipientAddressesFromTransaction(
+    transaction: TransactionMeta,
+  ): string[] {
+    if (transaction.status !== TransactionStatus.confirmed) {
+      return [];
+    }
+
+    const transactionRecipient = this.#normalizeAddress(
+      transaction.txParams.to,
+    );
+    const transferRecipient = this.#normalizeAddress(
+      (
+        transaction.transferInformation as
+          | { recipientAddress?: string }
+          | undefined
+      )?.recipientAddress,
+    );
+
+    return Array.from(
+      new Set(
+        [transactionRecipient, transferRecipient].filter(
+          (address): address is string => Boolean(address),
+        ),
+      ),
+    );
+  }
+
+  #normalizeAddress(address?: string | null): string | null {
+    if (!address || !/^0x[0-9a-fA-F]{40}$/u.test(address)) {
+      return null;
+    }
+
+    return address.toLowerCase();
+  }
+
   /**
    * Updates this.detector with an instance of PhishingDetector using the current state.
    */
-  updatePhishingDetector() {
+  updatePhishingDetector(): void {
     this.#detector = new PhishingDetector(this.state.phishingLists);
+  }
+
+  /**
+   * Finds known recipient addresses that look like an address poisoning match.
+   *
+   * @param candidate - The recipient address being checked.
+   * @returns Similar known recipient matches sorted by score.
+   */
+  checkAddressPoisoning(candidate: string): SimilarAddressMatch[] {
+    return findSimilarAddresses(candidate, Array.from(this.#knownRecipients));
   }
 
   /**
