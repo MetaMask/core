@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Optional constructor option `getUseAssetsControllerForRates`: when it returns true, exchange rates are read from the new `@metamask/assets-controller` (`AssetsController:getExchangeRatesForBridge`) instead of `MultichainAssetsRatesController`, `TokenRatesController`, and `CurrencyRateController`. ([#8090](https://github.com/MetaMask/core/pull/8090))
 - Add `AssetPickerOpened` unified swap bridge metrics event with an `asset_location` property to indicate `'source'` or `'destination'`. ([#7985](https://github.com/MetaMask/core/pull/7985))
+- Add optional `active_ab_tests` property in Unified SwapBridge metrics event context and payload types, alongside existing `ab_tests`. ([#8152](https://github.com/MetaMask/core/pull/8152))
 
 ### Changed
 
@@ -34,7 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Widen `RequiredEventContextFromClient` `InputChanged.input_amount_preset` to accept arbitrary string labels (for example `85%`, `95%`, `MAX`) while preserving compatibility with `InputAmountPreset` enum values. ([#8069](https://github.com/MetaMask/core/pull/8069))
-- Include optional `active_ab_tests` property in Unified SwapBridge metrics event context and payload types, alongside existing `ab_tests`. ([#8152](https://github.com/MetaMask/core/pull/8152))
 
 ## [67.3.0]
 
