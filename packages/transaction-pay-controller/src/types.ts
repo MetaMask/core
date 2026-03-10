@@ -1,5 +1,5 @@
 import type { AppMetadataControllerGetStateAction } from '@metamask/app-metadata-controller';
-import type { AssetsControllerGetStateAction } from '@metamask/assets-controller';
+import type { AssetsControllerGetStateForTransactionPayAction } from '@metamask/assets-controller';
 import type {
   CurrencyRateControllerActions,
   TokenBalancesControllerGetStateAction,
@@ -41,7 +41,7 @@ import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | AppMetadataControllerGetStateAction
-  | AssetsControllerGetStateAction
+  | AssetsControllerGetStateForTransactionPayAction
   | BridgeControllerActions
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions

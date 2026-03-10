@@ -10,7 +10,6 @@ import {
   getTokenBalance,
   getTokenInfo,
   getTokenFiatRate,
-  getAllTokenBalances,
   getNativeToken,
   isSameToken,
   getLiveTokenBalance,
@@ -627,55 +626,6 @@ describe('Token Utils', () => {
         usd: '1.234567',
         fiat: '1.04938195',
       });
-    });
-  });
-
-  describe('getAllTokenBalances', () => {
-    it('returns all token balances including native token', () => {
-      getTokenBalanceControllerStateMock.mockReturnValue({
-        tokenBalances: {
-          [FROM_MOCK]: {
-            '0x1': {
-              [TOKEN_ADDRESS_MOCK]: '0x10',
-              [TOKEN_ADDRESS_2_MOCK]: '0x20',
-            },
-            '0x2': {
-              [TOKEN_ADDRESS_MOCK]: '0x30',
-            },
-          },
-        },
-      });
-
-      getAccountTrackerControllerStateMock.mockReturnValue({
-        accountsByChainId: {
-          '0x1': {
-            [FROM_MOCK]: {
-              balance: '0x40',
-            },
-          },
-          '0x2': {
-            [FROM_MOCK]: {
-              balance: '0x50',
-            },
-          },
-          '0x3': {
-            [FROM_MOCK]: {
-              balance: '0x60',
-            },
-          },
-        },
-      });
-
-      const result = getAllTokenBalances(messenger, FROM_MOCK);
-
-      expect(result).toStrictEqual([
-        { chainId: '0x1', tokenAddress: TOKEN_ADDRESS_MOCK, balance: '16' },
-        { chainId: '0x1', tokenAddress: TOKEN_ADDRESS_2_MOCK, balance: '32' },
-        { chainId: '0x1', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '64' },
-        { chainId: '0x2', tokenAddress: TOKEN_ADDRESS_MOCK, balance: '48' },
-        { chainId: '0x2', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '80' },
-        { chainId: '0x3', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '96' },
-      ]);
     });
   });
 

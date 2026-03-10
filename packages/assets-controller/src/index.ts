@@ -167,10 +167,7 @@ export {
 } from './utils';
 export type {
   AccountForLegacyFormat,
-  BridgeConversionRateEntry,
-  BridgeCurrencyRateEntry,
   BridgeExchangeRatesFormat,
-  BridgeMarketDataEntry,
   LegacyToken,
   TransactionPayLegacyFormat,
 } from './utils';

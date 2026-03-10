@@ -1,11 +1,18 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import {
+  AccountTrackerControllerState,
+  CurrencyRateState,
+  TokenBalancesControllerState,
+  TokenRatesControllerState,
+  TokensControllerState,
+} from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { uniq } from 'lodash';
 
+import { getAssetsUnifyStateFeature } from './feature-flags';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
@@ -49,18 +56,58 @@ export function getTokenBalance(
   chainId: Hex,
   tokenAddress: Hex,
 ): string {
-  // TODO AssetsController use new state
+  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
 
-  const tokenBalanceControllerState = messenger.call(
-    'TokenBalancesController:getState',
+  let getTokenBalances;
+  let getAccountsByChainId;
+  if (assetsUnifyStateFeatureEnabled) {
+    const assetsControllerState = messenger.call(
+      'AssetsController:getStateForTransactionPay',
+    );
+
+    getTokenBalances = ():
+      | TokenBalancesControllerState['tokenBalances']
+      | undefined => assetsControllerState?.tokenBalances;
+    getAccountsByChainId = ():
+      | AccountTrackerControllerState['accountsByChainId']
+      | undefined => assetsControllerState?.accountsByChainId;
+  } else {
+    getTokenBalances = ():
+      | TokenBalancesControllerState['tokenBalances']
+      | undefined =>
+      messenger.call('TokenBalancesController:getState')?.tokenBalances;
+    getAccountsByChainId = ():
+      | AccountTrackerControllerState['accountsByChainId']
+      | undefined =>
+      messenger.call('AccountTrackerController:getState')?.accountsByChainId;
+  }
+
+  return _getTokenBalance(
+    account,
+    chainId,
+    tokenAddress,
+    getTokenBalances,
+    getAccountsByChainId,
   );
+}
 
+function _getTokenBalance(
+  account: Hex,
+  chainId: Hex,
+  tokenAddress: Hex,
+  getTokenBalances: () =>
+    | TokenBalancesControllerState['tokenBalances']
+    | undefined,
+  getAccountsByChainId: () =>
+    | AccountTrackerControllerState['accountsByChainId']
+    | undefined,
+): string {
   const normalizedAccount = account.toLowerCase() as Hex;
   const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
   const isNative = normalizedTokenAddress === getNativeToken(chainId);
 
   const balanceHex =
-    tokenBalanceControllerState.tokenBalances?.[normalizedAccount]?.[chainId]?.[
+    getTokenBalances()?.[normalizedAccount]?.[chainId]?.[
       normalizedTokenAddress
     ];
 
@@ -72,67 +119,12 @@ export function getTokenBalance(
     return new BigNumber(balanceHex, 16).toString(10);
   }
 
-  const accountTrackerControllerState = messenger.call(
-    'AccountTrackerController:getState',
-  );
-
-  const chainAccounts =
-    accountTrackerControllerState.accountsByChainId?.[chainId];
+  const chainAccounts = getAccountsByChainId()?.[chainId];
 
   const checksumAccount = toChecksumHexAddress(normalizedAccount) as Hex;
   const nativeBalanceHex = chainAccounts?.[checksumAccount]?.balance as Hex;
 
   return new BigNumber(nativeBalanceHex ?? '0x0', 16).toString(10);
-}
-
-/**
- * Get the token balance for a specific account and token.
- *
- * @param messenger - Controller messenger.
- * @param account - Address of the account.
- * @returns The token balance as a BigNumber.
- */
-export function getAllTokenBalances(
-  messenger: TransactionPayControllerMessenger,
-  account: Hex,
-): {
-  balance: string;
-  chainId: Hex;
-  tokenAddress: Hex;
-}[] {
-  // TODO AssetsController use new state
-  const tokenBalanceControllerState = messenger.call(
-    'TokenBalancesController:getState',
-  );
-
-  const accountTrackerControllerState = messenger.call(
-    'AccountTrackerController:getState',
-  );
-
-  const nativeChainIds = Object.keys(
-    accountTrackerControllerState.accountsByChainId,
-  ) as Hex[];
-
-  const normalizedAccount = account.toLowerCase() as Hex;
-
-  const balancesByTokenByChain =
-    tokenBalanceControllerState.tokenBalances?.[normalizedAccount];
-
-  const tokenChainIds = Object.keys(balancesByTokenByChain) as Hex[];
-  const chainIds = uniq([...tokenChainIds, ...nativeChainIds]);
-
-  return chainIds.flatMap((chainId) => {
-    const tokenAddresses = [
-      ...(Object.keys(balancesByTokenByChain[chainId] ?? {}) as Hex[]),
-      getNativeToken(chainId),
-    ];
-
-    return tokenAddresses.map((tokenAddress) => ({
-      chainId,
-      tokenAddress,
-      balance: getTokenBalance(messenger, account, chainId, tokenAddress),
-    }));
-  });
 }
 
 /**
@@ -148,14 +140,36 @@ export function getTokenInfo(
   tokenAddress: Hex,
   chainId: Hex,
 ): { decimals: number; symbol: string } | undefined {
-  // TODO AssetsController use new state
-  const controllerState = messenger.call('TokensController:getState');
+  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+
+  let getAllTokens;
+  if (assetsUnifyStateFeatureEnabled) {
+    const assetsControllerState = messenger.call(
+      'AssetsController:getStateForTransactionPay',
+    );
+
+    getAllTokens = (): TokensControllerState['allTokens'] | undefined =>
+      assetsControllerState?.allTokens;
+  } else {
+    getAllTokens = (): TokensControllerState['allTokens'] | undefined =>
+      messenger.call('TokensController:getState')?.allTokens;
+  }
+
+  return _getTokenInfo(messenger, tokenAddress, chainId, getAllTokens);
+}
+
+function _getTokenInfo(
+  messenger: TransactionPayControllerMessenger,
+  tokenAddress: Hex,
+  chainId: Hex,
+  getAllTokens: () => TokensControllerState['allTokens'] | undefined,
+): { decimals: number; symbol: string } | undefined {
   const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
 
   const isNative =
     normalizedTokenAddress === getNativeToken(chainId).toLowerCase();
 
-  const token = Object.values(controllerState.allTokens?.[chainId] ?? {})
+  const token = Object.values(getAllTokens()?.[chainId] ?? {})
     .flat()
     .find(
       (singleToken) =>
@@ -192,24 +206,53 @@ export function getTokenFiatRate(
   tokenAddress: Hex,
   chainId: Hex,
 ): FiatRates | undefined {
-  // TODO AssetsController use new state
+  const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
+
+  let getMarketData;
+  let getCurrencyRates;
+  if (assetsUnifyStateFeatureEnabled) {
+    const assetsControllerState = messenger.call(
+      'AssetsController:getStateForTransactionPay',
+    );
+
+    getMarketData = (): TokenRatesControllerState['marketData'] | undefined =>
+      assetsControllerState?.marketData;
+    getCurrencyRates = (): CurrencyRateState['currencyRates'] | undefined =>
+      assetsControllerState?.currencyRates;
+  } else {
+    getMarketData = (): TokenRatesControllerState['marketData'] | undefined =>
+      messenger.call('TokenRatesController:getState')?.marketData;
+    getCurrencyRates = (): CurrencyRateState['currencyRates'] | undefined =>
+      messenger.call('CurrencyRateController:getState')?.currencyRates;
+  }
+
+  return _getTokenFiatRate(
+    messenger,
+    tokenAddress,
+    chainId,
+    getMarketData,
+    getCurrencyRates,
+  );
+}
+
+function _getTokenFiatRate(
+  messenger: TransactionPayControllerMessenger,
+  tokenAddress: Hex,
+  chainId: Hex,
+  getMarketData: () => TokenRatesControllerState['marketData'] | undefined,
+  getCurrencyRates: () => CurrencyRateState['currencyRates'] | undefined,
+): FiatRates | undefined {
   const ticker = getTicker(chainId, messenger);
 
   if (!ticker) {
     return undefined;
   }
 
-  const rateControllerState = messenger.call('TokenRatesController:getState');
-
-  const currencyRateControllerState = messenger.call(
-    'CurrencyRateController:getState',
-  );
-
   const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
   const isNative = normalizedTokenAddress === getNativeToken(chainId);
 
   const tokenToNativeRate =
-    rateControllerState.marketData?.[chainId]?.[normalizedTokenAddress]?.price;
+    getMarketData()?.[chainId]?.[normalizedTokenAddress]?.price;
 
   if (tokenToNativeRate === undefined && !isNative) {
     return undefined;
@@ -218,7 +261,7 @@ export function getTokenFiatRate(
   const {
     conversionRate: nativeToFiatRate,
     usdConversionRate: nativeToUsdRate,
-  } = currencyRateControllerState.currencyRates?.[ticker] ?? {
+  } = getCurrencyRates()?.[ticker] ?? {
     conversionRate: null,
     usdConversionRate: null,
   };
