@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `active_ab_tests` property in Unified SwapBridge metrics event context and payload types, alongside existing `ab_tests`. ([#8152](https://github.com/MetaMask/core/pull/8152))
 
+### Fixed
+
+- Check whether `selectedQuote` exists in `selectBridgeQuotes.sortedQuotes` before returning it as the `activeQuote`. Fall back on the `recommendedQuote` if selectedQuote is stale ([#8154](https://github.com/MetaMask/core/pull/8154))
+
 ## [69.0.1]
 
 ### Changed
