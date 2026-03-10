@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
 ### Changed
 
 - **BREAKING:** Update state hydration to make `init()` idempotent and remove `hydrateState()` ([#8157](https://github.com/MetaMask/core/pull/8157))
@@ -212,7 +214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@11.0.0...@metamask/ramps-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.2.0...@metamask/ramps-controller@11.0.0
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.1.0...@metamask/ramps-controller@10.2.0
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.0.0...@metamask/ramps-controller@10.1.0
