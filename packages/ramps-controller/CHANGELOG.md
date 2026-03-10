@@ -9,12 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Make `init()` idempotent: duplicate calls return the same promise; use `init({ forceRefresh: true })` to re-run
-- Skip `getCountries` and geolocation in `init()` when `state.countries.data` and `state.userRegion` already exist (warm start)
+- **BREAKING:** Update state hydration to make `init()` idempotent and remove `hydrateState()` ([#8157](https://github.com/MetaMask/core/pull/8157))
 
 ### Removed
 
 - Remove `hydrateState()` — use `init()` as the single entry point for controller hydration
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING:** Replace `getWidgetUrl` with `getBuyWidgetData` (returns `BuyWidget | null`); add `addPrecreatedOrder` for custom-action ramp flows (e.g., PayPal, Robinhood, Coinbase) ([#8100](https://github.com/MetaMask/core/pull/8100))
 
 ## [10.2.0]
 

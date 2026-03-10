@@ -1236,7 +1236,9 @@ export class RampsController extends BaseController<
     const initPromise = this.#runInit(options).then(
       () => undefined,
       (error) => {
-        this.#initPromise = null;
+        if (this.#initPromise === initPromise) {
+          this.#initPromise = null;
+        }
         throw error;
       },
     );
@@ -1246,7 +1248,7 @@ export class RampsController extends BaseController<
 
   async #runInit(options?: ExecuteRequestOptions): Promise<void> {
     const forceRefresh = options?.forceRefresh === true;
-    const hasCountries = (this.state.countries.data?.length ?? 0) > 0;
+    const hasCountries = this.state.countries.data.length > 0;
 
     if (forceRefresh || !hasCountries) {
       await this.getCountries(options);
