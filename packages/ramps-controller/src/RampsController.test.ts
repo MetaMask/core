@@ -7405,3 +7405,7 @@ async function withController<ReturnValue>(
   });
   return await testFunction({ controller, rootMessenger, messenger });
 }
+
+  });
+  return await testFunction({ controller, rootMessenger, messenger });
+}
