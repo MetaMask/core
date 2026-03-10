@@ -577,12 +577,10 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
-            assetsUnifyState: {
-              enabled: false,
-              featureVersion: '1',
-              minimumVersion: null,
-            },
+          assetsUnifyState: {
+            enabled: false,
+            featureVersion: '1',
+            minimumVersion: null,
           },
         },
       });
@@ -596,12 +594,10 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
-            assetsUnifyState: {
-              enabled: true,
-              featureVersion: '2',
-              minimumVersion: null,
-            },
+          assetsUnifyState: {
+            enabled: true,
+            featureVersion: '2',
+            minimumVersion: null,
           },
         },
       });
@@ -615,12 +611,10 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
-            assetsUnifyState: {
-              enabled: true,
-              featureVersion: '1',
-              minimumVersion: null,
-            },
+          assetsUnifyState: {
+            enabled: true,
+            featureVersion: '1',
+            minimumVersion: null,
           },
         },
       });
@@ -634,12 +628,10 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
-            assetsUnifyState: {
-              enabled: true,
-              featureVersion: '1',
-              minimumVersion: '2.0.0',
-            },
+          assetsUnifyState: {
+            enabled: true,
+            featureVersion: '1',
+            minimumVersion: '2.0.0',
           },
         },
       });
@@ -659,12 +651,10 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
-            assetsUnifyState: {
-              enabled: true,
-              featureVersion: '1',
-              minimumVersion: '1.0.0',
-            },
+          assetsUnifyState: {
+            enabled: true,
+            featureVersion: '1',
+            minimumVersion: '1.0.0',
           },
         },
       });

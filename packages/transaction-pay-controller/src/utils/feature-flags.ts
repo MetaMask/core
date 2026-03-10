@@ -33,11 +33,6 @@ export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
 ];
 
 type FeatureFlagsRaw = {
-  assetsUnifyState?: {
-    enabled: boolean;
-    featureVersion: string | null;
-    minimumVersion: string | null;
-  };
   gasBuffer?: {
     default?: number;
     perChainConfig?: Record<
@@ -307,11 +302,23 @@ export function getSlippage(
   return slippage;
 }
 
+/**
+ * Get the AssetsUnifyState feature flag state.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if the assets unify state feature is enabled, false otherwise.
+ */
 export function getAssetsUnifyStateFeature(
   messenger: TransactionPayControllerMessenger,
 ): boolean {
-  const featureFlags = getFeatureFlagsRaw(messenger);
-  const { assetsUnifyState } = featureFlags;
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const assetsUnifyState = state.remoteFeatureFlags.assetsUnifyState as
+    | {
+        enabled: boolean;
+        featureVersion: string | null;
+        minimumVersion: string | null;
+      }
+    | undefined;
 
   if (!assetsUnifyState?.enabled) {
     return false;
@@ -325,6 +332,13 @@ export function getAssetsUnifyStateFeature(
   );
 }
 
+/**
+ * Check if the app version satisfies the minimum required version.
+ *
+ * @param messenger - Controller messenger.
+ * @param minRequiredVersion - The minimum required version.
+ * @returns True if the app version satisfies the minimum required version, false otherwise.
+ */
 function hasMinimumRequiredVersion(
   messenger: TransactionPayControllerMessenger,
   minRequiredVersion: string | null,
