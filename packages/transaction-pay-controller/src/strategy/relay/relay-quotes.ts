@@ -1,11 +1,7 @@
 /* eslint-disable require-atomic-updates */
 
 import { Interface } from '@ethersproject/abi';
-import {
-  successfulFetch,
-  toChecksumHexAddress,
-  toHex,
-} from '@metamask/controller-utils';
+import { successfulFetch, toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -20,7 +16,6 @@ import type { RelayQuote, RelayQuoteRequest } from './types';
 import { TransactionPayStrategy } from '../..';
 import type {
   BatchTransactionParams,
-  GasFeeToken,
   TransactionMeta,
 } from '../../../../transaction-controller/src';
 import {
@@ -46,12 +41,11 @@ import {
   getGasBuffer,
   getSlippage,
 } from '../../utils/feature-flags';
-import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
+import { calculateGasCost } from '../../utils/gas';
 import {
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
-  getTokenInfo,
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token';
@@ -656,18 +650,45 @@ async function calculateSourceNetworkCost(
     max: max.raw,
   });
 
-  if (request.isPostQuote) {
-    return (
-      getPostQuoteSourceNetworkCost({
-        chainId: sourceChainId,
-        gasCostUsd: estimate.usd,
-        gasLimits,
-        maxFeePerGas,
-        messenger,
+  // For predictWithdraw post-quote flows, simulate an empty tx with `from`
+  // set to the proxy (Safe) address which holds the source token balance.
+  // This lets the gas station return real fee tokens instead of emulating.
+  if (request.isPostQuote && request.refundTo) {
+    log('Using proxy address for post-quote gas station simulation', {
+      proxyAddress: request.refundTo,
+      sourceTokenAddress,
+    });
+
+    const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+      firstStepData: {
+        data,
+        to,
+        value,
+      },
+      messenger,
+      request: {
+        from: request.refundTo,
+        sourceChainId,
         sourceTokenAddress,
-        totalGasEstimate,
-      }) ?? result
-    );
+      },
+      totalGasEstimate,
+      totalItemCount: Math.max(relayParams.length, gasLimits.length),
+    });
+
+    if (gasFeeTokenCost) {
+      log('Using post-quote gas fee token for source network', {
+        gasFeeTokenCost,
+      });
+
+      return {
+        isGasFeeToken: true,
+        estimate: gasFeeTokenCost,
+        max: gasFeeTokenCost,
+        gasLimits,
+      };
+    }
+
+    return result;
   }
 
   const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
@@ -1032,188 +1053,4 @@ function isStablecoin(chainId: string, tokenAddress: string): boolean {
   return Boolean(
     STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
   );
-}
-
-/**
- * Build a synthetic GasFeeToken for post-quote flows without simulation.
- *
- * Takes the estimated gas cost in USD, applies a 10% buffer for price
- * fluctuations, and converts to the source token amount using its USD rate.
- *
- * @param params - Parameters.
- * @param params.chainId - Source chain ID.
- * @param params.gasCostUsd - Estimated gas cost in USD from the relay quote.
- * @param params.maxFeePerGas - Max fee per gas from relay quote (string decimal).
- * @param params.messenger - Controller messenger.
- * @param params.sourceTokenAddress - Address of the ERC-20 gas fee token.
- * @param params.totalGasEstimate - Total gas estimate for all transactions.
- * @returns A synthetic GasFeeToken, or undefined if rates are unavailable.
- */
-function buildPostQuoteGasFeeToken({
-  chainId,
-  gasCostUsd,
-  maxFeePerGas,
-  messenger,
-  sourceTokenAddress,
-  totalGasEstimate,
-}: {
-  chainId: Hex;
-  gasCostUsd: string;
-  maxFeePerGas: string;
-  messenger: TransactionPayControllerMessenger;
-  sourceTokenAddress: Hex;
-  totalGasEstimate: number;
-}): GasFeeToken | undefined {
-  const tokenInfo = getTokenInfo(messenger, sourceTokenAddress, chainId);
-
-  if (!tokenInfo) {
-    log('Cannot get token info for post-quote gas fee token', {
-      sourceTokenAddress,
-    });
-    return undefined;
-  }
-
-  const tokenFiatRate = getTokenFiatRate(
-    messenger,
-    sourceTokenAddress,
-    chainId,
-  );
-
-  if (!tokenFiatRate) {
-    log('Cannot get token fiat rate for post-quote gas fee token', {
-      sourceTokenAddress,
-      chainId,
-    });
-    return undefined;
-  }
-
-  // Take estimated gas cost in USD from the quote,
-  // add a 10% buffer, then convert to the source token amount using the
-  // token's USD exchange rate.
-  const BUFFER = 1.1;
-  const gasCostWithBuffer = new BigNumber(gasCostUsd).multipliedBy(BUFFER);
-  const amountHuman = gasCostWithBuffer.dividedBy(tokenFiatRate.usdRate);
-  const amountRaw = amountHuman.shiftedBy(tokenInfo.decimals);
-  const finalAmount = toHex(
-    amountRaw.integerValue(BigNumber.ROUND_CEIL).toFixed(0),
-  );
-
-  // rateWei is needed by the gas station / EIP-7702 layer downstream
-  const rateControllerState = messenger.call('TokenRatesController:getState');
-
-  const checksumAddress = toChecksumHexAddress(sourceTokenAddress) as Hex;
-  const tokenToNativeRate =
-    rateControllerState.marketData?.[chainId]?.[checksumAddress]?.price;
-
-  if (!tokenToNativeRate) {
-    log('Cannot get token-to-native rate for post-quote gas fee token', {
-      sourceTokenAddress,
-      chainId,
-    });
-    return undefined;
-  }
-
-  const WEI_PER_NATIVE_UNIT = '1000000000000000000';
-  const rateWei = new BigNumber(tokenToNativeRate).multipliedBy(
-    WEI_PER_NATIVE_UNIT,
-  );
-
-  log('Built post-quote gas fee token', {
-    gasCostUsd,
-    gasCostWithBuffer: gasCostWithBuffer.toString(10),
-    amountHuman: amountHuman.toString(10),
-    finalAmount,
-    symbol: tokenInfo.symbol,
-  });
-
-  return {
-    amount: finalAmount,
-    balance: '0x0' as Hex,
-    decimals: tokenInfo.decimals,
-    gas: toHex(totalGasEstimate),
-    maxFeePerGas: toHex(maxFeePerGas),
-    maxPriorityFeePerGas: '0x0' as Hex,
-    rateWei: toHex(rateWei.toFixed(0)),
-    recipient: '0x0000000000000000000000000000000000000000' as Hex,
-    symbol: tokenInfo.symbol,
-    tokenAddress: sourceTokenAddress,
-  };
-}
-
-/**
- * Compute source network cost for post-quote flows using a synthetic gas fee
- * token built from the fiat gas estimate.
- *
- * In post-quote flows (e.g. Predict withdraw), the gas station simulation
- * returns no tokens because the EOA has no source token balance at quote time —
- * the tokens are held in the Safe and only become available after the original
- * tx executes. This function skips the simulation and computes the cost
- * directly from the estimated gas cost in USD.
- *
- * @param params - Parameters.
- * @param params.chainId - Source chain ID.
- * @param params.gasCostUsd - Estimated gas cost in USD.
- * @param params.gasLimits - Per-transaction gas limits.
- * @param params.maxFeePerGas - Max fee per gas from relay quote.
- * @param params.messenger - Controller messenger.
- * @param params.sourceTokenAddress - Address of the ERC-20 gas fee token.
- * @param params.totalGasEstimate - Total gas estimate for all transactions.
- * @returns Source network cost with gas fee token, or undefined if unavailable.
- */
-function getPostQuoteSourceNetworkCost({
-  chainId,
-  gasCostUsd,
-  gasLimits,
-  maxFeePerGas,
-  messenger,
-  sourceTokenAddress,
-  totalGasEstimate,
-}: {
-  chainId: Hex;
-  gasCostUsd: string;
-  gasLimits: number[];
-  maxFeePerGas: string;
-  messenger: TransactionPayControllerMessenger;
-  sourceTokenAddress: Hex;
-  totalGasEstimate: number;
-}):
-  | (TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
-      gasLimits: number[];
-      isGasFeeToken?: boolean;
-    })
-  | undefined {
-  const gasFeeToken = buildPostQuoteGasFeeToken({
-    chainId,
-    gasCostUsd,
-    maxFeePerGas,
-    messenger,
-    sourceTokenAddress,
-    totalGasEstimate,
-  });
-
-  if (!gasFeeToken) {
-    log('Cannot compute post-quote gas fee token', { sourceTokenAddress });
-    return undefined;
-  }
-
-  const gasFeeTokenCost = calculateGasFeeTokenCost({
-    chainId,
-    gasFeeToken,
-    messenger,
-  });
-
-  if (!gasFeeTokenCost) {
-    return undefined;
-  }
-
-  log('Using post-quote gas fee token for source network', {
-    gasFeeTokenCost,
-  });
-
-  return {
-    isGasFeeToken: true,
-    estimate: gasFeeTokenCost,
-    max: gasFeeTokenCost,
-    gasLimits,
-  };
 }
