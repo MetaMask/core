@@ -151,6 +151,11 @@ export type AccountsControllerAccountAddedEvent = {
   payload: [InternalAccount];
 };
 
+export type AccountsControllerAccountsAddedEvent = {
+  type: `${typeof controllerName}:accountsAdded`;
+  payload: [InternalAccount[]];
+};
+
 /**
  * @deprecated This type is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
@@ -158,6 +163,11 @@ export type AccountsControllerAccountAddedEvent = {
 export type AccountsControllerAccountRemovedEvent = {
   type: `${typeof controllerName}:accountRemoved`;
   payload: [AccountId];
+};
+
+export type AccountsControllerAccountsRemovedEvent = {
+  type: `${typeof controllerName}:accountsRemoved`;
+  payload: [AccountId[]];
 };
 
 /**
@@ -217,7 +227,9 @@ export type AccountsControllerEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
   | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountsAddedEvent
   | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountsRemovedEvent
   | AccountsControllerAccountRenamedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
   | AccountsControllerAccountTransactionsUpdatedEvent
@@ -991,9 +1003,21 @@ export class AccountsController extends BaseController<
         for (const id of diff.removed) {
           this.messenger.publish('AccountsController:accountRemoved', id);
         }
+        if (diff.removed.length > 0) {
+          this.messenger.publish(
+            'AccountsController:accountsRemoved',
+            diff.removed,
+          );
+        }
 
         for (const account of diff.added) {
           this.messenger.publish('AccountsController:accountAdded', account);
+        }
+        if (diff.added.length > 0) {
+          this.messenger.publish(
+            'AccountsController:accountsAdded',
+            diff.added,
+          );
         }
       },
     );
