@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `getTokenBalance`, `getTokenInfo`, and `getTokenFiatRate` now source token metadata, balances, and pricing from `AssetsController:getStateForTransactionPay` when the `assetsUnifyState` remote feature flag is enabled, falling back to individual controller state calls otherwise ([#8163](https://github.com/MetaMask/core/pull/8163))
+- Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/bridge-controller` from `^69.0.0` to `^69.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/bridge-status-controller` from `^68.0.1` to `^68.0.2` ([#8162](https://github.com/MetaMask/core/pull/8162))
 
 ## [16.4.1]
 

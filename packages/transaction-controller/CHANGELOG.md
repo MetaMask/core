@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `sourceHash` field to `MetamaskPayMetadata` for tracking source chain transaction hashes when no local transaction exists ([#8133](https://github.com/MetaMask/core/pull/8133))
 
+### Changed
+
+- Bump `@metamask/core-backend` from `^6.1.0` to `^6.1.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
 ### Fixed
 
 - Use effective recipient (decoded from tx data for token transfers) when checking for existing transactions in first-time interaction logic ([#8130](https://github.com/MetaMask/core/pull/8130))

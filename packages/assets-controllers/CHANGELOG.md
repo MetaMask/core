@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [100.2.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/account-tree-controller` from `^5.0.0` to `^5.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/core-backend` from `^6.1.0` to `^6.1.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
 ## [100.2.0]
 
 ### Added
@@ -2773,7 +2781,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.2.1...HEAD
+[100.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.2.0...@metamask/assets-controllers@100.2.1
 [100.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.1.0...@metamask/assets-controllers@100.2.0
 [100.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.3...@metamask/assets-controllers@100.1.0
 [100.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.2...@metamask/assets-controllers@100.0.3
