@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `sourceHash` field to `MetamaskPayMetadata` for tracking source chain transaction hashes when no local transaction exists ([#8133](https://github.com/MetaMask/core/pull/8133))
 - Add `predictDepositAndOrder` to `TransactionType` ([#8135](https://github.com/MetaMask/core/pull/8135))
+- Export `TransactionControllerEstimateGasFeeAction` so the `estimateGasFee` handler can be called through the controller messenger ([#8188](https://github.com/MetaMask/core/pull/8188))
 
 ### Changed
 
