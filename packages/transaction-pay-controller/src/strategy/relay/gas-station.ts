@@ -94,15 +94,15 @@ export async function getGasStationCostInSourceTokenRaw({
     return undefined;
   }
 
-  const normalizedAmount = getNormalizedGasFeeTokenAmount({
-    gasFeeToken,
-    totalGasEstimate,
-    totalItemCount,
-  });
-
   const gasFeeTokenWithNormalizedAmount = {
     ...gasFeeToken,
-    amount: toHex(normalizedAmount),
+    amount: toHex(
+      getNormalizedGasFeeTokenAmount({
+        gasFeeToken,
+        totalGasEstimate,
+        totalItemCount,
+      }),
+    ),
   };
 
   const gasFeeTokenCost = calculateGasFeeTokenCost({
