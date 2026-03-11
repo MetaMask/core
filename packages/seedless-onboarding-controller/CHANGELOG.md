@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `authenticate` now accepts an optional `refreshToken` parameter — it is only written to state when provided, so token-refresh paths cannot silently overwrite a concurrently-rotated refresh token ([#8148](https://github.com/MetaMask/core/pull/8148))
 - Token refresh now uses a dedicated private `#reAuthenticate` method that only accepts the tokens returned by the JWT-refresh service (`idTokens`, `accessToken`, `metadataAccessToken`), making the re-authentication path stricter than the initial `authenticate` call ([#8148](https://github.com/MetaMask/core/pull/8148))
 - After a successful JWT refresh the controller proactively rotates the refresh/revoke token pair (when the vault is unlocked) via a new private `#rotateRefreshToken` method ([#8148](https://github.com/MetaMask/core/pull/8148))
 - `refreshAuthTokens` now accepts an optional `skipRenewRefreshToken` flag to opt out of the proactive token rotation ([#8148](https://github.com/MetaMask/core/pull/8148))

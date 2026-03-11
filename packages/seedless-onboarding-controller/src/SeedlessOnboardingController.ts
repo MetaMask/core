@@ -463,9 +463,10 @@ export class SeedlessOnboardingController<
       );
     }
 
-    // Check if token is expired and refresh if needed
+    // Use the same 90%-lifetime threshold as checkMetadataAccessTokenExpired
+    // so both code paths agree on when a refresh is needed.
     const decodedToken = decodeJWTToken(metadataAccessToken);
-    if (decodedToken.exp < Math.floor(Date.now() / 1000)) {
+    if (isTokenNearExpiry(decodedToken.exp, decodedToken.iat)) {
       // Token is expired, refresh it
       await this.refreshAuthTokens();
 
@@ -503,7 +504,7 @@ export class SeedlessOnboardingController<
    * @param params.userId - user email or id from Social login
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
    * @param params.socialLoginEmail - The user email from Social login.
-   * @param params.refreshToken - Optional refresh token issued during OAuth login. When provided it is
+   * @param params.refreshToken - refresh token issued during OAuth login. When provided it is
    * written to state. Omit when calling from token-refresh paths (e.g. `#doRefreshAuthTokens`) so
    * that a concurrent `renewRefreshToken` rotation is never silently overwritten.
    * @param params.revokeToken - revoke token for revoking refresh token and get new refresh token and new revoke token.
@@ -521,7 +522,7 @@ export class SeedlessOnboardingController<
     userId: string;
     groupedAuthConnectionId?: string;
     socialLoginEmail?: string;
-    refreshToken?: string;
+    refreshToken: string;
     revokeToken?: string;
     skipLock?: boolean;
   }): Promise<AuthenticateResult> {
@@ -555,12 +556,7 @@ export class SeedlessOnboardingController<
           state.authConnection = authConnection;
           state.socialLoginEmail = socialLoginEmail;
           state.metadataAccessToken = metadataAccessToken;
-          // Only write refreshToken when a new value is explicitly provided (i.e. during
-          // OAuth login). Token-refresh paths omit this field so that a concurrent
-          // renewRefreshToken rotation is never silently overwritten.
-          if (refreshToken) {
-            state.refreshToken = refreshToken;
-          }
+          state.refreshToken = refreshToken;
           if (revokeToken) {
             // Temporarily store revoke token & access token in state for later vault creation
             state.revokeToken = revokeToken;
@@ -2611,8 +2607,13 @@ function isTokenNearExpiry(exp: number, iat?: number): boolean {
   if (iat === undefined) {
     return now >= exp;
   }
-  const remaining = exp - now;
   const lifetime = exp - iat;
+  // Guard against malformed tokens where iat >= exp (zero or negative lifetime).
+  // Fall back to exact-expiry check so bad tokens are always considered stale.
+  if (lifetime <= 0) {
+    return now >= exp;
+  }
+  const remaining = exp - now;
   return remaining <= 0.1 * lifetime;
 }
 
