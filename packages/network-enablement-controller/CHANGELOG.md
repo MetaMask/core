@@ -16,10 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `NetworkEnablementController:enableNetworkInNamespace`
     - `NetworkEnablementController:enableAllPopularNetworks`
     - `NetworkEnablementController:isNetworkEnabled`
-  - Corresponding action type (`TokenDetectionControllerEnableAction`) is available as well.
+  - Corresponding action type (`NetworkEnablementControllerIsNetworkEnabledAction`) is available as well.
 
 ### Changed
 
+- **BREAKING:** Standardize names of `NetworkEnablementController` messenger action types ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The `NetworkEnablementController` action `NetworkEnablementControllerSetEnabledNetworksAction` has been renamed to `NetworkEnablementControllerEnableNetworkAction` so it matches the method name.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `NetworkEnablementController` messengers.
 - Bump `@metamask/multichain-network-controller` from `^3.0.4` to `^3.0.5` ([#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/transaction-controller` from `^62.20.0` to `^62.21.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
 
