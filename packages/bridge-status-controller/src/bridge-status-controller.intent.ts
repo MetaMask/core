@@ -1,6 +1,8 @@
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
-import type { TransactionController } from '@metamask/transaction-controller';
-import { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionController,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 
 import type { BridgeStatusControllerMessenger, FetchFunction } from './types';
 import type { BridgeHistoryItem } from './types';
@@ -22,6 +24,9 @@ type IntentStatuses = {
 export class IntentManager {
   readonly #messenger: BridgeStatusControllerMessenger;
 
+  /**
+   * @deprecated use the messenger to call 'TransactionController:updateTransaction' instead
+   */
   readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
 
   readonly intentApi: IntentApi;
