@@ -119,12 +119,13 @@ describe('AiDigestController (market insights)', () => {
       messenger: createMessenger(),
       digestService,
     });
+    const perpsSymbol = 'ETH';
 
-    const result = await controller.fetchMarketInsights('ETH');
+    const result = await controller.fetchMarketInsights(perpsSymbol);
 
     expect(result).toStrictEqual(mockReport);
-    expect(digestService.searchDigest).toHaveBeenCalledWith('ETH');
-    expect(controller.state.marketInsights['ETH']).toBeDefined();
+    expect(digestService.searchDigest).toHaveBeenCalledWith(perpsSymbol);
+    expect(controller.state.marketInsights[perpsSymbol]).toBeDefined();
   });
 
   it('caches perps and CAIP-19 identifiers independently', async () => {
@@ -133,13 +134,15 @@ describe('AiDigestController (market insights)', () => {
       messenger: createMessenger(),
       digestService,
     });
+    const perpsSymbol = 'ETH';
+    const caip19Id = 'eip155:1/slip44:60';
 
-    await controller.fetchMarketInsights('ETH');
-    await controller.fetchMarketInsights('eip155:1/slip44:60');
+    await controller.fetchMarketInsights(perpsSymbol);
+    await controller.fetchMarketInsights(caip19Id);
 
     expect(digestService.searchDigest).toHaveBeenCalledTimes(2);
-    expect(controller.state.marketInsights['ETH']).toBeDefined();
-    expect(controller.state.marketInsights['eip155:1/slip44:60']).toBeDefined();
+    expect(controller.state.marketInsights[perpsSymbol]).toBeDefined();
+    expect(controller.state.marketInsights[caip19Id]).toBeDefined();
   });
 
   it('removes stale entry when service returns null', async () => {

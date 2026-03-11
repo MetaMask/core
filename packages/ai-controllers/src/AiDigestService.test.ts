@@ -91,7 +91,7 @@ describe('AiDigestService', () => {
       );
     });
 
-    it('URL-encodes the perps market symbol', async () => {
+    it('encodes the perps market symbol in the URL', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -232,9 +232,7 @@ describe('AiDigestService', () => {
       const service = new AiDigestService({
         baseUrl: 'http://test.com/api/v1',
       });
-      const result = await service.searchDigest(
-        'eip155:1/erc20:0xunknown',
-      );
+      const result = await service.searchDigest('eip155:1/erc20:0xunknown');
 
       expect(result).toBeNull();
     });
