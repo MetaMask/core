@@ -64,7 +64,7 @@ class FooController extends BaseController</* ... */> {
 
 ## Provide a default representation of state
 
-Each controller needs a default representation in order to fully initialize itself when [receiving a partial representation of state](#accept-an-optional-partial-representation-of-state). A default representation of state is also useful when testing interactions with a controller's `*:stateChange` event.
+Each controller needs a default representation in order to fully initialize itself when [receiving a partial representation of state](#accept-an-optional-partial-representation-of-state). A default representation of state is also useful when testing interactions with a controller's `*:stateChanged` event.
 
 A function which returns this default representation should be defined and exported. It should be called `getDefault${ControllerName}State`.
 
@@ -226,7 +226,7 @@ const fooController = new FooController({
 
 If the recipient controller uses a messenger, however, the callback pattern is unnecessary. Using the messenger not only aligns the controller with `BaseController`, but also reduces the number of options that consumers need to remember in order to use the controller:
 
-✅ **The constructor subscribes to the `BarController:stateChange` event**
+✅ **The constructor subscribes to the `BarController:stateChanged` event**
 
 ```typescript
 /* === This repo: packages/foo-controller/src/FooController.ts === */
@@ -247,7 +247,7 @@ class FooController extends BaseController<
   constructor({ messenger /*, ... */ }, { messenger: FooControllerMessenger }) {
     super({ messenger /* ... */ });
 
-    messenger.subscribe('BarController:stateChange', (state) => {
+    messenger.subscribe('BarController:stateChanged', (state) => {
       // do something with the state
     });
   }
@@ -280,7 +280,7 @@ const fooControllerMessenger = new Messenger<
   parent: rootMessenger,
 });
 rootMessenger.delegate({
-  events: ['BarController:stateChange'],
+  events: ['BarController:stateChanged'],
   messenger: fooControllerMessenger,
 });
 const fooController = new FooController({
@@ -541,16 +541,16 @@ type FooControllerGetStateAction = ControllerGetStateAction<
 >;
 ```
 
-## Define the `*:stateChange` event using the `ControllerStateChangeEvent` utility type
+## Define the `*:stateChanged` event using the `ControllerStateChangedEvent` utility type
 
-Each controller needs a type for its `*:stateChange` event. The `ControllerStateChangeEvent` utility type from the `@metamask/base-controller` package should be used to define this type.
+Each controller needs a type for its `*:stateChanged` event. The `ControllerStateChangedEvent` utility type from the `@metamask/base-controller` package should be used to define this type.
 
-The name of this type should be `${ControllerName}StateChangeEvent`.
+The name of this type should be `${ControllerName}StateChangedEvent`.
 
 ```typescript
-import type { ControllerStateChangeEvent } from '@metamask/base-controller';
+import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 
-type FooControllerStateChangeEvent = ControllerStateChangeEvent<
+type FooControllerStateChangedEvent = ControllerStateChangedEvent<
   'FooController',
   FooControllerState
 >;
@@ -890,7 +890,7 @@ This type should include:
   - This should always include `${controllerName}GetStateAction`
 - Actions imported from other controllers that the controller calls (i.e., _external actions_)
 - Events defined and exported by the controller that it publishes and expects consumers to subscribe to (i.e., _internal events_)
-  - This should always include `${controllerName}StateChangeEvent`
+  - This should always include `${controllerName}StateChangedEvent`
 - Events imported from other controllers that the controller subscribes to (i.e., _external events_)
 
 The name of this type should be `${ControllerName}Messenger`.
@@ -923,7 +923,7 @@ export type AllowedActions =
   | ApprovalControllerAddApprovalRequestAction
   | ApprovalControllerAcceptApprovalRequestAction;
 
-export type SwapsControllerStateChangeEvent = ControllerStateChangeEvent<
+export type SwapsControllerStateChangedEvent = ControllerStateChangedEvent<
   'SwapsController',
   SwapsControllerState
 >;
@@ -934,7 +934,7 @@ export type SwapsControllerSwapCreatedEvent = {
 };
 
 export type SwapsControllerEvents =
-  | SwapsControllerStateChangeEvent
+  | SwapsControllerStateChangedEvent
   | SwapsControllerSwapCreatedEvent;
 
 export type AllowedEvents =
@@ -1045,7 +1045,7 @@ class GasFeeController extends BaseController</* ... */> {
     // ...
 
     messenger.subscribe(
-      'NetworkController:stateChange',
+      'NetworkController:stateChanged',
       (networkControllerState) => {
         this.#updateGasFees(networkControllerState.selectedNetworkClientId);
       },
@@ -1054,9 +1054,9 @@ class GasFeeController extends BaseController</* ... */> {
 }
 ```
 
-One way to fix this is to check if the other controller (the one being subscribed to) has a more suitable, granular event for the data being acted upon. For instance, `NetworkController` has a `networkDidChange` event which can be used in place of `NetworkController:stateChange` if the subscribing controller needs to know when the network has been switched:
+One way to fix this is to check if the other controller (the one being subscribed to) has a more suitable, granular event for the data being acted upon. For instance, `NetworkController` has a `networkDidChange` event which can be used in place of `NetworkController:stateChanged` if the subscribing controller needs to know when the network has been switched:
 
-✅ **`NetworkController:networkDidChange` is used instead of `NetworkController:stateChange`**
+✅ **`NetworkController:networkDidChange` is used instead of `NetworkController:stateChanged`**
 
 ```typescript
 class GasFeeController extends BaseController</* ... */> {
@@ -1098,7 +1098,7 @@ class TokensController extends BaseController</* ... */> {
     let selectedAccount = accountsController.internalAccounts.selectedAccount;
 
     messenger.subscribe(
-      'AccountsController:stateChange',
+      'AccountsController:stateChanged',
       (newAccountsControllerState) => {
         if (newAccountsControllerState.selectedAccount !== selectedAccount) {
           this.#updateTokens(
@@ -1125,7 +1125,7 @@ class NftController extends BaseController/*<...>*/ {
     );
 
     messenger.subscribe(
-      'PreferencesController:stateChange',
+      'PreferencesController:stateChanged',
       (newPreferencesControllerState) => {
         if (
           preferencesControllerState.ipfsGateway !== newPreferencesControllerState.ipfsGateway,
@@ -1190,7 +1190,7 @@ class NftController extends BaseController /*<...>*/ {
     // ...
 
     messenger.subscribe(
-      'PreferencesController:stateChange',
+      'PreferencesController:stateChanged',
       ({ ipfsGateway, openSeaEnabled, isIpfsGatewayEnabled }) => {
         this.#updateNfts(ipfsGateway, openSeaEnabled, isIpfsGatewayEnabled);
       },

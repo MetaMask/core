@@ -3,6 +3,43 @@ import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
 
+/**
+ * Extract the selector entries from all `no-restricted-syntax` rule
+ * configurations in a flat ESLint config array.
+ *
+ * This is needed because ESLint flat config replaces rule definitions from
+ * earlier configs rather than merging them. Any config block that defines
+ * `no-restricted-syntax` must include all entries it wants to enforce — it
+ * cannot just append to what a previous config defined.
+ *
+ * @param {import('eslint').Linter.Config[]} flatConfigs - A flat ESLint config array.
+ * @returns {object[]} The selector entries.
+ */
+function getNoRestrictedSyntaxEntries(flatConfigs) {
+  return flatConfigs.flatMap((config) => {
+    const rule = config.rules?.['no-restricted-syntax'] ?? [];
+    return rule.filter((entry) => typeof entry === 'object');
+  });
+}
+
+/**
+ * ESLint rule entries that flag use of the deprecated `:stateChange` event.
+ */
+const DEPRECATED_STATE_CHANGE_ENTRIES = [
+  {
+    selector:
+      'CallExpression[callee.property.name="subscribe"] > Literal[value=/^.+:stateChange$/]',
+    message:
+      "Subscribing to ':stateChange' events is deprecated. Use ':stateChanged' instead.",
+  },
+  {
+    selector:
+      'CallExpression[callee.property.name="delegate"] Property[key.name="events"] ArrayExpression > Literal[value=/^.+:stateChange$/]',
+    message:
+      "Delegating ':stateChange' events is deprecated. Use ':stateChanged' instead.",
+  },
+];
+
 const NODE_LTS_VERSION = 22;
 
 const config = createConfig([
@@ -81,6 +118,16 @@ const config = createConfig([
       // do not work very well.
       'jsdoc/check-tag-names': 'off',
       'jsdoc/require-jsdoc': 'off',
+
+      // Add custom rule for deprecating `${Controller}:stateChange` in favor of
+      // `:stateChanged`. We must re-include the existing entries from
+      // `@metamask/eslint-config-typescript` here because ESLint flat config
+      // replaces the rule entirely rather than merging arrays.
+      'no-restricted-syntax': [
+        'error',
+        ...getNoRestrictedSyntaxEntries(typescript),
+        ...DEPRECATED_STATE_CHANGE_ENTRIES,
+      ],
     },
   },
   {

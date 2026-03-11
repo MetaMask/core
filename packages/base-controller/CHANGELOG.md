@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 
+### Deprecated
+
+- Deprecate `${Controller}:stateChange` event in favor of `${Controller}:stateChanged` ([#8187](https://github.com/MetaMask/core/pull/8187))
+
 ## [9.0.0]
 
 ### Changed
