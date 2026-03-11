@@ -46,6 +46,7 @@ import {
   getSlippage,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
+import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import {
   getNativeToken,
   getTokenBalance,
@@ -583,12 +584,15 @@ async function calculateSourceNetworkCost(
   const { chainId, data, maxFeePerGas, maxPriorityFeePerGas, to, value } =
     relayParams[0];
 
+  const isPredictWithdraw =
+    request.isPostQuote && isPredictWithdrawTransaction(transaction);
+
   const { totalGasEstimate, totalGasLimit, gasLimits } =
     await calculateSourceNetworkGasLimit(
       relayParams,
       messenger,
       request.isPostQuote ? transaction : undefined,
-      request.isPostQuote ? request.refundTo : undefined,
+      isPredictWithdraw ? request.refundTo : undefined,
     );
 
   log('Gas limit', {
@@ -653,8 +657,8 @@ async function calculateSourceNetworkCost(
     max: max.raw,
   });
 
-  if (request.isPostQuote && request.refundTo) {
-    log('Using proxy address for post-quote gas station simulation', {
+  if (isPredictWithdraw && request.refundTo) {
+    log('Using proxy address for predict withdraw gas station simulation', {
       proxyAddress: request.refundTo,
       sourceTokenAddress,
     });
@@ -676,7 +680,7 @@ async function calculateSourceNetworkCost(
     });
 
     if (gasFeeTokenCost) {
-      log('Using post-quote gas fee token for source network', {
+      log('Using predict withdraw gas fee token for source network', {
         gasFeeTokenCost,
       });
 

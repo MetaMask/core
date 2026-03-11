@@ -1,4 +1,7 @@
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -236,6 +239,27 @@ export function collectTransactionIds(
   };
 
   return { end };
+}
+
+/**
+ * Check whether a transaction is a Predict withdrawal.
+ *
+ * Returns `true` when the transaction's own type is `predictWithdraw`, or
+ * when any of its nested transactions has that type.
+ *
+ * @param transaction - Transaction metadata.
+ * @returns `true` when the transaction is a Predict withdrawal.
+ */
+export function isPredictWithdrawTransaction(
+  transaction: TransactionMeta,
+): boolean {
+  return (
+    transaction.type === TransactionType.predictWithdraw ||
+    (transaction.nestedTransactions?.some(
+      (nt) => nt.type === TransactionType.predictWithdraw,
+    ) ??
+      false)
+  );
 }
 
 /**
