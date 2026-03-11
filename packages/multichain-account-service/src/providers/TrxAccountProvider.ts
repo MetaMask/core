@@ -53,6 +53,7 @@ export class TrxAccountProvider extends SnapAccountProvider {
     scopes: [TrxScope.Mainnet, TrxScope.Shasta],
     bip44: {
       deriveIndex: true,
+      deriveIndexRange: true,
     },
   };
 
@@ -106,9 +107,36 @@ export class TrxAccountProvider extends SnapAccountProvider {
   ): Promise<Bip44Account<KeyringAccount>[]> {
     assertCreateAccountOptionIsSupported(options, [
       `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
     ]);
 
-    const { entropySource, groupIndex } = options;
+    const { entropySource } = options;
+
+    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+      const { range } = options;
+      return this.withSnap(async ({ keyring }) => {
+        const accounts: Bip44Account<KeyringAccount>[] = [];
+
+        // TODO: Use `SnapKeyring.createAccounts` when that functionality is implemented on the Snap
+        // itself, instead of creating accounts one by one.
+        for (
+          let groupIndex = range.from;
+          groupIndex <= range.to;
+          groupIndex++
+        ) {
+          const createdAccounts = await this.#createAccounts({
+            keyring,
+            entropySource,
+            groupIndex,
+          });
+          accounts.push(...createdAccounts);
+        }
+
+        return accounts;
+      });
+    }
+
+    const { groupIndex } = options;
 
     return this.withSnap(async ({ keyring }) => {
       return this.#createAccounts({
