@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add `assetId`, `chainId`, and `id` properties to `MarketDataDetails` type ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [100.2.1]
 
 ### Changed

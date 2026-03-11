@@ -77,6 +77,9 @@ export type MarketDataDetails = {
   pricePercentChange30d: number;
   pricePercentChange200d: number;
   totalVolume: number;
+  assetId: string;
+  chainId: string;
+  id: string;
 };
 
 /**
