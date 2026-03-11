@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `AssetsContractController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following action is now available:
+    - `AssetsContractController:getStakedBalanceForChain`
+  - Corresponding action type (`AssetsContractControllerGetStakedBalanceForChainAction`) is available as well.
+- Expose missing public `MultichainAssetsRatesController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following action is now available:
+    - `MultichainAssetsRatesController:fetchHistoricalPricesForAsset`
+  - Corresponding action type (`MultichainAssetsRatesControllerFetchHistoricalPricesForAssetAction`) is available as well.
+- Expose missing public `TokenDetectionController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following actions are now available:
+    - `TokenDetectionController:enable`
+    - `TokenDetectionController:disable`
+    - `TokenDetectionController:start`
+    - `TokenDetectionController:stop`
+  - Corresponding action type (`TokenDetectionControllerEnableAction`) is available as well.
+- Expose missing public `TokensController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following actions are now available:
+    - `TokensController:addToken`
+    - `TokensController:ignoreTokens`
+    - `TokensController:updateTokenType`
+    - `TokensController:watchAsset`
+    - `TokensController:clearIgnoredTokens`
+    - `TokensController:resetState`
+  - Corresponding action type (`TokensControllerAddTokenAction`) is available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `AccountTrackerController` messenger action types ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - All existing types for messenger actions have been renamed so they include `Controller` (e.g. `AccountTrackerUpdateNativeBalancesAction` -> `AccountTrackerControllerUpdateNativeBalancesAction`). You will need to update imports appropriately.
+  - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AccountTrackerController` messengers.
+
 ### Fixed
 
 - Add missing Tron staking lifecycle asset symbols to `TRON_RESOURCE` filter ([#8174](https://github.com/MetaMask/core/pull/8174))

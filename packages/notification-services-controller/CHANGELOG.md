@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `NotificationServicesController` methods through its messenger ([#8176](https://github.com/MetaMask/core/pull/8176))
+  - The following actions are now available:
+    - `NotificationServicesController:init`
+    - `NotificationServicesController:enablePushNotification`
+    - `NotificationServicesController:disablePushNotification`
+    - `NotificationServicesController:checkAccountsPresence`
+    - `NotificationServicesController:setFeatureAnnouncementsEnabled`
+    - `NotificationServicesController:createOnChainTriggers`
+    - `NotificationServicesController:enableMetamaskNotifications`
+    - `NotificationServicesController:disableAccounts`
+    - `NotificationServicesController:enableAccounts`
+    - `NotificationServicesController:fetchAndUpdateMetamaskNotifications`
+    - `NotificationServicesController:deleteNotificationById`
+    - `NotificationServicesController:markMetamaskNotificationsAsRead`
+    - `NotificationServicesController:sendPerpPlaceOrderNotification`
+  - Corresponding action types (e.g. `NotificationServicesControllerEnablePushNotificationAction`) are available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `NotificationServicesController` and `NotificationServicesPushController` messenger action types ([#8176](https://github.com/MetaMask/core/pull/8176))
+  - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `NotificationServicesControllerUpdateMetamaskNotificationsList` -> `NotificationServicesControllerUpdateMetamaskNotificationsListAction`). You will need to update imports appropriately.
+  - The `NotificationServicesPushController` action `NotificationServicesPushControllerSubscribeToNotificationsAction` has been renamed to `NotificationServicesPushControllerSubscribeToPushNotificationsAction` so it matches the method name.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `NotificationServicesController` and `NotificationServicesPushController` messengers.
+
 ## [22.1.0]
 
 ### Changed
