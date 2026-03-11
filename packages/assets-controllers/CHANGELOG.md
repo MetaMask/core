@@ -46,7 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Add missing Tron staking lifecycle asset symbols to `TRON_RESOURCE` filter ([#8174](https://github.com/MetaMask/core/pull/8174))
-  > > > > > > > main
 
 ## [100.2.1]
 
