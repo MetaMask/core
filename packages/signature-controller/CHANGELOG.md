@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New messenger actions: `SignatureControllerResetStateAction`, `SignatureControllerRejectUnapprovedAction`, `SignatureControllerClearUnapprovedAction`, `SignatureControllerNewUnsignedPersonalMessageAction`, `SignatureControllerNewUnsignedTypedMessageAction`, `SignatureControllerSetDeferredSignSuccessAction`, `SignatureControllerSetMessageMetadataAction`, `SignatureControllerSetDeferredSignErrorAction`, `SignatureControllerSetTypedMessageInProgressAction`, `SignatureControllerSetPersonalMessageInProgressAction` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ### Changed
 
 - Bump `@metamask/gator-permissions-controller` from `^2.0.0` to `^2.1.0` ([#8156](https://github.com/MetaMask/core/pull/8156))

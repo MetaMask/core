@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `sourceHash` field to `MetamaskPayMetadata` for tracking source chain transaction hashes when no local transaction exists ([#8133](https://github.com/MetaMask/core/pull/8133))
 - Add `predictDepositAndOrder` to `TransactionType` ([#8135](https://github.com/MetaMask/core/pull/8135))
+- New public `getGasFeeTokens()` method ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- New messenger actions: `TransactionControllerHandleMethodDataAction`, `TransactionControllerIsAtomicBatchSupportedAction`, `TransactionControllerStartIncomingTransactionPollingAction`, `TransactionControllerStopIncomingTransactionPollingAction`, `TransactionControllerUpdateIncomingTransactionsAction`, `TransactionControllerStopTransactionAction`, `TransactionControllerSpeedUpTransactionAction`, `TransactionControllerEstimateGasBufferedAction`, `TransactionControllerUpdateEditableParamsAction`, `TransactionControllerSetTransactionActiveAction`, `TransactionControllerApproveTransactionsWithSameNonceAction`, `TransactionControllerEstimateGasFeeAction`, `TransactionControllerGetLayer1GasFeeAction`, `TransactionControllerClearUnapprovedTransactionsAction`, `TransactionControllerAbortTransactionSigningAction`, `TransactionControllerUpdateAtomicBatchDataAction` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 
 ### Changed
 
+- **BREAKING:** Action type names standardized with `Action` suffix (e.g. `TransactionControllerEmulateNewTransaction` → `TransactionControllerEmulateNewTransactionAction`) ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 - Bump `@metamask/core-backend` from `^6.1.0` to `^6.1.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
 
 ### Fixed

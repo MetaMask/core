@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Removed `AddLog` type alias; use `LoggingControllerAddAction` instead ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.19.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995))
+
+### Added
+
+- New messenger action: `LoggingControllerClearAction` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 
 ## [7.0.1]
 

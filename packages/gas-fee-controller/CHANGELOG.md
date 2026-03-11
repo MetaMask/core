@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New messenger actions: `GasFeeControllerResetPollingAction`, `GasFeeControllerFetchGasFeeEstimatesAction`, `GasFeeControllerGetGasFeeEstimatesAndStartPollingAction`, `GasFeeControllerDisconnectPollerAction`, `GasFeeControllerStopPollingAction`, `GasFeeControllerGetTimeEstimateAction` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ## [26.0.3]
 
 ### Changed

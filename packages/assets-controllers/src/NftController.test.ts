@@ -1220,8 +1220,9 @@ describe('NftController', () => {
 
       // now accept the request
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      approvalController.accept(requestId);
+      approvalController.acceptRequest(requestId);
       await acceptedRequest;
 
       // check that the NFT was added to the correct chainId/selectedAddress in state
@@ -1330,8 +1331,9 @@ describe('NftController', () => {
       });
       // now accept the request
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      approvalController.accept(requestId);
+      approvalController.acceptRequest(requestId);
       await acceptedRequest;
 
       // check that the NFT was added to the correct chainId/selectedAddress in state

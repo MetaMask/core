@@ -106,6 +106,7 @@ function createMessengerMock() {
     call: jest.fn(),
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(),
   } as unknown as jest.Mocked<UserOperationControllerMessenger>;
 }

@@ -6,7 +6,7 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { ApprovalControllerAddRequestAction as AddApprovalRequest } from '@metamask/approval-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,

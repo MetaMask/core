@@ -5,7 +5,7 @@
 
 import { TransactionFactory } from '@ethereumjs/tx';
 import type {
-  AddApprovalRequest,
+  ApprovalControllerAddRequestAction as AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';

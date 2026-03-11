@@ -27,7 +27,7 @@ import type { BridgeStatusControllerSubmitTxAction } from '../../../bridge-statu
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
-} from '../types';
+} from '../TransactionPayController-method-action-types';
 import type { TransactionPayControllerGetStateAction } from '../types';
 
 type AllActions = MessengerActions<TransactionPayControllerMessenger>;

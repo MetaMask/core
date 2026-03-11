@@ -1,8 +1,8 @@
 import type {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  HasApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
+  ApprovalControllerAcceptRequestAction as AcceptApprovalRequest,
+  ApprovalControllerAddRequestAction as AddApprovalRequest,
+  ApprovalControllerHasRequestAction as HasApprovalRequest,
+  ApprovalControllerRejectRequestAction as RejectApprovalRequest,
 } from '@metamask/approval-controller';
 import type {
   StateMetadata,
@@ -2450,7 +2450,7 @@ export class PermissionController<
 
   /**
    * Adds a request to the {@link ApprovalController} using the
-   * {@link AddApprovalRequest} action. Also validates the resulting approved
+   * {@link ApprovalControllerAddRequestAction} action. Also validates the resulting approved
    * permissions request, and throws an error if validation fails.
    *
    * @param permissionsRequest - The permissions request object.
@@ -2738,7 +2738,7 @@ export class PermissionController<
    *
    * @see {@link PermissionController.acceptPermissionsRequest} and
    * {@link PermissionController.rejectPermissionsRequest} for usage.
-   * @param options - The {@link HasApprovalRequest} options.
+   * @param options - The {@link ApprovalControllerHasRequestAction} options.
    * @param options.id - The id of the approval request to check for.
    * @returns Whether the specified request exists.
    */

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New messenger actions: `UserOperationControllerAddUserOperationAction`, `UserOperationControllerAddUserOperationFromTransactionAction`, `UserOperationControllerStartPollingByNetworkClientIdAction` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.21.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140))
