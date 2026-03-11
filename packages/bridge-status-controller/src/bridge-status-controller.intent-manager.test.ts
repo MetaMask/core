@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { StatusTypes } from '@metamask/bridge-controller';
+import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import { IntentManager } from './bridge-status-controller.intent';
@@ -81,10 +81,18 @@ describe('IntentManager', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
+    const {
+      quote: { srcChainId, intent },
+      status: {
+        srcChain: { txHash },
+      },
+    } = makeHistoryItem({ originalTransactionId: 'tx-1' });
     await manager.getIntentTransactionStatus(
       'order-2',
-      makeHistoryItem({ originalTransactionId: 'tx-1' }),
-      'client-id',
+      srcChainId,
+      intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      txHash,
     );
     manager.syncTransactionFromIntentStatus(
       'order-2',
@@ -129,8 +137,10 @@ describe('IntentManager', () => {
     });
     await manager.getIntentTransactionStatus(
       'order-3',
-      historyItem,
-      'client-id',
+      historyItem.quote.srcChainId,
+      historyItem.quote.intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      historyItem.status.srcChain.txHash,
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
@@ -154,10 +164,16 @@ describe('IntentManager', () => {
       .spyOn(manager.intentApi, 'getOrderStatus')
       .mockRejectedValue('non-Error rejection');
 
+    const {
+      quote: { srcChainId, intent },
+      status,
+    } = makeHistoryItem();
     const result = await manager.getIntentTransactionStatus(
       'order-1',
-      makeHistoryItem(),
-      'client-id',
+      srcChainId,
+      intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      status.srcChain.txHash,
     );
 
     expect(result).toBeUndefined();
@@ -172,11 +188,19 @@ describe('IntentManager', () => {
     );
 
     let thrown: unknown;
+    const {
+      quote: { srcChainId, intent },
+      status: {
+        srcChain: { txHash },
+      },
+    } = makeHistoryItem();
     try {
       await manager.getIntentTransactionStatus(
         'order-1',
-        makeHistoryItem(),
-        'client-id',
+        srcChainId,
+        intent?.protocol ?? '',
+        BridgeClientId.MOBILE,
+        txHash,
       );
     } catch (error) {
       thrown = error;
@@ -207,8 +231,10 @@ describe('IntentManager', () => {
 
     const result = await manager.getIntentTransactionStatus(
       'order-1',
-      historyItem,
-      'client-id',
+      historyItem.quote.srcChainId,
+      historyItem.quote.intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      historyItem.status.srcChain.txHash,
     );
 
     expect(result).toBeDefined();
@@ -231,10 +257,15 @@ describe('IntentManager', () => {
       status: { status: StatusTypes.PENDING } as BridgeHistoryItem['status'],
     });
 
+    const {
+      quote: { srcChainId, intent },
+    } = historyItemWithoutSrcChain;
     const result = await manager.getIntentTransactionStatus(
       'order-1',
-      historyItemWithoutSrcChain,
-      'client-id',
+      srcChainId,
+      intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      undefined,
     );
 
     expect(result).toBeDefined();
@@ -273,8 +304,10 @@ describe('IntentManager', () => {
     });
     await manager.getIntentTransactionStatus(
       'order-3',
-      historyItem,
-      'client-id',
+      historyItem.quote.srcChainId,
+      historyItem.quote.intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      historyItem.status.srcChain.txHash,
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
@@ -317,8 +350,10 @@ describe('IntentManager', () => {
     });
     await manager.getIntentTransactionStatus(
       'order-3',
-      historyItem,
-      'client-id',
+      historyItem.quote.srcChainId,
+      historyItem.quote.intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      historyItem.status.srcChain.txHash,
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
@@ -346,15 +381,17 @@ describe('IntentManager', () => {
       }),
     );
 
+    const historyItem = makeHistoryItem({
+      originalTransactionId: 'tx-missing',
+    });
     await manager.getIntentTransactionStatus(
       'order-1',
-      makeHistoryItem({ originalTransactionId: 'tx-missing' }),
-      'client-id',
+      historyItem.quote.srcChainId,
+      historyItem.quote.intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      historyItem.status.srcChain.txHash,
     );
-    manager.syncTransactionFromIntentStatus(
-      'order-1',
-      makeHistoryItem({ originalTransactionId: 'tx-missing' }),
-    );
+    manager.syncTransactionFromIntentStatus('order-1', historyItem);
 
     expect(warnSpy).toHaveBeenCalledWith(
       '[Intent polling] Skipping update, transaction not found',
@@ -395,8 +432,10 @@ describe('IntentManager', () => {
     });
     await manager.getIntentTransactionStatus(
       'order-3',
-      historyItem,
-      'client-id',
+      historyItem.quote.srcChainId,
+      historyItem.quote.intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      historyItem.status.srcChain.txHash,
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
@@ -442,8 +481,10 @@ describe('IntentManager', () => {
     });
     await manager.getIntentTransactionStatus(
       'order-3',
-      historyItem,
-      'client-id',
+      historyItem.quote.srcChainId,
+      historyItem.quote.intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      historyItem.status.srcChain.txHash,
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
@@ -487,8 +528,10 @@ describe('IntentManager', () => {
     });
     await manager.getIntentTransactionStatus(
       'order-3',
-      historyItem,
-      'client-id',
+      historyItem.quote.srcChainId,
+      historyItem.quote.intent?.protocol ?? '',
+      BridgeClientId.MOBILE,
+      historyItem.status.srcChain.txHash,
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
@@ -513,7 +556,7 @@ describe('IntentManager', () => {
     const manager = new IntentManager(createManagerOptions({ fetchFn }));
 
     const params = {
-      srcChainId: '1',
+      srcChainId: 1,
       quoteId: 'quote-1',
       signature: '0xsig',
       order: { some: 'order' },
@@ -521,7 +564,7 @@ describe('IntentManager', () => {
       aggregatorId: 'cowswap',
     };
 
-    const result = await manager.submitIntent(params, 'client-id');
+    const result = await manager.submitIntent(params, BridgeClientId.EXTENSION);
 
     expect(result).toStrictEqual(expectedOrder);
   });
