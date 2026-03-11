@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   ChainId,
   FeeType,
@@ -1851,6 +1852,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
             },
           };
         }
+        if (method === 'TransactionController:estimateGasFee') {
+          return {
+            estimates: {},
+          };
+        }
         return undefined;
       }),
     });
@@ -1872,7 +1878,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: true,
         trade: mockQuoteResponse.trade,
         approval: mockQuoteResponse.approval,
-        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       expect(result.disable7702).toBe(false);
@@ -1894,7 +1899,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
-        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       expect(result.disable7702).toBe(true);
@@ -1916,7 +1920,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
         approval: mockQuoteResponse.approval,
-        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       expect(result.transactions).toHaveLength(2);
@@ -1937,7 +1940,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: true,
         trade: mockQuoteResponse.trade,
         resetApproval: mockQuoteResponse.resetApproval,
-        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       expect(result.disable7702).toBe(true);
@@ -1959,7 +1961,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
-        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       expect(result.isGasFeeIncluded).toBe(false);
@@ -1976,7 +1977,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
-        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       expect(result.isGasFeeIncluded).toBe(true);
@@ -1993,7 +1993,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
-        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       expect(result.isGasFeeIncluded).toBe(false);
@@ -2002,9 +2001,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
   });
 
   describe('findAndUpdateTransactionsInBatch', () => {
-    const mockUpdateTransactionFn = jest.fn();
     const batchId = 'test-batch-id';
-    let mockMessagingSystem: BridgeStatusControllerMessenger;
 
     const createMockTransaction = (overrides: {
       id: string;
@@ -2029,11 +2026,23 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     // Helper function to create mock messaging system with transactions
-    const createMockMessagingSystemWithTxs = (
+    const mockMessengerCallHandlers = (
       txs: ReturnType<typeof createMockTransaction>[],
-    ) => ({
-      call: jest.fn().mockReturnValue({ transactions: txs }),
-    });
+    ) => {
+      return {
+        call: jest.fn((method: string, ..._args: unknown[]) => {
+          if (method === 'TransactionController:getState') {
+            return { transactions: txs };
+          }
+          if (method === 'TransactionController:updateTransaction') {
+            return {
+              transactionMeta: { id: 'tx1', type: TransactionType.swap },
+            };
+          }
+          return undefined;
+        }),
+      };
+    };
 
     beforeEach(() => {
       jest.clearAllMocks();
@@ -2052,10 +2061,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           data: '0xapprovalData',
         }),
       ];
-
-      mockMessagingSystem = createMockMessagingSystemWithTxs(
-        txs,
-      ) as unknown as BridgeStatusControllerMessenger;
+      const mockMessenger = mockMessengerCallHandlers(txs);
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -2063,29 +2069,46 @@ describe('Bridge Status Controller Transaction Utils', () => {
       };
 
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessagingSystem,
+        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
         batchId,
         txDataByType,
-        updateTransactionFn: mockUpdateTransactionFn,
       });
 
-      // Should update the 7702 batch transaction to swap type
-      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'tx1',
-          type: TransactionType.swap,
-        }),
-        'Update tx type to swap',
-      );
-
-      // Should update the approval transaction
-      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'tx2',
-          type: TransactionType.swapApproval,
-        }),
-        'Update tx type to swapApproval',
-      );
+      expect(
+        mockMessenger.call.mock.calls.filter(
+          ([action]) => action === 'TransactionController:updateTransaction',
+        ),
+      ).toMatchInlineSnapshot(`
+        [
+          [
+            "TransactionController:updateTransaction",
+            {
+              "batchId": "test-batch-id",
+              "id": "tx1",
+              "txParams": {
+                "authorizationList": [
+                  "0xAuth1",
+                ],
+                "data": "0xbatchExecuteData",
+              },
+              "type": "swap",
+            },
+            "Update tx type to swap",
+          ],
+          [
+            "TransactionController:updateTransaction",
+            {
+              "batchId": "test-batch-id",
+              "id": "tx2",
+              "txParams": {
+                "data": "0xapprovalData",
+              },
+              "type": "swapApproval",
+            },
+            "Update tx type to swapApproval",
+          ],
+        ]
+      `);
     });
 
     it('should handle 7702 transactions with delegationAddress', () => {
@@ -2098,29 +2121,38 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(
-        txs,
-      ) as unknown as BridgeStatusControllerMessenger;
+      const mockMessenger = mockMessengerCallHandlers(txs);
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
       };
 
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessagingSystem,
+        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
         batchId,
         txDataByType,
-        updateTransactionFn: mockUpdateTransactionFn,
       });
 
       // Should identify and update 7702 transaction with delegationAddress
-      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'tx1',
-          type: TransactionType.swap,
-        }),
-        'Update tx type to swap',
-      );
+      expect(
+        mockMessenger.call.mock.calls.find(
+          (call) => call[0] === 'TransactionController:updateTransaction',
+        ),
+      ).toMatchInlineSnapshot(`
+        [
+          "TransactionController:updateTransaction",
+          {
+            "batchId": "test-batch-id",
+            "delegationAddress": "0xDelegationAddress",
+            "id": "tx1",
+            "txParams": {
+              "data": "0xbatchData",
+            },
+            "type": "swap",
+          },
+          "Update tx type to swap",
+        ]
+      `);
     });
 
     it('should handle 7702 approval transactions', () => {
@@ -2132,29 +2164,42 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(
-        txs,
-      ) as unknown as BridgeStatusControllerMessenger;
+      const mockMessenger = mockMessengerCallHandlers(txs);
 
       const txDataByType = {
         [TransactionType.swapApproval]: '0xapprovalData',
       };
 
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessagingSystem,
+        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
         batchId,
         txDataByType,
-        updateTransactionFn: mockUpdateTransactionFn,
       });
 
       // Should match 7702 approval transaction by data
-      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'tx1',
-          type: TransactionType.swapApproval,
-        }),
-        'Update tx type to swapApproval',
-      );
+      expect(
+        mockMessenger.call.mock.calls.filter(
+          (call) => call[0] === 'TransactionController:updateTransaction',
+        ),
+      ).toMatchInlineSnapshot(`
+        [
+          [
+            "TransactionController:updateTransaction",
+            {
+              "batchId": "test-batch-id",
+              "id": "tx1",
+              "txParams": {
+                "authorizationList": [
+                  "0xAuth1",
+                ],
+                "data": "0xapprovalData",
+              },
+              "type": "swapApproval",
+            },
+            "Update tx type to swapApproval",
+          ],
+        ]
+      `);
     });
 
     it('should handle non-7702 transactions normally', () => {
@@ -2169,9 +2214,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(
-        txs,
-      ) as unknown as BridgeStatusControllerMessenger;
+      const mockMessenger = mockMessengerCallHandlers(txs);
 
       const txDataByType = {
         [TransactionType.bridge]: '0xswapData',
@@ -2179,28 +2222,44 @@ describe('Bridge Status Controller Transaction Utils', () => {
       };
 
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessagingSystem,
+        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
         batchId,
         txDataByType,
-        updateTransactionFn: mockUpdateTransactionFn,
       });
 
       // Should update regular transactions by matching data
-      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'tx1',
-          type: TransactionType.bridge,
-        }),
-        'Update tx type to bridge',
-      );
-
-      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'tx2',
-          type: TransactionType.bridgeApproval,
-        }),
-        'Update tx type to bridgeApproval',
-      );
+      expect(
+        mockMessenger.call.mock.calls.filter(
+          (call) => call[0] === 'TransactionController:updateTransaction',
+        ),
+      ).toMatchInlineSnapshot(`
+        [
+          [
+            "TransactionController:updateTransaction",
+            {
+              "batchId": "test-batch-id",
+              "id": "tx1",
+              "txParams": {
+                "data": "0xswapData",
+              },
+              "type": "bridge",
+            },
+            "Update tx type to bridge",
+          ],
+          [
+            "TransactionController:updateTransaction",
+            {
+              "batchId": "test-batch-id",
+              "id": "tx2",
+              "txParams": {
+                "data": "0xapprovalData",
+              },
+              "type": "bridgeApproval",
+            },
+            "Update tx type to bridgeApproval",
+          ],
+        ]
+      `);
     });
 
     it('should not update transactions without matching batchId', () => {
@@ -2212,23 +2271,24 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(
-        txs,
-      ) as unknown as BridgeStatusControllerMessenger;
+      const mockMessenger = mockMessengerCallHandlers(txs);
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
       };
 
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessagingSystem,
+        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
         batchId,
         txDataByType,
-        updateTransactionFn: mockUpdateTransactionFn,
       });
 
       // Should not update transactions with different batchId
-      expect(mockUpdateTransactionFn).not.toHaveBeenCalled();
+      expect(
+        mockMessenger.call.mock.calls.filter(
+          (call) => call[0] === 'TransactionController:updateTransaction',
+        ),
+      ).toHaveLength(0);
     });
 
     it('should handle 7702 bridge transactions', () => {
@@ -2241,9 +2301,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(
-        txs,
-      ) as unknown as BridgeStatusControllerMessenger;
+      const mockMessenger = mockMessengerCallHandlers(txs);
 
       const txDataByType = {
         [TransactionType.bridge]: '0xbridgeData',
@@ -2251,14 +2309,17 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Test with bridge transaction (not swap)
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessagingSystem,
+        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
         batchId,
         txDataByType,
-        updateTransactionFn: mockUpdateTransactionFn,
       });
 
       // Should not match since it's looking for bridge but finds batch type
-      expect(mockUpdateTransactionFn).not.toHaveBeenCalled();
+      expect(
+        mockMessenger.call.mock.calls.filter(
+          (call) => call[0] === 'TransactionController:updateTransaction',
+        ),
+      ).toHaveLength(0);
     });
   });
 

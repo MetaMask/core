@@ -170,12 +170,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       messenger: this.messenger,
       customBridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
       fetchFn: this.#fetchFn,
-      updateTransactionFn: (
-        ...args: Parameters<
-          typeof TransactionController.prototype.updateTransaction
-        >
-      ): ReturnType<typeof TransactionController.prototype.updateTransaction> =>
-        this.messenger.call('TransactionController:updateTransaction', ...args),
       getJwt: this.#getJwt,
     });
 
@@ -1638,7 +1632,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const requireApproval =
         isHardwareAccount && this.#clientId === BridgeClientId.MOBILE;
-
       // Handle approval silently for better UX in intent flows
       const approvalTxMeta = await this.#handleApprovalTx(
         isBridgeTx,

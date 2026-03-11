@@ -3574,7 +3574,7 @@ describe('BridgeStatusController', () => {
             },
           },
           trade: {
-            ...quoteWithoutApproval.trade,
+            ...(quoteWithoutApproval.trade as TxData),
             gasLimit: undefined,
           },
           sentAmount: { amount: null, valueInCurrency: null, usd: null },
@@ -4194,7 +4194,6 @@ describe('BridgeStatusController', () => {
       MessengerEvents<BridgeStatusControllerMessenger>,
       RootMessenger
     >;
-    let mockTrackEventFn: jest.Mock;
     let bridgeStatusController: BridgeStatusController;
 
     let mockFetchFn: jest.Mock;
@@ -4230,25 +4229,6 @@ describe('BridgeStatusController', () => {
         .mockImplementation((..._args) => {
           return Promise.resolve();
         });
-
-      const mockBridgeMessenger = new Messenger<
-        'BridgeController',
-        MessengerActions<BridgeControllerMessenger>,
-        MessengerEvents<BridgeControllerMessenger>,
-        RootMessenger
-      >({
-        namespace: 'BridgeController',
-        parent: mockMessenger,
-      });
-      mockTrackEventFn = jest.fn();
-      // const bridgeController = new BridgeController({
-      //   messenger: mockBridgeMessenger,
-      //   clientId: BridgeClientId.EXTENSION,
-      //   fetchFn: jest.fn(),
-      //   trackMetaMetricsFn: mockTrackEventFn,
-      //   getLayer1GasFee: jest.fn(),
-      //   clientVersion: '13.4.0',
-      // });
 
       mockFetchFn = jest
         .fn()

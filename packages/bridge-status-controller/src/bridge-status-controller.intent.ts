@@ -1,8 +1,5 @@
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
-import type {
-  TransactionController,
-  TransactionMeta,
-} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import type { BridgeStatusControllerMessenger, FetchFunction } from './types';
 import type { BridgeHistoryItem } from './types';
@@ -24,11 +21,6 @@ type IntentStatuses = {
 export class IntentManager {
   readonly #messenger: BridgeStatusControllerMessenger;
 
-  /**
-   * @deprecated use the messenger to call 'TransactionController:updateTransaction' instead
-   */
-  readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
-
   readonly intentApi: IntentApi;
 
   readonly #intentStatusesByBridgeTxMetaId: Map<string, IntentStatuses> =
@@ -36,19 +28,16 @@ export class IntentManager {
 
   constructor({
     messenger,
-    updateTransactionFn,
     customBridgeApiBaseUrl,
     fetchFn,
     getJwt,
   }: {
     messenger: BridgeStatusControllerMessenger;
-    updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
     customBridgeApiBaseUrl: string;
     fetchFn: FetchFunction;
     getJwt: GetJwtFn;
   }) {
     this.#messenger = messenger;
-    this.#updateTransactionFn = updateTransactionFn;
     this.intentApi = new IntentApiImpl(customBridgeApiBaseUrl, fetchFn, getJwt);
   }
 
@@ -187,7 +176,8 @@ export class IntentManager {
         ...txReceiptUpdate,
       } as TransactionMeta;
 
-      this.#updateTransactionFn(
+      this.#messenger.call(
+        'TransactionController:updateTransaction',
         updatedTxMeta,
         `BridgeStatusController - Intent order status updated: ${orderStatus}`,
       );
