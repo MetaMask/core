@@ -44,7 +44,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 
-import { EarnControllerMethodActions } from './EarnController-method-action-types';
+import type { EarnControllerMethodActions } from './EarnController-method-action-types';
 import type {
   RefreshEarnEligibilityOptions,
   RefreshLendingEligibilityOptions,
