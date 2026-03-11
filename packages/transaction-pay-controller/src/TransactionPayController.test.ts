@@ -217,6 +217,30 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('getDelegationTransaction', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = { data: '0x1', to: '0x2', value: '0x3' };
+      const getDelegationTransactionMock = jest
+        .fn()
+        .mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getDelegationTransaction: getDelegationTransactionMock,
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getDelegationTransaction',
+        { transaction: TRANSACTION_META_MOCK },
+      );
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: TRANSACTION_META_MOCK,
+      });
+      expect(result).toBe(resultMock);
+    });
+  });
+
   describe('getStrategy Action', () => {
     it('returns relay if no callback', async () => {
       createController();
