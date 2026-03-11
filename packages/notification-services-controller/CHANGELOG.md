@@ -30,7 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Standardize names of `NotificationServicesController` and `NotificationServicesPushController` messenger action types ([#8176](https://github.com/MetaMask/core/pull/8176))
   - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `NotificationServicesControllerUpdateMetamaskNotificationsList` -> `NotificationServicesControllerUpdateMetamaskNotificationsListAction`). You will need to update imports appropriately.
-  - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `NotificationServicesController` and `NotificationServicesPushController` messengers.
+  - The `NotificationServicesPushController` action `NotificationServicesPushControllerSubscribeToNotificationsAction` has been renamed to `NotificationServicesPushControllerSubscribeToPushNotificationsAction` so it matches the method name.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `NotificationServicesController` and `NotificationServicesPushController` messengers.
 
 ## [22.1.0]
 
