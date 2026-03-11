@@ -239,10 +239,8 @@ describe('formatExchangeRatesForBridge', () => {
     const entry = result.conversionRates[bitcoinAssetId];
     expect(entry.marketData).toStrictEqual(
       expect.objectContaining({
-        price: 50000,
-        id: 'bitcoin',
-        marketCap: 1_000_000_000_000,
-        lastUpdated: 1_600_000_000,
+        fungible: true,
+        marketCap: '1000000000000',
       }),
     );
   });

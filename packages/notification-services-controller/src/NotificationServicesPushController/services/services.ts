@@ -13,6 +13,8 @@ export type RegToken = {
   oldToken?: string;
 };
 
+export type RegistrationPlatform = 'extension' | 'mobile';
+
 /**
  * Links API Response Shape
  */
@@ -25,6 +27,16 @@ export type PushTokenRequest = {
     platform: 'extension' | 'mobile' | 'portfolio';
     locale: string;
     oldToken?: string;
+  };
+};
+
+export type DeletePushTokenRequest = {
+  addresses: string[];
+  // API request uses snake_case for this property
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  registration_token: {
+    platform: RegistrationPlatform;
+    token: string;
   };
 };
 
@@ -53,6 +65,48 @@ export async function updateLinksAPI(
       endpoints.REGISTRATION_TOKENS_ENDPOINT(params.env),
       {
         method: 'POST',
+        headers: {
+          Authorization: `Bearer ${params.bearerToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+type DeletePushTokenParams = {
+  bearerToken: string;
+  addresses: string[];
+  platform: RegistrationPlatform;
+  token: string;
+  env?: ENV;
+};
+
+/**
+ * Deletes push notification links for addresses and platform.
+ *
+ * @param params - params for deleting registration links
+ * @returns A promise that resolves with true if the delete request was successful, false otherwise.
+ */
+export async function deleteLinksAPI(
+  params: DeletePushTokenParams,
+): Promise<boolean> {
+  try {
+    const body: DeletePushTokenRequest = {
+      addresses: params.addresses,
+      registration_token: {
+        platform: params.platform,
+        token: params.token,
+      },
+    };
+    const response = await fetch(
+      endpoints.REGISTRATION_TOKENS_ENDPOINT(params.env),
+      {
+        method: 'DELETE',
         headers: {
           Authorization: `Bearer ${params.bearerToken}`,
           'Content-Type': 'application/json',

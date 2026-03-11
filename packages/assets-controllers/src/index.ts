@@ -6,13 +6,19 @@ export type {
   AccountTrackerControllerGetStateAction,
   AccountTrackerControllerStateChangeEvent,
   AccountTrackerControllerEvents,
-  AccountTrackerUpdateNativeBalancesAction,
-  AccountTrackerUpdateStakedBalancesAction,
 } from './AccountTrackerController';
 export { AccountTrackerController } from './AccountTrackerController';
 export type {
+  AccountTrackerControllerUpdateNativeBalancesAction,
+  AccountTrackerControllerUpdateStakedBalancesAction,
+} from './AccountTrackerController-method-action-types';
+export type {
   AssetsContractControllerActions,
   AssetsContractControllerEvents,
+  AssetsContractControllerMessenger,
+  BalanceMap,
+} from './AssetsContractController';
+export type {
   AssetsContractControllerGetERC20StandardAction,
   AssetsContractControllerGetERC721StandardAction,
   AssetsContractControllerGetERC1155StandardAction,
@@ -29,9 +35,8 @@ export type {
   AssetsContractControllerTransferSingleERC1155Action,
   AssetsContractControllerGetTokenStandardAndDetailsAction,
   AssetsContractControllerGetBalancesInSingleCallAction,
-  AssetsContractControllerMessenger,
-  BalanceMap,
-} from './AssetsContractController';
+  AssetsContractControllerGetStakedBalanceForChainAction,
+} from './AssetsContractController-method-action-types';
 export {
   SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID,
   AssetsContractController,
@@ -84,15 +89,25 @@ export type {
 } from './TokenBalancesController';
 export { TokenBalancesController } from './TokenBalancesController';
 export type {
+  TokenBalancesControllerUpdateChainPollingConfigsAction,
+  TokenBalancesControllerGetChainPollingConfigAction,
+} from './TokenBalancesController-method-action-types';
+export type {
   TokenDetectionControllerMessenger,
   TokenDetectionControllerActions,
   TokenDetectionControllerGetStateAction,
-  TokenDetectionControllerDetectTokensAction,
-  TokenDetectionControllerAddDetectedTokensViaWsAction,
-  TokenDetectionControllerAddDetectedTokensViaPollingAction,
   TokenDetectionControllerEvents,
   TokenDetectionControllerStateChangeEvent,
 } from './TokenDetectionController';
+export type {
+  TokenDetectionControllerEnableAction,
+  TokenDetectionControllerDisableAction,
+  TokenDetectionControllerStartAction,
+  TokenDetectionControllerStopAction,
+  TokenDetectionControllerDetectTokensAction,
+  TokenDetectionControllerAddDetectedTokensViaWsAction,
+  TokenDetectionControllerAddDetectedTokensViaPollingAction,
+} from './TokenDetectionController-method-action-types';
 export { TokenDetectionController } from './TokenDetectionController';
 export type {
   TokenListState,
@@ -125,12 +140,20 @@ export type {
   TokensControllerState,
   TokensControllerActions,
   TokensControllerGetStateAction,
-  TokensControllerAddDetectedTokensAction,
-  TokensControllerAddTokensAction,
   TokensControllerEvents,
   TokensControllerStateChangeEvent,
   TokensControllerMessenger,
 } from './TokensController';
+export type {
+  TokensControllerAddTokenAction,
+  TokensControllerAddTokensAction,
+  TokensControllerIgnoreTokensAction,
+  TokensControllerAddDetectedTokensAction,
+  TokensControllerUpdateTokenTypeAction,
+  TokensControllerWatchAssetAction,
+  TokensControllerClearIgnoredTokensAction,
+  TokensControllerResetStateAction,
+} from './TokensController-method-action-types';
 export { TokensController } from './TokensController';
 export {
   isTokenDetectionSupportedForNetwork,
@@ -184,6 +207,11 @@ export type {
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
+export type {
+  MultichainAssetsControllerGetAssetMetadataAction,
+  MultichainAssetsControllerIgnoreAssetsAction,
+  MultichainAssetsControllerAddAssetsAction,
+} from './MultichainAssetsController/MultichainAssetsController-method-action-types';
 
 export {
   MultichainAssetsRatesController,
@@ -199,6 +227,12 @@ export type {
   MultichainAssetsRatesControllerStateChange,
   MultichainAssetsRatesControllerMessenger,
 } from './MultichainAssetsRatesController';
+
+export type {
+  MultichainAssetsRatesControllerUpdateAssetsRatesAction,
+  MultichainAssetsRatesControllerFetchHistoricalPricesForAssetAction,
+} from './MultichainAssetsRatesController/MultichainAssetsRatesController-method-action-types';
+
 export { TokenSearchDiscoveryDataController } from './TokenSearchDiscoveryDataController';
 export type {
   TokenDisplayData,

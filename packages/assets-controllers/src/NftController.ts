@@ -49,7 +49,7 @@ import type {
   AssetsContractControllerGetERC721AssetSymbolAction,
   AssetsContractControllerGetERC721OwnerOfAction,
   AssetsContractControllerGetERC721TokenURIAction,
-} from './AssetsContractController';
+} from './AssetsContractController-method-action-types';
 import {
   compareNftMetadata,
   getFormattedIpfsUrl,
