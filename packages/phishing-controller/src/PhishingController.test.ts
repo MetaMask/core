@@ -4067,6 +4067,46 @@ describe('Transaction Controller State Change Integration', () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  it('continues bulk token scanning if known recipient updates fail', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+      TEST_ADDRESSES.MOCK_TOKEN_1,
+    ]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      {
+        ...createMockStateChangePayload([mockTransaction]),
+        transactions: undefined,
+      } as unknown as TransactionControllerState,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error updating known recipients from transaction state:',
+      expect.any(Error),
+    );
+    expect(bulkScanTokensSpy).toHaveBeenCalledWith({
+      chainId: mockTransaction.chainId.toLowerCase(),
+      tokens: [
+        TEST_ADDRESSES.USDC.toLowerCase(),
+        TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
+      ],
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
 });
 
 describe('Address poisoning detection', () => {

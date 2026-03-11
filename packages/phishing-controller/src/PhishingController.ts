@@ -696,7 +696,14 @@ export class PhishingController extends BaseController<
   ): void {
     try {
       if (patches.some((patch) => patch.path[0] === 'transactions')) {
-        this.#setKnownRecipientsFromTransactionState(_state);
+        try {
+          this.#setKnownRecipientsFromTransactionState(_state);
+        } catch (error) {
+          console.error(
+            'Error updating known recipients from transaction state:',
+            error,
+          );
+        }
       }
 
       const tokensByChain = new Map<string, Set<string>>();
