@@ -586,6 +586,7 @@ async function calculateSourceNetworkCost(
       relayParams,
       messenger,
       request.isPostQuote ? transaction : undefined,
+      request.isPostQuote ? request.refundTo : undefined,
     );
 
   log('Gas limit', {
@@ -734,12 +735,16 @@ async function calculateSourceNetworkCost(
  * @param messenger - Controller messenger.
  * @param postQuoteTransaction - Original transaction for post-quote flows.
  * When provided, its gas is included in the returned totals.
+ * @param fromOverride - Optional address to use as `from` in gas estimation
+ * instead of the address in the relay params. Used in post-quote flows to
+ * estimate with the proxy/Safe address that holds the source token balance.
  * @returns Total gas estimates and per-transaction gas limits.
  */
 async function calculateSourceNetworkGasLimit(
   params: RelayQuote['steps'][0]['items'][0]['data'][],
   messenger: TransactionPayControllerMessenger,
   postQuoteTransaction?: TransactionMeta,
+  fromOverride?: Hex,
 ): Promise<{
   totalGasEstimate: number;
   totalGasLimit: number;
@@ -747,8 +752,16 @@ async function calculateSourceNetworkGasLimit(
 }> {
   const relayGas =
     params.length === 1
-      ? await calculateSourceNetworkGasLimitSingle(params[0], messenger)
-      : await calculateSourceNetworkGasLimitBatch(params, messenger);
+      ? await calculateSourceNetworkGasLimitSingle(
+          params[0],
+          messenger,
+          fromOverride,
+        )
+      : await calculateSourceNetworkGasLimitBatch(
+          params,
+          messenger,
+          fromOverride,
+        );
 
   if (!postQuoteTransaction?.txParams.to) {
     return relayGas;
@@ -852,6 +865,7 @@ function getTransferRecipient(data: Hex): Hex {
 async function calculateSourceNetworkGasLimitSingle(
   params: RelayQuote['steps'][0]['items'][0]['data'],
   messenger: TransactionPayControllerMessenger,
+  fromOverride?: Hex,
 ): Promise<{
   totalGasEstimate: number;
   totalGasLimit: number;
@@ -875,11 +889,12 @@ async function calculateSourceNetworkGasLimitSingle(
     const {
       chainId: chainIdNumber,
       data,
-      from,
+      from: paramsFrom,
       to,
       value: valueString,
     } = params;
 
+    const from = fromOverride ?? paramsFrom;
     const chainId = toHex(chainIdNumber);
     const value = toHex(valueString ?? '0');
     const gasBuffer = getGasBuffer(messenger, chainId);
@@ -937,13 +952,15 @@ async function calculateSourceNetworkGasLimitSingle(
 async function calculateSourceNetworkGasLimitBatch(
   params: RelayQuote['steps'][0]['items'][0]['data'][],
   messenger: TransactionPayControllerMessenger,
+  fromOverride?: Hex,
 ): Promise<{
   totalGasEstimate: number;
   totalGasLimit: number;
   gasLimits: number[];
 }> {
   try {
-    const { chainId: chainIdNumber, from } = params[0];
+    const { chainId: chainIdNumber, from: paramsFrom } = params[0];
+    const from = fromOverride ?? paramsFrom;
     const chainId = toHex(chainIdNumber);
     const gasBuffer = getGasBuffer(messenger, chainId);
 
