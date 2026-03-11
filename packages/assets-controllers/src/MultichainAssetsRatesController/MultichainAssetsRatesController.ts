@@ -35,6 +35,7 @@ import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
 import { MAP_CAIP_CURRENCIES } from './constant';
+import type { MultichainAssetsRatesControllerMethodActions } from './MultichainAssetsRatesController-method-action-types';
 import type {
   CurrencyRateState,
   CurrencyRateStateChange,
@@ -76,14 +77,6 @@ export type MultichainAssetsRatesControllerGetStateAction =
     MultichainAssetsRatesControllerState
   >;
 
-/**
- * Action to update the rates of all supported tokens.
- */
-export type MultichainAssetsRatesControllerUpdateRatesAction = {
-  type: `${typeof controllerName}:updateAssetsRates`;
-  handler: MultichainAssetsRatesController['updateAssetsRates'];
-};
-
 type UnifiedAssetConversion = AssetConversion & {
   marketData?: FungibleAssetMarketData;
 };
@@ -114,7 +107,7 @@ export type MultichainAssetsRatesControllerStateChange =
  */
 export type MultichainAssetsRatesControllerActions =
   | MultichainAssetsRatesControllerGetStateAction
-  | MultichainAssetsRatesControllerUpdateRatesAction;
+  | MultichainAssetsRatesControllerMethodActions;
 
 /**
  * Events emitted by MultichainAssetsRatesController.
@@ -188,6 +181,11 @@ type SnapRequestArgs<T> = {
   params: T;
 };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'updateAssetsRates',
+  'fetchHistoricalPricesForAsset',
+] as const;
+
 /**
  * Controller that manages multichain token conversion rates.
  *
@@ -232,6 +230,8 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     });
 
     this.setIntervalLength(interval);
+
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
     // Subscribe to keyring lock/unlock events.
     this.messenger.subscribe('KeyringController:lock', () => {

@@ -44,6 +44,7 @@ import { isEqual, mapValues, isObject, get } from 'lodash';
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from './constants';
+import type { TokenDetectionControllerMethodActions } from './TokenDetectionController-method-action-types';
 import type {
   GetTokenListState,
   TokenListMap,
@@ -51,11 +52,11 @@ import type {
   TokensChainsCache,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import type { TokensControllerGetStateAction } from './TokensController';
 import type {
   TokensControllerAddDetectedTokensAction,
   TokensControllerAddTokensAction,
-  TokensControllerGetStateAction,
-} from './TokensController';
+} from './TokensController-method-action-types';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -118,26 +119,9 @@ export type TokenDetectionControllerGetStateAction = ControllerGetStateAction<
   TokenDetectionState
 >;
 
-export type TokenDetectionControllerAddDetectedTokensViaWsAction = {
-  type: `TokenDetectionController:addDetectedTokensViaWs`;
-  handler: TokenDetectionController['addDetectedTokensViaWs'];
-};
-
-export type TokenDetectionControllerAddDetectedTokensViaPollingAction = {
-  type: `TokenDetectionController:addDetectedTokensViaPolling`;
-  handler: TokenDetectionController['addDetectedTokensViaPolling'];
-};
-
-export type TokenDetectionControllerDetectTokensAction = {
-  type: `TokenDetectionController:detectTokens`;
-  handler: TokenDetectionController['detectTokens'];
-};
-
 export type TokenDetectionControllerActions =
   | TokenDetectionControllerGetStateAction
-  | TokenDetectionControllerAddDetectedTokensViaWsAction
-  | TokenDetectionControllerAddDetectedTokensViaPollingAction
-  | TokenDetectionControllerDetectTokensAction;
+  | TokenDetectionControllerMethodActions;
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
@@ -180,6 +164,16 @@ type TokenDetectionPollingInput = {
   chainIds: Hex[];
   address: string;
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'addDetectedTokensViaWs',
+  'addDetectedTokensViaPolling',
+  'detectTokens',
+  'enable',
+  'disable',
+  'start',
+  'stop',
+] as const;
 
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
@@ -278,20 +272,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       metadata: {},
     });
 
-    this.messenger.registerActionHandler(
-      `${controllerName}:addDetectedTokensViaWs` as const,
-      this.addDetectedTokensViaWs.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:addDetectedTokensViaPolling` as const,
-      this.addDetectedTokensViaPolling.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:detectTokens` as const,
-      this.detectTokens.bind(this),
-    );
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
     this.#disabled = disabled;
     this.setIntervalLength(interval);

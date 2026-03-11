@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose public `EarnController` methods through its messenger ([#8173](https://github.com/MetaMask/core/pull/8173))
+  - The following actions are now available:
+    - `EarnController:refreshPooledStakes`
+    - `EarnController:refreshEarnEligibility`
+    - `EarnController:refreshPooledStakingVaultMetadata`
+    - `EarnController:refreshPooledStakingVaultDailyApys`
+    - `EarnController:refreshPooledStakingVaultApyAverages`
+    - `EarnController:refreshPooledStakingData`
+    - `EarnController:refreshLendingMarkets`
+    - `EarnController:refreshLendingPositions`
+    - `EarnController:refreshLendingEligibility`
+    - `EarnController:refreshLendingData`
+    - `EarnController:refreshTronStakingApy`
+    - `EarnController:getTronStakingApy`
+    - `EarnController:getLendingPositionHistory`
+    - `EarnController:getLendingMarketDailyApysAndAverages`
+    - `EarnController:executeLendingDeposit`
+    - `EarnController:executeLendingWithdraw`
+    - `EarnController:executeLendingTokenApprove`
+    - `EarnController:getLendingTokenAllowance`
+    - `EarnController:getLendingTokenMaxWithdraw`
+    - `EarnController:getLendingTokenMaxDeposit`
+  - Corresponding action types (e.g. `EarnControllerRefreshPooledStakesAction`) are available as well.
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^5.0.0` to `^5.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))

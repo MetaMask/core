@@ -834,6 +834,11 @@ export enum TransactionType {
   predictDeposit = 'predictDeposit',
 
   /**
+   * Deposit funds and place an order via Predict.
+   */
+  predictDepositAndOrder = 'predictDepositAndOrder',
+
+  /**
    * Sell a position via Predict.
    *
    * @deprecated Not used.

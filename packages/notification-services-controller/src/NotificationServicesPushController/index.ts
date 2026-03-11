@@ -1,7 +1,6 @@
-import Controller from './NotificationServicesPushController';
+import { NotificationServicesPushController } from './NotificationServicesPushController';
 
-const NotificationServicesPushController = Controller;
-export { Controller };
+export { NotificationServicesPushController as Controller };
 export default NotificationServicesPushController;
 export * from './NotificationServicesPushController';
 export type * as Types from './types';
@@ -9,3 +8,10 @@ export type * from './types';
 export * as Utils from './utils';
 export * from './utils';
 export * as Mocks from './mocks';
+
+export type {
+  NotificationServicesPushControllerSubscribeToPushNotificationsAction,
+  NotificationServicesPushControllerEnablePushNotificationsAction,
+  NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerUpdateTriggerPushNotificationsAction,
+} from './NotificationServicesPushController-method-action-types';

@@ -92,6 +92,9 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/notification-services-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-services-controller",
+    "generate-method-action-types": "yarn generate-method-action-types:notifications-services-controller \"$@\" && yarn generate-method-action-types:notifications-services-push-controller \"$@\"",
+    "generate-method-action-types:notifications-services-controller": "tsx ../../scripts/generate-method-action-types.ts src/NotificationServicesController",
+    "generate-method-action-types:notifications-services-push-controller": "tsx ../../scripts/generate-method-action-types.ts src/NotificationServicesPushController",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -128,6 +131,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "nock": "^13.3.1",
     "ts-jest": "^29.2.5",
+    "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
