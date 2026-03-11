@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added more unit test coverage for intents and EVM transactions. Also refactored some mocks and code blocks to improve testability ([#8186](https://github.com/MetaMask/core/pull/8186))
+
 ## [68.1.0]
 
 ### Added
