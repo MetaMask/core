@@ -7,15 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING:** Renamed methods: `clear()` → `clearRequests()`, `has()` → `hasRequest()`, `accept()` → `acceptRequest()`, `reject()` → `rejectRequest()`, `success()` → `showSuccess()`, `error()` → `showError()` ([#8183](https://github.com/MetaMask/core/pull/8183))
-- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
-
 ### Added
 
 - New `addRequest()` public method ([#8183](https://github.com/MetaMask/core/pull/8183))
 - New messenger actions: `ApprovalControllerAddAction`, `ApprovalControllerAddAndShowApprovalRequestAction`, `ApprovalControllerGetAction`, `ApprovalControllerGetApprovalCountAction`, `ApprovalControllerGetTotalApprovalCountAction` ([#8183](https://github.com/MetaMask/core/pull/8183))
+
+### Changed
+
+- **BREAKING:** Renamed methods: `clear()` → `clearRequests()`, `has()` → `hasRequest()`, `accept()` → `acceptRequest()`, `reject()` → `rejectRequest()`, `success()` → `showSuccess()`, `error()` → `showError()` ([#8183](https://github.com/MetaMask/core/pull/8183))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 
 ## [8.0.0]
 

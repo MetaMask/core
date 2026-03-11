@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Updated `ApprovalController` usage to match renamed methods and action types ([#8183](https://github.com/MetaMask/core/pull/8183))
-
 ### Added
 
 - Expose missing public `AssetsContractController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
@@ -40,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updated `ApprovalController` usage to match renamed methods and action types ([#8183](https://github.com/MetaMask/core/pull/8183))
 - **BREAKING:** Standardize names of `AccountTrackerController` messenger action types ([#8164](https://github.com/MetaMask/core/pull/8164))
   - All existing types for messenger actions have been renamed so they include `Controller` (e.g. `AccountTrackerUpdateNativeBalancesAction` -> `AccountTrackerControllerUpdateNativeBalancesAction`). You will need to update imports appropriately.
   - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AccountTrackerController` messengers.
