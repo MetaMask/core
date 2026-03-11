@@ -32,7 +32,8 @@ import {
   createMockFeatureAnnouncementRaw,
 } from './mocks/mock-feature-announcements';
 import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
-import NotificationServicesController, {
+import {
+  NotificationServicesController,
   ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
   defaultState,
 } from './NotificationServicesController';
@@ -48,7 +49,7 @@ import type { INotification, OrderInput } from './types';
 import type {
   NotificationServicesPushControllerDisablePushNotificationsAction,
   NotificationServicesPushControllerEnablePushNotificationsAction,
-  NotificationServicesPushControllerSubscribeToNotificationsAction,
+  NotificationServicesPushControllerSubscribeToPushNotificationsAction,
 } from '../NotificationServicesPushController';
 
 // Mock type used for testing purposes
@@ -1596,12 +1597,12 @@ function mockNotificationMessenger(): {
     );
 
   const mockIsSignedIn =
-    typedMockAction<AuthenticationController.AuthenticationControllerIsSignedIn>().mockReturnValue(
+    typedMockAction<AuthenticationController.AuthenticationControllerIsSignedInAction>().mockReturnValue(
       true,
     );
 
   const mockAuthPerformSignIn =
-    typedMockAction<AuthenticationController.AuthenticationControllerPerformSignIn>().mockResolvedValue(
+    typedMockAction<AuthenticationController.AuthenticationControllerPerformSignInAction>().mockResolvedValue(
       ['New Access Token'],
     );
 
@@ -1612,7 +1613,7 @@ function mockNotificationMessenger(): {
     typedMockAction<NotificationServicesPushControllerEnablePushNotificationsAction>();
 
   const mockSubscribeToPushNotifications =
-    typedMockAction<NotificationServicesPushControllerSubscribeToNotificationsAction>();
+    typedMockAction<NotificationServicesPushControllerSubscribeToPushNotificationsAction>();
 
   const mockKeyringControllerGetState =
     typedMockAction<KeyringControllerGetStateAction>().mockReturnValue({

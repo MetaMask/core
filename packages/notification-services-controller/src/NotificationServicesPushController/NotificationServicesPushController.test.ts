@@ -3,7 +3,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import log from 'loglevel';
 
 import { buildPushPlatformNotificationsControllerMessenger } from './__fixtures__/mockMessenger';
-import NotificationServicesPushController from './NotificationServicesPushController';
+import { NotificationServicesPushController } from './NotificationServicesPushController';
 import type {
   ControllerConfig,
   NotificationServicesPushControllerMessenger,
