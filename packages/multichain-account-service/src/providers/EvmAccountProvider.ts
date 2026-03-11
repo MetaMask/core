@@ -206,6 +206,12 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
         { id: entropySource },
         async ({ keyring }) => {
           const existing = await keyring.getAccounts();
+
+          // Validate no gaps: we can only create accounts starting from existing.length.
+          if (range.from > existing.length) {
+            throw new Error('Trying to create too many accounts');
+          }
+
           const result: AccountId[] = [];
 
           // Collect existing accounts within the range.
@@ -223,11 +229,6 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
           // Determine if we need to create new accounts.
           const from = Math.max(range.from, existing.length);
           if (from <= range.to) {
-            // Validate no gaps: we can only create accounts starting from existing.length.
-            if (from !== existing.length) {
-              throw new Error('Trying to create too many accounts');
-            }
-
             // Calculate how many new accounts to create.
             const accountsToCreate = range.to - existing.length + 1;
 
