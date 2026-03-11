@@ -2128,24 +2128,19 @@ export class SeedlessOnboardingController<
   async refreshAuthTokens(options?: {
     skipRenewRefreshToken?: boolean;
   }): Promise<void> {
-    // Only coalesce concurrent calls that use default options.  A caller with
-    // explicit options must not silently inherit a different in-flight
-    // request's behaviour (e.g. a skipRenewRefreshToken:true call must not be
-    // served by an in-flight request that will perform rotation).
-    const hasExplicitOptions = options?.skipRenewRefreshToken !== undefined;
-    if (!hasExplicitOptions && this.#pendingRefreshPromise) {
+    // we should skip the refresh if a refresh is already in progress
+    // to avoid concurrent requests with the same refresh token
+    // it applies to both requests with or without the skipRenewRefreshToken flag
+    if (this.#pendingRefreshPromise) {
       return this.#pendingRefreshPromise;
     }
-
     const promise = this.#doRefreshAuthTokens(options).finally(() => {
       if (this.#pendingRefreshPromise === promise) {
         this.#pendingRefreshPromise = undefined;
       }
     });
 
-    if (!hasExplicitOptions) {
-      this.#pendingRefreshPromise = promise;
-    }
+    this.#pendingRefreshPromise = promise;
 
     return promise;
   }

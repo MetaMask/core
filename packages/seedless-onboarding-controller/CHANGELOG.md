@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Removed public `renewRefreshToken` method — refresh token rotation is now handled automatically by the controller after a successful JWT refresh ([#8148](https://github.com/MetaMask/core/pull/8148))
+- **BREAKING:** Removed public `renewRefreshToken` method — refresh token rotation is now handled automatically by the controller after a successful JWT refresh ([#8148](https://github.com/MetaMask/core/pull/8148))
 
 ## [8.1.0]
 
