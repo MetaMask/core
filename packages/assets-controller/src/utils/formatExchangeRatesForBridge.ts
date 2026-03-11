@@ -139,29 +139,6 @@ export function formatExchangeRatesForBridge(params: {
           };
         }
       } else {
-        const pricePercentChange: Record<string, number> = {};
-        if (priceData.pricePercentChange1h !== undefined) {
-          pricePercentChange.PT1H = priceData.pricePercentChange1h;
-        }
-        if (priceData.pricePercentChange1d !== undefined) {
-          pricePercentChange.P1D = priceData.pricePercentChange1d;
-        }
-        if (priceData.pricePercentChange7d !== undefined) {
-          pricePercentChange.P7D = priceData.pricePercentChange7d;
-        }
-        if (priceData.pricePercentChange14d !== undefined) {
-          pricePercentChange.P14D = priceData.pricePercentChange14d;
-        }
-        if (priceData.pricePercentChange30d !== undefined) {
-          pricePercentChange.P30D = priceData.pricePercentChange30d;
-        }
-        if (priceData.pricePercentChange200d !== undefined) {
-          pricePercentChange.P200D = priceData.pricePercentChange200d;
-        }
-        if (priceData.pricePercentChange1y !== undefined) {
-          pricePercentChange.P365D = priceData.pricePercentChange1y;
-        }
-
         conversionRates[assetId as Caip19AssetId] = {
           rate: String(price),
           currency: currencyCaip,
@@ -175,13 +152,13 @@ export function formatExchangeRatesForBridge(params: {
             marketCap: `${priceData.marketCap}`,
             totalVolume: `${priceData.totalVolume}`,
             pricePercentChange: {
-              PT1H: priceData.pricePercentChange1h,
-              P1D: priceData.pricePercentChange1d,
-              P7D: priceData.pricePercentChange7d,
-              P14D: priceData.pricePercentChange14d,
-              P30D: priceData.pricePercentChange30d,
-              P200D: priceData.pricePercentChange200d,
-              P1Y: priceData.pricePercentChange1y,
+              PT1H: priceData.pricePercentChange1h as number,
+              P1D: priceData.pricePercentChange1d as number,
+              P7D: priceData.pricePercentChange7d as number,
+              P14D: priceData.pricePercentChange14d as number,
+              P30D: priceData.pricePercentChange30d as number,
+              P200D: priceData.pricePercentChange200d as number,
+              P1Y: priceData.pricePercentChange1y as number,
             },
           },
         } as MultichainAssetsRatesControllerState['conversionRates'][Caip19AssetId];
