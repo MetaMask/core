@@ -161,7 +161,7 @@ export function formatExchangeRatesForBridge(params: {
               P1Y: priceData.pricePercentChange1y as number,
             },
           },
-        };
+        } as MultichainAssetsRatesControllerState['conversionRates'][Caip19AssetId];
       }
     } catch {
       // Skip malformed asset IDs

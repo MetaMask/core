@@ -2180,10 +2180,7 @@ describe('NetworkEnablementController', () => {
 
     it('returns same result as calling messenger action when registered', () => {
       const { controller, rootMessenger } = setupController();
-      rootMessenger.registerActionHandler(
-        'NetworkEnablementController:listPopularNetworks',
-        () => controller.listPopularNetworks(),
-      );
+
       const viaAction = rootMessenger.call(
         'NetworkEnablementController:listPopularNetworks',
       );
@@ -2215,10 +2212,7 @@ describe('NetworkEnablementController', () => {
 
     it('returns same result as calling messenger action when registered', () => {
       const { controller, rootMessenger } = setupController();
-      rootMessenger.registerActionHandler(
-        'NetworkEnablementController:listPopularEvmNetworks',
-        () => controller.listPopularEvmNetworks(),
-      );
+
       const viaAction = rootMessenger.call(
         'NetworkEnablementController:listPopularEvmNetworks',
       );
@@ -2253,10 +2247,7 @@ describe('NetworkEnablementController', () => {
 
     it('returns same result as calling messenger action when registered', () => {
       const { controller, rootMessenger } = setupController();
-      rootMessenger.registerActionHandler(
-        'NetworkEnablementController:listPopularMultichainNetworks',
-        () => controller.listPopularMultichainNetworks(),
-      );
+
       const viaAction = rootMessenger.call(
         'NetworkEnablementController:listPopularMultichainNetworks',
       );
