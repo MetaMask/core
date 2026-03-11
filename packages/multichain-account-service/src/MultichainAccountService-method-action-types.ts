@@ -6,6 +6,89 @@
 import type { MultichainAccountService } from './MultichainAccountService';
 
 /**
+ * Re-synchronize MetaMask accounts and the providers accounts if needed.
+ *
+ * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
+ * have different sets of accounts. This method would ensure that both are
+ * in-sync and use the same accounts (and same IDs).
+ *
+ * READ THIS CAREFULLY (State inconsistency bugs/de-sync)
+ * We've seen some problems were keyring accounts on some Snaps were not synchronized
+ * with the accounts on MM side. This causes problems where we cannot interact with
+ * those accounts because the Snap does know about them.
+ * To "workaround" this de-sync problem for now, we make sure that both parties are
+ * in-sync when the service boots up.
+ * ----------------------------------------------------------------------------------
+ */
+export type MultichainAccountServiceResyncAccountsAction = {
+  type: `MultichainAccountService:resyncAccounts`;
+  handler: MultichainAccountService['resyncAccounts'];
+};
+
+export type MultichainAccountServiceEnsureCanUseSnapPlatformAction = {
+  type: `MultichainAccountService:ensureCanUseSnapPlatform`;
+  handler: MultichainAccountService['ensureCanUseSnapPlatform'];
+};
+
+/**
+ * Gets a reference to the multichain account wallet matching this entropy source.
+ *
+ * @param options - Options.
+ * @param options.entropySource - The entropy source of the multichain account.
+ * @throws If none multichain account match this entropy.
+ * @returns A reference to the multichain account wallet.
+ */
+export type MultichainAccountServiceGetMultichainAccountWalletAction = {
+  type: `MultichainAccountService:getMultichainAccountWallet`;
+  handler: MultichainAccountService['getMultichainAccountWallet'];
+};
+
+/**
+ * Gets an array of all multichain account wallets.
+ *
+ * @returns An array of all multichain account wallets.
+ */
+export type MultichainAccountServiceGetMultichainAccountWalletsAction = {
+  type: `MultichainAccountService:getMultichainAccountWallets`;
+  handler: MultichainAccountService['getMultichainAccountWallets'];
+};
+
+/**
+ * Creates a new multichain account wallet by either importing an existing mnemonic,
+ * creating a new vault and keychain, or restoring a vault and keyring.
+ *
+ * NOTE: This method should only be called in client code where a mutex lock is acquired.
+ * `discoverAccounts` should be called after this method to discover and create accounts.
+ *
+ * @param params - The parameters to use to create the new wallet.
+ * @param params.mnemonic - The mnemonic to use to create the new wallet.
+ * @param params.password - The password to encrypt the vault with.
+ * @param params.type - The flow type to use to create the new wallet.
+ * @throws If the mnemonic has already been imported.
+ * @returns The new multichain account wallet.
+ */
+export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
+  type: `MultichainAccountService:createMultichainAccountWallet`;
+  handler: MultichainAccountService['createMultichainAccountWallet'];
+};
+
+/**
+ * Removes a multichain account wallet.
+ *
+ * NOTE: This method should only be called in client code as a revert mechanism.
+ * At the point that this code is called, discovery shouldn't have been triggered.
+ * This is meant to be used in the scenario where a seed phrase backup is not successful.
+ *
+ * @param entropySource - The entropy source of the multichain account wallet.
+ * @param accountAddress - The address of the account to remove.
+ * @returns The removed multichain account wallet.
+ */
+export type MultichainAccountServiceRemoveMultichainAccountWalletAction = {
+  type: `MultichainAccountService:removeMultichainAccountWallet`;
+  handler: MultichainAccountService['removeMultichainAccountWallet'];
+};
+
+/**
  * Gets a reference to the multichain account group matching this entropy source
  * and a group index.
  *
@@ -31,29 +114,6 @@ export type MultichainAccountServiceGetMultichainAccountGroupAction = {
 export type MultichainAccountServiceGetMultichainAccountGroupsAction = {
   type: `MultichainAccountService:getMultichainAccountGroups`;
   handler: MultichainAccountService['getMultichainAccountGroups'];
-};
-
-/**
- * Gets a reference to the multichain account wallet matching this entropy source.
- *
- * @param options - Options.
- * @param options.entropySource - The entropy source of the multichain account.
- * @throws If none multichain account match this entropy.
- * @returns A reference to the multichain account wallet.
- */
-export type MultichainAccountServiceGetMultichainAccountWalletAction = {
-  type: `MultichainAccountService:getMultichainAccountWallet`;
-  handler: MultichainAccountService['getMultichainAccountWallet'];
-};
-
-/**
- * Gets an array of all multichain account wallets.
- *
- * @returns An array of all multichain account wallets.
- */
-export type MultichainAccountServiceGetMultichainAccountWalletsAction = {
-  type: `MultichainAccountService:getMultichainAccountWallets`;
-  handler: MultichainAccountService['getMultichainAccountWallets'];
 };
 
 /**
@@ -113,79 +173,19 @@ export type MultichainAccountServiceAlignWalletAction = {
 };
 
 /**
- * Creates a new multichain account wallet by either importing an existing mnemonic,
- * creating a new vault and keychain, or restoring a vault and keyring.
- *
- * NOTE: This method should only be called in client code where a mutex lock is acquired.
- * `discoverAccounts` should be called after this method to discover and create accounts.
- *
- * @param params - The parameters to use to create the new wallet.
- * @param params.mnemonic - The mnemonic to use to create the new wallet.
- * @param params.password - The password to encrypt the vault with.
- * @param params.type - The flow type to use to create the new wallet.
- * @throws If the mnemonic has already been imported.
- * @returns The new multichain account wallet.
- */
-export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
-  type: `MultichainAccountService:createMultichainAccountWallet`;
-  handler: MultichainAccountService['createMultichainAccountWallet'];
-};
-
-/**
- * Re-synchronize MetaMask accounts and the providers accounts if needed.
- *
- * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
- * have different sets of accounts. This method would ensure that both are
- * in-sync and use the same accounts (and same IDs).
- *
- * READ THIS CAREFULLY (State inconsistency bugs/de-sync)
- * We've seen some problems were keyring accounts on some Snaps were not synchronized
- * with the accounts on MM side. This causes problems where we cannot interact with
- * those accounts because the Snap does know about them.
- * To "workaround" this de-sync problem for now, we make sure that both parties are
- * in-sync when the service boots up.
- * ----------------------------------------------------------------------------------
- */
-export type MultichainAccountServiceResyncAccountsAction = {
-  type: `MultichainAccountService:resyncAccounts`;
-  handler: MultichainAccountService['resyncAccounts'];
-};
-
-/**
- * Removes a multichain account wallet.
- *
- * NOTE: This method should only be called in client code as a revert mechanism.
- * At the point that this code is called, discovery shouldn't have been triggered.
- * This is meant to be used in the scenario where a seed phrase backup is not successful.
- *
- * @param entropySource - The entropy source of the multichain account wallet.
- * @param accountAddress - The address of the account to remove.
- * @returns The removed multichain account wallet.
- */
-export type MultichainAccountServiceRemoveMultichainAccountWalletAction = {
-  type: `MultichainAccountService:removeMultichainAccountWallet`;
-  handler: MultichainAccountService['removeMultichainAccountWallet'];
-};
-
-export type MultichainAccountServiceEnsureCanUseSnapPlatformAction = {
-  type: `MultichainAccountService:ensureCanUseSnapPlatform`;
-  handler: MultichainAccountService['ensureCanUseSnapPlatform'];
-};
-
-/**
  * Union of all MultichainAccountService action types.
  */
 export type MultichainAccountServiceMethodActions =
-  | MultichainAccountServiceGetMultichainAccountGroupAction
-  | MultichainAccountServiceGetMultichainAccountGroupsAction
+  | MultichainAccountServiceResyncAccountsAction
+  | MultichainAccountServiceEnsureCanUseSnapPlatformAction
   | MultichainAccountServiceGetMultichainAccountWalletAction
   | MultichainAccountServiceGetMultichainAccountWalletsAction
+  | MultichainAccountServiceCreateMultichainAccountWalletAction
+  | MultichainAccountServiceRemoveMultichainAccountWalletAction
+  | MultichainAccountServiceGetMultichainAccountGroupAction
+  | MultichainAccountServiceGetMultichainAccountGroupsAction
   | MultichainAccountServiceCreateNextMultichainAccountGroupAction
   | MultichainAccountServiceCreateMultichainAccountGroupAction
   | MultichainAccountServiceSetBasicFunctionalityAction
   | MultichainAccountServiceAlignWalletsAction
-  | MultichainAccountServiceAlignWalletAction
-  | MultichainAccountServiceCreateMultichainAccountWalletAction
-  | MultichainAccountServiceResyncAccountsAction
-  | MultichainAccountServiceRemoveMultichainAccountWalletAction
-  | MultichainAccountServiceEnsureCanUseSnapPlatformAction;
+  | MultichainAccountServiceAlignWalletAction;

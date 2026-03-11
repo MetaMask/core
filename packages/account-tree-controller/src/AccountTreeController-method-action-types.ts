@@ -6,6 +6,65 @@
 import type { AccountTreeController } from './AccountTreeController';
 
 /**
+ * Gets the account wallet object from its ID.
+ *
+ * @param walletId - Account wallet ID.
+ * @returns The account wallet object if found, undefined otherwise.
+ */
+export type AccountTreeControllerGetAccountWalletObjectAction = {
+  type: `AccountTreeController:getAccountWalletObject`;
+  handler: AccountTreeController['getAccountWalletObject'];
+};
+
+/**
+ * Gets all account wallet objects.
+ *
+ * @returns All account wallet objects.
+ */
+export type AccountTreeControllerGetAccountWalletObjectsAction = {
+  type: `AccountTreeController:getAccountWalletObjects`;
+  handler: AccountTreeController['getAccountWalletObjects'];
+};
+
+/**
+ * Gets all underlying accounts from the currently selected account
+ * group.
+ *
+ * It also support account selector, which allows to filter specific
+ * accounts given some criterias (account type, address, scopes, etc...).
+ *
+ * @param selector - Optional account selector.
+ * @returns Underlying accounts for the currently selected account (filtered
+ * by the selector if provided).
+ */
+export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
+  type: `AccountTreeController:getAccountsFromSelectedAccountGroup`;
+  handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
+};
+
+/**
+ * Gets the account group object from its ID.
+ *
+ * @param groupId - Account group ID.
+ * @returns The account group object if found, undefined otherwise.
+ */
+export type AccountTreeControllerGetAccountGroupObjectAction = {
+  type: `AccountTreeController:getAccountGroupObject`;
+  handler: AccountTreeController['getAccountGroupObject'];
+};
+
+/**
+ * Gets the account's context which contains its wallet ID, group ID, and sort order.
+ *
+ * @param accountId - Account ID.
+ * @returns The account context if found, undefined otherwise.
+ */
+export type AccountTreeControllerGetAccountContextAction = {
+  type: `AccountTreeController:getAccountContext`;
+  handler: AccountTreeController['getAccountContext'];
+};
+
+/**
  * Gets the currently selected account group ID.
  *
  * @returns The selected account group ID or empty string if none selected.
@@ -26,30 +85,17 @@ export type AccountTreeControllerSetSelectedAccountGroupAction = {
 };
 
 /**
- * Gets all underlying accounts from the currently selected account
- * group.
+ * Sets a custom name for an account group.
  *
- * It also support account selector, which allows to filter specific
- * accounts given some criterias (account type, address, scopes, etc...).
- *
- * @param selector - Optional account selector.
- * @returns Underlying accounts for the currently selected account (filtered
- * by the selector if provided).
+ * @param groupId - The account group ID.
+ * @param name - The custom name to set.
+ * @param autoHandleConflict - If true, automatically resolves name conflicts by adding a suffix. If false, throws on conflicts.
+ * @throws If the account group ID is not found in the current tree.
+ * @throws If the account group name already exists and autoHandleConflict is false.
  */
-export type AccountTreeControllerGetAccountsFromSelectedAccountGroupAction = {
-  type: `AccountTreeController:getAccountsFromSelectedAccountGroup`;
-  handler: AccountTreeController['getAccountsFromSelectedAccountGroup'];
-};
-
-/**
- * Gets the account's context which contains its wallet ID, group ID, and sort order.
- *
- * @param accountId - Account ID.
- * @returns The account context if found, undefined otherwise.
- */
-export type AccountTreeControllerGetAccountContextAction = {
-  type: `AccountTreeController:getAccountContext`;
-  handler: AccountTreeController['getAccountContext'];
+export type AccountTreeControllerSetAccountGroupNameAction = {
+  type: `AccountTreeController:setAccountGroupName`;
+  handler: AccountTreeController['setAccountGroupName'];
 };
 
 /**
@@ -62,20 +108,6 @@ export type AccountTreeControllerGetAccountContextAction = {
 export type AccountTreeControllerSetAccountWalletNameAction = {
   type: `AccountTreeController:setAccountWalletName`;
   handler: AccountTreeController['setAccountWalletName'];
-};
-
-/**
- * Sets a custom name for an account group.
- *
- * @param groupId - The account group ID.
- * @param name - The custom name to set.
- * @param autoHandleConflict - If true, automatically resolves name conflicts by adding a suffix. If false, throws on conflicts.
- * @throws If the account group ID is not found in the current tree.
- * @throws If the account group name already exists and autoHandleConflict is false.
- */
-export type AccountTreeControllerSetAccountGroupNameAction = {
-  type: `AccountTreeController:setAccountGroupName`;
-  handler: AccountTreeController['setAccountGroupName'];
 };
 
 /**
@@ -100,38 +132,6 @@ export type AccountTreeControllerSetAccountGroupPinnedAction = {
 export type AccountTreeControllerSetAccountGroupHiddenAction = {
   type: `AccountTreeController:setAccountGroupHidden`;
   handler: AccountTreeController['setAccountGroupHidden'];
-};
-
-/**
- * Gets the account wallet object from its ID.
- *
- * @param walletId - Account wallet ID.
- * @returns The account wallet object if found, undefined otherwise.
- */
-export type AccountTreeControllerGetAccountWalletObjectAction = {
-  type: `AccountTreeController:getAccountWalletObject`;
-  handler: AccountTreeController['getAccountWalletObject'];
-};
-
-/**
- * Gets all account wallet objects.
- *
- * @returns All account wallet objects.
- */
-export type AccountTreeControllerGetAccountWalletObjectsAction = {
-  type: `AccountTreeController:getAccountWalletObjects`;
-  handler: AccountTreeController['getAccountWalletObjects'];
-};
-
-/**
- * Gets the account group object from its ID.
- *
- * @param groupId - Account group ID.
- * @returns The account group object if found, undefined otherwise.
- */
-export type AccountTreeControllerGetAccountGroupObjectAction = {
-  type: `AccountTreeController:getAccountGroupObject`;
-  handler: AccountTreeController['getAccountGroupObject'];
 };
 
 /**
@@ -180,17 +180,17 @@ export type AccountTreeControllerSyncWithUserStorageAtLeastOnceAction = {
  * Union of all AccountTreeController action types.
  */
 export type AccountTreeControllerMethodActions =
-  | AccountTreeControllerGetSelectedAccountGroupAction
-  | AccountTreeControllerSetSelectedAccountGroupAction
-  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
-  | AccountTreeControllerGetAccountContextAction
-  | AccountTreeControllerSetAccountWalletNameAction
-  | AccountTreeControllerSetAccountGroupNameAction
-  | AccountTreeControllerSetAccountGroupPinnedAction
-  | AccountTreeControllerSetAccountGroupHiddenAction
   | AccountTreeControllerGetAccountWalletObjectAction
   | AccountTreeControllerGetAccountWalletObjectsAction
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
   | AccountTreeControllerGetAccountGroupObjectAction
+  | AccountTreeControllerGetAccountContextAction
+  | AccountTreeControllerGetSelectedAccountGroupAction
+  | AccountTreeControllerSetSelectedAccountGroupAction
+  | AccountTreeControllerSetAccountGroupNameAction
+  | AccountTreeControllerSetAccountWalletNameAction
+  | AccountTreeControllerSetAccountGroupPinnedAction
+  | AccountTreeControllerSetAccountGroupHiddenAction
   | AccountTreeControllerClearStateAction
   | AccountTreeControllerSyncWithUserStorageAction
   | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction;

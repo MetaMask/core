@@ -553,13 +553,6 @@ async function parseControllerFile(
       }
     }
 
-    // Preserve the order declared in `MESSENGER_EXPOSED_METHODS`.
-    context.methods.sort(
-      (a, b) =>
-        context.exposedMethods.indexOf(a.name) -
-        context.exposedMethods.indexOf(b.name),
-    );
-
     return {
       name: context.className,
       filePath,
