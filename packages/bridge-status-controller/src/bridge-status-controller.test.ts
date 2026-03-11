@@ -4255,7 +4255,7 @@ describe('BridgeStatusController', () => {
         expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
       });
 
-      it('should include ab_tests from history in tracked event properties', () => {
+      it('should include ab_tests and active_ab_tests from history in tracked event properties', () => {
         const abTestsTxMetaId = 'bridgeTxMetaIdAbTests';
         bridgeStatusController.startPollingForBridgeTxStatus({
           ...getMockStartPollingForBridgeTxStatusArgs({
@@ -4263,6 +4263,7 @@ describe('BridgeStatusController', () => {
             srcTxHash: '0xsrcTxHashAbTests',
           }),
           abTests: { token_details_layout: 'treatment' },
+          activeAbTests: [{ key: 'bridge_quote_sorting', value: 'variant_b' }],
         });
 
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
@@ -4284,6 +4285,9 @@ describe('BridgeStatusController', () => {
           expect.anything(),
           expect.objectContaining({
             ab_tests: { token_details_layout: 'treatment' },
+            active_ab_tests: [
+              { key: 'bridge_quote_sorting', value: 'variant_b' },
+            ],
           }),
         );
       });

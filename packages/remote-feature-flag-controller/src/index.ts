@@ -4,13 +4,18 @@ export type {
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerActions,
   RemoteFeatureFlagControllerGetStateAction,
-  RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction,
-  RemoteFeatureFlagControllerSetFlagOverrideAction,
-  RemoteFeatureFlagControllerRemoveFlagOverrideAction,
-  RemoteFeatureFlagControllerClearAllFlagOverridesAction,
   RemoteFeatureFlagControllerEvents,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from './remote-feature-flag-controller';
+export type {
+  RemoteFeatureFlagControllerClearAllFlagOverridesAction,
+  RemoteFeatureFlagControllerDisableAction,
+  RemoteFeatureFlagControllerEnableAction,
+  RemoteFeatureFlagControllerMethodActions,
+  RemoteFeatureFlagControllerRemoveFlagOverrideAction,
+  RemoteFeatureFlagControllerSetFlagOverrideAction,
+  RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction,
+} from './remote-feature-flag-controller-method-action-types';
 export {
   ClientType,
   DistributionType,

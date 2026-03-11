@@ -1,5 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import { successfulFetch } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
@@ -94,6 +95,14 @@ function buildTransferData(
     recipient,
     amount,
   ]) as Hex;
+}
+
+function getRequestBody(): { actions: unknown[] } {
+  const [, options] = jest.mocked(successfulFetch).mock.calls[0];
+
+  return JSON.parse((options?.body as string) ?? '{}') as {
+    actions: unknown[];
+  };
 }
 
 describe('Across Quotes', () => {
@@ -316,9 +325,7 @@ describe('Across Quotes', () => {
       });
 
       const [, options] = successfulFetchMock.mock.calls[0];
-      const body = JSON.parse((options?.body as string) ?? '{}') as {
-        actions: unknown[];
-      };
+      const body = getRequestBody();
 
       expect(options).toMatchObject({
         headers: {
@@ -353,6 +360,7 @@ describe('Across Quotes', () => {
       const params = new URL(url as string).searchParams;
 
       expect(params.get('recipient')).toBe(TRANSFER_RECIPIENT.toLowerCase());
+      expect(getRequestBody().actions).toStrictEqual([]);
     });
 
     it('uses transfer recipient from nested transactions', async () => {
@@ -375,6 +383,94 @@ describe('Across Quotes', () => {
       const params = new URL(url as string).searchParams;
 
       expect(params.get('recipient')).toBe(TRANSFER_RECIPIENT.toLowerCase());
+      expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
+    it('uses predict deposit post-swap action for token transfer transactions', async () => {
+      const transferData = buildTransferData(TRANSFER_RECIPIENT);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDeposit,
+          txParams: {
+            from: FROM_MOCK,
+            data: transferData,
+          },
+        },
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('recipient')).toBe(FROM_MOCK);
+      expect(getRequestBody().actions).toStrictEqual([
+        {
+          args: [
+            {
+              populateDynamically: false,
+              value: TRANSFER_RECIPIENT.toLowerCase(),
+            },
+            {
+              balanceSourceToken: QUOTE_REQUEST_MOCK.targetTokenAddress,
+              populateDynamically: true,
+              value: '0',
+            },
+          ],
+          functionSignature: 'function transfer(address to, uint256 value)',
+          isNativeTransfer: false,
+          target: QUOTE_REQUEST_MOCK.targetTokenAddress,
+          value: '0',
+        },
+      ]);
+    });
+
+    it('uses predict deposit post-swap action from nested transfer transactions', async () => {
+      const transferData = buildTransferData(TRANSFER_RECIPIENT);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDeposit,
+          nestedTransactions: [{ data: transferData }],
+        } as TransactionMeta,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('recipient')).toBe(FROM_MOCK);
+      expect(getRequestBody().actions).toStrictEqual([
+        {
+          args: [
+            {
+              populateDynamically: false,
+              value: TRANSFER_RECIPIENT.toLowerCase(),
+            },
+            {
+              balanceSourceToken: QUOTE_REQUEST_MOCK.targetTokenAddress,
+              populateDynamically: true,
+              value: '0',
+            },
+          ],
+          functionSignature: 'function transfer(address to, uint256 value)',
+          isNativeTransfer: false,
+          target: QUOTE_REQUEST_MOCK.targetTokenAddress,
+          value: '0',
+        },
+      ]);
     });
 
     it('throws when destination flow is not transfer-style', async () => {

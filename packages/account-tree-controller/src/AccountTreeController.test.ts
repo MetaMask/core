@@ -1136,7 +1136,7 @@ describe('AccountTreeController', () => {
     });
   });
 
-  describe('on AccountsController:accountRemoved', () => {
+  describe('on AccountsController:accountsRemoved', () => {
     it('removes an account from the tree', () => {
       // 2 accounts that share the same entropy source (thus, same wallet).
       const mockHdAccount1: Bip44Account<InternalAccount> = {
@@ -1170,7 +1170,9 @@ describe('AccountTreeController', () => {
       // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       controller.init();
 
-      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+      messenger.publish('AccountsController:accountsRemoved', [
+        mockHdAccount1.id,
+      ]);
 
       const walletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -1254,7 +1256,9 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+      messenger.publish('AccountsController:accountsRemoved', [
+        mockHdAccount1.id,
+      ]);
 
       const walletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -1331,7 +1335,9 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+      messenger.publish('AccountsController:accountsRemoved', [
+        mockHdAccount1.id,
+      ]);
 
       expect(controller.state).toStrictEqual({
         accountGroupsMetadata: {},
@@ -1372,7 +1378,9 @@ describe('AccountTreeController', () => {
       });
 
       // Remove the account, which should prune the wallet and its metadata
-      messenger.publish('AccountsController:accountRemoved', mockHdAccount1.id);
+      messenger.publish('AccountsController:accountsRemoved', [
+        mockHdAccount1.id,
+      ]);
 
       // Verify both wallet and its metadata are completely removed
       expect(controller.state.accountTree.wallets[walletId]).toBeUndefined();
@@ -1394,10 +1402,9 @@ describe('AccountTreeController', () => {
         mockAccountTreeChange,
       );
 
-      messenger.publish(
-        'AccountsController:accountRemoved',
+      messenger.publish('AccountsController:accountsRemoved', [
         MOCK_HD_ACCOUNT_1.id,
-      );
+      ]);
 
       expect(mockAccountTreeChange).not.toHaveBeenCalled();
     });
@@ -1431,9 +1438,9 @@ describe('AccountTreeController', () => {
       controller.init();
 
       // Publish in shuffled order: SOL, TRON, EVM
-      messenger.publish('AccountsController:accountAdded', solAccount);
-      messenger.publish('AccountsController:accountAdded', tronAccount);
-      messenger.publish('AccountsController:accountAdded', evmAccount);
+      messenger.publish('AccountsController:accountsAdded', [solAccount]);
+      messenger.publish('AccountsController:accountsAdded', [tronAccount]);
+      messenger.publish('AccountsController:accountsAdded', [evmAccount]);
 
       const walletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -1453,7 +1460,7 @@ describe('AccountTreeController', () => {
     });
   });
 
-  describe('on AccountsController:accountAdded', () => {
+  describe('on AccountsController:accountsAdded', () => {
     it('adds an account to the tree', () => {
       // 2 accounts that share the same entropy source (thus, same wallet).
       const mockHdAccount1: Bip44Account<InternalAccount> = {
@@ -1487,7 +1494,7 @@ describe('AccountTreeController', () => {
       // Create entropy wallets that will both get "Wallet" as base name, then get numbered
       controller.init();
 
-      messenger.publish('AccountsController:accountAdded', mockHdAccount2);
+      messenger.publish('AccountsController:accountsAdded', [mockHdAccount2]);
 
       const walletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -1586,7 +1593,7 @@ describe('AccountTreeController', () => {
 
       mocks.KeyringController.keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2];
       mocks.AccountsController.accounts = [mockHdAccount1, mockHdAccount2];
-      messenger.publish('AccountsController:accountAdded', mockHdAccount2);
+      messenger.publish('AccountsController:accountsAdded', [mockHdAccount2]);
 
       const walletId1 = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -1702,8 +1709,25 @@ describe('AccountTreeController', () => {
       const { controller, messenger } = setup();
 
       expect(controller.state.accountTree.wallets).toStrictEqual({});
-      messenger.publish('AccountsController:accountAdded', MOCK_HD_ACCOUNT_1);
+      messenger.publish('AccountsController:accountsAdded', [
+        MOCK_HD_ACCOUNT_1,
+      ]);
       expect(controller.state.accountTree.wallets).toStrictEqual({});
+    });
+
+    it('does not update state if all accounts are already known', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const stateBefore = controller.state;
+      messenger.publish('AccountsController:accountsAdded', [
+        MOCK_HD_ACCOUNT_1,
+      ]);
+
+      expect(controller.state).toBe(stateBefore);
     });
   });
 
@@ -2084,10 +2108,9 @@ describe('AccountTreeController', () => {
       const initialSelectedGroup = controller.getSelectedAccountGroup();
 
       // Remove account from the second group (not selected) - tests false branch and reverse cleanup
-      messenger.publish(
-        'AccountsController:accountRemoved',
+      messenger.publish('AccountsController:accountsRemoved', [
         MOCK_HD_ACCOUNT_2.id,
-      );
+      ]);
 
       // selectedAccountGroup should remain unchanged (tests false branch of if condition)
       expect(controller.getSelectedAccountGroup()).toBe(initialSelectedGroup);
@@ -2127,10 +2150,9 @@ describe('AccountTreeController', () => {
       );
 
       // Remove the account from the selected group - tests true branch and findFirstNonEmptyGroup finding a group
-      messenger.publish(
-        'AccountsController:accountRemoved',
+      messenger.publish('AccountsController:accountsRemoved', [
         MOCK_HD_ACCOUNT_1.id,
-      );
+      ]);
 
       // Should automatically switch to the remaining group (tests findFirstNonEmptyGroup returning a group)
       expect(controller.getSelectedAccountGroup()).toBe(expectedGroupId2);
@@ -2145,10 +2167,9 @@ describe('AccountTreeController', () => {
       controller.init();
 
       // Remove the only account - tests findFirstNonEmptyGroup returning empty string
-      messenger.publish(
-        'AccountsController:accountRemoved',
+      messenger.publish('AccountsController:accountsRemoved', [
         MOCK_HD_ACCOUNT_1.id,
-      );
+      ]);
 
       // Should fall back to empty string when no groups have accounts
       expect(controller.getSelectedAccountGroup()).toBe('');
@@ -2165,7 +2186,9 @@ describe('AccountTreeController', () => {
 
       // Try to remove an account that was never added
       const unknownAccountId = 'unknown-account-id';
-      messenger.publish('AccountsController:accountRemoved', unknownAccountId);
+      messenger.publish('AccountsController:accountsRemoved', [
+        unknownAccountId,
+      ]);
 
       // State should remain unchanged
       expect(controller.state).toStrictEqual(initialState);
@@ -2180,13 +2203,25 @@ describe('AccountTreeController', () => {
       controller.init();
 
       expect(() => {
-        messenger.publish(
-          'AccountsController:accountRemoved',
+        messenger.publish('AccountsController:accountsRemoved', [
           'non-existent-account',
-        );
+        ]);
       }).not.toThrow();
 
       expect(controller.getSelectedAccountGroup()).not.toBe('');
+    });
+
+    it('does not update state if no accounts are known', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const stateBefore = controller.state;
+      messenger.publish('AccountsController:accountsRemoved', ['unknown-id']);
+
+      expect(controller.state).toBe(stateBefore);
     });
   });
 
@@ -2916,7 +2951,7 @@ describe('AccountTreeController', () => {
 
       // Add the new account to the existing group
       mocks.AccountsController.accounts = [existingAccount, newAccount];
-      messenger.publish('AccountsController:accountAdded', newAccount);
+      messenger.publish('AccountsController:accountsAdded', [newAccount]);
 
       const expectedWalletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_1.metadata.id,
@@ -3266,7 +3301,7 @@ describe('AccountTreeController', () => {
         },
       };
 
-      messenger.publish('AccountsController:accountAdded', newAccount);
+      messenger.publish('AccountsController:accountsAdded', [newAccount]);
 
       // New account should get Account 3, not duplicate an existing name
       const group3Id = toMultichainAccountGroupId(walletId, 2);
@@ -3877,9 +3912,9 @@ describe('AccountTreeController', () => {
       controller.init();
       jest.clearAllMocks();
 
-      messenger.publish('AccountsController:accountAdded', {
-        ...MOCK_HD_ACCOUNT_2,
-      });
+      messenger.publish('AccountsController:accountsAdded', [
+        { ...MOCK_HD_ACCOUNT_2 },
+      ]);
 
       expect(accountTreeChangeListener).toHaveBeenCalledWith(
         controller.state.accountTree,
@@ -3902,10 +3937,9 @@ describe('AccountTreeController', () => {
       controller.init();
       jest.clearAllMocks();
 
-      messenger.publish(
-        'AccountsController:accountRemoved',
+      messenger.publish('AccountsController:accountsRemoved', [
         MOCK_HD_ACCOUNT_2.id,
-      );
+      ]);
 
       expect(accountTreeChangeListener).toHaveBeenCalledWith(
         controller.state.accountTree,
@@ -3938,10 +3972,9 @@ describe('AccountTreeController', () => {
       jest.clearAllMocks();
 
       // Remove the only account in the selected group, which should trigger auto-selection
-      messenger.publish(
-        'AccountsController:accountRemoved',
+      messenger.publish('AccountsController:accountsRemoved', [
         MOCK_SNAP_ACCOUNT_1.id,
-      );
+      ]);
 
       const newSelectedGroup =
         controller.state.accountTree.selectedAccountGroup;
@@ -4743,7 +4776,7 @@ describe('AccountTreeController', () => {
       // Add all 3 accounts.
       [mockAccount1, mockAccount2, mockAccount3].forEach(
         (mockAccount, index) => {
-          messenger.publish('AccountsController:accountAdded', mockAccount);
+          messenger.publish('AccountsController:accountsAdded', [mockAccount]);
 
           const mockGroup = getAccountGroupFromAccount(controller, mockAccount);
           expect(mockGroup).toBeDefined();
@@ -4752,12 +4785,14 @@ describe('AccountTreeController', () => {
       );
 
       // Remove account 2, should still create account 4 afterward.
-      messenger.publish('AccountsController:accountRemoved', mockAccount2.id);
+      messenger.publish('AccountsController:accountsRemoved', [
+        mockAccount2.id,
+      ]);
 
       expect(
         getAccountGroupFromAccount(controller, mockAccount4),
       ).toBeUndefined();
-      messenger.publish('AccountsController:accountAdded', mockAccount4);
+      messenger.publish('AccountsController:accountsAdded', [mockAccount4]);
 
       const mockGroup4 = getAccountGroupFromAccount(controller, mockAccount4);
       expect(mockGroup4).toBeDefined();
@@ -4765,13 +4800,17 @@ describe('AccountTreeController', () => {
 
       // Now, removing account 3 and 4, should defaults to an index of "2" (since only
       // account 1 remains), thus, re-inserting account 2, should be named "* Account 2".
-      messenger.publish('AccountsController:accountRemoved', mockAccount4.id);
-      messenger.publish('AccountsController:accountRemoved', mockAccount3.id);
+      messenger.publish('AccountsController:accountsRemoved', [
+        mockAccount4.id,
+      ]);
+      messenger.publish('AccountsController:accountsRemoved', [
+        mockAccount3.id,
+      ]);
 
       expect(
         getAccountGroupFromAccount(controller, mockAccount2),
       ).toBeUndefined();
-      messenger.publish('AccountsController:accountAdded', mockAccount2);
+      messenger.publish('AccountsController:accountsAdded', [mockAccount2]);
 
       const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
       expect(mockGroup2).toBeDefined();
@@ -4796,7 +4835,7 @@ describe('AccountTreeController', () => {
 
       // The first account has a non-matching pattern, thus we should fallback to the next
       // natural index.
-      messenger.publish('AccountsController:accountAdded', mockAccount2);
+      messenger.publish('AccountsController:accountsAdded', [mockAccount2]);
       const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
       expect(mockGroup2).toBeDefined();
       expect(mockGroup2.metadata.name).toBe(`Ledger Account 2`); // Natural indexing.
@@ -4832,7 +4871,7 @@ describe('AccountTreeController', () => {
 
         // Even if the account is not strictly named "Ledger Account 90", we should be able
         // to compute the next index from there.
-        messenger.publish('AccountsController:accountAdded', mockAccount2);
+        messenger.publish('AccountsController:accountsAdded', [mockAccount2]);
         const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
         expect(mockGroup2).toBeDefined();
         expect(mockGroup2.metadata.name).toBe(
@@ -4863,7 +4902,7 @@ describe('AccountTreeController', () => {
 
         // Even if the account is not strictly named "Ledger Account 90", we should be able
         // to compute the next index from there.
-        messenger.publish('AccountsController:accountAdded', mockAccount2);
+        messenger.publish('AccountsController:accountsAdded', [mockAccount2]);
         const mockGroup2 = getAccountGroupFromAccount(controller, mockAccount2);
         expect(mockGroup2).toBeDefined();
         expect(mockGroup2.metadata.name).toBe(
@@ -4895,7 +4934,7 @@ describe('AccountTreeController', () => {
       controller.init();
 
       [mockAccount1, mockAccount2, mockAccount3].forEach((mockAccount) =>
-        messenger.publish('AccountsController:accountAdded', mockAccount),
+        messenger.publish('AccountsController:accountsAdded', [mockAccount]),
       );
 
       const mockGroup1 = getAccountGroupFromAccount(controller, mockAccount1);
@@ -4912,7 +4951,7 @@ describe('AccountTreeController', () => {
 
       // Adding a new account should not reset back to "Account 1", but it should
       // use the next natural index, here, "Account 4".
-      messenger.publish('AccountsController:accountAdded', mockAccount4);
+      messenger.publish('AccountsController:accountsAdded', [mockAccount4]);
       const mockGroup4 = getAccountGroupFromAccount(controller, mockAccount4);
       expect(mockGroup4).toBeDefined();
       expect(mockGroup4.metadata.name).toBe('Ledger Account 4');

@@ -690,7 +690,7 @@ describe('Authentication - rejects when calling unrelated methods', () => {
 function createMockStoredProfile(): LoginResponse {
   return {
     token: {
-      accessToken: MOCK_SRP_LOGIN_RESPONSE.token,
+      accessToken: MOCK_ACCESS_JWT,
       expiresIn: MOCK_SRP_LOGIN_RESPONSE.expires_in,
       obtainedAt: Date.now(),
     },

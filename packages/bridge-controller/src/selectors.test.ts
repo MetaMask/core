@@ -1256,12 +1256,37 @@ describe('Bridge Selectors', () => {
     });
 
     it('should handle selected quote', () => {
+      const selectedQuote = {
+        ...mockState.quotes[0],
+        quote: { ...mockState.quotes[0].quote, requestId: '123' },
+      } as never;
       const result = selectBridgeQuotes(mockState, {
         ...mockClientParams,
-        selectedQuote: mockQuote as never,
+        selectedQuote,
       });
 
-      expect(result.activeQuote).toStrictEqual(mockQuote);
+      expect(result.recommendedQuote).toStrictEqual(
+        expect.objectContaining(mockState.quotes[1]),
+      );
+      expect(result.activeQuote).toStrictEqual(
+        expect.objectContaining(selectedQuote),
+      );
+    });
+
+    it('should set recommendedQuote as activeQuote when selected quote is not found', () => {
+      const selectedQuote = {
+        ...mockState.quotes[0],
+        quote: { ...mockState.quotes[0].quote, requestId: 'abc' },
+      } as never;
+      const result = selectBridgeQuotes(mockState, {
+        ...mockClientParams,
+        selectedQuote,
+      });
+
+      expect(result.recommendedQuote).toStrictEqual(
+        expect.objectContaining(mockState.quotes[1]),
+      );
+      expect(result.activeQuote).toStrictEqual(result.recommendedQuote);
     });
 
     it('should handle quote refresh state', () => {
