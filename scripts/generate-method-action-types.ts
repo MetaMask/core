@@ -538,7 +538,7 @@ async function parseControllerFile(
 
       assert(
         classNode,
-        `Class "${context.className}" not found in ${filePath}.`,
+        `Class "${context.className}" not found in "${filePath}".`,
       );
 
       const classType = checker.getTypeAtLocation(classNode);
