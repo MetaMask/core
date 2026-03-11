@@ -18,14 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `MultichainAssetsRatesController:fetchHistoricalPricesForAsset`
   - Corresponding action type (`MultichainAssetsRatesControllerFetchHistoricalPricesForAssetAction`) is available as well.
 - Expose missing public `TokenDetectionController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
-  - The following actiona are now available:
+  - The following actions are now available:
     - `TokenDetectionController:enable`
     - `TokenDetectionController:disable`
     - `TokenDetectionController:start`
     - `TokenDetectionController:stop`
   - Corresponding action type (`TokenDetectionControllerEnableAction`) is available as well.
 - Expose missing public `TokensController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
-  - The following actiona are now available:
+  - The following actions are now available:
     - `TokensController:addToken`
     - `TokensController:ignoreTokens`
     - `TokensController:updateTokenType`
