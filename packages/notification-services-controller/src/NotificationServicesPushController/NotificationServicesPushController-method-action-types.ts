@@ -36,20 +36,6 @@ export type NotificationServicesPushControllerDisablePushNotificationsAction = {
 };
 
 /**
- * Updates the triggers for push notifications.
- * This method is responsible for updating the server with the new set of addresses that should trigger push notifications.
- * It uses the current FCM token and a BearerToken for authentication.
- *
- * @param addresses - An array of addresses that should trigger push notifications.
- * @deprecated - this is not used anymore and will most likely be removed
- */
-export type NotificationServicesPushControllerUpdateTriggerPushNotificationsAction =
-  {
-    type: `NotificationServicesPushController:updateTriggerPushNotifications`;
-    handler: NotificationServicesPushController['updateTriggerPushNotifications'];
-  };
-
-/**
  * Deletes backend push notification links for the given addresses on the current platform.
  * This is used when accounts are removed (for example SRP removal), so backend can remove
  * all associated FCM tokens for those address/platform pairs.
@@ -64,11 +50,25 @@ export type NotificationServicesPushControllerDeletePushNotificationLinksAction 
   };
 
 /**
+ * Updates the triggers for push notifications.
+ * This method is responsible for updating the server with the new set of addresses that should trigger push notifications.
+ * It uses the current FCM token and a BearerToken for authentication.
+ *
+ * @param addresses - An array of addresses that should trigger push notifications.
+ * @deprecated - this is not used anymore and will most likely be removed
+ */
+export type NotificationServicesPushControllerUpdateTriggerPushNotificationsAction =
+  {
+    type: `NotificationServicesPushController:updateTriggerPushNotifications`;
+    handler: NotificationServicesPushController['updateTriggerPushNotifications'];
+  };
+
+/**
  * Union of all NotificationServicesPushController action types.
  */
 export type NotificationServicesPushControllerMethodActions =
   | NotificationServicesPushControllerSubscribeToPushNotificationsAction
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
-  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
-  | NotificationServicesPushControllerDeletePushNotificationLinksAction;
+  | NotificationServicesPushControllerDeletePushNotificationLinksAction
+  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction;
