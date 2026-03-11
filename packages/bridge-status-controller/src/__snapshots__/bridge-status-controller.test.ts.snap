@@ -3616,8 +3616,8 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
   "location": "Main View",
   "originalTransactionId": "test-tx-id",
   "pricingData": {
-    "amountSent": "0",
-    "amountSentInUsd": undefined,
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",

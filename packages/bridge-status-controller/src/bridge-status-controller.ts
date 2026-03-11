@@ -568,7 +568,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
       hasApprovalTx: Boolean(quoteResponse.approval),
       approvalTxId,
-      isStxEnabled,
+      isStxEnabled: Boolean(isStxEnabled),
       featureId: quoteResponse.featureId,
       location,
       ...(abTests && { abTests }),
@@ -1668,7 +1668,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         await this.#waitForTxConfirmation(approvalTxId);
       }
 
-      const { srcChainId: chainId, requestId } = quoteResponse.quote;
+      const { srcChainId, requestId } = quoteResponse.quote;
 
       const signature = await this.messenger.call(
         'KeyringController:signTypedMessage',
@@ -1680,7 +1680,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
 
       const submissionParams: IntentSubmissionParams = {
-        srcChainId: chainId.toString(),
+        srcChainId,
         quoteId: requestId,
         signature,
         order: intent.order,
@@ -1705,15 +1705,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Create actual transaction in Transaction Controller first
       const networkClientId = this.messenger.call(
         'NetworkController:findNetworkClientIdByChainId',
-        formatChainIdToHex(chainId),
+        formatChainIdToHex(srcChainId),
       );
 
       // This is a synthetic transaction whose purpose is to be able
       // to track the order status via the history
       const intentTransactionParams = {
-        chainId: formatChainIdToHex(chainId),
+        chainId: formatChainIdToHex(srcChainId),
         from: accountAddress,
-        to: intent.settlementContract,
+        to:
+          intent.settlementContract ??
+          '0x9008D19f58AAbd9eD0D60971565AA8510560ab41', // Default settlement contract
         data: `0x${orderUid.slice(-8)}`, // Use last 8 chars of orderUid to make each transaction unique
         value: '0x0',
         gas: '0x5208', // Minimal gas for display purposes

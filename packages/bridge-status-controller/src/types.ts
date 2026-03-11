@@ -216,7 +216,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
-  isStxEnabled: BridgeHistoryItem['isStxEnabled'];
+  isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
   location?: BridgeHistoryItem['location'];
   // Legacy field for `ab_tests` metrics payload.
   abTests?: BridgeHistoryItem['abTests'];
