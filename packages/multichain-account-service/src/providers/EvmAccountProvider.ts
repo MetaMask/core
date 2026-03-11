@@ -209,7 +209,9 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
 
           // Validate no gaps: we can only create accounts starting from existing.length.
           if (range.from > existing.length) {
-            throw new Error('Trying to create too many accounts');
+            throw new Error(
+              `Bad account creation request, group index range would create gaps (${range.from} (from) > ${existing.length} (next available index))`,
+            );
           }
 
           const result: AccountId[] = [];

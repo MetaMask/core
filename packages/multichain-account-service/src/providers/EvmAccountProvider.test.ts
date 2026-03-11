@@ -393,16 +393,21 @@ describe('EvmAccountProvider', () => {
       accounts: [MOCK_HD_ACCOUNT_1],
     });
 
+    const nextGroupIndex = MOCK_HD_ACCOUNT_1.options.entropy.groupIndex + 1;
+
+    const from = 5;
     await expect(
       provider.createAccounts({
         type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         range: {
-          from: 5,
+          from,
           to: 10,
         },
       }),
-    ).rejects.toThrow('Trying to create too many accounts');
+    ).rejects.toThrow(
+      `Bad account creation request, group index range would create gaps (${from} (from) > ${nextGroupIndex} (next available index))`,
+    );
   });
 
   it('returns existing accounts when range includes already created accounts', async () => {
