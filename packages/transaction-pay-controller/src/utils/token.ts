@@ -2,9 +2,7 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import {
   AccountTrackerControllerState,
-  CurrencyRateState,
   TokenBalancesControllerState,
-  TokenRatesControllerState,
   TokensControllerState,
 } from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
@@ -82,26 +80,6 @@ export function getTokenBalance(
       messenger.call('AccountTrackerController:getState')?.accountsByChainId;
   }
 
-  return _getTokenBalance(
-    account,
-    chainId,
-    tokenAddress,
-    getTokenBalances,
-    getAccountsByChainId,
-  );
-}
-
-function _getTokenBalance(
-  account: Hex,
-  chainId: Hex,
-  tokenAddress: Hex,
-  getTokenBalances: () =>
-    | TokenBalancesControllerState['tokenBalances']
-    | undefined,
-  getAccountsByChainId: () =>
-    | AccountTrackerControllerState['accountsByChainId']
-    | undefined,
-): string {
   const normalizedAccount = account.toLowerCase() as Hex;
   const normalizedTokenAddress = toChecksumHexAddress(tokenAddress) as Hex;
   const isNative = normalizedTokenAddress === getNativeToken(chainId);
@@ -142,7 +120,7 @@ export function getTokenInfo(
 ): { decimals: number; symbol: string } | undefined {
   const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
 
-  let allTokens;
+  let allTokens: TokensControllerState['allTokens'];
   if (assetsUnifyStateFeatureEnabled) {
     allTokens = messenger.call(
       'AssetsController:getStateForTransactionPay',
@@ -151,15 +129,6 @@ export function getTokenInfo(
     allTokens = messenger.call('TokensController:getState')?.allTokens;
   }
 
-  return _getTokenInfo(messenger, tokenAddress, chainId, allTokens);
-}
-
-function _getTokenInfo(
-  messenger: TransactionPayControllerMessenger,
-  tokenAddress: Hex,
-  chainId: Hex,
-  allTokens: TokensControllerState['allTokens'] | undefined,
-): { decimals: number; symbol: string } | undefined {
   const normalizedTokenAddress = tokenAddress.toLowerCase() as Hex;
 
   const isNative =
@@ -220,22 +189,6 @@ export function getTokenFiatRate(
     )?.currencyRates;
   }
 
-  return _getTokenFiatRate(
-    messenger,
-    tokenAddress,
-    chainId,
-    marketData,
-    currencyRates,
-  );
-}
-
-function _getTokenFiatRate(
-  messenger: TransactionPayControllerMessenger,
-  tokenAddress: Hex,
-  chainId: Hex,
-  marketData: TokenRatesControllerState['marketData'] | undefined,
-  currencyRates: CurrencyRateState['currencyRates'] | undefined,
-): FiatRates | undefined {
   const ticker = getTicker(chainId, messenger);
 
   if (!ticker) {
