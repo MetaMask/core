@@ -1,6 +1,6 @@
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
-  ApprovalControllerAddRequestAction as AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
@@ -168,7 +168,7 @@ export type SignatureControllerState = {
 
 type AllowedActions =
   | AccountsControllerGetStateAction
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | LoggingControllerAddAction
   | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
   | NetworkControllerGetNetworkClientByIdAction

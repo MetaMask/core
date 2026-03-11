@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated `ApprovalController` usage to match renamed methods and action types ([#8183](https://github.com/MetaMask/core/pull/8183))
+
 ### Added
 
 - Expose missing public `AssetsContractController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))

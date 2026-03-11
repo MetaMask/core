@@ -1,6 +1,6 @@
 import type {
   AcceptResultCallbacks,
-  ApprovalControllerAddRequestAction as AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -120,7 +120,7 @@ export type UserOperationControllerActions =
   | GetUserOperationState
   | UserOperationControllerMethodActions
   | NetworkControllerGetNetworkClientByIdAction
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | KeyringControllerPrepareUserOperationAction
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction;

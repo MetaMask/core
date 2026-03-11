@@ -1,8 +1,8 @@
 import type {
-  ApprovalControllerAcceptRequestAction as AcceptApprovalRequest,
-  ApprovalControllerAddRequestAction as AddApprovalRequest,
-  ApprovalControllerHasRequestAction as HasApprovalRequest,
-  ApprovalControllerRejectRequestAction as RejectApprovalRequest,
+  ApprovalControllerAcceptRequestAction,
+  ApprovalControllerAddRequestAction,
+  ApprovalControllerHasRequestAction,
+  ApprovalControllerRejectRequestAction,
 } from '@metamask/approval-controller';
 import type {
   StateMetadata,
@@ -417,10 +417,10 @@ export type PermissionControllerEvents = PermissionControllerStateChange;
  * {@link PermissionController}.
  */
 type AllowedActions =
-  | AddApprovalRequest
-  | HasApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest
+  | ApprovalControllerAddRequestAction
+  | ApprovalControllerHasRequestAction
+  | ApprovalControllerAcceptRequestAction
+  | ApprovalControllerRejectRequestAction
   | GetSubjectMetadata;
 
 /**

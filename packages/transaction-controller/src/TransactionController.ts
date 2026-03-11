@@ -7,7 +7,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
-  ApprovalControllerAddRequestAction as AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
 import type {
@@ -490,7 +490,7 @@ const controllerName = 'TransactionController';
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetStateAction
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
