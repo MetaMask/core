@@ -240,7 +240,7 @@ describe('formatExchangeRatesForBridge', () => {
     expect(entry.marketData).toStrictEqual(
       expect.objectContaining({
         fungible: true,
-        marketCap: '1_000_000_000_000',
+        marketCap: '1000000000000',
       }),
     );
   });
