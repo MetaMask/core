@@ -6,29 +6,43 @@
 import type { AccountsController } from './AccountsController';
 
 /**
- * Returns the internal account object for the given account ID, if it exists.
+ * Sets the selected account by its ID.
  *
  * @deprecated This method is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- * @param accountId - The ID of the account to retrieve.
- * @returns The internal account object, or undefined if the account does not exist.
+ * @param accountId - The ID of the account to be selected.
  */
-export type AccountsControllerGetAccountAction = {
-  type: `AccountsController:getAccount`;
-  handler: AccountsController['getAccount'];
+export type AccountsControllerSetSelectedAccountAction = {
+  type: `AccountsController:setSelectedAccount`;
+  handler: AccountsController['setSelectedAccount'];
 };
 
 /**
- * Returns the internal account objects for the given account IDs, if they exist.
+ * Sets the name of the account with the given ID.
  *
  * @deprecated This method is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- * @param accountIds - The IDs of the accounts to retrieve.
- * @returns The internal account objects, or undefined if the account(s) do not exist.
+ * @param accountId - The ID of the account to set the name for.
+ * @param accountName - The new name for the account.
+ * @throws An error if an account with the same name already exists.
  */
-export type AccountsControllerGetAccountsAction = {
-  type: `AccountsController:getAccounts`;
-  handler: AccountsController['getAccounts'];
+export type AccountsControllerSetAccountNameAction = {
+  type: `AccountsController:setAccountName`;
+  handler: AccountsController['setAccountName'];
+};
+
+/**
+ * Sets the name of the account with the given ID and select it.
+ *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ * @param accountId - The ID of the account to set the name for and select.
+ * @param accountName - The new name for the account.
+ * @throws An error if an account with the same name already exists.
+ */
+export type AccountsControllerSetAccountNameAndSelectAccountAction = {
+  type: `AccountsController:setAccountNameAndSelectAccount`;
+  handler: AccountsController['setAccountNameAndSelectAccount'];
 };
 
 /**
@@ -54,6 +68,19 @@ export type AccountsControllerListAccountsAction = {
 export type AccountsControllerListMultichainAccountsAction = {
   type: `AccountsController:listMultichainAccounts`;
   handler: AccountsController['listMultichainAccounts'];
+};
+
+/**
+ * Updates the internal accounts list by retrieving normal and snap accounts,
+ * removing duplicates, and updating the metadata of each account.
+ *
+ * @deprecated This method is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ * @returns A Promise that resolves when the accounts have been updated.
+ */
+export type AccountsControllerUpdateAccountsAction = {
+  type: `AccountsController:updateAccounts`;
+  handler: AccountsController['updateAccounts'];
 };
 
 /**
@@ -98,43 +125,29 @@ export type AccountsControllerGetAccountByAddressAction = {
 };
 
 /**
- * Sets the selected account by its ID.
+ * Returns the internal account object for the given account ID, if it exists.
  *
  * @deprecated This method is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- * @param accountId - The ID of the account to be selected.
+ * @param accountId - The ID of the account to retrieve.
+ * @returns The internal account object, or undefined if the account does not exist.
  */
-export type AccountsControllerSetSelectedAccountAction = {
-  type: `AccountsController:setSelectedAccount`;
-  handler: AccountsController['setSelectedAccount'];
+export type AccountsControllerGetAccountAction = {
+  type: `AccountsController:getAccount`;
+  handler: AccountsController['getAccount'];
 };
 
 /**
- * Sets the name of the account with the given ID.
+ * Returns the internal account objects for the given account IDs, if they exist.
  *
  * @deprecated This method is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- * @param accountId - The ID of the account to set the name for.
- * @param accountName - The new name for the account.
- * @throws An error if an account with the same name already exists.
+ * @param accountIds - The IDs of the accounts to retrieve.
+ * @returns The internal account objects, or undefined if the account(s) do not exist.
  */
-export type AccountsControllerSetAccountNameAction = {
-  type: `AccountsController:setAccountName`;
-  handler: AccountsController['setAccountName'];
-};
-
-/**
- * Sets the name of the account with the given ID and select it.
- *
- * @deprecated This method is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- * @param accountId - The ID of the account to set the name for and select.
- * @param accountName - The new name for the account.
- * @throws An error if an account with the same name already exists.
- */
-export type AccountsControllerSetAccountNameAndSelectAccountAction = {
-  type: `AccountsController:setAccountNameAndSelectAccount`;
-  handler: AccountsController['setAccountNameAndSelectAccount'];
+export type AccountsControllerGetAccountsAction = {
+  type: `AccountsController:getAccounts`;
+  handler: AccountsController['getAccounts'];
 };
 
 /**
@@ -148,19 +161,6 @@ export type AccountsControllerSetAccountNameAndSelectAccountAction = {
 export type AccountsControllerUpdateAccountMetadataAction = {
   type: `AccountsController:updateAccountMetadata`;
   handler: AccountsController['updateAccountMetadata'];
-};
-
-/**
- * Updates the internal accounts list by retrieving normal and snap accounts,
- * removing duplicates, and updating the metadata of each account.
- *
- * @deprecated This method is deprecated and will be removed in a future version.
- * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
- * @returns A Promise that resolves when the accounts have been updated.
- */
-export type AccountsControllerUpdateAccountsAction = {
-  type: `AccountsController:updateAccounts`;
-  handler: AccountsController['updateAccounts'];
 };
 
 /**
@@ -179,16 +179,16 @@ export type AccountsControllerLoadBackupAction = {
  * Union of all AccountsController action types.
  */
 export type AccountsControllerMethodActions =
-  | AccountsControllerGetAccountAction
-  | AccountsControllerGetAccountsAction
-  | AccountsControllerListAccountsAction
-  | AccountsControllerListMultichainAccountsAction
-  | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetSelectedMultichainAccountAction
-  | AccountsControllerGetAccountByAddressAction
   | AccountsControllerSetSelectedAccountAction
   | AccountsControllerSetAccountNameAction
   | AccountsControllerSetAccountNameAndSelectAccountAction
-  | AccountsControllerUpdateAccountMetadataAction
+  | AccountsControllerListAccountsAction
+  | AccountsControllerListMultichainAccountsAction
   | AccountsControllerUpdateAccountsAction
+  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction
+  | AccountsControllerGetAccountByAddressAction
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetAccountsAction
+  | AccountsControllerUpdateAccountMetadataAction
   | AccountsControllerLoadBackupAction;

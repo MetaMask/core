@@ -72,19 +72,6 @@ export type UserStorageControllerPerformDeleteStorageAction = {
 };
 
 /**
- * Allows deletion of all user data entries for a specific feature.
- * Developers can extend the entry path through the `schema.ts` file.
- *
- * @param path - string in the form of `${feature}` that matches schema
- * @param entropySourceId - The entropy source ID used to generate the encryption key.
- * @returns nothing. NOTE that an error is thrown if fails to delete data.
- */
-export type UserStorageControllerPerformDeleteStorageAllFeatureEntriesAction = {
-  type: `UserStorageController:performDeleteStorageAllFeatureEntries`;
-  handler: UserStorageController['performDeleteStorageAllFeatureEntries'];
-};
-
-/**
  * Allows delete of multiple user data entries for one specific feature. Data deleted must be string formatted.
  * Developers can extend the entry path through the `schema.ts` file.
  *
@@ -106,6 +93,19 @@ export type UserStorageControllerPerformBatchDeleteStorageAction = {
 export type UserStorageControllerGetStorageKeyAction = {
   type: `UserStorageController:getStorageKey`;
   handler: UserStorageController['getStorageKey'];
+};
+
+/**
+ * Allows deletion of all user data entries for a specific feature.
+ * Developers can extend the entry path through the `schema.ts` file.
+ *
+ * @param path - string in the form of `${feature}` that matches schema
+ * @param entropySourceId - The entropy source ID used to generate the encryption key.
+ * @returns nothing. NOTE that an error is thrown if fails to delete data.
+ */
+export type UserStorageControllerPerformDeleteStorageAllFeatureEntriesAction = {
+  type: `UserStorageController:performDeleteStorageAllFeatureEntries`;
+  handler: UserStorageController['performDeleteStorageAllFeatureEntries'];
 };
 
 /**
@@ -153,9 +153,9 @@ export type UserStorageControllerMethodActions =
   | UserStorageControllerPerformSetStorageAction
   | UserStorageControllerPerformBatchSetStorageAction
   | UserStorageControllerPerformDeleteStorageAction
-  | UserStorageControllerPerformDeleteStorageAllFeatureEntriesAction
   | UserStorageControllerPerformBatchDeleteStorageAction
   | UserStorageControllerGetStorageKeyAction
+  | UserStorageControllerPerformDeleteStorageAllFeatureEntriesAction
   | UserStorageControllerListEntropySourcesAction
   | UserStorageControllerSetIsBackupAndSyncFeatureEnabledAction
   | UserStorageControllerSetIsContactSyncingInProgressAction

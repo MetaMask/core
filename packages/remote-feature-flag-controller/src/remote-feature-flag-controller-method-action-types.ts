@@ -6,14 +6,19 @@
 import type { RemoteFeatureFlagController } from './remote-feature-flag-controller';
 
 /**
- * Retrieves the remote feature flags, fetching from the API if necessary.
- * Uses caching to prevent redundant API calls and handles concurrent fetches.
- *
- * @returns A promise that resolves to the current set of feature flags.
+ * Clears all local feature flag overrides.
  */
-export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
-  type: `RemoteFeatureFlagController:updateRemoteFeatureFlags`;
-  handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
+export type RemoteFeatureFlagControllerClearAllFlagOverridesAction = {
+  type: `RemoteFeatureFlagController:clearAllFlagOverrides`;
+  handler: RemoteFeatureFlagController['clearAllFlagOverrides'];
+};
+
+/**
+ * Disables the controller, preventing it from making network requests.
+ */
+export type RemoteFeatureFlagControllerDisableAction = {
+  type: `RemoteFeatureFlagController:disable`;
+  handler: RemoteFeatureFlagController['disable'];
 };
 
 /**
@@ -25,11 +30,13 @@ export type RemoteFeatureFlagControllerEnableAction = {
 };
 
 /**
- * Disables the controller, preventing it from making network requests.
+ * Clears the local override for a specific feature flag.
+ *
+ * @param flagName - The name of the feature flag to clear.
  */
-export type RemoteFeatureFlagControllerDisableAction = {
-  type: `RemoteFeatureFlagController:disable`;
-  handler: RemoteFeatureFlagController['disable'];
+export type RemoteFeatureFlagControllerRemoveFlagOverrideAction = {
+  type: `RemoteFeatureFlagController:removeFlagOverride`;
+  handler: RemoteFeatureFlagController['removeFlagOverride'];
 };
 
 /**
@@ -44,30 +51,23 @@ export type RemoteFeatureFlagControllerSetFlagOverrideAction = {
 };
 
 /**
- * Clears the local override for a specific feature flag.
+ * Retrieves the remote feature flags, fetching from the API if necessary.
+ * Uses caching to prevent redundant API calls and handles concurrent fetches.
  *
- * @param flagName - The name of the feature flag to clear.
+ * @returns A promise that resolves to the current set of feature flags.
  */
-export type RemoteFeatureFlagControllerRemoveFlagOverrideAction = {
-  type: `RemoteFeatureFlagController:removeFlagOverride`;
-  handler: RemoteFeatureFlagController['removeFlagOverride'];
-};
-
-/**
- * Clears all local feature flag overrides.
- */
-export type RemoteFeatureFlagControllerClearAllFlagOverridesAction = {
-  type: `RemoteFeatureFlagController:clearAllFlagOverrides`;
-  handler: RemoteFeatureFlagController['clearAllFlagOverrides'];
+export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
+  type: `RemoteFeatureFlagController:updateRemoteFeatureFlags`;
+  handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
 };
 
 /**
  * Union of all RemoteFeatureFlagController action types.
  */
 export type RemoteFeatureFlagControllerMethodActions =
-  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction
-  | RemoteFeatureFlagControllerEnableAction
+  | RemoteFeatureFlagControllerClearAllFlagOverridesAction
   | RemoteFeatureFlagControllerDisableAction
-  | RemoteFeatureFlagControllerSetFlagOverrideAction
+  | RemoteFeatureFlagControllerEnableAction
   | RemoteFeatureFlagControllerRemoveFlagOverrideAction
-  | RemoteFeatureFlagControllerClearAllFlagOverridesAction;
+  | RemoteFeatureFlagControllerSetFlagOverrideAction
+  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction;
