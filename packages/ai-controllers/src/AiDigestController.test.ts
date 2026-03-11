@@ -100,17 +100,46 @@ describe('AiDigestController (market insights)', () => {
     jest.useRealTimers();
   });
 
-  it('throws for invalid CAIP asset type', async () => {
+  it('throws for empty asset identifier', async () => {
     const digestService = createService();
     const controller = new AiDigestController({
       messenger: createMessenger(),
       digestService,
     });
 
-    await expect(
-      controller.fetchMarketInsights('invalid-caip'),
-    ).rejects.toThrow(AiDigestControllerErrorMessage.INVALID_CAIP_ASSET_TYPE);
+    await expect(controller.fetchMarketInsights('')).rejects.toThrow(
+      AiDigestControllerErrorMessage.INVALID_ASSET_IDENTIFIER,
+    );
     expect(digestService.searchDigest).not.toHaveBeenCalled();
+  });
+
+  it('accepts a perps market symbol as asset identifier', async () => {
+    const digestService = createService();
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService,
+    });
+
+    const result = await controller.fetchMarketInsights('ETH');
+
+    expect(result).toStrictEqual(mockReport);
+    expect(digestService.searchDigest).toHaveBeenCalledWith('ETH');
+    expect(controller.state.marketInsights['ETH']).toBeDefined();
+  });
+
+  it('caches perps and CAIP-19 identifiers independently', async () => {
+    const digestService = createService();
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService,
+    });
+
+    await controller.fetchMarketInsights('ETH');
+    await controller.fetchMarketInsights('eip155:1/slip44:60');
+
+    expect(digestService.searchDigest).toHaveBeenCalledTimes(2);
+    expect(controller.state.marketInsights['ETH']).toBeDefined();
+    expect(controller.state.marketInsights['eip155:1/slip44:60']).toBeDefined();
   });
 
   it('removes stale entry when service returns null', async () => {
