@@ -102,6 +102,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     };
 
     assertIsBip44Account(account);
+    this.accounts.add(account.id);
     return account;
   }
 
@@ -136,8 +137,6 @@ export class SolAccountProvider extends SnapAccountProvider {
               derivationPath,
             });
           });
-
-          this.accounts.add(account.id);
           accounts.push(account);
         }
 
@@ -157,7 +156,6 @@ export class SolAccountProvider extends SnapAccountProvider {
           derivationPath,
         });
 
-        this.accounts.add(account.id);
         return [account];
       });
     });
