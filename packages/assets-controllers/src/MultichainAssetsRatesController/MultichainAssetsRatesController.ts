@@ -536,9 +536,8 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
         }
 
         updatedRates[asset] = {
-          // @ts-expect-error TS2783 — intentionally overwritten by the spread below.
           currency,
-          ...(assetRate as AssetConversion & { currency: CaipAssetType }),
+          ...assetRate,
           ...(assetMarketData && { marketData: assetMarketData }),
         };
       }

@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING:** Add already existing but not declared properties (`assetId`, `chainId`, and `id`) to `MarketDataDetails` type ([#8175](https://github.com/MetaMask/core/pull/8175))
-
 ### Fixed
 
 - Add missing Tron staking lifecycle asset symbols to `TRON_RESOURCE` filter ([#8174](https://github.com/MetaMask/core/pull/8174))
