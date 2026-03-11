@@ -287,11 +287,12 @@ describe('BtcAccountProvider', () => {
       accounts,
     });
 
+    const from = 1;
     const newAccounts = await provider.createAccounts({
       type: AccountCreationType.Bip44DeriveIndexRange,
       entropySource: MOCK_HD_KEYRING_1.metadata.id,
       range: {
-        from: 1,
+        from,
         to: 3,
       },
     });
@@ -299,19 +300,11 @@ describe('BtcAccountProvider', () => {
     expect(newAccounts).toHaveLength(3);
     expect(keyring.createAccount).toHaveBeenCalledTimes(3);
 
-    // Verify each account has the correct group index
-    expect(
-      isBip44Account(newAccounts[0]) &&
-        newAccounts[0].options.entropy.groupIndex,
-    ).toBe(1);
-    expect(
-      isBip44Account(newAccounts[1]) &&
-        newAccounts[1].options.entropy.groupIndex,
-    ).toBe(2);
-    expect(
-      isBip44Account(newAccounts[2]) &&
-        newAccounts[2].options.entropy.groupIndex,
-    ).toBe(3);
+    // Verify each account has the correct group index.
+    for (const [index, account] of newAccounts.entries()) {
+      expect(isBip44Account(account)).toBe(true);
+      expect(account.options.entropy.groupIndex).toBe(from + index);
+    }
   });
 
   it('creates accounts with range starting from 0', async () => {
