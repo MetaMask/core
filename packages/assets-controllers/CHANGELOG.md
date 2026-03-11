@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove hardcoded `supportedNftDetectionNetworks` chain allowlist from `NftDetectionController`; the NFT API now returns an empty array for unsupported chains instead of an error, so chain gating is no longer needed in the client ([#8176](https://github.com/MetaMask/core/pull/8176))
+- `NftDetectionController` now skips the NFT API call entirely when all provided chain IDs are non-EVM (decimal `0`), returning an empty result immediately ([#8176](https://github.com/MetaMask/core/pull/8176))
+- Update `ReservoirResponse.continuation` type from `string` to `string | null` to match the NFT API response shape ([#8176](https://github.com/MetaMask/core/pull/8176))
+
 ## [100.2.1]
 
 ### Changed
