@@ -11,7 +11,7 @@ import type {
 } from '@metamask/network-controller';
 import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
@@ -77,8 +77,8 @@ export type MarketDataDetails = {
   pricePercentChange30d: number;
   pricePercentChange200d: number;
   totalVolume: number;
-  assetId: string;
-  chainId: string;
+  assetId: CaipAssetType;
+  chainId: Hex;
   id: string;
 };
 
