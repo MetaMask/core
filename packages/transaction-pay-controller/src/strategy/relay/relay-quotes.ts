@@ -159,6 +159,16 @@ async function getQuoteWithPostQuoteGasHandling(
       fullRequest,
     );
 
+    if (
+      phase1Quote.fees.isSourceGasFeeToken &&
+      !phase2Quote.fees.isSourceGasFeeToken
+    ) {
+      log(
+        'Phase 2 lost gas fee token eligibility, falling back to phase 1',
+      );
+      return phase1Quote;
+    }
+
     return phase2Quote;
   } catch (error) {
     log('Phase 2 quote failed, falling back to phase 1', { error });
@@ -587,13 +597,18 @@ async function calculateSourceNetworkCost(
   const isPredictWithdraw =
     request.isPostQuote && isPredictWithdrawTransaction(transaction);
 
+  const fromOverride = isPredictWithdraw ? request.refundTo : undefined;
+
+  const relayOnlyGas = await calculateSourceNetworkGasLimit(
+    relayParams,
+    messenger,
+    fromOverride,
+  );
+
   const { totalGasEstimate, totalGasLimit, gasLimits } =
-    await calculateSourceNetworkGasLimit(
-      relayParams,
-      messenger,
-      request.isPostQuote ? transaction : undefined,
-      isPredictWithdraw ? request.refundTo : undefined,
-    );
+    request.isPostQuote && transaction.txParams.to
+      ? combinePostQuoteGas(relayOnlyGas, transaction)
+      : relayOnlyGas;
 
   log('Gas limit', {
     totalGasEstimate,
@@ -661,6 +676,7 @@ async function calculateSourceNetworkCost(
     log('Using proxy address for predict withdraw gas station simulation', {
       proxyAddress: request.refundTo,
       sourceTokenAddress,
+      relayOnlyGasEstimate: relayOnlyGas.totalGasEstimate,
     });
 
     const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
@@ -675,8 +691,10 @@ async function calculateSourceNetworkCost(
         sourceChainId,
         sourceTokenAddress,
       },
-      totalGasEstimate,
-      totalItemCount: Math.max(relayParams.length, gasLimits.length),
+      totalGasEstimate: relayOnlyGas.totalGasEstimate,
+      // Simulation estimates gas for one relay step; force totalItemCount >= 2
+      // so normalization scales the cost to cover all relay gas.
+      totalItemCount: Math.max(relayParams.length, relayOnlyGas.gasLimits.length, 2),
     });
 
     if (gasFeeTokenCost) {
@@ -746,31 +764,15 @@ async function calculateSourceNetworkCost(
 async function calculateSourceNetworkGasLimit(
   params: RelayQuote['steps'][0]['items'][0]['data'][],
   messenger: TransactionPayControllerMessenger,
-  postQuoteTransaction?: TransactionMeta,
   fromOverride?: Hex,
 ): Promise<{
   totalGasEstimate: number;
   totalGasLimit: number;
   gasLimits: number[];
 }> {
-  const relayGas =
-    params.length === 1
-      ? await calculateSourceNetworkGasLimitSingle(
-          params[0],
-          messenger,
-          fromOverride,
-        )
-      : await calculateSourceNetworkGasLimitBatch(
-          params,
-          messenger,
-          fromOverride,
-        );
-
-  if (!postQuoteTransaction?.txParams.to) {
-    return relayGas;
-  }
-
-  return combinePostQuoteGas(relayGas, postQuoteTransaction);
+  return params.length === 1
+    ? calculateSourceNetworkGasLimitSingle(params[0], messenger, fromOverride)
+    : calculateSourceNetworkGasLimitBatch(params, messenger, fromOverride);
 }
 
 /**
@@ -878,7 +880,7 @@ async function calculateSourceNetworkGasLimitSingle(
     ? new BigNumber(params.gas).toNumber()
     : undefined;
 
-  if (paramGasLimit) {
+  if (paramGasLimit && !fromOverride) {
     log('Using single gas limit from params', { paramGasLimit });
 
     return {
@@ -970,7 +972,10 @@ async function calculateSourceNetworkGasLimitBatch(
     const transactions: BatchTransactionParams[] = params.map(
       (singleParams) => ({
         ...singleParams,
-        gas: singleParams.gas ? toHex(singleParams.gas) : undefined,
+        gas:
+          !fromOverride && singleParams.gas
+            ? toHex(singleParams.gas)
+            : undefined,
         maxFeePerGas: undefined,
         maxPriorityFeePerGas: undefined,
         value: toHex(singleParams.value ?? '0'),
