@@ -388,6 +388,94 @@ function createASTVisitor(context: VisitorContext): (node: ts.Node) => void {
 }
 
 /**
+ * Create a TypeScript program for the given file by locating the nearest
+ * tsconfig.json.
+ *
+ * @param filePath - Absolute path to the source file.
+ * @returns A TypeScript program, or null if no tsconfig was found.
+ */
+function createProgramForFile(filePath: string): ts.Program | null {
+  const configPath = ts.findConfigFile(
+    path.dirname(filePath),
+    ts.sys.fileExists.bind(ts.sys),
+    'tsconfig.json',
+  );
+  if (!configPath) {
+    return null;
+  }
+
+  const { config, error } = ts.readConfigFile(
+    configPath,
+    ts.sys.readFile.bind(ts.sys),
+  );
+
+  if (error) {
+    return null;
+  }
+
+  const parsedConfig = ts.parseJsonConfigFileContent(
+    config,
+    ts.sys,
+    path.dirname(configPath),
+  );
+
+  return ts.createProgram({
+    rootNames: parsedConfig.fileNames,
+    options: parsedConfig.options,
+  });
+}
+
+/**
+ * Find a class declaration with the given name in a source file.
+ *
+ * @param sourceFile - The source file to search.
+ * @param className - The class name to look for.
+ * @returns The class declaration node, or null if not found.
+ */
+function findClassInSourceFile(
+  sourceFile: ts.SourceFile,
+  className: string,
+): ts.ClassDeclaration | null {
+  return (
+    sourceFile.statements.find(
+      (node): node is ts.ClassDeclaration =>
+        ts.isClassDeclaration(node) && node.name?.text === className,
+    ) ?? null
+  );
+}
+
+/**
+ * Search through the class hierarchy of a TypeScript type to find the
+ * declaration of a method with the given name.
+ *
+ * @param classType - The class type to search.
+ * @param methodName - The method name to look for.
+ * @returns The method declaration node, or null if not found.
+ */
+function findMethodInHierarchy(
+  classType: ts.Type,
+  methodName: string,
+): ts.MethodDeclaration | null {
+  const symbol = classType.getProperty(methodName);
+  if (!symbol) {
+    return null;
+  }
+
+  const declarations = symbol.getDeclarations();
+  if (!declarations) {
+    return null;
+  }
+
+  for (const declaration of declarations) {
+    if (ts.isMethodDeclaration(declaration)) {
+      return declaration;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Parses a controller file to extract exposed methods and their metadata.
  *
  * @param filePath - Path to the controller file to parse.
@@ -417,6 +505,60 @@ async function parseControllerFile(
     if (context.exposedMethods.length === 0 || !context.className) {
       return null;
     }
+
+    // For exposed methods not found directly in the class body, attempt to
+    // locate them in the inheritance hierarchy using the type checker.
+    const foundMethodNames = new Set(
+      context.methods.map((method) => method.name),
+    );
+
+    const inheritedMethodNames = context.exposedMethods.filter(
+      (name) => !foundMethodNames.has(name),
+    );
+
+    if (inheritedMethodNames.length > 0) {
+      const program = createProgramForFile(filePath);
+      const checker = program?.getTypeChecker();
+      const programSourceFile = program?.getSourceFile(filePath);
+
+      if (checker && programSourceFile) {
+        const classNode = findClassInSourceFile(
+          programSourceFile,
+          context.className,
+        );
+
+        if (classNode) {
+          const classType = checker.getTypeAtLocation(classNode);
+
+          for (const methodName of inheritedMethodNames) {
+            const methodDeclaration = findMethodInHierarchy(
+              classType,
+              methodName,
+            );
+
+            const jsDoc = methodDeclaration
+              ? extractJSDoc(
+                  methodDeclaration,
+                  methodDeclaration.getSourceFile(),
+                )
+              : '';
+            context.methods.push({ name: methodName, jsDoc, signature: '' });
+          }
+        }
+      } else {
+        // Fallback: Add inherited methods without JSDoc.
+        for (const methodName of inheritedMethodNames) {
+          context.methods.push({ name: methodName, jsDoc: '', signature: '' });
+        }
+      }
+    }
+
+    // Preserve the order declared in `MESSENGER_EXPOSED_METHODS`.
+    context.methods.sort(
+      (a, b) =>
+        context.exposedMethods.indexOf(a.name) -
+        context.exposedMethods.indexOf(b.name),
+    );
 
     return {
       name: context.className,
