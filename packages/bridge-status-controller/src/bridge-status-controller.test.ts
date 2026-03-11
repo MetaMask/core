@@ -18,7 +18,6 @@ import {
   FeatureId,
   getQuotesReceivedProperties,
 } from '@metamask/bridge-controller';
-// eslint-disable-next-line import-x/no-extraneous-dependencies
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
