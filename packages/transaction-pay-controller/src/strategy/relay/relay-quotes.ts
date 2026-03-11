@@ -651,9 +651,6 @@ async function calculateSourceNetworkCost(
     max: max.raw,
   });
 
-  // For predictWithdraw post-quote flows, simulate an empty tx with `from`
-  // set to the proxy (Safe) address which holds the source token balance.
-  // This lets the gas station return real fee tokens instead of emulating.
   if (request.isPostQuote && request.refundTo) {
     log('Using proxy address for post-quote gas station simulation', {
       proxyAddress: request.refundTo,
