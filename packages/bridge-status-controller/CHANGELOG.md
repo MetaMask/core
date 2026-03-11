@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.1.0]
+
+### Added
+
+- Added optional `activeAbTests` context support so Unified SwapBridge events can include `active_ab_tests` independently of `ab_tests`. ([#8152](https://github.com/MetaMask/core/pull/8152))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^69.0.1` to `^69.1.0` ([#8168](https://github.com/MetaMask/core/pull/8168))
+
 ## [68.0.2]
 
 ### Changed
@@ -1010,7 +1020,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.1.0...HEAD
+[68.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.2...@metamask/bridge-status-controller@68.1.0
 [68.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.1...@metamask/bridge-status-controller@68.0.2
 [68.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.0...@metamask/bridge-status-controller@68.0.1
 [68.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@67.0.1...@metamask/bridge-status-controller@68.0.0

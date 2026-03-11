@@ -11,13 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `AppMetadataControllerGetStateAction` and `AssetsControllerGetStateForTransactionPayAction` to the `AllowedActions` messenger type ([#8163](https://github.com/MetaMask/core/pull/8163))
 - Support gasless Relay deposits via `execute` endpoint ([#8133](https://github.com/MetaMask/core/pull/8133))
+- Build Across post-swap transfer actions for `predictDeposit` quotes so Predict deposits can bridge swapped output into the destination proxy wallet ([#8159](https://github.com/MetaMask/core/pull/8159))
 
 ### Changed
 
 - `getTokenBalance`, `getTokenInfo`, and `getTokenFiatRate` now source token metadata, balances, and pricing from `AssetsController:getStateForTransactionPay` when the `assetsUnifyState` remote feature flag is enabled, falling back to individual controller state calls otherwise ([#8163](https://github.com/MetaMask/core/pull/8163))
 - Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
-- Bump `@metamask/bridge-controller` from `^69.0.0` to `^69.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
-- Bump `@metamask/bridge-status-controller` from `^68.0.1` to `^68.0.2` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/bridge-controller` from `^69.0.0` to `^69.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
+- Bump `@metamask/bridge-status-controller` from `^68.0.1` to `^68.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
 
 ## [16.4.1]
 

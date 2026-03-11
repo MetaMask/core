@@ -12,7 +12,7 @@
   },
   "packages/account-tree-controller/src/AccountTreeController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
+      "count": 8
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1

@@ -1,11 +1,13 @@
 import { Interface } from '@ethersproject/abi';
 import { successfulFetch, toHex } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type {
+  AcrossAction,
   AcrossActionRequestBody,
   AcrossGasLimits,
   AcrossQuote,
@@ -30,7 +32,7 @@ import { TOKEN_TRANSFER_FOUR_BYTE } from '../relay/constants';
 const log = createModuleLogger(projectLogger, 'across-strategy');
 
 const TOKEN_TRANSFER_INTERFACE = new Interface([
-  'function transfer(address to, uint256 amount)',
+  'function transfer(address to, uint256 value)',
 ]);
 
 const UNSUPPORTED_AUTHORIZATION_LIST_ERROR =
@@ -39,6 +41,11 @@ const UNSUPPORTED_DESTINATION_ERROR =
   'Across only supports transfer-style destination flows at the moment';
 
 type AcrossQuoteWithoutMetaMask = Omit<AcrossQuote, 'metamask'>;
+
+type AcrossDestination = {
+  actions: AcrossAction[];
+  recipient: Hex;
+};
 
 /**
  * Fetch Across quotes.
@@ -105,8 +112,9 @@ async function getSingleQuote(
 
   const amount = isMaxAmount ? sourceTokenAmount : targetAmountMinimum;
   const tradeType = isMaxAmount ? 'exactInput' : 'exactOutput';
-  const recipient = getAcrossRecipient(transaction, request);
+  const destination = getAcrossDestination(transaction, request);
   const quote = await requestAcrossApproval({
+    actions: destination.actions,
     amount,
     apiBase: config.across.apiBase,
     depositor: from,
@@ -114,7 +122,7 @@ async function getSingleQuote(
     inputToken: sourceTokenAddress,
     originChainId: sourceChainId,
     outputToken: targetTokenAddress,
-    recipient,
+    recipient: destination.recipient,
     slippage: slippageDecimal,
     tradeType,
   });
@@ -131,6 +139,7 @@ async function getSingleQuote(
 }
 
 type AcrossApprovalRequest = {
+  actions: AcrossAction[];
   amount: string;
   apiBase: string;
   depositor: Hex;
@@ -147,6 +156,7 @@ async function requestAcrossApproval(
   request: AcrossApprovalRequest,
 ): Promise<AcrossSwapApprovalResponse> {
   const {
+    actions,
     amount,
     apiBase,
     depositor,
@@ -173,7 +183,7 @@ async function requestAcrossApproval(
     params.set('slippage', String(slippage));
   }
 
-  const body: AcrossActionRequestBody = { actions: [] };
+  const body: AcrossActionRequestBody = { actions };
   const url = `${apiBase}/swap/approval?${params.toString()}`;
   const options: RequestInit = {
     body: JSON.stringify(body),
@@ -188,16 +198,28 @@ async function requestAcrossApproval(
   return (await response.json()) as AcrossSwapApprovalResponse;
 }
 
-function getAcrossRecipient(
+function getAcrossDestination(
   transaction: TransactionMeta,
   request: QuoteRequest,
-): Hex {
+): AcrossDestination {
   const { txParams } = transaction;
   const { from } = request;
   const transferData = getTransferData(transaction);
 
   if (transferData) {
-    return getTransferRecipient(transferData);
+    const transferRecipient = getTransferRecipient(transferData);
+
+    if (transaction.type === TransactionType.predictDeposit) {
+      return {
+        actions: [buildAcrossTransferAction(transferRecipient, request)],
+        recipient: from,
+      };
+    }
+
+    return {
+      actions: [],
+      recipient: transferRecipient,
+    };
   }
 
   const data = txParams?.data as Hex | undefined;
@@ -205,10 +227,36 @@ function getAcrossRecipient(
   const nestedCalldata = getNestedCalldata(transaction);
 
   if (hasNoData && nestedCalldata.length === 0) {
-    return from;
+    return {
+      actions: [],
+      recipient: from,
+    };
   }
 
   throw new Error(UNSUPPORTED_DESTINATION_ERROR);
+}
+
+function buildAcrossTransferAction(
+  transferRecipient: Hex,
+  request: QuoteRequest,
+): AcrossAction {
+  return {
+    args: [
+      {
+        populateDynamically: false,
+        value: transferRecipient,
+      },
+      {
+        balanceSourceToken: request.targetTokenAddress,
+        populateDynamically: true,
+        value: '0',
+      },
+    ],
+    functionSignature: 'function transfer(address to, uint256 value)',
+    isNativeTransfer: false,
+    target: request.targetTokenAddress,
+    value: '0',
+  };
 }
 
 function getTransferData(transaction: TransactionMeta): Hex | undefined {
