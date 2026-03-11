@@ -46,7 +46,6 @@ import {
   getSlippage,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
-import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import {
   getNativeToken,
   getTokenBalance,
@@ -54,6 +53,7 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token';
+import { isPredictWithdrawTransaction } from '../../utils/transaction';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
@@ -163,9 +163,7 @@ async function getQuoteWithPostQuoteGasHandling(
       phase1Quote.fees.isSourceGasFeeToken &&
       !phase2Quote.fees.isSourceGasFeeToken
     ) {
-      log(
-        'Phase 2 lost gas fee token eligibility, falling back to phase 1',
-      );
+      log('Phase 2 lost gas fee token eligibility, falling back to phase 1');
       return phase1Quote;
     }
 
@@ -694,7 +692,11 @@ async function calculateSourceNetworkCost(
       totalGasEstimate: relayOnlyGas.totalGasEstimate,
       // Simulation estimates gas for one relay step; force totalItemCount >= 2
       // so normalization scales the cost to cover all relay gas.
-      totalItemCount: Math.max(relayParams.length, relayOnlyGas.gasLimits.length, 2),
+      totalItemCount: Math.max(
+        relayParams.length,
+        relayOnlyGas.gasLimits.length,
+        2,
+      ),
     });
 
     if (gasFeeTokenCost) {
@@ -748,17 +750,11 @@ async function calculateSourceNetworkCost(
 /**
  * Calculate the total gas limit for the source network.
  *
- * For post-quote flows (e.g. predict withdrawals), the original transaction's
- * gas is combined with the relay gas so that source network cost accounts for
- * both the user's transaction and the relay transactions.
- *
  * @param params - Array of relay transaction parameters.
  * @param messenger - Controller messenger.
- * @param postQuoteTransaction - Original transaction for post-quote flows.
- * When provided, its gas is included in the returned totals.
  * @param fromOverride - Optional address to use as `from` in gas estimation
- * instead of the address in the relay params. Used in post-quote flows to
- * estimate with the proxy/Safe address that holds the source token balance.
+ * instead of the address in the relay params. Used in predict withdraw flows
+ * to estimate with the proxy/Safe address that holds the source token balance.
  * @returns Total gas estimates and per-transaction gas limits.
  */
 async function calculateSourceNetworkGasLimit(
@@ -952,6 +948,7 @@ async function calculateSourceNetworkGasLimitSingle(
  *
  * @param params - Array of transaction parameters.
  * @param messenger - Controller messenger.
+ * @param fromOverride - Optional address to use as `from` in gas estimation.
  * @returns - Gas limits.
  */
 async function calculateSourceNetworkGasLimitBatch(

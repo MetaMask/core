@@ -397,9 +397,7 @@ describe('Transaction Utils', () => {
     it('returns true when a nested transaction has type predictWithdraw', () => {
       const transaction = {
         ...TRANSACTION_META_MOCK,
-        nestedTransactions: [
-          { type: TransactionType.predictWithdraw },
-        ],
+        nestedTransactions: [{ type: TransactionType.predictWithdraw }],
       } as TransactionMeta;
 
       expect(isPredictWithdrawTransaction(transaction)).toBe(true);
@@ -420,9 +418,7 @@ describe('Transaction Utils', () => {
     it('returns false when nested transactions have different types', () => {
       const transaction = {
         ...TRANSACTION_META_MOCK,
-        nestedTransactions: [
-          { type: TransactionType.simpleSend },
-        ],
+        nestedTransactions: [{ type: TransactionType.simpleSend }],
       } as TransactionMeta;
 
       expect(isPredictWithdrawTransaction(transaction)).toBe(false);

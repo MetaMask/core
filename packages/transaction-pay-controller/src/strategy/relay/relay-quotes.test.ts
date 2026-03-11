@@ -216,8 +216,6 @@ describe('Relay Quotes Utils', () => {
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
     getGasFeeTokensMock.mockResolvedValue([]);
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
-
- 
   });
 
   describe('getRelayQuotes', () => {
