@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New messenger actions: `EnsControllerResetStateAction`, `EnsControllerClearAction`, `EnsControllerDeleteAction`, `EnsControllerGetAction`, `EnsControllerSetAction`, `EnsControllerReverseResolveAddressAction` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- New messenger actions: `EnsControllerResetStateAction`, `EnsControllerClearAction`, `EnsControllerDeleteAction`, `EnsControllerGetAction`, `EnsControllerSetAction`, `EnsControllerReverseResolveAddressAction` ([#8183](https://github.com/MetaMask/core/pull/8183))
 
 ## [19.0.3]
 
