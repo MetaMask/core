@@ -1,6 +1,6 @@
 #!yarn tsx
 
-import { hasProperty, isObject } from '@metamask/utils';
+import { assert, hasProperty, isObject } from '@metamask/utils';
 import { ESLint } from 'eslint';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -521,35 +521,34 @@ async function parseControllerFile(
       const checker = program?.getTypeChecker();
       const programSourceFile = program?.getSourceFile(filePath);
 
-      if (checker && programSourceFile) {
-        const classNode = findClassInSourceFile(
-          programSourceFile,
-          context.className,
-        );
+      assert(
+        checker,
+        `Type checker could not be created for "${filePath}". Ensure a valid tsconfig.json is present.`,
+      );
 
-        if (classNode) {
-          const classType = checker.getTypeAtLocation(classNode);
+      assert(
+        programSourceFile,
+        `Source file "${filePath}" not found in program.`,
+      );
 
-          for (const methodName of inheritedMethodNames) {
-            const methodDeclaration = findMethodInHierarchy(
-              classType,
-              methodName,
-            );
+      const classNode = findClassInSourceFile(
+        programSourceFile,
+        context.className,
+      );
 
-            const jsDoc = methodDeclaration
-              ? extractJSDoc(
-                  methodDeclaration,
-                  methodDeclaration.getSourceFile(),
-                )
-              : '';
-            context.methods.push({ name: methodName, jsDoc, signature: '' });
-          }
-        }
-      } else {
-        // Fallback: Add inherited methods without JSDoc.
-        for (const methodName of inheritedMethodNames) {
-          context.methods.push({ name: methodName, jsDoc: '', signature: '' });
-        }
+      assert(
+        classNode,
+        `Class "${context.className}" not found in ${filePath}.`,
+      );
+
+      const classType = checker.getTypeAtLocation(classNode);
+      for (const methodName of inheritedMethodNames) {
+        const methodDeclaration = findMethodInHierarchy(classType, methodName);
+
+        const jsDoc = methodDeclaration
+          ? extractJSDoc(methodDeclaration, methodDeclaration.getSourceFile())
+          : '';
+        context.methods.push({ name: methodName, jsDoc, signature: '' });
       }
     }
 
