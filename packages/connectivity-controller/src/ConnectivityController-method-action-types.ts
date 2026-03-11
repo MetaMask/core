@@ -6,6 +6,14 @@
 import type { ConnectivityController } from './ConnectivityController';
 
 /**
+ * Initializes the controller by fetching the initial connectivity status.
+ */
+export type ConnectivityControllerInitAction = {
+  type: `ConnectivityController:init`;
+  handler: ConnectivityController['init'];
+};
+
+/**
  * Sets the connectivity status.
  *
  * @param status - The connectivity status to set.
@@ -19,4 +27,5 @@ export type ConnectivityControllerSetConnectivityStatusAction = {
  * Union of all ConnectivityController action types.
  */
 export type ConnectivityControllerMethodActions =
-  ConnectivityControllerSetConnectivityStatusAction;
+  | ConnectivityControllerInitAction
+  | ConnectivityControllerSetConnectivityStatusAction;
