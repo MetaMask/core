@@ -2163,6 +2163,81 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
+    describe('zeroes source network fees for execute flow', () => {
+      const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+      it('sets source network fees to zero when quote has isExecute', async () => {
+        const quoteMock = cloneDeep(QUOTE_MOCK);
+        quoteMock.metamask.isExecute = true;
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => quoteMock,
+        } as never);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.sourceNetwork).toStrictEqual({
+          estimate: ZERO_AMOUNT,
+          max: ZERO_AMOUNT,
+        });
+      });
+
+      it('preserves isExecute from quote response on normalized quote', async () => {
+        const quoteMock = cloneDeep(QUOTE_MOCK);
+        quoteMock.metamask.isExecute = true;
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => quoteMock,
+        } as never);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].original.metamask.isExecute).toBe(true);
+      });
+
+      it('does not zero source network fees when quote does not have isExecute', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].fees.sourceNetwork).not.toStrictEqual({
+          estimate: ZERO_AMOUNT,
+          max: ZERO_AMOUNT,
+        });
+      });
+
+      it('returns empty gas limits when quote has isExecute', async () => {
+        const quoteMock = cloneDeep(QUOTE_MOCK);
+        quoteMock.metamask.isExecute = true;
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => quoteMock,
+        } as never);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].original.metamask.gasLimits).toStrictEqual([]);
+      });
+    });
+
     it('includes target network fee in quote', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
