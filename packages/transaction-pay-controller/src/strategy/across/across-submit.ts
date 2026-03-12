@@ -117,48 +117,42 @@ async function submitTransactions(
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex | undefined> {
   const { swapTx } = quote.original.quote;
-  const { gasLimits: quoteGasLimits } = quote.original.metamask;
+  const { gasLimits: quoteGasLimits, is7702 } = quote.original.metamask;
   const { from } = quote.request;
   const chainId = toHex(swapTx.chainId);
+  const orderedTransactions = getAcrossOrderedTransactions({
+    quote: quote.original.quote,
+    swapType: acrossDepositType,
+  });
 
   const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
     chainId,
   );
 
-  const gasLimit7702 =
-    quoteGasLimits?.batch && quote.original.quote.approvalTxns?.length
-      ? toHex(quoteGasLimits.batch.max)
+  const batchGasLimit =
+    is7702 && orderedTransactions.length > 1
+      ? quoteGasLimits[0]?.max
       : undefined;
 
-  let approvalIndex = 0;
-  const transactions: PreparedAcrossTransaction[] =
-    getAcrossOrderedTransactions({
-      quote: quote.original.quote,
-      swapType: acrossDepositType,
-    }).map((transaction) => {
-      let gasLimit = gasLimit7702 ? undefined : quoteGasLimits?.swap?.max;
+  if (is7702 && orderedTransactions.length > 1 && batchGasLimit === undefined) {
+    throw new Error('Missing quote gas limit for Across 7702 batch');
+  }
 
-      if (transaction.kind === 'approval') {
-        gasLimit = gasLimit7702
-          ? undefined
-          : quoteGasLimits?.approval?.[approvalIndex]?.max;
+  const gasLimit7702 =
+    batchGasLimit === undefined ? undefined : toHex(batchGasLimit);
 
-        if (gasLimit === undefined && !gasLimit7702) {
-          throw new Error(
-            `Missing quote gas limit for Across approval transaction at index ${approvalIndex}`,
-          );
-        }
+  const transactions: PreparedAcrossTransaction[] = orderedTransactions.map(
+    (transaction, index) => {
+      const gasLimit = gasLimit7702 ? undefined : quoteGasLimits[index]?.max;
 
-        approvalIndex += 1;
-      }
+      if (gasLimit === undefined && !gasLimit7702) {
+        const errorMessage =
+          transaction.kind === 'approval'
+            ? `Missing quote gas limit for Across approval transaction at index ${index}`
+            : 'Missing quote gas limit for Across swap transaction';
 
-      if (
-        transaction.kind === 'swap' &&
-        gasLimit === undefined &&
-        !gasLimit7702
-      ) {
-        throw new Error('Missing quote gas limit for Across swap transaction');
+        throw new Error(errorMessage);
       }
 
       return {
@@ -173,7 +167,8 @@ async function submitTransactions(
         }),
         type: transaction.type ?? acrossDepositType,
       };
-    });
+    },
+  );
 
   const transactionIds: string[] = [];
 

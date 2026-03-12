@@ -309,7 +309,7 @@ async function normalizeQuote(
   const dustUsd = calculateDustUsd(quote, request, targetFiatRate);
   const dust = getFiatValueFromUsd(dustUsd, usdToFiatRate);
 
-  const { sourceNetwork, gasLimits } = await calculateSourceNetworkCost(
+  const { gasLimits, is7702, sourceNetwork } = await calculateSourceNetworkCost(
     quote,
     messenger,
     request,
@@ -352,6 +352,7 @@ async function normalizeQuote(
 
   const metamask = {
     gasLimits,
+    is7702,
   };
 
   return {
@@ -497,6 +498,7 @@ async function calculateSourceNetworkCost(
 ): Promise<{
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
+  is7702: boolean;
 }> {
   const acrossFallbackGas =
     getPayStrategiesConfig(messenger).across.fallbackGas;
@@ -516,15 +518,13 @@ async function calculateSourceNetworkCost(
       value: transaction.value ?? '0x0',
     })),
   });
+  const { batchGasLimit, is7702 } = gasEstimates;
 
-  const batchGasLimit =
-    gasEstimates.usedBatch &&
-    gasEstimates.gasLimits.length === 1 &&
-    orderedTransactions.length > 1
-      ? gasEstimates.gasLimits[0]
-      : undefined;
+  if (is7702) {
+    if (!batchGasLimit) {
+      throw new Error('Across combined batch gas estimate missing');
+    }
 
-  if (batchGasLimit) {
     const estimate = calculateGasCost({
       chainId: swapChainId,
       gas: batchGasLimit.estimate,
@@ -546,91 +546,67 @@ async function calculateSourceNetworkCost(
         estimate,
         max,
       },
-      gasLimits: {
-        batch: {
+      is7702: true,
+      gasLimits: [
+        {
           estimate: batchGasLimit.estimate,
           max: batchGasLimit.max,
         },
-      },
+      ],
     };
   }
 
-  orderedTransactions.forEach((transaction, index) => {
+  const transactionGasLimits = orderedTransactions.map((transaction, index) => {
     const gasEstimate = gasEstimates.gasLimits[index];
 
-    if (gasEstimate?.source === 'fallback') {
-      log('Gas estimate failed, using fallback', {
-        error: gasEstimate.error,
-        transactionType: transaction.kind,
-      });
+    if (!gasEstimate) {
+      throw new Error(
+        transaction.kind === 'swap'
+          ? 'Across swap gas estimate missing'
+          : `Across approval gas estimate missing at index ${index}`,
+      );
     }
 
-    if (transaction.kind === 'swap' && gasEstimate?.source === 'provided') {
-      log('Using Across-provided swap gas limit', {
-        gas: gasEstimate.estimate,
-        transactionType: transaction.kind,
-      });
-    }
+    return {
+      gasEstimate,
+      transaction,
+    };
   });
 
-  const approvalCount = quote.approvalTxns?.length ?? 0;
-  const approvalGasLimits = gasEstimates.gasLimits.slice(0, approvalCount);
-  const swapGas = gasEstimates.gasLimits[approvalCount];
-
-  if (!swapGas) {
-    throw new Error('Across swap gas estimate missing');
-  }
-
-  const estimate = sumAmounts([
-    ...approvalGasLimits.map((gasEstimate, index) =>
+  const estimate = sumAmounts(
+    transactionGasLimits.map(({ gasEstimate, transaction }) =>
       calculateGasCost({
-        chainId: toHex(quote.approvalTxns?.[index]?.chainId ?? swapTx.chainId),
+        chainId: toHex(transaction.chainId),
         gas: gasEstimate.estimate,
+        maxFeePerGas: transaction.maxFeePerGas,
+        maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
         messenger,
       }),
     ),
-    calculateGasCost({
-      chainId: swapChainId,
-      gas: swapGas.estimate,
-      maxFeePerGas: swapTx.maxFeePerGas,
-      maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
-      messenger,
-    }),
-  ]);
+  );
 
-  const max = sumAmounts([
-    ...approvalGasLimits.map((gasEstimate, index) =>
+  const max = sumAmounts(
+    transactionGasLimits.map(({ gasEstimate, transaction }) =>
       calculateGasCost({
-        chainId: toHex(quote.approvalTxns?.[index]?.chainId ?? swapTx.chainId),
+        chainId: toHex(transaction.chainId),
         gas: gasEstimate.max,
         isMax: true,
+        maxFeePerGas: transaction.maxFeePerGas,
+        maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
         messenger,
       }),
     ),
-    calculateGasCost({
-      chainId: swapChainId,
-      gas: swapGas.max,
-      isMax: true,
-      maxFeePerGas: swapTx.maxFeePerGas,
-      maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
-      messenger,
-    }),
-  ]);
+  );
 
   return {
     sourceNetwork: {
       estimate,
       max,
     },
-    gasLimits: {
-      approval: approvalGasLimits.map((gasEstimate) => ({
-        estimate: gasEstimate.estimate,
-        max: gasEstimate.max,
-      })),
-      swap: {
-        estimate: swapGas.estimate,
-        max: swapGas.max,
-      },
-    },
+    is7702: false,
+    gasLimits: transactionGasLimits.map(({ gasEstimate }) => ({
+      estimate: gasEstimate.estimate,
+      max: gasEstimate.max,
+    })),
   };
 }

@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import { getGasBuffer, isEIP7702Chain } from './feature-flags';
+import { getGasBuffer } from './feature-flags';
 import { estimateGasLimit } from './gas';
 import { estimateQuoteGasLimits } from './quote-gas';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -8,7 +8,6 @@ import { getMessengerMock } from '../tests/messenger-mock';
 jest.mock('./feature-flags', () => ({
   ...jest.requireActual('./feature-flags'),
   getGasBuffer: jest.fn(),
-  isEIP7702Chain: jest.fn(),
 }));
 
 jest.mock('./gas', () => ({
@@ -18,7 +17,6 @@ jest.mock('./gas', () => ({
 
 describe('quote gas estimation', () => {
   const getGasBufferMock = jest.mocked(getGasBuffer);
-  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
   const estimateGasLimitMock = jest.mocked(estimateGasLimit);
 
   const { estimateGasBatchMock, messenger } = getMessengerMock();
@@ -45,30 +43,24 @@ describe('quote gas estimation', () => {
     jest.resetAllMocks();
 
     getGasBufferMock.mockReturnValue(1);
-    isEIP7702ChainMock.mockReturnValue(false);
   });
 
-  it('returns empty gas limits when there are no transactions', async () => {
-    const result = await estimateQuoteGasLimits({
-      messenger,
-      transactions: [],
-    });
+  it('throws when there are no transactions', async () => {
+    await expect(
+      estimateQuoteGasLimits({
+        messenger,
+        transactions: [],
+      }),
+    ).rejects.toThrow('Quote gas estimation requires at least one transaction');
 
     expect(estimateGasBatchMock).not.toHaveBeenCalled();
     expect(estimateGasLimitMock).not.toHaveBeenCalled();
-    expect(result).toStrictEqual({
-      gasLimits: [],
-      totalGasEstimate: 0,
-      totalGasLimit: 0,
-      usedBatch: false,
-    });
   });
 
-  it('uses per-transaction estimation when the source chain does not support EIP-7702', async () => {
-    estimateGasLimitMock.mockResolvedValueOnce({
-      estimate: 21000,
-      max: 21000,
-      usedFallback: false,
+  it('uses batch estimation for multiple transactions even when the chain does not support EIP-7702', async () => {
+    estimateGasBatchMock.mockResolvedValue({
+      totalGasLimit: 51000,
+      gasLimits: [21000, 30000],
     });
 
     const result = await estimateQuoteGasLimits({
@@ -77,29 +69,27 @@ describe('quote gas estimation', () => {
       transactions: TRANSACTIONS_MOCK,
     });
 
-    expect(estimateGasBatchMock).not.toHaveBeenCalled();
-    expect(estimateGasLimitMock).toHaveBeenCalledTimes(1);
+    expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+    expect(estimateGasLimitMock).not.toHaveBeenCalled();
     expect(result).toStrictEqual({
       gasLimits: [
         {
           estimate: 21000,
           max: 21000,
-          source: 'estimated',
         },
         {
           estimate: 30000,
           max: 30000,
-          source: 'provided',
         },
       ],
+      is7702: false,
       totalGasEstimate: 51000,
       totalGasLimit: 51000,
-      usedBatch: false,
+      usedBatch: true,
     });
   });
 
-  it('uses per-transaction estimation when batch estimation is explicitly disabled', async () => {
-    isEIP7702ChainMock.mockReturnValue(true);
+  it('uses per-transaction estimation when there is only one transaction', async () => {
     estimateGasLimitMock.mockResolvedValueOnce({
       estimate: 21000,
       max: 21000,
@@ -107,48 +97,16 @@ describe('quote gas estimation', () => {
     });
 
     const result = await estimateQuoteGasLimits({
-      allowBatch: false,
       messenger,
-      transactions: TRANSACTIONS_MOCK,
+      transactions: [TRANSACTIONS_MOCK[0]],
     });
 
     expect(estimateGasBatchMock).not.toHaveBeenCalled();
-    expect(result.usedBatch).toBe(false);
-  });
-
-  it('uses per-transaction estimation when transactions do not share a batch context', async () => {
-    isEIP7702ChainMock.mockReturnValue(true);
-    estimateGasLimitMock
-      .mockResolvedValueOnce({
-        estimate: 21000,
-        max: 21000,
-        usedFallback: false,
-      })
-      .mockResolvedValueOnce({
-        estimate: 22000,
-        max: 22000,
-        usedFallback: false,
-      });
-
-    const result = await estimateQuoteGasLimits({
-      messenger,
-      transactions: [
-        TRANSACTIONS_MOCK[0],
-        {
-          ...TRANSACTIONS_MOCK[1],
-          from: '0x9999999999999999999999999999999999999999' as Hex,
-          gas: undefined,
-        },
-      ],
-    });
-
-    expect(estimateGasBatchMock).not.toHaveBeenCalled();
-    expect(estimateGasLimitMock).toHaveBeenCalledTimes(2);
+    expect(result.is7702).toBe(false);
     expect(result.usedBatch).toBe(false);
   });
 
   it('uses batch estimation when the source chain supports EIP-7702', async () => {
-    isEIP7702ChainMock.mockReturnValue(true);
     getGasBufferMock.mockReturnValue(1.5);
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 50000,
@@ -178,13 +136,17 @@ describe('quote gas estimation', () => {
       ],
     });
     expect(result).toStrictEqual({
+      batchGasLimit: {
+        estimate: 75000,
+        max: 75000,
+      },
       gasLimits: [
         {
           estimate: 75000,
           max: 75000,
-          source: 'batch',
         },
       ],
+      is7702: true,
       totalGasEstimate: 75000,
       totalGasLimit: 75000,
       usedBatch: true,
@@ -192,7 +154,6 @@ describe('quote gas estimation', () => {
   });
 
   it('uses per-transaction batch gas limits and preserves provided gas when it already matches', async () => {
-    isEIP7702ChainMock.mockReturnValue(true);
     getGasBufferMock.mockReturnValue(1.5);
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 51000,
@@ -209,14 +170,13 @@ describe('quote gas estimation', () => {
         {
           estimate: 31500,
           max: 31500,
-          source: 'batch',
         },
         {
           estimate: 30000,
           max: 30000,
-          source: 'batch',
         },
       ],
+      is7702: false,
       totalGasEstimate: 61500,
       totalGasLimit: 61500,
       usedBatch: true,
@@ -224,7 +184,6 @@ describe('quote gas estimation', () => {
   });
 
   it('buffers per-transaction batch gas when a provided gas value is overridden', async () => {
-    isEIP7702ChainMock.mockReturnValue(true);
     getGasBufferMock.mockReturnValue(1.5);
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 56000,
@@ -241,78 +200,51 @@ describe('quote gas estimation', () => {
         {
           estimate: 31500,
           max: 31500,
-          source: 'batch',
         },
         {
           estimate: 52500,
           max: 52500,
-          source: 'batch',
         },
       ],
+      is7702: false,
       totalGasEstimate: 84000,
       totalGasLimit: 84000,
       usedBatch: true,
     });
   });
 
-  it('falls back to per-transaction estimation when batch estimation fails', async () => {
-    isEIP7702ChainMock.mockReturnValue(true);
+  it('throws when batch estimation fails', async () => {
     estimateGasBatchMock.mockRejectedValue(
       new Error('Batch estimation failed'),
     );
-    estimateGasLimitMock.mockResolvedValueOnce({
-      estimate: 21000,
-      max: 21000,
-      usedFallback: false,
-    });
 
-    const result = await estimateQuoteGasLimits({
-      fallbackOnSimulationFailure: true,
-      messenger,
-      transactions: TRANSACTIONS_MOCK,
-    });
+    await expect(
+      estimateQuoteGasLimits({
+        fallbackOnSimulationFailure: true,
+        messenger,
+        transactions: TRANSACTIONS_MOCK,
+      }),
+    ).rejects.toThrow('Batch estimation failed');
 
     expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
-    expect(estimateGasLimitMock).toHaveBeenCalledTimes(1);
-    expect(result).toStrictEqual({
-      gasLimits: [
-        {
-          estimate: 21000,
-          max: 21000,
-          source: 'estimated',
-        },
-        {
-          estimate: 30000,
-          max: 30000,
-          source: 'provided',
-        },
-      ],
-      totalGasEstimate: 51000,
-      totalGasLimit: 51000,
-      usedBatch: false,
-    });
+    expect(estimateGasLimitMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to per-transaction estimation when batch returns an unexpected gas limit count', async () => {
-    isEIP7702ChainMock.mockReturnValue(true);
+  it('throws when batch returns an unexpected gas limit count', async () => {
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 123000,
       gasLimits: [21000, 30000, 72000],
     });
-    estimateGasLimitMock.mockResolvedValueOnce({
-      estimate: 21000,
-      max: 21000,
-      usedFallback: false,
-    });
 
-    const result = await estimateQuoteGasLimits({
-      messenger,
-      transactions: TRANSACTIONS_MOCK,
-    });
+    await expect(
+      estimateQuoteGasLimits({
+        messenger,
+        transactions: TRANSACTIONS_MOCK,
+      }),
+    ).rejects.toThrow('Unexpected batch gas limit count');
 
     expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
-    expect(estimateGasLimitMock).toHaveBeenCalledTimes(1);
-    expect(result.usedBatch).toBe(false);
+    expect(estimateGasLimitMock).not.toHaveBeenCalled();
   });
 
   it('treats numeric gas values as provided gas limits', async () => {
@@ -333,9 +265,9 @@ describe('quote gas estimation', () => {
         {
           estimate: 42000,
           max: 42000,
-          source: 'provided',
         },
       ],
+      is7702: false,
       totalGasEstimate: 42000,
       totalGasLimit: 42000,
       usedBatch: false,
@@ -369,7 +301,6 @@ describe('quote gas estimation', () => {
   });
 
   it('defaults missing transaction values to zero for batch estimation', async () => {
-    isEIP7702ChainMock.mockReturnValue(true);
     estimateGasBatchMock.mockResolvedValue({
       totalGasLimit: 50000,
       gasLimits: [50000],

@@ -4,7 +4,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getGasBuffer, isEIP7702Chain } from './feature-flags';
+import { getGasBuffer } from './feature-flags';
 import { estimateGasLimit } from './gas';
 import type { TransactionPayControllerMessenger } from '..';
 import { projectLogger } from '../logger';
@@ -23,18 +23,14 @@ export type QuoteGasTransaction = {
 export type QuoteGasLimit = {
   estimate: number;
   max: number;
-  source: 'batch' | 'estimated' | 'fallback' | 'provided';
-  error?: unknown;
 };
 
 export async function estimateQuoteGasLimits({
-  allowBatch = true,
   fallbackGas,
   fallbackOnSimulationFailure = false,
   messenger,
   transactions,
 }: {
-  allowBatch?: boolean;
   fallbackGas?: {
     estimate: number;
     max: number;
@@ -43,48 +39,34 @@ export async function estimateQuoteGasLimits({
   messenger: TransactionPayControllerMessenger;
   transactions: QuoteGasTransaction[];
 }): Promise<{
+  batchGasLimit?: QuoteGasLimit;
   gasLimits: QuoteGasLimit[];
+  is7702: boolean;
   totalGasEstimate: number;
   totalGasLimit: number;
   usedBatch: boolean;
 }> {
   if (transactions.length === 0) {
+    throw new Error('Quote gas estimation requires at least one transaction');
+  }
+
+  const useBatch = transactions.length > 1;
+
+  if (useBatch) {
     return {
-      gasLimits: [],
-      totalGasEstimate: 0,
-      totalGasLimit: 0,
-      usedBatch: false,
+      ...(await estimateQuoteGasLimitsBatch(transactions, messenger)),
+      usedBatch: true,
     };
   }
 
-  const [firstTransaction] = transactions;
-  const useBatch =
-    allowBatch &&
-    transactions.length > 1 &&
-    hasUniformBatchContext(transactions) &&
-    isEIP7702Chain(messenger, firstTransaction.chainId);
-
-  if (useBatch) {
-    try {
-      return {
-        ...(await estimateQuoteGasLimitsBatch(transactions, messenger)),
-        usedBatch: true,
-      };
-    } catch (error) {
-      log('Batch gas estimation failed, falling back to per-transaction path', {
-        chainId: firstTransaction.chainId,
-        error,
-      });
-    }
-  }
-
   return {
-    ...(await estimateQuoteGasLimitsIndividually({
+    ...(await estimateQuoteGasLimitSingle({
       fallbackGas,
       fallbackOnSimulationFailure,
       messenger,
-      transactions,
+      transaction: transactions[0],
     })),
+    is7702: false,
     usedBatch: false,
   };
 }
@@ -93,7 +75,9 @@ async function estimateQuoteGasLimitsBatch(
   transactions: QuoteGasTransaction[],
   messenger: TransactionPayControllerMessenger,
 ): Promise<{
+  batchGasLimit?: QuoteGasLimit;
   gasLimits: QuoteGasLimit[];
+  is7702: boolean;
   totalGasEstimate: number;
   totalGasLimit: number;
 }> {
@@ -133,27 +117,30 @@ async function estimateQuoteGasLimitsBatch(
     return {
       estimate: bufferedGas,
       max: bufferedGas,
-      source: 'batch',
-    } as QuoteGasLimit;
+    };
   });
 
   const totalGasLimit = bufferedGasLimits.reduce(
     (acc, gasLimit) => acc + gasLimit.max,
     0,
   );
+  const is7702 = bufferedGasLimits.length === 1;
+  const batchGasLimit = is7702 ? bufferedGasLimits[0] : undefined;
 
   return {
+    ...(batchGasLimit ? { batchGasLimit } : {}),
     gasLimits: bufferedGasLimits,
+    is7702,
     totalGasEstimate: totalGasLimit,
     totalGasLimit,
   };
 }
 
-async function estimateQuoteGasLimitsIndividually({
+async function estimateQuoteGasLimitSingle({
   fallbackGas,
   fallbackOnSimulationFailure,
   messenger,
-  transactions,
+  transaction,
 }: {
   fallbackGas?: {
     estimate: number;
@@ -161,71 +148,64 @@ async function estimateQuoteGasLimitsIndividually({
   };
   fallbackOnSimulationFailure: boolean;
   messenger: TransactionPayControllerMessenger;
-  transactions: QuoteGasTransaction[];
+  transaction: QuoteGasTransaction;
 }): Promise<{
   gasLimits: QuoteGasLimit[];
   totalGasEstimate: number;
   totalGasLimit: number;
 }> {
-  const gasLimits = await Promise.all(
-    transactions.map(async (transaction) => {
-      const providedGasLimit = parseGasLimit(transaction.gas);
+  const providedGasLimit = parseGasLimit(transaction.gas);
 
-      if (providedGasLimit !== undefined) {
-        return {
+  if (providedGasLimit !== undefined) {
+    log('Using provided gas limit', {
+      chainId: transaction.chainId,
+      gas: providedGasLimit,
+      index: 0,
+      to: transaction.to,
+    });
+
+    return {
+      gasLimits: [
+        {
           estimate: providedGasLimit,
           max: providedGasLimit,
-          source: 'provided',
-        } as QuoteGasLimit;
-      }
+        },
+      ],
+      totalGasEstimate: providedGasLimit,
+      totalGasLimit: providedGasLimit,
+    };
+  }
 
-      const gasLimitResult = await estimateGasLimit({
-        chainId: transaction.chainId,
-        data: transaction.data,
-        fallbackGas,
-        fallbackOnSimulationFailure,
-        from: transaction.from,
-        messenger,
-        to: transaction.to,
-        value: toHex(transaction.value ?? '0'),
-      });
+  const gasLimitResult = await estimateGasLimit({
+    chainId: transaction.chainId,
+    data: transaction.data,
+    fallbackGas,
+    fallbackOnSimulationFailure,
+    from: transaction.from,
+    messenger,
+    to: transaction.to,
+    value: toHex(transaction.value ?? '0'),
+  });
 
-      const gasEstimate: QuoteGasLimit = {
-        estimate: gasLimitResult.estimate,
-        max: gasLimitResult.max,
-        source: gasLimitResult.usedFallback ? 'fallback' : 'estimated',
-      };
+  if (gasLimitResult.usedFallback) {
+    log('Gas estimate failed, using fallback', {
+      chainId: transaction.chainId,
+      error: gasLimitResult.error,
+      index: 0,
+      to: transaction.to,
+    });
+  }
 
-      if (gasLimitResult.error === undefined) {
-        return gasEstimate;
-      }
-
-      return {
-        ...gasEstimate,
-        error: gasLimitResult.error,
-      };
-    }),
-  );
+  const gasLimit = {
+    estimate: gasLimitResult.estimate,
+    max: gasLimitResult.max,
+  };
 
   return {
-    gasLimits,
-    totalGasEstimate: gasLimits.reduce(
-      (acc, gasLimit) => acc + gasLimit.estimate,
-      0,
-    ),
-    totalGasLimit: gasLimits.reduce((acc, gasLimit) => acc + gasLimit.max, 0),
+    gasLimits: [gasLimit],
+    totalGasEstimate: gasLimit.estimate,
+    totalGasLimit: gasLimit.max,
   };
-}
-
-function hasUniformBatchContext(transactions: QuoteGasTransaction[]): boolean {
-  const [firstTransaction] = transactions;
-
-  return transactions.every(
-    (transaction) =>
-      transaction.chainId.toLowerCase() ===
-        firstTransaction.chainId.toLowerCase() &&
-      transaction.from.toLowerCase() === firstTransaction.from.toLowerCase(),
-  );
 }
 
 function toBatchTransactionParams(
@@ -246,15 +226,7 @@ function parseGasLimit(gas?: number | string): number | undefined {
     return undefined;
   }
 
-  let parsedGas: BigNumber;
-
-  if (typeof gas === 'number') {
-    parsedGas = new BigNumber(gas);
-  } else if (gas.startsWith('0x')) {
-    parsedGas = new BigNumber(gas.slice(2), 16);
-  } else {
-    parsedGas = new BigNumber(gas);
-  }
+  const parsedGas = new BigNumber(gas);
 
   if (
     !parsedGas.isFinite() ||

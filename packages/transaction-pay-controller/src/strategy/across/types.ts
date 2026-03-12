@@ -81,15 +81,12 @@ export type AcrossGasLimit = {
   max: number;
 };
 
-export type AcrossGasLimits = {
-  approval?: AcrossGasLimit[];
-  batch?: AcrossGasLimit;
-  swap?: AcrossGasLimit;
-};
+export type AcrossGasLimits = AcrossGasLimit[];
 
 export type AcrossQuote = {
   metamask: {
     gasLimits: AcrossGasLimits;
+    is7702?: boolean;
   };
   quote: AcrossSwapApprovalResponse;
   request: {

@@ -43,6 +43,7 @@ import {
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
+import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -424,6 +425,7 @@ async function normalizeQuote(
 
   const {
     gasLimits,
+    is7702,
     isGasFeeToken: isSourceGasFeeToken,
     ...sourceNetwork
   } = await calculateSourceNetworkCost(
@@ -472,6 +474,7 @@ async function normalizeQuote(
   const metamask = {
     ...quote.metamask,
     gasLimits,
+    is7702,
   };
 
   return {
@@ -582,6 +585,7 @@ async function calculateSourceNetworkCost(
   TransactionPayQuote<RelayQuote>['fees']['sourceNetwork'] & {
     gasLimits: number[];
     isGasFeeToken?: boolean;
+    is7702: boolean;
   }
 > {
   const { from, sourceChainId, sourceTokenAddress } = request;
@@ -591,7 +595,12 @@ async function calculateSourceNetworkCost(
 
     const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
-    return { estimate: zeroAmount, max: zeroAmount, gasLimits: [] };
+    return {
+      estimate: zeroAmount,
+      max: zeroAmount,
+      gasLimits: [],
+      is7702: false,
+    };
   }
 
   const relayParams = quote.steps
@@ -612,11 +621,13 @@ async function calculateSourceNetworkCost(
     fromOverride,
   );
 
-  const { totalGasEstimate, totalGasLimit, gasLimits } = request.isPostQuote
-    ? combinePostQuoteGas(relayOnlyGas, transaction)
-    : relayOnlyGas;
+  const { gasLimits, is7702, totalGasEstimate, totalGasLimit } =
+    request.isPostQuote
+      ? combinePostQuoteGas(relayOnlyGas, transaction)
+      : relayOnlyGas;
 
   log('Gas limit', {
+    is7702,
     totalGasEstimate,
     totalGasLimit,
     gasLimits,
@@ -646,7 +657,7 @@ async function calculateSourceNetworkCost(
     getNativeToken(sourceChainId),
   );
 
-  const result = { estimate, max, gasLimits };
+  const result = { estimate, max, gasLimits, is7702 };
 
   if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
     return result;
@@ -711,6 +722,7 @@ async function calculateSourceNetworkCost(
         estimate: gasFeeTokenCost,
         max: gasFeeTokenCost,
         gasLimits,
+        is7702,
       };
     }
 
@@ -746,6 +758,7 @@ async function calculateSourceNetworkCost(
     estimate: gasFeeTokenCost,
     max: gasFeeTokenCost,
     gasLimits,
+    is7702,
   };
 }
 
@@ -767,52 +780,54 @@ async function calculateSourceNetworkGasLimit(
   totalGasEstimate: number;
   totalGasLimit: number;
   gasLimits: number[];
+  is7702: boolean;
 }> {
-  const fallbackChainId = params.find(
-    (singleParams) => singleParams.chainId !== undefined,
-  )?.chainId;
-  const fallbackFrom = params.find(
-    (singleParams) => singleParams.from !== undefined,
-  )?.from;
-  const fallbackTo = params.find(
-    (singleParams) => singleParams.to !== undefined,
-  )?.to;
-  const fallbackData = params.find(
-    (singleParams) => singleParams.data !== undefined,
-  )?.data;
+  const transactions = params.map((singleParams, index) =>
+    toRelayQuoteGasTransaction(singleParams, index, fromOverride),
+  );
 
   const relayGasResult = await estimateQuoteGasLimits({
-    allowBatch: params.every(
-      (singleParams) =>
-        singleParams.chainId !== undefined &&
-        singleParams.from !== undefined &&
-        singleParams.to !== undefined &&
-        singleParams.data !== undefined,
-    ),
     fallbackGas: getFeatureFlags(messenger).relayFallbackGas,
     fallbackOnSimulationFailure: true,
     messenger,
-    transactions: params.map((singleParams) => ({
-      chainId: toHex(singleParams.chainId ?? fallbackChainId ?? 0),
-      data: singleParams.data ?? fallbackData ?? '0x',
-      from:
-        fromOverride ??
-        singleParams.from ??
-        fallbackFrom ??
-        '0x0000000000000000000000000000000000000000',
-      gas: fromOverride ? undefined : singleParams.gas,
-      to:
-        singleParams.to ??
-        fallbackTo ??
-        '0x0000000000000000000000000000000000000000',
-      value: singleParams.value ?? '0',
-    })),
+    transactions,
   });
 
   return {
     gasLimits: relayGasResult.gasLimits.map((gasLimit) => gasLimit.max),
+    is7702: relayGasResult.is7702,
     totalGasEstimate: relayGasResult.totalGasEstimate,
     totalGasLimit: relayGasResult.totalGasLimit,
+  };
+}
+
+function toRelayQuoteGasTransaction(
+  singleParams: RelayQuote['steps'][0]['items'][0]['data'],
+  index: number,
+  fromOverride?: Hex,
+): QuoteGasTransaction {
+  const requiredParams = singleParams as Partial<
+    RelayQuote['steps'][0]['items'][0]['data']
+  >;
+
+  if (
+    requiredParams.chainId === undefined ||
+    requiredParams.data === undefined ||
+    requiredParams.from === undefined ||
+    requiredParams.to === undefined
+  ) {
+    throw new Error(
+      `Relay transaction params missing required gas estimation fields at index ${index}`,
+    );
+  }
+
+  return {
+    chainId: toHex(requiredParams.chainId),
+    data: requiredParams.data,
+    from: fromOverride ?? requiredParams.from,
+    gas: fromOverride ? undefined : singleParams.gas,
+    to: requiredParams.to,
+    value: singleParams.value ?? '0',
   };
 }
 
@@ -827,6 +842,7 @@ async function calculateSourceNetworkGasLimit(
  * @param relayGas.totalGasEstimate - Estimated gas total.
  * @param relayGas.totalGasLimit - Maximum gas total.
  * @param relayGas.gasLimits - Per-transaction gas limits.
+ * @param relayGas.is7702 - Whether the relay gas came from a combined 7702 batch estimate.
  * @param transaction - Original transaction metadata.
  * @returns Combined gas estimates including the original transaction.
  */
@@ -835,9 +851,15 @@ function combinePostQuoteGas(
     totalGasEstimate: number;
     totalGasLimit: number;
     gasLimits: number[];
+    is7702: boolean;
   },
   transaction: TransactionMeta,
-): { totalGasEstimate: number; totalGasLimit: number; gasLimits: number[] } {
+): {
+  totalGasEstimate: number;
+  totalGasLimit: number;
+  gasLimits: number[];
+  is7702: boolean;
+} {
   const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
   const rawGas = nestedGas ?? transaction.txParams.gas;
   const originalTxGas = rawGas ? new BigNumber(rawGas).toNumber() : undefined;
@@ -847,12 +869,10 @@ function combinePostQuoteGas(
   }
 
   let { gasLimits } = relayGas;
-  // TODO: Test EIP-7702 support on the chain as well before assuming single gas limit.
-  const isEIP7702 = gasLimits.length === 1;
 
-  if (isEIP7702) {
-    // Single gas limit (either one relay param or 7702 combined) —
-    // add the original tx gas so the batch uses a single 7702 limit.
+  if (relayGas.is7702) {
+    // Combined 7702 gas limit — add the original tx gas so the batch
+    // keeps using a single 7702 limit.
     gasLimits = [gasLimits[0] + originalTxGas];
   } else {
     // Multiple individual gas limits — prepend the original tx gas
@@ -865,12 +885,17 @@ function combinePostQuoteGas(
 
   log('Combined original tx gas with relay gas', {
     originalTxGas,
-    isEIP7702,
+    is7702: relayGas.is7702,
     gasLimits,
     totalGasLimit,
   });
 
-  return { totalGasEstimate, totalGasLimit, gasLimits };
+  return {
+    totalGasEstimate,
+    totalGasLimit,
+    gasLimits,
+    is7702: relayGas.is7702,
+  };
 }
 
 /**

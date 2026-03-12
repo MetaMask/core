@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controller` from `^2.4.0` to `^3.0.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
 - Bump `@metamask/assets-controllers` from `^101.0.0` to `^101.0.1` ([#8232](https://github.com/MetaMask/core/pull/8232))
+- Remove duplication in gas estimation for Relay and Across strategies ([#8145](https://github.com/MetaMask/core/pull/8145))
 
 ## [17.1.0]
 
@@ -55,7 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
 - Bump `@metamask/bridge-controller` from `^69.0.0` to `^69.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
 - Bump `@metamask/bridge-status-controller` from `^68.0.1` to `^68.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
-- Use shared quote gas estimation for Across and Relay, including EIP-7702 batch estimation on supported source chains with per-transaction fallback when batching is unavailable or fails ([#8145](https://github.com/MetaMask/core/pull/8145))
 
 ### Fixed
 

@@ -379,23 +379,6 @@ function getCaseInsensitive<Value>(
 }
 
 /**
- * Get the chains that support EIP-7702.
- *
- * @param messenger - Controller messenger.
- * @returns Supported chain IDs.
- */
-export function getEIP7702SupportedChains(
-  messenger: TransactionPayControllerMessenger,
-): Hex[] {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
-    | { supportedChains?: Hex[] }
-    | undefined;
-
-  return eip7702Flags?.supportedChains ?? [];
-}
-
-/**
  * Checks if a chain supports EIP-7702.
  *
  * @param messenger - Controller messenger.
@@ -406,7 +389,14 @@ export function isEIP7702Chain(
   messenger: TransactionPayControllerMessenger,
   chainId: Hex,
 ): boolean {
-  return getEIP7702SupportedChains(messenger).some(
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
+    | { supportedChains?: Hex[] }
+    | undefined;
+
+  const supportedChains = eip7702Flags?.supportedChains ?? [];
+
+  return supportedChains.some(
     (supported) => supported.toLowerCase() === chainId.toLowerCase(),
   );
 }

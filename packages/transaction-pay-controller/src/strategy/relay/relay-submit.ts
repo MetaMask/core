@@ -520,7 +520,7 @@ async function submitViaTransactionController(
         }))
       : undefined;
 
-  const { gasLimits } = quote.original.metamask;
+  const { gasLimits, is7702 } = quote.original.metamask;
 
   if (allParams.length === 1) {
     const transactionParams = {
@@ -541,10 +541,15 @@ async function submitViaTransactionController(
       },
     );
   } else {
+    const batchGasLimit =
+      is7702 && allParams.length > 1 ? gasLimits[0] : undefined;
+
+    if (is7702 && allParams.length > 1 && batchGasLimit === undefined) {
+      throw new Error('Missing quote gas limit for Relay 7702 batch');
+    }
+
     const gasLimit7702 =
-      gasLimits.length === 1 && allParams.length > 1
-        ? toHex(gasLimits[0])
-        : undefined;
+      batchGasLimit === undefined ? undefined : toHex(batchGasLimit);
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];

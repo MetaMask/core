@@ -45,10 +45,11 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
   },
   original: {
     metamask: {
-      gasLimits: {
-        approval: [{ estimate: 21000, max: 21000 }],
-        swap: { estimate: 22000, max: 22000 },
-      },
+      gasLimits: [
+        { estimate: 21000, max: 21000 },
+        { estimate: 22000, max: 22000 },
+      ],
+      is7702: false,
     },
     quote: {
       approvalTxns: [
@@ -216,12 +217,13 @@ describe('Across Submit', () => {
         original: {
           ...QUOTE_MOCK.original,
           metamask: {
-            gasLimits: {
-              batch: {
+            gasLimits: [
+              {
                 estimate: 43000,
                 max: 64000,
               },
-            },
+            ],
+            is7702: true,
           },
         },
       } as unknown as TransactionPayQuote<AcrossQuote>;
@@ -283,6 +285,30 @@ describe('Across Submit', () => {
           type: TransactionType.perpsAcrossDeposit,
         }),
       );
+    });
+
+    it('throws when the combined 7702 batch gas limit is missing', async () => {
+      const missingBatchGasQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [],
+            is7702: true,
+          },
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await expect(
+        submitAcrossQuotes({
+          messenger,
+          quotes: [missingBatchGasQuote],
+          transaction: TRANSACTION_META_MOCK,
+          isSmartTransaction: jest.fn(),
+        }),
+      ).rejects.toThrow('Missing quote gas limit for Across 7702 batch');
+
+      expect(addTransactionBatchMock).not.toHaveBeenCalled();
     });
 
     it('uses predict deposit type when transaction is predict deposit', async () => {
@@ -835,14 +861,7 @@ describe('Across Submit', () => {
         original: {
           ...QUOTE_MOCK.original,
           metamask: {
-            gasLimits: {
-              ...QUOTE_MOCK.original.metamask.gasLimits,
-              swap: {
-                ...QUOTE_MOCK.original.metamask.gasLimits.swap,
-                estimate: 22000,
-                max: 33000,
-              },
-            },
+            gasLimits: [{ estimate: 22000, max: 33000 }],
           },
           quote: {
             ...QUOTE_MOCK.original.quote,
@@ -870,10 +889,7 @@ describe('Across Submit', () => {
         original: {
           ...QUOTE_MOCK.original,
           metamask: {
-            gasLimits: {
-              ...QUOTE_MOCK.original.metamask.gasLimits,
-              swap: undefined,
-            },
+            gasLimits: [],
           },
           quote: {
             ...QUOTE_MOCK.original.quote,
@@ -900,10 +916,7 @@ describe('Across Submit', () => {
         original: {
           ...QUOTE_MOCK.original,
           metamask: {
-            gasLimits: {
-              ...QUOTE_MOCK.original.metamask.gasLimits,
-              approval: [],
-            },
+            gasLimits: [],
           },
         },
       } as TransactionPayQuote<AcrossQuote>;

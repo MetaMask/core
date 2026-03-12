@@ -65,6 +65,7 @@ const ORIGINAL_QUOTE_MOCK = {
   },
   metamask: {
     gasLimits: [21000, 21000],
+    is7702: false,
   },
   request: {},
   steps: [
@@ -930,6 +931,7 @@ describe('Relay Submit Utils', () => {
 
       it('activates 7702 mode with single combined post-quote gas limit', async () => {
         request.quotes[0].original.metamask.gasLimits = [203093];
+        request.quotes[0].original.metamask.is7702 = true;
 
         await submitRelayQuotes(request);
 
@@ -956,6 +958,17 @@ describe('Relay Submit Utils', () => {
           }),
         );
       });
+
+      it('throws when a 7702 post-quote batch is missing its combined gas limit', async () => {
+        request.quotes[0].original.metamask.gasLimits = [];
+        request.quotes[0].original.metamask.is7702 = true;
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Missing quote gas limit for Relay 7702 batch',
+        );
+
+        expect(addTransactionBatchMock).not.toHaveBeenCalled();
+      });
     });
 
     it('adds transaction batch with single gasLimit7702', async () => {
@@ -964,6 +977,7 @@ describe('Relay Submit Utils', () => {
       });
 
       request.quotes[0].original.metamask.gasLimits = [42000];
+      request.quotes[0].original.metamask.is7702 = true;
 
       await submitRelayQuotes(request);
 
