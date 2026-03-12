@@ -35,22 +35,6 @@ describe('ErrorReportingService', () => {
     it('calls the `captureException` function supplied to the constructor with the given arguments', () => {
       const messenger = buildMessenger();
       const captureExceptionMock = jest.fn();
-      const errorReportingService = new ErrorReportingService({
-        messenger,
-        captureException: captureExceptionMock,
-      });
-      const error = new Error('some error');
-
-      errorReportingService.captureException(error);
-
-      expect(captureExceptionMock).toHaveBeenCalledWith(error);
-    });
-  });
-
-  describe('ErrorReportingService:captureException', () => {
-    it('calls the `captureException` function supplied to the constructor with the given arguments', () => {
-      const messenger = buildMessenger();
-      const captureExceptionMock = jest.fn();
       // eslint-disable-next-line no-new
       new ErrorReportingService({
         messenger,
