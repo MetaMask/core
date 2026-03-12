@@ -151,7 +151,8 @@ export type ControllerGetStateAction<
 };
 
 /**
- * @deprecated This action is deprecated. Please use `:stateChanged` instead.
+ * @deprecated This event type is deprecated. Please use
+ * `ControllerStateChangedEvent` instead.
  */
 export type ControllerStateChangeEvent<
   ControllerName extends string,

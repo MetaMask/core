@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
-- Deprecate `${Controller}:stateChange` event in favor of `${Controller}:stateChanged` ([#8187](https://github.com/MetaMask/core/pull/8187))
+- Deprecate `${ControllerName}:stateChange` event in favor of `${ControllerName}:stateChanged` ([#8187](https://github.com/MetaMask/core/pull/8187))
 
 ## [9.0.0]
 
