@@ -351,6 +351,73 @@ describe('TokenBalancesController', () => {
     expect(controller.state).toStrictEqual({ tokenBalances: {} });
   });
 
+  describe('updateBalances debounce and lock behavior', () => {
+    it('debounces rapid updateBalances calls to a single fetch', async () => {
+      const firstChainId = '0x1';
+      const secondChainId = '0x89';
+      const accountAddress = '0x0000000000000000000000000000000000000000';
+
+      const rpcFetchSpy = jest
+        .spyOn(RpcBalanceFetcher.prototype, 'fetch')
+        .mockResolvedValue({
+          balances: [],
+          unprocessedChainIds: [],
+        });
+
+      const selectedAccount = createMockInternalAccount({
+        address: accountAddress,
+      });
+
+      const { controller } = setupController({
+        listAccounts: [selectedAccount],
+      });
+
+      await Promise.all([
+        controller.updateBalances({ chainIds: [firstChainId] }),
+        controller.updateBalances({ chainIds: [secondChainId] }),
+      ]);
+
+      expect(rpcFetchSpy).toHaveBeenCalledTimes(1);
+      expect(rpcFetchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chainIds: [secondChainId],
+        }),
+      );
+    });
+
+    it('returns the same in-flight promise while updateBalances is running', async () => {
+      const chainId = '0x1';
+      let resolveFetch: (() => void) | undefined;
+      const fetchCompletionPromise = new Promise<void>((resolve) => {
+        resolveFetch = resolve;
+      });
+
+      const rpcFetchSpy = jest
+        .spyOn(RpcBalanceFetcher.prototype, 'fetch')
+        .mockImplementation(async () => {
+          await fetchCompletionPromise;
+          return {
+            balances: [],
+            unprocessedChainIds: [],
+          };
+        });
+
+      const { controller } = setupController();
+
+      const firstPromise = controller.updateBalances({ chainIds: [chainId] });
+      await flushPromises();
+
+      const secondPromise = controller.updateBalances({ chainIds: [chainId] });
+
+      expect(rpcFetchSpy).toHaveBeenCalledTimes(1);
+
+      resolveFetch?.();
+      await Promise.all([firstPromise, secondPromise]);
+
+      expect(rpcFetchSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('account address normalization', () => {
     it('should normalize mixed-case account addresses to lowercase on initialization', () => {
       const account = '0x393a8d3f7710047324d369a7cb368c0570c335b8';

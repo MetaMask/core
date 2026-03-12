@@ -62,6 +62,7 @@ import type {
   AccountTrackerControllerUpdateStakedBalancesAction,
 } from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import { createDebouncedLockedAsyncFunction } from './debounced-lock';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
   BalanceFetcher,
@@ -195,6 +196,12 @@ export type TokenBalancesControllerOptions = {
   isOnboarded?: () => boolean;
 };
 
+type UpdateBalancesOptions = {
+  chainIds?: ChainIdHex[];
+  tokenAddresses?: string[];
+  queryAllAccounts?: boolean;
+};
+
 const draft = <State>(base: State, fn: (draftState: State) => void): State =>
   produce(base, fn);
 
@@ -312,6 +319,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     pendingChanges: new Map(),
   };
 
+  readonly #updateBalancesWithDebounceAndLock: (
+    options?: UpdateBalancesOptions,
+  ) => Promise<void>;
+
   constructor({
     messenger,
     interval = DEFAULT_INTERVAL_MS,
@@ -341,6 +352,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#defaultInterval = interval;
     this.#websocketActivePollingInterval = websocketActivePollingInterval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
+    this.#updateBalancesWithDebounceAndLock =
+      createDebouncedLockedAsyncFunction((options = {}) =>
+        this.#updateBalancesInternal(options),
+      );
 
     // Always include AccountsApiFetcher - it dynamically checks allowExternalServices() in supports()
     this.#balanceFetchers = [
@@ -685,15 +700,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
-  async updateBalances({
+  async updateBalances(options: UpdateBalancesOptions = {}): Promise<void> {
+    await this.#updateBalancesWithDebounceAndLock(options);
+  }
+
+  async #updateBalancesInternal({
     chainIds,
     tokenAddresses,
     queryAllAccounts = false,
-  }: {
-    chainIds?: ChainIdHex[];
-    tokenAddresses?: string[];
-    queryAllAccounts?: boolean;
-  } = {}): Promise<void> {
+  }: UpdateBalancesOptions = {}): Promise<void> {
     if (!this.isActive) {
       return;
     }
