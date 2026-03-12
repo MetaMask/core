@@ -738,6 +738,52 @@ describe('MultichainAccountWallet', () => {
       expect(groups[0].groupIndex).toBe(0);
       expect(wallet.getMultichainAccountGroup(1)).toBeUndefined();
     });
+
+    it('logs an error to console when post-alignment fails unexpectedly', async () => {
+      // Group 0 exists for EVM; SOL has no accounts yet (will be aligned).
+      const { wallet, providers, messenger } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+
+      const [, solProvider] = providers;
+
+      // The Solana provider creates an account during alignment, which causes
+      // group.update() to run and publish `:multichainAccountGroupUpdated`.
+      solProvider.createAccounts.mockResolvedValueOnce([
+        MOCK_WALLET_1_SOL_ACCOUNT,
+      ]);
+
+      const alignmentError = new Error('Unexpected alignment failure');
+
+      // `:multichainAccountGroupUpdated` is published inside `group.update()`,
+      // which is called from `#createOrUpdateMultichainAccountGroup` in
+      // `#alignAccountsForRange` — outside `Promise.allSettled`. A throw here
+      // escapes `#alignAccountsForRange` and `#withLock`, triggering the .catch()
+      // on the fire-and-forget `alignOtherAccounts()` call.
+      jest.spyOn(messenger, 'publish').mockImplementation((event, ..._args) => {
+        if (
+          event === 'MultichainAccountService:multichainAccountGroupUpdated'
+        ) {
+          throw alignmentError;
+        }
+      });
+
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      const from = 0;
+      const to = 2;
+      await wallet.createMultichainAccountGroups({ from, to });
+
+      // Wait for the fire-and-forget alignment to have run and failed.
+      await waitForOtherProvidersToHaveBeenCalled([solProvider]);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Unable to align non-EVM accounts from group index ${from} to ${to}`,
+        alignmentError,
+      );
+    });
   });
 
   describe('alignAccounts', () => {

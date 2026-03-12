@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Changed
+
+- `AiDigestService.searchDigest` and `AiDigestController.fetchMarketInsights` now accept any string identifier rather than only CAIP-19 asset types. CAIP-19 identifiers continue to use the `caipAssetType` query parameter; all other strings (e.g. perps market symbols like `ETH`) use the new `hlPerpsMarket` query parameter ([#8182](https://github.com/MetaMask/core/pull/8182)).
+- Rename `caip19Id` parameter to `assetIdentifier` in `DigestService.searchDigest`, `MarketInsightsEntry`, and `AiDigestController.fetchMarketInsights` ([#8182](https://github.com/MetaMask/core/pull/8182)).
+- Replace `INVALID_CAIP_ASSET_TYPE` error message constant with `INVALID_ASSET_IDENTIFIER` in `AiDigestControllerErrorMessage` ([#8182](https://github.com/MetaMask/core/pull/8182)).
+
 ## [0.2.0]
 
 ### Added
@@ -42,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removes `fetchDigest`, `clearDigest`, and `clearAllDigests` actions from the controller action surface.
   - Removes `DigestData`/`DigestEntry` types and the `digests` state branch.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.2.0...@metamask/ai-controllers@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.1.0...@metamask/ai-controllers@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/ai-controllers@0.1.0

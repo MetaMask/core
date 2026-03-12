@@ -1,5 +1,3 @@
-import type { CaipAssetType } from '@metamask/utils';
-
 // ---------------------------------------------------------------------------
 // Shared sub-types
 // ---------------------------------------------------------------------------
@@ -78,7 +76,7 @@ export type MarketInsightsTrend = {
 
 /**
  * AI-generated market insights report for a crypto asset.
- * Returned by `GET /digests?caipAssetType=<caip19Id>`.
+ * Returned by `GET /asset-summary?caipAssetType=<caip19Id>` or `GET /asset-summary?hlPerpsMarket=<symbol>`.
  */
 export type MarketInsightsReport = {
   /** API version */
@@ -105,8 +103,8 @@ export type MarketInsightsReport = {
  * A cached market insights entry.
  */
 export type MarketInsightsEntry = {
-  /** CAIP-19 asset identifier */
-  caip19Id: CaipAssetType;
+  /** Asset identifier — either a CAIP-19 ID (e.g. "eip155:1/slip44:60") or a perps market symbol (e.g. "ETH") */
+  assetIdentifier: string;
   /** Timestamp when the entry was fetched */
   fetchedAt: number;
   /** The market insights report data */
@@ -174,13 +172,19 @@ export type AiDigestControllerState = {
 
 export type DigestService = {
   /**
-   * Search for market insights by CAIP-19 asset identifier.
-   * Calls `GET /asset-summary?caipAssetType=<caip19Id>`.
+   * Search for market insights by asset identifier.
    *
-   * @param caip19Id - The CAIP-19 identifier of the asset.
+   * Accepts either a CAIP-19 asset type (e.g. `eip155:1/slip44:60`) or a perps
+   * market symbol (e.g. `ETH`). The implementation is responsible for choosing
+   * the correct query parameter (`caipAssetType` vs `hlPerpsMarket`).
+   *
+   * Calls `GET /asset-summary?caipAssetType=<assetIdentifier>` for CAIP-19 IDs,
+   * or `GET /asset-summary?hlPerpsMarket=<assetIdentifier>` for perps symbols.
+   *
+   * @param assetIdentifier - The asset identifier (CAIP-19 ID or perps market symbol).
    * @returns The market insights report, or `null` if no insights exist (404).
    */
-  searchDigest(caip19Id: CaipAssetType): Promise<MarketInsightsReport | null>;
+  searchDigest(assetIdentifier: string): Promise<MarketInsightsReport | null>;
 
   /**
    * Fetch the market overview report.

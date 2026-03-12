@@ -6,7 +6,7 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
-import type { CaipAssetType } from '@metamask/utils';
+import { isCaipAssetType } from '@metamask/utils';
 
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 import type {
@@ -155,18 +155,25 @@ export class AiDigestService implements DigestService {
   }
 
   /**
-   * Search for market insights by CAIP-19 asset identifier.
+   * Search for market insights by asset identifier.
    *
-   * Calls `GET ${this.#baseUrl}/asset-summary?caipAssetType=${encodeURIComponent(caip19Id)}`.
+   * Accepts either a CAIP-19 asset type (e.g. `eip155:1/slip44:60`) or a perps
+   * market symbol (e.g. `ETH`). The query parameter is chosen automatically:
+   * - CAIP-19 identifiers use `caipAssetType`
+   * - Perps market symbols use `hlPerpsMarket`
    *
-   * @param caip19Id - The CAIP-19 identifier of the asset.
+   * @param assetIdentifier - The asset identifier (CAIP-19 ID or perps market symbol).
    * @returns The market insights report, or `null` if none exists (404).
    */
   async searchDigest(
-    caip19Id: CaipAssetType,
+    assetIdentifier: string,
   ): Promise<MarketInsightsReport | null> {
+    const queryParam = isCaipAssetType(assetIdentifier)
+      ? `caipAssetType=${encodeURIComponent(assetIdentifier)}`
+      : `hlPerpsMarket=${encodeURIComponent(assetIdentifier)}`;
+
     const response = await fetch(
-      `${this.#baseUrl}/asset-summary?caipAssetType=${encodeURIComponent(caip19Id)}`,
+      `${this.#baseUrl}/asset-summary?${queryParam}`,
     );
 
     if (response.status === 404) {

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.5.0]
+
 ### Added
 
 - **BREAKING:** Add `AssetsControllerGetStateForTransactionPayAction` to the `AllowedActions` messenger type ([#8163](https://github.com/MetaMask/core/pull/8163))
@@ -19,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
 - Bump `@metamask/bridge-controller` from `^69.0.0` to `^69.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
 - Bump `@metamask/bridge-status-controller` from `^68.0.1` to `^68.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
+
+### Fixed
+
+- Support gasless withdraw for post-quote flows (e.g. Predict Withdraw) when transaction would provide sufficient token balance for gas fee token ([#8146](https://github.com/MetaMask/core/pull/8146))
 
 ## [16.4.1]
 
@@ -506,7 +512,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.5.0...HEAD
+[16.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.1...@metamask/transaction-pay-controller@16.5.0
 [16.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.0...@metamask/transaction-pay-controller@16.4.1
 [16.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.3.0...@metamask/transaction-pay-controller@16.4.0
 [16.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.2.0...@metamask/transaction-pay-controller@16.3.0
