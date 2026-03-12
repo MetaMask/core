@@ -633,7 +633,11 @@ export class MultichainAccountWallet<
       };
 
       // eslint-disable-next-line no-void
-      void alignOtherAccounts();
+      void alignOtherAccounts().catch((error) => {
+        const errorMessage = `Alignment (post) failed:`;
+        this.#log(`${ERROR_PREFIX} ${errorMessage} ${toErrorMessage(error)}`);
+        console.error(errorMessage, error);
+      });
     }
 
     return groups;
