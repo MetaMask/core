@@ -467,7 +467,7 @@ export class SeedlessOnboardingController<
     // so both code paths agree on when a refresh is needed.
     const decodedToken = decodeJWTToken(metadataAccessToken);
     if (isTokenNearExpiry(decodedToken.exp, decodedToken.iat)) {
-      // Token is expired, refresh it
+      // Token is near expiry or already expired, refresh it
       await this.refreshAuthTokens();
 
       // Get the new token after refresh
@@ -504,9 +504,7 @@ export class SeedlessOnboardingController<
    * @param params.userId - user email or id from Social login
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
    * @param params.socialLoginEmail - The user email from Social login.
-   * @param params.refreshToken - refresh token issued during OAuth login. When provided it is
-   * written to state. Omit when calling from token-refresh paths (e.g. `#doRefreshAuthTokens`) so
-   * that a concurrent `renewRefreshToken` rotation is never silently overwritten.
+   * @param params.refreshToken - Refresh token issued during OAuth login. Written to state when provided.
    * @param params.revokeToken - revoke token for revoking refresh token and get new refresh token and new revoke token.
    * @param params.accessToken - Access token for pairing with profile sync auth service and to access other services.
    * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
@@ -2118,23 +2116,16 @@ export class SeedlessOnboardingController<
    * already in-progress the returned promise resolves when that request settles
    * rather than firing a duplicate request with the same token.
    *
-   * @param options - Optional flags.
-   * @param options.skipRenewRefreshToken - When `true`, the proactive
-   * refresh-token rotation that normally runs after a successful vault update
-   * is skipped.  Useful in contexts where the caller will handle rotation
-   * separately or wants to avoid the extra network round-trip.
    * @returns A promise that resolves when the tokens have been refreshed.
    */
-  async refreshAuthTokens(options?: {
-    skipRenewRefreshToken?: boolean;
-  }): Promise<void> {
-    // we should skip the refresh if a refresh is already in progress
-    // to avoid concurrent requests with the same refresh token
-    // it applies to both requests with or without the skipRenewRefreshToken flag
+  async refreshAuthTokens(): Promise<void> {
+    // Coalesce concurrent calls to avoid issuing parallel HTTP requests
+    // with the same refresh token.
     if (this.#pendingRefreshPromise) {
       return this.#pendingRefreshPromise;
     }
-    const promise = this.#doRefreshAuthTokens(options).finally(() => {
+
+    const promise = this.#doRefreshAuthTokens().finally(() => {
       if (this.#pendingRefreshPromise === promise) {
         this.#pendingRefreshPromise = undefined;
       }
@@ -2149,14 +2140,8 @@ export class SeedlessOnboardingController<
    * Internal implementation of token refresh.  Called exclusively by
    * `refreshAuthTokens` which gates concurrent access via
    * `#pendingRefreshPromise`.
-   *
-   * @param options - Optional flags forwarded from `refreshAuthTokens`.
-   * @param options.skipRenewRefreshToken - Skip the proactive refresh-token
-   * rotation after a successful vault update.
    */
-  async #doRefreshAuthTokens(options?: {
-    skipRenewRefreshToken?: boolean;
-  }): Promise<void> {
+  async #doRefreshAuthTokens(): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
     const { refreshToken } = this.state;
 
@@ -2206,16 +2191,18 @@ export class SeedlessOnboardingController<
           pwEncKey,
         });
 
-        // Proactively rotate the refresh token now that we have vault access,
-        // unless the caller has opted out.
-        if (!options?.skipRenewRefreshToken) {
-          await this.#rotateRefreshToken().catch((error) => {
-            log(
-              'Error rotating refresh token after successful JWT refresh',
-              error,
-            );
-          });
-        }
+        // Proactively rotate the refresh token now that we have vault access.
+        await this.#rotateRefreshToken().catch((error) => {
+          // Rotation failure is intentionally non-fatal: the JWT refresh
+          // itself succeeded and the caller should not be blocked.
+          // However the user is now operating with a stale refresh token
+          // that may be revoked server-side, so log prominently.
+          log(
+            'Failed to rotate refresh token after successful JWT refresh. ' +
+              'The user may be logged out when the old token is revoked.',
+            error,
+          );
+        });
       }
     } catch (error) {
       log('Error refreshing node auth tokens', error);
@@ -2308,34 +2295,38 @@ export class SeedlessOnboardingController<
    */
   async #rotateRefreshToken(): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
-    // Callers are responsible for ensuring the vault is unlocked before
-    // invoking this method.  This assertion is a safety net only.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const vaultData = this.#cachedDecryptedVaultData!;
+
+    const vaultData = this.#cachedDecryptedVaultData;
+    // Safety net: the caller (#doRefreshAuthTokens) already guards with
+    // `this.#isUnlocked && this.#cachedDecryptedVaultData`, so this branch
+    // is unreachable in normal flow.
+    /* istanbul ignore if */
+    if (!vaultData) {
+      throw new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.VaultLocked,
+      );
+    }
     const { refreshToken } = this.state;
     const { toprfPwEncryptionKey: pwEncKey, revokeToken } = vaultData;
-
     const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken({
       connection: this.state.authConnection,
       revokeToken,
     });
 
     if (newRevokeToken && newRefreshToken) {
-      this.update((state) => {
-        // set new revoke token in state temporarily for persisting in vault
-        state.revokeToken = newRevokeToken;
-        // set new refresh token to persist in state
-        state.refreshToken = newRefreshToken;
-      });
-
-      // Vault was already unlocked — re-encrypt in-place using the
-      // existing vault encryption key (no password KDF needed).
+      // Persist the new revoke token to the vault first. Only update state after
+      // the vault write succeeds, so state and vault stay in sync if the write fails.
       await this.#updateVault({
         vaultData: {
           ...vaultData,
           revokeToken: newRevokeToken,
         },
         pwEncKey,
+      });
+
+      this.update((state) => {
+        state.revokeToken = newRevokeToken;
+        state.refreshToken = newRefreshToken;
       });
 
       // add the old refresh token to the list to be revoked later when possible
@@ -2559,9 +2550,11 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Check if the current metadata access token is expired.
+   * Check if the current metadata access token should be refreshed.
+   * Returns true when the token is expired or when less than 10% of its
+   * lifetime remains (proactive refresh).
    *
-   * @returns True if the metadata access token is expired, false otherwise.
+   * @returns True if the metadata access token should be refreshed, false otherwise.
    */
   public checkMetadataAccessTokenExpired(): boolean {
     try {
@@ -2576,10 +2569,12 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Check if the current access token is expired.
+   * Check if the current access token should be refreshed.
+   * Returns true when the token is expired or when less than 10% of its
+   * lifetime remains (proactive refresh).
    * When the vault is locked, the access token is not accessible, so we return false.
    *
-   * @returns True if the access token is expired, false otherwise.
+   * @returns True if the access token should be refreshed, false otherwise.
    */
   public checkAccessTokenExpired(): boolean {
     try {
