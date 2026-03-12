@@ -140,6 +140,12 @@ const metadata: StateMetadata<BridgeControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  tokenWarnings: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -609,6 +615,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
       state.minimumBalanceForRentExemptionInLamports =
         DEFAULT_BRIDGE_CONTROLLER_STATE.minimumBalanceForRentExemptionInLamports;
+      state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
     });
   };
 
@@ -651,6 +658,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
+      state.tokenWarnings = DEFAULT_BRIDGE_CONTROLLER_STATE.tokenWarnings;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
     });
@@ -836,6 +844,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // Await the promise to ensure errors are caught and handled before continuing
           // The promise is also tracked in pendingFeeAppendPromises for onClose to wait for
           await feeAppendPromise;
+        },
+        onTokenWarning: (warning) => {
+          this.update((state) => {
+            state.tokenWarnings = [...state.tokenWarnings, warning];
+          });
         },
         onClose: async () => {
           // Wait for all pending appendFeesToQuotes operations to complete
