@@ -9,9 +9,9 @@ import {
   QueryKey,
 } from '@tanstack/query-core';
 
-import { CacheUpdatePayload } from './BaseDataService';
+import { CacheUpdatedPayload } from './BaseDataService';
 
-type SubscriptionCallback = (payload: CacheUpdatePayload) => void;
+type SubscriptionCallback = (state: CacheUpdatedPayload['state']) => void;
 type JsonSubscriptionCallback = (data: Json) => void;
 
 // TODO: Figure out if we can replace with a better Messenger type
@@ -95,13 +95,13 @@ export function createUIQueryClient(
       event.type === 'observerAdded' &&
       observerCount === 1
     ) {
-      const cacheListener = (payload: CacheUpdatePayload): void => {
-        hydrate(client, payload.state);
+      const cacheListener = (state: CacheUpdatedPayload['state']): void => {
+        hydrate(client, state);
       };
 
       subscriptions.set(hash, cacheListener);
       messenger.subscribe(
-        `${service}:cacheUpdate:${hash}`,
+        `${service}:cacheUpdated:${hash}`,
         cacheListener as unknown as JsonSubscriptionCallback,
       );
     } else if (
@@ -114,7 +114,7 @@ export function createUIQueryClient(
       ) as unknown as JsonSubscriptionCallback;
 
       messenger.unsubscribe(
-        `${service}:cacheUpdate:${hash}`,
+        `${service}:cacheUpdated:${hash}`,
         subscriptionListener,
       );
       subscriptions.delete(hash);

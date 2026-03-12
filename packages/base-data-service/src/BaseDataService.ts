@@ -22,7 +22,7 @@ import {
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
 
-export type CacheUpdatePayload = { hash: string; state: DehydratedState };
+export type CacheUpdatedPayload = { hash: string; state: DehydratedState };
 
 export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   type: `${ServiceName}:invalidateQueries`;
@@ -35,19 +35,19 @@ export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
 export type DataServiceActions<ServiceName extends string> =
   DataServiceInvalidateQueriesAction<ServiceName>;
 
-export type DataServiceCacheUpdateEvent<ServiceName extends string> = {
-  type: `${ServiceName}:cacheUpdate`;
-  payload: [CacheUpdatePayload];
+export type DataServiceCacheUpdatedEvent<ServiceName extends string> = {
+  type: `${ServiceName}:cacheUpdated`;
+  payload: [CacheUpdatedPayload];
 };
 
-export type DataServiceGranularCacheUpdateEvent<ServiceName extends string> = {
-  type: `${ServiceName}:cacheUpdate:${string}`;
-  payload: [CacheUpdatePayload];
+export type DataServiceGranularCacheUpdatedEvent<ServiceName extends string> = {
+  type: `${ServiceName}:cacheUpdated:${string}`;
+  payload: [CacheUpdatedPayload['state']];
 };
 
 export type DataServiceEvents<ServiceName extends string> =
-  | DataServiceCacheUpdateEvent<ServiceName>
-  | DataServiceGranularCacheUpdateEvent<ServiceName>;
+  | DataServiceCacheUpdatedEvent<ServiceName>
+  | DataServiceGranularCacheUpdatedEvent<ServiceName>;
 
 // Defaults to apply to all data service queries if no default option specified
 const queryClientDefaults: DefaultOptions = {
@@ -101,8 +101,11 @@ export class BaseDataService<
     this.#queryClient = new QueryClient({
       ...queryClientConfig,
       defaultOptions: {
-        ...queryClientDefaults,
-        ...queryClientConfig.defaultOptions,
+        queries: {
+          ...queryClientDefaults.queries,
+          ...queryClientConfig.defaultOptions?.queries,
+        },
+        mutations: queryClientConfig.defaultOptions?.mutations,
       },
     });
 
@@ -154,7 +157,11 @@ export class BaseDataService<
   ): Promise<TData> {
     const query = this.#queryClient
       .getQueryCache()
-      .find<TQueryFnData, TError, InfiniteData<TData>>({ queryKey: options.queryKey });
+      .find<
+        TQueryFnData,
+        TError,
+        InfiniteData<TData>
+      >({ queryKey: options.queryKey });
 
     if (!query?.state.data || !pageParam) {
       const result = await this.#queryClient.fetchInfiniteQuery({
@@ -174,14 +181,14 @@ export class BaseDataService<
 
     const direction = deepEqual(pageParam, previous) ? 'backward' : 'forward';
 
-    const result = (await query.fetch(undefined, {
+    const result = await query.fetch(undefined, {
       meta: {
         fetchMore: {
           direction,
           pageParam,
         },
       },
-    })) as InfiniteData<TData>;
+    });
 
     const pageIndex = result.pageParams.findIndex((param) =>
       deepEqual(param, pageParam),
@@ -213,10 +220,10 @@ export class BaseDataService<
       state,
     };
 
-    this.#messenger.publish(`${this.name}:cacheUpdate` as const, payload);
+    this.#messenger.publish(`${this.name}:cacheUpdated` as const, payload);
     this.#messenger.publish(
-      `${this.name}:cacheUpdate:${hash}` as const,
-      payload,
+      `${this.name}:cacheUpdated:${hash}` as const,
+      state,
     );
   }
 }
