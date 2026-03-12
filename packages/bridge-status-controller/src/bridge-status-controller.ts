@@ -1,4 +1,3 @@
-import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import type {
   QuoteMetadata,
@@ -67,6 +66,7 @@ import {
 } from './utils/bridge-status';
 import { getTxGasEstimates } from './utils/gas';
 import {
+  getIntentFromQuote,
   IntentSubmissionParams,
   mapIntentOrderStatusToTransactionStatus,
 } from './utils/intent-api';
@@ -90,7 +90,6 @@ import {
   getAddTransactionBatchParams,
   getClientRequest,
   getHistoryKey,
-  getIntentFromQuote,
   getStatusRequestParams,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,

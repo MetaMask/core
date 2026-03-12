@@ -17,6 +17,7 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
+import { getIntentFromQuote } from './intent-api';
 import * as snaps from './snaps';
 import {
   getStatusRequestParams,
@@ -29,7 +30,6 @@ import {
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
   getHistoryKey,
-  getIntentFromQuote,
   rekeyHistoryItemInState,
   waitForTxConfirmation,
 } from './transaction';
