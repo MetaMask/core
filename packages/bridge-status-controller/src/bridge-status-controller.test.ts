@@ -4377,6 +4377,11 @@ describe('BridgeStatusController', () => {
     describe('TransactionController:transactionFailed', () => {
       it('should track failed event for bridge transaction', () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        // messengerCallSpy.mockReturnValue({
+        //   transactions: [
+        //     { id: 'bridgeTxMetaId1', status: TransactionStatus.failed },
+        //   ],
+        // });
         mockMessenger.publish('TransactionController:transactionFailed', {
           error: 'tx-error',
           transactionMeta: {
@@ -4602,6 +4607,9 @@ describe('BridgeStatusController', () => {
         const unknownTxMetaId = 'unknown-tx-meta-id';
 
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        // messengerCallSpy.mockReturnValue({
+        //   transactions: [{ actionId, status: TransactionStatus.failed }],
+        // });
 
         // Publish failure with an unknown txMeta.id but with matching actionId
         mockMessenger.publish('TransactionController:transactionFailed', {

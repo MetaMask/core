@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { StatusTypes } from '@metamask/bridge-controller';
+import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
+  getIntentFromQuote,
   IntentApiImpl,
   mapIntentOrderStatusToTransactionStatus,
   translateIntentOrderToBridgeStatus,
@@ -13,10 +14,10 @@ import type { FetchFunction } from '../types';
 
 describe('IntentApiImpl', () => {
   const baseUrl = 'https://example.com/api';
-  const clientId = 'client-id';
+  const clientId = BridgeClientId.MOBILE;
 
   const makeParams = (): IntentSubmissionParams => ({
-    srcChainId: '1',
+    srcChainId: 1,
     quoteId: 'quote-123',
     signature: '0xsig',
     order: { some: 'payload' },
@@ -79,7 +80,7 @@ describe('IntentApiImpl', () => {
 
     const orderId = 'order-1';
     const aggregatorId = 'My Agg/With Spaces';
-    const srcChainId = '10';
+    const srcChainId = 10;
 
     const result = await api.getOrderStatus(
       orderId,
@@ -109,7 +110,7 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('nope'));
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
-    await expect(api.getOrderStatus('o', 'a', '1', clientId)).rejects.toThrow(
+    await expect(api.getOrderStatus('o', 'a', 1, clientId)).rejects.toThrow(
       'Failed to get order status: nope',
     );
   });
@@ -118,7 +119,7 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockRejectedValue({ message: 'nope' });
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
-    await expect(api.getOrderStatus('o', 'a', '1', clientId)).rejects.toThrow(
+    await expect(api.getOrderStatus('o', 'a', 1, clientId)).rejects.toThrow(
       'Failed to get order status',
     );
   });
@@ -143,7 +144,7 @@ describe('IntentApiImpl', () => {
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     await expect(
-      api.getOrderStatus('order-1', 'agg', '1', clientId),
+      api.getOrderStatus('order-1', 'agg', 1, clientId),
     ).rejects.toThrow(
       'Failed to get order status: Invalid getOrderStatus response',
     );
@@ -314,6 +315,48 @@ describe('IntentApiImpl', () => {
       expect(
         mapIntentOrderStatusToTransactionStatus(IntentOrderStatus.CANCELLED),
       ).toBe(TransactionStatus.failed);
+    });
+  });
+
+  describe('getIntentFromQuote', () => {
+    it('returns intent when present in quote response', () => {
+      const mockIntent = { protocol: 'cowswap', order: { some: 'data' } };
+      const quoteResponse = {
+        quote: {
+          intent: mockIntent,
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(getIntentFromQuote(quoteResponse)).toBe(mockIntent);
+    });
+
+    it('throws error when intent is missing from quote', () => {
+      const quoteResponse = {
+        quote: {
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(() => getIntentFromQuote(quoteResponse)).toThrow(
+        'submitIntent: missing intent data',
+      );
+    });
+
+    it('throws error when intent is undefined', () => {
+      const quoteResponse = {
+        quote: {
+          intent: undefined,
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(() => getIntentFromQuote(quoteResponse)).toThrow(
+        'submitIntent: missing intent data',
+      );
     });
   });
 });

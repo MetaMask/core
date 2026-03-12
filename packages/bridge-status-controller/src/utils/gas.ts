@@ -1,31 +1,44 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { BRIDGE_PREFERRED_GAS_ESTIMATE } from '@metamask/bridge-controller';
 import type { TokenAmountValues, TxData } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
-import type {
-  GasFeeEstimates,
-  GasFeeState,
-} from '@metamask/gas-fee-controller';
-import type {
-  FeeMarketGasFeeEstimates,
-  TransactionController,
-  TransactionReceipt,
-} from '@metamask/transaction-controller';
+import type { TransactionReceipt } from '@metamask/transaction-controller';
+import { TransactionController } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { getGasFeeEstimates } from './transaction';
 import type {
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
 } from '../types';
 
-const getTransaction1559GasFeeEstimates = (
-  txGasFeeEstimates: FeeMarketGasFeeEstimates,
-  estimatedBaseFee: string,
+/**
+ * Get the gas fee estimates for a transaction
+ *
+ * @param messenger - The messenger for the gas fee estimates
+ * @param estimateGasFeeParams - The parameters for the {@link TransactionController.estimateGasFee} method
+ 
+ * @returns The gas fee estimates for the transaction
+ */
+export const getTxGasEstimates = async (
+  messenger: BridgeStatusControllerMessenger,
+  estimateGasFeeParams: Parameters<TransactionController['estimateGasFee']>[0],
 ) => {
-  const { maxFeePerGas, maxPriorityFeePerGas } =
-    txGasFeeEstimates?.[BRIDGE_PREFERRED_GAS_ESTIMATE] ?? {};
+  const { gasFeeEstimates } = messenger.call('GasFeeController:getState');
+  const estimatedBaseFee =
+    'estimatedBaseFee' in gasFeeEstimates
+      ? gasFeeEstimates.estimatedBaseFee
+      : '0';
 
+  // Get transaction's 1559 gas fee estimates
+  const { maxFeePerGas, maxPriorityFeePerGas } = await getGasFeeEstimates(
+    messenger,
+    estimateGasFeeParams,
+  );
+
+  /**
+   * @deprecated this is unused
+   */
   const baseAndPriorityFeePerGas = maxPriorityFeePerGas
     ? new BigNumber(estimatedBaseFee, 10)
         .times(10 ** 9)
@@ -37,30 +50,6 @@ const getTransaction1559GasFeeEstimates = (
     maxFeePerGas,
     maxPriorityFeePerGas,
   };
-};
-
-/**
- * Get the gas fee estimates for a transaction
- *
- * @param params - The parameters for the gas fee estimates
- * @param params.txGasFeeEstimates - The gas fee estimates for the transaction (TransactionController)
- * @param params.networkGasFeeEstimates - The gas fee estimates for the network (GasFeeController)
- * @returns The gas fee estimates for the transaction
- */
-export const getTxGasEstimates = ({
-  txGasFeeEstimates,
-  networkGasFeeEstimates,
-}: {
-  txGasFeeEstimates: Awaited<
-    ReturnType<TransactionController['estimateGasFee']>
-  >['estimates'];
-  networkGasFeeEstimates: GasFeeState['gasFeeEstimates'];
-}) => {
-  const { estimatedBaseFee = '0' } = networkGasFeeEstimates as GasFeeEstimates;
-  return getTransaction1559GasFeeEstimates(
-    txGasFeeEstimates as unknown as FeeMarketGasFeeEstimates,
-    estimatedBaseFee,
-  );
 };
 
 export const calculateGasFees = async (
@@ -84,15 +73,14 @@ export const calculateGasFees = async (
     to: trade.to as `0x${string}`,
     value: trade.value as `0x${string}`,
   };
-  const { gasFeeEstimates } = messenger.call('GasFeeController:getState');
-  const { estimates: txGasFeeEstimates } = await messenger.call(
-    'TransactionController:estimateGasFee',
-    { transactionParams, chainId, networkClientId },
+  const { maxFeePerGas, maxPriorityFeePerGas } = await getTxGasEstimates(
+    messenger,
+    {
+      transactionParams,
+      networkClientId,
+      chainId,
+    },
   );
-  const { maxFeePerGas, maxPriorityFeePerGas } = getTxGasEstimates({
-    networkGasFeeEstimates: gasFeeEstimates,
-    txGasFeeEstimates,
-  });
   const maxGasLimit = toHex(transactionParams.gas ?? 0);
 
   return {
