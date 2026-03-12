@@ -63,22 +63,22 @@ const getDefaultState = (): ApprovalControllerState => {
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
-  'clearRequests',
-  'addRequest',
-  'hasRequest',
   'acceptRequest',
-  'rejectRequest',
-  'updateRequestState',
-  'startFlow',
-  'endFlow',
-  'setFlowLoadingText',
-  'showSuccess',
-  'showError',
   'add',
   'addAndShowApprovalRequest',
+  'addRequest',
+  'clearRequests',
+  'endFlow',
   'get',
   'getApprovalCount',
   'getTotalApprovalCount',
+  'hasRequest',
+  'rejectRequest',
+  'setFlowLoadingText',
+  'showError',
+  'showSuccess',
+  'startFlow',
+  'updateRequestState',
 ] as const;
 
 // Internal Types

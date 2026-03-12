@@ -287,17 +287,6 @@ export type TransactionControllerGetLayer1GasFeeAction = {
 };
 
 /**
- * Retrieve available gas fee tokens for a transaction.
- *
- * @param request - The request object containing transaction details.
- * @returns The list of available gas fee tokens.
- */
-export type TransactionControllerGetGasFeeTokensAction = {
-  type: `TransactionController:getGasFeeTokens`;
-  handler: TransactionController['getGasFeeTokens'];
-};
-
-/**
  * Removes unapproved transactions from state.
  */
 export type TransactionControllerClearUnapprovedTransactionsAction = {
@@ -351,6 +340,17 @@ export type TransactionControllerEmulateTransactionUpdateAction = {
 };
 
 /**
+ * Retrieve available gas fee tokens for a transaction.
+ *
+ * @param request - The request object containing transaction details.
+ * @returns The list of available gas fee tokens.
+ */
+export type TransactionControllerGetGasFeeTokensAction = {
+  type: `TransactionController:getGasFeeTokens`;
+  handler: TransactionController['getGasFeeTokens'];
+};
+
+/**
  * Union of all TransactionController action types.
  */
 export type TransactionControllerMethodActions =
@@ -376,9 +376,9 @@ export type TransactionControllerMethodActions =
   | TransactionControllerGetTransactionsAction
   | TransactionControllerEstimateGasFeeAction
   | TransactionControllerGetLayer1GasFeeAction
-  | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerClearUnapprovedTransactionsAction
   | TransactionControllerAbortTransactionSigningAction
   | TransactionControllerUpdateAtomicBatchDataAction
   | TransactionControllerEmulateNewTransactionAction
-  | TransactionControllerEmulateTransactionUpdateAction;
+  | TransactionControllerEmulateTransactionUpdateAction
+  | TransactionControllerGetGasFeeTokensAction;
