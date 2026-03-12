@@ -485,5 +485,6 @@ export const TokenFeatureSchema = type({
 export const validateTokenFeature = (
   data: unknown,
 ): data is Infer<typeof TokenFeatureSchema> => {
-  return is(data, TokenFeatureSchema);
+  assert(data, TokenFeatureSchema);
+  return true;
 };
