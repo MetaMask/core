@@ -1,4 +1,5 @@
 /* eslint-disable no-void */
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import { createDeferredPromise } from '@metamask/utils';
 
@@ -26,12 +27,19 @@ function setup(
     SnapController: {
       getState: jest.Mock<SnapControllerState>;
     };
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    KeyringController: {
+      getKeyringsByType: jest.Mock;
+    };
   };
   watcher: SnapPlatformWatcher;
 } {
   const mocks = {
     SnapController: {
       getState: jest.fn(),
+    },
+    KeyringController: {
+      getKeyringsByType: jest.fn(),
     },
   };
 
@@ -40,6 +48,13 @@ function setup(
     mocks.SnapController.getState,
   );
   mocks.SnapController.getState.mockReturnValue({ isReady: false });
+
+  rootMessenger.registerActionHandler(
+    'KeyringController:getKeyringsByType',
+    mocks.KeyringController.getKeyringsByType,
+  );
+  // By default, Snap keyring exists so ensureCanUseSnapPlatform can complete (including #waitForSnapKeyring).
+  mocks.KeyringController.getKeyringsByType.mockReturnValue([{}]);
 
   const messenger = getMultichainAccountServiceMessenger(rootMessenger);
 
@@ -233,6 +248,50 @@ describe('SnapPlatformWatcher', () => {
       const watcher = new SnapPlatformWatcher(messenger);
 
       expect(watcher.isReady).toBe(true);
+    });
+
+    it('resolves when Snap keyring is available (does not throw)', async () => {
+      const { rootMessenger, watcher, mocks } = setup();
+
+      publishIsReadyState(rootMessenger, true);
+
+      expect(await watcher.ensureCanUseSnapPlatform()).toBeUndefined();
+
+      // When keyring exists, getKeyringsByType is called and returns non-empty,
+      // so we return without throwing.
+      expect(mocks.KeyringController.getKeyringsByType).toHaveBeenCalledWith(
+        KeyringTypes.snap,
+      );
+    });
+
+    it('resolves after timeout when Snap keyring never appears (initial check returns empty)', async () => {
+      const { rootMessenger, watcher, mocks } = setup();
+
+      mocks.KeyringController.getKeyringsByType.mockReturnValue([]);
+      publishIsReadyState(rootMessenger, true);
+
+      jest.useFakeTimers();
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(30_000);
+      jest.useRealTimers();
+      expect(await ensurePromise).toBeUndefined();
+    });
+
+    it('resolves after timeout when getKeyringsByType throws (covers #hasSnapKeyring catch path)', async () => {
+      const { rootMessenger, watcher, mocks } = setup();
+
+      mocks.KeyringController.getKeyringsByType.mockImplementation(() => {
+        throw new Error('KeyringController locked');
+      });
+      publishIsReadyState(rootMessenger, true);
+
+      jest.useFakeTimers();
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(30_000);
+      jest.useRealTimers();
+      expect(await ensurePromise).toBeUndefined();
     });
 
     it('waits for ensureOnboardingComplete first when platform is already ready', async () => {
