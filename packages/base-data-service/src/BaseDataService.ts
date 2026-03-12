@@ -78,16 +78,16 @@ export class BaseDataService<
 
   protected messenger: ServiceMessenger;
 
-  readonly #client: QueryClient;
+  readonly #queryClient: QueryClient;
 
   constructor({
     name,
     messenger,
-    clientConfig = {},
+    queryClientConfig = {},
   }: {
     name: ServiceName;
     messenger: ServiceMessenger;
-    clientConfig?: QueryClientConfig;
+    queryClientConfig?: QueryClientConfig;
   }) {
     this.name = name;
 
@@ -98,11 +98,11 @@ export class BaseDataService<
     >;
     this.messenger = messenger;
 
-    this.#client = new QueryClient({
-      ...clientConfig,
+    this.#queryClient = new QueryClient({
+      ...queryClientConfig,
       defaultOptions: {
         ...queryClientDefaults,
-        ...clientConfig.defaultOptions,
+        ...queryClientConfig.defaultOptions,
       },
     });
 
@@ -113,13 +113,12 @@ export class BaseDataService<
   #registerMessageHandlers(): void {
     this.#messenger.registerActionHandler(
       `${this.name}:invalidateQueries`,
-      (filters?: InvalidateQueryFilters<Json>, options?: InvalidateOptions) =>
-        this.invalidateQueries(filters, options),
+      this.invalidateQueries.bind(this),
     );
   }
 
   #setupCacheListener(): void {
-    this.#client.getQueryCache().subscribe((event) => {
+    this.#queryClient.getQueryCache().subscribe((event) => {
       if (['added', 'updated', 'removed'].includes(event.type)) {
         this.#broadcastCacheUpdate(event.query.queryKey);
       }
@@ -137,13 +136,13 @@ export class BaseDataService<
       'queryKey' | 'queryFn'
     >,
   ): Promise<TData> {
-    return this.#client.fetchQuery(options);
+    return this.#queryClient.fetchQuery(options);
   }
 
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
     TError = unknown,
-    TData = TQueryFnData,
+    TData extends TQueryFnData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
     TPageParam extends Json = Json,
   >(
@@ -153,12 +152,12 @@ export class BaseDataService<
     >,
     pageParam?: TPageParam,
   ): Promise<TData> {
-    const query = this.#client
+    const query = this.#queryClient
       .getQueryCache()
-      .find<TQueryFnData, TError, TData>({ queryKey: options.queryKey });
+      .find<TQueryFnData, TError, InfiniteData<TData>>({ queryKey: options.queryKey });
 
-    if (!query || !pageParam) {
-      const result = await this.#client.fetchInfiniteQuery({
+    if (!query?.state.data || !pageParam) {
+      const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
         queryFn: (context) =>
           options.queryFn({
@@ -170,7 +169,7 @@ export class BaseDataService<
       return result.pages[0];
     }
 
-    const { pages } = query.state.data as InfiniteData<TQueryFnData>;
+    const { pages } = query.state.data;
     const previous = options.getPreviousPageParam?.(pages[0], pages);
 
     const direction = deepEqual(pageParam, previous) ? 'backward' : 'forward';
@@ -195,12 +194,12 @@ export class BaseDataService<
     filters?: InvalidateQueryFilters<TPageData>,
     options?: InvalidateOptions,
   ): Promise<void> {
-    return this.#client.invalidateQueries(filters, options);
+    return this.#queryClient.invalidateQueries(filters, options);
   }
 
   #getDehydratedState(queryKey: QueryKey): DehydratedState {
     const hash = hashQueryKey(queryKey);
-    return dehydrate(this.#client, {
+    return dehydrate(this.#queryClient, {
       shouldDehydrateQuery: (query) => query.queryHash === hash,
     });
   }
