@@ -321,7 +321,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   readonly #updateBalancesWithDebounceAndLock: (
     options?: UpdateBalancesOptions,
-  ) => Promise<void>;
+  ) => Promise<void> | undefined;
 
   constructor({
     messenger,
@@ -701,7 +701,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }
 
   async updateBalances(options: UpdateBalancesOptions = {}): Promise<void> {
-    await this.#updateBalancesWithDebounceAndLock(options);
+    await (this.#updateBalancesWithDebounceAndLock(options) ??
+      Promise.resolve());
   }
 
   async #updateBalancesInternal({
