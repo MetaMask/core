@@ -7,9 +7,6 @@
   },
   "references": [
     {
-      "path": "../app-metadata-controller/tsconfig.build.json"
-    },
-    {
       "path": "../assets-controller/tsconfig.build.json"
     },
     {
