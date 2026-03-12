@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@metamask/accounts-controller": "^37.0.0",
-    "@metamask/controller-utils": "^11.19.0",
+    "@metamask/controller-utils": "^11.19.1",
     "@metamask/keyring-controller": "^25.1.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/profile-sync-controller": "^28.0.0",

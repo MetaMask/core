@@ -49,10 +49,10 @@
   "dependencies": {
     "@metamask/api-specs": "^0.14.0",
     "@metamask/chain-agnostic-permission": "^1.4.0",
-    "@metamask/controller-utils": "^11.19.0",
+    "@metamask/controller-utils": "^11.19.1",
     "@metamask/json-rpc-engine": "^10.2.3",
-    "@metamask/network-controller": "^30.0.0",
-    "@metamask/permission-controller": "^12.2.0",
+    "@metamask/network-controller": "^30.0.1",
+    "@metamask/permission-controller": "^12.2.1",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.9.0",
     "@open-rpc/meta-schema": "^1.14.6",

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.19.1]
+
 ### Uncategorized
 
 - chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
@@ -651,7 +653,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.1...HEAD
+[11.19.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...@metamask/controller-utils@11.19.1
 [11.19.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...@metamask/controller-utils@11.19.0
 [11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0
 [11.17.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...@metamask/controller-utils@11.17.0
