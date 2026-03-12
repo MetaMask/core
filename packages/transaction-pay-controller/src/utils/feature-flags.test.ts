@@ -568,15 +568,13 @@ describe('Feature Flags Utils', () => {
   });
 
   describe('getAssetsUnifyStateFeature', () => {
-    type RemoteFeatureFlags = {
-      assetsUnifyState:
-        | {
-            enabled: boolean;
-            featureVersion: string | null;
-            minimumVersion: string | null;
-          }
-        | undefined;
-    };
+    type AssetsUnifyingState =
+      | {
+          enabled: boolean;
+          featureVersion: string | null;
+          minimumVersion: string | null;
+        }
+      | undefined;
 
     const defaultAppMetadata = {
       currentAppVersion: '',
@@ -587,46 +585,40 @@ describe('Feature Flags Utils', () => {
 
     const failureCases: {
       description: string;
-      remoteFeatureFlags: RemoteFeatureFlags;
+      assetsUnifyingState: AssetsUnifyingState;
       appMetadata: AppMetadataControllerState | undefined;
     }[] = [
       {
         description: 'returns false when assetsUnifyState is not set',
-        remoteFeatureFlags: { assetsUnifyState: undefined },
+        assetsUnifyingState: undefined,
         appMetadata: undefined,
       },
       {
         description: 'returns false when assetsUnifyState.enabled is false',
-        remoteFeatureFlags: {
-          assetsUnifyState: {
-            enabled: false,
-            featureVersion: '1',
-            minimumVersion: null,
-          },
+        assetsUnifyingState: {
+          enabled: false,
+          featureVersion: '1',
+          minimumVersion: null,
         },
         appMetadata: undefined,
       },
       {
         description:
           'returns false when featureVersion does not match expected version',
-        remoteFeatureFlags: {
-          assetsUnifyState: {
-            enabled: true,
-            featureVersion: '2',
-            minimumVersion: null,
-          },
+        assetsUnifyingState: {
+          enabled: true,
+          featureVersion: '2',
+          minimumVersion: null,
         },
         appMetadata: undefined,
       },
       {
         description:
           'returns false when app version does not satisfy minimumVersion',
-        remoteFeatureFlags: {
-          assetsUnifyState: {
-            enabled: true,
-            featureVersion: '1',
-            minimumVersion: '2.0.0',
-          },
+        assetsUnifyingState: {
+          enabled: true,
+          featureVersion: '1',
+          minimumVersion: '2.0.0',
         },
         appMetadata: {
           ...defaultAppMetadata,
@@ -638,23 +630,19 @@ describe('Feature Flags Utils', () => {
     const successCases = [
       {
         description: 'returns true when minimumVersion is null',
-        remoteFeatureFlags: {
-          assetsUnifyState: {
-            enabled: true,
-            featureVersion: '1',
-            minimumVersion: null,
-          },
+        assetsUnifyingState: {
+          enabled: true,
+          featureVersion: '1',
+          minimumVersion: null,
         },
         appMetadata: undefined,
       },
       {
         description: 'returns true when app version satisfies minimumVersion',
-        remoteFeatureFlags: {
-          assetsUnifyState: {
-            enabled: true,
-            featureVersion: '1',
-            minimumVersion: '1.0.0',
-          },
+        assetsUnifyingState: {
+          enabled: true,
+          featureVersion: '1',
+          minimumVersion: '1.0.0',
         },
         appMetadata: {
           ...defaultAppMetadata,
@@ -664,17 +652,15 @@ describe('Feature Flags Utils', () => {
     ];
 
     const arrangeMocks = (
-      remoteFeatureFlags: {
-        assetsUnifyState: RemoteFeatureFlags['assetsUnifyState'];
-      },
+      assetsUnifyState: AssetsUnifyingState,
       appMetadata: AppMetadataControllerState | undefined,
     ): void => {
-      if (remoteFeatureFlags !== undefined) {
-        getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-          ...getDefaultRemoteFeatureFlagControllerState(),
-          ...remoteFeatureFlags,
-        });
-      }
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          ...(assetsUnifyState ? { assetsUnifyState } : {}),
+        },
+      });
       if (appMetadata !== undefined) {
         getAppMetadataControllerStateMock.mockReturnValue(appMetadata);
       }
@@ -682,8 +668,8 @@ describe('Feature Flags Utils', () => {
 
     it.each(failureCases)(
       '$description',
-      ({ remoteFeatureFlags, appMetadata }: (typeof failureCases)[number]) => {
-        arrangeMocks(remoteFeatureFlags, appMetadata);
+      ({ assetsUnifyingState, appMetadata }: (typeof failureCases)[number]) => {
+        arrangeMocks(assetsUnifyingState, appMetadata);
 
         const result = getAssetsUnifyStateFeature(messenger);
 
@@ -693,8 +679,8 @@ describe('Feature Flags Utils', () => {
 
     it.each(successCases)(
       '$description',
-      ({ remoteFeatureFlags, appMetadata }: (typeof successCases)[number]) => {
-        arrangeMocks(remoteFeatureFlags, appMetadata);
+      ({ assetsUnifyingState, appMetadata }: (typeof successCases)[number]) => {
+        arrangeMocks(assetsUnifyingState, appMetadata);
 
         const result = getAssetsUnifyStateFeature(messenger);
 
