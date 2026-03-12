@@ -36,7 +36,9 @@ function buildMockInfrastructure(): PerpsPlatformDependencies {
     logger: noopLogger as unknown as PerpsPlatformDependencies['logger'],
     debugLogger:
       noopDebugLogger as unknown as PerpsPlatformDependencies['debugLogger'],
-    metrics: { trackEvent: jest.fn() } as unknown as PerpsPlatformDependencies['metrics'],
+    metrics: {
+      trackEvent: jest.fn(),
+    } as unknown as PerpsPlatformDependencies['metrics'],
     performance: {
       startTrace: jest.fn(),
       endTrace: jest.fn(),
@@ -103,7 +105,9 @@ type BuildControllerOptions = {
   deferEligibilityCheck?: boolean;
 };
 
-function buildController({ deferEligibilityCheck }: BuildControllerOptions = {}) {
+function buildController({
+  deferEligibilityCheck,
+}: BuildControllerOptions = {}) {
   const rootMessenger = getRootMessenger();
 
   rootMessenger.registerActionHandler(
@@ -124,49 +128,62 @@ function buildController({ deferEligibilityCheck }: BuildControllerOptions = {})
 
 describe('PerpsController - deferEligibilityCheck', () => {
   describe('when deferEligibilityCheck is true', () => {
-    it('does not trigger eligibility check during construction', () => {
-      const refreshSpy = jest.spyOn(
-        PerpsController.prototype as unknown as {
-          refreshEligibilityOnFeatureFlagChange: (...args: unknown[]) => void;
-        },
-        'refreshEligibilityOnFeatureFlagChange',
+    it('does not trigger a geolocation fetch during construction', async () => {
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response('US', { status: 200 }),
       );
 
       buildController({ deferEligibilityCheck: true });
 
-      // The constructor calls the method, but the guard causes an early return
-      // before reaching FeatureFlagConfigurationService.refreshEligibility.
-      // We verify via the controller state: isEligible should remain at its
-      // default (true) without an actual geolocation fetch.
-      expect(refreshSpy).toHaveBeenCalled();
-      refreshSpy.mockRestore();
+      // Allow any pending microtasks to flush
+      await new Promise(process.nextTick);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
     });
 
-    it('does not update eligibility state from subscription events during deferral', () => {
-      const { controller, rootMessenger } = buildController({
+    it('does not trigger a geolocation fetch from subscription events', async () => {
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response('US', { status: 200 }),
+      );
+
+      const { rootMessenger } = buildController({
         deferEligibilityCheck: true,
       });
 
-      rootMessenger.publish(
-        'RemoteFeatureFlagController:stateChange',
-        { ...MOCK_REMOTE_FEATURE_FLAG_STATE },
-      );
+      rootMessenger.publish('RemoteFeatureFlagController:stateChange', {
+        ...MOCK_REMOTE_FEATURE_FLAG_STATE,
+      });
 
-      // isEligible should remain at its default (false) — the guard blocks processing
+      await new Promise(process.nextTick);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
+    });
+
+    it('keeps isEligible at default (false) during deferral', () => {
+      const { controller } = buildController({
+        deferEligibilityCheck: true,
+      });
+
       expect(controller.state.isEligible).toBe(false);
     });
   });
 
   describe('startEligibilityMonitoring', () => {
     it('is callable after deferred construction', () => {
-      const { controller } = buildController({ deferEligibilityCheck: true });
+      const { controller } = buildController({
+        deferEligibilityCheck: true,
+      });
 
       expect(() => controller.startEligibilityMonitoring()).not.toThrow();
     });
 
     it('reads current RemoteFeatureFlagController state', () => {
       const rootMessenger = getRootMessenger();
-      const getStateMock = jest.fn().mockReturnValue(MOCK_REMOTE_FEATURE_FLAG_STATE);
+      const getStateMock = jest
+        .fn()
+        .mockReturnValue(MOCK_REMOTE_FEATURE_FLAG_STATE);
 
       rootMessenger.registerActionHandler(
         'RemoteFeatureFlagController:getState',
@@ -180,7 +197,6 @@ describe('PerpsController - deferEligibilityCheck', () => {
         deferEligibilityCheck: true,
       });
 
-      // Reset to isolate the startEligibilityMonitoring call
       getStateMock.mockClear();
 
       controller.startEligibilityMonitoring();
@@ -189,7 +205,6 @@ describe('PerpsController - deferEligibilityCheck', () => {
     });
 
     it('unblocks future subscription-driven eligibility checks', () => {
-      // Spy on the prototype BEFORE construction so .bind(this) captures the spy
       const refreshSpy = jest.spyOn(
         PerpsController.prototype as unknown as {
           refreshEligibilityOnFeatureFlagChange: (...args: unknown[]) => void;
@@ -201,20 +216,16 @@ describe('PerpsController - deferEligibilityCheck', () => {
         deferEligibilityCheck: true,
       });
 
-      // Constructor called it once (early-returned due to guard)
       const callCountAfterConstruction = refreshSpy.mock.calls.length;
 
       controller.startEligibilityMonitoring();
 
-      // startEligibilityMonitoring calls it once directly
       const callCountAfterStart = refreshSpy.mock.calls.length;
       expect(callCountAfterStart).toBe(callCountAfterConstruction + 1);
 
-      // Now publish a stateChange — the subscription handler should process it
-      rootMessenger.publish(
-        'RemoteFeatureFlagController:stateChange',
-        { ...MOCK_REMOTE_FEATURE_FLAG_STATE },
-      );
+      rootMessenger.publish('RemoteFeatureFlagController:stateChange', {
+        ...MOCK_REMOTE_FEATURE_FLAG_STATE,
+      });
 
       expect(refreshSpy.mock.calls.length).toBe(callCountAfterStart + 1);
       refreshSpy.mockRestore();

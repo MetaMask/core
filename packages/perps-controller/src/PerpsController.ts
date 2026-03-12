@@ -1229,10 +1229,6 @@ export class PerpsController extends BaseController<
   protected refreshEligibilityOnFeatureFlagChange(
     remoteFeatureFlagControllerState: PerpsRemoteFeatureFlagState,
   ): void {
-    if (this.#eligibilityCheckDeferred) {
-      return;
-    }
-
     this.#featureFlagConfigurationService.refreshEligibility({
       remoteFeatureFlagControllerState,
       context: this.#createServiceContext(
@@ -3750,6 +3746,10 @@ export class PerpsController extends BaseController<
    * Refresh eligibility status
    */
   async refreshEligibility(): Promise<void> {
+    if (this.#eligibilityCheckDeferred) {
+      return;
+    }
+
     // Capture the current version before starting the async operation.
     // This prevents race conditions where stale eligibility checks
     // (started with fallback config) overwrite results from newer checks
