@@ -1,5 +1,6 @@
 import type { DebouncedFunc } from 'lodash';
 import debounce from 'lodash/debounce';
+import noop from 'lodash/noop';
 
 type Deferred<TResult> = {
   promise: Promise<TResult>;
@@ -8,8 +9,8 @@ type Deferred<TResult> = {
 };
 
 const createDeferred = <TResult>(): Deferred<TResult> => {
-  let resolve: Deferred<TResult>['resolve'] = () => undefined;
-  let reject: Deferred<TResult>['reject'] = () => undefined;
+  let resolve!: Deferred<TResult>['resolve'];
+  let reject!: Deferred<TResult>['reject'];
 
   const promise = new Promise<TResult>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
@@ -77,8 +78,7 @@ export function createDebouncedLockedAsyncFunction<
       .catch((error: unknown) => {
         deferred.reject(error);
         return undefined;
-      })
-      .catch(() => undefined);
+      });
   };
 
   const debouncedExecutePendingCall: DebouncedFunc<() => void> = debounce(
@@ -98,7 +98,7 @@ export function createDebouncedLockedAsyncFunction<
         debouncedExecutePendingCall.flush();
         return undefined;
       })
-      .catch(() => undefined);
+      .catch(noop);
   };
 
   return (...args: TArgs): Promise<TResult> => {
