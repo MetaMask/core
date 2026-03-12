@@ -664,6 +664,14 @@ describe('Relay Submit Utils', () => {
         } as TransactionMeta;
       });
 
+      it('skips source balance validation', async () => {
+        getLiveTokenBalanceMock.mockResolvedValue('0');
+
+        await submitRelayQuotes(request);
+
+        expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+      });
+
       it('adds transaction batch with original transaction prepended', async () => {
         await submitRelayQuotes(request);
 

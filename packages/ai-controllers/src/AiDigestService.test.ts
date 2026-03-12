@@ -1,5 +1,3 @@
-import type { CaipAssetType } from '@metamask/utils';
-
 import { AiDigestService } from '.';
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 
@@ -55,7 +53,7 @@ describe('AiDigestService', () => {
       ],
     };
 
-    it('fetches market insights from API using caipAssetType', async () => {
+    it('fetches market insights from API using caipAssetType for CAIP-19 identifiers', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -66,12 +64,47 @@ describe('AiDigestService', () => {
         baseUrl: 'http://test.com/api/v1',
       });
       const result = await service.searchDigest(
-        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' as CaipAssetType,
+        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
 
       expect(result).toStrictEqual(mockMarketInsightsReport);
       expect(mockFetch).toHaveBeenCalledWith(
         'http://test.com/api/v1/asset-summary?caipAssetType=eip155%3A1%2Ferc20%3A0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+      );
+    });
+
+    it('fetches market insights from API using hlPerpsMarket for perps symbols', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockMarketInsightsReport),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.searchDigest('ETH');
+
+      expect(result).toStrictEqual(mockMarketInsightsReport);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://test.com/api/v1/asset-summary?hlPerpsMarket=ETH',
+      );
+    });
+
+    it('encodes the perps market symbol in the URL', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockMarketInsightsReport),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      await service.searchDigest('xyz:TSLA');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://test.com/api/v1/asset-summary?hlPerpsMarket=xyz%3ATSLA',
       );
     });
 
@@ -89,7 +122,7 @@ describe('AiDigestService', () => {
         baseUrl: 'http://test.com/api/v1',
       });
       const result = await service.searchDigest(
-        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' as CaipAssetType,
+        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
 
       expect(result).toStrictEqual(mockMarketInsightsReport);
@@ -117,7 +150,7 @@ describe('AiDigestService', () => {
         baseUrl: 'http://test.com/api/v1',
       });
       const result = await service.searchDigest(
-        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' as CaipAssetType,
+        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
 
       expect(result).toStrictEqual({
@@ -166,7 +199,7 @@ describe('AiDigestService', () => {
         baseUrl: 'http://test.com/api/v1',
       });
       const result = await service.searchDigest(
-        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' as CaipAssetType,
+        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
 
       expect(result).toStrictEqual({
@@ -199,9 +232,7 @@ describe('AiDigestService', () => {
       const service = new AiDigestService({
         baseUrl: 'http://test.com/api/v1',
       });
-      const result = await service.searchDigest(
-        'eip155:1/erc20:0xunknown' as CaipAssetType,
-      );
+      const result = await service.searchDigest('eip155:1/erc20:0xunknown');
 
       expect(result).toBeNull();
     });
@@ -214,7 +245,7 @@ describe('AiDigestService', () => {
       });
 
       await expect(
-        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+        service.searchDigest('eip155:1/erc20:0xdeadbeef'),
       ).rejects.toThrow('API request failed: 500');
     });
 
@@ -238,7 +269,7 @@ describe('AiDigestService', () => {
       });
 
       await expect(
-        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+        service.searchDigest('eip155:1/erc20:0xdeadbeef'),
       ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     });
 
@@ -279,7 +310,7 @@ describe('AiDigestService', () => {
       });
 
       await expect(
-        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+        service.searchDigest('eip155:1/erc20:0xdeadbeef'),
       ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     });
 
@@ -309,7 +340,7 @@ describe('AiDigestService', () => {
       });
 
       await expect(
-        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+        service.searchDigest('eip155:1/erc20:0xdeadbeef'),
       ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     });
 
@@ -334,7 +365,7 @@ describe('AiDigestService', () => {
       });
 
       await expect(
-        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+        service.searchDigest('eip155:1/erc20:0xdeadbeef'),
       ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     });
 
@@ -350,7 +381,7 @@ describe('AiDigestService', () => {
       });
 
       await expect(
-        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+        service.searchDigest('eip155:1/erc20:0xdeadbeef'),
       ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     });
 
@@ -375,7 +406,7 @@ describe('AiDigestService', () => {
       });
 
       await expect(
-        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+        service.searchDigest('eip155:1/erc20:0xdeadbeef'),
       ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     });
 
@@ -400,7 +431,7 @@ describe('AiDigestService', () => {
       });
 
       await expect(
-        service.searchDigest('eip155:1/erc20:0xdeadbeef' as CaipAssetType),
+        service.searchDigest('eip155:1/erc20:0xdeadbeef'),
       ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     });
   });
