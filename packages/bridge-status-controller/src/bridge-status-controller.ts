@@ -26,7 +26,6 @@ import {
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { toHex } from '@metamask/controller-utils';
-import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import {
   TransactionStatus,
@@ -71,6 +70,7 @@ import {
   IntentSubmissionParams,
   mapIntentOrderStatusToTransactionStatus,
 } from './utils/intent-api';
+import { signTypedMessage } from './utils/keyring';
 import {
   getFinalizedTxProperties,
   getPriceImpactFromQuote,
@@ -1679,14 +1679,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const { srcChainId, requestId } = quoteResponse.quote;
 
-      const signature = await this.messenger.call(
-        'KeyringController:signTypedMessage',
-        {
-          from: accountAddress,
-          data: intent.typedData,
-        },
-        SignTypedDataVersion.V4,
-      );
+      const signature = await signTypedMessage({
+        messenger: this.messenger,
+        accountAddress,
+        typedData: intent.typedData,
+      });
 
       const submissionParams: IntentSubmissionParams = {
         srcChainId,
