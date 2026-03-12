@@ -28,6 +28,7 @@ import { createProjectLogger } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 import { calculateGasFees } from './gas';
+import { getNetworkClientIdByChainId } from './network';
 import { createClientTransactionRequest } from './snaps';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { APPROVAL_DELAY_MS } from '../constants';
@@ -368,10 +369,7 @@ export const getAddTransactionBatchParams = async ({
     );
   }
   const hexChainId = formatChainIdToHex(trade.chainId);
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    hexChainId,
-  );
+  const networkClientId = getNetworkClientIdByChainId(messenger, hexChainId);
 
   // Gas fields should be omitted only when gas is sponsored via 7702
   const skipGasFields = gasIncluded7702 === true;

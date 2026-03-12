@@ -81,6 +81,10 @@ import {
   getPreConfirmationPropertiesFromQuote,
 } from './utils/metrics';
 import {
+  getNetworkClientIdByChainId,
+  getSelectedChainId,
+} from './utils/network';
+import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
   getClientRequest,
@@ -339,14 +343,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
       });
     } else {
-      const { selectedNetworkClientId } = this.messenger.call(
-        'NetworkController:getState',
-      );
-      const selectedNetworkClient = this.messenger.call(
-        'NetworkController:getNetworkClientById',
-        selectedNetworkClientId,
-      );
-      const selectedChainId = selectedNetworkClient.configuration.chainId;
+      const selectedChainId = getSelectedChainId(this.messenger);
 
       this.#wipeBridgeStatusByChainId(address, selectedChainId);
     }
@@ -1148,8 +1145,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     }
     const hexChainId = formatChainIdToHex(trade.chainId);
-    const networkClientId = this.messenger.call(
-      'NetworkController:findNetworkClientIdByChainId',
+    const networkClientId = getNetworkClientIdByChainId(
+      this.messenger,
       hexChainId,
     );
 
@@ -1733,9 +1730,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           TransactionType.swap;
 
       // Create actual transaction in Transaction Controller first
-      const networkClientId = this.messenger.call(
-        'NetworkController:findNetworkClientIdByChainId',
-        formatChainIdToHex(srcChainId),
+      const networkClientId = getNetworkClientIdByChainId(
+        this.messenger,
+        srcChainId,
       );
 
       // This is a synthetic transaction whose purpose is to be able
