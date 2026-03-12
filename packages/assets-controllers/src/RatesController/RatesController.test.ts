@@ -295,7 +295,7 @@ describe('RatesController', () => {
 
       await ratesController.stop();
 
-      // check the 6th call since the 3rd and 4th ones are for state changes
+      // Some of these calls are for state changes
       expect(publishActionSpy).toHaveBeenNthCalledWith(
         6,
         `${ratesControllerName}:pollingStopped`,
