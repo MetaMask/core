@@ -27,6 +27,7 @@ import type {
 import { createProjectLogger } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
+import { getAccountByAddress } from './accounts';
 import { calculateGasFees } from './gas';
 import { getNetworkClientIdByChainId } from './network';
 import { createClientTransactionRequest } from './snaps';
@@ -359,10 +360,7 @@ export const getAddTransactionBatchParams = async ({
   isDelegatedAccount?: boolean;
 }) => {
   const isGasless = gasIncluded || gasIncluded7702;
-  const selectedAccount = messenger.call(
-    'AccountsController:getAccountByAddress',
-    trade.from,
-  );
+  const selectedAccount = getAccountByAddress(messenger, trade.from);
   if (!selectedAccount) {
     throw new Error(
       'Failed to submit cross-chain swap batch transaction: unknown account in trade data',

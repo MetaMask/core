@@ -60,6 +60,7 @@ import type {
 } from './types';
 import type { BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
+import { getAccountByAddress } from './utils/accounts';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
@@ -414,8 +415,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
         // Track polling manually restarted event
         if (!historyItem.featureId) {
-          const selectedAccount = this.messenger.call(
-            'AccountsController:getAccountByAddress',
+          const selectedAccount = getAccountByAddress(
+            this.messenger,
             historyItem.account,
           );
           const requestParams = getRequestParamFromHistory(historyItem);
@@ -660,17 +661,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     await this.#fetchBridgeTxStatus(pollingInput);
   };
 
-  #getMultichainSelectedAccount(
-    accountAddress: string,
-  ):
-    | AccountsControllerState['internalAccounts']['accounts'][string]
-    | undefined {
-    return this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      accountAddress,
-    );
-  }
-
   /**
    * Handles the failure to fetch the bridge tx status
    * We eventually stop polling for the tx if we fail too many times
@@ -702,8 +692,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Track max polling reached event
       const historyItem = this.state.txHistory[bridgeTxMetaId];
       if (historyItem && !historyItem.featureId) {
-        const selectedAccount = this.messenger.call(
-          'AccountsController:getAccountByAddress',
+        const selectedAccount = getAccountByAddress(
+          this.messenger,
           historyItem.account,
         );
         const requestParams = getRequestParamFromHistory(historyItem);
@@ -1133,12 +1123,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     actionId?: string;
   }): Promise<TransactionMeta> => {
     // Use provided actionId (for pre-submission history) or generate one
-    const actionId = providedActionId ?? generateActionId().toString();
-
-    const selectedAccount = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      trade.from,
-    );
+    const actionId = providedActionId ?? generateActionId();
+    const selectedAccount = getAccountByAddress(this.messenger, trade.from);
     if (!selectedAccount) {
       throw new Error(
         'Failed to submit cross-chain swap transaction: unknown account in trade data',
@@ -1330,7 +1316,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quoteResponse.featureId ? undefined : quotesReceivedContext,
     );
 
-    const selectedAccount = this.#getMultichainSelectedAccount(accountAddress);
+    const selectedAccount = getAccountByAddress(this.messenger, accountAddress);
     if (!selectedAccount) {
       throw new Error(
         'Failed to submit cross-chain swap transaction: undefined multichain account',
@@ -1487,7 +1473,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               const atomicBatchSupport = await this.messenger.call(
                 'TransactionController:isAtomicBatchSupported',
                 {
-                  address: (quoteResponse.trade as TxData).from as Hex,
+                  address: (quoteResponse.trade as TxData).from,
                   chainIds: [hexChainId],
                 },
               );
@@ -1657,7 +1643,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     );
 
     // Build pre-confirmation properties for error tracking parity with submitTx
-    const account = this.#getMultichainSelectedAccount(accountAddress);
+    const account = getAccountByAddress(this.messenger, accountAddress);
     const isHardwareAccount = Boolean(account) && isHardwareWallet(account);
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
@@ -1932,8 +1918,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    const selectedAccount = this.messenger.call(
-      'AccountsController:getAccountByAddress',
+    const selectedAccount = getAccountByAddress(
+      this.messenger,
       historyItem.account,
     );
 
