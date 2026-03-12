@@ -68,6 +68,8 @@ export {
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
+  TokenFeatureType,
+  type TokenFeature,
   type BridgeControllerGetStateAction,
   type BridgeControllerStateChangeEvent,
 } from './types';
