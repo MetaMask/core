@@ -62,7 +62,6 @@ import type {
   AccountTrackerControllerUpdateStakedBalancesAction,
 } from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import { debounceAndLock } from './debounced-lock';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
   BalanceFetcher,
@@ -81,6 +80,7 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
+import { debounceAndLock } from './utils/debounced-lock';
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -353,8 +353,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#websocketActivePollingInterval = websocketActivePollingInterval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
     this.#updateBalancesWithDebounceAndLock = debounceAndLock(
-      (options = {}) => this.#updateBalancesInternal(options),
-      1,
+      this.#updateBalancesInternal.bind(this),
     );
 
     // Always include AccountsApiFetcher - it dynamically checks allowExternalServices() in supports()

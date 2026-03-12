@@ -1,15 +1,7 @@
-import type { DebouncedFunc } from 'lodash';
+import type { DebouncedFuncLeading } from 'lodash';
 import { debounce } from 'lodash';
 
-type AsyncFunction<TArgs extends unknown[], TReturn> = (
-  ...args: TArgs
-) => Promise<TReturn>;
-
-type DebounceAndLockResult<TArgs extends unknown[], TReturn> = DebouncedFunc<
-  (...args: TArgs) => Promise<TReturn | undefined>
-> & {
-  isLocked: () => boolean;
-};
+const DEFAULT_WAIT_MS = 500;
 
 /**
  * Create a debounced async function that also enforces a simple in-flight lock.
@@ -22,15 +14,11 @@ type DebounceAndLockResult<TArgs extends unknown[], TReturn> = DebouncedFunc<
  * @returns Debounced + locked function.
  */
 export function debounceAndLock<TArgs extends unknown[], TReturn>(
-  asyncFn: AsyncFunction<TArgs, TReturn>,
-  wait: number,
-): DebounceAndLockResult<TArgs, TReturn> {
-  if (wait <= 0) {
-    throw new Error('debounceAndLock wait must be greater than zero');
-  }
-
+  asyncFn: (...args: TArgs) => Promise<TReturn>,
+  wait = DEFAULT_WAIT_MS,
+): DebouncedFuncLeading<typeof asyncFn> {
   let inflightPromise: Promise<TReturn> | null = null;
-  let debouncedFn: DebounceAndLockResult<TArgs, TReturn> | null = null;
+  let debouncedFn: DebouncedFuncLeading<typeof asyncFn> | null = null;
 
   const lockedFn = async (...args: TArgs): Promise<TReturn> => {
     if (inflightPromise) {
@@ -55,9 +43,7 @@ export function debounceAndLock<TArgs extends unknown[], TReturn>(
   debouncedFn = debounce(lockedFn, wait, {
     leading: true,
     trailing: false,
-  }) as DebounceAndLockResult<TArgs, TReturn>;
-  debouncedFn.isLocked = (): boolean => inflightPromise !== null;
+  });
+
   return debouncedFn;
 }
-
-export default debounceAndLock;
