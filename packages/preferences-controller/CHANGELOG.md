@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `PreferencesController` methods through its messenger ([#8193](https://github.com/MetaMask/core/pull/8193))
+  - The following actions are now available:
+    - `PreferencesController:setFeatureFlag`
+    - `PreferencesController:setIpfsGateway`
+    - `PreferencesController:setUseTokenDetection`
+    - `PreferencesController:setUseNftDetection`
+    - `PreferencesController:setDisplayNftMedia`
+    - `PreferencesController:setSecurityAlertsEnabled`
+    - `PreferencesController:setIsMultiAccountBalancesEnabled`
+    - `PreferencesController:setShowTestNetworks`
+    - `PreferencesController:setIsIpfsGatewayEnabled`
+    - `PreferencesController:setEnableNetworkIncomingTransactions`
+    - `PreferencesController:setShowMultiRpcModal`
+    - `PreferencesController:setSmartTransactionsOptInStatus`
+    - `PreferencesController:setUseTransactionSimulations`
+    - `PreferencesController:setTokenSortConfig`
+    - `PreferencesController:setUseSafeChainsListValidation`
+    - `PreferencesController:setPrivacyMode`
+    - `PreferencesController:setDismissSmartAccountSuggestionEnabled`
+    - `PreferencesController:setSmartAccountOptIn`
+    - `PreferencesController:setTokenNetworkFilter`
+  - Corresponding action types (e.g. `PreferencesControllerSetFeatureFlagAction`) are available as well.
+
 ## [23.0.0]
 
 ### Removed
