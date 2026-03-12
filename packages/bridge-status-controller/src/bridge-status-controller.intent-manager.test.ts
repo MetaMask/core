@@ -259,7 +259,7 @@ describe('IntentManager', () => {
     expect(result?.bridgeStatus).toBeDefined();
   });
 
-  it('getIntentTransactionStatus passes empty txHash fallback when srcChain is missing', async () => {
+  it('getIntentTransactionStatus passes undefined txHash when srcChain is missing', async () => {
     const order = {
       id: 'order-1',
       status: IntentOrderStatus.SUBMITTED,
@@ -286,7 +286,7 @@ describe('IntentManager', () => {
     );
 
     expect(result).toBeDefined();
-    expect(result?.bridgeStatus?.status.srcChain.txHash).toBe('');
+    expect(result?.bridgeStatus?.status.srcChain.txHash).toBeUndefined();
   });
 
   it('syncTransactionFromIntentStatus cleans up intent statuses map when order is complete', async () => {
@@ -298,7 +298,8 @@ describe('IntentManager', () => {
     const completedOrder = {
       id: 'order-3',
       status: IntentOrderStatus.COMPLETED,
-      txHash: '0xhash',
+      txHash:
+        '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
       metadata: {},
     };
     const mockCall = jest.fn((...args: unknown[]) => {
@@ -321,7 +322,11 @@ describe('IntentManager', () => {
       originalTransactionId: 'tx-2',
       status: {
         status: StatusTypes.PENDING,
-        srcChain: { chainId: 1, txHash: '0xhash' },
+        srcChain: {
+          chainId: 1,
+          txHash:
+            '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
+        },
       },
     });
     await manager.getIntentTransactionStatus(
@@ -348,12 +353,12 @@ describe('IntentManager', () => {
         [
           "TransactionController:updateTransaction",
           {
-            "hash": "0xhash",
+            "hash": "0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc",
             "id": "tx-2",
             "status": "confirmed",
             "txReceipt": {
               "status": "0x1",
-              "transactionHash": "0xhash",
+              "transactionHash": "0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc",
             },
           },
           "BridgeStatusController - Intent order status updated: completed",
@@ -371,7 +376,8 @@ describe('IntentManager', () => {
     const failedOrder = {
       id: 'order-3',
       status: IntentOrderStatus.FAILED,
-      txHash: '0xhash',
+      txHash:
+        '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
       metadata: {},
     };
     const mockCall = jest.fn((...args: unknown[]) => {
@@ -421,12 +427,12 @@ describe('IntentManager', () => {
         [
           "TransactionController:updateTransaction",
           {
-            "hash": "0xhash",
+            "hash": "0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc",
             "id": "tx-2",
             "status": "failed",
             "txReceipt": {
               "status": "0x0",
-              "transactionHash": "0xhash",
+              "transactionHash": "0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc",
             },
           },
           "BridgeStatusController - Intent order status updated: failed",
@@ -480,13 +486,17 @@ describe('IntentManager', () => {
     const submittedOrder = {
       id: 'order-3',
       status: IntentOrderStatus.SUBMITTED,
-      txHash: '0xhash',
+      txHash:
+        '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
       metadata: {},
     };
     const mockCall = jest.fn((...args: unknown[]) => {
       const [method] = args;
       if (method === 'TransactionController:updateTransaction') {
         return { transactions: [existingTxMeta] };
+      }
+      if (method === 'AuthenticationController:getBearerToken') {
+        return 'token';
       }
       return { transactions: [existingTxMeta] };
     });
@@ -520,7 +530,8 @@ describe('IntentManager', () => {
       expect.objectContaining({
         id: 'tx-2',
         txReceipt: expect.objectContaining({
-          transactionHash: '0xhash',
+          transactionHash:
+            '0xb756e7c856f1bf6ca3c3feda2067b85574383fb1f4ce95b175c2d447c932cdcc',
           status: '0x0',
         }),
       }),
@@ -581,7 +592,7 @@ describe('IntentManager', () => {
         [
           "TransactionController:updateTransaction",
           {
-            "hash": undefined,
+            "hash": "",
             "id": "tx-2",
             "status": "submitted",
           },

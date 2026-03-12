@@ -244,7 +244,7 @@ describe('IntentApiImpl', () => {
       expect(translation.status.srcChain.txHash).toBe('0xfallback');
     });
 
-    it('returns empty txHash when neither intentOrder.txHash nor fallback exist', () => {
+    it('returns undefined txHash when neither intentOrder.txHash nor fallback exist', () => {
       const translation = translateIntentOrderToBridgeStatus(
         {
           id: 'order-nohash',
@@ -254,8 +254,8 @@ describe('IntentApiImpl', () => {
         1,
       );
 
-      expect(translation.txHash).toBe('');
-      expect(translation.status.srcChain.txHash).toBe('');
+      expect(translation.txHash).toBeUndefined();
+      expect(translation.status.srcChain.txHash).toBeUndefined();
     });
 
     it('maps confirmed intent to COMPLETE status', () => {

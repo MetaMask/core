@@ -137,7 +137,7 @@ export const translateIntentOrderToBridgeStatus = (
       statusType = StatusTypes.UNKNOWN;
   }
 
-  const txHash = intentOrder.txHash ?? fallbackTxHash ?? '';
+  const txHash = intentOrder.txHash ?? fallbackTxHash;
   const status: StatusResponse = {
     status: statusType,
     srcChain: {
