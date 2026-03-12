@@ -298,13 +298,13 @@ export type ApprovalControllerEvents = ApprovalStateChange;
 
 // Action Types
 
-export type GetApprovalsState = ControllerGetStateAction<
+export type ApprovalControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   ApprovalControllerState
 >;
 
 export type ApprovalControllerActions =
-  | GetApprovalsState
+  | ApprovalControllerGetStateAction
   | ApprovalControllerMethodActions;
 
 /**

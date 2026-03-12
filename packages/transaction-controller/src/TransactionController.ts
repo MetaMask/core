@@ -730,34 +730,34 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
+  'abortTransactionSigning',
   'addTransaction',
   'addTransactionBatch',
+  'approveTransactionsWithSameNonce',
+  'clearUnapprovedTransactions',
   'confirmExternalTransaction',
   'emulateNewTransaction',
   'emulateTransactionUpdate',
   'estimateGas',
   'estimateGasBatch',
+  'estimateGasBuffered',
+  'estimateGasFee',
   'getGasFeeTokens',
+  'getLayer1GasFee',
   'getNonceLock',
   'getTransactions',
-  'updateCustodialTransaction',
-  'updateTransaction',
   'handleMethodData',
   'isAtomicBatchSupported',
+  'setTransactionActive',
+  'speedUpTransaction',
   'startIncomingTransactionPolling',
   'stopIncomingTransactionPolling',
-  'updateIncomingTransactions',
   'stopTransaction',
-  'speedUpTransaction',
-  'estimateGasBuffered',
-  'updateEditableParams',
-  'setTransactionActive',
-  'approveTransactionsWithSameNonce',
-  'estimateGasFee',
-  'getLayer1GasFee',
-  'clearUnapprovedTransactions',
-  'abortTransactionSigning',
   'updateAtomicBatchData',
+  'updateCustodialTransaction',
+  'updateEditableParams',
+  'updateIncomingTransactions',
+  'updateTransaction',
 ] as const;
 
 /**
@@ -2634,18 +2634,6 @@ export class TransactionController extends BaseController<
         chainId,
       } as TransactionMeta,
     });
-  }
-
-  /**
-   * Retrieve available gas fee tokens for a transaction.
-   *
-   * @param request - The request object containing transaction details.
-   * @returns The list of available gas fee tokens.
-   */
-  async getGasFeeTokens(
-    request: GetGasFeeTokensRequest,
-  ): Promise<GasFeeToken[]> {
-    return this.#getGasFeeTokensAction(request);
   }
 
   async #signExternalTransaction(
@@ -4734,7 +4722,13 @@ export class TransactionController extends BaseController<
     });
   }
 
-  async #getGasFeeTokensAction(
+  /**
+   * Retrieve available gas fee tokens for a transaction.
+   *
+   * @param request - The request object containing transaction details.
+   * @returns The list of available gas fee tokens.
+   */
+  async getGasFeeTokens(
     request: GetGasFeeTokensRequest,
   ): Promise<GasFeeToken[]> {
     const { chainId, data, from, to, value } = request;

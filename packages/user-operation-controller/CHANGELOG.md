@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New messenger actions: `UserOperationControllerAddUserOperationAction`, `UserOperationControllerAddUserOperationFromTransactionAction`, `UserOperationControllerStartPollingByNetworkClientIdAction` ([#8183](https://github.com/MetaMask/core/pull/8183))
+- Expose missing public `UserOperationController` methods through its messenger (([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `UserOperationController:addUserOperation`
+    - `UserOperationController:addUserOperationFromTransaction`
+    - `UserOperationController:startPollingByNetworkClientId`
+  - Corresponding action types (e.g. `UserOperationControllerAddUserOperationAction`) are available as well.
 
 ### Changed
 

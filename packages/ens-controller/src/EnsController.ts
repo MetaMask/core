@@ -32,12 +32,12 @@ const log = createProjectLogger('ens-controller');
 const name = 'EnsController';
 
 const MESSENGER_EXPOSED_METHODS = [
-  'resetState',
   'clear',
   'delete',
   'get',
-  'set',
+  'resetState',
   'reverseResolveAddress',
+  'set',
 ] as const;
 
 // Map of chainIDs and ENS registry contract addresses

@@ -252,12 +252,12 @@ export type GasFeeState = GasFeeEstimatesByChainId &
 const name = 'GasFeeController';
 
 const MESSENGER_EXPOSED_METHODS = [
-  'resetPolling',
+  'disconnectPoller',
   'fetchGasFeeEstimates',
   'getGasFeeEstimatesAndStartPolling',
-  'disconnectPoller',
-  'stopPolling',
   'getTimeEstimate',
+  'resetPolling',
+  'stopPolling',
 ] as const;
 
 export type GasFeeStateChange = ControllerStateChangeEvent<

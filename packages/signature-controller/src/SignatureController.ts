@@ -71,16 +71,16 @@ import {
 const controllerName = 'SignatureController';
 
 const MESSENGER_EXPOSED_METHODS = [
-  'resetState',
-  'rejectUnapproved',
   'clearUnapproved',
   'newUnsignedPersonalMessage',
   'newUnsignedTypedMessage',
+  'rejectUnapproved',
+  'resetState',
+  'setDeferredSignError',
   'setDeferredSignSuccess',
   'setMessageMetadata',
-  'setDeferredSignError',
-  'setTypedMessageInProgress',
   'setPersonalMessageInProgress',
+  'setTypedMessageInProgress',
 ] as const;
 
 const stateMetadata = {

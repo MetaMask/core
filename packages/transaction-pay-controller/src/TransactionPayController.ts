@@ -31,8 +31,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
   'getStrategy',
   'setTransactionConfig',
-  'updatePaymentToken',
   'updateFiatPayment',
+  'updatePaymentToken',
 ] as const;
 
 const stateMetadata: StateMetadata<TransactionPayControllerState> = {

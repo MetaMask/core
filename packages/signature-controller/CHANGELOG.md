@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New messenger actions: `SignatureControllerResetStateAction`, `SignatureControllerRejectUnapprovedAction`, `SignatureControllerClearUnapprovedAction`, `SignatureControllerNewUnsignedPersonalMessageAction`, `SignatureControllerNewUnsignedTypedMessageAction`, `SignatureControllerSetDeferredSignSuccessAction`, `SignatureControllerSetMessageMetadataAction`, `SignatureControllerSetDeferredSignErrorAction`, `SignatureControllerSetTypedMessageInProgressAction`, `SignatureControllerSetPersonalMessageInProgressAction` ([#8183](https://github.com/MetaMask/core/pull/8183))
+- Expose missing public `SignatureController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `SignatureController:resetState`
+    - `SignatureController:rejectUnapproved`
+    - `SignatureController:clearUnapproved`
+    - `SignatureController:newUnsignedPersonalMessage`
+    - `SignatureController:newUnsignedTypedMessage`
+    - `SignatureController:setDeferredSignSuccess`
+    - `SignatureController:setMessageMetadata`
+    - `SignatureController:setDeferredSignError`
+    - `SignatureController:setTypedMessageInProgress`
+    - `SignatureController:setPersonalMessageInProgress`
+  - Corresponding action types (e.g. `SignatureControllerResetStateAction`) are available as well.
 
 ### Changed
 
