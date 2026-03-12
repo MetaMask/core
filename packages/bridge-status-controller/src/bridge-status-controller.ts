@@ -22,7 +22,6 @@ import {
   MetaMetricsSwapsEventSource,
   isBitcoinTrade,
   isTronTrade,
-  AbortReason,
   PollingStatus,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
@@ -61,6 +60,7 @@ import type {
 import type { BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
 import { getAccountByAddress } from './utils/accounts';
+import { stopPollingForQuotes, trackMetricsEvent } from './utils/bridge';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
@@ -1308,12 +1308,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     abTests?: Record<string, string>,
     activeAbTests?: { key: string; value: string }[],
   ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
-    this.messenger.call(
-      'BridgeController:stopPollingForQuotes',
-      AbortReason.TransactionSubmitted,
-      // If trade is submitted before all quotes are loaded, the QuotesReceived event is published
-      // If the trade has a featureId, it means it was submitted outside of the Unified Swap and Bridge experience, so no QuotesReceived event is published
-      quoteResponse.featureId ? undefined : quotesReceivedContext,
+    stopPollingForQuotes(
+      this.messenger,
+      quoteResponse.featureId,
+      quotesReceivedContext,
     );
 
     const selectedAccount = getAccountByAddress(this.messenger, accountAddress);
@@ -1637,10 +1635,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const { quoteResponse, accountAddress, location, abTests, activeAbTests } =
       params;
 
-    this.messenger.call(
-      'BridgeController:stopPollingForQuotes',
-      AbortReason.TransactionSubmitted,
-    );
+    // TODO add metrics context
+    stopPollingForQuotes(this.messenger);
 
     // Build pre-confirmation properties for error tracking parity with submitTx
     const account = getAccountByAddress(this.messenger, accountAddress);
@@ -1874,11 +1870,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // This will publish events for PERPS dropped tx failures as well
     if (!txMetaId) {
-      this.messenger.call(
-        'BridgeController:trackUnifiedSwapBridgeEvent',
+      trackMetricsEvent({
+        messenger: this.messenger,
         eventName,
-        baseProperties,
-      );
+        properties: baseProperties,
+      });
       return;
     }
 
@@ -1886,21 +1882,21 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.state.txHistory[txMetaId];
 
     if (!historyItem) {
-      this.messenger.call(
-        'BridgeController:trackUnifiedSwapBridgeEvent',
+      trackMetricsEvent({
+        messenger: this.messenger,
         eventName,
-        baseProperties,
-      );
+        properties: baseProperties,
+      });
       return;
     }
 
     const requestParamProperties = getRequestParamFromHistory(historyItem);
     // Always publish StatusValidationFailed event, regardless of featureId
     if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
-      this.messenger.call(
-        'BridgeController:trackUnifiedSwapBridgeEvent',
+      trackMetricsEvent({
+        messenger: this.messenger,
         eventName,
-        {
+        properties: {
           ...baseProperties,
           chain_id_source: requestParamProperties.chain_id_source,
           chain_id_destination: requestParamProperties.chain_id_destination,
@@ -1909,7 +1905,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             requestParamProperties.token_address_destination,
           refresh_count: historyItem.attempts?.counter ?? 0,
         },
-      );
+      });
       return;
     }
 
@@ -1943,10 +1939,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getPriceImpactFromQuote(historyItem.quote),
     };
 
-    this.messenger.call(
-      'BridgeController:trackUnifiedSwapBridgeEvent',
+    trackMetricsEvent({
+      messenger: this.messenger,
       eventName,
-      requiredEventProperties,
-    );
+      properties: requiredEventProperties,
+    });
   };
 }
