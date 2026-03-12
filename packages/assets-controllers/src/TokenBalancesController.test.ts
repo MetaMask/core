@@ -380,7 +380,7 @@ describe('TokenBalancesController', () => {
       expect(rpcFetchSpy).toHaveBeenCalledTimes(1);
       expect(rpcFetchSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          chainIds: [secondChainId],
+          chainIds: [firstChainId],
         }),
       );
     });

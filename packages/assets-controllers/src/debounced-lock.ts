@@ -23,10 +23,14 @@ type DebounceAndLockResult<TArgs extends unknown[], TReturn> = DebouncedFunc<
  */
 export function debounceAndLock<TArgs extends unknown[], TReturn>(
   asyncFn: AsyncFunction<TArgs, TReturn>,
-  wait = 0,
+  wait: number,
 ): DebounceAndLockResult<TArgs, TReturn> {
+  if (wait <= 0) {
+    throw new Error('debounceAndLock wait must be greater than zero');
+  }
+
   let inflightPromise: Promise<TReturn> | null = null;
-  let scheduledPromise: Promise<TReturn | undefined> | null = null;
+  let debouncedFn: DebounceAndLockResult<TArgs, TReturn> | null = null;
 
   const lockedFn = async (...args: TArgs): Promise<TReturn> => {
     if (inflightPromise) {
@@ -42,40 +46,18 @@ export function debounceAndLock<TArgs extends unknown[], TReturn>(
       if (inflightPromise === currentPromise) {
         inflightPromise = null;
       }
+
+      // Reset debounce window immediately after each completed run.
+      debouncedFn?.cancel();
     }
   };
 
-  const debouncedFn = debounce(lockedFn, wait) as DebounceAndLockResult<
-    TArgs,
-    TReturn
-  >;
-  debouncedFn.isLocked = (): boolean => inflightPromise !== null;
-
-  const wrappedFn = ((...args: TArgs): Promise<TReturn | undefined> => {
-    if (inflightPromise) {
-      return inflightPromise;
-    }
-
-    const maybePromise = debouncedFn(...args);
-
-    if (wait !== 0) {
-      return Promise.resolve(maybePromise);
-    }
-
-    scheduledPromise ??= Promise.resolve()
-      .then(() => debouncedFn.flush())
-      .finally(() => {
-        scheduledPromise = null;
-      });
-
-    return scheduledPromise;
+  debouncedFn = debounce(lockedFn, wait, {
+    leading: true,
+    trailing: false,
   }) as DebounceAndLockResult<TArgs, TReturn>;
-
-  wrappedFn.cancel = debouncedFn.cancel.bind(debouncedFn);
-  wrappedFn.flush = debouncedFn.flush.bind(debouncedFn);
-  wrappedFn.isLocked = debouncedFn.isLocked;
-
-  return wrappedFn;
+  debouncedFn.isLocked = (): boolean => inflightPromise !== null;
+  return debouncedFn;
 }
 
 export default debounceAndLock;

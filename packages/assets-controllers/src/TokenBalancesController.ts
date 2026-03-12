@@ -354,7 +354,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#chainPollingConfig = { ...chainPollingIntervals };
     this.#updateBalancesWithDebounceAndLock = debounceAndLock(
       (options = {}) => this.#updateBalancesInternal(options),
-      0,
+      1,
     );
 
     // Always include AccountsApiFetcher - it dynamically checks allowExternalServices() in supports()
