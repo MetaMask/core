@@ -1696,7 +1696,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
     it('should include Tron options when trade is Tron', () => {
       const createClientRequestSpy = jest
-        .spyOn(snaps, 'createClientTransactionRequest')
+        .spyOn(snaps, 'getClientRequest')
         .mockReturnValue({ mocked: true } as never);
 
       const tronTrade = {
@@ -1722,16 +1722,26 @@ describe('Bridge Status Controller Transaction Utils', () => {
       );
 
       expect(result).toStrictEqual({ mocked: true });
-      expect(createClientRequestSpy).toHaveBeenCalledWith(
-        'test-snap-id',
-        expect.any(String),
-        formatChainIdToCaip(ChainId.TRON),
-        'test-account-id',
-        {
-          visible: true,
-          type: 'TransferContract',
-        },
-      );
+      expect(createClientRequestSpy.mock.calls).toMatchInlineSnapshot(`
+        [
+          [
+            {
+              "raw_data": {
+                "contract": [
+                  {
+                    "type": "TransferContract",
+                  },
+                ],
+              },
+              "raw_data_hex": "abcdef",
+              "visible": true,
+            },
+            728126428,
+            "test-account-id",
+            "test-snap-id",
+          ],
+        ]
+      `);
 
       createClientRequestSpy.mockRestore();
     });
