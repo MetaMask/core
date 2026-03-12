@@ -475,3 +475,15 @@ export const validateQuoteResponse = (
   assert(data, QuoteResponseSchema);
   return true;
 };
+
+export const TokenFeatureSchema = type({
+  feature_id: string(),
+  type: enums(['Malicious', 'Warning', 'Info', 'Benign']),
+  description: string(),
+});
+
+export const validateTokenFeature = (
+  data: unknown,
+): data is Infer<typeof TokenFeatureSchema> => {
+  return is(data, TokenFeatureSchema);
+};
