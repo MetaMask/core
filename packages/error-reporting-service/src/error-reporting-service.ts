@@ -1,22 +1,14 @@
 import type { Messenger } from '@metamask/messenger';
 
-/**
- * The action which can be used to report an error.
- *
- * @deprecated This action is deprecated and will be removed in a future
- * release. Please use `Messenger.captureException` directly instead.
- */
-export type ErrorReportingServiceCaptureExceptionAction = {
-  type: 'ErrorReportingService:captureException';
-  handler: ErrorReportingService['captureException'];
-};
+import type { ErrorReportingServiceMethodActions } from './error-reporting-service-method-action-types';
+
+const MESSENGER_EXPOSED_METHODS = ['captureException'] as const;
 
 /**
  * All actions that {@link ErrorReportingService} registers so that other
  * modules can call them.
  */
-export type ErrorReportingServiceActions =
-  ErrorReportingServiceCaptureExceptionAction;
+export type ErrorReportingServiceActions = ErrorReportingServiceMethodActions;
 
 /**
  * All events that {@link ErrorReportingService} publishes so that other modules
@@ -171,9 +163,9 @@ export class ErrorReportingService {
     this.#messenger = messenger;
     this.#captureException = captureException;
 
-    this.#messenger.registerActionHandler(
-      'ErrorReportingService:captureException',
-      this.#captureException.bind(this),
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
