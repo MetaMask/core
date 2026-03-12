@@ -1,3 +1,5 @@
+import debounce from 'lodash/debounce';
+
 /**
  * Create a debounced async function that also enforces a simple in-flight lock.
  *
@@ -19,19 +21,16 @@ export function createDebouncedLockedAsyncFunction<
     | ((value: TResult | PromiseLike<TResult>) => void)
     | undefined;
   let pendingReject: ((reason?: unknown) => void) | undefined;
-  let latestArgs: TArgs | undefined;
   let isFlushQueued = false;
 
-  const flushPendingOperation = (): void => {
-    if (!latestArgs || !pendingResolve || !pendingReject) {
+  const runOperation = (args: TArgs): void => {
+    if (!pendingResolve || !pendingReject) {
       return;
     }
 
-    const args = latestArgs;
     const resolve = pendingResolve;
     const reject = pendingReject;
 
-    latestArgs = undefined;
     pendingPromise = undefined;
     pendingResolve = undefined;
     pendingReject = undefined;
@@ -46,6 +45,8 @@ export function createDebouncedLockedAsyncFunction<
       .catch(() => undefined);
   };
 
+  const debouncedRunOperation = debounce(runOperation, 0);
+
   const scheduleFlush = (): void => {
     if (isFlushQueued) {
       return;
@@ -55,7 +56,7 @@ export function createDebouncedLockedAsyncFunction<
     Promise.resolve()
       .then(() => {
         isFlushQueued = false;
-        flushPendingOperation();
+        debouncedRunOperation.flush();
         return undefined;
       })
       .catch(() => undefined);
@@ -66,13 +67,12 @@ export function createDebouncedLockedAsyncFunction<
       return inFlightPromise;
     }
 
-    latestArgs = args;
-
     pendingPromise ??= new Promise<TResult>((resolve, reject) => {
       pendingResolve = resolve;
       pendingReject = reject;
     });
 
+    debouncedRunOperation(args);
     scheduleFlush();
     return pendingPromise;
   };
