@@ -1,6 +1,3 @@
-jest.mock('@nktkas/hyperliquid', () => ({}));
-jest.mock('@myx-trade/sdk', () => ({}));
-
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -8,11 +5,12 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import {
-  PerpsController,
-  type PerpsControllerMessenger,
-} from '../src/PerpsController';
+import { PerpsController } from '../src/PerpsController';
+import type { PerpsControllerMessenger } from '../src/PerpsController';
 import type { PerpsPlatformDependencies } from '../src/types';
+
+jest.mock('@nktkas/hyperliquid', () => ({}));
+jest.mock('@myx-trade/sdk', () => ({}));
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -43,7 +41,9 @@ function buildMockInfrastructure(): PerpsPlatformDependencies {
       startTrace: jest.fn(),
       endTrace: jest.fn(),
     } as unknown as PerpsPlatformDependencies['performance'],
-    tracer: { trace: jest.fn() } as unknown as PerpsPlatformDependencies['tracer'],
+    tracer: {
+      trace: jest.fn(),
+    } as unknown as PerpsPlatformDependencies['tracer'],
     streamManager: {
       subscribe: jest.fn(),
       unsubscribe: jest.fn(),
@@ -107,7 +107,11 @@ type BuildControllerOptions = {
 
 function buildController({
   deferEligibilityCheck,
-}: BuildControllerOptions = {}) {
+}: BuildControllerOptions = {}): {
+  controller: PerpsController;
+  rootMessenger: RootMessenger;
+  controllerMessenger: PerpsControllerMessenger;
+} {
   const rootMessenger = getRootMessenger();
 
   rootMessenger.registerActionHandler(
@@ -129,33 +133,35 @@ function buildController({
 describe('PerpsController - deferEligibilityCheck', () => {
   describe('when deferEligibilityCheck is true', () => {
     it('does not trigger a geolocation fetch during construction', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('US', { status: 200 }),
-      );
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        text: () => Promise.resolve('US'),
+      } as globalThis.Response);
 
       buildController({ deferEligibilityCheck: true });
 
       // Allow any pending microtasks to flush
-      await new Promise(process.nextTick);
+      await new Promise((resolve) => process.nextTick(resolve));
 
       expect(fetchSpy).not.toHaveBeenCalled();
       fetchSpy.mockRestore();
     });
 
     it('does not trigger a geolocation fetch from subscription events', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response('US', { status: 200 }),
-      );
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        text: () => Promise.resolve('US'),
+      } as globalThis.Response);
 
       const { rootMessenger } = buildController({
         deferEligibilityCheck: true,
       });
 
-      rootMessenger.publish('RemoteFeatureFlagController:stateChange', {
-        ...MOCK_REMOTE_FEATURE_FLAG_STATE,
-      });
+      rootMessenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        { ...MOCK_REMOTE_FEATURE_FLAG_STATE },
+        [],
+      );
 
-      await new Promise(process.nextTick);
+      await new Promise((resolve) => process.nextTick(resolve));
 
       expect(fetchSpy).not.toHaveBeenCalled();
       fetchSpy.mockRestore();
@@ -223,11 +229,13 @@ describe('PerpsController - deferEligibilityCheck', () => {
       const callCountAfterStart = refreshSpy.mock.calls.length;
       expect(callCountAfterStart).toBe(callCountAfterConstruction + 1);
 
-      rootMessenger.publish('RemoteFeatureFlagController:stateChange', {
-        ...MOCK_REMOTE_FEATURE_FLAG_STATE,
-      });
+      rootMessenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        { ...MOCK_REMOTE_FEATURE_FLAG_STATE },
+        [],
+      );
 
-      expect(refreshSpy.mock.calls.length).toBe(callCountAfterStart + 1);
+      expect(refreshSpy.mock.calls).toHaveLength(callCountAfterStart + 1);
       refreshSpy.mockRestore();
     });
   });
