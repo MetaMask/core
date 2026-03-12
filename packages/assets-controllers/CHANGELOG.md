@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Add missing Tron staking lifecycle asset symbols to `TRON_RESOURCE` filter ([#8174](https://github.com/MetaMask/core/pull/8174))
+- Reduce redundant token balance refreshes by debouncing and locking `TokenBalancesController:updateBalances` calls so rapid triggers are coalesced and concurrent fetch flows do not overlap ([#8192](https://github.com/MetaMask/core/pull/8192))
 
 ## [100.2.1]
 
