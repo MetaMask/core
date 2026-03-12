@@ -634,8 +634,10 @@ export class MultichainAccountWallet<
 
       // eslint-disable-next-line no-void
       void alignOtherAccounts().catch((error) => {
-        const errorMessage = `Alignment (post) failed:`;
-        this.#log(`${ERROR_PREFIX} ${errorMessage} ${toErrorMessage(error)}`);
+        const errorMessage = `Unable to align non-EVM accounts from group index ${from} to ${to}`;
+        this.#log(
+          `${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)} (post)`,
+        );
         console.error(errorMessage, error);
       });
     }
