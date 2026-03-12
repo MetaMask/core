@@ -232,6 +232,7 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
   '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
   '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
+  '0x3dc': '0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
 };
 
 /**
@@ -312,6 +313,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
   '0xdef1': 'eip155:57073/erc20:0x0000000000000000000000000000000000000000', // Ink Mainnet - Native symbol: ETH
+  '0x3dc': 'eip155:988/erc20:0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES
