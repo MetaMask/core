@@ -1,10 +1,5 @@
 import type { Hex } from '@metamask/utils';
-import {
-  createModuleLogger,
-  isValidSemVerRange,
-  isValidSemVerVersion,
-  satisfiesVersionRange,
-} from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
 import { uniq } from 'lodash';
 
 import type { TransactionPayControllerMessenger } from '..';
@@ -316,47 +311,14 @@ export function getAssetsUnifyStateFeature(
     | {
         enabled: boolean;
         featureVersion: string | null;
-        minimumVersion: string | null;
       }
     | undefined;
-
-  if (!assetsUnifyState?.enabled) {
-    return false;
-  }
 
   const AssetsUnifyStateFeatureVersion = '1';
 
   return (
-    assetsUnifyState.featureVersion === AssetsUnifyStateFeatureVersion &&
-    hasMinimumRequiredVersion(messenger, assetsUnifyState.minimumVersion)
-  );
-}
-
-/**
- * Check if the app version satisfies the minimum required version.
- *
- * @param messenger - Controller messenger.
- * @param minRequiredVersion - The minimum required version.
- * @returns True if the app version satisfies the minimum required version, false otherwise.
- */
-function hasMinimumRequiredVersion(
-  messenger: TransactionPayControllerMessenger,
-  minRequiredVersion: string | null,
-): boolean {
-  if (!minRequiredVersion) {
-    return true;
-  }
-
-  const appVersion = messenger.call(
-    'AppMetadataController:getState',
-  )?.currentAppVersion;
-
-  const semverRange = `>=${minRequiredVersion}`;
-
-  return (
-    isValidSemVerVersion(appVersion) &&
-    isValidSemVerRange(semverRange) &&
-    satisfiesVersionRange(appVersion, semverRange)
+    Boolean(assetsUnifyState?.enabled) &&
+    assetsUnifyState?.featureVersion === AssetsUnifyStateFeatureVersion
   );
 }
 

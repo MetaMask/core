@@ -1,10 +1,6 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import {
-  AccountTrackerControllerState,
-  TokenBalancesControllerState,
-  TokensControllerState,
-} from '@metamask/assets-controllers';
+import { TokensControllerState } from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
@@ -56,28 +52,22 @@ export function getTokenBalance(
 ): string {
   const assetsUnifyStateFeatureEnabled = getAssetsUnifyStateFeature(messenger);
 
-  let getTokenBalances;
-  let getAccountsByChainId;
+  let tokenBalances;
+  let accountsByChainId;
   if (assetsUnifyStateFeatureEnabled) {
     const assetsControllerState = messenger.call(
       'AssetsController:getStateForTransactionPay',
     );
 
-    getTokenBalances = ():
-      | TokenBalancesControllerState['tokenBalances']
-      | undefined => assetsControllerState?.tokenBalances;
-    getAccountsByChainId = ():
-      | AccountTrackerControllerState['accountsByChainId']
-      | undefined => assetsControllerState?.accountsByChainId;
+    tokenBalances = assetsControllerState?.tokenBalances;
+    accountsByChainId = assetsControllerState?.accountsByChainId;
   } else {
-    getTokenBalances = ():
-      | TokenBalancesControllerState['tokenBalances']
-      | undefined =>
-      messenger.call('TokenBalancesController:getState')?.tokenBalances;
-    getAccountsByChainId = ():
-      | AccountTrackerControllerState['accountsByChainId']
-      | undefined =>
-      messenger.call('AccountTrackerController:getState')?.accountsByChainId;
+    tokenBalances = messenger.call(
+      'TokenBalancesController:getState',
+    )?.tokenBalances;
+    accountsByChainId = messenger.call(
+      'AccountTrackerController:getState',
+    )?.accountsByChainId;
   }
 
   const normalizedAccount = account.toLowerCase() as Hex;
@@ -85,9 +75,7 @@ export function getTokenBalance(
   const isNative = normalizedTokenAddress === getNativeToken(chainId);
 
   const balanceHex =
-    getTokenBalances()?.[normalizedAccount]?.[chainId]?.[
-      normalizedTokenAddress
-    ];
+    tokenBalances?.[normalizedAccount]?.[chainId]?.[normalizedTokenAddress];
 
   if (!isNative && balanceHex === undefined) {
     return '0';
@@ -97,7 +85,7 @@ export function getTokenBalance(
     return new BigNumber(balanceHex, 16).toString(10);
   }
 
-  const chainAccounts = getAccountsByChainId()?.[chainId];
+  const chainAccounts = accountsByChainId?.[chainId];
 
   const checksumAccount = toChecksumHexAddress(normalizedAccount) as Hex;
   const nativeBalanceHex = chainAccounts?.[checksumAccount]?.balance as Hex;

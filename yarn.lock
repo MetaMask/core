@@ -2720,7 +2720,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/app-metadata-controller@npm:^2.0.0, @metamask/app-metadata-controller@workspace:packages/app-metadata-controller":
+"@metamask/app-metadata-controller@workspace:packages/app-metadata-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/app-metadata-controller@workspace:packages/app-metadata-controller"
   dependencies:
@@ -5417,7 +5417,6 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/app-metadata-controller": "npm:^2.0.0"
     "@metamask/assets-controller": "npm:^2.3.0"
     "@metamask/assets-controllers": "npm:^100.2.1"
     "@metamask/auto-changelog": "npm:^3.4.4"

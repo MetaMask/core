@@ -1,4 +1,3 @@
-import { AppMetadataControllerState } from '@metamask/app-metadata-controller';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -40,11 +39,8 @@ const TOKEN_ADDRESS_DIFFERENT_MOCK = '0xdef789abc012' as Hex;
 const TOKEN_SPECIFIC_SLIPPAGE_MOCK = 0.02;
 
 describe('Feature Flags Utils', () => {
-  const {
-    messenger,
-    getAppMetadataControllerStateMock,
-    getRemoteFeatureFlagControllerStateMock,
-  } = getMessengerMock();
+  const { messenger, getRemoteFeatureFlagControllerStateMock } =
+    getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -572,35 +568,23 @@ describe('Feature Flags Utils', () => {
       | {
           enabled: boolean;
           featureVersion: string | null;
-          minimumVersion: string | null;
         }
       | undefined;
-
-    const defaultAppMetadata = {
-      currentAppVersion: '',
-      previousAppVersion: '',
-      previousMigrationVersion: 0,
-      currentMigrationVersion: 0,
-    };
 
     const failureCases: {
       description: string;
       assetsUnifyingState: AssetsUnifyingState;
-      appMetadata: AppMetadataControllerState | undefined;
     }[] = [
       {
         description: 'returns false when assetsUnifyState is not set',
         assetsUnifyingState: undefined,
-        appMetadata: undefined,
       },
       {
         description: 'returns false when assetsUnifyState.enabled is false',
         assetsUnifyingState: {
           enabled: false,
           featureVersion: '1',
-          minimumVersion: null,
         },
-        appMetadata: undefined,
       },
       {
         description:
@@ -608,53 +592,22 @@ describe('Feature Flags Utils', () => {
         assetsUnifyingState: {
           enabled: true,
           featureVersion: '2',
-          minimumVersion: null,
-        },
-        appMetadata: undefined,
-      },
-      {
-        description:
-          'returns false when app version does not satisfy minimumVersion',
-        assetsUnifyingState: {
-          enabled: true,
-          featureVersion: '1',
-          minimumVersion: '2.0.0',
-        },
-        appMetadata: {
-          ...defaultAppMetadata,
-          currentAppVersion: '1.0.0',
         },
       },
     ];
 
     const successCases = [
       {
-        description: 'returns true when minimumVersion is null',
+        description:
+          'returns true when assetsUnifyState is enabled and featureVersion matches',
         assetsUnifyingState: {
           enabled: true,
           featureVersion: '1',
-          minimumVersion: null,
-        },
-        appMetadata: undefined,
-      },
-      {
-        description: 'returns true when app version satisfies minimumVersion',
-        assetsUnifyingState: {
-          enabled: true,
-          featureVersion: '1',
-          minimumVersion: '1.0.0',
-        },
-        appMetadata: {
-          ...defaultAppMetadata,
-          currentAppVersion: '2.0.0',
         },
       },
     ];
 
-    const arrangeMocks = (
-      assetsUnifyState: AssetsUnifyingState,
-      appMetadata: AppMetadataControllerState | undefined,
-    ): void => {
+    const arrangeMocks = (assetsUnifyState: AssetsUnifyingState): void => {
       const defaultRemoteFeatureFlagsState =
         getDefaultRemoteFeatureFlagControllerState();
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
@@ -664,15 +617,12 @@ describe('Feature Flags Utils', () => {
           ...(assetsUnifyState ? { assetsUnifyState } : {}),
         },
       });
-      if (appMetadata !== undefined) {
-        getAppMetadataControllerStateMock.mockReturnValue(appMetadata);
-      }
     };
 
     it.each(failureCases)(
       '$description',
-      ({ assetsUnifyingState, appMetadata }: (typeof failureCases)[number]) => {
-        arrangeMocks(assetsUnifyingState, appMetadata);
+      ({ assetsUnifyingState }: (typeof failureCases)[number]) => {
+        arrangeMocks(assetsUnifyingState);
 
         const result = getAssetsUnifyStateFeature(messenger);
 
@@ -682,8 +632,8 @@ describe('Feature Flags Utils', () => {
 
     it.each(successCases)(
       '$description',
-      ({ assetsUnifyingState, appMetadata }: (typeof successCases)[number]) => {
-        arrangeMocks(assetsUnifyingState, appMetadata);
+      ({ assetsUnifyingState }: (typeof successCases)[number]) => {
+        arrangeMocks(assetsUnifyingState);
 
         const result = getAssetsUnifyStateFeature(messenger);
 
