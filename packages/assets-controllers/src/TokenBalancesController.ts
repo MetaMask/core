@@ -700,8 +700,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }
 
   async updateBalances(options: UpdateBalancesOptions = {}): Promise<void> {
-    await (this.#updateBalancesWithDebounceAndLock(options) ??
-      Promise.resolve());
+    await this.#updateBalancesWithDebounceAndLock(options);
   }
 
   async #updateBalancesInternal({
