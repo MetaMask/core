@@ -772,13 +772,15 @@ describe('MultichainAccountWallet', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
 
-      await wallet.createMultichainAccountGroups({ to: 0 });
+      const from = 0;
+      const to = 2;
+      await wallet.createMultichainAccountGroups({ from, to });
 
       // Wait for the fire-and-forget alignment to have run and failed.
       await waitForOtherProvidersToHaveBeenCalled([solProvider]);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Alignment (post) failed:',
+        `Unable to align non-EVM accounts from group index ${from} to ${to}`,
         alignmentError,
       );
     });
