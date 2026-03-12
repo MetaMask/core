@@ -655,9 +655,12 @@ describe('Feature Flags Utils', () => {
       assetsUnifyState: AssetsUnifyingState,
       appMetadata: AppMetadataControllerState | undefined,
     ): void => {
+      const defaultRemoteFeatureFlagsState =
+        getDefaultRemoteFeatureFlagControllerState();
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
+        ...defaultRemoteFeatureFlagsState,
         remoteFeatureFlags: {
+          ...defaultRemoteFeatureFlagsState.remoteFeatureFlags,
           ...(assetsUnifyState ? { assetsUnifyState } : {}),
         },
       });
