@@ -1,7 +1,6 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type {
   CreateAccountBip44DeriveIndexOptions,
   CreateAccountBip44DeriveIndexRangeOptions,
