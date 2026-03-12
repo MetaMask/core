@@ -7,6 +7,8 @@ import {
   InitialDataFunction,
   NonUndefinedGuard,
   UseInfiniteQueryOptions,
+  UseQueryResult,
+  UseInfiniteQueryResult,
 } from '@tanstack/react-query';
 
 // We provide re-exports of the underlying TanStack Query hooks with narrower types,
@@ -27,7 +29,7 @@ export function useQuery<
       | InitialDataFunction<NonUndefinedGuard<TQueryFnData>>
       | NonUndefinedGuard<TQueryFnData>;
   },
-): ReturnType<typeof useQueryTanStack> {
+): UseQueryResult<TData, TError> {
   return useQueryTanStack(options);
 }
 
@@ -47,6 +49,6 @@ export function useInfiniteQuery<
     >,
     'staleTime' | 'queryFn'
   >,
-): ReturnType<typeof useInfiniteQueryTanStack> {
+): UseInfiniteQueryResult<TData, TError> {
   return useInfiniteQueryTanStack(options);
 }
