@@ -1,4 +1,27 @@
+import type { DebouncedFunc } from 'lodash';
 import debounce from 'lodash/debounce';
+
+type Deferred<TResult> = {
+  promise: Promise<TResult>;
+  resolve: (value: TResult | PromiseLike<TResult>) => void;
+  reject: (reason?: unknown) => void;
+};
+
+const createDeferred = <TResult>(): Deferred<TResult> => {
+  let resolve: Deferred<TResult>['resolve'] = () => undefined;
+  let reject: Deferred<TResult>['reject'] = () => undefined;
+
+  const promise = new Promise<TResult>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return {
+    promise,
+    resolve,
+    reject,
+  };
+};
 
 /**
  * Create a debounced async function that also enforces a simple in-flight lock.
@@ -7,6 +30,7 @@ import debounce from 'lodash/debounce';
  * - Lock: if a call is already in progress, subsequent calls return the in-flight promise.
  *
  * @param operation - The async operation to debounce and lock.
+ * @param wait - Debounce delay in milliseconds (default: 0).
  * @returns Debounced + locked function.
  */
 export function createDebouncedLockedAsyncFunction<
@@ -14,38 +38,53 @@ export function createDebouncedLockedAsyncFunction<
   TResult,
 >(
   operation: (...args: TArgs) => Promise<TResult>,
+  wait = 0,
 ): (...args: TArgs) => Promise<TResult> {
-  let inFlightPromise: Promise<TResult> | undefined;
-  let pendingPromise: Promise<TResult> | undefined;
-  let pendingResolve:
-    | ((value: TResult | PromiseLike<TResult>) => void)
-    | undefined;
-  let pendingReject: ((reason?: unknown) => void) | undefined;
+  let inFlightPromise: Promise<TResult> | null = null;
+  let pendingCall: { args: TArgs; deferred: Deferred<TResult> } | null = null;
   let isFlushQueued = false;
 
-  const runOperation = (args: TArgs): void => {
-    if (!pendingResolve || !pendingReject) {
+  const runLockedOperation = async (...args: TArgs): Promise<TResult> => {
+    if (inFlightPromise) {
+      return inFlightPromise;
+    }
+
+    const currentPromise = operation(...args);
+    inFlightPromise = currentPromise;
+
+    try {
+      return await currentPromise;
+    } finally {
+      if (inFlightPromise === currentPromise) {
+        inFlightPromise = null;
+      }
+    }
+  };
+
+  const executePendingCall = (): void => {
+    if (!pendingCall) {
       return;
     }
 
-    const resolve = pendingResolve;
-    const reject = pendingReject;
+    const { args, deferred } = pendingCall;
+    pendingCall = null;
 
-    pendingPromise = undefined;
-    pendingResolve = undefined;
-    pendingReject = undefined;
-
-    inFlightPromise = Promise.resolve().then(() => operation(...args));
-    inFlightPromise
-      .then(resolve)
-      .catch(reject)
-      .finally(() => {
-        inFlightPromise = undefined;
+    runLockedOperation(...args)
+      .then((result) => {
+        deferred.resolve(result);
+        return undefined;
+      })
+      .catch((error: unknown) => {
+        deferred.reject(error);
+        return undefined;
       })
       .catch(() => undefined);
   };
 
-  const debouncedRunOperation = debounce(runOperation, 0);
+  const debouncedExecutePendingCall: DebouncedFunc<() => void> = debounce(
+    executePendingCall,
+    wait,
+  );
 
   const scheduleFlush = (): void => {
     if (isFlushQueued) {
@@ -56,7 +95,7 @@ export function createDebouncedLockedAsyncFunction<
     Promise.resolve()
       .then(() => {
         isFlushQueued = false;
-        debouncedRunOperation.flush();
+        debouncedExecutePendingCall.flush();
         return undefined;
       })
       .catch(() => undefined);
@@ -67,13 +106,22 @@ export function createDebouncedLockedAsyncFunction<
       return inFlightPromise;
     }
 
-    pendingPromise ??= new Promise<TResult>((resolve, reject) => {
-      pendingResolve = resolve;
-      pendingReject = reject;
-    });
+    if (pendingCall) {
+      pendingCall.args = args;
+    } else {
+      pendingCall = {
+        args,
+        deferred: createDeferred<TResult>(),
+      };
+    }
 
-    debouncedRunOperation(args);
-    scheduleFlush();
-    return pendingPromise;
+    debouncedExecutePendingCall();
+
+    // For wait=0, flush in a microtask to avoid fake-timer deadlocks in tests.
+    if (wait === 0) {
+      scheduleFlush();
+    }
+
+    return pendingCall.deferred.promise;
   };
 }
