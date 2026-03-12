@@ -215,12 +215,10 @@ export class BaseDataService<
     const hash = hashQueryKey(queryKey);
     const state = this.#getDehydratedState(queryKey);
 
-    const payload = {
+    this.#messenger.publish(`${this.name}:cacheUpdated` as const, {
       hash,
       state,
-    };
-
-    this.#messenger.publish(`${this.name}:cacheUpdated` as const, payload);
+    });
     this.#messenger.publish(
       `${this.name}:cacheUpdated:${hash}` as const,
       state,
