@@ -94,7 +94,6 @@ import { getApprovalTraceParams, getTraceParams } from './utils/trace';
 import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
-  getStatusRequestParams,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   generateActionId,
@@ -1343,10 +1342,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           this.#addTxToHistory(
             {
               accountAddress: selectedAccount.address,
-              statusRequest: {
-                ...getStatusRequestParams(quoteResponse),
-                srcTxHash: '', // Not available yet
-              },
               quoteResponse,
               slippagePercentage: 0,
               isStxEnabled: isStxEnabledOnClient,
@@ -1395,10 +1390,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#addTxToHistory({
           accountAddress: selectedAccount.address,
           bridgeTxMeta: txMeta, // Only the id field is used by the BridgeStatusController
-          statusRequest: {
-            ...getStatusRequestParams(quoteResponse),
-            srcTxHash: txMeta.hash,
-          },
           quoteResponse,
           slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
           isStxEnabled: isStxEnabledOnClient,
@@ -1586,17 +1577,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           ...syntheticMeta,
           id: bridgeHistoryKey,
           originalTransactionId: syntheticMeta.id, // Keep original txId for TransactionController updates
-        } as TransactionMeta;
+        };
 
         const startTime = Date.now();
 
         this.#addTxToHistory({
           accountAddress,
           bridgeTxMeta: bridgeTxMetaForHistory,
-          statusRequest: {
-            ...getStatusRequestParams(quoteResponse),
-            srcTxHash: syntheticMeta.hash ?? '',
-          },
           quoteResponse,
           slippagePercentage: 0,
           isStxEnabled: false,

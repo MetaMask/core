@@ -295,16 +295,8 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
 } = {}): StartPollingForBridgeTxStatusArgsSerialized => ({
   bridgeTxMeta: {
     id: txMetaId,
+    hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
   } as TransactionMeta,
-  statusRequest: {
-    bridgeId: 'lifi',
-    srcTxHash,
-    bridge: 'across',
-    srcChainId,
-    destChainId,
-    quote: getMockQuote({ srcChainId, destChainId }),
-    refuel: false,
-  },
   quoteResponse: {
     quote: getMockQuote({ srcChainId, destChainId }),
     trade: {
@@ -1077,8 +1069,9 @@ describe('BridgeStatusController', () => {
       });
 
       // Start polling with args that have no srcTxHash
-      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();
-      startPollingArgs.statusRequest.srcTxHash = undefined;
+      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs({
+        srcTxHash: 'undefined',
+      });
       bridgeStatusController.startPollingForBridgeTxStatus(startPollingArgs);
 
       // Advance timer to trigger polling
@@ -1093,7 +1086,7 @@ describe('BridgeStatusController', () => {
       expect(
         bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.srcChain
           .txHash,
-      ).toBeUndefined();
+      ).toBeFalsy();
 
       // Cleanup
       jest.restoreAllMocks();
@@ -1229,8 +1222,9 @@ describe('BridgeStatusController', () => {
       });
 
       // Start polling with no srcTxHash
-      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();
-      startPollingArgs.statusRequest.srcTxHash = undefined;
+      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs({
+        srcTxHash: 'undefined',
+      });
       bridgeStatusController.startPollingForBridgeTxStatus(startPollingArgs);
 
       // Verify initial state has no srcTxHash
@@ -3189,7 +3183,7 @@ describe('BridgeStatusController', () => {
         ).toBeUndefined();
         expect(
           controller.state.txHistory[mockActionId].status.srcChain.txHash,
-        ).toBe(''); // Empty since tx was never submitted
+        ).toBeUndefined(); // Empty since tx was never submitted
 
         expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       });

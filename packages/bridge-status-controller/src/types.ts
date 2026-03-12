@@ -212,7 +212,6 @@ export type QuoteMetadataSerialized = {
 
 export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: TransactionMeta;
-  statusRequest: StatusRequest;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];

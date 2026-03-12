@@ -70,7 +70,6 @@ export const getInitialHistoryItem = (
     isStxEnabled,
     location,
     abTests,
-    statusRequest,
     activeAbTests,
     accountAddress: selectedAddress,
   }: StartPollingForBridgeTxStatusArgsSerialized,
@@ -114,7 +113,7 @@ export const getInitialHistoryItem = (
       status: StatusTypes.PENDING,
       srcChain: {
         chainId: quoteResponse.quote.srcChainId,
-        txHash: statusRequest?.srcTxHash ?? bridgeTxMeta?.hash,
+        txHash: bridgeTxMeta?.hash,
       },
     },
     hasApprovalTx: Boolean(quoteResponse.approval),

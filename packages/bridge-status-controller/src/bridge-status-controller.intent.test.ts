@@ -15,8 +15,8 @@ import { BridgeStatusController } from './bridge-status-controller';
 import { MAX_ATTEMPTS } from './constants';
 import type { BridgeStatusControllerState } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
+import * as historyUtils from './utils/history';
 import * as intentApi from './utils/intent-api';
-import * as transactionUtils from './utils/transaction';
 import { IntentOrderStatus } from './utils/validators';
 
 jest
@@ -446,11 +446,9 @@ describe('BridgeStatusController (intent swaps)', () => {
       .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
       .mockResolvedValue(intentStatusResponse);
 
-    jest
-      .spyOn(transactionUtils, 'getStatusRequestParams')
-      .mockImplementation(() => {
-        throw new Error('boom');
-      });
+    jest.spyOn(historyUtils, 'getInitialHistoryItem').mockImplementation(() => {
+      throw new Error('boom');
+    });
 
     const quoteResponse = minimalIntentQuoteResponse();
     const consoleSpy = jest
@@ -980,14 +978,7 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
     // Use deprecated method to create history and start polling (so token exists in controller)
     controller.startPollingForBridgeTxStatus({
       accountAddress,
-      bridgeTxMeta: { id: 'bridgeToWipe1' } as TransactionMeta,
-      statusRequest: {
-        srcChainId: 1,
-        srcTxHash: '0xsrc',
-        destChainId: 10,
-        bridgeId: 'across',
-        bridge: 'socket',
-      },
+      bridgeTxMeta: { id: 'bridgeToWipe1', hash: '0xsrc' } as TransactionMeta,
       quoteResponse,
       slippagePercentage: 0,
       startTime: Date.now(),
