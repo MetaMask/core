@@ -24,7 +24,15 @@ import {
 } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 
+import type { SelectedNetworkControllerMethodActions } from './SelectedNetworkController-method-action-types';
+
 const controllerName = 'SelectedNetworkController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'setNetworkClientIdForDomain',
+  'getNetworkClientIdForDomain',
+  'getProviderAndBlockTracker',
+] as const;
 
 const stateMetadata = {
   domains: {
@@ -69,20 +77,9 @@ export type SelectedNetworkControllerGetSelectedNetworkStateAction =
     SelectedNetworkControllerState
   >;
 
-export type SelectedNetworkControllerGetNetworkClientIdForDomainAction = {
-  type: typeof SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain;
-  handler: SelectedNetworkController['getNetworkClientIdForDomain'];
-};
-
-export type SelectedNetworkControllerSetNetworkClientIdForDomainAction = {
-  type: typeof SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain;
-  handler: SelectedNetworkController['setNetworkClientIdForDomain'];
-};
-
 export type SelectedNetworkControllerActions =
   | SelectedNetworkControllerGetSelectedNetworkStateAction
-  | SelectedNetworkControllerGetNetworkClientIdForDomainAction
-  | SelectedNetworkControllerSetNetworkClientIdForDomainAction;
+  | SelectedNetworkControllerMethodActions;
 
 type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
@@ -145,7 +142,10 @@ export class SelectedNetworkController extends BaseController<
       state,
     });
     this.#domainProxyMap = domainProxyMap;
-    this.#registerMessageHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     // this is fetching all the dapp permissions from the PermissionsController and looking for any domains that are not in domains state in this controller. Then we take any missing domains and add them to state here, setting it with the globally selected networkClientId (fetched from the NetworkController)
     this.messenger
@@ -239,17 +239,6 @@ export class SelectedNetworkController extends BaseController<
           );
         }
       },
-    );
-  }
-
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
-      this.getNetworkClientIdForDomain.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      SelectedNetworkControllerActionTypes.setNetworkClientIdForDomain,
-      this.setNetworkClientIdForDomain.bind(this),
     );
   }
 
