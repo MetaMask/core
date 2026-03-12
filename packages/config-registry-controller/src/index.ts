@@ -3,12 +3,15 @@ export type {
   ConfigRegistryControllerOptions,
   ConfigRegistryControllerActions,
   ConfigRegistryControllerGetStateAction,
-  ConfigRegistryControllerStartPollingAction,
-  ConfigRegistryControllerStopPollingAction,
   ConfigRegistryControllerEvents,
   ConfigRegistryControllerStateChangeEvent,
   ConfigRegistryControllerMessenger,
 } from './ConfigRegistryController';
+export type {
+  ConfigRegistryControllerStartPollingAction,
+  ConfigRegistryControllerStopPollingAction,
+  ConfigRegistryControllerMethodActions,
+} from './ConfigRegistryController-method-action-types';
 export {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
