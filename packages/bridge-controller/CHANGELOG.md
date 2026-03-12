@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^2.4.0` to `^3.0.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
 - Bump `@metamask/assets-controllers` from `^101.0.0` to `^101.0.1` ([#8232](https://github.com/MetaMask/core/pull/8232))
 
+### Added
+
+- Consume `token_warning` SSE events from the bridge-api quote stream and expose them as `tokenWarnings` in `BridgeControllerState` ([#8198](https://github.com/MetaMask/core/pull/8198))
+- Export `TokenFeature` type and `TokenFeatureType` enum for use by clients ([#8198](https://github.com/MetaMask/core/pull/8198))
+
 ## [69.1.1]
 
 ### Changed
