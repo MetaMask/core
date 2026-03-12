@@ -10,13 +10,18 @@ import {
 import { fetchServerEvents } from './fetch-server-events';
 import { isEvmTxData } from './trade-utils';
 import type { FeatureId } from './validators';
-import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
+import {
+  validateQuoteResponse,
+  validateSwapsTokenObject,
+  validateTokenFeature,
+} from './validators';
 import type {
   QuoteResponse,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
+  TokenFeature,
 } from '../types';
 
 export const getClientHeaders = ({
@@ -294,6 +299,7 @@ export const fetchAssetPrices = async (
  * @param serverEventHandlers - The server event handlers
  * @param serverEventHandlers.onQuoteValidationFailure - The function to handle quote validation failures
  * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
+ * @param serverEventHandlers.onTokenWarning - The function to handle token warning events
  * @param serverEventHandlers.onClose - The function to run when the stream is closed and there are no thrown errors
  * @param clientVersion - The client version for metrics (optional)
  * @returns A list of bridge tx quote promises
@@ -309,12 +315,13 @@ export async function fetchBridgeQuoteStream(
     onClose: () => void | Promise<void>;
     onQuoteValidationFailure: (validationFailures: string[]) => void;
     onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
+    onTokenWarning: (warning: TokenFeature) => void;
   },
   clientVersion?: string,
 ): Promise<void> {
   const queryParams = formatQueryParams(request);
 
-  const onMessage = async (quoteResponse: unknown): Promise<void> => {
+  const onQuoteReceived = async (quoteResponse: unknown): Promise<void> => {
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
 
     try {
@@ -355,6 +362,30 @@ export async function fetchBridgeQuoteStream(
       throw error;
     }
     return undefined;
+  };
+
+  const onTokenWarningReceived = (data: unknown): void => {
+    try {
+      if (validateTokenFeature(data)) {
+        serverEventHandlers.onTokenWarning(data);
+      }
+    } catch (error) {
+      console.warn('Token warning validation failed', error);
+    }
+  };
+
+  const onMessage = async (
+    data: Record<string, unknown>,
+    eventName?: string,
+  ): Promise<void> => {
+    switch (eventName) {
+      case 'quote':
+        return await onQuoteReceived(data);
+      case 'token_warning':
+        return onTokenWarningReceived(data);
+      default:
+        return undefined;
+    }
   };
 
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
