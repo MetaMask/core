@@ -10,7 +10,7 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
 } from './constants/bridge';
-import { ChainId, RequestStatus } from './types';
+import { ChainId, RequestStatus, TokenFeatureType } from './types';
 import type { BridgeControllerMessenger, QuoteResponse, TxData } from './types';
 import * as balanceUtils from './utils/balance';
 import { formatChainIdToDec } from './utils/caip-formatters';
@@ -25,6 +25,7 @@ import {
   advanceToNthTimerThenFlush,
   mockSseEventSource,
   mockSseEventSourceWithMultipleDelays,
+  mockSseEventSourceWithWarnings,
   mockSseServerError,
 } from '../tests/mock-sse';
 
@@ -193,8 +194,9 @@ describe('BridgeController SSE', function () {
       'AUTH_TOKEN',
       BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: expect.any(Function),
+        onQuoteValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
+        onTokenWarning: expect.any(Function),
         onClose: expect.any(Function),
       },
       '13.8.0',
@@ -332,8 +334,9 @@ describe('BridgeController SSE', function () {
         'AUTH_TOKEN',
         BRIDGE_PROD_API_BASE_URL,
         {
-          onValidationFailure: expect.any(Function),
+          onQuoteValidationFailure: expect.any(Function),
           onValidQuoteReceived: expect.any(Function),
+          onTokenWarning: expect.any(Function),
           onClose: expect.any(Function),
         },
         '13.8.0',
@@ -465,8 +468,9 @@ describe('BridgeController SSE', function () {
       'AUTH_TOKEN',
       BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: expect.any(Function),
+        onQuoteValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
+        onTokenWarning: expect.any(Function),
         onClose: expect.any(Function),
       },
       '13.8.0',
@@ -1098,8 +1102,9 @@ describe('BridgeController SSE', function () {
       'AUTH_TOKEN',
       BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: expect.any(Function),
+        onQuoteValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
+        onTokenWarning: expect.any(Function),
         onClose: expect.any(Function),
       },
       '13.8.0',
@@ -1139,5 +1144,65 @@ describe('BridgeController SSE', function () {
     expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(0);
     // eslint-disable-next-line jest/no-restricted-matchers
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+  });
+
+  it('should populate tokenWarnings from token_warning SSE events', async function () {
+    const mockWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [mockWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([]);
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+
+    // After stream completes
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
+    expect(bridgeController.state.quotes.length).toBeGreaterThan(0);
+  });
+
+  it('should clear tokenWarnings on resetState', async function () {
+    const mockWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [mockWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
+
+    bridgeController.resetState();
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([]);
   });
 });

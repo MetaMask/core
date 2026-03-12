@@ -2,7 +2,7 @@
 import { ReadableStream } from 'node:stream/web';
 
 import { flushPromises } from '../../../tests/helpers';
-import type { QuoteResponse, Trade } from '../src';
+import type { QuoteResponse, TokenFeature, Trade } from '../src';
 
 export const advanceToNthTimer = (n = 1) => {
   for (let i = 0; i < n; i++) {
@@ -92,6 +92,43 @@ export const mockSseEventSourceWithMultipleDelays = async (
             delay * (id + 1),
           );
         });
+      },
+    }),
+  };
+};
+
+/**
+ * Simulates an SSE stream that emits both quote and token_warning events
+ *
+ * @param mockQuotes - a list of quotes to stream
+ * @param mockWarnings - a list of token warnings to stream
+ * @param delay - the delay in milliseconds
+ * @returns a delayed stream of quotes and token warnings
+ */
+export const mockSseEventSourceWithWarnings = (
+  mockQuotes: QuoteResponse[],
+  mockWarnings: TokenFeature[],
+  delay: number = 3000,
+) => {
+  return {
+    status: 200,
+    ok: true,
+    body: new ReadableStream({
+      start(controller) {
+        setTimeout(() => {
+          let eventIndex = 0;
+          mockWarnings.forEach((warning) => {
+            emitLine(controller, `event: token_warning\n`);
+            emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
+            emitLine(controller, `data: ${JSON.stringify(warning)}\n\n`);
+          });
+          mockQuotes.forEach((quote) => {
+            emitLine(controller, `event: quote\n`);
+            emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
+            emitLine(controller, `data: ${JSON.stringify(quote)}\n\n`);
+          });
+          controller.close();
+        }, delay);
       },
     }),
   };
