@@ -292,7 +292,7 @@ export const fetchAssetPrices = async (
  * @param jwt - The JWT token for authentication
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param serverEventHandlers - The server event handlers
- * @param serverEventHandlers.onValidationFailure - The function to handle validation failures
+ * @param serverEventHandlers.onQuoteValidationFailure - The function to handle quote validation failures
  * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
  * @param serverEventHandlers.onClose - The function to run when the stream is closed and there are no thrown errors
  * @param clientVersion - The client version for metrics (optional)
@@ -307,7 +307,7 @@ export async function fetchBridgeQuoteStream(
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
     onClose: () => void | Promise<void>;
-    onValidationFailure: (validationFailures: string[]) => void;
+    onQuoteValidationFailure: (validationFailures: string[]) => void;
     onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
   },
   clientVersion?: string,
@@ -349,7 +349,7 @@ export async function fetchBridgeQuoteStream(
       const validationFailures = Array.from(uniqueValidationFailures);
       if (uniqueValidationFailures.size > 0) {
         console.warn('Quote validation failed', validationFailures);
-        return serverEventHandlers.onValidationFailure(validationFailures);
+        return serverEventHandlers.onQuoteValidationFailure(validationFailures);
       }
       // Rethrow any unexpected errors
       throw error;

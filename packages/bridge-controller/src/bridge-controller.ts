@@ -392,7 +392,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#clientVersion,
     );
 
-    this.#trackResponseValidationFailures(validationFailures);
+    this.#trackQuoteValidationFailures(validationFailures);
 
     const quotesWithFees = await appendFeesToQuotes(
       baseQuotes,
@@ -404,7 +404,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return sortQuotes(quotesWithFees, featureId);
   };
 
-  readonly #trackResponseValidationFailures = (
+  readonly #trackQuoteValidationFailures = (
     validationFailures: string[],
   ) => {
     if (validationFailures.length === 0) {
@@ -794,7 +794,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       jwt,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: this.#trackResponseValidationFailures,
+        onQuoteValidationFailure: this.#trackQuoteValidationFailures,
         onValidQuoteReceived: async (quote: QuoteResponse) => {
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
