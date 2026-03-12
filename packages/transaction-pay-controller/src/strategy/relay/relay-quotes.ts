@@ -603,10 +603,9 @@ async function calculateSourceNetworkCost(
     fromOverride,
   );
 
-  const { totalGasEstimate, totalGasLimit, gasLimits } =
-    request.isPostQuote && transaction.txParams.to
-      ? combinePostQuoteGas(relayOnlyGas, transaction)
-      : relayOnlyGas;
+  const { totalGasEstimate, totalGasLimit, gasLimits } = request.isPostQuote
+    ? combinePostQuoteGas(relayOnlyGas, transaction)
+    : relayOnlyGas;
 
   log('Gas limit', {
     totalGasEstimate,
@@ -674,7 +673,7 @@ async function calculateSourceNetworkCost(
     log('Using proxy address for predict withdraw gas station simulation', {
       proxyAddress: request.refundTo,
       sourceTokenAddress,
-      relayOnlyGasEstimate: relayOnlyGas.totalGasEstimate,
+      totalGasEstimate,
     });
 
     const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
@@ -689,14 +688,8 @@ async function calculateSourceNetworkCost(
         sourceChainId,
         sourceTokenAddress,
       },
-      totalGasEstimate: relayOnlyGas.totalGasEstimate,
-      // Simulation estimates gas for one relay step; force totalItemCount >= 2
-      // so normalization scales the cost to cover all relay gas.
-      totalItemCount: Math.max(
-        relayParams.length,
-        relayOnlyGas.gasLimits.length,
-        2,
-      ),
+      totalGasEstimate,
+      totalItemCount: relayParams.length + 1,
     });
 
     if (gasFeeTokenCost) {
