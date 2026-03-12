@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `deferEligibilityCheck` option to `PerpsControllerOptions` to skip the eager geolocation fetch during construction
+- Add `startEligibilityMonitoring()` method to activate geo-blocking eligibility checks post-onboarding
+
 ## [1.0.1]
 
 ### Changed
