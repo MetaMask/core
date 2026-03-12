@@ -380,7 +380,7 @@ describe('BaseController', () => {
     'CountController:stateChanged',
     'CountController:stateChange',
   ] as const) {
-    const shortEventName = eventName.replace(/^(.+):(.+)$/u, '\\1');
+    const shortEventName = eventName.replace(/^(.+)(:.+)$/u, '$2');
 
     it(`should inform subscribers of state changes via ${shortEventName} as a result of applying patches`, () => {
       const messenger = getCountMessenger();
