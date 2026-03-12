@@ -35,6 +35,7 @@ export type SnapAccountProviderConfig = {
     backOffMs: number;
   };
   createAccounts: {
+    v2: boolean;
     timeoutMs: number;
   };
 };

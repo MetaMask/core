@@ -1023,9 +1023,6 @@
   "packages/multichain-account-service/src/providers/SolAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
-    },
-    "id-length": {
-      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/TrxAccountProvider.ts": {
