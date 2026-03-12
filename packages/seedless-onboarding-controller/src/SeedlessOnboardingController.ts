@@ -2287,9 +2287,7 @@ export class SeedlessOnboardingController<
    * Rotate the refresh token — fetch a new refresh/revoke token pair from the
    * auth service and persist the new revoke token in the vault.
    *
-   * This method is private and is called exclusively from `#doRefreshAuthTokens`
-   * after a successful JWT refresh, at which point the vault is guaranteed to
-   * be unlocked and `#cachedDecryptedVaultData` is populated.
+   * This method should be called after a successful JWT refresh.
    *
    * @returns A Promise that resolves to void.
    */
@@ -2299,7 +2297,8 @@ export class SeedlessOnboardingController<
     const vaultData = this.#cachedDecryptedVaultData;
     // Safety net: the caller (#doRefreshAuthTokens) already guards with
     // `this.#isUnlocked && this.#cachedDecryptedVaultData`, so this branch
-    // is unreachable in normal flow.
+    // is unreachable in normal flow. This check is added to satisfy the linter and
+    // to make sure any future caller of this method does not bypass the check.
     /* istanbul ignore if */
     if (!vaultData) {
       throw new SeedlessOnboardingError(
