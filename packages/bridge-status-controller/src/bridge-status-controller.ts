@@ -1246,6 +1246,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // TODO add metrics context
     stopPollingForQuotes(this.messenger);
 
+    const startTime = Date.now();
+
     // Build pre-confirmation properties for error tracking parity with submitTx
     const account = getAccountByAddress(this.messenger, accountAddress);
     const isHardwareAccount = Boolean(account) && isHardwareWallet(account);
@@ -1304,12 +1306,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         aggregatorId: intent.protocol,
       };
 
-      const intentOrder = await this.#intentManager.submitIntent(
+      const { id: orderUid, status } = await this.#intentManager.submitIntent(
         submissionParams,
         this.#clientId,
       );
-
-      const orderUid = intentOrder.id;
 
       // Determine transaction type: swap for same-chain, bridge for cross-chain
       const transactionType = isBridgeTx
@@ -1353,7 +1353,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const syntheticMeta = {
         ...initialTxMeta,
         // Map intent order status to TransactionController status
-        status: mapIntentOrderStatusToTransactionStatus(intentOrder.status),
+        status: mapIntentOrderStatusToTransactionStatus(status),
         isIntentTx: true,
         orderUid,
       };
@@ -1369,8 +1369,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           id: bridgeHistoryKey,
           originalTransactionId: syntheticMeta.id, // Keep original txId for TransactionController updates
         };
-
-        const startTime = Date.now();
 
         this.#addTxToHistory({
           accountAddress,
