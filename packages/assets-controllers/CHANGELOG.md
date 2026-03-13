@@ -45,6 +45,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Standardize names of `AccountTrackerController` messenger action types ([#8164](https://github.com/MetaMask/core/pull/8164))
   - All existing types for messenger actions have been renamed so they include `Controller` (e.g. `AccountTrackerUpdateNativeBalancesAction` -> `AccountTrackerControllerUpdateNativeBalancesAction`). You will need to update imports appropriately.
   - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AccountTrackerController` messengers.
+- Bump `@metamask/account-tree-controller` from `^5.0.1` to `^5.0.2` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/approval-controller` from `^8.0.0` to `^8.0.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.19.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/network-enablement-controller` from `^4.2.0` to `^5.0.0` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/phishing-controller` from `^16.3.0` to `^16.3.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/polling-controller` from `^16.0.3` to `^16.0.4` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/preferences-controller` from `^23.0.0` to `^23.1.0` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/storage-service` from `^1.0.0` to `^1.0.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8195](https://github.com/MetaMask/core/pull/8195))
 
 ### Fixed
 

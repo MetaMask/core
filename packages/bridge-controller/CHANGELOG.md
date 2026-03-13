@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [69.1.1]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^2.3.0` to `^2.3.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/assets-controllers` from `^100.2.1` to `^101.0.0` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.19.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/gas-fee-controller` from `^26.0.3` to `^26.0.4` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/polling-controller` from `^16.0.3` to `^16.0.4` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.1.0` to `^4.2.0` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8195](https://github.com/MetaMask/core/pull/8195))
+
 ## [69.1.0]
 
 ### Added

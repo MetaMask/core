@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `RemoteFeatureFlagController:disable`
   - Corresponding action types (e.g. `RemoteFeatureFlagControllerEnableAction`) are available as well.
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.19.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+
 ## [4.1.0]
 
 ### Added

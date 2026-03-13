@@ -12,9 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `BridgeExchangeRatesFormat` type now uses canonical `@metamask/assets-controllers` state types instead of locally-defined bridge rate entry types ([#8175](https://github.com/MetaMask/core/pull/8175))
-- Bump `@metamask/account-tree-controller` from `^5.0.0` to `^5.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
-- Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/account-tree-controller` from `^5.0.0` to `^5.0.2` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/assets-controllers` from `^100.2.0` to `^101.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8195](https://github.com/MetaMask/core/pull/8195))
 - Bump `@metamask/core-backend` from `^6.1.0` to `^6.1.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/client-controller` from `^1.0.0` to `^1.0.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.19.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/network-enablement-controller` from `^4.2.0` to `^5.0.0` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/polling-controller` from `^16.0.3` to `^16.0.4` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/preferences-controller` from `^23.0.0` to `^23.1.0` ([#8195](https://github.com/MetaMask/core/pull/8195))
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8195](https://github.com/MetaMask/core/pull/8195))
 
 ## [2.3.0]
 
