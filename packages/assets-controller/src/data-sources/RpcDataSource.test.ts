@@ -1261,8 +1261,9 @@ describe('RpcDataSource', () => {
 
   describe('handleBalanceUpdate (via callback)', () => {
     it('invokes onAssetsUpdate with balance response when BalanceFetcher callback runs', async () => {
-      let balanceUpdateCallback: ((result: BalanceFetchResult) => void) | null =
-        null;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
       jest
         .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
         .mockImplementation(function (this: BalanceFetcher, callback) {

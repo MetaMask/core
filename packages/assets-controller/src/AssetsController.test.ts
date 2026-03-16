@@ -18,7 +18,12 @@ import type {
   AssetsControllerState,
 } from './AssetsController';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
-import type { Caip19AssetId, AccountId, DataResponse, FungibleAssetMetadata } from './types';
+import type {
+  Caip19AssetId,
+  AccountId,
+  DataResponse,
+  FungibleAssetMetadata,
+} from './types';
 import { formatExchangeRatesForBridge } from './utils';
 
 jest.mock('./utils', () => {
@@ -833,7 +838,7 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('handleAssetsUpdate', () => {
+  describe('handleAssetsUpdate - state updates', () => {
     it('updates state with balance data', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(

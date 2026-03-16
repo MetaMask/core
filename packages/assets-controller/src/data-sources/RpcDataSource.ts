@@ -280,7 +280,6 @@ export class RpcDataSource extends AbstractDataSource<
       { pollingInterval: balanceInterval },
     );
     this.#balanceFetcher.setOnBalanceUpdate(
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#handleBalanceUpdate.bind(this),
     );
 
