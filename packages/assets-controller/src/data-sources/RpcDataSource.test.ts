@@ -1279,7 +1279,7 @@ describe('RpcDataSource', () => {
         });
 
         expect(balanceUpdateCallback).not.toBeNull();
-        balanceUpdateCallback?.(
+        await balanceUpdateCallback?.(
           createBalanceFetchResult({
             balances: [
               {
