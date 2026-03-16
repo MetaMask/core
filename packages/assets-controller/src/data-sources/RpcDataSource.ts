@@ -60,6 +60,7 @@ import type {
   DataResponse,
   Middleware,
 } from '../types';
+import { normalizeAssetId } from '../utils';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
@@ -891,18 +892,28 @@ export class RpcDataSource extends AbstractDataSource<
             assetsBalance[accountId] = {};
           }
 
+          // Normalize asset IDs from BalanceFetcher (which uses lowercase
+          // addresses) to checksummed form so they match assetsInfo state keys.
+          const normalizedBalances = result.balances.map((b) => ({
+            ...b,
+            assetId: normalizeAssetId(b.assetId),
+          }));
+
           // Collect metadata for all balances
           const balanceMetadata = this.#collectMetadataForBalances(
-            result.balances,
+            normalizedBalances,
             chainId,
           );
           Object.assign(assetsInfo, balanceMetadata);
 
-          // Convert balances to human-readable format
-          for (const balance of result.balances) {
-            const metadata = assetsInfo[balance.assetId];
-            // Default to 18 decimals (ERC20 standard) for consistent human-readable format
-            const decimals = metadata?.decimals ?? 18;
+          // Convert balances to human-readable format using decimals from
+          // assetsInfo state (which includes pendingMetadata from addCustomAsset)
+          const existingMetadata = this.#getExistingAssetsMetadata();
+          for (const balance of normalizedBalances) {
+            const stateMetadata = existingMetadata[balance.assetId];
+            const pipelineMetadata = assetsInfo[balance.assetId];
+            const decimals =
+              stateMetadata?.decimals ?? pipelineMetadata?.decimals ?? 18;
             const humanReadableAmount = this.#convertToHumanReadable(
               balance.balance,
               decimals,
