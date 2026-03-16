@@ -44,6 +44,7 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep, isEqual } from 'lodash';
 
+import type { AccountTrackerControllerMethodActions } from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import type {
   AssetsContractController,

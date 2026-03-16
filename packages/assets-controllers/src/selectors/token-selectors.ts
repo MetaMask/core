@@ -193,6 +193,10 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     for (const [chainId, chainAccounts] of Object.entries(
       accountsByChainId,
     ) as [Hex, Record<Hex, { balance: Hex | null }>][]) {
+      // Skip native tokens on Tempo networks
+      if (shouldHideNativeToken(chainId, true)) {
+        continue;
+      }
       for (const [accountAddress, accountBalance] of Object.entries(
         chainAccounts,
       )) {
@@ -202,11 +206,6 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
         }
 
         const { accountGroupId, type, accountId } = account;
-
-        // Skip native tokens on Tempo networks
-        if (shouldHideNativeToken(chainId, true)) {
-          continue;
-        }
 
         groupAssets[accountGroupId] ??= {};
         groupAssets[accountGroupId][chainId] ??= [];

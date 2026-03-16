@@ -153,7 +153,7 @@ export class RpcBalanceFetcher implements BalanceFetcher {
       const { tokenBalances, stakedBalances } = balanceResult;
       const chainResults: ProcessedBalance[] = [];
 
-      if (includeNativeAndStaked) {
+      if (includeNative && includeNativeAndStaked) {
         // Add native token entries for all addresses being processed
         const allAddressesForNative = new Set<string>();
         accountTokenGroups.forEach((group) => {
