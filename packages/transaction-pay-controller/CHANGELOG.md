@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Support feature flags for polling interval and timeout.
   - Ignore transient network errors.
 - Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
+- Bump `@metamask/assets-controllers` from `^100.2.1` to `^101.0.0` ([#8199](https://github.com/MetaMask/core/pull/8199))
 
 ## [16.5.0]
 
