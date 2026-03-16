@@ -32,7 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent wallet's lock by-pass when creating non-EVM account asynchronously ([#7801](https://github.com/MetaMask/core/pull/7801))
   - The `waitForAllProvidersToFinishCreatingAccounts` option (when set to `false`) was causing account creation to be asynchronous for non-EVM providers, which was potentially creating accounts after the wallet's internal lock was released.
   - We now run an internal account alignment operation which locks the wallet properly and runs in the background.
-
 - Wait for Snap keyring in KeyringController before non-EVM account creation ([#8196](https://github.com/MetaMask/core/pull/8196))
   - After wallet reset or restore, the Snap keyring is created lazily (e.g. when `getSnapKeyring()` runs). We now wait for it to appear (via `KeyringController:getState` and `KeyringController:stateChange`) with a timeout, avoiding "Keyring not found" error.
 
