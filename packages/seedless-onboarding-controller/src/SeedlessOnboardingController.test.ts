@@ -5888,7 +5888,7 @@ describe('SeedlessOnboardingController', () => {
 
             await controller.refreshAuthTokens();
 
-            // #rotateRefreshToken writes the new refresh token to state.
+            // rotateRefreshToken writes the new refresh token to state.
             expect(controller.state.refreshToken).not.toBe(
               originalRefreshToken,
             );
@@ -6606,7 +6606,7 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
-  describe('#rotateRefreshToken', () => {
+  describe('rotateRefreshToken', () => {
     const MOCK_PASSWORD = 'mock-password';
     const MOCK_REVOKE_TOKEN = 'newRevokeToken';
 
@@ -6636,31 +6636,123 @@ describe('SeedlessOnboardingController', () => {
             vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
           }),
         },
-        async ({
-          controller,
-          toprfClient,
-          mockRenewRefreshToken,
-          mockRefreshJWTToken,
-        }) => {
+        async ({ controller, mockRenewRefreshToken }) => {
           // Unlock vault so #cachedDecryptedVaultData is populated.
           await controller.submitPassword(MOCK_PASSWORD);
 
-          mockRefreshJWTToken.mockResolvedValueOnce({
-            idTokens: ['newIdToken'],
-            metadataAccessToken: 'mock-metadata-access-token',
-            accessToken,
-          });
-          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
-            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-            isNewUser: false,
-          });
-
-          await controller.refreshAuthTokens();
+          await controller.rotateRefreshToken();
 
           expect(mockRenewRefreshToken).toHaveBeenCalledWith({
             connection: controller.state.authConnection,
             revokeToken: MOCK_REVOKE_TOKEN,
           });
+        },
+      );
+    });
+
+    it('should update state with new tokens and queue old token for revocation', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_REVOKE_TOKEN,
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
+          }),
+        },
+        async ({ controller }) => {
+          // Unlock vault so #cachedDecryptedVaultData is populated.
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          const originalRefreshToken = controller.state.refreshToken;
+
+          await controller.rotateRefreshToken();
+
+          // State should be updated with new tokens
+          expect(controller.state.refreshToken).toBe('newRefreshToken');
+          expect(controller.state.revokeToken).toBe('newRevokeToken');
+
+          // Old token should be queued for revocation
+          expect(controller.state.pendingToBeRevokedTokens).toHaveLength(1);
+          expect(controller.state.pendingToBeRevokedTokens?.[0]).toStrictEqual({
+            refreshToken: originalRefreshToken,
+            revokeToken: MOCK_REVOKE_TOKEN,
+          });
+        },
+      );
+    });
+
+    it('should throw when user is not authenticated', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.rotateRefreshToken()).rejects.toThrow(
+          SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+        );
+      });
+    });
+
+    it('should not update state when renewal returns null tokens', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_REVOKE_TOKEN,
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
+          }),
+        },
+        async ({ controller, mockRenewRefreshToken }) => {
+          // Unlock vault so #cachedDecryptedVaultData is populated.
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          const originalRefreshToken = controller.state.refreshToken;
+          const originalRevokeToken = controller.state.revokeToken;
+
+          // Mock renewal to return null tokens
+          mockRenewRefreshToken.mockResolvedValueOnce({
+            newRevokeToken: null,
+            newRefreshToken: null,
+          });
+
+          await controller.rotateRefreshToken();
+
+          // State should remain unchanged
+          expect(controller.state.refreshToken).toBe(originalRefreshToken);
+          expect(controller.state.revokeToken).toBe(originalRevokeToken);
+          expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(
+            0,
+          );
         },
       );
     });
@@ -6689,41 +6781,30 @@ describe('SeedlessOnboardingController', () => {
             vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
           }),
         },
-        async ({ controller, toprfClient, encryptor, mockRefreshJWTToken }) => {
+        async ({ controller, encryptor }) => {
           // Unlock vault so #cachedDecryptedVaultData is populated.
           await controller.submitPassword(MOCK_PASSWORD);
 
-          mockRefreshJWTToken.mockResolvedValueOnce({
-            idTokens: ['newIdToken'],
-            metadataAccessToken: 'mock-metadata-access-token',
-            accessToken,
-          });
-          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
-            nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
-            isNewUser: false,
-          });
-
-          // Let the first vault update (new accessToken) succeed; fail the
-          // second (new revokeToken inside #rotateRefreshToken).
+          // Fail the vault update (new revokeToken inside rotateRefreshToken).
           const originalEncryptWithKey =
             encryptor.encryptWithKey.bind(encryptor);
-          let vaultUpdateCallCount = 0;
           jest
             .spyOn(encryptor, 'encryptWithKey')
-            .mockImplementation(async (...args) => {
-              vaultUpdateCallCount += 1;
-              if (vaultUpdateCallCount === 2) {
-                throw new Error('Storage full');
-              }
-              return originalEncryptWithKey(...args);
+            .mockImplementation(async () => {
+              throw new Error('Storage full');
             });
 
-          // refreshAuthTokens still resolves — the rotation error is swallowed.
-          await controller.refreshAuthTokens();
+          // rotateRefreshToken should throw since the vault update failed.
+          await expect(controller.rotateRefreshToken()).rejects.toThrow(
+            'Storage full',
+          );
 
-          // The old token must NOT be in pendingToBeRevokedTokens. Queueing it
-          // before confirming the new vault was persisted would schedule the
-          // user's only valid refresh token for revocation.
+          // Restore encryptor so we can verify state
+          jest
+            .spyOn(encryptor, 'encryptWithKey')
+            .mockImplementation(originalEncryptWithKey);
+
+          // The old token must NOT be in pendingToBeRevokedTokens.
           expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(
             0,
           );

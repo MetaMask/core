@@ -10,12 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Token refresh now uses a dedicated private `#reAuthenticate` method that only accepts the tokens returned by the JWT-refresh service (`idTokens`, `accessToken`, `metadataAccessToken`), making the re-authentication path stricter than the initial `authenticate` call ([#8148](https://github.com/MetaMask/core/pull/8148))
-- After a successful JWT refresh the controller proactively rotates the refresh/revoke token pair (when the vault is unlocked) via a new private `#rotateRefreshToken` method ([#8148](https://github.com/MetaMask/core/pull/8148))
+- After a successful JWT refresh the controller proactively rotates the refresh/revoke token pair (when the vault is unlocked) via the public `rotateRefreshToken` method ([#8148](https://github.com/MetaMask/core/pull/8148))
 - Token expiry checks now use a 90% lifetime threshold for proactive refresh: access tokens and metadata access tokens are refreshed when less than 10% of their lifetime remains (requires `iat`), while node auth tokens fall back to exact-expiry checking ([#8148](https://github.com/MetaMask/core/pull/8148))
 
 ### Removed
 
-- **BREAKING:** Removed public `renewRefreshToken` method — refresh token rotation is now handled automatically by the controller after a successful JWT refresh ([#8148](https://github.com/MetaMask/core/pull/8148))
+- **BREAKING:** Removed public `renewRefreshToken` method — refresh token rotation is now handled by `rotateRefreshToken`, which can also be called directly ([#8148](https://github.com/MetaMask/core/pull/8148))
 
 ## [8.1.0]
 

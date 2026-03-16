@@ -2192,7 +2192,7 @@ export class SeedlessOnboardingController<
         });
 
         // Proactively rotate the refresh token now that we have vault access.
-        await this.#rotateRefreshToken().catch((error) => {
+        await this.rotateRefreshToken().catch((error) => {
           // Rotation failure is intentionally non-fatal: the JWT refresh
           // itself succeeded and the caller should not be blocked.
           // However the user is now operating with a stale refresh token
@@ -2226,7 +2226,7 @@ export class SeedlessOnboardingController<
    *
    * `refreshToken` and `revokeToken` are intentionally absent — token-refresh
    * paths must not touch `state.refreshToken` directly; that field is managed
-   * exclusively by `#rotateRefreshToken`.
+   * exclusively by `rotateRefreshToken`.
    *
    * @param params - Tokens issued by the JWT-refresh service.
    * @param params.idTokens - New node id tokens.
@@ -2291,7 +2291,7 @@ export class SeedlessOnboardingController<
    *
    * @returns A Promise that resolves to void.
    */
-  async #rotateRefreshToken(): Promise<void> {
+  async rotateRefreshToken(): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
     const vaultData = this.#cachedDecryptedVaultData;
