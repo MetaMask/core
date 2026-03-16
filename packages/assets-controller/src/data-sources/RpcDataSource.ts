@@ -858,13 +858,32 @@ export class RpcDataSource extends AbstractDataSource<
       for (const chainId of chainsForAccount) {
         const hexChainId = caipChainIdToHex(chainId);
 
+        // Extract ERC20 token addresses from customAssets for this chain
+        const customTokenAddresses: Address[] = [];
+        if (request.customAssets) {
+          for (const assetId of request.customAssets) {
+            try {
+              const parsed = parseCaipAssetType(assetId);
+              const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+              if (
+                assetChainId === chainId &&
+                parsed.assetNamespace === 'erc20'
+              ) {
+                customTokenAddresses.push(parsed.assetReference as Address);
+              }
+            } catch {
+              // Skip unparseable asset IDs
+            }
+          }
+        }
+
         try {
           // Use BalanceFetcher for batched balance fetching
           const result = await this.#balanceFetcher.fetchBalancesForTokens(
             hexChainId,
             accountId,
             address as Address,
-            [], // Empty array means just native token
+            customTokenAddresses,
             { includeNative: true },
           );
 

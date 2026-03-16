@@ -757,6 +757,60 @@ describe('RpcDataSource', () => {
         },
       );
     });
+
+    it('passes custom ERC20 token addresses to BalanceFetcher', async () => {
+      const customAssetId =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForTokens')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(async ({ controller }) => {
+        const request = createDataRequest({
+          customAssets: [customAssetId],
+        });
+        await controller.fetch(request);
+
+        expect(fetchSpy).toHaveBeenCalledWith(
+          MOCK_CHAIN_ID_HEX,
+          MOCK_ACCOUNT_ID,
+          MOCK_ADDRESS,
+          ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
+          { includeNative: true },
+        );
+      });
+
+      fetchSpy.mockRestore();
+    });
+
+    it('filters custom assets to only include tokens on the fetched chain', async () => {
+      const matchingAsset =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const otherChainAsset =
+        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
+
+      const fetchSpy = jest
+        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForTokens')
+        .mockResolvedValue(createBalanceFetchResult());
+
+      await withController(async ({ controller }) => {
+        const request = createDataRequest({
+          customAssets: [matchingAsset, otherChainAsset],
+        });
+        await controller.fetch(request);
+
+        expect(fetchSpy).toHaveBeenCalledWith(
+          MOCK_CHAIN_ID_HEX,
+          MOCK_ACCOUNT_ID,
+          MOCK_ADDRESS,
+          ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
+          { includeNative: true },
+        );
+      });
+
+      fetchSpy.mockRestore();
+    });
   });
 
   describe('detectTokens', () => {
