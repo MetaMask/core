@@ -163,6 +163,7 @@ async function waitForRelayCompletion(
   const startTime = Date.now();
 
   let sourceHashEmitted = false;
+  let lastStatus: string | undefined;
 
   while (true) {
     let status: RelayStatusResponse | undefined;
@@ -175,6 +176,7 @@ async function waitForRelayCompletion(
 
     if (status) {
       log('Polled status', status.status, status);
+      lastStatus = status.status;
 
       if (!sourceHashEmitted && status.inTxHashes?.length) {
         sourceHashEmitted = true;
@@ -197,7 +199,8 @@ async function waitForRelayCompletion(
     }
 
     if (hasTimeout && Date.now() - startTime >= pollingTimeout) {
-      throw new Error('Relay polling timed out');
+      const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
+      throw new Error(`Relay polling timed out${statusDetail}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));

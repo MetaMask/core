@@ -155,9 +155,8 @@ describe('Relay Submit Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    getRelayPollingIntervalMock.mockReturnValue(1000);
+    getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(undefined);
-
 
     getLiveTokenBalanceMock.mockResolvedValue('9999999999');
     normalizeTokenAddressMock.mockImplementation(
@@ -658,7 +657,7 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('throws timeout error when polling exceeds configured timeout', async () => {
+    it('throws timeout error with last status when polling exceeds configured timeout', async () => {
       getRelayPollingTimeoutMock.mockReturnValue(100);
 
       jest.spyOn(Date, 'now').mockReturnValue(0);
@@ -675,7 +674,7 @@ describe('Relay Submit Utils', () => {
         });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Relay polling timed out',
+        'Relay polling timed out (last status: pending)',
       );
     });
 
