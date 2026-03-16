@@ -332,7 +332,8 @@ export type GrantPermissions = {
 /**
  * Directly grants given permissions for a specified origin without requesting user approval.
  *
- * @deprecated Use `PermissionControllerGrantPermissionsAction` instead.
+ * @deprecated Use `PermissionControllerGrantPermissionsIncrementalAction`
+ * instead.
  */
 export type GrantPermissionsIncremental = {
   type: `${typeof controllerName}:grantPermissionsIncremental`;
