@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Zero out source network fees in Relay strategy when quote indicates execute flow ([#8181](https://github.com/MetaMask/core/pull/8181))
+- Harden relay status polling ([#8189](https://github.com/MetaMask/core/pull/8189))
+  - Throw if status not recognised.
+  - Support feature flags for polling interval and timeout.
+  - Ignore transient network errors.
 
 ## [16.5.0]
 
@@ -20,10 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Harden relay status polling ([#8189](https://github.com/MetaMask/core/pull/8189))
-  - Throw if status not recognised.
-  - Support feature flags for polling interval and timeout.
-  - Ignore transient network errors.
 - Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
 - Bump `@metamask/bridge-controller` from `^69.0.0` to `^69.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
 - Bump `@metamask/bridge-status-controller` from `^68.0.1` to `^68.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
