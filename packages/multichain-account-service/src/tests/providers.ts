@@ -4,9 +4,9 @@ import type {
   KeyringAccount,
   KeyringCapabilities,
 } from '@metamask/keyring-api';
-import { GroupIndexRange } from 'src/utils';
 
 import { AccountProviderWrapper, EvmAccountProvider } from '../providers';
+import { GroupIndexRange } from '../utils';
 
 export type MockAccountProvider = {
   mockAccounts: KeyringAccount[];
