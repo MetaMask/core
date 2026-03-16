@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.4]
+
 ### Fixed
 
 - Strip cookies from `ProfileMetricsService` fetch requests preventing `431 Request Header Fields Too Large` errors caused by cookies being forwarded to the authentication API ([#8209](https://github.com/MetaMask/core/pull/8209))
@@ -80,7 +82,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.4...HEAD
+[3.0.4]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.3...@metamask/profile-metrics-controller@3.0.4
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.2...@metamask/profile-metrics-controller@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.1...@metamask/profile-metrics-controller@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.0...@metamask/profile-metrics-controller@3.0.1
