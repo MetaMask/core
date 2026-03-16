@@ -24,6 +24,7 @@ import {
 import { getDefaultAssetsControllerState } from '../AssetsController';
 import type { AssetsControllerMessenger } from '../AssetsController';
 import type { Caip19AssetId, ChainId, DataRequest, Context } from '../types';
+import { normalizeAssetId } from '../utils';
 
 const MOCK_CHAIN_ID_HEX = '0x1';
 const MOCK_CHAIN_ID_CAIP = 'eip155:1' as ChainId;
@@ -1292,15 +1293,17 @@ describe('RpcDataSource', () => {
 
     it('uses existing metadata from AssetsController state for ERC20 (#getExistingAssetsMetadata)', async () => {
       const erc20AssetId =
-        'eip155:1/erc20:0xExisting00000000000000000000000000000001' as Caip19AssetId;
+        'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
+      const normalizedId = normalizeAssetId(erc20AssetId);
       const existingMetadata = {
         type: 'erc20' as const,
         symbol: 'FROM_STATE',
         name: 'From State',
         decimals: 6,
       };
-      let balanceUpdateCallback: ((result: BalanceFetchResult) => void) | null =
-        null;
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
       jest
         .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
         .mockImplementation(function (this: BalanceFetcher, callback) {
@@ -1313,7 +1316,7 @@ describe('RpcDataSource', () => {
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
-              assetsInfo: { [erc20AssetId]: existingMetadata },
+              assetsInfo: { [normalizedId]: existingMetadata },
             }),
           },
         },
@@ -1325,7 +1328,7 @@ describe('RpcDataSource', () => {
             onAssetsUpdate,
           });
           expect(balanceUpdateCallback).not.toBeNull();
-          balanceUpdateCallback?.(
+          await balanceUpdateCallback?.(
             createBalanceFetchResult({
               balances: [
                 {
@@ -1340,14 +1343,16 @@ describe('RpcDataSource', () => {
 
       expect(onAssetsUpdate).toHaveBeenCalled();
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[erc20AssetId]).toStrictEqual(existingMetadata);
+      expect(response.assetsInfo[normalizedId]).toStrictEqual(existingMetadata);
     });
 
     it('uses token list metadata for ERC20 not in AssetsController state (#getTokenMetadataFromTokenList)', async () => {
       const tokenAddress = '0xDef4567890123456789012345678901234567890';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
-      let balanceUpdateCallback: ((result: BalanceFetchResult) => void) | null =
-        null;
+      const normalizedId = normalizeAssetId(erc20AssetId);
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
       jest
         .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
         .mockImplementation(function (this: BalanceFetcher, callback) {
@@ -1391,7 +1396,7 @@ describe('RpcDataSource', () => {
           });
 
           expect(balanceUpdateCallback).not.toBeNull();
-          balanceUpdateCallback?.(
+          await balanceUpdateCallback?.(
             createBalanceFetchResult({
               balances: [
                 {
@@ -1406,7 +1411,7 @@ describe('RpcDataSource', () => {
 
       expect(onAssetsUpdate).toHaveBeenCalled();
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[erc20AssetId]).toStrictEqual({
+      expect(response.assetsInfo[normalizedId]).toStrictEqual({
         type: 'erc20',
         symbol: 'TKN',
         name: 'Test Token',
@@ -1418,8 +1423,10 @@ describe('RpcDataSource', () => {
     it('falls back to default metadata when ERC20 not in token list (#getTokenMetadataFromTokenList no match)', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000001';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
-      let balanceUpdateCallback: ((result: BalanceFetchResult) => void) | null =
-        null;
+      const normalizedId = normalizeAssetId(erc20AssetId);
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
       jest
         .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
         .mockImplementation(function (this: BalanceFetcher, callback) {
@@ -1460,7 +1467,7 @@ describe('RpcDataSource', () => {
             isUpdate: false,
             onAssetsUpdate,
           });
-          balanceUpdateCallback?.(
+          await balanceUpdateCallback?.(
             createBalanceFetchResult({
               balances: [
                 {
@@ -1474,7 +1481,7 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[erc20AssetId]).toStrictEqual({
+      expect(response.assetsInfo[normalizedId]).toStrictEqual({
         type: 'erc20',
         symbol: '',
         name: '',
@@ -1485,8 +1492,10 @@ describe('RpcDataSource', () => {
     it('falls back to default metadata when token list has no chain cache (#getTokenMetadataFromTokenList)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000002' as Caip19AssetId;
-      let balanceUpdateCallback: ((result: BalanceFetchResult) => void) | null =
-        null;
+      const normalizedId = normalizeAssetId(erc20AssetId);
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
       jest
         .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
         .mockImplementation(function (this: BalanceFetcher, callback) {
@@ -1511,7 +1520,7 @@ describe('RpcDataSource', () => {
             isUpdate: false,
             onAssetsUpdate,
           });
-          balanceUpdateCallback?.(
+          await balanceUpdateCallback?.(
             createBalanceFetchResult({
               balances: [
                 {
@@ -1525,7 +1534,7 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[erc20AssetId]).toStrictEqual({
+      expect(response.assetsInfo[normalizedId]).toStrictEqual({
         type: 'erc20',
         symbol: '',
         name: '',
@@ -1536,8 +1545,10 @@ describe('RpcDataSource', () => {
     it('falls back to default metadata when token list entry lacks symbol/decimals (#getTokenMetadataFromTokenList)', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000003';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
-      let balanceUpdateCallback: ((result: BalanceFetchResult) => void) | null =
-        null;
+      const normalizedId = normalizeAssetId(erc20AssetId);
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
       jest
         .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
         .mockImplementation(function (this: BalanceFetcher, callback) {
@@ -1578,7 +1589,7 @@ describe('RpcDataSource', () => {
             isUpdate: false,
             onAssetsUpdate,
           });
-          balanceUpdateCallback?.(
+          await balanceUpdateCallback?.(
             createBalanceFetchResult({
               balances: [
                 {
@@ -1592,7 +1603,7 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[erc20AssetId]).toStrictEqual({
+      expect(response.assetsInfo[normalizedId]).toStrictEqual({
         type: 'erc20',
         symbol: '',
         name: '',
@@ -1603,8 +1614,10 @@ describe('RpcDataSource', () => {
     it('falls back to default metadata when non-ERC20 assetId in balance (#getTokenMetadataFromTokenList)', async () => {
       const nonErc20AssetId =
         'eip155:1/erc721:0xAbc0000000000000000000000000000000000004' as Caip19AssetId;
-      let balanceUpdateCallback: ((result: BalanceFetchResult) => void) | null =
-        null;
+      const normalizedId = normalizeAssetId(nonErc20AssetId);
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
       jest
         .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
         .mockImplementation(function (this: BalanceFetcher, callback) {
@@ -1633,7 +1646,7 @@ describe('RpcDataSource', () => {
             isUpdate: false,
             onAssetsUpdate,
           });
-          balanceUpdateCallback?.(
+          await balanceUpdateCallback?.(
             createBalanceFetchResult({
               balances: [
                 {
@@ -1647,7 +1660,7 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[nonErc20AssetId]).toStrictEqual({
+      expect(response.assetsInfo[normalizedId]).toStrictEqual({
         type: 'erc20',
         symbol: '',
         name: '',
@@ -1658,8 +1671,10 @@ describe('RpcDataSource', () => {
     it('falls back to default metadata when TokenListController:getState throws (#getTokenMetadataFromTokenList catch)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000005' as Caip19AssetId;
-      let balanceUpdateCallback: ((result: BalanceFetchResult) => void) | null =
-        null;
+      const normalizedId = normalizeAssetId(erc20AssetId);
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
       jest
         .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
         .mockImplementation(function (this: BalanceFetcher, callback) {
@@ -1686,7 +1701,7 @@ describe('RpcDataSource', () => {
             isUpdate: false,
             onAssetsUpdate,
           });
-          balanceUpdateCallback?.(
+          await balanceUpdateCallback?.(
             createBalanceFetchResult({
               balances: [
                 {
@@ -1700,7 +1715,7 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[erc20AssetId]).toStrictEqual({
+      expect(response.assetsInfo[normalizedId]).toStrictEqual({
         type: 'erc20',
         symbol: '',
         name: '',
