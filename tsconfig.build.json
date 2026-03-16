@@ -56,6 +56,9 @@
       "path": "./packages/build-utils/tsconfig.build.json"
     },
     {
+      "path": "./packages/cash-account-service/tsconfig.build.json"
+    },
+    {
       "path": "./packages/chain-agnostic-permission/tsconfig.build.json"
     },
     {

@@ -28,6 +28,7 @@ import {
   isValidJson,
   remove0x,
 } from '@metamask/utils';
+import { CashKeyring } from '@metamask-previews/eth-cash-keyring';
 import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
@@ -55,6 +56,7 @@ export enum KeyringTypes {
   /* eslint-disable @typescript-eslint/naming-convention */
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
+  cash = 'Cash Keyring',
   qr = 'QR Hardware Wallet Device',
   trezor = 'Trezor Hardware',
   oneKey = 'OneKey Hardware',
@@ -558,6 +560,7 @@ const defaultKeyringBuilders = [
   // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(SimpleKeyring),
   keyringBuilderFactory(HdKeyring),
+  keyringBuilderFactory(CashKeyring),
 ];
 
 export const getDefaultKeyringState = (): KeyringControllerState => {
