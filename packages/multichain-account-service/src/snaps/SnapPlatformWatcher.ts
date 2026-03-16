@@ -115,8 +115,13 @@ export class SnapPlatformWatcher {
    */
   async #waitForSnapKeyringViaStateChange(): Promise<void> {
     await new Promise<void>((resolve) => {
+      const timeoutRef: { id: ReturnType<typeof setTimeout> | undefined } = {
+        id: undefined,
+      };
+
       const listener = (state: KeyringControllerStateSlice): void => {
         if (stateHasSnapKeyring(state)) {
+          clearTimeout(timeoutRef.id);
           this.#messenger.unsubscribe(
             'KeyringController:stateChange',
             listener,
@@ -125,7 +130,7 @@ export class SnapPlatformWatcher {
         }
       };
 
-      setTimeout(() => {
+      timeoutRef.id = setTimeout(() => {
         this.#messenger.unsubscribe('KeyringController:stateChange', listener);
         resolve();
       }, SNAP_KEYRING_WAIT_TIMEOUT_MS);
