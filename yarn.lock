@@ -2485,6 +2485,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask-previews/eth-cash-keyring@npm:0.0.0-25e4b24":
+  version: 0.0.0-25e4b24
+  resolution: "@metamask-previews/eth-cash-keyring@npm:0.0.0-25e4b24"
+  dependencies:
+    "@metamask/eth-hd-keyring": "npm:13.1.0"
+  checksum: 10/468cd1afb1a498406cd2b4dd01f5059fc7313739b30c9ed066789f779dc784b7dc5baee982565da334671700a4f0a0bf2c45818040b7b656452700ff36b1a07b
+  languageName: node
+  linkType: hard
+
 "@metamask/7715-permission-types@npm:^0.5.0":
   version: 0.5.0
   resolution: "@metamask/7715-permission-types@npm:0.5.0"
@@ -3110,6 +3119,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/cash-account-service@workspace:packages/cash-account-service":
+  version: 0.0.0-use.local
+  resolution: "@metamask/cash-account-service@workspace:packages/cash-account-service"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/eth-hd-keyring": "npm:^13.0.0"
+    "@metamask/keyring-controller": "npm:^25.1.0"
+    "@metamask/messenger": "npm:^0.3.0"
+    "@metamask/utils": "npm:^11.9.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/chain-agnostic-permission@npm:^1.5.0, @metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission":
   version: 0.0.0-use.local
   resolution: "@metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission"
@@ -3679,6 +3709,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/eth-hd-keyring@npm:13.1.0":
+  version: 13.1.0
+  resolution: "@metamask/eth-hd-keyring@npm:13.1.0"
+  dependencies:
+    "@ethereumjs/tx": "npm:^5.4.0"
+    "@ethereumjs/util": "npm:^9.1.0"
+    "@metamask/eth-sig-util": "npm:^8.2.0"
+    "@metamask/key-tree": "npm:^10.0.2"
+    "@metamask/keyring-api": "npm:^21.3.0"
+    "@metamask/keyring-utils": "npm:^3.1.0"
+    "@metamask/scure-bip39": "npm:^2.1.1"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    ethereum-cryptography: "npm:^2.1.2"
+  checksum: 10/7d67c29c6387ffe871995e67e4802b9a6f6eb2f14b556e43690509b342ef66b72765477b27e4b669fe8a00606e219e00991f94da3a74fcedcf339ab765215ae6
+  languageName: node
+  linkType: hard
+
 "@metamask/eth-hd-keyring@npm:^13.0.0":
   version: 13.0.0
   resolution: "@metamask/eth-hd-keyring@npm:13.0.0"
@@ -4163,6 +4211,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^21.3.0":
+  version: 21.5.0
+  resolution: "@metamask/keyring-api@npm:21.5.0"
+  dependencies:
+    "@ethereumjs/tx": "npm:^5.4.0"
+    "@metamask/eth-sig-util": "npm:^8.2.0"
+    "@metamask/keyring-utils": "npm:^3.2.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    "@types/uuid": "npm:^9.0.8"
+    async-mutex: "npm:^0.5.0"
+    bitcoin-address-validation: "npm:^2.2.3"
+    uuid: "npm:^9.0.1"
+  checksum: 10/a7f2a8c66bc76edabde15b66b80904208b71fd62406ebb91579db4c65d74a8f66db6c610afe265823313df7423b6727a4de03cb1f43e41d840d51a5039f9ef4d
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-api@npm:^21.4.0, @metamask/keyring-api@npm:^21.6.0":
   version: 21.6.0
   resolution: "@metamask/keyring-api@npm:21.6.0"
@@ -4189,6 +4254,7 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@metamask-previews/eth-cash-keyring": "npm:0.0.0-25e4b24"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
