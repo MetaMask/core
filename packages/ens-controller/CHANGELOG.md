@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `EnsController:reverseResolveAddress`
   - Corresponding action types (e.g. `EnsControllerResetStateAction`) are available as well.
 
+
 ## [19.0.3]
 
 ### Changed

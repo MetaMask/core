@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `LoggingController:clear`
   - Corresponding action type (`LoggingControllerClearAction`) is available as well.
 
+
 ### Changed
 
 - **BREAKING:** Standardize names of `LoggingController` messenger action types ([#8183](https://github.com/MetaMask/core/pull/8183))
