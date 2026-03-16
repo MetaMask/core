@@ -81,6 +81,7 @@ describe('ProfileMetricsService', () => {
         .put('/profile/accounts')
         .reply(200, { data: { success: true } });
       const mockFetch = jest.fn().mockResolvedValue(
+        // eslint-disable-next-line no-restricted-globals
         new Response(JSON.stringify({ data: { success: true } }), {
           status: 200,
         }),
