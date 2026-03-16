@@ -14,11 +14,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import type { FeatureFlags } from '../../utils/feature-flags';
-import {
-  isEIP7702Chain,
-  isRelayExecuteEnabled,
-  getFeatureFlags,
-} from '../../utils/feature-flags';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
 import {
   collectTransactionIds,
@@ -135,9 +131,6 @@ describe('Relay Submit Utils', () => {
   const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
   const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
 
-  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
-  const isRelayExecuteEnabledMock = jest.mocked(isRelayExecuteEnabled);
-
   const {
     addTransactionMock,
     addTransactionBatchMock,
@@ -154,9 +147,6 @@ describe('Relay Submit Utils', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-
-    isEIP7702ChainMock.mockReturnValue(false);
-    isRelayExecuteEnabledMock.mockReturnValue(false);
 
     getLiveTokenBalanceMock.mockResolvedValue('9999999999');
     normalizeTokenAddressMock.mockImplementation(
@@ -1022,8 +1012,7 @@ describe('Relay Submit Utils', () => {
       } as FeatureFlags;
 
       beforeEach(() => {
-        isEIP7702ChainMock.mockReturnValue(true);
-        isRelayExecuteEnabledMock.mockReturnValue(true);
+        request.quotes[0].original.metamask.isExecute = true;
         getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
         getFeatureFlagsMock.mockReturnValue(FEATURE_FLAGS_MOCK);
 
@@ -1113,6 +1102,10 @@ describe('Relay Submit Utils', () => {
           ...request.quotes[0],
           original: {
             ...ORIGINAL_QUOTE_MOCK,
+            metamask: {
+              ...ORIGINAL_QUOTE_MOCK.metamask,
+              isExecute: true,
+            },
             steps: [
               {
                 ...ORIGINAL_QUOTE_MOCK.steps[0],
@@ -1261,17 +1254,8 @@ describe('Relay Submit Utils', () => {
         });
       });
 
-      it('uses TransactionController path when chain is not EIP-7702', async () => {
-        isEIP7702ChainMock.mockReturnValue(false);
-
-        await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
-        expect(addTransactionMock).toHaveBeenCalledTimes(1);
-      });
-
-      it('uses TransactionController path when executeEnabled is false', async () => {
-        isRelayExecuteEnabledMock.mockReturnValue(false);
+      it('uses TransactionController path when isExecute is not set', async () => {
+        request.quotes[0].original.metamask.isExecute = undefined;
 
         await submitRelayQuotes(request);
 

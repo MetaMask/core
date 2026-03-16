@@ -74,6 +74,7 @@ export type RelayQuote = {
   };
   metamask: {
     gasLimits: number[];
+    isExecute?: boolean;
     isMaxGasStation?: boolean;
   };
   request: RelayQuoteRequest;
