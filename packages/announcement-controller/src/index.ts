@@ -1,4 +1,9 @@
 export type {
+  AnnouncementControllerResetViewedAction,
+  AnnouncementControllerUpdateViewedAction,
+  AnnouncementControllerMethodActions,
+} from './AnnouncementController-method-action-types';
+export type {
   AnnouncementMap,
   StateAnnouncementMap,
   AnnouncementControllerState,

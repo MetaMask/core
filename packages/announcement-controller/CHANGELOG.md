@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose `AnnouncementController` methods through its messenger ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - The following actions are now available:
+    - `AnnouncementController:resetViewed`
+    - `AnnouncementController:updateViewed`
+  - Corresponding action types (e.g. `AnnouncementControllerResetViewedAction`) are available as well.
+
 ## [8.0.0]
 
 ### Changed
