@@ -9,12 +9,13 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
 import { Duration, inMilliseconds } from '@metamask/utils';
 
 import type { ConfigRegistryApiServiceFetchConfigAction } from './config-registry-api-service/config-registry-api-service-method-action-types';
 import type { RegistryNetworkConfig } from './config-registry-api-service/types';
+import type { ConfigRegistryControllerMethodActions } from './ConfigRegistryController-method-action-types';
 import { isConfigRegistryApiEnabled } from './utils/feature-flags';
 
 const controllerName = 'ConfigRegistryController';
@@ -91,6 +92,8 @@ const stateMetadata = {
  */
 const DEFAULT_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {};
 
+const MESSENGER_EXPOSED_METHODS = ['startPolling', 'stopPolling'] as const;
+
 /**
  * Published when the state of {@link ConfigRegistryController} changes.
  */
@@ -109,29 +112,11 @@ export type ConfigRegistryControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Starts polling the config registry API. Returns a polling token that can be
- * used to stop this polling session.
- */
-export type ConfigRegistryControllerStartPollingAction = {
-  type: `${typeof controllerName}:startPolling`;
-  handler: (input: null) => string;
-};
-
-/**
- * Stops all config registry polling.
- */
-export type ConfigRegistryControllerStopPollingAction = {
-  type: `${typeof controllerName}:stopPolling`;
-  handler: () => void;
-};
-
-/**
  * Actions that {@link ConfigRegistryControllerMessenger} exposes to other consumers.
  */
 export type ConfigRegistryControllerActions =
   | ConfigRegistryControllerGetStateAction
-  | ConfigRegistryControllerStartPollingAction
-  | ConfigRegistryControllerStopPollingAction;
+  | ConfigRegistryControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link ConfigRegistryControllerMessenger}
@@ -212,14 +197,9 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
     this.setIntervalLength(pollingInterval);
 
-    this.messenger.registerActionHandler(
-      `${controllerName}:startPolling`,
-      this.startPolling.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:stopPolling`,
-      this.stopAllPolling.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
 
     this.messenger.subscribe('KeyringController:unlock', () => {
@@ -315,5 +295,15 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
       this.messenger.captureException?.(errorInstance);
     }
+  }
+
+  /**
+   * Stop all polling.
+   */
+  stopPolling(): void {
+    // This is a wrapper around `super.stopAllPolling()` for backwards
+    // compatibility, while allowing this method to be exposed via the messenger
+    // using the `MESSENGER_EXPOSED_METHODS` array.
+    super.stopAllPolling();
   }
 }

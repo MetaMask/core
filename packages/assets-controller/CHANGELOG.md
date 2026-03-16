@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
 - Bump `@metamask/core-backend` from `^6.1.0` to `^6.1.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
 
+### Fixed
+
+- Preserve custom asset metadata (symbol, name, decimals, image) in `AssetsController` when the API returns an empty response for an unknown token, preventing incorrect balance calculations and display for user-deployed tokens added via `wallet_watchAsset` ([#8202](https://github.com/MetaMask/core/pull/8202))
+- Include custom asset token addresses in `RpcDataSource` balance fetches so that on-chain balances are retrieved immediately after token import via `addCustomAsset` ([#8202](https://github.com/MetaMask/core/pull/8202))
+
 ## [2.3.0]
 
 ### Added

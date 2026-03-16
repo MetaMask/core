@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `init` method to asynchronously fetch and set the initial connectivity status from the adapter ([#7679](https://github.com/MetaMask/core/pull/7679))
   - The controller now initializes with a default state (online) and requires calling `init()` to fetch the actual status
+  - This method can be called through the messenger action `ConnectivityController:init`
 - Add `setConnectivityStatus` method to manually set connectivity status ([#7676](https://github.com/MetaMask/core/pull/7676))
   - The method is exposed as a messenger action `ConnectivityController:setConnectivityStatus`
 

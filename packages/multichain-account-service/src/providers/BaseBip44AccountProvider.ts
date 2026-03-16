@@ -1,6 +1,5 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { AccountProvider, Bip44Account } from '@metamask/account-api';
-import { AccountCreationType } from '@metamask/keyring-api';
 import type {
   CreateAccountOptions,
   EntropySourceId,
@@ -67,21 +66,6 @@ export type Bip44AccountProvider<
    */
   isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
   /**
-   * Align the accounts with the given entropy source and group index.
-   *
-   * @param options - The options for aligning the accounts.
-   * @param options.entropySource - The entropy source.
-   * @param options.groupIndex - The group index.
-   * @returns The already and newly aligned accounts IDs.
-   */
-  alignAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Account['id'][]>;
-  /**
    * Create accounts for the provider.
    *
    * @param options - The options for creating the accounts.
@@ -103,7 +87,7 @@ export type Bip44AccountProvider<
 
 export abstract class BaseBip44AccountProvider<
   Account extends Bip44Account<KeyringAccount> = Bip44Account<KeyringAccount>,
-> implements Bip44AccountProvider
+> implements Bip44AccountProvider<Account>
 {
   protected readonly messenger: MultichainAccountServiceMessenger;
 
@@ -193,22 +177,6 @@ export abstract class BaseBip44AccountProvider<
     );
 
     return result as CallbackResult;
-  }
-
-  async alignAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Account['id'][]> {
-    const accounts = await this.createAccounts({
-      type: AccountCreationType.Bip44DeriveIndex,
-      entropySource,
-      groupIndex,
-    });
-    const accountIds = accounts.map((account) => account.id);
-    return accountIds;
   }
 
   abstract get capabilities(): KeyringCapabilities;

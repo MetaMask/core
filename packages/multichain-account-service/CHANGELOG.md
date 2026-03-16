@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801)), ([#8190](https://github.com/MetaMask/core/pull/8190))
+- Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
+  - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
+  - This behavior was enabled by default and can now be turned off by the clients.
+
+### Changed
+
+- Optimize `EvmAccountProvider.createAccounts` for range operations ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Batch account creation with single a `withKeyring` call for entire range instead of one call per account.
+  - Batch account creation with single `keyring.addAccounts` call.
+  - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
+  - Significantly reduces lock acquisitions and API calls for batch operations.
+
+### Removed
+
+- **BREAKING:** Remove `MultichainAccountGroup.alignAccounts` method ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Use `MultichainAccountWallet.alignAccountsOf` instead, since this method properly lock the wallet (parent of this group) state.
+
+### Fixed
+
+- Prevent wallet's lock by-pass when creating non-EVM account asynchronously ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - The `waitForAllProvidersToFinishCreatingAccounts` option (when set to `false`) was causing account creation to be asynchronous for non-EVM providers, which was potentially creating accounts after the wallet's internal lock was released.
+  - We now run an internal account alignment operation which locks the wallet properly and runs in the background.
+
 ## [7.1.0]
 
 ### Added

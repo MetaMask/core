@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Strip cookies from `ProfileMetricsService` fetch requests preventing `431 Request Header Fields Too Large` errors caused by cookies being forwarded to the authentication API ([#8209](https://github.com/MetaMask/core/pull/8209))
+
 ## [3.0.3]
 
 ### Changed

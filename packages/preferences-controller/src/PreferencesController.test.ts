@@ -15,7 +15,7 @@ import { PreferencesController } from './PreferencesController';
 
 describe('PreferencesController', () => {
   it('should set default state', () => {
-    const controller = setupPreferencesController();
+    const { controller } = setupPreferencesController();
     expect(controller.state).toStrictEqual({
       featureFlags: {},
       ipfsGateway: 'https://ipfs.io/ipfs/',
@@ -52,47 +52,53 @@ describe('PreferencesController', () => {
   });
 
   it('should set IPFS gateway', () => {
-    const controller = setupPreferencesController();
-    controller.setIpfsGateway('https://ipfs.infura.io/ipfs/');
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call(
+      'PreferencesController:setIpfsGateway',
+      'https://ipfs.infura.io/ipfs/',
+    );
     expect(controller.state.ipfsGateway).toBe('https://ipfs.infura.io/ipfs/');
   });
 
   it('should set useTokenDetection', () => {
-    const controller = setupPreferencesController();
-    controller.setUseTokenDetection(true);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call('PreferencesController:setUseTokenDetection', true);
     expect(controller.state.useTokenDetection).toBe(true);
   });
 
   it('should set useNftDetection', () => {
-    const controller = setupPreferencesController();
-    controller.setDisplayNftMedia(true);
-    controller.setUseNftDetection(true);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call('PreferencesController:setDisplayNftMedia', true);
+    rootMessenger.call('PreferencesController:setUseNftDetection', true);
     expect(controller.state.useNftDetection).toBe(true);
   });
 
   it('should throw an error when useNftDetection is set and displayNftMedia is false', () => {
-    const controller = setupPreferencesController();
-    controller.setDisplayNftMedia(false);
-    expect(() => controller.setUseNftDetection(true)).toThrow(
-      'useNftDetection cannot be enabled if displayNftMedia is false',
-    );
+    const { rootMessenger } = setupPreferencesController();
+    rootMessenger.call('PreferencesController:setDisplayNftMedia', false);
+    expect(() =>
+      rootMessenger.call('PreferencesController:setUseNftDetection', true),
+    ).toThrow('useNftDetection cannot be enabled if displayNftMedia is false');
   });
 
   it('should set useMultiRpcMigration', () => {
-    const controller = setupPreferencesController();
-    controller.setShowMultiRpcModal(true);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call('PreferencesController:setShowMultiRpcModal', true);
     expect(controller.state.showMultiRpcModal).toBe(true);
   });
 
   it('should set useMultiRpcMigration is false value is passed', () => {
-    const controller = setupPreferencesController();
-    controller.setShowMultiRpcModal(false);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call('PreferencesController:setShowMultiRpcModal', false);
     expect(controller.state.showMultiRpcModal).toBe(false);
   });
 
   it('sets tokenNetworkFilter', () => {
-    const controller = setupPreferencesController();
-    controller.setTokenNetworkFilter({ '0x1': true, '0xa': false });
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call('PreferencesController:setTokenNetworkFilter', {
+      '0x1': true,
+      '0xa': false,
+    });
     expect(controller.state.tokenNetworkFilter).toStrictEqual({
       '0x1': true,
       '0xa': false,
@@ -100,9 +106,17 @@ describe('PreferencesController', () => {
   });
 
   it('should set featureFlags', () => {
-    const controller = setupPreferencesController();
-    controller.setFeatureFlag('Feature A', true);
-    controller.setFeatureFlag('Feature B', false);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call(
+      'PreferencesController:setFeatureFlag',
+      'Feature A',
+      true,
+    );
+    rootMessenger.call(
+      'PreferencesController:setFeatureFlag',
+      'Feature B',
+      false,
+    );
     expect(controller.state.featureFlags).toStrictEqual({
       'Feature A': true,
       'Feature B': false,
@@ -110,52 +124,68 @@ describe('PreferencesController', () => {
   });
 
   it('should set securityAlertsEnabled', () => {
-    const controller = setupPreferencesController();
-    controller.setSecurityAlertsEnabled(true);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call('PreferencesController:setSecurityAlertsEnabled', true);
     expect(controller.state.securityAlertsEnabled).toBe(true);
   });
 
   it('should set isMultiAccountBalancesEnabled', () => {
-    const controller = setupPreferencesController();
-    controller.setIsMultiAccountBalancesEnabled(true);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call(
+      'PreferencesController:setIsMultiAccountBalancesEnabled',
+      true,
+    );
     expect(controller.state.isMultiAccountBalancesEnabled).toBe(true);
   });
 
   it('should set showTestNetworks', () => {
-    const controller = setupPreferencesController();
-    controller.setShowTestNetworks(true);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call('PreferencesController:setShowTestNetworks', true);
     expect(controller.state.showTestNetworks).toBe(true);
   });
 
   it('should set isIpfsGatewayEnabled', () => {
-    const controller = setupPreferencesController();
-    controller.setIsIpfsGatewayEnabled(true);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call('PreferencesController:setIsIpfsGatewayEnabled', true);
     expect(controller.state.isIpfsGatewayEnabled).toBe(true);
   });
 
   it('should set showIncomingTransactions to false on ethereum network', () => {
-    const controller = setupPreferencesController();
+    const { controller, rootMessenger } = setupPreferencesController();
 
-    controller.setEnableNetworkIncomingTransactions('0x1', false);
+    rootMessenger.call(
+      'PreferencesController:setEnableNetworkIncomingTransactions',
+      '0x1',
+      false,
+    );
     expect(controller.state.showIncomingTransactions['0x1']).toBe(false);
   });
 
   it('should set smartTransactionsOptInStatus', () => {
-    const controller = setupPreferencesController();
-    controller.setSmartTransactionsOptInStatus(false);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call(
+      'PreferencesController:setSmartTransactionsOptInStatus',
+      false,
+    );
     expect(controller.state.smartTransactionsOptInStatus).toBe(false);
-    controller.setSmartTransactionsOptInStatus(true);
+    rootMessenger.call(
+      'PreferencesController:setSmartTransactionsOptInStatus',
+      true,
+    );
     expect(controller.state.smartTransactionsOptInStatus).toBe(true);
   });
 
   it('should set useTransactionSimulations', () => {
-    const controller = setupPreferencesController();
-    controller.setUseTransactionSimulations(false);
+    const { controller, rootMessenger } = setupPreferencesController();
+    rootMessenger.call(
+      'PreferencesController:setUseTransactionSimulations',
+      false,
+    );
     expect(controller.state.useTransactionSimulations).toBe(false);
   });
 
   it('should set useSafeChainsListValidation', () => {
-    const controller = setupPreferencesController({
+    const { controller, rootMessenger } = setupPreferencesController({
       options: {
         state: {
           useSafeChainsListValidation: false,
@@ -163,18 +193,21 @@ describe('PreferencesController', () => {
       },
     });
     expect(controller.state.useSafeChainsListValidation).toBe(false);
-    controller.setUseSafeChainsListValidation(true);
+    rootMessenger.call(
+      'PreferencesController:setUseSafeChainsListValidation',
+      true,
+    );
     expect(controller.state.useSafeChainsListValidation).toBe(true);
   });
 
   it('should set tokenSortConfig', () => {
-    const controller = setupPreferencesController();
+    const { controller, rootMessenger } = setupPreferencesController();
     expect(controller.state.tokenSortConfig).toStrictEqual({
       key: 'tokenFiatAmount',
       order: 'dsc',
       sortCallback: 'stringNumeric',
     });
-    controller.setTokenSortConfig({
+    rootMessenger.call('PreferencesController:setTokenSortConfig', {
       key: 'someToken',
       order: 'asc',
       sortCallback: 'stringNumeric',
@@ -187,29 +220,32 @@ describe('PreferencesController', () => {
   });
 
   it('should set privacyMode', () => {
-    const controller = setupPreferencesController();
+    const { controller, rootMessenger } = setupPreferencesController();
     expect(controller.state.privacyMode).toBe(false);
-    controller.setPrivacyMode(true);
+    rootMessenger.call('PreferencesController:setPrivacyMode', true);
     expect(controller.state.privacyMode).toBe(true);
   });
 
   it('should set dismissSmartAccountSuggestionEnabled', () => {
-    const controller = setupPreferencesController();
+    const { controller, rootMessenger } = setupPreferencesController();
     expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(false);
-    controller.setDismissSmartAccountSuggestionEnabled(true);
+    rootMessenger.call(
+      'PreferencesController:setDismissSmartAccountSuggestionEnabled',
+      true,
+    );
     expect(controller.state.dismissSmartAccountSuggestionEnabled).toBe(true);
   });
 
   it('should set smartAccountOptIn', () => {
-    const controller = setupPreferencesController();
+    const { controller, rootMessenger } = setupPreferencesController();
     expect(controller.state.smartAccountOptIn).toBe(true);
-    controller.setSmartAccountOptIn(false);
+    rootMessenger.call('PreferencesController:setSmartAccountOptIn', false);
     expect(controller.state.smartAccountOptIn).toBe(false);
   });
 
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
-      const controller = setupPreferencesController();
+      const { controller } = setupPreferencesController();
 
       expect(
         deriveStateFromMetadata(
@@ -268,7 +304,7 @@ describe('PreferencesController', () => {
     });
 
     it('includes expected state in state logs', () => {
-      const controller = setupPreferencesController();
+      const { controller } = setupPreferencesController();
 
       expect(
         deriveStateFromMetadata(
@@ -330,7 +366,7 @@ describe('PreferencesController', () => {
     });
 
     it('persists expected state', () => {
-      const controller = setupPreferencesController();
+      const { controller } = setupPreferencesController();
 
       expect(
         deriveStateFromMetadata(
@@ -392,7 +428,7 @@ describe('PreferencesController', () => {
     });
 
     it('exposes expected state to UI', () => {
-      const controller = setupPreferencesController();
+      const { controller } = setupPreferencesController();
 
       expect(
         deriveStateFromMetadata(
@@ -484,7 +520,7 @@ function getRootMessenger(): RootMessenger {
  * @param args - Arguments
  * @param args.options - PreferencesController options.
  * @param args.messenger - A messenger.
- * @returns A PreferencesController instance.
+ * @returns A PreferencesController instance and root messenger.
  */
 function setupPreferencesController({
   options = {},
@@ -492,7 +528,7 @@ function setupPreferencesController({
 }: {
   options?: Partial<ConstructorParameters<typeof PreferencesController>[0]>;
   messenger?: RootMessenger;
-} = {}): PreferencesController {
+} = {}): { controller: PreferencesController; rootMessenger: RootMessenger } {
   const preferencesControllerMessenger = new Messenger<
     'PreferencesController',
     AllPreferencesControllerActions,
@@ -502,12 +538,16 @@ function setupPreferencesController({
     namespace: 'PreferencesController',
     parent: messenger,
   });
+
   messenger.delegate({
     messenger: preferencesControllerMessenger,
     actions: [],
   });
-  return new PreferencesController({
+
+  const controller = new PreferencesController({
     messenger: preferencesControllerMessenger,
     ...options,
   });
+
+  return { controller, rootMessenger: messenger };
 }

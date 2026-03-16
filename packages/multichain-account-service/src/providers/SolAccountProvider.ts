@@ -43,6 +43,9 @@ export const SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG: SnapAccountProviderConfig = {
   createAccounts: {
     timeoutMs: 3000,
   },
+  resyncAccounts: {
+    autoRemoveExtraSnapAccounts: true,
+  },
 };
 
 export class SolAccountProvider extends SnapAccountProvider {
@@ -54,6 +57,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     scopes: [SolScope.Mainnet, SolScope.Devnet, SolScope.Testnet],
     bip44: {
       deriveIndex: true,
+      deriveIndexRange: true,
     },
   };
 
@@ -101,6 +105,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     };
 
     assertIsBip44Account(account);
+    this.accounts.add(account.id);
     return account;
   }
 
@@ -109,9 +114,40 @@ export class SolAccountProvider extends SnapAccountProvider {
   ): Promise<Bip44Account<KeyringAccount>[]> {
     assertCreateAccountOptionIsSupported(options, [
       `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
     ]);
 
-    const { entropySource, groupIndex } = options;
+    const { entropySource } = options;
+
+    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
+      const { range } = options;
+      return this.withSnap(async ({ keyring }) => {
+        const accounts: Bip44Account<KeyringAccount>[] = [];
+
+        // TODO: Use `SnapKeyring.createAccounts` when that functionality is implemented on the Snap
+        // itself, instead of creating accounts one by one.
+        for (
+          let groupIndex = range.from;
+          groupIndex <= range.to;
+          groupIndex++
+        ) {
+          const account = await this.withMaxConcurrency(async () => {
+            const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
+            return this.#createAccount({
+              keyring,
+              entropySource,
+              groupIndex,
+              derivationPath,
+            });
+          });
+          accounts.push(account);
+        }
+
+        return accounts;
+      });
+    }
+
+    const { groupIndex } = options;
 
     return this.withSnap(async ({ keyring }) => {
       return this.withMaxConcurrency(async () => {
@@ -123,7 +159,6 @@ export class SolAccountProvider extends SnapAccountProvider {
           derivationPath,
         });
 
-        this.accounts.add(account.id);
         return [account];
       });
     });

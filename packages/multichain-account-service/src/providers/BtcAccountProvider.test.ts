@@ -281,6 +281,72 @@ describe('BtcAccountProvider', () => {
     expect(newAccounts[0]).toStrictEqual(MOCK_BTC_P2WPKH_ACCOUNT_1);
   });
 
+  it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
+    const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+    const { provider, keyring } = setup({
+      accounts,
+    });
+
+    const from = 1;
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from,
+        to: 3,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(3);
+    expect(keyring.createAccount).toHaveBeenCalledTimes(3);
+
+    // Verify each account has the correct group index.
+    for (const [index, account] of newAccounts.entries()) {
+      expect(isBip44Account(account)).toBe(true);
+      expect(account.options.entropy.groupIndex).toBe(from + index);
+    }
+  });
+
+  it('creates accounts with range starting from 0', async () => {
+    const { provider, keyring } = setup({
+      accounts: [],
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 0,
+        to: 2,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(3);
+    expect(keyring.createAccount).toHaveBeenCalledTimes(3);
+  });
+
+  it('creates a single account when range from equals to', async () => {
+    const { provider, keyring } = setup({
+      accounts: [],
+    });
+
+    const newAccounts = await provider.createAccounts({
+      type: AccountCreationType.Bip44DeriveIndexRange,
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      range: {
+        from: 5,
+        to: 5,
+      },
+    });
+
+    expect(newAccounts).toHaveLength(1);
+    expect(keyring.createAccount).toHaveBeenCalledTimes(1);
+    expect(
+      isBip44Account(newAccounts[0]) &&
+        newAccounts[0].options.entropy.groupIndex,
+    ).toBe(5);
+  });
+
   it('throws if the account creation process takes too long', async () => {
     const { provider, mocks } = setup({
       accounts: [],
@@ -535,6 +601,26 @@ describe('BtcAccountProvider', () => {
       ).rejects.toThrow(mockError);
 
       expect(mockTrace).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('isDisabled', () => {
+    it('returns false when the provider is enabled (default)', () => {
+      const { provider } = setup();
+      expect(provider.isDisabled()).toBe(false);
+    });
+
+    it('returns true after setEnabled(false)', () => {
+      const { provider } = setup();
+      provider.setEnabled(false);
+      expect(provider.isDisabled()).toBe(true);
+    });
+
+    it('returns false after re-enabling', () => {
+      const { provider } = setup();
+      provider.setEnabled(false);
+      provider.setEnabled(true);
+      expect(provider.isDisabled()).toBe(false);
     });
   });
 });

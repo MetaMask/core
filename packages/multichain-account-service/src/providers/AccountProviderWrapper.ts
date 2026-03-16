@@ -54,6 +54,11 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     this.isEnabled = enabled;
   }
 
+  /**
+   * Check if the provider is disabled.
+   *
+   * @returns True if the provider is disabled, false otherwise.
+   */
   isDisabled(): boolean {
     return !this.isEnabled;
   }
@@ -82,16 +87,6 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
       return [];
     }
     return this.provider.getAccounts();
-  }
-
-  override async alignAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>['id'][]> {
-    if (this.isDisabled()) {
-      return [];
-    }
-    return await this.provider.alignAccounts(options);
   }
 
   /**

@@ -22,11 +22,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import {
-  getFeatureFlags,
-  isEIP7702Chain,
-  isRelayExecuteEnabled,
-} from '../../utils/feature-flags';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -291,7 +287,12 @@ async function submitTransactions(
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
 
-  await validateSourceBalance(quote, messenger);
+  // In post-quote flows (e.g. Predict withdraw), the source tokens are held in
+  // the Safe — not the EOA — and only become available after the original tx
+  // executes as part of the batch. Skip the EOA balance check here.
+  if (!quote.request.isPostQuote) {
+    await validateSourceBalance(quote, messenger);
+  }
 
   const normalizedParams = params.map((singleParams) =>
     normalizeParams(singleParams, messenger),
@@ -315,12 +316,7 @@ async function submitTransactions(
         ]
       : normalizedParams;
 
-  const { sourceChainId } = quote.request;
-
-  if (
-    isRelayExecuteEnabled(messenger) &&
-    isEIP7702Chain(messenger, sourceChainId)
-  ) {
+  if (quote.original.metamask.isExecute) {
     return await submitViaRelayExecute(
       quote,
       transaction,
@@ -475,6 +471,12 @@ async function submitViaTransactionController(
   const gasFeeToken = quote.fees.isSourceGasFeeToken
     ? sourceTokenAddress
     : undefined;
+
+  log('Submitting transactions', {
+    isPostQuote,
+    gasFeeToken,
+    allParamsCount: allParams.length,
+  });
 
   const isSameChain =
     quote.original.details.currencyIn.currency.chainId ===
