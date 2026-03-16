@@ -85,6 +85,7 @@ import {
   getNetworkClientIdByChainId,
   getSelectedChainId,
 } from './utils/network';
+import { getApprovalTraceParams, getTraceParams } from './utils/trace';
 import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
@@ -1056,6 +1057,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #handleApprovalTx = async (
+    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
     isBridgeTx: boolean,
     srcChainId: QuoteResponse['quote']['srcChainId'],
     approval?: TxData | TronTradeData,
@@ -1079,15 +1081,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       };
 
       return await this.#trace(
-        {
-          name: isBridgeTx
-            ? TraceName.BridgeTransactionApprovalCompleted
-            : TraceName.SwapTransactionApprovalCompleted,
-          data: {
-            srcChainId: formatChainIdToCaip(srcChainId),
-            stxEnabled: false,
-          },
-        },
+        getApprovalTraceParams(quoteResponse, false),
         approveTx,
       );
     }
@@ -1353,15 +1347,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Handle non-EVM approval if present (e.g., Tron token approvals)
       if (quoteResponse.approval && isTronTrade(quoteResponse.approval)) {
         const approvalTxMeta = await this.#trace(
-          {
-            name: isBridgeTx
-              ? TraceName.BridgeTransactionApprovalCompleted
-              : TraceName.SwapTransactionApprovalCompleted,
-            data: {
-              srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-              stxEnabled: false,
-            },
-          },
+          getApprovalTraceParams(quoteResponse, false),
           async () => {
             try {
               return quoteResponse.approval &&
@@ -1396,15 +1382,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
 
       txMeta = await this.#trace(
-        {
-          name: isBridgeTx
-            ? TraceName.BridgeTransactionCompleted
-            : TraceName.SwapTransactionCompleted,
-          data: {
-            srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-            stxEnabled: false,
-          },
-        },
+        getTraceParams(quoteResponse, false),
         async () => {
           try {
             if (
@@ -1446,15 +1424,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // Handle smart transactions if enabled
       txMeta = await this.#trace(
-        {
-          name: isBridgeTx
-            ? TraceName.BridgeTransactionCompleted
-            : TraceName.SwapTransactionCompleted,
-          data: {
-            srcChainId: formatChainIdToCaip(quoteResponse.quote.srcChainId),
-            stxEnabled: isStxEnabledOnClient,
-          },
-        },
+        getTraceParams(quoteResponse, isStxEnabledOnClient),
         async () => {
           if (!isEvmTxData(quoteResponse.trade)) {
             throw new Error(
@@ -1507,6 +1477,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           }
           // Set approval time and id if an approval tx is needed
           const approvalTxMeta = await this.#handleApprovalTx(
+            quoteResponse,
             isBridgeTx,
             quoteResponse.quote.srcChainId,
             quoteResponse.approval && isEvmTxData(quoteResponse.approval)
@@ -1663,6 +1634,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         isHardwareAccount && this.#clientId === BridgeClientId.MOBILE;
       // Handle approval silently for better UX in intent flows
       const approvalTxMeta = await this.#handleApprovalTx(
+        quoteResponse,
         isBridgeTx,
         quoteResponse.quote.srcChainId,
         quoteResponse.approval,
