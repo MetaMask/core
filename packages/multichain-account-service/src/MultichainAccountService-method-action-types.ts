@@ -142,6 +142,20 @@ export type MultichainAccountServiceCreateMultichainAccountGroupAction = {
 };
 
 /**
+ * Creates multiple multichain account groups up to maxGroupIndex.
+ *
+ * @param params - Parameters for creating account groups.
+ * @param params.fromGroupIndex - Starting group index to create (inclusive) (defaults to 0).
+ * @param params.toGroupIndex - Maximum group index to create (inclusive).
+ * @param params.entropySource - The entropy source ID.
+ * @returns Array of created multichain account groups.
+ */
+export type MultichainAccountServiceCreateMultichainAccountGroupsAction = {
+  type: `MultichainAccountService:createMultichainAccountGroups`;
+  handler: MultichainAccountService['createMultichainAccountGroups'];
+};
+
+/**
  * Set basic functionality state and trigger alignment if enabled.
  * When basic functionality is disabled, snap-based providers are disabled.
  * When enabled, all snap providers are enabled and wallet alignment is triggered.
@@ -186,6 +200,7 @@ export type MultichainAccountServiceMethodActions =
   | MultichainAccountServiceGetMultichainAccountGroupsAction
   | MultichainAccountServiceCreateNextMultichainAccountGroupAction
   | MultichainAccountServiceCreateMultichainAccountGroupAction
+  | MultichainAccountServiceCreateMultichainAccountGroupsAction
   | MultichainAccountServiceSetBasicFunctionalityAction
   | MultichainAccountServiceAlignWalletsAction
   | MultichainAccountServiceAlignWalletAction;

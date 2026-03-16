@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Stable network (chain 988) support ([#8185](https://github.com/MetaMask/core/pull/8185))
+  - Add `0x3dc` to `SPOT_PRICES_SUPPORT_INFO` in `codefi-v2.ts`
+  - Add `0x3dc` to `chainIdToNativeTokenAddress` in `codefi-v2.ts`
+  - Add `0x3dc` to `MULTICALL_CONTRACT_BY_CHAINID` in `multicall.ts`
 - Expose missing public `AssetsContractController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
   - The following action is now available:
     - `AssetsContractController:getStakedBalanceForChain`

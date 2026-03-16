@@ -1,41 +1,15 @@
 import { toChecksumAddress } from '@ethereumjs/util';
-import { MAP_CAIP_CURRENCIES } from '@metamask/assets-controllers';
-import { KnownCaipNamespace, numberToHex } from '@metamask/utils';
+import {
+  CurrencyRateState,
+  MAP_CAIP_CURRENCIES,
+  MarketDataDetails,
+  MultichainAssetsRatesControllerState,
+  TokenRatesControllerState,
+} from '@metamask/assets-controllers';
+import { Hex, KnownCaipNamespace, numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
 
 import type { AssetPrice, FungibleAssetPrice, Caip19AssetId } from '../types';
-
-/**
- * Bridge-compatible conversion rate entry (MultichainAssetsRatesController shape).
- */
-export type BridgeConversionRateEntry = {
-  rate: string;
-  currency?: string;
-  conversionTime?: number;
-  expirationTime?: number;
-  marketData?: Record<string, unknown>;
-};
-
-/**
- * Bridge-compatible currency rate entry (CurrencyRateController shape).
- */
-export type BridgeCurrencyRateEntry = {
-  conversionDate: number;
-  conversionRate: number;
-  usdConversionRate: number;
-};
-
-/**
- * Bridge-compatible market data entry (TokenRatesController marketData shape).
- */
-export type BridgeMarketDataEntry = {
-  price: number;
-  currency: string;
-  assetId?: string;
-  chainId?: string;
-  tokenAddress?: string;
-  [key: string]: unknown;
-};
 
 /**
  * Exchange rates in the format expected by the bridge controller:
@@ -43,9 +17,9 @@ export type BridgeMarketDataEntry = {
  * + marketData (TokenRatesController) + currentCurrency.
  */
 export type BridgeExchangeRatesFormat = {
-  conversionRates: Record<string, BridgeConversionRateEntry>;
-  currencyRates: Record<string, BridgeCurrencyRateEntry>;
-  marketData: Record<string, Record<string, BridgeMarketDataEntry>>;
+  conversionRates: MultichainAssetsRatesControllerState['conversionRates'];
+  currencyRates: CurrencyRateState['currencyRates'];
+  marketData: TokenRatesControllerState['marketData'];
   currentCurrency: string;
 };
 
@@ -74,9 +48,10 @@ export function formatExchangeRatesForBridge(params: {
     nativeAssetIdentifiers = {},
     networkConfigurationsByChainId = {},
   } = params;
-  const conversionRates: Record<string, BridgeConversionRateEntry> = {};
-  const currencyRates: Record<string, BridgeCurrencyRateEntry> = {};
-  const marketData: Record<string, Record<string, BridgeMarketDataEntry>> = {};
+  const conversionRates: MultichainAssetsRatesControllerState['conversionRates'] =
+    {};
+  const currencyRates: CurrencyRateState['currencyRates'] = {};
+  const marketData: TokenRatesControllerState['marketData'] = {};
 
   const currencyCaip = MAP_CAIP_CURRENCIES[selectedCurrency.toLowerCase()];
   if (!currencyCaip) {
@@ -133,7 +108,7 @@ export function formatExchangeRatesForBridge(params: {
           continue;
         }
 
-        let tokenAddress: string | undefined;
+        let tokenAddress: Hex | undefined;
         if (parsed.assetNamespace === 'erc20') {
           tokenAddress = toChecksumAddress(String(parsed.assetReference));
         } else if (parsed.assetNamespace === 'slip44') {
@@ -153,7 +128,7 @@ export function formatExchangeRatesForBridge(params: {
             assetId,
             chainId: chainIdHex,
             tokenAddress,
-          };
+          } as MarketDataDetails;
         }
 
         if (parsed.assetNamespace === 'slip44' && nativeAssetId) {
@@ -164,13 +139,29 @@ export function formatExchangeRatesForBridge(params: {
           };
         }
       } else {
-        conversionRates[assetId] = {
+        conversionRates[assetId as Caip19AssetId] = {
           rate: String(price),
           currency: currencyCaip,
           conversionTime: lastUpdatedInSeconds,
           expirationTime,
-          marketData: priceData,
-        };
+          marketData: {
+            fungible: true,
+            allTimeHigh: `${priceData.allTimeHigh}`,
+            allTimeLow: `${priceData.allTimeLow}`,
+            circulatingSupply: `${priceData.circulatingSupply}`,
+            marketCap: `${priceData.marketCap}`,
+            totalVolume: `${priceData.totalVolume}`,
+            pricePercentChange: {
+              PT1H: priceData.pricePercentChange1h as number,
+              P1D: priceData.pricePercentChange1d as number,
+              P7D: priceData.pricePercentChange7d as number,
+              P14D: priceData.pricePercentChange14d as number,
+              P30D: priceData.pricePercentChange30d as number,
+              P200D: priceData.pricePercentChange200d as number,
+              P1Y: priceData.pricePercentChange1y as number,
+            },
+          },
+        } as MultichainAssetsRatesControllerState['conversionRates'][Caip19AssetId];
       }
     } catch {
       // Skip malformed asset IDs
