@@ -7,7 +7,7 @@ import { MultichainAccountServiceMessenger } from '../types';
 
 /** Minimal KeyringController state shape needed to detect Snap keyring. */
 type KeyringControllerStateSlice = {
-  keyrings: { type: string }[];
+  keyrings: { type: KeyringTypes | string }[];
 };
 
 /** How long to wait for the Snap keyring to appear before giving up (ms). */
@@ -20,10 +20,7 @@ const SNAP_KEYRING_WAIT_TIMEOUT_MS = 5_000;
  * @returns True if state.keyrings contains a keyring with type KeyringTypes.snap.
  */
 function stateHasSnapKeyring(state: KeyringControllerStateSlice): boolean {
-  return Boolean(
-    Array.isArray(state?.keyrings) &&
-      state.keyrings.some((k) => k.type === (KeyringTypes.snap as string)),
-  );
+  return state.keyrings.some((k) => k.type === KeyringTypes.snap);
 }
 
 export type SnapPlatformWatcherOptions = {
