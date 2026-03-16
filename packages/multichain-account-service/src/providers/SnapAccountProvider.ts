@@ -362,12 +362,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       } else {
         if (v2) {
           // Create account using new v2-like flow (no async flow + no Snap keyring events).
-          const [snapAccount] = await withTimeout(
+          snapAccounts = await withTimeout(
             keyring.createAccounts(options),
             this.config.createAccounts.timeoutMs,
           );
-
-          snapAccounts = [snapAccount];
         } else {
           const { groupIndex } = options;
 
