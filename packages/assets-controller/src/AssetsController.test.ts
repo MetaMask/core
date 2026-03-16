@@ -18,7 +18,12 @@ import type {
   AssetsControllerState,
 } from './AssetsController';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
-import type { Caip19AssetId, AccountId } from './types';
+import type {
+  Caip19AssetId,
+  AccountId,
+  DataResponse,
+  FungibleAssetMetadata,
+} from './types';
 import { formatExchangeRatesForBridge } from './utils';
 
 jest.mock('./utils', () => {
@@ -611,6 +616,114 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('handleAssetsUpdate', () => {
+    it('preserves existing rich metadata when the API response has empty symbol and name', async () => {
+      const richMetadata: FungibleAssetMetadata = {
+        type: 'erc20',
+        symbol: 'TST',
+        name: 'Test Token',
+        decimals: 4,
+        image: 'https://example.com/tst.png',
+      };
+
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: richMetadata,
+            },
+          },
+        },
+        async ({ controller }) => {
+          const emptyApiResponse: DataResponse = {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: {
+                type: 'erc20',
+                symbol: '',
+                name: '',
+                decimals: 18,
+              } as FungibleAssetMetadata,
+            },
+          };
+
+          await controller.handleAssetsUpdate(emptyApiResponse, 'test-source');
+
+          const stored = controller.state.assetsInfo[
+            MOCK_ASSET_ID
+          ] as FungibleAssetMetadata;
+          expect(stored.symbol).toBe('TST');
+          expect(stored.name).toBe('Test Token');
+          expect(stored.decimals).toBe(4);
+          expect(stored.image).toBe('https://example.com/tst.png');
+        },
+      );
+    });
+
+    it('uses API metadata when symbol or name is non-empty', async () => {
+      const initialMetadata: FungibleAssetMetadata = {
+        type: 'erc20',
+        symbol: 'OLD',
+        name: 'Old Token',
+        decimals: 6,
+      };
+
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: initialMetadata,
+            },
+          },
+        },
+        async ({ controller }) => {
+          const apiResponse: DataResponse = {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: {
+                type: 'erc20',
+                symbol: 'NEW',
+                name: 'New Token',
+                decimals: 8,
+              } as FungibleAssetMetadata,
+            },
+          };
+
+          await controller.handleAssetsUpdate(apiResponse, 'test-source');
+
+          const stored = controller.state.assetsInfo[
+            MOCK_ASSET_ID
+          ] as FungibleAssetMetadata;
+          expect(stored.symbol).toBe('NEW');
+          expect(stored.name).toBe('New Token');
+          expect(stored.decimals).toBe(8);
+        },
+      );
+    });
+
+    it('uses API metadata when there is no pre-existing state for the asset', async () => {
+      await withController(async ({ controller }) => {
+        const apiResponse: DataResponse = {
+          assetsInfo: {
+            [MOCK_ASSET_ID]: {
+              type: 'erc20',
+              symbol: '',
+              name: '',
+              decimals: 18,
+            } as FungibleAssetMetadata,
+          },
+        };
+
+        await controller.handleAssetsUpdate(apiResponse, 'test-source');
+
+        const stored = controller.state.assetsInfo[
+          MOCK_ASSET_ID
+        ] as FungibleAssetMetadata;
+        expect(stored.decimals).toBe(18);
+        expect(stored.symbol).toBe('');
+        expect(stored.name).toBe('');
+      });
+    });
+  });
+
   describe('getAssetsBalance', () => {
     it('returns balance data for accounts', async () => {
       await withController(async ({ controller }) => {
@@ -725,7 +838,7 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('handleAssetsUpdate', () => {
+  describe('handleAssetsUpdate - state updates', () => {
     it('updates state with balance data', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(

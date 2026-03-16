@@ -473,6 +473,7 @@ async function normalizeQuote(
   const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
 
   const metamask = {
+    ...quote.metamask,
     gasLimits,
   };
 
@@ -566,6 +567,9 @@ function getFiatRates(
  * transaction's params so that gas estimation and gas-fee-token logic handle
  * both transactions together.
  *
+ * When the execute flow is active (indicated by `quote.metamask.isExecute`),
+ * network fees are zeroed because the relayer covers them.
+ *
  * @param quote - Relay quote.
  * @param messenger - Controller messenger.
  * @param request - Quote request.
@@ -584,6 +588,14 @@ async function calculateSourceNetworkCost(
   }
 > {
   const { from, sourceChainId, sourceTokenAddress } = request;
+
+  if (quote.metamask?.isExecute) {
+    log('Zeroing network fees for execute flow');
+
+    const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+    return { estimate: zeroAmount, max: zeroAmount, gasLimits: [] };
+  }
 
   const relayParams = quote.steps
     .flatMap((step) => step.items)

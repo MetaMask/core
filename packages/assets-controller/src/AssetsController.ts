@@ -1564,7 +1564,27 @@ export class AssetsController extends BaseController<
             ) {
               changedMetadata.push(key);
             }
-            metadata[key] = value;
+
+            const existing = metadata[key] as FungibleAssetMetadata | undefined;
+            const incoming = value as FungibleAssetMetadata;
+
+            // When the API returns no symbol or name for this token, it has no
+            // real knowledge of it (e.g. a user-deployed token not indexed by
+            // the API). Preserve richer metadata already in state (e.g. from
+            // pendingMetadata set by addCustomAsset) so that the correct
+            // decimals/symbol/name/image are not overwritten with empty values.
+            if (existing && !incoming.symbol && !incoming.name) {
+              metadata[key] = {
+                ...existing,
+                ...incoming,
+                symbol: existing.symbol,
+                name: existing.name,
+                decimals: existing.decimals ?? incoming.decimals,
+                image: existing.image ?? incoming.image,
+              };
+            } else {
+              metadata[key] = value;
+            }
           }
         }
 

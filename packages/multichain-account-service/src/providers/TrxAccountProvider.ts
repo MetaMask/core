@@ -40,6 +40,9 @@ export const TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG: TrxAccountProviderConfig = {
     v2: false, // For now, the Snap is not fully v2 compliant.
     timeoutMs: 3000,
   },
+  resyncAccounts: {
+    autoRemoveExtraSnapAccounts: true,
+  },
 };
 
 export class TrxAccountProvider extends SnapAccountProvider {

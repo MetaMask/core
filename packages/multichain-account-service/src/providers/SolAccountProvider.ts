@@ -42,6 +42,9 @@ export const SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG: SnapAccountProviderConfig = {
     v2: false, // For now, the Snap is not fully v2 compliant.
     timeoutMs: 3000,
   },
+  resyncAccounts: {
+    autoRemoveExtraSnapAccounts: true,
+  },
 };
 
 export class SolAccountProvider extends SnapAccountProvider {

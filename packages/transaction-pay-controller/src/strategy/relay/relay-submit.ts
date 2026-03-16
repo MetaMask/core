@@ -22,11 +22,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import {
-  getFeatureFlags,
-  isEIP7702Chain,
-  isRelayExecuteEnabled,
-} from '../../utils/feature-flags';
+import { getFeatureFlags } from '../../utils/feature-flags';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -320,12 +316,7 @@ async function submitTransactions(
         ]
       : normalizedParams;
 
-  const { sourceChainId } = quote.request;
-
-  if (
-    isRelayExecuteEnabled(messenger) &&
-    isEIP7702Chain(messenger, sourceChainId)
-  ) {
+  if (quote.original.metamask.isExecute) {
     return await submitViaRelayExecute(
       quote,
       transaction,

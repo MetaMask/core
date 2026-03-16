@@ -51,7 +51,9 @@ export type BalancePollingInput = {
 /**
  * Callback type for balance updates.
  */
-export type OnBalanceUpdateCallback = (result: BalanceFetchResult) => void;
+export type OnBalanceUpdateCallback = (
+  result: BalanceFetchResult,
+) => void | Promise<void>;
 
 /**
  * BalanceFetcher - Fetches token balances via multicall.
@@ -107,7 +109,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     );
 
     if (this.#onBalanceUpdate && result.balances.length > 0) {
-      this.#onBalanceUpdate(result);
+      await this.#onBalanceUpdate(result);
     }
   }
 

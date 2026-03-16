@@ -18,6 +18,7 @@ import type {
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
+import deepmerge from 'deepmerge';
 
 import { BtcAccountProvider } from './BtcAccountProvider';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider';
@@ -28,7 +29,7 @@ import {
 import { SolAccountProvider } from './SolAccountProvider';
 import { TrxAccountProvider } from './TrxAccountProvider';
 import { traceFallback } from '../analytics';
-import type { RootMessenger } from '../tests';
+import type { DeepPartial, RootMessenger } from '../tests';
 import {
   asKeyringAccount,
   getMultichainAccountServiceMessenger,
@@ -135,13 +136,24 @@ class MockSnapAccountProvider extends SnapAccountProvider {
   }
 }
 
+const DEFAULT_TEST_CONFIG: SnapAccountProviderConfig = {
+  createAccounts: {
+    timeoutMs: 5000,
+  },
+  discovery: {
+    timeoutMs: 2000,
+    maxAttempts: 3,
+    backOffMs: 1000,
+  },
+};
+
 // Helper to create a tracked provider that monitors concurrent execution
 const setup = ({
-  maxConcurrency,
+  config: configOverride = {},
   messenger = getRootMessenger(),
   accounts = [],
 }: {
-  maxConcurrency?: number;
+  config?: DeepPartial<SnapAccountProviderConfig>;
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
 } = {}) => {
@@ -230,17 +242,10 @@ const setup = ({
     // We need this extra action to be able to mock it.
     actions: ['MultichainAccountService:ensureCanUseSnapPlatform'],
   });
-  const config = {
-    ...(maxConcurrency !== undefined && { maxConcurrency }),
-    createAccounts: {
-      timeoutMs: 5000,
-    },
-    discovery: {
-      timeoutMs: 2000,
-      maxAttempts: 3,
-      backOffMs: 1000,
-    },
-  };
+  const config = deepmerge(
+    DEFAULT_TEST_CONFIG,
+    configOverride as SnapAccountProviderConfig,
+  );
   const provider = new MockSnapAccountProvider(
     TEST_SNAP_ID,
     serviceMessenger,
@@ -602,7 +607,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('throttles createAccounts when maxConcurrency is finite', async () => {
-      const { provider, tracker } = setup({ maxConcurrency: 2 }); // Allow only 2 concurrent operations
+      const { provider, tracker } = setup({ config: { maxConcurrency: 2 } }); // Allow only 2 concurrent operations
 
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
@@ -627,7 +632,9 @@ describe('SnapAccountProvider', () => {
     });
 
     it('does not throttle when maxConcurrency is Infinity', async () => {
-      const { provider, tracker } = setup({ maxConcurrency: Infinity }); // No throttling
+      const { provider, tracker } = setup({
+        config: { maxConcurrency: Infinity },
+      }); // No throttling
 
       // Start 4 concurrent calls
       const promises = [0, 1, 2, 3].map((index) =>
@@ -648,7 +655,7 @@ describe('SnapAccountProvider', () => {
     });
 
     it('respects concurrency limit across multiple calls', async () => {
-      const { provider, tracker } = setup({ maxConcurrency: 1 }); // Only 1 concurrent operation
+      const { provider, tracker } = setup({ config: { maxConcurrency: 1 } }); // Only 1 concurrent operation
 
       // Start 3 concurrent calls
       const promises = [0, 1, 2].map((index) =>
@@ -746,7 +753,10 @@ describe('SnapAccountProvider', () => {
     });
 
     it('deletes extra Snap accounts when Snap has more accounts than MetaMask', async () => {
-      const { provider, mocks } = setup({ accounts: mockAccounts });
+      const { provider, mocks } = setup({
+        accounts: mockAccounts,
+        config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
+      });
 
       // Snap has both accounts, but MetaMask only has the first one
       await provider.resyncAccounts([mockAccounts[0]]);
@@ -761,7 +771,10 @@ describe('SnapAccountProvider', () => {
     });
 
     it('handles deleteAccount errors gracefully when recovering de-synced accounts', async () => {
-      const { provider, messenger, mocks } = setup({ accounts: mockAccounts });
+      const { provider, messenger, mocks } = setup({
+        accounts: mockAccounts,
+        config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
+      });
 
       const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
       const deleteError = new Error('Failed to delete account');
@@ -816,6 +829,7 @@ describe('SnapAccountProvider', () => {
       // Second condition: recreate mockAccounts[1] in Snap
       const { provider, mocks, keyring } = setup({
         accounts: [mockAccounts[0], extraSnapAccount1, extraSnapAccount2],
+        config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
       });
 
       const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
@@ -842,6 +856,36 @@ describe('SnapAccountProvider', () => {
         groupIndex: mockAccounts[1].options.entropy.groupIndex,
         type: AccountCreationType.Bip44DeriveIndex,
       });
+    });
+
+    it('removes extra Snap accounts when resyncAccounts config is absent (defaults to true)', async () => {
+      const { provider, mocks } = setup({ accounts: mockAccounts });
+
+      // Snap has both accounts, but MetaMask only has the first one
+      await provider.resyncAccounts([mockAccounts[0]]);
+
+      // deleteAccount should be called — the ?? true default kicks in
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).toHaveBeenCalledWith(mockAccounts[1].id);
+    });
+
+    it('logs a warning and skips removal when autoRemoveExtraSnapAccounts is false', async () => {
+      const { provider, mocks } = setup({
+        accounts: mockAccounts,
+        config: { resyncAccounts: { autoRemoveExtraSnapAccounts: false } },
+      });
+
+      // Snap has both accounts, but MetaMask only has the first one
+      await provider.resyncAccounts([mockAccounts[0]]);
+
+      // deleteAccount should NOT be called
+      expect(
+        mocks.SnapController.handleKeyringRequest.deleteAccount,
+      ).not.toHaveBeenCalled();
     });
 
     it('does not throw errors if any provider is not able to re-sync', async () => {
