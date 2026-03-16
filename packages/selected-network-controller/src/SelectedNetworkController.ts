@@ -15,8 +15,8 @@ import type {
 } from '@metamask/network-controller';
 import type {
   PermissionControllerStateChange,
-  GetSubjects as PermissionControllerGetSubjectsAction,
-  HasPermissions as PermissionControllerHasPermissions,
+  PermissionControllerGetSubjectNamesAction as PermissionControllerGetSubjectsAction,
+  PermissionControllerHasPermissionsAction as PermissionControllerHasPermissions,
 } from '@metamask/permission-controller';
 import {
   createEventEmitterProxy,
