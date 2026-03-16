@@ -182,42 +182,42 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       // NOTE: This should never happen, but if it does, we recover by deleting the
       // extra accounts from the Snap to bring it back in sync with MetaMask.
       if (localSnapAccounts.length < snapAccounts.size) {
-        const autoRemove =
+        const autoRemoveExtraSnapAccounts =
           this.config.resyncAccounts?.autoRemoveExtraSnapAccounts ?? true;
 
-        if (!autoRemove) {
+        if (autoRemoveExtraSnapAccounts) {
+          // Build a set of local account IDs for quick lookup
+          const localAccountIds = new Set(
+            localSnapAccounts.map((account) => account.id),
+          );
+
+          // Find and delete accounts that exist in Snap but not in MetaMask
+          await Promise.all(
+            [...snapAccounts].map(async (snapAccountId) => {
+              try {
+                if (!localAccountIds.has(snapAccountId)) {
+                  // This account exists in the Snap but not in MetaMask, delete it from
+                  // the Snap.
+                  await this.#client.deleteAccount(snapAccountId);
+                  // Update the local Set so subsequent checks use the correct size
+                  snapAccounts.delete(snapAccountId);
+                }
+              } catch (error) {
+                const sentryError = createSentryError(
+                  `Unable to delete de-synced Snap account: ${this.snapId}`,
+                  error as Error,
+                  { provider: this.getName(), snapAccountId },
+                );
+                this.messenger.captureException?.(sentryError);
+              }
+            }),
+          );
+        } else {
           const message = `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask! (${localSnapAccounts.length} < ${snapAccounts.size})`;
           log(`${WARNING_PREFIX} ${message}`);
           console.warn(message);
           return;
         }
-
-        // Build a set of local account IDs for quick lookup
-        const localAccountIds = new Set(
-          localSnapAccounts.map((account) => account.id),
-        );
-
-        // Find and delete accounts that exist in Snap but not in MetaMask
-        await Promise.all(
-          [...snapAccounts].map(async (snapAccountId) => {
-            try {
-              if (!localAccountIds.has(snapAccountId)) {
-                // This account exists in the Snap but not in MetaMask, delete it from
-                // the Snap.
-                await this.#client.deleteAccount(snapAccountId);
-                // Update the local Set so subsequent checks use the correct size
-                snapAccounts.delete(snapAccountId);
-              }
-            } catch (error) {
-              const sentryError = createSentryError(
-                `Unable to delete de-synced Snap account: ${this.snapId}`,
-                error as Error,
-                { provider: this.getName(), snapAccountId },
-              );
-              this.messenger.captureException?.(sentryError);
-            }
-          }),
-        );
       }
 
       // We want this part to be fast, so we only check for sizes, but we might need
