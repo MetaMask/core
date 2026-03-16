@@ -131,14 +131,15 @@ export type RelayExecuteResponse = {
 };
 
 export type RelayStatus =
-  | 'waiting'
+  | 'delayed'
+  | 'depositing'
+  | 'failure'
   | 'pending'
+  | 'refund'
+  | 'refunded'
   | 'submitted'
   | 'success'
-  | 'delayed'
-  | 'refunded'
-  | 'refund'
-  | 'failure';
+  | 'waiting';
 
 export type RelayStatusResponse = {
   status: RelayStatus;

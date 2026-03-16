@@ -3046,13 +3046,21 @@ export class TransactionController extends BaseController<
     );
 
     for (const transactionMeta of incompleteTransactions) {
-      this.#failTransaction(
-        transactionMeta,
-        new Error('Transaction incomplete at startup'),
-      );
-
       const requiredTransactionIds =
         transactionMeta.requiredTransactionIds ?? [];
+
+      const allRequiredConfirmed =
+        requiredTransactionIds.length > 0 &&
+        requiredTransactionIds.every((id) => {
+          const tx = this.#getTransaction(id);
+          return tx?.status === TransactionStatus.confirmed;
+        });
+
+      const message = allRequiredConfirmed
+        ? 'Transaction incomplete at startup with all required transactions confirmed'
+        : 'Transaction incomplete at startup';
+
+      this.#failTransaction(transactionMeta, new Error(message));
 
       for (const requiredTransactionId of requiredTransactionIds) {
         const requiredTransactionMeta = this.#getTransaction(
