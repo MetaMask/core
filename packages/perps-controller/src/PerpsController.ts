@@ -727,6 +727,10 @@ export type PerpsControllerActions =
   | {
       type: 'PerpsController:startEligibilityMonitoring';
       handler: PerpsController['startEligibilityMonitoring'];
+    }
+  | {
+      type: 'PerpsController:stopEligibilityMonitoring';
+      handler: PerpsController['stopEligibilityMonitoring'];
     };
 
 /**
@@ -804,6 +808,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'setSelectedPaymentToken',
   'resetSelectedPaymentToken',
   'startEligibilityMonitoring',
+  'stopEligibilityMonitoring',
 ] as const;
 
 /**
@@ -3740,6 +3745,16 @@ export class PerpsController extends BaseController<
         }),
       );
     }
+  }
+
+  /**
+   * Stops geo-blocking eligibility monitoring.
+   * Call this when the user disables basic functionality (e.g. useExternalServices becomes false).
+   * Prevents geolocation calls until startEligibilityMonitoring() is called again.
+   * Safe to call multiple times.
+   */
+  stopEligibilityMonitoring(): void {
+    this.#eligibilityCheckDeferred = true;
   }
 
   /**
