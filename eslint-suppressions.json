@@ -1264,7 +1264,7 @@
   },
   "packages/phishing-controller/src/PhishingController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 25
+      "count": 19
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
