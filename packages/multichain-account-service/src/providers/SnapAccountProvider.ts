@@ -186,9 +186,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
           this.config.resyncAccounts?.autoRemoveExtraSnapAccounts ?? true;
 
         if (!autoRemove) {
-          log(
-            `${WARNING_PREFIX} Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask! (${localSnapAccounts.length} < ${snapAccounts.size})`,
-          );
+          const message = `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask! (${localSnapAccounts.length} < ${snapAccounts.size})`;
+          log(`${WARNING_PREFIX} ${message}`);
+          console.warn(message);
           return;
         }
 
