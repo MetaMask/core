@@ -19,9 +19,7 @@ import * as historyUtils from './utils/history';
 import * as intentApi from './utils/intent-api';
 import { IntentOrderStatus } from './utils/validators';
 
-jest
-  .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
-  .mockImplementation(jest.fn());
+jest.spyOn(intentApi, 'postSubmitOrder').mockImplementation(jest.fn());
 jest
   .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
   .mockImplementation(jest.fn());
@@ -211,6 +209,9 @@ const createMessengerHarness = (
             transactionMeta: intentTx,
           };
         }
+        case 'AuthenticationController:getBearerToken': {
+          return '0xjwt';
+        }
         case 'NetworkController:findNetworkClientIdByChainId':
           return 'network-client-id-1';
         case 'NetworkController:getState':
@@ -298,7 +299,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     const submitIntentSpy = jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse({
@@ -346,7 +347,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     const submitIntentSpy = jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse({
@@ -406,7 +407,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     const submitIntentSpy = jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse({
@@ -443,7 +444,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     jest.spyOn(historyUtils, 'getInitialHistoryItem').mockImplementation(() => {
@@ -481,7 +482,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     const submitIntentSpy = jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse();
@@ -522,7 +523,24 @@ describe('BridgeStatusController (intent swaps)', () => {
       ]),
     );
 
-    expect(submitIntentSpy.mock.calls[0]?.[0]?.signature).toBe('0xautosigned');
+    expect(submitIntentSpy.mock.calls[0]?.[0]).toMatchInlineSnapshot(`
+      {
+        "bridgeApiBaseUrl": "http://localhost",
+        "clientId": "extension",
+        "fetchFn": [Function],
+        "jwt": "0xjwt",
+        "params": {
+          "aggregatorId": "cowswap",
+          "order": {
+            "some": "order",
+          },
+          "quoteId": "req-1",
+          "signature": "0xautosigned",
+          "srcChainId": 1,
+          "userAddress": "0xAccount1",
+        },
+      }
+    `);
   });
 
   it('intent polling: updates history, merges tx hashes, updates TC tx, and stops polling on COMPLETED', async () => {
@@ -537,7 +555,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse();
@@ -581,7 +599,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse();
@@ -628,7 +646,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       metadata: { txHashes: [] },
     };
     jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
+      .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
     const quoteResponse = minimalIntentQuoteResponse();
@@ -683,14 +701,12 @@ describe('BridgeStatusController (intent swaps)', () => {
       },
     });
 
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'submitIntent')
-      .mockResolvedValue({
-        id: orderUid,
-        status: IntentOrderStatus.SUBMITTED,
-        txHash: undefined,
-        metadata: { txHashes: [] },
-      });
+    jest.spyOn(intentApi, 'postSubmitOrder').mockResolvedValue({
+      id: orderUid,
+      status: IntentOrderStatus.SUBMITTED,
+      txHash: undefined,
+      metadata: { txHashes: [] },
+    });
 
     const historyKey = orderUid;
 

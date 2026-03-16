@@ -6,6 +6,7 @@ import {
   getIntentFromQuote,
   IntentApiImpl,
   mapIntentOrderStatusToTransactionStatus,
+  postSubmitOrder,
   translateIntentOrderToBridgeStatus,
 } from './intent-api';
 import type { IntentSubmissionParams } from './intent-api';
@@ -42,7 +43,13 @@ describe('IntentApiImpl', () => {
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     const params = makeParams();
-    const result = await api.submitIntent(params, clientId);
+    const result = await postSubmitOrder({
+      params,
+      clientId,
+      jwt: undefined,
+      fetchFn,
+      bridgeApiBaseUrl: baseUrl,
+    });
 
     expect(result).toStrictEqual(validIntentOrderResponse);
     expect(fetchFn).toHaveBeenCalledTimes(1);
@@ -60,18 +67,30 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('boom'));
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
-    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
-      'Failed to submit intent: boom',
-    );
+    await expect(
+      postSubmitOrder({
+        params: makeParams(),
+        clientId,
+        jwt: undefined,
+        fetchFn,
+        bridgeApiBaseUrl: baseUrl,
+      }),
+    ).rejects.toThrow('Failed to submit intent: boom');
   });
 
   it('submitIntent throws generic error when rejection is not an Error', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue('boom');
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
-    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
-      'Failed to submit intent',
-    );
+    await expect(
+      postSubmitOrder({
+        params: makeParams(),
+        clientId,
+        jwt: undefined,
+        fetchFn,
+        bridgeApiBaseUrl: baseUrl,
+      }),
+    ).rejects.toThrow('Failed to submit intent');
   });
 
   it('getOrderStatus calls GET /getOrderStatus with encoded query params and returns response', async () => {
@@ -131,9 +150,15 @@ describe('IntentApiImpl', () => {
 
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
-    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
-      'Failed to submit intent: Invalid submitOrder response',
-    );
+    await expect(
+      postSubmitOrder({
+        params: makeParams(),
+        clientId,
+        jwt: undefined,
+        fetchFn,
+        bridgeApiBaseUrl: baseUrl,
+      }),
+    ).rejects.toThrow('Failed to submit intent: Invalid submitOrder response');
   });
 
   it('getOrderStatus throws when response fails validation', async () => {

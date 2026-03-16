@@ -7,7 +7,6 @@ import {
   IntentApi,
   IntentApiImpl,
   IntentBridgeStatus,
-  IntentSubmissionParams,
   translateIntentOrderToBridgeStatus,
 } from './utils/intent-api';
 import { getTransactionMetaById, updateTransaction } from './utils/transaction';
@@ -191,19 +190,5 @@ export class IntentManager {
         error,
       });
     }
-  };
-
-  /**
-   * Submit an intent order.
-   *
-   * @param submissionParams - The submission parameters.
-   * @param clientId - The client ID.
-   * @returns The intent order.
-   */
-  submitIntent = async (
-    submissionParams: IntentSubmissionParams,
-    clientId: BridgeClientId,
-  ): Promise<IntentStatusResponse> => {
-    return this.intentApi.submitIntent(submissionParams, clientId);
   };
 }

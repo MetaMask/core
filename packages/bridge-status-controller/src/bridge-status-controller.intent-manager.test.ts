@@ -4,6 +4,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 
 import { IntentManager } from './bridge-status-controller.intent';
 import type { BridgeHistoryItem } from './types';
+import { postSubmitOrder } from './utils/intent-api';
 import { IntentOrderStatus } from './utils/validators';
 
 const makeHistoryItem = (
@@ -663,8 +664,9 @@ describe('IntentManager', () => {
       status: IntentOrderStatus.SUBMITTED,
       metadata: {},
     };
-    const fetchFn = jest.fn().mockResolvedValue(expectedOrder);
-    const manager = new IntentManager(createManagerOptions({ fetchFn }));
+    const { customBridgeApiBaseUrl, fetchFn } = createManagerOptions({
+      fetchFn: jest.fn().mockResolvedValue(expectedOrder),
+    });
 
     const params = {
       srcChainId: 1,
@@ -675,7 +677,13 @@ describe('IntentManager', () => {
       aggregatorId: 'cowswap',
     };
 
-    const result = await manager.submitIntent(params, BridgeClientId.EXTENSION);
+    const result = await postSubmitOrder({
+      params,
+      clientId: BridgeClientId.EXTENSION,
+      jwt: undefined,
+      fetchFn,
+      bridgeApiBaseUrl: customBridgeApiBaseUrl,
+    });
 
     expect(result).toStrictEqual(expectedOrder);
   });

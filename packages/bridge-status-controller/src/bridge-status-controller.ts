@@ -67,6 +67,7 @@ import {
   getIntentFromQuote,
   IntentSubmissionParams,
   mapIntentOrderStatusToTransactionStatus,
+  postSubmitOrder,
 } from './utils/intent-api';
 import { signTypedMessage } from './utils/keyring';
 import {
@@ -1306,10 +1307,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         aggregatorId: intent.protocol,
       };
 
-      const { id: orderUid, status } = await this.#intentManager.submitIntent(
-        submissionParams,
-        this.#clientId,
-      );
+      const { id: orderUid, status } = await postSubmitOrder({
+        params: submissionParams,
+        clientId: this.#clientId,
+        jwt: await getJwt(this.messenger),
+        fetchFn: this.#fetchFn,
+        bridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
+      });
 
       // Determine transaction type: swap for same-chain, bridge for cross-chain
       const transactionType = isBridgeTx
