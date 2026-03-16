@@ -14,6 +14,9 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // Exclude test helpers from coverage collection
+  coveragePathIgnorePatterns: ['.*/src/tests/.*'],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {

@@ -9,17 +9,11 @@ import type { AccountSelector } from '@metamask/account-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 
 import type { Logger } from './logger';
-import {
-  projectLogger as log,
-  createModuleLogger,
-  WARNING_PREFIX,
-} from './logger';
+import { projectLogger as log, createModuleLogger } from './logger';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { Bip44AccountProvider } from './providers';
-import { isAccountProviderWrapper } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
-import { createSentryError } from './utils';
 
 export type GroupState =
   ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
@@ -108,15 +102,6 @@ export class MultichainAccountGroup<
         }
       }
     }
-
-    if (this.#initialized) {
-      this.#messenger.publish(
-        'MultichainAccountService:multichainAccountGroupUpdated',
-        this,
-      );
-    } else {
-      this.#initialized = true;
-    }
   }
 
   /**
@@ -128,6 +113,8 @@ export class MultichainAccountGroup<
     this.#log('Initializing group state...');
     this.#setState(groupState);
     this.#log('Finished initializing group state...');
+
+    this.#initialized = true;
   }
 
   /**
@@ -139,6 +126,13 @@ export class MultichainAccountGroup<
     this.#log('Updating group state...');
     this.#setState(groupState);
     this.#log('Finished updating group state...');
+
+    if (this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupUpdated',
+        this,
+      );
+    }
   }
 
   /**
@@ -257,87 +251,5 @@ export class MultichainAccountGroup<
    */
   select(selector: AccountSelector<Account>): Account[] {
     return select(this.getAccounts(), selector);
-  }
-
-  /**
-   * Align the multichain account group.
-   *
-   * This will create accounts for providers that don't have any accounts yet.
-   */
-  async alignAccounts(): Promise<void> {
-    this.#log('Aligning accounts...');
-
-    this.#providerToAccounts.clear();
-    this.#accountToProvider.clear();
-
-    const results = await Promise.allSettled(
-      this.#providers.map(async (provider) => {
-        try {
-          const accounts = await provider.alignAccounts({
-            entropySource: this.wallet.entropySource,
-            groupIndex: this.groupIndex,
-          });
-
-          const isDisabled =
-            isAccountProviderWrapper(provider) && provider.isDisabled();
-
-          if (isDisabled) {
-            this.#log(
-              `Account provider "${provider.getName()}" is disabled, skipping alignment...`,
-            );
-          } else if (accounts.length > 0) {
-            this.#log(
-              `Found missing accounts for account provider "${provider.getName()}", creating them now...`,
-            );
-            this.#providerToAccounts.set(provider, accounts);
-            for (const accountId of accounts) {
-              this.#accountToProvider.set(accountId, provider);
-            }
-          }
-
-          return accounts;
-        } catch (error) {
-          // istanbul ignore next
-          this.#log(
-            `${WARNING_PREFIX} ${error instanceof Error ? error.message : String(error)}`,
-          );
-          const sentryError = createSentryError(
-            `Unable to align accounts with provider "${provider.getName()}"`,
-            error as Error,
-            {
-              groupIndex: this.groupIndex,
-              provider: provider.getName(),
-            },
-          );
-          this.#messenger.captureException?.(sentryError);
-          throw error;
-        }
-      }),
-    );
-
-    let failureMessage = '';
-    let failureCount = 0;
-    const groupState = results.reduce<GroupState>((state, result, idx) => {
-      if (result.status === 'fulfilled' && result.value.length) {
-        state[this.#providers[idx].getName()] = result.value;
-      } else if (result.status === 'rejected') {
-        failureCount += 1;
-        failureMessage += `\n- ${this.#providers[idx].getName()}: ${result.reason.message}`;
-      }
-      return state;
-    }, {});
-
-    // Update group state
-    this.update(groupState);
-
-    if (failureCount > 0) {
-      const hasMultipleFailures = failureCount > 1;
-      const message = `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing. ${hasMultipleFailures ? 'Providers' : 'Provider'} threw the following ${hasMultipleFailures ? 'errors' : 'error'}:${failureMessage}`;
-
-      this.#log(`${WARNING_PREFIX} ${message}`);
-      console.warn(message);
-    }
-
-    this.#log('Aligned');
   }
 }

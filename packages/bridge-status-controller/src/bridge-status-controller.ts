@@ -6,6 +6,7 @@ import type {
   TxData,
   QuoteResponse,
   Trade,
+  TronTradeData,
 } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
@@ -567,7 +568,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
       hasApprovalTx: Boolean(quoteResponse.approval),
       approvalTxId,
-      isStxEnabled: isStxEnabled ?? false,
+      isStxEnabled: Boolean(isStxEnabled),
       featureId: quoteResponse.featureId,
       location,
       ...(abTests && { abTests }),
@@ -763,14 +764,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       let status: BridgeHistoryItem['status'];
       let validationFailures: string[] = [];
 
-      const isIntent = Boolean(historyItem.quote.intent);
-
-      if (isIntent) {
+      if (historyItem.quote.intent) {
         const intentTxStatus =
           await this.#intentManager.getIntentTransactionStatus(
             bridgeTxMetaId,
-            historyItem,
+            historyItem.quote.srcChainId,
+            historyItem.quote.intent.protocol,
             this.#clientId,
+            historyItem.status.srcChain.txHash,
           );
 
         if (
@@ -841,7 +842,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         state.txHistory[bridgeTxMetaId] = newBridgeHistoryItem;
       });
 
-      if (isIntent) {
+      if (historyItem.quote.intent) {
         this.#intentManager.syncTransactionFromIntentStatus(
           bridgeTxMetaId,
           historyItem,
@@ -1070,11 +1071,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #handleApprovalTx = async (
     isBridgeTx: boolean,
     srcChainId: QuoteResponse['quote']['srcChainId'],
-    approval?: TxData,
+    approval?: TxData | TronTradeData,
     resetApproval?: TxData,
     requireApproval?: boolean,
   ): Promise<TransactionMeta | undefined> => {
-    if (approval) {
+    if (approval && isEvmTxData(approval)) {
       const approveTx = async (): Promise<TransactionMeta> => {
         await this.#handleUSDTAllowanceReset(resetApproval);
 
@@ -1217,8 +1218,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Convert to hex since txFee values from the quote are decimal strings
     if (txFee) {
       return {
-        maxFeePerGas: toHex(txFee.maxFeePerGas ?? 0),
-        maxPriorityFeePerGas: toHex(txFee.maxPriorityFeePerGas ?? 0),
+        maxFeePerGas: toHex(txFee.maxFeePerGas),
+        maxPriorityFeePerGas: toHex(txFee.maxPriorityFeePerGas),
         gas: gas ? toHex(gas) : undefined,
       };
     }
@@ -1388,7 +1389,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                     quoteResponse,
                     selectedAccount,
                   )
-                : undefined;
+                : /* c8 ignore start */
+                  undefined;
+              /* c8 ignore end */
             } catch (error) {
               !quoteResponse.featureId &&
                 this.#trackUnifiedSwapBridgeEvent(
@@ -1442,7 +1445,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             !quoteResponse.featureId &&
               this.#trackUnifiedSwapBridgeEvent(
                 UnifiedSwapBridgeEventName.Failed,
-                txMeta?.id,
+                undefined,
                 {
                   error_message: (error as Error)?.message,
                   ...preConfirmationProperties,
@@ -1643,31 +1646,29 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // If backend provided an approval tx for this intent quote, submit it first (on-chain),
       // then proceed with off-chain intent submission.
-      let approvalTxId: string | undefined;
-      if (quoteResponse.approval) {
-        const isBridgeTx = isCrossChain(
-          quoteResponse.quote.srcChainId,
-          quoteResponse.quote.destChainId,
-        );
+      const isBridgeTx = isCrossChain(
+        quoteResponse.quote.srcChainId,
+        quoteResponse.quote.destChainId,
+      );
 
-        // Handle approval silently for better UX in intent flows
-        const approvalTxMeta = await this.#handleApprovalTx(
-          isBridgeTx,
-          quoteResponse.quote.srcChainId,
-          quoteResponse.approval && isEvmTxData(quoteResponse.approval)
-            ? quoteResponse.approval
-            : undefined,
-          quoteResponse.resetApproval,
-          /* requireApproval */ false,
-        );
-        approvalTxId = approvalTxMeta?.id;
+      const requireApproval =
+        isHardwareAccount && this.#clientId === BridgeClientId.MOBILE;
+      // Handle approval silently for better UX in intent flows
+      const approvalTxMeta = await this.#handleApprovalTx(
+        isBridgeTx,
+        quoteResponse.quote.srcChainId,
+        quoteResponse.approval,
+        quoteResponse.resetApproval,
+        requireApproval,
+      );
 
-        if (approvalTxId) {
-          await this.#waitForTxConfirmation(approvalTxId);
-        }
+      const approvalTxId = approvalTxMeta?.id;
+
+      if (approvalTxId) {
+        await this.#waitForTxConfirmation(approvalTxId);
       }
 
-      const { srcChainId: chainId, requestId } = quoteResponse.quote;
+      const { srcChainId, requestId } = quoteResponse.quote;
 
       const signature = await this.messenger.call(
         'KeyringController:signTypedMessage',
@@ -1679,7 +1680,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
 
       const submissionParams: IntentSubmissionParams = {
-        srcChainId: chainId.toString(),
+        srcChainId,
         quoteId: requestId,
         signature,
         order: intent.order,
@@ -1695,24 +1696,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const orderUid = intentOrder.id;
 
       // Determine transaction type: swap for same-chain, bridge for cross-chain
-      const isCrossChainTx = isCrossChain(
-        quoteResponse.quote.srcChainId,
-        quoteResponse.quote.destChainId,
-      );
-      const transactionType = isCrossChainTx
-        ? TransactionType.bridge
-        : TransactionType.swap;
+      const transactionType = isBridgeTx
+        ? /* c8 ignore start */
+          TransactionType.bridge
+        : /* c8 ignore end */
+          TransactionType.swap;
 
       // Create actual transaction in Transaction Controller first
       const networkClientId = this.messenger.call(
         'NetworkController:findNetworkClientIdByChainId',
-        formatChainIdToHex(chainId),
+        formatChainIdToHex(srcChainId),
       );
 
       // This is a synthetic transaction whose purpose is to be able
       // to track the order status via the history
       const intentTransactionParams = {
-        chainId: formatChainIdToHex(chainId),
+        chainId: formatChainIdToHex(srcChainId),
         from: accountAddress,
         to:
           intent.settlementContract ??
@@ -1753,8 +1752,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ...statusUpdatedTxMeta,
         isIntentTx: true,
         orderUid,
-        intentType: isCrossChainTx ? 'bridge' : 'swap',
-      } as unknown as TransactionMeta;
+      };
 
       // Record in bridge history with actual transaction metadata
       try {
