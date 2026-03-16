@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `SelectedNetworkController` methods through its messenger ([#8161](https://github.com/MetaMask/core/pull/8161))
+  - The following actions are now available:
+    - `SelectedNetworkController:getProviderAndBlockTracker`
+  - Corresponding action types
+    (e.g. `SelectedNetworkControllerGetProviderAndBlockTrackerAction`) are
+    available as well.
+
 ### Changed
 
 - Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
