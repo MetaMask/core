@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose missing public `PermissionController` methods through its messenger ([#8161](https://github.com/MetaMask/core/pull/8161))
+- Expose missing public `PermissionController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
   - The following actions are now available:
     - `PermissionController:clearState`
   - Corresponding action types (e.g. `PermissionControllerClearStateAction`) are
     available as well.
-- Expose missing public `SubjectMetadataController` methods through its messenger ([#8161](https://github.com/MetaMask/core/pull/8161))
+- Expose missing public `SubjectMetadataController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
   - The following actions are now available:
     - `SubjectMetadataController:clearState`
     - `SubjectMetadataController:trimMetadataState`
@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Deprecate action types in favor of `PermissionController...Action` and `SubjectMetadataController...Action` types ([#8161](https://github.com/MetaMask/core/pull/8161))
+- Deprecate action types in favor of `PermissionController...Action` and `SubjectMetadataController...Action` types ([#8201](https://github.com/MetaMask/core/pull/8201))
   - For the `PermissionController`:
     - `GetPermissionControllerState` is now `PermissionControllerGetStateAction`.
     - `GetSubjects` is now `PermissionControllerGetSubjectsAction`.

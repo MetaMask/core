@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose missing public `SelectedNetworkController` methods through its messenger ([#8161](https://github.com/MetaMask/core/pull/8161))
+- Expose missing public `SelectedNetworkController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
   - The following actions are now available:
     - `SelectedNetworkController:getProviderAndBlockTracker`
   - Corresponding action types
