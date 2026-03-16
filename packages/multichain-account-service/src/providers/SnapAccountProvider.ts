@@ -1,8 +1,14 @@
+import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
-import { AccountCreationType } from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
+} from '@metamask/keyring-api';
 import type {
+  CreateAccountBip44DeriveIndexOptions,
+  CreateAccountBip44DeriveIndexRangeOptions,
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
@@ -16,6 +22,7 @@ import { HandlerType } from '@metamask/snaps-utils';
 import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import { withTimeout } from './utils';
 import { traceFallback } from '../analytics';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { createSentryError } from '../utils';
@@ -280,9 +287,110 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
 
-  abstract createAccounts(
+  protected abstract createAccountV1(
+    keyring: RestrictedSnapKeyring,
+    options: { entropySource: EntropySourceId; groupIndex: number },
+  ): Promise<KeyringAccount>;
+
+  protected toBip44Account(
+    account: KeyringAccount,
+    _options: { entropySource: EntropySourceId; groupIndex: number },
+  ): Bip44Account<KeyringAccount> {
+    assertIsBip44Account(account);
+    return account;
+  }
+
+  protected async createBip44Accounts(
+    keyring: RestrictedSnapKeyring,
+    options:
+      | CreateAccountBip44DeriveIndexOptions
+      | CreateAccountBip44DeriveIndexRangeOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    return this.withMaxConcurrency(async () => {
+      let groupIndexOffset = 0;
+      let snapAccounts: KeyringAccount[] = [];
+
+      const v2 = this.config.createAccounts.v2 ?? false;
+      const { entropySource } = options;
+
+      if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
+        if (v2) {
+          // Batch account creations.
+          snapAccounts = await withTimeout(
+            keyring.createAccounts(options),
+            this.config.createAccounts.timeoutMs,
+          );
+        } else {
+          const { range } = options;
+
+          // Create accounts one by one.
+          for (
+            let groupIndex = range.from;
+            groupIndex <= range.to;
+            groupIndex++
+          ) {
+            const snapAccount = await withTimeout(
+              this.createAccountV1(keyring, { entropySource, groupIndex }),
+              this.config.createAccounts.timeoutMs,
+            );
+
+            snapAccounts.push(snapAccount);
+          }
+        }
+
+        // Group indices are sequential, so we just need the starting index.
+        groupIndexOffset = options.range.from;
+      } else {
+        if (v2) {
+          // Create account using new v2-like flow (no async flow + no Snap keyring events).
+          const [snapAccount] = await withTimeout(
+            keyring.createAccounts(options),
+            this.config.createAccounts.timeoutMs,
+          );
+
+          snapAccounts = [snapAccount];
+        } else {
+          const { groupIndex } = options;
+
+          // Create account using the existing v1 flow.
+          const snapAccount = await withTimeout(
+            this.createAccountV1(keyring, { entropySource, groupIndex }),
+            this.config.createAccounts.timeoutMs,
+          );
+
+          snapAccounts = [snapAccount];
+        }
+
+        // For single account, there will only be 1 account, so we can use the
+        // provided group index directly.
+        groupIndexOffset = options.groupIndex;
+      }
+
+      return snapAccounts.map((snapAccount, index) => {
+        const groupIndex = groupIndexOffset + index;
+        const account = this.toBip44Account(snapAccount, {
+          entropySource,
+          groupIndex,
+        });
+
+        this.accounts.add(snapAccount.id);
+        return account;
+      });
+    });
+  }
+
+  async createAccounts(
     options: CreateAccountOptions,
-  ): Promise<Bip44Account<KeyringAccount>[]>;
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
+    ]);
+
+    return this.withSnap(async ({ keyring }) =>
+      this.createBip44Accounts(keyring, options),
+    );
+  }
 
   abstract discoverAccounts(options: {
     entropySource: EntropySourceId;

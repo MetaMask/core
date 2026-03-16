@@ -1,17 +1,12 @@
-import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
-  CreateAccountBip44DeriveIndexOptions,
-  CreateAccountBip44DeriveIndexRangeOptions,
-  CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
   KeyringCapabilities,
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
-  assertCreateAccountOptionIsSupported,
   BtcAccountType,
   BtcScope,
 } from '@metamask/keyring-api';
@@ -78,93 +73,18 @@ export class BtcAccountProvider extends SnapAccountProvider {
     );
   }
 
-  async #createAccounts(
+  protected override createAccountV1(
     keyring: RestrictedSnapKeyring,
-    options:
-      | CreateAccountBip44DeriveIndexOptions
-      | CreateAccountBip44DeriveIndexRangeOptions,
-  ): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withMaxConcurrency(async () => {
-      let snapAccounts: KeyringAccount[] = [];
-
-      const v2 = this.config.createAccounts.v2 ?? false;
-
-      const { entropySource } = options;
-
-      if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
-        if (v2) {
-          // Batch account creations.
-          snapAccounts = await withTimeout(
-            keyring.createAccounts(options),
-            this.config.createAccounts.timeoutMs,
-          );
-        } else {
-          const { range } = options;
-
-          // Create accounts one by one.
-          for (
-            let groupIndex = range.from;
-            groupIndex <= range.to;
-            groupIndex++
-          ) {
-            const snapAccount = await withTimeout(
-              keyring.createAccount({
-                entropySource,
-                index: groupIndex,
-                addressType: BtcAccountType.P2wpkh,
-                scope: BtcScope.Mainnet,
-              }),
-              this.config.createAccounts.timeoutMs,
-            );
-
-            snapAccounts.push(snapAccount);
-          }
-        }
-      } else if (v2) {
-        // Create account using new v2-like flow (no async flow + no Snap keyring events).
-        const [snapAccount] = await withTimeout(
-          keyring.createAccounts(options),
-          this.config.createAccounts.timeoutMs,
-        );
-
-        snapAccounts = [snapAccount];
-      } else {
-        const { groupIndex } = options;
-
-        // Create account using the existing v1 flow.
-        const snapAccount = await withTimeout(
-          keyring.createAccount({
-            entropySource,
-            index: groupIndex,
-            addressType: BtcAccountType.P2wpkh,
-            scope: BtcScope.Mainnet,
-          }),
-          this.config.createAccounts.timeoutMs,
-        );
-
-        snapAccounts = [snapAccount];
-      }
-
-      const accounts: Bip44Account<KeyringAccount>[] = [];
-      for (const snapAccount of snapAccounts) {
-        assertIsBip44Account(snapAccount);
-        this.accounts.add(snapAccount.id);
-        accounts.push(snapAccount);
-      }
-      return accounts;
-    });
-  }
-
-  async createAccounts(
-    options: CreateAccountOptions,
-  ): Promise<Bip44Account<KeyringAccount>[]> {
-    assertCreateAccountOptionIsSupported(options, [
-      `${AccountCreationType.Bip44DeriveIndex}`,
-      `${AccountCreationType.Bip44DeriveIndexRange}`,
-    ]);
-
-    return this.withSnap(async ({ keyring }) => {
-      return this.#createAccounts(keyring, options);
+    {
+      entropySource,
+      groupIndex,
+    }: { entropySource: EntropySourceId; groupIndex: number },
+  ): Promise<KeyringAccount> {
+    return keyring.createAccount({
+      entropySource,
+      index: groupIndex,
+      addressType: BtcAccountType.P2wpkh,
+      scope: BtcScope.Mainnet,
     });
   }
 
@@ -211,7 +131,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
             return [];
           }
 
-          return await this.#createAccounts(keyring, {
+          return await this.createBip44Accounts(keyring, {
             type: AccountCreationType.Bip44DeriveIndex,
             entropySource,
             groupIndex,
