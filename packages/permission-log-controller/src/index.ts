@@ -1,4 +1,5 @@
 export { PermissionLogController } from './PermissionLogController';
+export type * from './PermissionLogController-method-action-types';
 export type {
   JsonRpcRequestWithOrigin,
   Caveat,
