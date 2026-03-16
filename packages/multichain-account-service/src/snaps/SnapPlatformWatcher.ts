@@ -13,6 +13,19 @@ type KeyringControllerStateSlice = {
 /** How long to wait for the Snap keyring to appear before giving up (ms). */
 const SNAP_KEYRING_WAIT_TIMEOUT_MS = 5_000;
 
+/**
+ * Returns true if the given KeyringController state slice contains a Snap keyring.
+ *
+ * @param state - KeyringController state.
+ * @returns True if state.keyrings contains a keyring with type KeyringTypes.snap.
+ */
+function stateHasSnapKeyring(state: KeyringControllerStateSlice): boolean {
+  return Boolean(
+    Array.isArray(state?.keyrings) &&
+      state.keyrings.some((k) => k.type === (KeyringTypes.snap as string)),
+  );
+}
+
 export type SnapPlatformWatcherOptions = {
   /**
    * Resolves when onboarding is complete.
@@ -83,12 +96,10 @@ export class SnapPlatformWatcher {
    */
   #hasSnapKeyring(): boolean {
     try {
-      const keyrings = this.#messenger.call(
-        'KeyringController:getKeyringsByType',
-        KeyringTypes.snap,
-      );
-
-      return Array.isArray(keyrings) && keyrings.length > 0;
+      const state = this.#messenger.call(
+        'KeyringController:getState',
+      ) as KeyringControllerStateSlice;
+      return stateHasSnapKeyring(state);
     } catch (error) {
       log(
         `${WARNING_PREFIX} KeyringController error while waiting for Snap keyring:`,
@@ -105,10 +116,7 @@ export class SnapPlatformWatcher {
   async #waitForSnapKeyringViaStateChange(): Promise<void> {
     await new Promise<void>((resolve) => {
       const listener = (state: KeyringControllerStateSlice): void => {
-        const hasSnapKeyring = state.keyrings?.some(
-          (k) => k.type === (KeyringTypes.snap as string),
-        );
-        if (hasSnapKeyring) {
+        if (stateHasSnapKeyring(state)) {
           this.#messenger.unsubscribe(
             'KeyringController:stateChange',
             listener,
