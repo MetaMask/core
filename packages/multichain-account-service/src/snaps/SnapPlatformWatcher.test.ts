@@ -263,6 +263,49 @@ describe('SnapPlatformWatcher', () => {
       expect(mocks.KeyringController.getState).toHaveBeenCalled();
     });
 
+    it('resolves when Snap keyring appears via stateChange before timeout (listener path)', async () => {
+      const rootMessenger = getRootMessenger();
+      const mocks = {
+        SnapController: { getState: jest.fn() },
+        KeyringController: { getState: jest.fn() },
+      };
+      mocks.SnapController.getState.mockReturnValue({ isReady: true });
+      mocks.KeyringController.getState.mockReturnValue({ keyrings: [] });
+      rootMessenger.registerActionHandler(
+        'SnapController:getState',
+        mocks.SnapController.getState,
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:getState',
+        mocks.KeyringController.getState,
+      );
+      const messenger = getMultichainAccountServiceMessenger(rootMessenger);
+      const subscribeSpy = jest.spyOn(messenger, 'subscribe');
+      const watcher = new SnapPlatformWatcher(messenger);
+
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      await Promise.resolve();
+      await Promise.resolve(); // flush so #waitForSnapKeyring runs and subscribe is called
+
+      expect(subscribeSpy.mock.calls.map((call) => call[0])).toContain(
+        'KeyringController:stateChange',
+      );
+      const stateChangeCall = subscribeSpy.mock.calls.find(
+        (call) => call[0] === 'KeyringController:stateChange',
+      );
+      if (stateChangeCall === undefined) {
+        throw new Error(
+          'KeyringController:stateChange subscribe call not found',
+        );
+      }
+      const listener = stateChangeCall[1] as (state: {
+        keyrings: { type: string }[];
+      }) => void;
+      listener({ keyrings: [{ type: KeyringTypes.snap }] });
+
+      expect(await ensurePromise).toBeUndefined();
+    });
+
     it('resolves after timeout when Snap keyring never appears (initial check returns empty)', async () => {
       const { rootMessenger, watcher, mocks } = setup();
 
