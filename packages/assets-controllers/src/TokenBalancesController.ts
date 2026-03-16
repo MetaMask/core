@@ -56,23 +56,25 @@ import {
 import { produce } from 'immer';
 import { isEqual } from 'lodash';
 
+import type { AccountTrackerControllerGetStateAction } from './AccountTrackerController';
 import type {
-  AccountTrackerControllerGetStateAction,
-  AccountTrackerUpdateNativeBalancesAction,
-  AccountTrackerUpdateStakedBalancesAction,
-} from './AccountTrackerController';
+  AccountTrackerControllerUpdateNativeBalancesAction,
+  AccountTrackerControllerUpdateStakedBalancesAction,
+} from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
   BalanceFetcher,
   ProcessedBalance,
+  UnprocessedTokens,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
+import type { TokenBalancesControllerMethodActions } from './TokenBalancesController-method-action-types';
 import type {
   TokenDetectionControllerAddDetectedTokensViaPollingAction,
   TokenDetectionControllerAddDetectedTokensViaWsAction,
   TokenDetectionControllerDetectTokensAction,
-} from './TokenDetectionController';
+} from './TokenDetectionController-method-action-types';
 import type {
   TokensControllerGetStateAction,
   TokensControllerState,
@@ -110,20 +112,9 @@ export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
   TokenBalancesControllerState
 >;
 
-export type TokenBalancesControllerUpdateChainPollingConfigsAction = {
-  type: `TokenBalancesController:updateChainPollingConfigs`;
-  handler: TokenBalancesController['updateChainPollingConfigs'];
-};
-
-export type TokenBalancesControllerGetChainPollingConfigAction = {
-  type: `TokenBalancesController:getChainPollingConfig`;
-  handler: TokenBalancesController['getChainPollingConfig'];
-};
-
 export type TokenBalancesControllerActions =
   | TokenBalancesControllerGetStateAction
-  | TokenBalancesControllerUpdateChainPollingConfigsAction
-  | TokenBalancesControllerGetChainPollingConfigAction;
+  | TokenBalancesControllerMethodActions;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof CONTROLLER, TokenBalancesControllerState>;
@@ -148,10 +139,10 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListAccountsAction
   | AccountTrackerControllerGetStateAction
-  | AccountTrackerUpdateNativeBalancesAction
-  | AccountTrackerUpdateStakedBalancesAction
+  | AccountTrackerControllerUpdateNativeBalancesAction
+  | AccountTrackerControllerUpdateStakedBalancesAction
   | KeyringControllerGetStateAction
-  | AuthenticationController.AuthenticationControllerGetBearerToken;
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
@@ -261,6 +252,11 @@ type StakedBalanceUpdate = {
   chainId: Hex;
   stakedBalance: Hex;
 };
+const MESSENGER_EXPOSED_METHODS = [
+  'updateChainPollingConfigs',
+  'getChainPollingConfig',
+] as const;
+
 export class TokenBalancesController extends StaticIntervalPollingController<{
   chainIds: ChainIdHex[];
 }>()<
@@ -278,7 +274,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   readonly #isOnboarded: () => boolean;
 
-  readonly #balanceFetchers: BalanceFetcher[];
+  readonly #balanceFetchers: { fetcher: BalanceFetcher; name: string }[];
 
   #allTokens: TokensControllerState['allTokens'] = {};
 
@@ -348,11 +344,21 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     // Always include AccountsApiFetcher - it dynamically checks allowExternalServices() in supports()
     this.#balanceFetchers = [
-      this.#createAccountsApiFetcher(),
-      new RpcBalanceFetcher(this.#getProvider, this.#getNetworkClient, () => ({
-        allTokens: this.#allTokens,
-        allDetectedTokens: this.#detectedTokens,
-      })),
+      {
+        fetcher: this.#createAccountsApiFetcher(),
+        name: 'AccountsApiFetcher',
+      },
+      {
+        fetcher: new RpcBalanceFetcher(
+          this.#getProvider,
+          this.#getNetworkClient,
+          () => ({
+            allTokens: this.#allTokens,
+            allDetectedTokens: this.#detectedTokens,
+          }),
+        ),
+        name: 'RpcFetcher',
+      },
     ];
 
     this.setIntervalLength(interval);
@@ -367,7 +373,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#isUnlocked = isUnlocked;
 
     this.#subscribeToControllers();
-    this.#registerActions();
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
   #subscribeToControllers(): void {
@@ -437,18 +443,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           // Silently handle balance update errors
         });
       },
-    );
-  }
-
-  #registerActions(): void {
-    this.messenger.registerActionHandler(
-      `TokenBalancesController:updateChainPollingConfigs`,
-      this.updateChainPollingConfigs.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `TokenBalancesController:getChainPollingConfig`,
-      this.getChainPollingConfig.bind(this),
     );
   }
 
@@ -818,8 +812,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }): Promise<ProcessedBalance[]> {
     const aggregated: ProcessedBalance[] = [];
     let remainingChains = [...targetChains];
+    let previousUnprocessedTokens: UnprocessedTokens | undefined;
+    let previousFetcherName: string | undefined;
 
-    for (const fetcher of this.#balanceFetchers) {
+    for (const { fetcher, name: fetcherName } of this.#balanceFetchers) {
       const supportedChains = remainingChains.filter((chain) =>
         fetcher.supports(chain),
       );
@@ -834,8 +830,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           selectedAccount,
           allAccounts,
           jwtToken,
+          unprocessedTokens: previousUnprocessedTokens,
         });
 
+        // Add balances, and removed processed chains
         if (result.balances?.length) {
           aggregated.push(...result.balances);
 
@@ -845,24 +843,74 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           );
         }
 
-        if (result.unprocessedChainIds?.length) {
-          const currentRemaining = [...remainingChains];
-          const chainsToAdd = result.unprocessedChainIds.filter(
-            (chainId) =>
-              supportedChains.includes(chainId) &&
-              !currentRemaining.includes(chainId),
+        // Add unprocessed chains (from missing chains or missing tokens)
+        if (result.unprocessedChainIds || result.unprocessedTokens) {
+          const resultUnprocessedChains = result.unprocessedChainIds ?? [];
+          const resultUnsupportedTokenChains = Object.entries(
+            result.unprocessedTokens ?? {},
+          ).flatMap(([_account, chainMap]) => Object.keys(chainMap)) as Hex[];
+          const unprocessedChainIds = Array.from(
+            new Set([
+              ...resultUnprocessedChains,
+              ...resultUnsupportedTokenChains,
+            ]),
           );
-          remainingChains.push(...chainsToAdd);
+
+          remainingChains = Array.from(
+            new Set([...remainingChains, ...unprocessedChainIds]),
+          );
 
           this.messenger
             .call('TokenDetectionController:detectTokens', {
-              chainIds: result.unprocessedChainIds,
+              chainIds: unprocessedChainIds,
               forceRpc: true,
             })
             .catch(() => {
               // Silently handle token detection errors
             });
         }
+
+        // Balance Error Reporting - for unprocessed tokens from last fetcher, if balances are retrieved
+        const unprocessedTokensForReporting = previousUnprocessedTokens;
+        if (unprocessedTokensForReporting && result.balances?.length) {
+          const confirmedUnprocessedTokens: {
+            chainId: string;
+            tokenAddress: string;
+          }[] = [];
+
+          // Capture balances that were found (> 0 balance), and was unprocessed
+          result.balances.forEach((bal) => {
+            const lowercaseAccount = bal.account.toLowerCase();
+            const lowercaseTokenAddress = bal.token.toLowerCase();
+
+            const hasResultBalance =
+              bal.success && bal.token && bal.value && !bal.value.isZero();
+            const isUnprocessed = unprocessedTokensForReporting?.[
+              lowercaseAccount
+            ]?.[bal.chainId]?.includes(lowercaseTokenAddress);
+
+            if (hasResultBalance && isUnprocessed) {
+              confirmedUnprocessedTokens.push({
+                chainId: bal.chainId,
+                tokenAddress: lowercaseTokenAddress,
+              });
+            }
+          });
+
+          const confirmedUnprocessedTokenStrings =
+            confirmedUnprocessedTokens.map(
+              (token) => `${token.chainId}:${token.tokenAddress}`,
+            );
+          if (confirmedUnprocessedTokens.length) {
+            console.warn(
+              `TokenBalanceController: fetcher ${previousFetcherName} did not process tokens (instead handled by fetcher ${fetcherName}): ${confirmedUnprocessedTokenStrings.join(', ')}`,
+            );
+          }
+        }
+
+        // Set new previous fields
+        previousUnprocessedTokens = result.unprocessedTokens;
+        previousFetcherName = fetcherName;
       } catch (error) {
         console.warn(
           `Balance fetcher failed for chains ${supportedChains.join(', ')}: ${String(error)}`,
@@ -1446,13 +1494,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       clearTimeout(this.#statusChangeDebouncer.timer);
       this.#statusChangeDebouncer.timer = null;
     }
-
-    this.messenger.unregisterActionHandler(
-      `TokenBalancesController:updateChainPollingConfigs`,
-    );
-    this.messenger.unregisterActionHandler(
-      `TokenBalancesController:getChainPollingConfig`,
-    );
 
     super.destroy();
   }

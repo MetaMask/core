@@ -1,9 +1,9 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
+import { sumAmounts } from './amounts';
 import { calculateTransactionGasCost } from './gas';
 import type {
-  Amount,
   FiatValue,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
@@ -35,6 +35,7 @@ export function calculateTotals({
   tokens: TransactionPayRequiredToken[];
   transaction: TransactionMeta;
 }): TransactionPayTotals {
+  const metaMaskFee = sumFiat(quotes.map((quote) => quote.fees.metaMask));
   const providerFee = sumFiat(quotes.map((quote) => quote.fees.provider));
 
   const sourceNetworkFeeMax = sumAmounts(
@@ -69,12 +70,14 @@ export function calculateTotals({
   const hasQuotes = quotes.length > 0;
 
   const totalFiat = new BigNumber(providerFee.fiat)
+    .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
     .plus(isMaxAmount && hasQuotes ? targetAmount.fiat : amountFiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
+    .plus(metaMaskFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
     .plus(isMaxAmount && hasQuotes ? targetAmount.usd : amountUsd)
@@ -97,6 +100,7 @@ export function calculateTotals({
     fees: {
       isSourceGasFeeToken,
       isTargetGasFeeToken,
+      metaMask: metaMaskFee,
       provider: providerFee,
       sourceNetwork: {
         estimate: sourceNetworkFeeEstimate,
@@ -110,24 +114,6 @@ export function calculateTotals({
       fiat: totalFiat,
       usd: totalUsd,
     },
-  };
-}
-
-/**
- * Sum a list of amounts.
- *
- * @param data - List of amounts.
- * @returns Total amount.
- */
-function sumAmounts(data: Amount[]): Amount {
-  const fiatValue = sumFiat(data);
-  const human = sumProperty(data, (item) => item.human);
-  const raw = sumProperty(data, (item) => item.raw);
-
-  return {
-    ...fiatValue,
-    human,
-    raw,
   };
 }
 

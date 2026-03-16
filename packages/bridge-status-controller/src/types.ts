@@ -14,13 +14,14 @@ import type {
   MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
+import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
-import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller/auth';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
@@ -138,6 +139,17 @@ export type BridgeHistoryItem = {
    */
   location?: MetaMetricsSwapsEventSource;
   /**
+   * Legacy A/B test metrics context (`ab_tests`) kept for backward compatibility.
+   * Keys are test names, values are variant names (e.g. { token_details_layout: 'treatment' }).
+   */
+  abTests?: Record<string, string>;
+  /**
+   * New A/B test metrics context (`active_ab_tests`) that replaces `ab_tests`.
+   * Kept separate so migration can run both payloads in parallel.
+   * This field is an array of test objects.
+   */
+  activeAbTests?: { key: string; value: string }[];
+  /**
    * Attempts tracking for exponential backoff on failed fetches.
    * We track the number of attempts and the last attempt time for each txMetaId that has failed at least once
    */
@@ -206,6 +218,10 @@ export type StartPollingForBridgeTxStatusArgs = {
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
   location?: BridgeHistoryItem['location'];
+  // Legacy field for `ab_tests` metrics payload.
+  abTests?: BridgeHistoryItem['abTests'];
+  // New field for `active_ab_tests` metrics payload.
+  activeAbTests?: BridgeHistoryItem['activeAbTests'];
   accountAddress: string;
 };
 
@@ -304,7 +320,8 @@ type AllowedActions =
   | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
   | RemoteFeatureFlagControllerGetStateAction
-  | AuthenticationControllerGetBearerToken;
+  | AuthenticationControllerGetBearerTokenAction
+  | KeyringControllerSignTypedMessageAction;
 
 /**
  * The external events available to the BridgeStatusController.

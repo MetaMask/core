@@ -786,6 +786,11 @@ export enum TransactionType {
   musdConversion = 'musdConversion',
 
   /**
+   * Deposit funds for Across quote via Perps.
+   */
+  perpsAcrossDeposit = 'perpsAcrossDeposit',
+
+  /**
    * Deposit funds to be available for trading via Perps.
    */
   perpsDeposit = 'perpsDeposit',
@@ -807,6 +812,11 @@ export enum TransactionType {
   personalSign = 'personal_sign',
 
   /**
+   * Deposit funds for Across quote via Predict.
+   */
+  predictAcrossDeposit = 'predictAcrossDeposit',
+
+  /**
    * Buy a position via Predict.
    *
    * @deprecated Not used.
@@ -822,6 +832,11 @@ export enum TransactionType {
    * Deposit funds to be available for use via Predict.
    */
   predictDeposit = 'predictDeposit',
+
+  /**
+   * Deposit funds and place an order via Predict.
+   */
+  predictDepositAndOrder = 'predictDepositAndOrder',
 
   /**
    * Sell a position via Predict.
@@ -2114,6 +2129,9 @@ export type MetamaskPayMetadata = {
 
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
+
+  /** Source chain transaction hash if no local transaction. */
+  sourceHash?: Hex;
 
   /** Total amount of target token provided in fiat currency. */
   targetFiat?: string;

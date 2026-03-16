@@ -38,9 +38,11 @@
   "metamask/eip-5792-middleware": "team-wallet-integrations",
   "metamask/client-controller": "team-core-platform,team-extension-platform,team-mobile-platform",
   "metamask/base-controller": "team-core-platform",
+  "metamask/base-data-service": "team-core-platform",
   "metamask/build-utils": "team-core-platform",
   "metamask/composable-controller": "team-core-platform",
   "metamask/connectivity-controller": "team-core-platform",
+  "metamask/geolocation-controller": "team-core-platform",
   "metamask/controller-utils": "team-core-platform",
   "metamask/error-reporting-service": "team-core-platform",
   "metamask/messenger": "team-core-platform",
@@ -69,5 +71,6 @@
   "metamask/analytics-controller": "team-extension-platform,team-mobile-platform",
   "metamask/analytics-data-regulation-controller": "team-extension-platform,team-mobile-platform",
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
-  "metamask/storage-service": "team-extension-platform,team-mobile-platform"
+  "metamask/storage-service": "team-extension-platform,team-mobile-platform",
+  "metamask/config-registry-controller": "team-core-platform"
 }

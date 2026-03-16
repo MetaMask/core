@@ -2,9 +2,13 @@ export type {
   RampsControllerActions,
   RampsControllerEvents,
   RampsControllerGetStateAction,
+  RampsControllerSetSelectedTokenAction,
+  RampsControllerGetQuotesAction,
+  RampsControllerGetOrderAction,
   RampsControllerMessenger,
   RampsControllerState,
   RampsControllerStateChangeEvent,
+  RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
   UserRegion,
   ResourceState,
@@ -14,6 +18,7 @@ export type {
 export {
   RampsController,
   getDefaultRampsControllerState,
+  normalizeProviderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 export type {
@@ -47,6 +52,7 @@ export type {
   RampsOrderCryptoCurrency,
   RampsOrderFiatCurrency,
   RampsOrderPaymentMethod,
+  OrderPaymentDetail,
 } from './RampsService';
 export {
   RampsService,

@@ -45,6 +45,9 @@
       "path": "./packages/base-controller"
     },
     {
+      "path": "./packages/base-data-service"
+    },
+    {
       "path": "./packages/bridge-controller"
     },
     {
@@ -63,7 +66,13 @@
       "path": "./packages/client-controller"
     },
     {
+      "path": "./packages/compliance-controller"
+    },
+    {
       "path": "./packages/composable-controller"
+    },
+    {
+      "path": "./packages/config-registry-controller"
     },
     {
       "path": "./packages/connectivity-controller"
@@ -106,6 +115,9 @@
     },
     {
       "path": "./packages/gator-permissions-controller"
+    },
+    {
+      "path": "./packages/geolocation-controller"
     },
     {
       "path": "./packages/json-rpc-engine"

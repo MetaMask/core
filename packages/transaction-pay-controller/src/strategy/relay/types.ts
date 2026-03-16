@@ -14,6 +14,7 @@ export type RelayQuoteRequest = {
   destinationCurrency: Hex;
   originChainId: number;
   originCurrency: Hex;
+  originGasOverhead?: string;
   recipient: Hex;
   refundTo?: Hex;
   slippageTolerance?: string;
@@ -53,6 +54,9 @@ export type RelayQuote = {
     };
   };
   fees: {
+    app?: {
+      amountUsd: string;
+    };
     relayer: {
       amountUsd: string;
     };
@@ -70,6 +74,7 @@ export type RelayQuote = {
   };
   metamask: {
     gasLimits: number[];
+    isMaxGasStation?: boolean;
   };
   request: RelayQuoteRequest;
   steps: {
@@ -94,6 +99,34 @@ export type RelayQuote = {
     kind: 'transaction';
     requestId: string;
   }[];
+};
+
+export type RelayExecuteRequest = {
+  executionKind: 'rawCalls';
+  data: {
+    chainId: number;
+    to: Hex;
+    data: Hex;
+    value: string;
+    authorizationList?: {
+      chainId: number;
+      address: Hex;
+      nonce: number;
+      yParity: number;
+      r: Hex;
+      s: Hex;
+    }[];
+  };
+  executionOptions: {
+    referrer?: string;
+    subsidizeFees: boolean;
+  };
+  requestId?: string;
+};
+
+export type RelayExecuteResponse = {
+  message: string;
+  requestId: string;
 };
 
 export type RelayStatus =

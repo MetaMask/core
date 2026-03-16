@@ -2875,6 +2875,121 @@ exports[`BridgeStatusController submitTx: EVM swap should estimate gas when gasI
 }
 `;
 
+exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with approval 2`] = `
+{
+  "account": "0xaccount1",
+  "actionId": undefined,
+  "approvalTxId": undefined,
+  "batchId": "batchId1",
+  "estimatedProcessingTimeInSeconds": 0,
+  "featureId": undefined,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": true,
+  "location": "Main View",
+  "originalTransactionId": "test-tx-id",
+  "pricingData": {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
+  },
+  "quote": {
+    "bridgeId": "lifi",
+    "bridges": [
+      "across",
+    ],
+    "destAsset": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:10/slip44:60",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "destChainId": 42161,
+    "destTokenAmount": "990654755978612",
+    "feeData": {
+      "txFee": {
+        "maxFeePerGas": "123",
+        "maxPriorityFeePerGas": "123",
+      },
+    },
+    "gasIncluded": true,
+    "minDestTokenAmount": "941000000000000",
+    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "srcAsset": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "srcChainId": 42161,
+    "srcTokenAmount": "991250000000000",
+    "steps": [
+      {
+        "action": "bridge",
+        "destAmount": "990654755978612",
+        "destAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/slip44:60",
+          "chainId": 10,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.63",
+          "symbol": "ETH",
+        },
+        "destChainId": 10,
+        "protocol": {
+          "displayName": "Across",
+          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+          "name": "across",
+        },
+        "srcAmount": "991250000000000",
+        "srcAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+        "srcChainId": 42161,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": {
+    "srcChain": {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 1`] = `
 {
   "batchId": "batchId1",
@@ -3267,8 +3382,8 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
-    "quotedGasAmount": ".00055",
-    "quotedGasInUsd": "2.5778",
+    "quotedGasAmount": undefined,
+    "quotedGasInUsd": undefined,
     "quotedReturnInUsd": "0.134214",
   },
   "quote": {
@@ -3407,7 +3522,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "token_symbol_destination": "WETH",
       "token_symbol_source": "ETH",
       "usd_amount_source": 1.01,
-      "usd_quoted_gas": 2.5778,
+      "usd_quoted_gas": 0,
       "usd_quoted_return": 0,
     },
   ],
@@ -3426,6 +3541,26 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
     "TransactionController:getState",
   ],
 ]
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should use batch path when gasIncluded7702 is true regardless of STX setting (with approval) 1`] = `
+{
+  "batchId": "batchId1",
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "swap",
+}
 `;
 
 exports[`BridgeStatusController submitTx: EVM swap should use batch path when gasIncluded7702 is true regardless of STX setting 1`] = `
@@ -3483,6 +3618,156 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
   "pricingData": {
     "amountSent": "1.234",
     "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
+  },
+  "quote": {
+    "bridgeId": "lifi",
+    "bridges": [
+      "across",
+    ],
+    "destAsset": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:10/slip44:60",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "destChainId": 42161,
+    "destTokenAmount": "990654755978612",
+    "feeData": {
+      "metabridge": {
+        "amount": "8750000000000",
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
+      "txFee": {
+        "maxFeePerGas": "1395348",
+        "maxPriorityFeePerGas": "1000001",
+      },
+    },
+    "gasIncluded": true,
+    "gasIncluded7702": false,
+    "minDestTokenAmount": "941000000000000",
+    "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+    "srcAsset": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
+      "chainId": 42161,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.7",
+      "symbol": "ETH",
+    },
+    "srcChainId": 42161,
+    "srcTokenAmount": "991250000000000",
+    "steps": [
+      {
+        "action": "bridge",
+        "destAmount": "990654755978612",
+        "destAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:10/slip44:60",
+          "chainId": 10,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.63",
+          "symbol": "ETH",
+        },
+        "destChainId": 10,
+        "protocol": {
+          "displayName": "Across",
+          "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+          "name": "across",
+        },
+        "srcAmount": "991250000000000",
+        "srcAsset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+        "srcChainId": 42161,
+      },
+    ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": {
+    "srcChain": {
+      "chainId": 42161,
+      "txHash": "0xevmTxHash",
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (undefined gasLimit) 1`] = `
+{
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "swap",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (undefined gasLimit) 2`] = `
+{
+  "account": "0xaccount1",
+  "actionId": "1234567890.456",
+  "approvalTxId": undefined,
+  "batchId": undefined,
+  "estimatedProcessingTimeInSeconds": 0,
+  "featureId": undefined,
+  "hasApprovalTx": false,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": false,
+  "location": "Main View",
+  "originalTransactionId": "test-tx-id",
+  "pricingData": {
+    "amountSent": "0",
+    "amountSentInUsd": undefined,
     "quotedGasAmount": ".00055",
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",

@@ -7,9 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801)), ([#8190](https://github.com/MetaMask/core/pull/8190))
+
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Optimize `EvmAccountProvider.createAccounts` for range operations ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Batch account creation with single a `withKeyring` call for entire range instead of one call per account.
+  - Batch account creation with single `keyring.addAccounts` call.
+  - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
+  - Significantly reduces lock acquisitions and API calls for batch operations.
+
+## [7.1.0]
+
+### Added
+
+- Add new optional `ensureOnboardingComplete` callback ([#8124](https://github.com/MetaMask/core/pull/8124))
+  - This allows the service to wait for the user to re-onboard after a wallet reset.
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+
+### Removed
+
+- **BREAKING:** Remove `MultichainAccountGroup.alignAccounts` method ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Use `MultichainAccountWallet.alignAccountsOf` instead, since this method properly lock the wallet (parent of this group) state.
+
+### Fixed
+
+- Prevent wallet's lock by-pass when creating non-EVM account asynchronously ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - The `waitForAllProvidersToFinishCreatingAccounts` option (when set to `false`) was causing account creation to be asynchronous for non-EVM providers, which was potentially creating accounts after the wallet's internal lock was released.
+  - We now run an internal account alignment operation which locks the wallet properly and runs in the background.
 
 ## [7.0.0]
 
@@ -383,7 +413,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141)), ([#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.0.0...@metamask/multichain-account-service@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@6.0.0...@metamask/multichain-account-service@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.1.0...@metamask/multichain-account-service@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@5.0.0...@metamask/multichain-account-service@5.1.0

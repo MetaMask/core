@@ -5,7 +5,6 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { isCaipAssetType } from '@metamask/utils';
 
 import {
   AiDigestControllerErrorMessage,
@@ -18,11 +17,18 @@ import type {
   DigestService,
   MarketInsightsReport,
   MarketInsightsEntry,
+  MarketOverview,
+  MarketOverviewEntry,
 } from './ai-digest-types';
 
 export type AiDigestControllerFetchMarketInsightsAction = {
   type: `${typeof controllerName}:fetchMarketInsights`;
   handler: AiDigestController['fetchMarketInsights'];
+};
+
+export type AiDigestControllerFetchMarketOverviewAction = {
+  type: `${typeof controllerName}:fetchMarketOverview`;
+  handler: AiDigestController['fetchMarketOverview'];
 };
 
 export type AiDigestControllerGetStateAction = ControllerGetStateAction<
@@ -32,6 +38,7 @@ export type AiDigestControllerGetStateAction = ControllerGetStateAction<
 
 export type AiDigestControllerActions =
   | AiDigestControllerFetchMarketInsightsAction
+  | AiDigestControllerFetchMarketOverviewAction
   | AiDigestControllerGetStateAction;
 
 export type AiDigestControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -56,11 +63,18 @@ export type AiDigestControllerOptions = {
 export function getDefaultAiDigestControllerState(): AiDigestControllerState {
   return {
     marketInsights: {},
+    marketOverview: null,
   };
 }
 
 const aiDigestControllerMetadata: StateMetadata<AiDigestControllerState> = {
   marketInsights: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: true,
+  },
+  marketOverview: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -95,23 +109,31 @@ export class AiDigestController extends BaseController<
       `${controllerName}:fetchMarketInsights`,
       this.fetchMarketInsights.bind(this),
     );
+    this.messenger.registerActionHandler(
+      `${controllerName}:fetchMarketOverview`,
+      this.fetchMarketOverview.bind(this),
+    );
   }
 
   /**
-   * Fetches market insights for a given CAIP-19 asset identifier.
+   * Fetches market insights for a given asset identifier.
    * Returns cached data if still fresh, otherwise calls the service.
    *
-   * @param caip19Id - The CAIP-19 identifier of the asset.
+   * Accepts either a CAIP-19 asset type (e.g. `eip155:1/slip44:60`) or a perps
+   * market symbol (e.g. `ETH`). The service handles choosing the correct API
+   * query parameter automatically.
+   *
+   * @param assetIdentifier - The asset identifier (CAIP-19 ID or perps market symbol).
    * @returns The market insights report, or `null` if none exists.
    */
   async fetchMarketInsights(
-    caip19Id: string,
+    assetIdentifier: string,
   ): Promise<MarketInsightsReport | null> {
-    if (!isCaipAssetType(caip19Id)) {
-      throw new Error(AiDigestControllerErrorMessage.INVALID_CAIP_ASSET_TYPE);
+    if (!assetIdentifier) {
+      throw new Error(AiDigestControllerErrorMessage.INVALID_ASSET_IDENTIFIER);
     }
 
-    const existing = this.state.marketInsights[caip19Id];
+    const existing = this.state.marketInsights[assetIdentifier];
     if (existing) {
       const age = Date.now() - existing.fetchedAt;
       if (age < CACHE_DURATION_MS) {
@@ -119,25 +141,61 @@ export class AiDigestController extends BaseController<
       }
     }
 
-    const data = await this.#digestService.searchDigest(caip19Id);
+    const data = await this.#digestService.searchDigest(assetIdentifier);
 
     if (data === null) {
       // No insights available for this asset — clear any stale cache entry
       this.update((state) => {
-        delete state.marketInsights[caip19Id];
+        delete state.marketInsights[assetIdentifier];
       });
       return null;
     }
 
     const entry: MarketInsightsEntry = {
-      caip19Id,
+      assetIdentifier,
       fetchedAt: Date.now(),
       data,
     };
 
     this.update((state) => {
-      state.marketInsights[caip19Id] = entry;
+      state.marketInsights[assetIdentifier] = entry;
       this.#evictStaleCachedEntries(state.marketInsights);
+    });
+
+    return data;
+  }
+
+  /**
+   * Fetches the market overview report.
+   * Returns cached data if still fresh, otherwise calls the service.
+   *
+   * @returns The market overview report, or `null` if none exists.
+   */
+  async fetchMarketOverview(): Promise<MarketOverview | null> {
+    const existing = this.state.marketOverview;
+    if (existing) {
+      const age = Date.now() - existing.fetchedAt;
+      if (age < CACHE_DURATION_MS) {
+        return existing.data;
+      }
+    }
+
+    const data = await this.#digestService.fetchMarketOverview();
+
+    if (data === null) {
+      this.update((state) => {
+        state.marketOverview = null;
+      });
+      return null;
+    }
+
+    const entry: MarketOverviewEntry = {
+      fetchedAt: Date.now(),
+      data,
+    };
+
+    this.update((state) => {
+      state.marketOverview = entry;
     });
 
     return data;

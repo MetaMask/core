@@ -9,7 +9,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
-import { getStrategy } from '../utils/strategy';
+import { getStrategyByName } from '../utils/strategy';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 
@@ -68,7 +68,7 @@ export class TransactionPayPublishHook {
       return EMPTY_RESULT;
     }
 
-    const strategy = getStrategy(this.#messenger, transactionMeta);
+    const strategy = getStrategyByName(quotes[0].strategy);
 
     return await strategy.execute({
       isSmartTransaction: this.#isSmartTransaction,

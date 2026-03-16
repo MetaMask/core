@@ -15,7 +15,7 @@ import { TransactionStatus, TransactionType } from '../types';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 import {
   getIncomingTransactionsPollingInterval,
-  isIncomingTransactionsUseWebsocketsEnabled,
+  isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from '../utils/feature-flags';
 
 jest.useFakeTimers();
@@ -182,7 +182,7 @@ describe('IncomingTransactionHelper', () => {
       .mockReturnValue(1000 * 30);
 
     jest
-      .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+      .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
       .mockReturnValue(false);
 
     subscribeMock = jest.fn().mockImplementation((event, handler) => {
@@ -572,10 +572,10 @@ describe('IncomingTransactionHelper', () => {
     });
   });
 
-  describe('transaction history retrieval when useWebsockets is enabled', () => {
+  describe('transaction history retrieval when useBackendWebSocketService is enabled', () => {
     beforeEach(() => {
       jest
-        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
         .mockReturnValue(true);
     });
 
@@ -601,7 +601,7 @@ describe('IncomingTransactionHelper', () => {
     }
 
     describe('constructor', () => {
-      it('subscribes to connectionStateChanged when useWebsockets is enabled', async () => {
+      it('subscribes to connectionStateChanged when useBackendWebSocketService is enabled', async () => {
         const messenger = createMessengerMock();
 
         // eslint-disable-next-line no-new
@@ -619,9 +619,9 @@ describe('IncomingTransactionHelper', () => {
         );
       });
 
-      it('does not subscribe to connectionStateChanged when useWebsockets is disabled', async () => {
+      it('does not subscribe to connectionStateChanged when useBackendWebSocketService is disabled', async () => {
         jest
-          .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+          .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
           .mockReturnValue(false);
         const messenger = createMessengerMock();
 
@@ -642,7 +642,7 @@ describe('IncomingTransactionHelper', () => {
     });
 
     describe('start', () => {
-      it('does not start polling when useWebsockets is enabled', async () => {
+      it('does not start polling when useBackendWebSocketService is enabled', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
           messenger: createMessengerMock(),
@@ -959,9 +959,9 @@ describe('IncomingTransactionHelper', () => {
   });
 
   describe('legacy polling mode', () => {
-    it('uses polling when useWebsockets is disabled', async () => {
+    it('uses polling when useBackendWebSocketService is disabled', async () => {
       jest
-        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
         .mockReturnValue(false);
 
       const helper = new IncomingTransactionHelper({
@@ -977,7 +977,7 @@ describe('IncomingTransactionHelper', () => {
 
     it('clears timeout on stop when polling is active', async () => {
       jest
-        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
         .mockReturnValue(false);
 
       const helper = new IncomingTransactionHelper({
@@ -1000,7 +1000,7 @@ describe('IncomingTransactionHelper', () => {
 
     it('handles error in initial polling gracefully', async () => {
       jest
-        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
         .mockReturnValue(false);
 
       const remoteTransactionSource = createRemoteTransactionSourceMock([], {
@@ -1020,7 +1020,7 @@ describe('IncomingTransactionHelper', () => {
 
     it('handles error in initial polling when getCurrentAccount throws', async () => {
       jest
-        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
         .mockReturnValue(false);
 
       const getCurrentAccountMock = jest.fn().mockImplementation(() => {
@@ -1042,7 +1042,7 @@ describe('IncomingTransactionHelper', () => {
     // eslint-disable-next-line jest/expect-expect
     it('handles error in polling interval gracefully', async () => {
       jest
-        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
         .mockReturnValue(false);
 
       const remoteTransactionSource = createRemoteTransactionSourceMock([]);
@@ -1065,7 +1065,7 @@ describe('IncomingTransactionHelper', () => {
 
     it('reschedules timeout after interval completes', async () => {
       jest
-        .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+        .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
         .mockReturnValue(false);
 
       const helper = new IncomingTransactionHelper({
@@ -1107,10 +1107,10 @@ describe('IncomingTransactionHelper', () => {
   });
 
   describe('network fallback mechanism', () => {
-    describe('when useWebsockets is true', () => {
+    describe('when useBackendWebSocketService is true', () => {
       beforeEach(() => {
         jest
-          .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+          .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
           .mockReturnValue(true);
       });
 
@@ -1295,10 +1295,10 @@ describe('IncomingTransactionHelper', () => {
       });
     });
 
-    describe('when useWebsockets is false', () => {
+    describe('when useBackendWebSocketService is false', () => {
       it('does not subscribe to statusChanged events', async () => {
         jest
-          .mocked(isIncomingTransactionsUseWebsocketsEnabled)
+          .mocked(isIncomingTransactionsUseBackendWebSocketServiceEnabled)
           .mockReturnValue(false);
         const localSubscribeMock = jest.fn();
         const messenger = {

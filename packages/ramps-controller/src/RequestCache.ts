@@ -7,8 +7,7 @@ export type ResourceType =
   | 'countries'
   | 'providers'
   | 'tokens'
-  | 'paymentMethods'
-  | 'quotes';
+  | 'paymentMethods';
 
 /**
  * Status of a cached request.

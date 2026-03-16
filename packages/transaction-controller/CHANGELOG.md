@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `sourceHash` field to `MetamaskPayMetadata` for tracking source chain transaction hashes when no local transaction exists ([#8133](https://github.com/MetaMask/core/pull/8133))
+- Add `predictDepositAndOrder` to `TransactionType` ([#8135](https://github.com/MetaMask/core/pull/8135))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^6.1.0` to `^6.1.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
+### Fixed
+
+- Use effective recipient (decoded from tx data for token transfers) when checking for existing transactions in first-time interaction logic ([#8130](https://github.com/MetaMask/core/pull/8130))
+
+## [62.21.0]
+
+### Added
+
+- Add `perpsAcrossDeposit` and `predictAcrossDeposit` transaction types for Across MetaMask Pay submissions ([#7886](https://github.com/MetaMask/core/pull/7886))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `36.0.1` to `37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/core-backend` from `6.0.0` to `6.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+
+## [62.20.0]
+
+### Changed
+
+- Bump `@metamask/remote-feature-flag-controller` from `^4.0.0` to `^4.1.0` ([#8041](https://github.com/MetaMask/core/pull/8041))
+- Allow `updateTransactionGasFees` to be called for transactions with status submitted in addition to unapproved ([#8042](https://github.com/MetaMask/core/pull/8042))
+- Allow `updatePreviousGasParams` to be called for transactions with status submitted in addition to unapproved ([#8082](https://github.com/MetaMask/core/pull/8082))
+
+## [62.19.0]
+
+### Changed
+
+- Rename remote feature flag `useWebsockets` to `useBackendWebSocketService` ([#8028](https://github.com/MetaMask/core/pull/8028))
+
 ## [62.18.0]
 
 ### Added
@@ -2180,7 +2218,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.18.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.21.0...HEAD
+[62.21.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.20.0...@metamask/transaction-controller@62.21.0
+[62.20.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.19.0...@metamask/transaction-controller@62.20.0
+[62.19.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.18.0...@metamask/transaction-controller@62.19.0
 [62.18.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.17.1...@metamask/transaction-controller@62.18.0
 [62.17.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.17.0...@metamask/transaction-controller@62.17.1
 [62.17.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.16.0...@metamask/transaction-controller@62.17.0

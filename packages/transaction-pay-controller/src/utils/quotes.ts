@@ -4,7 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { getStrategy, getStrategyByName } from './strategy';
+import { getStrategiesByName, getStrategyByName } from './strategy';
 import {
   computeTokenAmounts,
   getLiveTokenBalance,
@@ -12,6 +12,7 @@ import {
 } from './token';
 import { calculateTotals } from './totals';
 import { getTransaction, updateTransaction } from './transaction';
+import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type {
   QuoteRequest,
@@ -30,6 +31,7 @@ const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 const log = createModuleLogger(projectLogger, 'quotes');
 
 export type UpdateQuotesRequest = {
+  getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
   messenger: TransactionPayControllerMessenger;
   transactionData: TransactionData | undefined;
   transactionId: string;
@@ -45,8 +47,13 @@ export type UpdateQuotesRequest = {
 export async function updateQuotes(
   request: UpdateQuotesRequest,
 ): Promise<boolean> {
-  const { messenger, transactionData, transactionId, updateTransactionData } =
-    request;
+  const {
+    getStrategies,
+    messenger,
+    transactionData,
+    transactionId,
+    updateTransactionData,
+  } = request;
 
   const transaction = getTransaction(transactionId, messenger);
 
@@ -64,6 +71,7 @@ export async function updateQuotes(
     isMaxAmount,
     isPostQuote,
     paymentToken: originalPaymentToken,
+    refundTo,
     sourceAmounts,
     tokens,
   } = transactionData;
@@ -88,6 +96,7 @@ export async function updateQuotes(
       isMaxAmount: isMaxAmount ?? false,
       isPostQuote,
       paymentToken,
+      refundTo,
       sourceAmounts,
       tokens,
       transactionId,
@@ -96,6 +105,7 @@ export async function updateQuotes(
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
       requests,
+      getStrategies,
       messenger,
     );
 
@@ -190,10 +200,12 @@ function syncTransaction({
  *
  * @param messenger - Messenger instance.
  * @param updateTransactionData - Callback to update transaction data.
+ * @param getStrategies - Callback to get ordered strategy names for a transaction.
  */
 export async function refreshQuotes(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
+  getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
 ): Promise<void> {
   const state = messenger.call('TransactionPayController:getState');
   const transactionIds = Object.keys(state.transactionData);
@@ -222,6 +234,7 @@ export async function refreshQuotes(
     }
 
     const isUpdated = await updateQuotes({
+      getStrategies,
       messenger,
       transactionData,
       transactionId,
@@ -242,6 +255,7 @@ export async function refreshQuotes(
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
+ * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
  * @param request.transactionId - ID of the transaction.
@@ -252,6 +266,7 @@ function buildQuoteRequests({
   isMaxAmount,
   isPostQuote,
   paymentToken,
+  refundTo,
   sourceAmounts,
   tokens,
   transactionId,
@@ -260,6 +275,7 @@ function buildQuoteRequests({
   isMaxAmount: boolean;
   isPostQuote?: boolean;
   paymentToken: TransactionPaymentToken | undefined;
+  refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
   transactionId: string;
@@ -275,6 +291,7 @@ function buildQuoteRequests({
       from,
       isMaxAmount,
       destinationToken: paymentToken,
+      refundTo,
       sourceAmounts,
       transactionId,
     });
@@ -315,6 +332,7 @@ function buildQuoteRequests({
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
+ * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
  * @param request.transactionId - ID of the transaction.
  * @returns Array of quote requests for post-quote flow.
@@ -323,12 +341,14 @@ function buildPostQuoteRequests({
   from,
   isMaxAmount,
   destinationToken,
+  refundTo,
   sourceAmounts,
   transactionId,
 }: {
   from: Hex;
   isMaxAmount: boolean;
   destinationToken: TransactionPaymentToken;
+  refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   transactionId: string;
 }): QuoteRequest[] {
@@ -355,6 +375,7 @@ function buildPostQuoteRequests({
     from,
     isMaxAmount,
     isPostQuote: true,
+    refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     sourceChainId: sourceAmount.sourceChainId,
@@ -441,47 +462,91 @@ async function refreshPaymentTokenBalance({
  *
  * @param transaction - Transaction metadata.
  * @param requests - Quote requests.
+ * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
   transaction: TransactionMeta,
   requests: QuoteRequest[],
+  getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
 }> {
   const { id: transactionId } = transaction;
-  const strategy = getStrategy(messenger as never, transaction);
-  let quotes: TransactionPayQuote<Json>[] | undefined = [];
+  const strategies = getStrategiesByName(
+    getStrategies(transaction),
+    (strategyName) => {
+      log('Skipping unknown strategy', {
+        strategy: strategyName,
+        transactionId,
+      });
+    },
+  );
 
-  try {
-    quotes = requests?.length
-      ? ((await strategy.getQuotes({
-          messenger,
-          requests,
-          transaction,
-        })) as TransactionPayQuote<Json>[])
-      : [];
-  } catch (error) {
-    log('Error fetching quotes', { error, transactionId });
+  if (!requests?.length) {
+    return {
+      batchTransactions: [],
+      quotes: [],
+    };
   }
 
-  log('Updated', { transactionId, quotes });
+  const request = {
+    messenger,
+    requests,
+    transaction,
+  };
 
-  const batchTransactions =
-    quotes?.length && strategy.getBatchTransactions
-      ? await strategy.getBatchTransactions({
-          messenger,
-          quotes,
-        })
-      : [];
+  for (const { name, strategy } of strategies) {
+    try {
+      if (strategy.supports && !strategy.supports(request)) {
+        log('Strategy does not support request', {
+          strategy: name,
+          transactionId,
+        });
+        continue;
+      }
 
-  log('Batch transactions', { transactionId, batchTransactions });
+      const quotes = (await strategy.getQuotes(
+        request,
+      )) as TransactionPayQuote<Json>[];
+
+      if (!quotes.length) {
+        log('Strategy returned no quotes', { strategy: name, transactionId });
+        continue;
+      }
+
+      log('Updated', { transactionId, quotes });
+
+      const batchTransactions = strategy.getBatchTransactions
+        ? await strategy.getBatchTransactions({
+            messenger,
+            quotes,
+          })
+        : [];
+
+      log('Batch transactions', { transactionId, batchTransactions });
+
+      return {
+        batchTransactions,
+        quotes,
+      };
+    } catch (error) {
+      log('Strategy failed, trying next', {
+        error,
+        strategy: name,
+        transactionId,
+      });
+      continue;
+    }
+  }
+
+  log('No quotes available', { transactionId });
 
   return {
-    batchTransactions,
-    quotes,
+    batchTransactions: [],
+    quotes: [],
   };
 }

@@ -7,9 +7,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Stable network (chain 988) support ([#8185](https://github.com/MetaMask/core/pull/8185))
+  - Add `0x3dc` to `SPOT_PRICES_SUPPORT_INFO` in `codefi-v2.ts`
+  - Add `0x3dc` to `chainIdToNativeTokenAddress` in `codefi-v2.ts`
+  - Add `0x3dc` to `MULTICALL_CONTRACT_BY_CHAINID` in `multicall.ts`
+- Expose missing public `AssetsContractController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following action is now available:
+    - `AssetsContractController:getStakedBalanceForChain`
+  - Corresponding action type (`AssetsContractControllerGetStakedBalanceForChainAction`) is available as well.
+- Expose missing public `MultichainAssetsRatesController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following action is now available:
+    - `MultichainAssetsRatesController:fetchHistoricalPricesForAsset`
+  - Corresponding action type (`MultichainAssetsRatesControllerFetchHistoricalPricesForAssetAction`) is available as well.
+- Expose missing public `TokenDetectionController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following actions are now available:
+    - `TokenDetectionController:enable`
+    - `TokenDetectionController:disable`
+    - `TokenDetectionController:start`
+    - `TokenDetectionController:stop`
+  - Corresponding action type (`TokenDetectionControllerEnableAction`) is available as well.
+- Expose missing public `TokensController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following actions are now available:
+    - `TokensController:addToken`
+    - `TokensController:ignoreTokens`
+    - `TokensController:updateTokenType`
+    - `TokensController:watchAsset`
+    - `TokensController:clearIgnoredTokens`
+    - `TokensController:resetState`
+  - Corresponding action type (`TokensControllerAddTokenAction`) is available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `AccountTrackerController` messenger action types ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - All existing types for messenger actions have been renamed so they include `Controller` (e.g. `AccountTrackerUpdateNativeBalancesAction` -> `AccountTrackerControllerUpdateNativeBalancesAction`). You will need to update imports appropriately.
+  - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AccountTrackerController` messengers.
+
+### Fixed
+
+- Add missing Tron staking lifecycle asset symbols to `TRON_RESOURCE` filter ([#8174](https://github.com/MetaMask/core/pull/8174))
+
+## [100.2.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/account-tree-controller` from `^5.0.0` to `^5.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/core-backend` from `^6.1.0` to `^6.1.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
+## [100.2.0]
+
+### Added
+
+- Add optional `networkConfigurationsByChainId` parameter to `calculateBalanceForAllWallets`, `calculateBalanceChangeForAllWallets`, and `calculateBalanceChangeForAccountGroup`. When provided, native (and staked-native) token balances fall back to `CurrencyRateController` when `TokenRatesController` has no market data for the chain, so aggregated balance can be displayed when only a native-currency rate is available. Export type `NetworkConfigurationNativeCurrency` for consumers passing network configs into these functions ([#8141](https://github.com/MetaMask/core/pull/8141))
+
+### Changed
+
+- Optimize NFT Controller state writes from O(2n) to O(2) for NFT detection by batching contract and NFT additions ([#8079](https://github.com/MetaMask/core/pull/8079))
+- Remove on-chain ERC-721 RPC fallback for contract name and symbol in `NftController`; contract metadata is now sourced exclusively from the NFT API, eliminating `getERC721AssetName`/`getERC721AssetSymbol` calls during NFT detection. NFT contracts that previously had `name` or `symbol` populated via on-chain calls will no longer have those fields if the NFT API does not supply them ([#8079](https://github.com/MetaMask/core/pull/8079))
+- When `isHomepageSectionsV1Enabled` is true, `AccountTrackerController` now uses all popular EVM networks (via `NetworkEnablementController:listPopularEvmNetworks`) for balance refresh on account change and keyring unlock, instead of only the enabled networks from `NetworkEnablementController` state ([#8117](https://github.com/MetaMask/core/pull/8117))
+- Bump `@metamask/account-tree-controller` from `4.1.1` to `5.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `36.0.1` to `37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/core-backend` from `6.0.0` to `6.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/multichain-account-service` from `7.0.0` to `7.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/preferences-controller` from `22.1.0` to `23.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `62.20.0` to `62.21.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+
+### Fixed
+
+- Gate `TokenListController` polling on controller initialization to avoid duplicate token list API requests during startup races ([#8113](https://github.com/MetaMask/core/pull/8113))
+- Update token balance fallback behavior so missing ERC-20 balances from `AccountsApiBalanceFetcher` are returned as `unprocessedTokens` and fetched through RPC fallback, rather than being forcibly set to zero ([#8132](https://github.com/MetaMask/core/pull/8132))
+
+## [100.1.0]
+
+### Added
+
+- Export `MAP_CAIP_CURRENCIES` from the package (and from `MultichainAssetsRatesController`) so consumers can resolve selected currency to the same CAIP currency string used by MultichainAssetsRatesController ([#8076](https://github.com/MetaMask/core/pull/8076))
+- Add `includeTokenSecurityData` option to `searchTokens` and `getTrendingTokens` to request token security data from the API ([#8106](https://github.com/MetaMask/core/pull/8106))
+- Add `fetchTokenAssets` function to fetch token metadata by CAIP-19 asset IDs from the `/assets` endpoint ([#8106](https://github.com/MetaMask/core/pull/8106))
+  - Supports optional flags: `includeAggregators`, `includeCoingeckoId`, `includeLabels`, `includeMarketData`, `includeOccurrences`, `includeTokenSecurityData`, `includeRwaData`
+- Export new types `TokenAsset`, `TokenSecurityData`, `TokenSecurityFeature`, `TokenSecurityHolder`, `TokenSecurityMarket`, `TokenSecurityFees`, `TokenSecurityFinancialStats`, and `TokenSecurityMetadata` ([#8106](https://github.com/MetaMask/core/pull/8106))
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^4.1.2` to `^4.2.0` ([#8107](https://github.com/MetaMask/core/pull/8107))
+- Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.20.0` ([#8031](https://github.com/MetaMask/core/pull/8031) [#8104](https://github.com/MetaMask/core/pull/8104))
+
+### Fixed
+
+- Fix `AccountsApiBalanceFetcher` to apply stricter conditions when zeroing out token balances ([#8044](https://github.com/MetaMask/core/pull/8044))
+- Fix `AccountsApiBalanceFetcher` ERC-20 zeroing to only apply to accounts included in the current request, preventing stale-account entries from being incorrectly reset to zero ([#8095](https://github.com/MetaMask/core/pull/8095))
+
+## [100.0.3]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.18.0` ([#8005](https://github.com/MetaMask/core/pull/8005))
+
+### Fixed
+
+- Fix token search API parameter to use `first` instead of `limit` for pagination ([#8019](https://github.com/MetaMask/core/pull/8019))
+  - Clamp limit to a maximum of 50 results for regular queries
+  - Allow up to 500 results for Ondo token queries; limits exceeding 500 are clamped to 50
 
 ## [100.0.2]
 
@@ -2722,7 +2822,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.2.1...HEAD
+[100.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.2.0...@metamask/assets-controllers@100.2.1
+[100.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.1.0...@metamask/assets-controllers@100.2.0
+[100.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.3...@metamask/assets-controllers@100.1.0
+[100.0.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.2...@metamask/assets-controllers@100.0.3
 [100.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.1...@metamask/assets-controllers@100.0.2
 [100.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@100.0.0...@metamask/assets-controllers@100.0.1
 [100.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@99.4.0...@metamask/assets-controllers@100.0.0

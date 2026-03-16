@@ -77,6 +77,12 @@ export type TransactionPayControllerGetStrategyAction = {
   handler: (transaction: TransactionMeta) => TransactionPayStrategy;
 };
 
+/** Action to update fiat payment state for a transaction. */
+export type TransactionPayControllerUpdateFiatPaymentAction = {
+  type: `${typeof CONTROLLER_NAME}:updateFiatPayment`;
+  handler: (request: UpdateFiatPaymentRequest) => void;
+};
+
 /** Action to update the payment token for a transaction. */
 export type TransactionPayControllerUpdatePaymentTokenAction = {
   type: `${typeof CONTROLLER_NAME}:updatePaymentToken`;
@@ -100,10 +106,24 @@ export type TransactionConfig = {
    * and the quote source is derived from the transaction's output token.
    */
   isPostQuote?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request. Use this for post-quote flows where the user's funds originate
+   * from a smart contract account (e.g. Predict Safe proxy) so that refunds
+   * go back to that account rather than the EOA.
+   */
+  refundTo?: Hex;
 };
 
 /** Callback to update transaction config. */
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
+
+/** Callback to update fiat payment state. */
+export type TransactionFiatPaymentCallback = (
+  fiatPayment: TransactionFiatPayment,
+) => void;
 
 export type TransactionPayControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -116,6 +136,7 @@ export type TransactionPayControllerActions =
   | TransactionPayControllerGetStateAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerSetTransactionConfigAction
+  | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerUpdatePaymentTokenAction;
 
 export type TransactionPayControllerEvents =
@@ -135,6 +156,9 @@ export type TransactionPayControllerOptions = {
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
 
+  /** Callback to select ordered PayStrategies for a transaction. */
+  getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
@@ -150,6 +174,9 @@ export type TransactionPayControllerState = {
 
 /** State relating to a single transaction. */
 export type TransactionData = {
+  /** Fiat payment method state. */
+  fiatPayment?: TransactionFiatPayment;
+
   /** Whether quotes are currently being retrieved. */
   isLoading: boolean;
 
@@ -164,6 +191,13 @@ export type TransactionData = {
    * (e.g., bridging output to a different token/chain).
    */
   isPostQuote?: boolean;
+
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request.
+   */
+  refundTo?: Hex;
 
   /**
    * Token selected for the transaction.
@@ -186,6 +220,15 @@ export type TransactionData = {
 
   /** Calculated totals for the transaction. */
   totals?: TransactionPayTotals;
+};
+
+/** Fiat payment state stored per transaction. */
+export type TransactionFiatPayment = {
+  /** Entered fiat amount for the selected payment method. */
+  amountFiat?: string;
+
+  /** Selected fiat payment method ID. */
+  selectedPaymentMethodId?: string;
 };
 
 /** A token required by a transaction. */
@@ -309,6 +352,13 @@ export type QuoteRequest = {
   /** Whether this is a post-quote flow. */
   isPostQuote?: boolean;
 
+  /**
+   * Optional address to receive refunds if the Relay transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * request.
+   */
+  refundTo?: Hex;
+
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
 
@@ -338,6 +388,9 @@ export type TransactionPayFees = {
 
   /** Whether a gas fee token is used to pay target network fees. */
   isTargetGasFeeToken?: boolean;
+
+  /** Fee charged by MetaMask. */
+  metaMask: FiatValue;
 
   /** Fee charged by the quote provider. */
   provider: FiatValue;
@@ -426,6 +479,12 @@ export type PayStrategyGetRefreshIntervalRequest = {
 
 /** Strategy used to obtain required tokens for a transaction. */
 export type PayStrategy<OriginalQuote> = {
+  /**
+   * Check if the strategy supports the given request.
+   * Defaults to true if not implemented.
+   */
+  supports?: (request: PayStrategyGetQuotesRequest) => boolean;
+
   /** Retrieve quotes for required tokens. */
   getQuotes: (
     request: PayStrategyGetQuotesRequest,
@@ -487,6 +546,15 @@ export type UpdatePaymentTokenRequest = {
 
   /** Chain ID of the new payment token. */
   chainId: Hex;
+};
+
+/** Request to update fiat payment state for a transaction. */
+export type UpdateFiatPaymentRequest = {
+  /** ID of the transaction to update. */
+  transactionId: string;
+
+  /** Callback to mutate fiat payment state. */
+  callback: TransactionFiatPaymentCallback;
 };
 
 /** Callback to convert a transaction to a redeem delegation. */

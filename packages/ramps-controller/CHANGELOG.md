@@ -7,8 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
 ### Changed
 
+- **BREAKING:** Update state hydration to make `init()` idempotent and remove `hydrateState()` ([#8157](https://github.com/MetaMask/core/pull/8157))
+
+### Removed
+
+- Remove `hydrateState()` — use `init()` as the single entry point for controller hydration
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING:** Replace `getWidgetUrl` with `getBuyWidgetData` (returns `BuyWidget | null`); add `addPrecreatedOrder` for custom-action ramp flows (e.g., PayPal, Robinhood, Coinbase) ([#8100](https://github.com/MetaMask/core/pull/8100))
+
+## [10.2.0]
+
+### Fixed
+
+- `setSelectedProvider` no longer fetches payment methods when the selected token is explicitly not supported by the new provider, preventing empty payment method state with no user feedback ([#8103](https://github.com/MetaMask/core/pull/8103))
+
+## [10.1.0]
+
+### Added
+
+- Added `orders: RampsOrder[]` to controller state with persistence, along with crud methods([#8045](https://github.com/MetaMask/core/pull/8045))
+- Added `apiMessage` property to `TransakApiError` to surface human-readable error messages from the Transak API (e.g. OTP rate-limit cooldown) ([#8072](https://github.com/MetaMask/core/pull/8072))
+- Added `RampsController:orderStatusChanged` event, published when a polled order's status transitions ([#8045](https://github.com/MetaMask/core/pull/8045))
+- Add messenger actions for `RampsController:setSelectedToken`, `RampsController:getQuotes`, and `RampsController:getOrder`, register their handlers in `RampsController`, and export the action types from the package index ([#8081](https://github.com/MetaMask/core/pull/8081))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Remove `state.quotes` and `state.widgetUrl` from RampsController state. Quote and widget URL data are now managed by consuming components ([#8013](https://github.com/MetaMask/core/pull/8013))
+- **BREAKING:** Remove `fetchQuotesForSelection()` and `setSelectedQuote()`. Components call `getQuotes()` directly and manage selection locally ([#8013](https://github.com/MetaMask/core/pull/8013))
+- Simplify `getWidgetUrl()` to a pure fetch-and-return API; it no longer reads or writes controller state ([#8013](https://github.com/MetaMask/core/pull/8013))
 - Improve `TransakService` error handling ([#8010](https://github.com/MetaMask/core/pull/8010))
 - **BREAKING:** Replace `startQuotePolling()`/`stopQuotePolling()` with `fetchQuotesForSelection()` — quotes are now fetched once per call instead of polling on a 15-second interval ([#7999](https://github.com/MetaMask/core/pull/7999))
 
@@ -16,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove `stopQuotePolling()` method (no interval to stop) ([#7999](https://github.com/MetaMask/core/pull/7999))
 - Remove internal polling restart logic (`#restartPollingIfActive`) from `setSelectedProvider`, `setSelectedToken`, and `setSelectedPaymentMethod` ([#7999](https://github.com/MetaMask/core/pull/7999))
+
+### Fixed
+
+- Fix RampsController flaky test ([#8018](https://github.com/MetaMask/core/pull/8018))
 
 ## [9.0.0]
 
@@ -174,7 +214,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@11.0.0...@metamask/ramps-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.2.0...@metamask/ramps-controller@11.0.0
+[10.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.1.0...@metamask/ramps-controller@10.2.0
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@10.0.0...@metamask/ramps-controller@10.1.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@9.0.0...@metamask/ramps-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.1.0...@metamask/ramps-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@8.0.0...@metamask/ramps-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@7.1.0...@metamask/ramps-controller@8.0.0

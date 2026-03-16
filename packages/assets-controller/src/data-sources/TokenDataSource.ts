@@ -242,6 +242,7 @@ export class TokenDataSource {
             includeMetadata: true,
             includeLabels: true,
             includeRwaData: true,
+            includeAggregators: true,
           },
         );
 

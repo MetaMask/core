@@ -4,6 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { TransactionPayController } from '.';
+import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
 import { TransactionPayStrategy } from './constants';
 import { getMessengerMock } from './tests/messenger-mock';
@@ -11,14 +12,17 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPaySourceAmount,
 } from './types';
+import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
 
+jest.mock('./actions/update-fiat-payment');
 jest.mock('./actions/update-payment-token');
 jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
+jest.mock('./utils/feature-flags');
 
 const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
@@ -26,10 +30,12 @@ const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 
 describe('TransactionPayController', () => {
+  const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
   const pollTransactionChangesMock = jest.mocked(pollTransactionChanges);
+  const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
 
   /**
@@ -48,7 +54,7 @@ describe('TransactionPayController', () => {
     jest.resetAllMocks();
 
     messenger = getMessengerMock({ skipRegister: true }).messenger;
-
+    getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
     updateQuotesMock.mockResolvedValue(true);
   });
 
@@ -65,6 +71,50 @@ describe('TransactionPayController', () => {
           transactionId: TRANSACTION_ID_MOCK,
           tokenAddress: TOKEN_ADDRESS_MOCK,
           chainId: CHAIN_ID_MOCK,
+        },
+        {
+          messenger,
+          updateTransactionData: expect.any(Function),
+        },
+      );
+    });
+  });
+
+  describe('updateFiatPayment', () => {
+    it('calls util', () => {
+      const callback = jest.fn();
+
+      createController().updateFiatPayment({
+        transactionId: TRANSACTION_ID_MOCK,
+        callback,
+      });
+
+      expect(updateFiatPaymentMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          callback,
+        },
+        {
+          messenger,
+          updateTransactionData: expect.any(Function),
+        },
+      );
+    });
+
+    it('is callable via messenger action handler', () => {
+      const callback = jest.fn();
+
+      createController();
+
+      messenger.call('TransactionPayController:updateFiatPayment', {
+        transactionId: TRANSACTION_ID_MOCK,
+        callback,
+      });
+
+      expect(updateFiatPaymentMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          callback,
         },
         {
           messenger,
@@ -119,18 +169,51 @@ describe('TransactionPayController', () => {
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 
+    it('updates refundTo in state', () => {
+      const controller = createController();
+      const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.refundTo = refundTo;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].refundTo,
+      ).toBe(refundTo);
+    });
+
+    it('clears refundTo when set to undefined', () => {
+      const controller = createController();
+      const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.refundTo = refundTo;
+      });
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.refundTo = undefined;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].refundTo,
+      ).toBeUndefined();
+    });
+
     it('updates multiple config properties at once', () => {
       const controller = createController();
+      const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
 
       controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
         config.isMaxAmount = true;
         config.isPostQuote = true;
+        config.refundTo = refundTo;
       });
 
       const transactionData =
         controller.state.transactionData[TRANSACTION_ID_MOCK];
       expect(transactionData.isMaxAmount).toBe(true);
       expect(transactionData.isPostQuote).toBe(true);
+      expect(transactionData.refundTo).toBe(refundTo);
     });
   });
 
@@ -152,6 +235,91 @@ describe('TransactionPayController', () => {
         getStrategy: (): TransactionPayStrategy => TransactionPayStrategy.Test,
         messenger,
       });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Test);
+    });
+
+    it('does not query feature flag strategy order when getStrategies callback returns values', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategies: (): TransactionPayStrategy[] => [
+          TransactionPayStrategy.Test,
+        ],
+        messenger,
+      });
+
+      getStrategyOrderMock.mockClear();
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Test);
+
+      expect(getStrategyOrderMock).not.toHaveBeenCalled();
+    });
+
+    it('returns relay if getStrategies callback returns empty', async () => {
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Test]);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategies: (): TransactionPayStrategy[] => [],
+        messenger,
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Test);
+    });
+
+    it('falls back to feature flag if getStrategies callback returns invalid first value', async () => {
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Bridge]);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategies: (): TransactionPayStrategy[] =>
+          [undefined] as unknown as TransactionPayStrategy[],
+        messenger,
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Bridge);
+    });
+
+    it('returns default strategy order when no callbacks and no strategy order feature flag', async () => {
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
+
+      createController();
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Relay);
+    });
+
+    it('returns strategy from feature flag when no callbacks are provided', async () => {
+      getStrategyOrderMock.mockReturnValue([
+        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Relay,
+      ]);
+
+      createController();
 
       expect(
         messenger.call(
@@ -183,6 +351,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK],
       ).toStrictEqual({
+        fiatPayment: {},
         isLoading: false,
         sourceAmounts: [{ sourceAmountHuman: '1.23' }],
         tokens: [],
@@ -215,6 +384,7 @@ describe('TransactionPayController', () => {
       );
 
       expect(updateQuotesMock).toHaveBeenCalledWith({
+        getStrategies: expect.any(Function),
         messenger,
         transactionData: expect.objectContaining({
           sourceAmounts: [{ sourceAmountHuman: '1.23' }],

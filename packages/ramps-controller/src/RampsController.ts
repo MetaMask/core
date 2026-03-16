@@ -9,6 +9,7 @@ import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
+  BuyWidget,
   Country,
   TokensResponse,
   Provider,
@@ -18,11 +19,11 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
-  BuyWidget,
   RampsToken,
   RampsServiceActions,
   RampsOrder,
 } from './RampsService';
+import { RampsOrderStatus } from './RampsService';
 import type {
   RampsServiceGetGeolocationAction,
   RampsServiceGetCountriesAction,
@@ -248,18 +249,6 @@ export type RampsControllerState = {
    */
   paymentMethods: ResourceState<PaymentMethod[], PaymentMethod | null>;
   /**
-   * Quotes resource state with data, selected, loading, and error.
-   * Data contains quotes from multiple providers for the given parameters.
-   * Selected contains the currently selected quote for the user.
-   */
-  quotes: ResourceState<QuotesResponse | null, Quote | null>;
-  /**
-   * Widget URL resource state with data, loading, and error.
-   * Contains the buy widget data (URL, browser type, order ID) for the currently selected quote.
-   * Automatically fetched whenever a selected quote changes.
-   */
-  widgetUrl: ResourceState<BuyWidget | null>;
-  /**
    * Cache of request states, keyed by cache key.
    * This stores loading, success, and error states for API requests.
    */
@@ -270,6 +259,11 @@ export type RampsControllerState = {
    * user details, quote, and KYC data.
    */
   nativeProviders: NativeProvidersState;
+  /**
+   * The controller is the authority for V2 orders — it polls, updates,
+   * and persists them.
+   */
+  orders: RampsOrder[];
 };
 
 /**
@@ -306,18 +300,6 @@ const rampsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: true,
   },
-  quotes: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
-  widgetUrl: {
-    persist: false,
-    includeInDebugSnapshot: true,
-    includeInStateLogs: false,
-    usedInUi: true,
-  },
   requests: {
     persist: false,
     includeInDebugSnapshot: true,
@@ -328,6 +310,12 @@ const rampsControllerMetadata = {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: false,
+    usedInUi: true,
+  },
+  orders: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
     usedInUi: true,
   },
 } satisfies StateMetadata<RampsControllerState>;
@@ -377,11 +365,6 @@ export function getDefaultRampsControllerState(): RampsControllerState {
       PaymentMethod[],
       PaymentMethod | null
     >([], null),
-    quotes: createDefaultResourceState<QuotesResponse | null, Quote | null>(
-      null,
-      null,
-    ),
-    widgetUrl: createDefaultResourceState<BuyWidget | null>(null),
     requests: {},
     nativeProviders: {
       transak: {
@@ -394,6 +377,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
           createDefaultResourceState<TransakKycRequirement | null>(null),
       },
     },
+    orders: [],
   };
 }
 
@@ -401,7 +385,6 @@ const DEPENDENT_RESOURCE_KEYS = [
   'providers',
   'tokens',
   'paymentMethods',
-  'quotes',
 ] as const;
 
 type DependentResourceKey = (typeof DEPENDENT_RESOURCE_KEYS)[number];
@@ -422,21 +405,7 @@ function resetResource(
 }
 
 /**
- * Resets the widgetUrl resource to its default state.
- * Mutates state in place; use from within controller update() for atomic updates.
- *
- * @param state - The state object to mutate.
- */
-function resetWidgetUrl(state: Draft<RampsControllerState>): void {
-  const def = getDefaultRampsControllerState().widgetUrl;
-  state.widgetUrl.data = def.data;
-  state.widgetUrl.selected = def.selected;
-  state.widgetUrl.isLoading = def.isLoading;
-  state.widgetUrl.error = def.error;
-}
-
-/**
- * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods, quotes).
+ * Resets region-dependent resources (userRegion, providers, tokens, paymentMethods).
  * Mutates state in place; use from within controller update() for atomic updates.
  *
  * @param state - The state object to mutate.
@@ -454,7 +423,6 @@ function resetDependentResources(
   for (const key of DEPENDENT_RESOURCE_KEYS) {
     resetResource(state, key, defaultState[key]);
   }
-  resetWidgetUrl(state);
 }
 
 // === MESSENGER ===
@@ -468,9 +436,37 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Sets selected token in the {@link RampsController}.
+ */
+export type RampsControllerSetSelectedTokenAction = {
+  type: 'RampsController:setSelectedToken';
+  handler: RampsController['setSelectedToken'];
+};
+
+/**
+ * Fetches quotes via the {@link RampsController}.
+ */
+export type RampsControllerGetQuotesAction = {
+  type: 'RampsController:getQuotes';
+  handler: RampsController['getQuotes'];
+};
+
+/**
+ * Fetches an order via the {@link RampsController}.
+ */
+export type RampsControllerGetOrderAction = {
+  type: 'RampsController:getOrder';
+  handler: RampsController['getOrder'];
+};
+
+/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerActions = RampsControllerGetStateAction;
+export type RampsControllerActions =
+  | RampsControllerGetStateAction
+  | RampsControllerGetOrderAction
+  | RampsControllerGetQuotesAction
+  | RampsControllerSetSelectedTokenAction;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -519,9 +515,20 @@ export type RampsControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 
 /**
+ * Published when a V2 order's status transitions.
+ * Consumed by mobile's init layer for notifications and analytics.
+ */
+export type RampsControllerOrderStatusChangedEvent = {
+  type: `${typeof controllerName}:orderStatusChanged`;
+  payload: [{ order: RampsOrder; previousStatus: RampsOrderStatus }];
+};
+
+/**
  * Events that {@link RampsControllerMessenger} exposes to other consumers.
  */
-export type RampsControllerEvents = RampsControllerStateChangeEvent;
+export type RampsControllerEvents =
+  | RampsControllerStateChangeEvent
+  | RampsControllerOrderStatusChangedEvent;
 
 /**
  * Events from other messengers that {@link RampsController} subscribes to.
@@ -616,6 +623,34 @@ function findRegionFromCode(
   };
 }
 
+export function normalizeProviderCode(providerCode: string): string {
+  return providerCode.replace(/^\/providers\//u, '');
+}
+
+// === ORDER POLLING CONSTANTS ===
+
+const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
+  RampsOrderStatus.Completed,
+  RampsOrderStatus.Failed,
+  RampsOrderStatus.Cancelled,
+  RampsOrderStatus.IdExpired,
+]);
+
+const PENDING_ORDER_STATUSES = new Set<RampsOrderStatus>([
+  RampsOrderStatus.Pending,
+  RampsOrderStatus.Created,
+  RampsOrderStatus.Unknown,
+  RampsOrderStatus.Precreated,
+]);
+
+const DEFAULT_POLLING_INTERVAL_MS = 30_000;
+const MAX_ERROR_COUNT = 5;
+
+type OrderPollingMetadata = {
+  lastTimeFetched: number;
+  errorCount: number;
+};
+
 // === CONTROLLER DEFINITION ===
 
 /**
@@ -647,6 +682,14 @@ export class RampsController extends BaseController<
    * Used so isLoading is only cleared when the last request for that resource finishes.
    */
   readonly #pendingResourceCount: Map<ResourceType, number> = new Map();
+
+  readonly #orderPollingMeta: Map<string, OrderPollingMetadata> = new Map();
+
+  #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
+
+  #isPolling = false;
+
+  #initPromise: Promise<void> | null = null;
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -707,6 +750,23 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+
+    this.#registerActionHandlers();
+  }
+
+  #registerActionHandlers(): void {
+    this.messenger.registerActionHandler(
+      'RampsController:getOrder',
+      this.getOrder.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'RampsController:getQuotes',
+      this.getQuotes.bind(this),
+    );
+    this.messenger.registerActionHandler(
+      'RampsController:setSelectedToken',
+      this.setSelectedToken.bind(this),
+    );
   }
 
   /**
@@ -1129,33 +1189,78 @@ export class RampsController extends BaseController<
       );
     }
 
+    const selectedToken = this.state.tokens.selected;
+    const supportedCryptos = provider.supportedCryptoCurrencies;
+
+    // Only fetch payment methods if the selected token is supported by the new
+    // provider. If it isn't, the payment methods request would fail or return
+    // empty for the wrong reason; the UI will show the Token Not Available modal
+    // so the user can change token or pick a different provider.
+    const assetId = selectedToken?.assetId;
+    const tokenSupportedByProvider = !(
+      assetId && supportedCryptos?.[assetId] === false
+    );
+
     this.update((state) => {
       state.providers.selected = provider;
       resetResource(state, 'paymentMethods');
-      state.quotes.selected = null;
-      resetWidgetUrl(state);
     });
 
-    this.#fireAndForget(
-      this.getPaymentMethods(regionCode, { provider: provider.id }),
-    );
+    if (tokenSupportedByProvider) {
+      this.#fireAndForget(
+        this.getPaymentMethods(regionCode, { provider: provider.id }),
+      );
+    }
   }
 
   /**
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
    *
-   * If a userRegion already exists (from persistence or manual selection),
-   * this method will skip geolocation fetch and use the existing region.
+   * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
+   * Skips getCountries when countries are already loaded; skips geolocation when
+   * userRegion already exists.
    *
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    await this.getCountries(options);
+    if (!options?.forceRefresh && this.#initPromise !== null) {
+      return this.#initPromise;
+    }
 
-    let regionCode = this.state.userRegion?.regionCode;
-    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    if (options?.forceRefresh) {
+      this.#initPromise = null;
+    }
+
+    const initPromise = this.#runInit(options).then(
+      () => undefined,
+      (error) => {
+        if (this.#initPromise === initPromise) {
+          this.#initPromise = null;
+        }
+        throw error;
+      },
+    );
+    this.#initPromise = initPromise;
+    return initPromise;
+  }
+
+  async #runInit(options?: ExecuteRequestOptions): Promise<void> {
+    const forceRefresh = options?.forceRefresh === true;
+    const hasCountries = this.state.countries.data.length > 0;
+
+    if (forceRefresh || !hasCountries) {
+      await this.getCountries(options);
+    }
+
+    let regionCode: string | undefined;
+    if (forceRefresh) {
+      regionCode = await this.messenger.call('RampsService:getGeolocation');
+    } else {
+      regionCode = this.state.userRegion?.regionCode;
+      regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    }
 
     if (!regionCode) {
       throw new Error(
@@ -1164,13 +1269,6 @@ export class RampsController extends BaseController<
     }
 
     await this.setUserRegion(regionCode, options);
-  }
-
-  hydrateState(options?: ExecuteRequestOptions): void {
-    const regionCode = this.#requireRegion();
-
-    this.#fireAndForget(this.getTokens(regionCode, 'buy', options));
-    this.#fireAndForget(this.getProviders(regionCode, options));
   }
 
   /**
@@ -1293,8 +1391,6 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.tokens.selected = token;
       resetResource(state, 'paymentMethods');
-      state.quotes.selected = null;
-      resetWidgetUrl(state);
     });
 
     this.#fireAndForget(
@@ -1494,7 +1590,7 @@ export class RampsController extends BaseController<
 
   /**
    * Fetches quotes from all providers for a given set of parameters.
-   * The quotes are saved in the controller state once fetched.
+   * Uses the controller's request cache; callers manage the response in local state.
    *
    * @param options - The parameters for fetching quotes.
    * @param options.region - User's region code. If not provided, uses userRegion from state.
@@ -1592,7 +1688,7 @@ export class RampsController extends BaseController<
       action,
     };
 
-    const response = await this.executeRequest(
+    return this.executeRequest(
       cacheKey,
       async () => {
         return this.messenger.call('RampsService:getQuotes', params);
@@ -1600,110 +1696,178 @@ export class RampsController extends BaseController<
       {
         forceRefresh: options.forceRefresh,
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
-        resourceType: 'quotes',
-        isResultCurrent: () => this.#isRegionCurrent(normalizedRegion),
       },
     );
+  }
 
+  // === ORDER MANAGEMENT ===
+
+  /**
+   * Adds or updates a V2 order in controller state.
+   * If an order with the same providerOrderId already exists, the incoming
+   * fields are merged on top of the existing order so that fields not present
+   * in the update (e.g. paymentDetails from the Transak API) are preserved.
+   *
+   * @param order - The RampsOrder to add or update.
+   */
+  addOrder(order: RampsOrder): void {
     this.update((state) => {
-      const userRegionCode = state.userRegion?.regionCode;
-
-      if (userRegionCode === undefined || userRegionCode === normalizedRegion) {
-        state.quotes.data = response;
+      const idx = state.orders.findIndex(
+        (existing) => existing.providerOrderId === order.providerOrderId,
+      );
+      if (idx === -1) {
+        state.orders.push(order as Draft<RampsOrder>);
+      } else {
+        state.orders[idx] = {
+          ...state.orders[idx],
+          ...order,
+        } as Draft<RampsOrder>;
       }
     });
-
-    return response;
   }
 
   /**
-   * Fetches quotes for the currently selected token, provider, and payment method.
-   * If the response contains exactly one quote, it is auto-selected.
-   * If multiple quotes are returned, the existing selection is preserved if still valid.
+   * Removes a V2 order from controller state by providerOrderId.
    *
-   * Returns early (no-op) if the selected payment method is not yet set,
-   * allowing callers to invoke this before payment-method selection is finalized.
-   *
-   * @param options - Parameters for fetching quotes.
-   * @param options.walletAddress - The destination wallet address.
-   * @param options.amount - The amount (in fiat for buy, crypto for sell).
-   * @param options.redirectUrl - Optional redirect URL after order completion.
-   * @throws If required dependencies (region, token, provider) are not set.
+   * @param providerOrderId - The provider order ID to remove.
    */
-  fetchQuotesForSelection(options: {
-    walletAddress: string;
-    amount: number;
-    redirectUrl?: string;
-  }): void {
-    this.#requireRegion();
-    const token = this.state.tokens.selected;
-    const provider = this.state.providers.selected;
-    const paymentMethod = this.state.paymentMethods.selected;
-
-    if (!token) {
-      throw new Error(
-        'Token is required. Cannot fetch quotes without a selected token.',
+  removeOrder(providerOrderId: string): void {
+    this.update((state) => {
+      state.orders = state.orders.filter(
+        (order) => order.providerOrderId !== providerOrderId,
       );
-    }
+    });
 
-    if (!provider) {
-      throw new Error(
-        'Provider is required. Cannot fetch quotes without a selected provider.',
-      );
-    }
+    this.#orderPollingMeta.delete(providerOrderId);
+  }
 
-    if (!paymentMethod) {
+  /**
+   * Refreshes a single order via the V2 API and updates it in state.
+   * Publishes orderStatusChanged if the status transitioned.
+   *
+   * @param order - The order to refresh (needs provider and providerOrderId).
+   */
+  async #refreshOrder(order: RampsOrder): Promise<void> {
+    const providerCode = order.provider?.id ?? '';
+    if (!providerCode || !order.providerOrderId || !order.walletAddress) {
       return;
     }
 
-    this.#fireAndForget(
-      this.getQuotes({
-        assetId: token.assetId,
-        amount: options.amount,
-        walletAddress: options.walletAddress,
-        redirectUrl: options.redirectUrl,
-        paymentMethods: [paymentMethod.id],
-        providers: [provider.id],
-        forceRefresh: true,
-      }).then((response) => {
-        let newSelectedQuote: Quote | null = null;
+    const providerCodeSegment = normalizeProviderCode(providerCode);
+    const previousStatus = order.status;
 
-        this.update((state) => {
-          if (response.success.length === 1) {
-            newSelectedQuote = response.success[0];
-            state.quotes.selected = newSelectedQuote;
-          } else {
-            const currentSelection = state.quotes.selected;
-            if (currentSelection) {
-              const freshQuote = response.success.find(
-                (quote) =>
-                  quote.provider === currentSelection.provider &&
-                  quote.quote.paymentMethod ===
-                    currentSelection.quote.paymentMethod,
-              );
-              newSelectedQuote = freshQuote ?? null;
-              state.quotes.selected = newSelectedQuote;
-            }
-          }
+    try {
+      const updatedOrder = await this.getOrder(
+        providerCodeSegment,
+        order.providerOrderId,
+        order.walletAddress,
+      );
+
+      const meta = this.#orderPollingMeta.get(order.providerOrderId) ?? {
+        lastTimeFetched: 0,
+        errorCount: 0,
+      };
+
+      if (updatedOrder.status === RampsOrderStatus.Unknown) {
+        meta.errorCount = Math.min(meta.errorCount + 1, MAX_ERROR_COUNT);
+      } else {
+        meta.errorCount = 0;
+      }
+
+      meta.lastTimeFetched = Date.now();
+      this.#orderPollingMeta.set(order.providerOrderId, meta);
+
+      if (
+        previousStatus !== updatedOrder.status &&
+        previousStatus !== undefined
+      ) {
+        this.messenger.publish('RampsController:orderStatusChanged', {
+          order: updatedOrder,
+          previousStatus,
         });
+      }
 
-        this.#syncWidgetUrl(newSelectedQuote);
-        return undefined;
-      }),
-    );
+      if (TERMINAL_ORDER_STATUSES.has(updatedOrder.status)) {
+        this.#orderPollingMeta.delete(order.providerOrderId);
+      }
+    } catch {
+      const meta = this.#orderPollingMeta.get(order.providerOrderId) ?? {
+        lastTimeFetched: 0,
+        errorCount: 0,
+      };
+      meta.errorCount = Math.min(meta.errorCount + 1, MAX_ERROR_COUNT);
+      meta.lastTimeFetched = Date.now();
+      this.#orderPollingMeta.set(order.providerOrderId, meta);
+    }
   }
 
   /**
-   * Manually sets the selected quote.
-   * Automatically triggers a widget URL fetch for the new quote.
-   *
-   * @param quote - The quote to select, or null to clear the selection.
+   * Starts polling all pending V2 orders at a fixed interval.
+   * Each poll cycle iterates orders with non-terminal statuses,
+   * respects pollingSecondsMinimum and backoff from error count.
    */
-  setSelectedQuote(quote: Quote | null): void {
-    this.update((state) => {
-      state.quotes.selected = quote;
-    });
-    this.#syncWidgetUrl(quote);
+  startOrderPolling(): void {
+    if (this.#orderPollingTimer) {
+      return;
+    }
+
+    this.#orderPollingTimer = setInterval(() => {
+      this.#pollPendingOrders().catch(() => undefined);
+    }, DEFAULT_POLLING_INTERVAL_MS);
+
+    this.#pollPendingOrders().catch(() => undefined);
+  }
+
+  /**
+   * Stops order polling and clears the interval.
+   */
+  stopOrderPolling(): void {
+    if (this.#orderPollingTimer) {
+      clearInterval(this.#orderPollingTimer);
+      this.#orderPollingTimer = null;
+    }
+  }
+
+  async #pollPendingOrders(): Promise<void> {
+    if (this.#isPolling) {
+      return;
+    }
+    this.#isPolling = true;
+    try {
+      const pendingOrders = this.state.orders.filter((order) =>
+        PENDING_ORDER_STATUSES.has(order.status),
+      );
+
+      const now = Date.now();
+
+      await Promise.allSettled(
+        pendingOrders.map(async (order) => {
+          const meta = this.#orderPollingMeta.get(order.providerOrderId);
+
+          if (meta) {
+            const backoffMs =
+              meta.errorCount > 0
+                ? Math.min(
+                    DEFAULT_POLLING_INTERVAL_MS *
+                      Math.pow(2, meta.errorCount - 1),
+                    5 * 60 * 1000,
+                  )
+                : 0;
+
+            const pollingMinMs = (order.pollingSecondsMinimum ?? 0) * 1000;
+            const minWait = Math.max(backoffMs, pollingMinMs);
+
+            if (now - meta.lastTimeFetched < minWait) {
+              return;
+            }
+          }
+
+          await this.#refreshOrder(order);
+        }),
+      );
+    } finally {
+      this.#isPolling = false;
+    }
   }
 
   /**
@@ -1711,83 +1875,92 @@ export class RampsController extends BaseController<
    * Should be called when the controller is no longer needed.
    */
   override destroy(): void {
+    this.stopOrderPolling();
     super.destroy();
   }
 
   /**
-   * Syncs the widget URL state with the given quote.
-   * If the quote has a buyURL, fetches the widget URL and stores the result in state.
-   * If the quote is null or has no buyURL, resets the widget URL state.
-   *
-   * When data already exists, skips the loading-state reset so that polling
-   * cycles don't cause visible flicker (stale-while-revalidate).
-   *
-   * @param quote - The quote to fetch the widget URL for, or null to clear.
-   */
-  #syncWidgetUrl(quote: Quote | null): void {
-    const buyUrl = quote?.quote?.buyURL;
-    if (!buyUrl) {
-      this.update((state) => {
-        resetWidgetUrl(state);
-      });
-      return;
-    }
-
-    if (this.state.widgetUrl.data === null) {
-      this.update((state) => {
-        state.widgetUrl.isLoading = true;
-        state.widgetUrl.error = null;
-      });
-    }
-
-    this.#fireAndForget(
-      this.messenger
-        .call('RampsService:getBuyWidgetUrl', buyUrl)
-        .then((buyWidget) => {
-          this.update((state) => {
-            state.widgetUrl.data = buyWidget;
-            state.widgetUrl.isLoading = false;
-            state.widgetUrl.error = null;
-          });
-          return undefined;
-        })
-        .catch((error: unknown) => {
-          this.update((state) => {
-            state.widgetUrl.isLoading = false;
-            state.widgetUrl.error =
-              error instanceof Error
-                ? error.message
-                : 'Failed to fetch widget URL';
-          });
-        }),
-    );
-  }
-
-  /**
-   * Fetches the widget URL from a quote for redirect providers.
+   * Fetches the widget data from a quote for redirect providers.
    * Makes a request to the buyURL endpoint via the RampsService to get the
-   * actual provider widget URL, using the injected fetch and retry policy.
+   * actual provider widget URL and optional order ID for polling.
    *
    * @param quote - The quote to fetch the widget URL from.
-   * @returns Promise resolving to the widget URL string, or null if not available.
-   * @deprecated Read `state.widgetUrl` instead. The widget URL is now automatically
-   * fetched and stored in state whenever the selected quote changes.
+   * @returns Promise resolving to the full BuyWidget (url, browser, orderId), or null if not available (missing buyURL or empty url in response).
+   * @throws Rethrows errors from the RampsService (e.g. HttpError, network failures) so clients can react to fetch failures.
    */
-  async getWidgetUrl(quote: Quote): Promise<string | null> {
+  async getBuyWidgetData(quote: Quote): Promise<BuyWidget | null> {
     const buyUrl = quote.quote?.buyURL;
     if (!buyUrl) {
       return null;
     }
 
-    try {
-      const buyWidget = await this.messenger.call(
-        'RampsService:getBuyWidgetUrl',
-        buyUrl,
-      );
-      return buyWidget.url ?? null;
-    } catch {
+    const buyWidget = await this.messenger.call(
+      'RampsService:getBuyWidgetUrl',
+      buyUrl,
+    );
+    if (!buyWidget?.url) {
       return null;
     }
+    return buyWidget;
+  }
+
+  /**
+   * Registers an order ID for polling until the order is created or resolved.
+   * Adds a minimal stub order to controller state; the existing order polling
+   * will fetch the full order when the provider has created it.
+   *
+   * @param params - Object containing order identifiers and wallet info.
+   * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
+   * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+   * @param params.walletAddress - Wallet address for the order.
+   * @param params.chainId - Optional chain ID for the order.
+   */
+  addPrecreatedOrder(params: {
+    orderId: string;
+    providerCode: string;
+    walletAddress: string;
+    chainId?: string;
+  }): void {
+    const { orderId, providerCode, walletAddress, chainId } = params;
+
+    const orderCode = orderId.includes('/orders/')
+      ? orderId.split('/orders/')[1]
+      : orderId;
+    if (!orderCode?.trim()) {
+      return;
+    }
+    const normalizedProviderCode = normalizeProviderCode(providerCode);
+
+    const stubOrder: RampsOrder = {
+      providerOrderId: orderCode,
+      provider: {
+        id: `/providers/${normalizedProviderCode}`,
+        name: '',
+        environmentType: '',
+        description: '',
+        hqAddress: '',
+        links: [],
+        logos: { light: '', dark: '', height: 0, width: 0 },
+      },
+      walletAddress,
+      status: RampsOrderStatus.Precreated,
+      orderType: 'buy',
+      createdAt: Date.now(),
+      isOnlyLink: false,
+      success: false,
+      cryptoAmount: 0,
+      fiatAmount: 0,
+      providerOrderLink: '',
+      totalFeesFiat: 0,
+      txHash: '',
+      network: chainId ? { chainId, name: '' } : { chainId: '', name: '' },
+      canBeUpdated: true,
+      idHasExpired: false,
+      excludeFromPurchases: false,
+      timeDescriptionPending: '',
+    };
+
+    this.addOrder(stubOrder);
   }
 
   /**
@@ -1804,12 +1977,32 @@ export class RampsController extends BaseController<
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
-    return await this.messenger.call(
+    const order = await this.messenger.call(
       'RampsService:getOrder',
       providerCode,
       orderCode,
       wallet,
     );
+
+    this.update((state) => {
+      const idx = state.orders.findIndex(
+        (existing) => existing.providerOrderId === orderCode,
+      );
+      if (idx === -1) {
+        state.orders.push({
+          ...order,
+          providerOrderId: orderCode,
+        } as Draft<RampsOrder>);
+      } else {
+        state.orders[idx] = {
+          ...state.orders[idx],
+          ...order,
+          providerOrderId: orderCode,
+        } as Draft<RampsOrder>;
+      }
+    });
+
+    return order;
   }
 
   /**

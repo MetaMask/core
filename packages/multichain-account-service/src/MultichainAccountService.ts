@@ -51,6 +51,10 @@ export type MultichainAccountServiceOptions = {
     [SOL_ACCOUNT_PROVIDER_NAME]?: SolAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
+  /**
+   * When provided, used to prevent using Snap platform before onboarding completion.
+   */
+  ensureOnboardingComplete?: () => Promise<void>;
 };
 
 /**
@@ -90,6 +94,23 @@ export type CreateWalletParams =
       password: string;
     };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'getMultichainAccountGroup',
+  'getMultichainAccountGroups',
+  'getMultichainAccountWallet',
+  'getMultichainAccountWallets',
+  'createNextMultichainAccountGroup',
+  'createMultichainAccountGroup',
+  'createMultichainAccountGroups',
+  'setBasicFunctionality',
+  'alignWallets',
+  'alignWallet',
+  'createMultichainAccountWallet',
+  'resyncAccounts',
+  'removeMultichainAccountWallet',
+  'ensureCanUseSnapPlatform',
+] as const;
+
 /**
  * Service to expose multichain accounts capabilities.
  */
@@ -119,12 +140,15 @@ export class MultichainAccountService {
    * @param options.providers - Optional list of account
    * @param options.providerConfigs - Optional provider configs
    * @param options.config - Optional config.
+   * @param options.ensureOnboardingComplete - Optional callback to ensure
+   * onboarding is completed before using the Snap platform.
    */
   constructor({
     messenger,
     providers = [],
     providerConfigs,
     config,
+    ensureOnboardingComplete,
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
@@ -152,59 +176,13 @@ export class MultichainAccountService {
       ...providers,
     ];
 
-    this.#watcher = new SnapPlatformWatcher(messenger);
+    this.#watcher = new SnapPlatformWatcher(messenger, {
+      ensureOnboardingComplete,
+    });
 
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccountGroup',
-      (...args) => this.getMultichainAccountGroup(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccountGroups',
-      (...args) => this.getMultichainAccountGroups(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccountWallet',
-      (...args) => this.getMultichainAccountWallet(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:getMultichainAccountWallets',
-      (...args) => this.getMultichainAccountWallets(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:createNextMultichainAccountGroup',
-      (...args) => this.createNextMultichainAccountGroup(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:createMultichainAccountGroup',
-      (...args) => this.createMultichainAccountGroup(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:setBasicFunctionality',
-      (...args) => this.setBasicFunctionality(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:alignWallets',
-      (...args) => this.alignWallets(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:alignWallet',
-      (...args) => this.alignWallet(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:createMultichainAccountWallet',
-      (...args) => this.createMultichainAccountWallet(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:resyncAccounts',
-      (...args) => this.resyncAccounts(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:removeMultichainAccountWallet',
-      (...args) => this.removeMultichainAccountWallet(...args),
-    );
-    this.#messenger.registerActionHandler(
-      'MultichainAccountService:ensureCanUseSnapPlatform',
-      (...args) => this.ensureCanUseSnapPlatform(...args),
+    this.#messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -637,6 +615,30 @@ export class MultichainAccountService {
   }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>> {
     return await this.#getWallet(entropySource).createMultichainAccountGroup(
       groupIndex,
+    );
+  }
+
+  /**
+   * Creates multiple multichain account groups up to maxGroupIndex.
+   *
+   * @param params - Parameters for creating account groups.
+   * @param params.fromGroupIndex - Starting group index to create (inclusive) (defaults to 0).
+   * @param params.toGroupIndex - Maximum group index to create (inclusive).
+   * @param params.entropySource - The entropy source ID.
+   * @returns Array of created multichain account groups.
+   */
+  async createMultichainAccountGroups({
+    fromGroupIndex = 0,
+    toGroupIndex,
+    entropySource,
+  }: {
+    fromGroupIndex?: number;
+    toGroupIndex: number;
+    entropySource: EntropySourceId;
+  }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>[]> {
+    return await this.#getWallet(entropySource).createMultichainAccountGroups(
+      { from: fromGroupIndex, to: toGroupIndex },
+      { waitForAllProvidersToFinishCreatingAccounts: false },
     );
   }
 

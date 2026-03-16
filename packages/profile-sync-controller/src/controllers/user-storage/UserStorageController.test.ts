@@ -13,7 +13,7 @@ import {
 } from './__fixtures__/mockServices';
 import { BACKUPANDSYNC_FEATURES } from './constants';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
-import UserStorageController, { defaultState } from './UserStorageController';
+import { UserStorageController, defaultState } from './UserStorageController';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 
 describe('UserStorageController', () => {

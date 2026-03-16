@@ -21,6 +21,7 @@ export enum UnifiedSwapBridgeEventName {
   AssetDetailTooltipClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Detail Tooltip Clicked`,
   QuotesValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Failed Validation`,
   StatusValidationFailed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Status Failed Validation`,
+  AssetPickerOpened = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Picker Opened`,
   PollingStatusUpdated = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Polling Status Updated`,
 }
 
@@ -52,6 +53,7 @@ export enum InputAmountPreset {
   PERCENT_25 = '25%',
   PERCENT_50 = '50%',
   PERCENT_75 = '75%',
+  PERCENT_90 = '90%',
   // "Max" may not equal 100% of balance (e.g. gas reserves are withheld)
   MAX = 'MAX',
 }

@@ -9,7 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Batch multichain account groups creation in backup and sync ([#7907](https://github.com/MetaMask/core/pull/7907))
+  - This prevents multiple consecutive tree rebuilds, as well as keyring updates and thus improves performance during the initial backup and sync process.
+- Use `:accounts{Added,Removed}` batched events to reduce number of state updates ([#8160](https://github.com/MetaMask/core/pull/8160))
+
+## [5.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
+## [5.0.0]
+
+### Added
+
+- Expose missing public `AccountTreeController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
+  - The following actions are now available:
+    - `AccountTreeController:getAccountWalletObject`
+    - `AccountTreeController:getAccountWalletObjects`
+    - `AccountTreeController:getAccountGroupObject`
+    - `AccountTreeController:clearState`
+    - `AccountTreeController:syncWithUserStorage`
+    - `AccountTreeController:syncWithUserStorageAtLeastOnce`
+  - Corresponding action types (e.g. `AccountTreeControllerGetAccountWalletObjectAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/multichain-account-service` from `^7.0.0` to `^7.1.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+
+### Removed
+
+- **BREAKING:** Remove `resolveNameConflict` from `AccountTreeController` ([#7976](https://github.com/MetaMask/core/pull/7976))
+  - This method was only used internally.
 
 ## [4.1.1]
 
@@ -442,7 +474,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@4.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@5.0.0...@metamask/account-tree-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@4.1.1...@metamask/account-tree-controller@5.0.0
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@4.1.0...@metamask/account-tree-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@4.0.0...@metamask/account-tree-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@3.0.0...@metamask/account-tree-controller@4.0.0

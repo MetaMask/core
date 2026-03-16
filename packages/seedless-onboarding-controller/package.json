@@ -1,6 +1,6 @@
 {
   "name": "@metamask/seedless-onboarding-controller",
-  "version": "8.0.0",
+  "version": "8.1.0",
   "description": "Backup and rehydrate SRP(s) using social login and password",
   "keywords": [
     "MetaMask",
@@ -40,7 +40,6 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/seedless-onboarding-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/seedless-onboarding-controller",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",

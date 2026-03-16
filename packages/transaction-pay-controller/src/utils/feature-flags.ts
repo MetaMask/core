@@ -1,17 +1,31 @@
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { uniq } from 'lodash';
 
 import type { TransactionPayControllerMessenger } from '..';
+import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
-import { RELAY_URL_BASE } from '../strategy/relay/constants';
+import {
+  RELAY_EXECUTE_URL,
+  RELAY_QUOTE_URL,
+} from '../strategy/relay/constants';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
+type StrategyOrder = [TransactionPayStrategy, ...TransactionPayStrategy[]];
+
 export const DEFAULT_GAS_BUFFER = 1.0;
-export const DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE = 900000;
-export const DEFAULT_RELAY_FALLBACK_GAS_MAX = 1500000;
-export const DEFAULT_RELAY_QUOTE_URL = `${RELAY_URL_BASE}/quote`;
+export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
+export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
+export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
+export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
+export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
+export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
+  TransactionPayStrategy.Relay,
+  TransactionPayStrategy.Across,
+];
 
 type FeatureFlagsRaw = {
   gasBuffer?: {
@@ -25,6 +39,7 @@ type FeatureFlagsRaw = {
     >;
   };
   relayDisabledGasStationChains?: Hex[];
+  relayExecuteUrl?: string;
   relayFallbackGas?: {
     estimate?: number;
     max?: number;
@@ -32,10 +47,13 @@ type FeatureFlagsRaw = {
   relayQuoteUrl?: string;
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
+  strategyOrder?: string[];
+  payStrategies?: PayStrategiesConfigRaw;
 };
 
 export type FeatureFlags = {
   relayDisabledGasStationChains: Hex[];
+  relayExecuteUrl: string;
   relayFallbackGas: {
     estimate: number;
     max: number;
@@ -43,6 +61,68 @@ export type FeatureFlags = {
   relayQuoteUrl: string;
   slippage: number;
 };
+
+export type AcrossConfigRaw = {
+  apiBase?: string;
+  enabled?: boolean;
+  fallbackGas?: {
+    estimate?: number;
+    max?: number;
+  };
+};
+
+export type AcrossConfig = {
+  apiBase: string;
+  enabled: boolean;
+  fallbackGas: {
+    estimate: number;
+    max: number;
+  };
+};
+
+export type PayStrategiesConfigRaw = {
+  across?: AcrossConfigRaw;
+  relay?: {
+    enabled?: boolean;
+    executeEnabled?: boolean;
+    originGasOverhead?: string;
+  };
+};
+
+export type PayStrategiesConfig = {
+  across: AcrossConfig;
+  relay: {
+    enabled: boolean;
+  };
+};
+
+/**
+ * Get ordered list of strategies to try.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Ordered strategy list.
+ */
+export function getStrategyOrder(
+  messenger: TransactionPayControllerMessenger,
+): StrategyOrder {
+  const { strategyOrder: strategyPriority } = getFeatureFlagsRaw(messenger);
+
+  if (!Array.isArray(strategyPriority)) {
+    return [...DEFAULT_STRATEGY_ORDER];
+  }
+
+  const validStrategyPriority = uniq(
+    strategyPriority.filter((strategy): strategy is TransactionPayStrategy =>
+      isTransactionPayStrategy(strategy),
+    ),
+  );
+
+  if (!validStrategyPriority.length) {
+    return [...DEFAULT_STRATEGY_ORDER];
+  }
+
+  return validStrategyPriority as StrategyOrder;
+}
 
 /**
  * Get feature flags related to the controller.
@@ -56,11 +136,12 @@ export function getFeatureFlags(
   const featureFlags = getFeatureFlagsRaw(messenger);
 
   const estimate =
-    featureFlags.relayFallbackGas?.estimate ??
-    DEFAULT_RELAY_FALLBACK_GAS_ESTIMATE;
+    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
 
-  const max =
-    featureFlags.relayFallbackGas?.max ?? DEFAULT_RELAY_FALLBACK_GAS_MAX;
+  const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
+
+  const relayExecuteUrl =
+    featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
 
   const relayQuoteUrl = featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
 
@@ -69,8 +150,9 @@ export function getFeatureFlags(
 
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
 
-  const result = {
+  const result: FeatureFlags = {
     relayDisabledGasStationChains,
+    relayExecuteUrl,
     relayFallbackGas: {
       estimate,
       max,
@@ -82,6 +164,83 @@ export function getFeatureFlags(
   log('Feature flags:', { raw: featureFlags, result });
 
   return result;
+}
+
+/**
+ * Get Pay Strategies configuration.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Pay Strategies configuration.
+ */
+export function getPayStrategiesConfig(
+  messenger: TransactionPayControllerMessenger,
+): PayStrategiesConfig {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  const payStrategies = featureFlags.payStrategies ?? {};
+
+  const acrossRaw = payStrategies.across ?? {};
+  const relayRaw = payStrategies.relay ?? {};
+
+  const across = {
+    apiBase: acrossRaw.apiBase ?? DEFAULT_ACROSS_API_BASE,
+    enabled: acrossRaw.enabled ?? false,
+    fallbackGas: {
+      estimate:
+        acrossRaw.fallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE,
+      max: acrossRaw.fallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX,
+    },
+  };
+
+  const relay = {
+    enabled: relayRaw.enabled ?? true,
+  };
+
+  return {
+    across,
+    relay,
+  };
+}
+
+/**
+ * Whether the Relay /execute gasless flow is enabled.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if the execute flow is enabled.
+ */
+export function isRelayExecuteEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  return featureFlags.payStrategies?.relay?.executeEnabled ?? false;
+}
+
+/**
+ * Get the origin gas overhead to include in Relay quote requests
+ * for EIP-7702 chains.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Origin gas overhead as a decimal string.
+ */
+export function getRelayOriginGasOverhead(
+  messenger: TransactionPayControllerMessenger,
+): string {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  return (
+    featureFlags.payStrategies?.relay?.originGasOverhead ??
+    DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD
+  );
+}
+
+/**
+ * Get fallback gas limits for quote/submit flows.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Fallback gas limits.
+ */
+export function getFallbackGas(
+  messenger: TransactionPayControllerMessenger,
+): FeatureFlags['relayFallbackGas'] {
+  return getFeatureFlags(messenger).relayFallbackGas;
 }
 
 /**
@@ -162,20 +321,26 @@ function getCaseInsensitive<Value>(
 }
 
 /**
- * Retrieves the supported EIP-7702 chains from feature flags.
+ * Checks if a chain supports EIP-7702.
  *
  * @param messenger - Controller messenger.
- * @returns Array of chain IDs that support EIP-7702.
+ * @param chainId - Chain ID to check.
+ * @returns Whether the chain supports EIP-7702.
  */
-export function getEIP7702SupportedChains(
+export function isEIP7702Chain(
   messenger: TransactionPayControllerMessenger,
-): Hex[] {
+  chainId: Hex,
+): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const eip7702Flags = state.remoteFeatureFlags.confirmations_eip_7702 as
     | { supportedChains?: Hex[] }
     | undefined;
 
-  return eip7702Flags?.supportedChains ?? [];
+  const supportedChains = eip7702Flags?.supportedChains ?? [];
+
+  return supportedChains.some(
+    (supported) => supported.toLowerCase() === chainId.toLowerCase(),
+  );
 }
 
 /**

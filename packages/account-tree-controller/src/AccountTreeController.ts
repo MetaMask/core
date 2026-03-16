@@ -44,6 +44,23 @@ import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'getSelectedAccountGroup',
+  'setSelectedAccountGroup',
+  'getAccountsFromSelectedAccountGroup',
+  'getAccountContext',
+  'setAccountWalletName',
+  'setAccountGroupName',
+  'setAccountGroupPinned',
+  'setAccountGroupHidden',
+  'getAccountWalletObject',
+  'getAccountWalletObjects',
+  'getAccountGroupObject',
+  'clearState',
+  'syncWithUserStorage',
+  'syncWithUserStorageAtLeastOnce',
+] as const;
+
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
   {
     accountTree: {
@@ -212,14 +229,14 @@ export class AccountTreeController extends BaseController<
       this.#createBackupAndSyncContext(),
     );
 
-    this.messenger.subscribe('AccountsController:accountAdded', (account) => {
-      this.#handleAccountAdded(account);
+    this.messenger.subscribe('AccountsController:accountsAdded', (accounts) => {
+      this.#handleAccountsAdded(accounts);
     });
 
     this.messenger.subscribe(
-      'AccountsController:accountRemoved',
-      (accountId) => {
-        this.#handleAccountRemoved(accountId);
+      'AccountsController:accountsRemoved',
+      (accountIds) => {
+        this.#handleAccountsRemoved(accountIds);
       },
     );
 
@@ -246,7 +263,10 @@ export class AccountTreeController extends BaseController<
       },
     );
 
-    this.#registerMessageHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -507,7 +527,7 @@ export class AccountTreeController extends BaseController<
       proposedName.length &&
       !isAccountGroupNameUniqueFromWallet(wallet, group.id, proposedName)
     ) {
-      proposedName = this.resolveNameConflict(wallet, group.id, proposedName);
+      proposedName = this.#resolveNameConflict(wallet, group.id, proposedName);
     }
 
     return proposedName;
@@ -804,12 +824,12 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Handles "AccountsController:accountAdded" event to insert
-   * new accounts into the tree.
+   * Handles "AccountsController:accountsAdded" event to insert
+   * new accounts into the tree in a single state update.
    *
-   * @param account - New account.
+   * @param accounts - New accounts.
    */
-  #handleAccountAdded(account: InternalAccount) {
+  #handleAccountsAdded(accounts: InternalAccount[]): void {
     // We wait for the first `init` to be called to actually build up the tree and
     // mutate it. We expect the caller to first update the `AccountsController` state
     // to force the migration of accounts, and then call `init`.
@@ -817,9 +837,17 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    // Check if this account is already known by the tree to avoid double-insertion.
-    if (!this.#accountIdToContext.has(account.id)) {
-      this.update((state) => {
+    // Filter out accounts already known by the tree to avoid double-insertion.
+    const newAccounts = accounts.filter(
+      (account) => !this.#accountIdToContext.has(account.id),
+    );
+
+    if (newAccounts.length === 0) {
+      return;
+    }
+
+    this.update((state) => {
+      for (const account of newAccounts) {
         this.#insert(state.accountTree.wallets, account);
 
         const context = this.#accountIdToContext.get(account.id);
@@ -832,22 +860,22 @@ export class AccountTreeController extends BaseController<
             this.#applyAccountGroupMetadata(state, walletId, groupId);
           }
         }
-      });
+      }
+    });
 
-      this.messenger.publish(
-        `${controllerName}:accountTreeChange`,
-        this.state.accountTree,
-      );
-    }
+    this.messenger.publish(
+      `${controllerName}:accountTreeChange`,
+      this.state.accountTree,
+    );
   }
 
   /**
-   * Handles "AccountsController:accountRemoved" event to remove
-   * given account from the tree.
+   * Handles "AccountsController:accountsRemoved" event to remove
+   * given accounts from the tree in a single state update.
    *
-   * @param accountId - Removed account ID.
+   * @param accountIds - Removed account IDs.
    */
-  #handleAccountRemoved(accountId: AccountId) {
+  #handleAccountsRemoved(accountIds: AccountId[]): void {
     // We wait for the first `init` to be called to actually build up the tree and
     // mutate it. We expect the caller to first update the `AccountsController` state
     // to force the migration of accounts, and then call `init`.
@@ -855,16 +883,24 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
-    const context = this.#accountIdToContext.get(accountId);
+    const knownAccounts: { id: AccountId; context: AccountContext }[] = [];
+    for (const id of accountIds) {
+      const context = this.#accountIdToContext.get(id);
+      if (context) {
+        knownAccounts.push({ id, context });
+      }
+    }
 
-    if (context) {
-      const { walletId, groupId } = context;
+    if (knownAccounts.length === 0) {
+      return;
+    }
 
-      const previousSelectedAccountGroup =
-        this.state.accountTree.selectedAccountGroup;
-      let selectedAccountGroupChanged = false;
+    const previousSelectedAccountGroup =
+      this.state.accountTree.selectedAccountGroup;
 
-      this.update((state) => {
+    this.update((state) => {
+      for (const { id: accountId, context } of knownAccounts) {
+        const { walletId, groupId } = context;
         const accounts =
           state.accountTree.wallets[walletId]?.groups[groupId]?.accounts;
 
@@ -873,41 +909,38 @@ export class AccountTreeController extends BaseController<
           if (index !== -1) {
             accounts.splice(index, 1);
 
-            // Check if we need to update selectedAccountGroup after removal
             if (
               state.accountTree.selectedAccountGroup === groupId &&
               accounts.length === 0
             ) {
-              // The currently selected group is now empty, find a new group to select
-              const newSelectedAccountGroup = this.#getDefaultAccountGroupId(
-                state.accountTree.wallets,
-              );
-              state.accountTree.selectedAccountGroup = newSelectedAccountGroup;
-              selectedAccountGroupChanged =
-                newSelectedAccountGroup !== previousSelectedAccountGroup;
+              state.accountTree.selectedAccountGroup =
+                this.#getDefaultAccountGroupId(state.accountTree.wallets);
             }
           }
           if (accounts.length === 0) {
             this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
           }
         }
-      });
-      this.messenger.publish(
-        `${controllerName}:accountTreeChange`,
-        this.state.accountTree,
-      );
-
-      // Emit selectedAccountGroupChange event if the selected group changed
-      if (selectedAccountGroupChanged) {
-        this.messenger.publish(
-          `${controllerName}:selectedAccountGroupChange`,
-          this.state.accountTree.selectedAccountGroup,
-          previousSelectedAccountGroup,
-        );
       }
+    });
 
-      // Clear reverse-mapping for that account.
-      this.#accountIdToContext.delete(accountId);
+    // Clear reverse-mappings after the state update
+    for (const { id } of knownAccounts) {
+      this.#accountIdToContext.delete(id);
+    }
+
+    this.messenger.publish(
+      `${controllerName}:accountTreeChange`,
+      this.state.accountTree,
+    );
+
+    const newSelectedAccountGroup = this.state.accountTree.selectedAccountGroup;
+    if (newSelectedAccountGroup !== previousSelectedAccountGroup) {
+      this.messenger.publish(
+        `${controllerName}:selectedAccountGroupChange`,
+        newSelectedAccountGroup,
+        previousSelectedAccountGroup,
+      );
     }
   }
 
@@ -1324,7 +1357,7 @@ export class AccountTreeController extends BaseController<
    * @param name - The desired name that has a conflict.
    * @returns A unique name with suffix added if necessary.
    */
-  resolveNameConflict(
+  #resolveNameConflict(
     wallet: AccountWalletObject,
     groupId: AccountGroupId,
     name: string,
@@ -1371,7 +1404,7 @@ export class AccountTreeController extends BaseController<
       autoHandleConflict &&
       !isAccountGroupNameUniqueFromWallet(wallet, groupId, name)
     ) {
-      finalName = this.resolveNameConflict(wallet, groupId, name);
+      finalName = this.#resolveNameConflict(wallet, groupId, name);
     } else {
       // Validate that the name is unique
       this.#assertAccountGroupNameIsUnique(groupId, finalName);
@@ -1536,51 +1569,6 @@ export class AccountTreeController extends BaseController<
 
     // So we know we have to call `init` again.
     this.#initialized = false;
-  }
-
-  /**
-   * Registers message handlers for the AccountTreeController.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:getSelectedAccountGroup`,
-      this.getSelectedAccountGroup.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setSelectedAccountGroup`,
-      this.setSelectedAccountGroup.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getAccountsFromSelectedAccountGroup`,
-      this.getAccountsFromSelectedAccountGroup.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getAccountContext`,
-      this.getAccountContext.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountWalletName`,
-      this.setAccountWalletName.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountGroupName`,
-      this.setAccountGroupName.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountGroupPinned`,
-      this.setAccountGroupPinned.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:setAccountGroupHidden`,
-      this.setAccountGroupHidden.bind(this),
-    );
   }
 
   /**

@@ -1,3 +1,4 @@
+import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { PriceDataSourceOptions } from './PriceDataSource';
@@ -108,14 +109,14 @@ function setupController(
   options: {
     priceResponse?: Record<string, unknown>;
     balanceState?: Record<string, Record<string, unknown>>;
-    currency?: 'usd' | 'eur';
+    getSelectedCurrency?: () => SupportedCurrency;
     pollInterval?: number;
   } = {},
 ): SetupResult {
   const {
     priceResponse = {},
     balanceState = {},
-    currency,
+    getSelectedCurrency = (): SupportedCurrency => 'usd',
     pollInterval,
   } = options;
 
@@ -124,11 +125,9 @@ function setupController(
   const controllerOptions: PriceDataSourceOptions = {
     queryApiClient:
       apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
+    getSelectedCurrency,
   };
 
-  if (currency) {
-    controllerOptions.currency = currency;
-  }
   if (pollInterval) {
     controllerOptions.pollInterval = pollInterval;
   }
@@ -209,7 +208,9 @@ describe('PriceDataSource', () => {
       { currency: 'usd', includeMarketData: true },
     );
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toStrictEqual({
+      assetPriceType: 'fungible',
       price: 2500,
+      usdPrice: 2500,
       pricePercentChange1d: 2.5,
       lastUpdated: expect.any(Number),
       marketCap: 1000000000,
@@ -242,7 +243,9 @@ describe('PriceDataSource', () => {
       { currency: 'usd', includeMarketData: true },
     );
     expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toStrictEqual({
+      assetPriceType: 'fungible',
       price: 2500,
+      usdPrice: 2500,
       pricePercentChange1d: 2.5,
       lastUpdated: expect.any(Number),
       marketCap: 1000000000,
@@ -254,7 +257,7 @@ describe('PriceDataSource', () => {
 
   it('fetch uses custom currency', async () => {
     const { controller, apiClient, getAssetsState } = setupController({
-      currency: 'eur',
+      getSelectedCurrency: () => 'eur',
       balanceState: {
         'mock-account-id': {
           [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
@@ -644,6 +647,56 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
+  it('middleware passes to next when assetsForPriceUpdate is empty and no detected assets', async () => {
+    const { controller, apiClient } = setupController();
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ assetsForPriceUpdate: [] }),
+      response: {},
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(context);
+
+    controller.destroy();
+  });
+
+  it('middleware fetches prices when assetsForPriceUpdate has values', async () => {
+    const { controller, apiClient } = setupController({
+      priceResponse: {
+        [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
+      },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+      response: {},
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      { currency: 'usd', includeMarketData: true },
+    );
+    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
+      assetPriceType: 'fungible',
+      price: 1.0,
+      usdPrice: 1.0,
+      pricePercentChange1d: 2.5,
+      lastUpdated: expect.any(Number),
+      marketCap: 1000000000,
+      totalVolume: 50000000,
+    });
+    expect(next).toHaveBeenCalledWith(context);
+
+    controller.destroy();
+  });
+
   it('middleware fetches prices for detected assets', async () => {
     const { controller, apiClient } = setupController({
       priceResponse: {
@@ -667,7 +720,9 @@ describe('PriceDataSource', () => {
       { currency: 'usd', includeMarketData: true },
     );
     expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
+      assetPriceType: 'fungible',
       price: 1.0,
+      usdPrice: 1.0,
       pricePercentChange1d: 2.5,
       lastUpdated: expect.any(Number),
       marketCap: 1000000000,
@@ -740,7 +795,12 @@ describe('PriceDataSource', () => {
     const context = createMiddlewareContext({
       response: {
         assetsPrice: {
-          [anotherAsset]: { price: 1.0, lastUpdated: Date.now() },
+          [anotherAsset]: {
+            assetPriceType: 'fungible',
+            price: 1.0,
+            usdPrice: 1.0,
+            lastUpdated: Date.now(),
+          },
         },
         detectedAssets: {
           'mock-account-id': [MOCK_TOKEN_ASSET],

@@ -39,8 +39,8 @@ export type PriceDataSourceConfig = {
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
-  /** Currency to fetch prices in (default: 'usd') */
-  currency?: SupportedCurrency;
+  /** Function returning the currently-active ISO 4217 currency code */
+  getSelectedCurrency: () => SupportedCurrency;
 };
 
 // ============================================================================
@@ -72,7 +72,10 @@ function isPriceableAsset(assetId: Caip19AssetId): boolean {
 }
 
 /** Market data item from spot prices response (same as FungibleAssetPrice without lastUpdated) */
-type SpotPriceMarketData = Omit<FungibleAssetPrice, 'lastUpdated'>;
+type SpotPriceMarketData = Omit<
+  FungibleAssetPrice,
+  'lastUpdated' | 'assetPriceType'
+>;
 
 /**
  * Type guard to check if market data has a valid price
@@ -85,7 +88,7 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
     typeof data === 'object' &&
     data !== null &&
     'price' in data &&
-    typeof (data as SpotPriceMarketData).price === 'number'
+    typeof data.price === 'number'
   );
 }
 
@@ -110,7 +113,7 @@ export class PriceDataSource {
     return PriceDataSource.controllerName;
   }
 
-  readonly #currency: SupportedCurrency;
+  readonly #getSelectedCurrency: () => SupportedCurrency;
 
   readonly #pollInterval: number;
 
@@ -129,7 +132,7 @@ export class PriceDataSource {
   > = new Map();
 
   constructor(options: PriceDataSourceOptions) {
-    this.#currency = options.currency ?? 'usd';
+    this.#getSelectedCurrency = options.getSelectedCurrency;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
   }
@@ -156,48 +159,44 @@ export class PriceDataSource {
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
       // Extract response from context
-      const { response } = ctx;
+      const { response, request } = ctx;
 
       // Only fetch prices for detected assets (assets without metadata)
       // The subscription handles fetching prices for all existing assets
-      if (!response.detectedAssets) {
+      if (!response.detectedAssets && !request.assetsForPriceUpdate?.length) {
         return next(ctx);
       }
 
-      const detectedAssetIds = new Set<Caip19AssetId>();
-      for (const detectedIds of Object.values(response.detectedAssets)) {
-        for (const assetId of detectedIds) {
-          detectedAssetIds.add(assetId);
+      const assetIds = new Set<Caip19AssetId>();
+      for (const detectedAccountAssets of Object.values(
+        response.detectedAssets ?? {},
+      )) {
+        for (const assetId of detectedAccountAssets) {
+          assetIds.add(assetId);
         }
       }
 
-      if (detectedAssetIds.size === 0) {
+      for (const assetId of request.assetsForPriceUpdate ?? []) {
+        assetIds.add(assetId);
+      }
+
+      if (assetIds.size === 0) {
         return next(ctx);
       }
 
       // Filter to only priceable assets
-      const priceableAssetIds = [...detectedAssetIds].filter(isPriceableAsset);
+      const priceableAssetIds = [...assetIds].filter(isPriceableAsset);
 
       if (priceableAssetIds.length === 0) {
         return next(ctx);
       }
 
       try {
-        const priceResponse = await this.#fetchSpotPrices(priceableAssetIds);
-
-        response.assetsPrice ??= {};
-
-        for (const [assetId, marketData] of Object.entries(priceResponse)) {
-          if (!isValidMarketData(marketData)) {
-            continue;
-          }
-
-          const caipAssetId = assetId as Caip19AssetId;
-          response.assetsPrice[caipAssetId] = {
-            ...marketData,
-            lastUpdated: Date.now(),
-          };
-        }
+        const spotPrices = await this.#fetchSpotPrices(priceableAssetIds);
+        response.assetsPrice = {
+          ...(response.assetsPrice ?? {}),
+          ...spotPrices,
+        };
       } catch (error) {
         log('Failed to fetch prices via middleware', { error });
       }
@@ -217,11 +216,57 @@ export class PriceDataSource {
    * @param assetIds - Array of CAIP-19 asset IDs
    * @returns Spot prices response
    */
-  async #fetchSpotPrices(assetIds: string[]): Promise<V3SpotPricesResponse> {
-    return this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-      currency: this.#currency,
-      includeMarketData: true,
-    });
+  async #fetchSpotPrices(
+    assetIds: string[],
+  ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
+    const selectedCurrency = this.#getSelectedCurrency();
+
+    let selectedCurrencyPrices: V3SpotPricesResponse;
+    let usdPrices: V3SpotPricesResponse;
+    if (selectedCurrency === 'usd') {
+      selectedCurrencyPrices = await this.#apiClient.prices.fetchV3SpotPrices(
+        assetIds,
+        {
+          currency: selectedCurrency,
+          includeMarketData: true,
+        },
+      );
+      usdPrices = selectedCurrencyPrices;
+    } else {
+      [selectedCurrencyPrices, usdPrices] = await Promise.all([
+        this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+          currency: selectedCurrency,
+          includeMarketData: true,
+        }),
+        this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+          currency: 'usd',
+          includeMarketData: true,
+        }),
+      ]);
+    }
+
+    const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};
+
+    for (const [assetId, marketData] of Object.entries(
+      selectedCurrencyPrices,
+    )) {
+      const usdMarketData = usdPrices[assetId];
+
+      // Skip assets with invalid market data (API doesn't have price for this asset is selected currency or USD)
+      if (!isValidMarketData(marketData) || !isValidMarketData(usdMarketData)) {
+        continue;
+      }
+
+      const caipAssetId = assetId as Caip19AssetId;
+      prices[caipAssetId] = {
+        ...marketData,
+        assetPriceType: 'fungible',
+        usdPrice: usdMarketData.price,
+        lastUpdated: Date.now(),
+      };
+    }
+
+    return prices;
   }
 
   /**
@@ -324,22 +369,12 @@ export class PriceDataSource {
     }
 
     try {
-      const priceResponse = await this.#fetchSpotPrices([...assetIds]);
+      const spotPrices = await this.#fetchSpotPrices([...assetIds]);
 
-      response.assetsPrice = {};
-
-      for (const [assetId, marketData] of Object.entries(priceResponse)) {
-        // Skip assets with invalid market data (API doesn't have price for this asset)
-        if (!isValidMarketData(marketData)) {
-          continue;
-        }
-
-        const caipAssetId = assetId as Caip19AssetId;
-        response.assetsPrice[caipAssetId] = {
-          ...marketData,
-          lastUpdated: Date.now(),
-        };
-      }
+      response.assetsPrice = {
+        ...(response.assetsPrice ?? {}),
+        ...spotPrices,
+      };
     } catch (error) {
       log('Failed to fetch prices', { error });
     }
@@ -393,7 +428,10 @@ export class PriceDataSource {
           fetchResponse.assetsPrice &&
           Object.keys(fetchResponse.assetsPrice).length > 0
         ) {
-          await subscription.onAssetsUpdate(fetchResponse);
+          await subscription.onAssetsUpdate({
+            ...fetchResponse,
+            updateMode: 'merge',
+          });
         }
       } catch (error) {
         log('Subscription poll failed', { subscriptionId, error });

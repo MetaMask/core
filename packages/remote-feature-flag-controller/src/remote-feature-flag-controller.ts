@@ -1,13 +1,14 @@
-import { BaseController } from '@metamask/base-controller';
-import type {
+import {
+  BaseController,
   ControllerGetStateAction,
-  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import { isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
+import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types';
 import type {
   FeatureFlags,
   ServiceResponse,
@@ -69,41 +70,24 @@ const remoteFeatureFlagControllerMetadata = {
 
 // === MESSENGER ===
 
-/**
- * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
- */
+const MESSENGER_EXPOSED_METHODS = [
+  'clearAllFlagOverrides',
+  'disable',
+  'enable',
+  'removeFlagOverride',
+  'setFlagOverride',
+  'updateRemoteFeatureFlags',
+] as const;
+
 export type RemoteFeatureFlagControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
     RemoteFeatureFlagControllerState
   >;
 
-export type RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction = {
-  type: `${typeof controllerName}:updateRemoteFeatureFlags`;
-  handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
-};
-
-export type RemoteFeatureFlagControllerSetFlagOverrideAction = {
-  type: `${typeof controllerName}:setFlagOverride`;
-  handler: RemoteFeatureFlagController['setFlagOverride'];
-};
-
-export type RemoteFeatureFlagControllerRemoveFlagOverrideAction = {
-  type: `${typeof controllerName}:removeFlagOverride`;
-  handler: RemoteFeatureFlagController['removeFlagOverride'];
-};
-
-export type RemoteFeatureFlagControllerClearAllFlagOverridesAction = {
-  type: `${typeof controllerName}:clearAllFlagOverrides`;
-  handler: RemoteFeatureFlagController['clearAllFlagOverrides'];
-};
-
 export type RemoteFeatureFlagControllerActions =
   | RemoteFeatureFlagControllerGetStateAction
-  | RemoteFeatureFlagControllerUpdateRemoteFeatureFlagsAction
-  | RemoteFeatureFlagControllerSetFlagOverrideAction
-  | RemoteFeatureFlagControllerRemoveFlagOverrideAction
-  | RemoteFeatureFlagControllerClearAllFlagOverridesAction;
+  | RemoteFeatureFlagControllerMethodActions;
 
 export type RemoteFeatureFlagControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -221,6 +205,11 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
     this.#clientVersion = clientVersion;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**

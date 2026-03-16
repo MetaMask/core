@@ -16,7 +16,7 @@ import {
 import * as fetchPositions from './fetch-positions';
 import * as groupDeFiPositions from './group-defi-positions';
 import { flushPromises } from '../../../../tests/helpers';
-import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
+import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
 import type {
   InternalAccount,
   TransactionMeta,
