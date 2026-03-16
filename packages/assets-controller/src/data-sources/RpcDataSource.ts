@@ -756,6 +756,40 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
+   * Fetch the `decimals()` value from an ERC20 contract via RPC.
+   *
+   * @param chainId - CAIP-2 chain ID.
+   * @param tokenAddress - The token contract address.
+   * @returns The decimals value, or undefined if the call fails.
+   */
+  async #fetchDecimalsViaRpc(
+    chainId: ChainId,
+    tokenAddress: string,
+  ): Promise<number | undefined> {
+    try {
+      const provider = this.#getProvider(chainId);
+      if (!provider) {
+        return undefined;
+      }
+      // ERC20 decimals() selector: keccak256("decimals()") = 0x313ce567
+      const result = await provider.call({
+        to: tokenAddress,
+        data: '0x313ce567',
+      });
+      if (!result || result === '0x') {
+        return undefined;
+      }
+      const parsed = parseInt(result, 16);
+      if (Number.isNaN(parsed) || parsed < 0 || parsed > 255) {
+        return undefined;
+      }
+      return parsed;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Get the data source name.
    *
    * @returns The name of this data source.
@@ -907,16 +941,30 @@ export class RpcDataSource extends AbstractDataSource<
           Object.assign(assetsInfo, balanceMetadata);
 
           // Convert balances to human-readable format using decimals from
-          // assetsInfo state (which includes pendingMetadata from addCustomAsset)
+          // assetsInfo state (which includes pendingMetadata from addCustomAsset).
+          // Fallback chain: state → pipeline metadata → RPC call → 18.
           const existingMetadata = this.#getExistingAssetsMetadata();
           for (const balance of normalizedBalances) {
             const stateMetadata = existingMetadata[balance.assetId];
             const pipelineMetadata = assetsInfo[balance.assetId];
-            const decimals =
-              stateMetadata?.decimals ?? pipelineMetadata?.decimals ?? 18;
+            let decimals: number | undefined =
+              stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+
+            if (decimals === undefined) {
+              const parsed = parseCaipAssetType(balance.assetId);
+              if (parsed.assetNamespace === 'erc20') {
+                decimals = await this.#fetchDecimalsViaRpc(
+                  chainId,
+                  parsed.assetReference,
+                );
+              }
+            }
+
+            const resolvedDecimals = decimals ?? 18;
+
             const humanReadableAmount = this.#convertToHumanReadable(
               balance.balance,
-              decimals,
+              resolvedDecimals,
             );
 
             assetsBalance[accountId][balance.assetId] = {
