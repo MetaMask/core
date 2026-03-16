@@ -17,6 +17,7 @@ import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { traceFallback } from '../analytics';
+import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { createSentryError } from '../utils';
 
@@ -35,6 +36,14 @@ export type SnapAccountProviderConfig = {
   };
   createAccounts: {
     timeoutMs: number;
+  };
+  resyncAccounts?: {
+    /**
+     * Whether to automatically remove extra Snap accounts when the Snap has
+     * more accounts than MetaMask. If `false`, a warning is logged instead.
+     * Defaults to `true`.
+     */
+    autoRemoveExtraSnapAccounts?: boolean;
   };
 };
 
@@ -173,6 +182,16 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       // NOTE: This should never happen, but if it does, we recover by deleting the
       // extra accounts from the Snap to bring it back in sync with MetaMask.
       if (localSnapAccounts.length < snapAccounts.size) {
+        const autoRemove =
+          this.config.resyncAccounts?.autoRemoveExtraSnapAccounts ?? true;
+
+        if (!autoRemove) {
+          log(
+            `${WARNING_PREFIX} Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask! (${localSnapAccounts.length} < ${snapAccounts.size})`,
+          );
+          return;
+        }
+
         // Build a set of local account IDs for quick lookup
         const localAccountIds = new Set(
           localSnapAccounts.map((account) => account.id),

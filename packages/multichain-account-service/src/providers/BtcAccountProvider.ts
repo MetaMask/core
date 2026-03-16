@@ -41,6 +41,9 @@ export const BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG: BtcAccountProviderConfig = {
     maxAttempts: 3,
     backOffMs: 1000,
   },
+  resyncAccounts: {
+    autoRemoveExtraSnapAccounts: true,
+  },
 };
 
 export class BtcAccountProvider extends SnapAccountProvider {
