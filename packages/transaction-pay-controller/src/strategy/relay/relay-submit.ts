@@ -158,8 +158,9 @@ async function waitForRelayCompletion(
 
   const pollingInterval = getRelayPollingInterval(messenger);
   const pollingTimeout = getRelayPollingTimeout(messenger);
-
   const hasTimeout = pollingTimeout !== undefined && pollingTimeout > 0;
+
+  log('Polling config', { pollingInterval, pollingTimeout });
   const startTime = Date.now();
 
   let sourceHashEmitted = false;
