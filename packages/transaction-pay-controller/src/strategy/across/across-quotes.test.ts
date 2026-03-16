@@ -87,8 +87,22 @@ const QUOTE_MOCK: AcrossSwapApprovalResponse = {
 const TOKEN_TRANSFER_INTERFACE = new Interface([
   'function transfer(address to, uint256 amount)',
 ]);
+const SAFE_FACTORY_INTERFACE = new Interface([
+  'function createProxy(address paymentToken, uint256 payment, address payable paymentReceiver, (uint8 v, bytes32 r, bytes32 s) createSig)',
+]);
+const SAFE_INTERFACE = new Interface([
+  'function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures)',
+]);
 
 const TRANSFER_RECIPIENT = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+const FACTORY_ADDRESS = '0xfac7fac7fac7fac7fac7fac7fac7fac7fac7fac7' as Hex;
+const SAFE_ADDRESS = '0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe' as Hex;
+const SAFE_TX_TARGET = '0xc0ffee254729296a45a3885639AC7E10F9d54979';
+const SAFE_TX_DATA = '0x12345678';
+const SAFE_SIGNATURE_BYTES = '0xabcdef';
+const CREATE_PROXY_R = `0x${'11'.repeat(32)}`;
+const CREATE_PROXY_S = `0x${'22'.repeat(32)}`;
 
 function buildTransferData(
   recipient: string = TRANSFER_RECIPIENT,
@@ -97,6 +111,34 @@ function buildTransferData(
   return TOKEN_TRANSFER_INTERFACE.encodeFunctionData('transfer', [
     recipient,
     amount,
+  ]) as Hex;
+}
+
+function buildCreateProxyData(): Hex {
+  return SAFE_FACTORY_INTERFACE.encodeFunctionData('createProxy', [
+    ZERO_ADDRESS,
+    '0',
+    ZERO_ADDRESS,
+    {
+      r: CREATE_PROXY_R,
+      s: CREATE_PROXY_S,
+      v: 27,
+    },
+  ]) as Hex;
+}
+
+function buildExecTransactionData(): Hex {
+  return SAFE_INTERFACE.encodeFunctionData('execTransaction', [
+    SAFE_TX_TARGET,
+    '0',
+    SAFE_TX_DATA,
+    0,
+    0,
+    0,
+    0,
+    ZERO_ADDRESS,
+    ZERO_ADDRESS,
+    SAFE_SIGNATURE_BYTES,
   ]) as Hex;
 }
 
@@ -390,7 +432,7 @@ describe('Across Quotes', () => {
       expect(getRequestBody().actions).toStrictEqual([]);
     });
 
-    it('uses predict deposit post-swap action for token transfer transactions', async () => {
+    it('uses direct recipient for predict transfer-only transactions', async () => {
       const transferData = buildTransferData(TRANSFER_RECIPIENT);
 
       successfulFetchMock.mockResolvedValue({
@@ -413,8 +455,136 @@ describe('Across Quotes', () => {
       const [url] = successfulFetchMock.mock.calls[0];
       const params = new URL(url as string).searchParams;
 
+      expect(params.get('recipient')).toBe(TRANSFER_RECIPIENT.toLowerCase());
+      expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
+    it('uses direct recipient for nested predict transfer-only transactions', async () => {
+      const transferData = buildTransferData(TRANSFER_RECIPIENT);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDeposit,
+          nestedTransactions: [{ data: transferData }],
+        } as TransactionMeta,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('recipient')).toBe(TRANSFER_RECIPIENT.toLowerCase());
+      expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
+    it('uses decoded actions for predict setup transactions', async () => {
+      const createProxyData = buildCreateProxyData();
+      const execTransactionData = buildExecTransactionData();
+      const transferData = buildTransferData(TRANSFER_RECIPIENT, 0);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDeposit,
+          nestedTransactions: [
+            { to: FACTORY_ADDRESS, data: createProxyData },
+            { to: SAFE_ADDRESS, data: execTransactionData },
+            { to: QUOTE_REQUEST_MOCK.targetTokenAddress, data: transferData },
+          ],
+        } as TransactionMeta,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
       expect(params.get('recipient')).toBe(FROM_MOCK);
       expect(getRequestBody().actions).toStrictEqual([
+        {
+          args: [
+            {
+              populateDynamically: false,
+              value: ZERO_ADDRESS,
+            },
+            {
+              populateDynamically: false,
+              value: '0',
+            },
+            {
+              populateDynamically: false,
+              value: ZERO_ADDRESS,
+            },
+            {
+              populateDynamically: false,
+              value: ['27', CREATE_PROXY_R, CREATE_PROXY_S],
+            },
+          ],
+          functionSignature:
+            'function createProxy(address paymentToken, uint256 payment, address payable paymentReceiver, (uint8 v, bytes32 r, bytes32 s) createSig)',
+          isNativeTransfer: false,
+          target: FACTORY_ADDRESS,
+          value: '0',
+        },
+        {
+          args: [
+            {
+              populateDynamically: false,
+              value: SAFE_TX_TARGET.toLowerCase(),
+            },
+            {
+              populateDynamically: false,
+              value: '0',
+            },
+            {
+              populateDynamically: false,
+              value: SAFE_TX_DATA,
+            },
+            {
+              populateDynamically: false,
+              value: '0',
+            },
+            {
+              populateDynamically: false,
+              value: '0',
+            },
+            {
+              populateDynamically: false,
+              value: '0',
+            },
+            {
+              populateDynamically: false,
+              value: '0',
+            },
+            {
+              populateDynamically: false,
+              value: ZERO_ADDRESS,
+            },
+            {
+              populateDynamically: false,
+              value: ZERO_ADDRESS,
+            },
+            {
+              populateDynamically: false,
+              value: SAFE_SIGNATURE_BYTES,
+            },
+          ],
+          functionSignature:
+            'function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures)',
+          isNativeTransfer: false,
+          target: SAFE_ADDRESS,
+          value: '0',
+        },
         {
           args: [
             {
@@ -435,8 +605,9 @@ describe('Across Quotes', () => {
       ]);
     });
 
-    it('uses predict deposit post-swap action from nested transfer transactions', async () => {
-      const transferData = buildTransferData(TRANSFER_RECIPIENT);
+    it('falls back to target token address for setup transfer actions without an explicit target', async () => {
+      const createProxyData = buildCreateProxyData();
+      const transferData = buildTransferData(TRANSFER_RECIPIENT, 0);
 
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
@@ -448,8 +619,61 @@ describe('Across Quotes', () => {
         transaction: {
           ...TRANSACTION_META_MOCK,
           type: TransactionType.predictDeposit,
-          nestedTransactions: [{ data: transferData }],
+          nestedTransactions: [
+            { to: FACTORY_ADDRESS, data: createProxyData },
+            { data: transferData },
+          ],
         } as TransactionMeta,
+      });
+
+      const body = getRequestBody();
+      expect(body.actions).toHaveLength(2);
+      expect(body.actions[1]).toMatchObject({
+        functionSignature: 'function transfer(address to, uint256 value)',
+        target: QUOTE_REQUEST_MOCK.targetTokenAddress,
+      });
+    });
+
+    it('uses from address for predict deposits with no calldata', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDeposit,
+        },
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('recipient')).toBe(FROM_MOCK);
+      expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
+    it('falls back to top-level predict setup calldata when no nested calldata exists', async () => {
+      const createProxyData = buildCreateProxyData();
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictDeposit,
+          txParams: {
+            from: FROM_MOCK,
+            to: FACTORY_ADDRESS,
+            data: createProxyData,
+          },
+        },
       });
 
       const [url] = successfulFetchMock.mock.calls[0];
@@ -461,20 +685,91 @@ describe('Across Quotes', () => {
           args: [
             {
               populateDynamically: false,
-              value: TRANSFER_RECIPIENT.toLowerCase(),
+              value: ZERO_ADDRESS,
             },
             {
-              balanceSourceToken: QUOTE_REQUEST_MOCK.targetTokenAddress,
-              populateDynamically: true,
+              populateDynamically: false,
               value: '0',
             },
+            {
+              populateDynamically: false,
+              value: ZERO_ADDRESS,
+            },
+            {
+              populateDynamically: false,
+              value: ['27', CREATE_PROXY_R, CREATE_PROXY_S],
+            },
           ],
-          functionSignature: 'function transfer(address to, uint256 value)',
+          functionSignature:
+            'function createProxy(address paymentToken, uint256 payment, address payable paymentReceiver, (uint8 v, bytes32 r, bytes32 s) createSig)',
           isNativeTransfer: false,
-          target: QUOTE_REQUEST_MOCK.targetTokenAddress,
+          target: FACTORY_ADDRESS,
           value: '0',
         },
       ]);
+    });
+
+    it('throws for unsupported predict setup calldata', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            type: TransactionType.predictDeposit,
+            nestedTransactions: [
+              {
+                to: FACTORY_ADDRESS,
+                data: '0xdeadbeef' as Hex,
+              },
+            ],
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(/Across only supports transfer-style/u);
+    });
+
+    it('throws when predict createProxy calldata is missing target', async () => {
+      const createProxyData = buildCreateProxyData();
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            type: TransactionType.predictDeposit,
+            nestedTransactions: [{ data: createProxyData }],
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(/Across only supports transfer-style/u);
+    });
+
+    it('throws when predict execTransaction calldata is missing target', async () => {
+      const execTransactionData = buildExecTransactionData();
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            type: TransactionType.predictDeposit,
+            nestedTransactions: [{ data: execTransactionData }],
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(/Across only supports transfer-style/u);
     });
 
     it('throws when destination flow is not transfer-style', async () => {

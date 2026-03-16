@@ -33,8 +33,16 @@ import { TOKEN_TRANSFER_FOUR_BYTE } from '../relay/constants';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 
-const TOKEN_TRANSFER_INTERFACE = new Interface([
-  'function transfer(address to, uint256 value)',
+const TOKEN_TRANSFER_SIGNATURE = 'function transfer(address to, uint256 value)';
+const CREATE_PROXY_SIGNATURE =
+  'function createProxy(address paymentToken, uint256 payment, address payable paymentReceiver, (uint8 v, bytes32 r, bytes32 s) createSig)';
+const SAFE_EXEC_TRANSACTION_SIGNATURE =
+  'function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures)';
+
+const TOKEN_TRANSFER_INTERFACE = new Interface([TOKEN_TRANSFER_SIGNATURE]);
+const CREATE_PROXY_INTERFACE = new Interface([CREATE_PROXY_SIGNATURE]);
+const SAFE_EXEC_TRANSACTION_INTERFACE = new Interface([
+  SAFE_EXEC_TRANSACTION_SIGNATURE,
 ]);
 
 const UNSUPPORTED_AUTHORIZATION_LIST_ERROR =
@@ -47,6 +55,11 @@ type AcrossQuoteWithoutMetaMask = Omit<AcrossQuote, 'metamask'>;
 type AcrossDestination = {
   actions: AcrossAction[];
   recipient: Hex;
+};
+
+type AcrossDestinationCall = {
+  data: Hex;
+  target?: Hex;
 };
 
 /**
@@ -204,31 +217,43 @@ function getAcrossDestination(
   transaction: TransactionMeta,
   request: QuoteRequest,
 ): AcrossDestination {
-  const { txParams } = transaction;
   const { from } = request;
-  const transferData = getTransferData(transaction);
+  const destinationCalls = getDestinationCalls(transaction);
+  const transferCall = destinationCalls.find((call) =>
+    isTransferCall(call.data),
+  );
 
-  if (transferData) {
-    const transferRecipient = getTransferRecipient(transferData);
-
-    if (transaction.type === TransactionType.predictDeposit) {
+  if (transaction.type === TransactionType.predictDeposit) {
+    if (destinationCalls.length === 0) {
       return {
-        actions: [buildAcrossTransferAction(transferRecipient, request)],
+        actions: [],
         recipient: from,
       };
     }
 
+    if (destinationCalls.length === 1 && transferCall) {
+      return {
+        actions: [],
+        recipient: getTransferRecipient(transferCall.data),
+      };
+    }
+
     return {
-      actions: [],
-      recipient: transferRecipient,
+      actions: destinationCalls.map((call) =>
+        buildAcrossActionFromCall(call, request),
+      ),
+      recipient: from,
     };
   }
 
-  const data = txParams?.data as Hex | undefined;
-  const hasNoData = data === undefined || data === '0x';
-  const nestedCalldata = getNestedCalldata(transaction);
+  if (transferCall) {
+    return {
+      actions: [],
+      recipient: getTransferRecipient(transferCall.data),
+    };
+  }
 
-  if (hasNoData && nestedCalldata.length === 0) {
+  if (destinationCalls.length === 0) {
     return {
       actions: [],
       recipient: from,
@@ -238,15 +263,34 @@ function getAcrossDestination(
   throw new Error(UNSUPPORTED_DESTINATION_ERROR);
 }
 
+function buildAcrossActionFromCall(
+  call: AcrossDestinationCall,
+  request: QuoteRequest,
+): AcrossAction {
+  if (isTransferCall(call.data)) {
+    return buildAcrossTransferAction(call, request);
+  }
+
+  if (isCreateProxyCall(call.data)) {
+    return buildCreateProxyAction(call);
+  }
+
+  if (isSafeExecTransactionCall(call.data)) {
+    return buildSafeExecTransactionAction(call);
+  }
+
+  throw new Error(UNSUPPORTED_DESTINATION_ERROR);
+}
+
 function buildAcrossTransferAction(
-  transferRecipient: Hex,
+  call: AcrossDestinationCall,
   request: QuoteRequest,
 ): AcrossAction {
   return {
     args: [
       {
         populateDynamically: false,
-        value: transferRecipient,
+        value: getTransferRecipient(call.data),
       },
       {
         balanceSourceToken: request.targetTokenAddress,
@@ -254,36 +298,181 @@ function buildAcrossTransferAction(
         value: '0',
       },
     ],
-    functionSignature: 'function transfer(address to, uint256 value)',
+    functionSignature: TOKEN_TRANSFER_SIGNATURE,
     isNativeTransfer: false,
-    target: request.targetTokenAddress,
+    target: call.target ?? request.targetTokenAddress,
     value: '0',
   };
 }
 
-function getTransferData(transaction: TransactionMeta): Hex | undefined {
-  const { nestedTransactions, txParams } = transaction;
+function buildCreateProxyAction(call: AcrossDestinationCall): AcrossAction {
+  if (!call.target) {
+    throw new Error(UNSUPPORTED_DESTINATION_ERROR);
+  }
 
-  const nestedTransferData = nestedTransactions?.find(
-    (nestedTx: { data?: Hex }) =>
-      nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
-  )?.data;
+  const [paymentToken, payment, paymentReceiver, createSig] =
+    CREATE_PROXY_INTERFACE.decodeFunctionData('createProxy', call.data) as [
+      Hex,
+      BigNumber,
+      Hex,
+      { r: Hex; s: Hex; v: number },
+    ];
 
-  const data = txParams?.data as Hex | undefined;
-  const tokenTransferData = data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE)
-    ? data
-    : undefined;
-
-  return nestedTransferData ?? tokenTransferData;
+  return {
+    args: [
+      {
+        populateDynamically: false,
+        value: normalizeHexString(paymentToken),
+      },
+      {
+        populateDynamically: false,
+        value: payment.toString(),
+      },
+      {
+        populateDynamically: false,
+        value: normalizeHexString(paymentReceiver),
+      },
+      {
+        populateDynamically: false,
+        value: [
+          String(createSig.v),
+          normalizeHexString(createSig.r),
+          normalizeHexString(createSig.s),
+        ],
+      },
+    ],
+    functionSignature: CREATE_PROXY_SIGNATURE,
+    isNativeTransfer: false,
+    target: call.target,
+    value: '0',
+  };
 }
 
-function getNestedCalldata(transaction: TransactionMeta): Hex[] {
-  return (transaction.nestedTransactions ?? [])
-    .map((nestedTx: { data?: Hex }) => nestedTx.data)
-    .filter(
-      (data: Hex | undefined): data is Hex =>
-        data !== undefined && data !== '0x',
-    );
+function buildSafeExecTransactionAction(
+  call: AcrossDestinationCall,
+): AcrossAction {
+  if (!call.target) {
+    throw new Error(UNSUPPORTED_DESTINATION_ERROR);
+  }
+
+  const [
+    to,
+    value,
+    data,
+    operation,
+    safeTxGas,
+    baseGas,
+    gasPrice,
+    gasToken,
+    refundReceiver,
+    signatures,
+  ] = SAFE_EXEC_TRANSACTION_INTERFACE.decodeFunctionData(
+    'execTransaction',
+    call.data,
+  ) as [
+    Hex,
+    BigNumber,
+    Hex,
+    number,
+    BigNumber,
+    BigNumber,
+    BigNumber,
+    Hex,
+    Hex,
+    Hex,
+  ];
+
+  return {
+    args: [
+      {
+        populateDynamically: false,
+        value: normalizeHexString(to),
+      },
+      {
+        populateDynamically: false,
+        value: value.toString(),
+      },
+      {
+        populateDynamically: false,
+        value: normalizeHexString(data),
+      },
+      {
+        populateDynamically: false,
+        value: String(operation),
+      },
+      {
+        populateDynamically: false,
+        value: safeTxGas.toString(),
+      },
+      {
+        populateDynamically: false,
+        value: baseGas.toString(),
+      },
+      {
+        populateDynamically: false,
+        value: gasPrice.toString(),
+      },
+      {
+        populateDynamically: false,
+        value: normalizeHexString(gasToken),
+      },
+      {
+        populateDynamically: false,
+        value: normalizeHexString(refundReceiver),
+      },
+      {
+        populateDynamically: false,
+        value: normalizeHexString(signatures),
+      },
+    ],
+    functionSignature: SAFE_EXEC_TRANSACTION_SIGNATURE,
+    isNativeTransfer: false,
+    target: call.target,
+    value: '0',
+  };
+}
+
+function getDestinationCalls(
+  transaction: TransactionMeta,
+): AcrossDestinationCall[] {
+  const nestedCalls = (
+    transaction.nestedTransactions ?? []
+  ).flatMap<AcrossDestinationCall>((nestedTx: { data?: Hex; to?: Hex }) =>
+    nestedTx.data !== undefined && nestedTx.data !== '0x'
+      ? [{ data: nestedTx.data, target: nestedTx.to }]
+      : [],
+  );
+
+  if (nestedCalls.length > 0) {
+    return nestedCalls;
+  }
+
+  const data = transaction.txParams?.data as Hex | undefined;
+
+  if (data === undefined || data === '0x') {
+    return [];
+  }
+
+  return [
+    {
+      data,
+      target: transaction.txParams?.to as Hex | undefined,
+    },
+  ];
+}
+
+function isTransferCall(data: Hex): boolean {
+  return data.startsWith(TOKEN_TRANSFER_FOUR_BYTE);
+}
+
+function isCreateProxyCall(data: Hex): boolean {
+  return data.startsWith(CREATE_PROXY_INTERFACE.getSighash('createProxy'));
+}
+
+function isSafeExecTransactionCall(data: Hex): boolean {
+  return data.startsWith(
+    SAFE_EXEC_TRANSACTION_INTERFACE.getSighash('execTransaction'),
+  );
 }
 
 function getTransferRecipient(data: Hex): Hex {
@@ -291,6 +480,10 @@ function getTransferRecipient(data: Hex): Hex {
     'transfer',
     data,
   ).to.toLowerCase() as Hex;
+}
+
+function normalizeHexString(value: string): string {
+  return value.toLowerCase();
 }
 
 async function normalizeQuote(
