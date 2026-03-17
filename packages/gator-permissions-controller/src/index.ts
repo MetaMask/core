@@ -5,7 +5,6 @@ export type {
   GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
   GatorPermissionsControllerInitializeAction,
   GatorPermissionsControllerIsPendingRevocationAction,
-  GatorPermissionsControllerMethodActions,
   GatorPermissionsControllerSubmitDirectRevocationAction,
   GatorPermissionsControllerSubmitRevocationAction,
 } from './GatorPermissionsController-method-action-types';
