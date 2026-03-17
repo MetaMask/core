@@ -9,9 +9,9 @@ import {
   QueryKey,
 } from '@tanstack/query-core';
 
-import { CacheUpdatedPayload } from './BaseDataService';
+import { GranularCacheUpdatedPayload } from './BaseDataService';
 
-type SubscriptionCallback = (state: CacheUpdatedPayload['state']) => void;
+type SubscriptionCallback = (payload: GranularCacheUpdatedPayload) => void;
 type JsonSubscriptionCallback = (data: Json) => void;
 
 // TODO: Figure out if we can replace with a better Messenger type
@@ -77,7 +77,9 @@ export function createUIQueryClient(
     },
   });
 
-  client.getQueryCache().subscribe((event) => {
+  const cache = client.getQueryCache();
+
+  cache.subscribe((event) => {
     const { query } = event;
 
     const hash = query.queryHash;
@@ -95,8 +97,12 @@ export function createUIQueryClient(
       event.type === 'observerAdded' &&
       observerCount === 1
     ) {
-      const cacheListener = (state: CacheUpdatedPayload['state']): void => {
-        hydrate(client, state);
+      const cacheListener = (payload: GranularCacheUpdatedPayload): void => {
+        if (payload.type === 'removed') {
+          cache.remove(query);
+        } else {
+          hydrate(client, payload.state);
+        }
       };
 
       subscriptions.set(hash, cacheListener);

@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/messenger';
 import {
+  hashQueryKey,
   InfiniteData,
   InfiniteQueryObserver,
   QueryClient,
@@ -173,6 +174,51 @@ describe('createUIQueryClient', () => {
     const queryData = clientA.getQueryData(getAssetsQueryKey);
 
     expect(queryData).toStrictEqual([]);
+    expect(queryData).toStrictEqual(clientB.getQueryData(getAssetsQueryKey));
+
+    observerA.destroy();
+    observerB.destroy();
+  });
+
+  it('synchronizes cache removal after remove event', async () => {
+    const { messenger, clientA, clientB } = createClients();
+
+    const observerA = new QueryObserver(clientA, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    const observerB = new QueryObserver(clientB, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    const promiseA = new Promise((resolve) => {
+      observerA.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve(event.data);
+        }
+      });
+    });
+
+    const promiseB = new Promise((resolve) => {
+      observerB.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve(event.data);
+        }
+      });
+    });
+
+    await Promise.all([promiseA, promiseB]);
+
+    const hash = hashQueryKey(getAssetsQueryKey);
+
+    messenger.publish(`ExampleDataService:cacheUpdated:${hash}`, {
+      type: 'removed',
+      state: null,
+    });
+
+    const queryData = clientA.getQueryData(getAssetsQueryKey);
+
+    expect(queryData).toBeUndefined();
     expect(queryData).toStrictEqual(clientB.getQueryData(getAssetsQueryKey));
 
     observerA.destroy();

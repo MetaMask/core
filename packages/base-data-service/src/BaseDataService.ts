@@ -18,11 +18,21 @@ import {
   QueryKey,
   WithRequired,
   dehydrate,
-  hashQueryKey,
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
 
-export type CacheUpdatedPayload = { hash: string; state: DehydratedState };
+export type GranularCacheUpdatedPayload =
+  | { type: 'added' | 'updated'; state: DehydratedState }
+  | {
+      type: 'removed';
+      state: null;
+    };
+
+export type CacheUpdatedPayload = {
+  hash: string;
+} & GranularCacheUpdatedPayload;
+
+type CacheUpdatedType = CacheUpdatedPayload['type'];
 
 export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   type: `${ServiceName}:invalidateQueries`;
@@ -42,7 +52,7 @@ export type DataServiceCacheUpdatedEvent<ServiceName extends string> = {
 
 export type DataServiceGranularCacheUpdatedEvent<ServiceName extends string> = {
   type: `${ServiceName}:cacheUpdated:${string}`;
-  payload: [CacheUpdatedPayload['state']];
+  payload: [GranularCacheUpdatedPayload];
 };
 
 export type DataServiceEvents<ServiceName extends string> =
@@ -115,7 +125,10 @@ export class BaseDataService<
       .getQueryCache()
       .subscribe((event) => {
         if (['added', 'updated', 'removed'].includes(event.type)) {
-          this.#broadcastCacheUpdate(event.query.queryKey);
+          this.#broadcastCacheUpdate(
+            event.query.queryHash,
+            event.type as CacheUpdatedType,
+          );
         }
       });
 
@@ -130,8 +143,8 @@ export class BaseDataService<
   }
 
   protected destroy(): void {
-    this.messenger.clearSubscriptions();
     this.#queryCacheUnsubscribe();
+    this.messenger.clearSubscriptions();
   }
 
   protected async fetchQuery<
@@ -210,24 +223,29 @@ export class BaseDataService<
     return this.#queryClient.invalidateQueries(filters, options);
   }
 
-  #getDehydratedState(queryKey: QueryKey): DehydratedState {
-    const hash = hashQueryKey(queryKey);
-    return dehydrate(this.#queryClient, {
-      shouldDehydrateQuery: (query) => query.queryHash === hash,
-    });
-  }
+  #broadcastCacheUpdate(hash: string, type: CacheUpdatedType): void {
+    const state =
+      type === 'added' || type === 'updated'
+        ? dehydrate(this.#queryClient, {
+            shouldDehydrateQuery: (query) => query.queryHash === hash,
+          })
+        : null;
 
-  #broadcastCacheUpdate(queryKey: QueryKey): void {
-    const hash = hashQueryKey(queryKey);
-    const state = this.#getDehydratedState(queryKey);
+    this.#messenger.publish(
+      `${this.name}:cacheUpdated` as const,
+      {
+        type,
+        hash,
+        state,
+      } as CacheUpdatedPayload,
+    );
 
-    this.#messenger.publish(`${this.name}:cacheUpdated` as const, {
-      hash,
-      state,
-    });
     this.#messenger.publish(
       `${this.name}:cacheUpdated:${hash}` as const,
-      state,
+      {
+        type,
+        state,
+      } as GranularCacheUpdatedPayload,
     );
   }
 }

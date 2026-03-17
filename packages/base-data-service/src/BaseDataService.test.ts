@@ -13,6 +13,12 @@ import {
 
 const TEST_ADDRESS = '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520';
 
+const MOCK_ASSETS = [
+  'eip155:1/slip44:60',
+  'bip122:000000000019d6689c085ae165831e93/slip44:0',
+  'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+];
+
 describe('BaseDataService', () => {
   beforeEach(() => {
     mockAssets();
@@ -25,13 +31,7 @@ describe('BaseDataService', () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
-    expect(
-      await service.getAssets([
-        'eip155:1/slip44:60',
-        'bip122:000000000019d6689c085ae165831e93/slip44:0',
-        'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
-      ]),
-    ).toStrictEqual([
+    expect(await service.getAssets(MOCK_ASSETS)).toStrictEqual([
       {
         assetId: 'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
         decimals: 18,
@@ -107,21 +107,15 @@ describe('BaseDataService', () => {
     expect(page2.data).not.toStrictEqual(page3.data);
   });
 
-  it('emits `:cacheUpdated` events', async () => {
+  it('emits `:cacheUpdated` events when cache is updated', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
 
     const publishSpy = jest.spyOn(messenger, 'publish');
 
-    const assets = [
-      'eip155:1/slip44:60',
-      'bip122:000000000019d6689c085ae165831e93/slip44:0',
-      'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
-    ];
+    await service.getAssets(MOCK_ASSETS);
 
-    await service.getAssets(assets);
-
-    const queryKey = ['ExampleDataService:getAssets', assets];
+    const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
 
     const hash = hashQueryKey(queryKey);
 
@@ -129,35 +123,63 @@ describe('BaseDataService', () => {
       6,
       `ExampleDataService:cacheUpdated:${hash}`,
       {
-        mutations: [],
-        queries: [
-          expect.objectContaining({
-            state: expect.objectContaining({
-              status: 'success',
-              data: [
-                {
-                  assetId:
-                    'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
-                  decimals: 18,
-                  name: 'Dai Stablecoin',
-                  symbol: 'DAI',
-                },
-                {
-                  assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
-                  decimals: 8,
-                  name: 'Bitcoin',
-                  symbol: 'BTC',
-                },
-                {
-                  assetId: 'eip155:1/slip44:60',
-                  decimals: 18,
-                  name: 'Ethereum',
-                  symbol: 'ETH',
-                },
-              ],
+        type: 'updated',
+        state: {
+          mutations: [],
+          queries: [
+            expect.objectContaining({
+              state: expect.objectContaining({
+                status: 'success',
+                data: [
+                  {
+                    assetId:
+                      'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+                    decimals: 18,
+                    name: 'Dai Stablecoin',
+                    symbol: 'DAI',
+                  },
+                  {
+                    assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                    decimals: 8,
+                    name: 'Bitcoin',
+                    symbol: 'BTC',
+                  },
+                  {
+                    assetId: 'eip155:1/slip44:60',
+                    decimals: 18,
+                    name: 'Ethereum',
+                    symbol: 'ETH',
+                  },
+                ],
+              }),
             }),
-          }),
-        ],
+          ],
+        },
+      },
+    );
+  });
+
+  it('emits `:cacheUpdated` events when cache entry is removed', async () => {
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    await service.getAssets(MOCK_ASSETS);
+
+    // Wait for GC
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
+
+    const hash = hashQueryKey(queryKey);
+
+    expect(publishSpy).toHaveBeenNthCalledWith(
+      8,
+      `ExampleDataService:cacheUpdated:${hash}`,
+      {
+        type: 'removed',
+        state: null,
       },
     );
   });
