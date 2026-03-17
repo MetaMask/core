@@ -28,4 +28,9 @@ export type {
 export { MethodNames } from './utils';
 export * as permissionRpcMethods from './rpc-methods';
 export * from './SubjectMetadataController';
-export type * from './SubjectMetadataController-method-action-types';
+export type {
+  SubjectMetadataControllerClearStateAction,
+  SubjectMetadataControllerAddSubjectMetadataAction,
+  SubjectMetadataControllerGetSubjectMetadataAction,
+  SubjectMetadataControllerTrimMetadataStateAction
+} from './SubjectMetadataController-method-action-types';
