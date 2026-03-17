@@ -1,8 +1,8 @@
 import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import type {
   AccountId,
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRemovedEvent,
+  AccountsControllerAccountsAddedEvent,
+  AccountsControllerAccountsRemovedEvent,
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerListMultichainAccountsAction,
@@ -16,7 +16,10 @@ import type {
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
-import type { MultichainAccountServiceCreateMultichainAccountGroupAction } from '@metamask/multichain-account-service';
+import type {
+  MultichainAccountServiceCreateMultichainAccountGroupAction,
+  MultichainAccountServiceCreateMultichainAccountGroupsAction,
+} from '@metamask/multichain-account-service';
 import type {
   AuthenticationController,
   UserStorageController,
@@ -90,7 +93,8 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformSetStorageAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
-  | MultichainAccountServiceCreateMultichainAccountGroupAction;
+  | MultichainAccountServiceCreateMultichainAccountGroupAction
+  | MultichainAccountServiceCreateMultichainAccountGroupsAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
@@ -120,8 +124,8 @@ export type AccountTreeControllerSelectedAccountGroupChangeEvent = {
 };
 
 export type AllowedEvents =
-  | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountsAddedEvent
+  | AccountsControllerAccountsRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent
   | UserStorageController.UserStorageControllerStateChangeEvent
   | MultichainAccountServiceWalletStatusChangeEvent;

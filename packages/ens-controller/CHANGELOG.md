@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `EnsController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `EnsController:resetState`
+    - `EnsController:clear`
+    - `EnsController:delete`
+    - `EnsController:get`
+    - `EnsController:set`
+    - `EnsController:reverseResolveAddress`
+  - Corresponding action types (e.g. `EnsControllerResetStateAction`) are available as well.
+
 ## [19.0.3]
 
 ### Changed

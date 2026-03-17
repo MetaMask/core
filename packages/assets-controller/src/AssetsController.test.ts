@@ -18,7 +18,25 @@ import type {
   AssetsControllerState,
 } from './AssetsController';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
-import type { Caip19AssetId, AccountId } from './types';
+import type {
+  Caip19AssetId,
+  AccountId,
+  DataResponse,
+  FungibleAssetMetadata,
+} from './types';
+import { formatExchangeRatesForBridge } from './utils';
+
+jest.mock('./utils', () => {
+  const actual = jest.requireActual<typeof import('./utils')>('./utils');
+  return {
+    ...actual,
+    formatExchangeRatesForBridge: jest.fn(actual.formatExchangeRatesForBridge),
+  };
+});
+
+const formatExchangeRatesForBridgeMock = jest.mocked(
+  formatExchangeRatesForBridge,
+);
 
 function createMockQueryApiClient(): ApiPlatformClient {
   return { fetch: jest.fn() } as unknown as ApiPlatformClient;
@@ -70,6 +88,7 @@ type WithControllerOptions = {
       payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
     ) => void;
     priceDataSourceConfig: PriceDataSourceConfig;
+    isEnabled: () => boolean;
   }>;
 };
 
@@ -597,6 +616,114 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('handleAssetsUpdate', () => {
+    it('preserves existing rich metadata when the API response has empty symbol and name', async () => {
+      const richMetadata: FungibleAssetMetadata = {
+        type: 'erc20',
+        symbol: 'TST',
+        name: 'Test Token',
+        decimals: 4,
+        image: 'https://example.com/tst.png',
+      };
+
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: richMetadata,
+            },
+          },
+        },
+        async ({ controller }) => {
+          const emptyApiResponse: DataResponse = {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: {
+                type: 'erc20',
+                symbol: '',
+                name: '',
+                decimals: 18,
+              } as FungibleAssetMetadata,
+            },
+          };
+
+          await controller.handleAssetsUpdate(emptyApiResponse, 'test-source');
+
+          const stored = controller.state.assetsInfo[
+            MOCK_ASSET_ID
+          ] as FungibleAssetMetadata;
+          expect(stored.symbol).toBe('TST');
+          expect(stored.name).toBe('Test Token');
+          expect(stored.decimals).toBe(4);
+          expect(stored.image).toBe('https://example.com/tst.png');
+        },
+      );
+    });
+
+    it('uses API metadata when symbol or name is non-empty', async () => {
+      const initialMetadata: FungibleAssetMetadata = {
+        type: 'erc20',
+        symbol: 'OLD',
+        name: 'Old Token',
+        decimals: 6,
+      };
+
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: initialMetadata,
+            },
+          },
+        },
+        async ({ controller }) => {
+          const apiResponse: DataResponse = {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: {
+                type: 'erc20',
+                symbol: 'NEW',
+                name: 'New Token',
+                decimals: 8,
+              } as FungibleAssetMetadata,
+            },
+          };
+
+          await controller.handleAssetsUpdate(apiResponse, 'test-source');
+
+          const stored = controller.state.assetsInfo[
+            MOCK_ASSET_ID
+          ] as FungibleAssetMetadata;
+          expect(stored.symbol).toBe('NEW');
+          expect(stored.name).toBe('New Token');
+          expect(stored.decimals).toBe(8);
+        },
+      );
+    });
+
+    it('uses API metadata when there is no pre-existing state for the asset', async () => {
+      await withController(async ({ controller }) => {
+        const apiResponse: DataResponse = {
+          assetsInfo: {
+            [MOCK_ASSET_ID]: {
+              type: 'erc20',
+              symbol: '',
+              name: '',
+              decimals: 18,
+            } as FungibleAssetMetadata,
+          },
+        };
+
+        await controller.handleAssetsUpdate(apiResponse, 'test-source');
+
+        const stored = controller.state.assetsInfo[
+          MOCK_ASSET_ID
+        ] as FungibleAssetMetadata;
+        expect(stored.decimals).toBe(18);
+        expect(stored.symbol).toBe('');
+        expect(stored.name).toBe('');
+      });
+    });
+  });
+
   describe('getAssetsBalance', () => {
     it('returns balance data for accounts', async () => {
       await withController(async ({ controller }) => {
@@ -619,41 +746,99 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('handleActiveChainsUpdate', () => {
-    it('updates data source chains', async () => {
-      await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
+  describe('getExchangeRatesForBridge', () => {
+    it('calls formatExchangeRatesForBridge with state and network data', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsPrice: {
+          [MOCK_NATIVE_ASSET_ID]: {
+            assetPriceType: 'fungible',
+            price: 2000,
+            usdPrice: 2000,
+            lastUpdated: 1_700_000_000_000,
+          },
+        },
+        selectedCurrency: 'eur',
+      };
 
-        // Should not throw
-        expect(controller.state).toBeDefined();
-      });
-    });
+      await withController({ state: initialState }, ({ controller }) => {
+        formatExchangeRatesForBridgeMock.mockClear();
 
-    it('handles empty chains array', async () => {
-      await withController(({ controller }) => {
-        controller.handleActiveChainsUpdate('TestDataSource', [], []);
+        controller.getExchangeRatesForBridge();
 
-        expect(controller.state).toBeDefined();
-      });
-    });
-
-    it('triggers fetch when chains are added', async () => {
-      await withController(async ({ controller }) => {
-        // First set no chains
-        controller.handleActiveChainsUpdate('TestDataSource', [], []);
-
-        // Then add chains - this should trigger fetch for added chains
-        controller.handleActiveChainsUpdate('TestDataSource', ['eip155:1'], []);
-
-        // Allow async operations to complete
-        await new Promise(process.nextTick);
-
-        expect(controller.state).toBeDefined();
+        expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledTimes(1);
+        expect(formatExchangeRatesForBridgeMock).toHaveBeenCalledWith({
+          assetsPrice: initialState.assetsPrice,
+          selectedCurrency: 'eur',
+          nativeAssetIdentifiers: {
+            'eip155:1': 'eip155:1/slip44:60',
+          },
+          networkConfigurationsByChainId: {},
+        });
       });
     });
   });
 
-  describe('handleAssetsUpdate', () => {
+  describe('handleActiveChainsUpdate', () => {
+    it('calls getAssets with added enabled chains when chains are added', async () => {
+      await withController(async ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
+
+        expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.objectContaining({
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+            updateMode: 'merge',
+          }),
+        );
+      });
+    });
+
+    it('does not call getAssets when no chains are added', async () => {
+      await withController(async ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], []);
+        onActiveChainsUpdated('TestDataSource', ['eip155:1'], ['eip155:1']);
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not call getAssets when only chains are removed', async () => {
+      await withController(async ({ controller }) => {
+        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does nothing when controller is disabled', async () => {
+      await withController(
+        {
+          controllerOptions: { isEnabled: (): boolean => false },
+        },
+        async ({ controller }) => {
+          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+
+          onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
+
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
+  describe('handleAssetsUpdate - state updates', () => {
     it('updates state with balance data', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
@@ -851,7 +1036,9 @@ describe('AssetsController', () => {
           {
             assetsPrice: {
               [MOCK_ASSET_ID]: {
+                assetPriceType: 'fungible',
                 price: 1.0,
+                usdPrice: 1.0,
                 pricePercentChange1d: 0.5,
                 lastUpdated: Date.now(),
               },

@@ -103,7 +103,15 @@ import type {
   Asset,
   AssetsControllerStateInternal,
 } from './types';
-import { normalizeAssetId } from './utils';
+import {
+  normalizeAssetId,
+  formatExchangeRatesForBridge,
+  formatStateForTransactionPay,
+} from './utils';
+import type {
+  BridgeExchangeRatesFormat,
+  TransactionPayLegacyFormat,
+} from './utils';
 
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
@@ -137,6 +145,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssetsBalance',
   'getAssetMetadata',
   'getAssetsPrice',
+  'getExchangeRatesForBridge',
+  'getStateForTransactionPay',
   'addCustomAsset',
   'removeCustomAsset',
   'getCustomAssets',
@@ -589,6 +599,12 @@ export class AssetsController extends BaseController<
 
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
+  readonly #onActiveChainsUpdated: (
+    dataSourceId: string,
+    activeChains: ChainId[],
+    previousChains: ChainId[],
+  ) => void;
+
   constructor({
     messenger,
     state = {},
@@ -619,36 +635,36 @@ export class AssetsController extends BaseController<
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
-    const onActiveChainsUpdated = (
+    this.#onActiveChainsUpdated = (
       dataSourceName: string,
       chains: ChainId[],
       previousChains: ChainId[],
     ): void => {
-      this.handleActiveChainsUpdate(dataSourceName, chains, previousChains);
+      this.#handleActiveChainsUpdate(dataSourceName, chains, previousChains);
     };
 
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
       messenger: this.messenger,
       queryApiClient,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...accountsApiDataSourceConfig,
     });
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...rpcConfig,
     });
     this.#stakedBalanceDataSource = new StakedBalanceDataSource({
       messenger: this.messenger,
-      onActiveChainsUpdated,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...stakedBalanceDataSourceConfig,
     });
     this.#tokenDataSource = new TokenDataSource({
@@ -830,7 +846,7 @@ export class AssetsController extends BaseController<
    * @param activeChains - Currently active (supported and available) chain IDs for this source.
    * @param previousChains - Previous chains; used to compute added/removed.
    */
-  handleActiveChainsUpdate(
+  #handleActiveChainsUpdate(
     dataSourceId: string,
     activeChains: ChainId[],
     previousChains: ChainId[],
@@ -871,6 +887,20 @@ export class AssetsController extends BaseController<
         });
       }
     }
+  }
+
+  /**
+   * Returns the callback passed to data sources for reporting active chain updates.
+   * Used by tests to simulate a data source reporting chain changes.
+   *
+   * @returns The onActiveChainsUpdated callback.
+   */
+  getOnActiveChainsUpdated(): (
+    dataSourceId: string,
+    activeChains: ChainId[],
+    previousChains: ChainId[],
+  ) => void {
+    return this.#onActiveChainsUpdated;
   }
 
   // ============================================================================
@@ -1099,6 +1129,58 @@ export class AssetsController extends BaseController<
     }
 
     return result;
+  }
+
+  /**
+   * Returns exchange rates in the format expected by the bridge controller
+   * (conversionRates, currencyRates, marketData, currentCurrency) so that
+   * when useAssetsControllerForRates is true the bridge can use a single
+   * action instead of MultichainAssetsRatesController, TokenRatesController,
+   * and CurrencyRateController.
+   *
+   * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
+   */
+  getExchangeRatesForBridge(): BridgeExchangeRatesFormat {
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return formatExchangeRatesForBridge({
+      assetsPrice: this.state.assetsPrice,
+      selectedCurrency: this.state.selectedCurrency,
+      nativeAssetIdentifiers,
+      networkConfigurationsByChainId,
+    });
+  }
+
+  /**
+   * Returns state in the legacy format expected by transaction-pay-controller
+   * (TokenBalancesController, AccountTrackerController, TokensController,
+   * TokenRatesController, CurrencyRateController shapes) so that when
+   * useAssetsController is true the transaction-pay-controller can use a
+   * single action instead of five separate getState calls.
+   *
+   * @returns Legacy-compatible state for transaction-pay-controller.
+   */
+  getStateForTransactionPay(): TransactionPayLegacyFormat {
+    const accounts = this.#selectedAccounts;
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const { networkConfigurationsByChainId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    return formatStateForTransactionPay({
+      assetsBalance: this.state.assetsBalance,
+      assetsInfo: this.state.assetsInfo,
+      assetsPrice: this.state.assetsPrice,
+      selectedCurrency: this.state.selectedCurrency,
+      accounts: accounts.map((a) => ({ id: a.id, address: a.address })),
+      nativeAssetIdentifiers,
+      networkConfigurationsByChainId,
+    });
   }
 
   // ============================================================================
@@ -1482,7 +1564,27 @@ export class AssetsController extends BaseController<
             ) {
               changedMetadata.push(key);
             }
-            metadata[key] = value;
+
+            const existing = metadata[key] as FungibleAssetMetadata | undefined;
+            const incoming = value as FungibleAssetMetadata;
+
+            // When the API returns no symbol or name for this token, it has no
+            // real knowledge of it (e.g. a user-deployed token not indexed by
+            // the API). Preserve richer metadata already in state (e.g. from
+            // pendingMetadata set by addCustomAsset) so that the correct
+            // decimals/symbol/name/image are not overwritten with empty values.
+            if (existing && !incoming.symbol && !incoming.name) {
+              metadata[key] = {
+                ...existing,
+                ...incoming,
+                symbol: existing.symbol,
+                name: existing.name,
+                decimals: existing.decimals ?? incoming.decimals,
+                image: existing.image ?? incoming.image,
+              };
+            } else {
+              metadata[key] = value;
+            }
           }
         }
 
@@ -1983,7 +2085,8 @@ export class AssetsController extends BaseController<
       }),
       subscriptionId: subscriptionKey,
       isUpdate,
-      onAssetsUpdate: (response) => this.handleAssetsUpdate(response, sourceId),
+      onAssetsUpdate: (response, request) =>
+        this.handleAssetsUpdate(response, sourceId, request),
       getAssetsState: () => this.state,
     };
 
@@ -2243,6 +2346,12 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getExchangeRatesForBridge',
+    );
+    this.messenger.unregisterActionHandler(
+      'AssetsController:getStateForTransactionPay',
+    );
     this.messenger.unregisterActionHandler('AssetsController:addCustomAsset');
     this.messenger.unregisterActionHandler(
       'AssetsController:removeCustomAsset',

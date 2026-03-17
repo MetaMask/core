@@ -7,6 +7,7 @@ import type {
 } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
 
+import { deepClone } from './compatibility-utils';
 import type {
   ContextConstraint,
   InferKeyValues,
@@ -284,7 +285,7 @@ export class JsonRpcEngineV2<
   async handle(
     request: Request,
     { context }: HandleOptions<Context> = {},
-  ): Promise<Readonly<ResultConstraint<Request>> | void> {
+  ): Promise<ResultConstraint<Request> | void> {
     const isReq = isRequest(request);
     const { result } = await this.#handle(request, context);
 
@@ -293,7 +294,7 @@ export class JsonRpcEngineV2<
         `Nothing ended request: ${stringify(request)}`,
       );
     }
-    return result;
+    return deepClone(result) as ResultConstraint<Request>;
   }
 
   /**

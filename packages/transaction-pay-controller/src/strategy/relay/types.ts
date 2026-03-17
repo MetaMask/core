@@ -14,6 +14,7 @@ export type RelayQuoteRequest = {
   destinationCurrency: Hex;
   originChainId: number;
   originCurrency: Hex;
+  originGasOverhead?: string;
   recipient: Hex;
   refundTo?: Hex;
   slippageTolerance?: string;
@@ -73,6 +74,8 @@ export type RelayQuote = {
   };
   metamask: {
     gasLimits: number[];
+    isExecute?: boolean;
+    isMaxGasStation?: boolean;
   };
   request: RelayQuoteRequest;
   steps: {
@@ -99,15 +102,44 @@ export type RelayQuote = {
   }[];
 };
 
+export type RelayExecuteRequest = {
+  executionKind: 'rawCalls';
+  data: {
+    chainId: number;
+    to: Hex;
+    data: Hex;
+    value: string;
+    authorizationList?: {
+      chainId: number;
+      address: Hex;
+      nonce: number;
+      yParity: number;
+      r: Hex;
+      s: Hex;
+    }[];
+  };
+  executionOptions: {
+    referrer?: string;
+    subsidizeFees: boolean;
+  };
+  requestId?: string;
+};
+
+export type RelayExecuteResponse = {
+  message: string;
+  requestId: string;
+};
+
 export type RelayStatus =
-  | 'waiting'
+  | 'delayed'
+  | 'depositing'
+  | 'failure'
   | 'pending'
+  | 'refund'
+  | 'refunded'
   | 'submitted'
   | 'success'
-  | 'delayed'
-  | 'refunded'
-  | 'refund'
-  | 'failure';
+  | 'waiting';
 
 export type RelayStatusResponse = {
   status: RelayStatus;

@@ -7,7 +7,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
-  AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
 import type {
@@ -91,6 +91,7 @@ import {
 } from './helpers/ResimulateHelper';
 import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import { projectLogger as log } from './logger';
+import type { TransactionControllerMethodActions } from './TransactionController-method-action-types';
 import type {
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
@@ -181,6 +182,7 @@ import {
   isEIP1559Transaction,
   validateGasValues,
   validateIfTransactionUnapproved,
+  validateIfTransactionUnapprovedOrSubmitted,
   normalizeTxError,
   normalizeGasFeeValues,
   setEnvelopeType,
@@ -307,122 +309,11 @@ export type TransactionControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Represents the `TransactionController:updateCustodialTransaction` action.
- */
-export type TransactionControllerUpdateCustodialTransactionAction = {
-  type: `${typeof controllerName}:updateCustodialTransaction`;
-  handler: TransactionController['updateCustodialTransaction'];
-};
-
-export type TransactionControllerEstimateGasAction = {
-  type: `${typeof controllerName}:estimateGas`;
-  handler: TransactionController['estimateGas'];
-};
-
-export type TransactionControllerEstimateGasBatchAction = {
-  type: `${typeof controllerName}:estimateGasBatch`;
-  handler: TransactionController['estimateGasBatch'];
-};
-
-/**
- * Adds external provided transaction to state as confirmed transaction.
- *
- * @param transactionMeta - TransactionMeta to add transactions.
- * @param transactionReceipt - TransactionReceipt of the external transaction.
- * @param baseFeePerGas - Base fee per gas of the external transaction.
- */
-export type TransactionControllerConfirmExternalTransactionAction = {
-  type: `${typeof controllerName}:confirmExternalTransaction`;
-  handler: TransactionController['confirmExternalTransaction'];
-};
-
-export type TransactionControllerGetNonceLockAction = {
-  type: `${typeof controllerName}:getNonceLock`;
-  handler: TransactionController['getNonceLock'];
-};
-
-/**
- * Search transaction metadata for matching entries.
- *
- * @param opts - Options bag.
- * @param opts.initialList - The transactions to search. Defaults to the current state.
- * @param opts.limit - The maximum number of transactions to return. No limit by default.
- * @param opts.searchCriteria - An object containing values or functions for transaction properties to filter transactions with.
- * @returns An array of transactions matching the provided options.
- */
-export type TransactionControllerGetTransactionsAction = {
-  type: `${typeof controllerName}:getTransactions`;
-  handler: TransactionController['getTransactions'];
-};
-
-/**
- * Updates an existing transaction in state.
- *
- * @param transactionMeta - The new transaction to store in state.
- * @param note - A note or update reason to be logged.
- */
-export type TransactionControllerUpdateTransactionAction = {
-  type: `${typeof controllerName}:updateTransaction`;
-  handler: TransactionController['updateTransaction'];
-};
-
-/** Add a single transaction to be submitted after approval. */
-export type TransactionControllerAddTransactionAction = {
-  type: `${typeof controllerName}:addTransaction`;
-  handler: TransactionController['addTransaction'];
-};
-
-/** Add a batch of transactions to be submitted after approval. */
-export type TransactionControllerAddTransactionBatchAction = {
-  type: `${typeof controllerName}:addTransactionBatch`;
-  handler: TransactionController['addTransactionBatch'];
-};
-
-/**
- * Emulate a new transaction.
- *
- * @param transactionId - The transaction ID.
- */
-export type TransactionControllerEmulateNewTransaction = {
-  type: `${typeof controllerName}:emulateNewTransaction`;
-  handler: TransactionController['emulateNewTransaction'];
-};
-
-/**
- * Emmulate a transaction update.
- *
- * @param transactionMeta - Transaction metadata.
- */
-export type TransactionControllerEmulateTransactionUpdate = {
-  type: `${typeof controllerName}:emulateTransactionUpdate`;
-  handler: TransactionController['emulateTransactionUpdate'];
-};
-
-/**
- * Retrieve available gas fee tokens for a transaction.
- */
-export type TransactionControllerGetGasFeeTokensAction = {
-  type: `${typeof controllerName}:getGasFeeTokens`;
-  handler: (request: GetGasFeeTokensRequest) => Promise<GasFeeToken[]>;
-};
-
-/**
  * The internal actions available to the TransactionController.
  */
 export type TransactionControllerActions =
-  | TransactionControllerAddTransactionAction
-  | TransactionControllerAddTransactionBatchAction
-  | TransactionControllerConfirmExternalTransactionAction
-  | TransactionControllerEstimateGasAction
-  | TransactionControllerEstimateGasBatchAction
-  | TransactionControllerGetGasFeeTokensAction
-  | TransactionControllerGetNonceLockAction
   | TransactionControllerGetStateAction
-  | TransactionControllerGetTransactionsAction
-  | TransactionControllerUpdateCustodialTransactionAction
-  | TransactionControllerUpdateTransactionAction
-  | TransactionControllerEmulateNewTransaction
-  | TransactionControllerEmulateTransactionUpdate;
+  | TransactionControllerMethodActions;
 
 /**
  * Configuration options for the PendingTransactionTracker
@@ -599,7 +490,7 @@ const controllerName = 'TransactionController';
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetStateAction
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -835,6 +726,39 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
     submitHistory: [],
   };
 }
+
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'abortTransactionSigning',
+  'addTransaction',
+  'addTransactionBatch',
+  'approveTransactionsWithSameNonce',
+  'clearUnapprovedTransactions',
+  'confirmExternalTransaction',
+  'emulateNewTransaction',
+  'emulateTransactionUpdate',
+  'estimateGas',
+  'estimateGasBatch',
+  'estimateGasBuffered',
+  'estimateGasFee',
+  'getGasFeeTokens',
+  'getLayer1GasFee',
+  'getNonceLock',
+  'getTransactions',
+  'handleMethodData',
+  'isAtomicBatchSupported',
+  'setTransactionActive',
+  'speedUpTransaction',
+  'startIncomingTransactionPolling',
+  'stopIncomingTransactionPolling',
+  'stopTransaction',
+  'updateAtomicBatchData',
+  'updateCustodialTransaction',
+  'updateEditableParams',
+  'updateIncomingTransactions',
+  'updateTransaction',
+] as const;
 
 /**
  * Controller responsible for submitting and managing transactions.
@@ -1531,10 +1455,16 @@ export class TransactionController extends BaseController<
     };
   }
 
+  /**
+   * Starts polling for incoming transactions from the remote transaction source.
+   */
   startIncomingTransactionPolling(): void {
     this.#incomingTransactionHelper.start();
   }
 
+  /**
+   * Stops polling for incoming transactions from the remote transaction source.
+   */
   stopIncomingTransactionPolling(): void {
     this.#incomingTransactionHelper.stop();
   }
@@ -2076,7 +2006,7 @@ export class TransactionController extends BaseController<
       );
     }
 
-    validateIfTransactionUnapproved(
+    validateIfTransactionUnapprovedOrSubmitted(
       transactionMeta,
       'updateTransactionGasFees',
     );
@@ -2155,7 +2085,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - The ID of the transaction to update.
    * @param previousGas - Previous gas values to update.
-   * @param previousGas.gasLimit - Maxmimum number of units of gas to use for this transaction.
+   * @param previousGas.gasLimit - Maximum number of units of gas to use for this transaction.
    * @param previousGas.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
    * @param previousGas.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
    * @returns The updated transactionMeta.
@@ -2180,7 +2110,10 @@ export class TransactionController extends BaseController<
       );
     }
 
-    validateIfTransactionUnapproved(transactionMeta, 'updatePreviousGasParams');
+    validateIfTransactionUnapprovedOrSubmitted(
+      transactionMeta,
+      'updatePreviousGasParams',
+    );
 
     const transactionPreviousGas = {
       previousGas: {
@@ -2208,6 +2141,14 @@ export class TransactionController extends BaseController<
     return this.#getTransaction(transactionId) as TransactionMeta;
   }
 
+  /**
+   * Acquires a nonce lock for the given address on the specified network,
+   * ensuring that nonces are assigned sequentially without conflicts.
+   *
+   * @param address - The account address for which to acquire the nonce lock.
+   * @param networkClientId - The ID of the network client to use.
+   * @returns A promise that resolves to a nonce lock containing the next nonce and a release function.
+   */
   async getNonceLock(
     address: string,
     networkClientId: NetworkClientId,
@@ -2610,6 +2551,15 @@ export class TransactionController extends BaseController<
     return filteredTransactions;
   }
 
+  /**
+   * Estimates the gas fees for a transaction.
+   *
+   * @param args - The arguments for estimating gas fees.
+   * @param args.transactionParams - The transaction parameters to estimate fees for.
+   * @param args.chainId - The chain ID to use. If not provided, the network client ID is used to determine the chain.
+   * @param args.networkClientId - The network client ID to use for the estimation.
+   * @returns A promise that resolves to the estimated gas fee response.
+   */
   async estimateGasFee({
     transactionParams,
     chainId,
@@ -3042,13 +2992,21 @@ export class TransactionController extends BaseController<
     );
 
     for (const transactionMeta of incompleteTransactions) {
-      this.#failTransaction(
-        transactionMeta,
-        new Error('Transaction incomplete at startup'),
-      );
-
       const requiredTransactionIds =
         transactionMeta.requiredTransactionIds ?? [];
+
+      const allRequiredConfirmed =
+        requiredTransactionIds.length > 0 &&
+        requiredTransactionIds.every((id) => {
+          const tx = this.#getTransaction(id);
+          return tx?.status === TransactionStatus.confirmed;
+        });
+
+      const message = allRequiredConfirmed
+        ? 'Transaction incomplete at startup with all required transactions confirmed'
+        : 'Transaction incomplete at startup';
+
+      this.#failTransaction(transactionMeta, new Error(message));
 
       for (const requiredTransactionId of requiredTransactionIds) {
         const requiredTransactionMeta = this.#getTransaction(
@@ -4594,64 +4552,9 @@ export class TransactionController extends BaseController<
   }
 
   #registerActionHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:addTransaction`,
-      this.addTransaction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:addTransactionBatch`,
-      this.addTransactionBatch.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:confirmExternalTransaction`,
-      this.confirmExternalTransaction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:emulateNewTransaction`,
-      this.emulateNewTransaction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:emulateTransactionUpdate`,
-      this.emulateTransactionUpdate.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:estimateGas`,
-      this.estimateGas.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:estimateGasBatch`,
-      this.estimateGasBatch.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getGasFeeTokens`,
-      this.#getGasFeeTokensAction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getNonceLock`,
-      this.getNonceLock.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:getTransactions`,
-      this.getTransactions.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:updateCustodialTransaction`,
-      this.updateCustodialTransaction.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:updateTransaction`,
-      this.updateTransaction.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -4827,7 +4730,13 @@ export class TransactionController extends BaseController<
     });
   }
 
-  async #getGasFeeTokensAction(
+  /**
+   * Retrieve available gas fee tokens for a transaction.
+   *
+   * @param request - The request object containing transaction details.
+   * @returns The list of available gas fee tokens.
+   */
+  async getGasFeeTokens(
     request: GetGasFeeTokensRequest,
   ): Promise<GasFeeToken[]> {
     const { chainId, data, from, to, value } = request;

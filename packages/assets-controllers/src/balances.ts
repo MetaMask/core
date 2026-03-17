@@ -105,6 +105,14 @@ const isNonNaNNumber = (value: unknown): value is number =>
   typeof value === 'number' && !Number.isNaN(value);
 
 /**
+ * Minimal network config shape needed to derive native currency by chain.
+ * Compatible with NetworkController's networkConfigurationsByChainId entries.
+ */
+export type NetworkConfigurationNativeCurrency = {
+  nativeCurrency: string;
+};
+
+/**
  * Combined function that gets valid token balances with calculation data
  *
  * @param account - Internal account.
@@ -113,6 +121,7 @@ const isNonNaNNumber = (value: unknown): value is number =>
  * @param tokenRatesState - Token rates state.
  * @param currencyRateState - Currency rate state.
  * @param isEvmChainEnabled - Predicate to check EVM chain enablement.
+ * @param networkConfigurationsByChainId - Network configurations keyed by chain ID, used to look up native currency for fallback pricing.
  * @returns token calculation data
  */
 function getEvmTokenBalances(
@@ -122,6 +131,10 @@ function getEvmTokenBalances(
   tokenRatesState: TokenRatesControllerState,
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ) {
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex;
   const accountBalances =
@@ -163,6 +176,33 @@ function getEvmTokenBalances(
           : tokenAddress;
       const tokenMarketData =
         tokenRatesState?.marketData?.[chainId]?.[marketDataAddress];
+
+      // For native/staked-native tokens, fall back to currencyRateState when
+      // tokenRatesState has no market data for the chain.
+      if (!tokenMarketData?.price && (isNative || isStakedNative)) {
+        const nativeCurrency =
+          networkConfigurationsByChainId?.[chainId]?.nativeCurrency;
+        const fallbackRate = nativeCurrency
+          ? currencyRateState.currencyRates[nativeCurrency]?.conversionRate
+          : undefined;
+        if (!fallbackRate) {
+          return null;
+        }
+
+        const decimalBalance = parseInt(balance, 16);
+        if (!isNonNaNNumber(decimalBalance)) {
+          return null;
+        }
+
+        const userCurrencyValue =
+          (decimalBalance / Math.pow(10, 18)) * fallbackRate;
+
+        return {
+          userCurrencyValue,
+          tokenMarketData: tokenMarketData ?? null,
+        };
+      }
+
       if (!tokenMarketData?.price) {
         return null;
       }
@@ -265,6 +305,7 @@ function getNonEvmAssetBalances(
  * @param tokenRatesState - Token rates state.
  * @param currencyRateState - Currency rate state.
  * @param isEvmChainEnabled - Predicate to check EVM chain enablement.
+ * @param networkConfigurationsByChainId - Network configurations keyed by chain ID for fallback pricing.
  * @returns Total value in user currency.
  */
 function sumEvmAccountBalanceInUserCurrency(
@@ -274,6 +315,10 @@ function sumEvmAccountBalanceInUserCurrency(
   tokenRatesState: TokenRatesControllerState,
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): number {
   const tokenBalances = getEvmTokenBalances(
     account,
@@ -282,6 +327,7 @@ function sumEvmAccountBalanceInUserCurrency(
     tokenRatesState,
     currencyRateState,
     isEvmChainEnabled,
+    networkConfigurationsByChainId,
   );
   return tokenBalances.reduce((a, b) => a + b.userCurrencyValue, 0);
 }
@@ -328,6 +374,7 @@ function sumNonEvmAccountBalanceInUserCurrency(
  * @param tokensState - TokensController state
  * @param currencyRateState - CurrencyRateController state
  * @param enabledNetworkMap - Map of enabled networks keyed by namespace
+ * @param networkConfigurationsByChainId - Network configurations by chain ID.
  * @returns Aggregated balances for all wallets
  */
 export function calculateBalanceForAllWallets(
@@ -341,6 +388,10 @@ export function calculateBalanceForAllWallets(
   tokensState: TokensControllerState,
   currencyRateState: CurrencyRateState,
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): AllWalletsBalance {
   const isEvmChainEnabled = (chainId: Hex): boolean =>
     isChainEnabledByMap(enabledNetworkMap, chainId);
@@ -357,6 +408,7 @@ export function calculateBalanceForAllWallets(
         tokenRatesState,
         currencyRateState,
         isEvmChainEnabled,
+        networkConfigurationsByChainId,
       ),
     nonEvm: (account: InternalAccount) =>
       sumNonEvmAccountBalanceInUserCurrency(
@@ -476,6 +528,7 @@ export function calculateBalanceForAllWallets(
  * @param currencyRateState - CurrencyRateController state.
  * @param enabledNetworkMap - Map of enabled networks keyed by namespace.
  * @param period - Period to compute change for ('1d' | '7d' | '30d').
+ * @param networkConfigurationsByChainId - Optional network configurations to derive native currency fallback pricing.
  * @returns Aggregated change details for the requested period.
  */
 export function calculateBalanceChangeForAllWallets(
@@ -490,6 +543,10 @@ export function calculateBalanceChangeForAllWallets(
   currencyRateState: CurrencyRateState,
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
   period: BalanceChangePeriod,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): BalanceChangeResult {
   const isEvmChainEnabled = (chainId: Hex): boolean =>
     isChainEnabledByMap(enabledNetworkMap, chainId);
@@ -509,6 +566,7 @@ export function calculateBalanceChangeForAllWallets(
         tokenRatesState,
         currencyRateState,
         isEvmChainEnabled,
+        networkConfigurationsByChainId,
       ),
     nonEvm: (account: InternalAccount) =>
       sumNonEvmAccountChangeForPeriod(
@@ -594,6 +652,7 @@ export function calculateBalanceChangeForAllWallets(
  * @param tokenRatesState - Token rates controller state.
  * @param currencyRateState - Currency rate controller state.
  * @param isEvmChainEnabled - Predicate that returns true if the EVM chain is enabled.
+ * @param networkConfigurationsByChainId - Network configurations keyed by chain ID for fallback pricing.
  * @returns Object with current and previous totals in user currency.
  */
 function sumEvmAccountChangeForPeriod(
@@ -604,6 +663,10 @@ function sumEvmAccountChangeForPeriod(
   tokenRatesState: TokenRatesControllerState,
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): { current: number; previous: number } {
   const tokenBalances = getEvmTokenBalances(
     account,
@@ -612,12 +675,22 @@ function sumEvmAccountChangeForPeriod(
     tokenRatesState,
     currencyRateState,
     isEvmChainEnabled,
+    networkConfigurationsByChainId,
   );
 
   const tokenChanges = tokenBalances
     .map((token) => {
-      const percentRaw = token.tokenMarketData[evmRatePropertiesRecord[period]];
+      const percentRaw =
+        token.tokenMarketData?.[evmRatePropertiesRecord[period]];
       if (!isNonNaNNumber(percentRaw)) {
+        // Fallback tokens (no market data) still contribute their current value
+        // but are treated as having 0% change.
+        if (token.tokenMarketData === null) {
+          return {
+            current: token.userCurrencyValue,
+            previous: token.userCurrencyValue,
+          };
+        }
         return null;
       }
 
@@ -718,6 +791,7 @@ function sumNonEvmAccountChangeForPeriod(
  * @param enabledNetworkMap - Map of enabled networks keyed by namespace.
  * @param groupId - Account group ID to compute change for.
  * @param period - Change period ('1d' | '7d' | '30d').
+ * @param networkConfigurationsByChainId - Optional network configurations to derive native currency fallback pricing.
  * @returns Change result including current, previous, delta, percent, and period.
  */
 export function calculateBalanceChangeForAccountGroup(
@@ -733,6 +807,10 @@ export function calculateBalanceChangeForAccountGroup(
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
   groupId: string,
   period: BalanceChangePeriod,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): BalanceChangeResult {
   const isEvmChainEnabled = (chainId: Hex): boolean =>
     isChainEnabledByMap(enabledNetworkMap, chainId);
@@ -752,6 +830,7 @@ export function calculateBalanceChangeForAccountGroup(
         tokenRatesState,
         currencyRateState,
         isEvmChainEnabled,
+        networkConfigurationsByChainId,
       ),
     nonEvm: (account: InternalAccount) =>
       sumNonEvmAccountChangeForPeriod(

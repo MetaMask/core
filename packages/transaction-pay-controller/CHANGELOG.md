@@ -7,9 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New public wrapper methods: `getDelegationTransaction()`, `getStrategy()` ([#8183](https://github.com/MetaMask/core/pull/8183))
+
+## [17.0.0]
+
+### Added
+
+- **BREAKING:** Add `AssetsControllerGetStateForTransactionPayAction` to the `AllowedActions` messenger type ([#8163](https://github.com/MetaMask/core/pull/8163))
+
 ### Changed
 
+- `getTokenBalance`, `getTokenInfo`, and `getTokenFiatRate` now source token metadata, balances, and pricing from `AssetsControllerGetStateForTransactionPayAction` when the `assetsUnifyState` remote feature flag is enabled, falling back to individual controller state calls otherwise ([#8163](https://github.com/MetaMask/core/pull/8163))
+- Zero out source network fees in Relay strategy when quote indicates execute flow ([#8181](https://github.com/MetaMask/core/pull/8181))
+- Harden relay status polling ([#8189](https://github.com/MetaMask/core/pull/8189))
+  - Throw if status not recognised.
+  - Support feature flags for polling interval and timeout.
+  - Ignore transient network errors.
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
+
+## [16.5.0]
+
+### Added
+
+- Support gasless Relay deposits via `execute` endpoint ([#8133](https://github.com/MetaMask/core/pull/8133))
+- Build Across post-swap transfer actions for `predictDeposit` quotes so Predict deposits can bridge swapped output into the destination proxy wallet ([#8159](https://github.com/MetaMask/core/pull/8159))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/bridge-controller` from `^69.0.0` to `^69.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
+- Bump `@metamask/bridge-status-controller` from `^68.0.1` to `^68.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
+
+### Fixed
+
+- Support gasless withdraw for post-quote flows (e.g. Predict Withdraw) when transaction would provide sufficient token balance for gas fee token ([#8146](https://github.com/MetaMask/core/pull/8146))
+
+## [16.4.1]
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^100.1.0` to `^100.2.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/bridge-controller` from `^68.0.0` to `^69.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/bridge-status-controller` from `^68.0.0` to `^68.0.1` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.20.0` to `^62.21.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+
+## [16.4.0]
+
+### Added
+
+- Add a dedicated max-amount gas-station fallback flow for Relay quoting ([#7927](https://github.com/MetaMask/core/pull/7927))
+- Add Across pay strategy support ([#7886](https://github.com/MetaMask/core/pull/7886))
+- Add `fiatPayment` transaction state into `transactionData` and `updateFiatPayment` callback action ([#8093](https://github.com/MetaMask/core/pull/8093))
+
+## [16.3.0]
+
+### Added
+
+- Add optional `refundTo` field to `TransactionConfig`, `TransactionData`, and `QuoteRequest` types, allowing callers to specify an address that receives refunds if a Relay transaction fails ([#8112](https://github.com/MetaMask/core/pull/8112))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^100.0.3` to `^100.1.0` ([#8107](https://github.com/MetaMask/core/pull/8107))
+- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.20.0` ([#8104](https://github.com/MetaMask/core/pull/8104))
+
+## [16.2.0]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^67.4.0` to `^68.0.0` ([#8101](https://github.com/MetaMask/core/pull/8101))
+- Bump `@metamask/bridge-status-controller` from `^67.0.1` to `^68.0.0` ([#8101](https://github.com/MetaMask/core/pull/8101))
+
+## [16.1.2]
+
+### Fixed
+
+- Normalize Polygon native token addresses between Relay requests and MetaMask balance checks to avoid undefined token values in quote and submit flows ([#8091](https://github.com/MetaMask/core/pull/8091))
+
+## [16.1.1]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^67.2.0` to `^67.4.0` ([#8051](https://github.com/MetaMask/core/pull/8051), [#8070](https://github.com/MetaMask/core/pull/8070))
 - Bump `@metamask/remote-feature-flag-controller` from `^4.0.0` to `^4.1.0` ([#8041](https://github.com/MetaMask/core/pull/8041))
+
+### Fixed
+
+- Support gasless predict withdraw ([#8067](https://github.com/MetaMask/core/pull/8067))
 
 ## [16.1.0]
 
@@ -445,7 +530,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.5.0...@metamask/transaction-pay-controller@17.0.0
+[16.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.1...@metamask/transaction-pay-controller@16.5.0
+[16.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.0...@metamask/transaction-pay-controller@16.4.1
+[16.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.3.0...@metamask/transaction-pay-controller@16.4.0
+[16.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.2.0...@metamask/transaction-pay-controller@16.3.0
+[16.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.2...@metamask/transaction-pay-controller@16.2.0
+[16.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.1...@metamask/transaction-pay-controller@16.1.2
+[16.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.1.0...@metamask/transaction-pay-controller@16.1.1
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.0.0...@metamask/transaction-pay-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@15.1.2...@metamask/transaction-pay-controller@16.0.0
 [15.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@15.1.1...@metamask/transaction-pay-controller@15.1.2

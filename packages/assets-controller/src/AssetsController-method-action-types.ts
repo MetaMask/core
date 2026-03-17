@@ -26,6 +26,34 @@ export type AssetsControllerGetAssetsPriceAction = {
 };
 
 /**
+ * Returns exchange rates in the format expected by the bridge controller
+ * (conversionRates, currencyRates, marketData, currentCurrency) so that
+ * when useAssetsControllerForRates is true the bridge can use a single
+ * action instead of MultichainAssetsRatesController, TokenRatesController,
+ * and CurrencyRateController.
+ *
+ * @returns Bridge-compatible exchange rate state derived from assetsPrice and selectedCurrency.
+ */
+export type AssetsControllerGetExchangeRatesForBridgeAction = {
+  type: `AssetsController:getExchangeRatesForBridge`;
+  handler: AssetsController['getExchangeRatesForBridge'];
+};
+
+/**
+ * Returns state in the legacy format expected by transaction-pay-controller
+ * (TokenBalancesController, AccountTrackerController, TokensController,
+ * TokenRatesController, CurrencyRateController shapes) so that when
+ * useAssetsController is true the transaction-pay-controller can use a
+ * single action instead of five separate getState calls.
+ *
+ * @returns Legacy-compatible state for transaction-pay-controller.
+ */
+export type AssetsControllerGetStateForTransactionPayAction = {
+  type: `AssetsController:getStateForTransactionPay`;
+  handler: AssetsController['getStateForTransactionPay'];
+};
+
+/**
  * Add a custom asset for an account.
  * Custom assets are included in subscription and fetch operations.
  * Adding a custom asset also unhides it if it was previously hidden.
@@ -95,6 +123,8 @@ export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
   | AssetsControllerGetAssetsPriceAction
+  | AssetsControllerGetExchangeRatesForBridgeAction
+  | AssetsControllerGetStateForTransactionPayAction
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction

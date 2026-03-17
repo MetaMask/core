@@ -7,9 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `NetworkEnablementController` methods through its messenger ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The following actions are now available:
+    - `NetworkEnablementController:init`
+    - `NetworkEnablementController:initNativeAssetIdentifiers`
+    - `NetworkEnablementController:enableNetworkInNamespace`
+    - `NetworkEnablementController:enableAllPopularNetworks`
+    - `NetworkEnablementController:isNetworkEnabled`
+  - Corresponding action type (`NetworkEnablementControllerIsNetworkEnabledAction`) is available as well.
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.19.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031))
+- **BREAKING:** Standardize names of `NetworkEnablementController` messenger action types ([#8164](https://github.com/MetaMask/core/pull/8164))
+  - The `NetworkEnablementController` action `NetworkEnablementControllerSetEnabledNetworksAction` has been renamed to `NetworkEnablementControllerEnableNetworkAction` so it matches the method name.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `NetworkEnablementController` messengers.
+- Bump `@metamask/multichain-network-controller` from `^3.0.4` to `^3.0.5` ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.20.0` to `^62.22.0` ([#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217))
+
+## [4.2.0]
+
+### Added
+
+- Add `listPopularNetworks()` method and `NetworkEnablementController:listPopularNetworks` messenger action. Returns CAIP-2 chain IDs for popular EVM networks (from POPULAR_NETWORKS) and Bitcoin, Solana, and Tron mainnets that are present in NetworkController `networkConfigurationsByChainId` and MultichainNetworkController `multichainNetworkConfigurationsByChainId` respectively ([#8105](https://github.com/MetaMask/core/pull/8105)).
+- Add `listPopularEvmNetworks()` and `NetworkEnablementController:listPopularEvmNetworks` for popular EVM networks only (returns hex chain IDs); add `listPopularMultichainNetworks()` and `NetworkEnablementController:listPopularMultichainNetworks` for Bitcoin, Solana, and Tron mainnets only (each restricted to configured networks in the corresponding controller state) ([#8105](https://github.com/MetaMask/core/pull/8105)).
+
+### Changed
+
+- `listPopularEvmNetworks()` now returns `Hex[]` (e.g. `'0x1'`, `'0x89'`) instead of CAIP-2 chain IDs; `listPopularNetworks()` still returns CAIP-2 for the full combined list ([#8105](https://github.com/MetaMask/core/pull/8105)).
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.20.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031) [#8104](https://github.com/MetaMask/core/pull/8104))
 
 ## [4.1.2]
 
@@ -217,7 +244,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.2.0...HEAD
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.2...@metamask/network-enablement-controller@4.2.0
 [4.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.1...@metamask/network-enablement-controller@4.1.2
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.1.0...@metamask/network-enablement-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@4.0.0...@metamask/network-enablement-controller@4.1.0

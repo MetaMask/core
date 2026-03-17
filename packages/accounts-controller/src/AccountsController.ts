@@ -39,10 +39,12 @@ import type { WritableDraft } from 'immer/dist/internal.js';
 import { cloneDeep } from 'lodash';
 
 import { AccountsControllerMethodActions } from './AccountsController-method-action-types';
+import { projectLogger as log } from './logger';
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
 import {
+  constructAccountIdByAddress,
   getEvmDerivationPathForIndex,
   getEvmGroupIndexFromAddressIndex,
   getUUIDFromAddressOfNormalAccount,
@@ -69,6 +71,7 @@ export type AccountsControllerState = {
     accounts: Record<AccountId, InternalAccount>;
     selectedAccount: string; // id of the selected account
   };
+  accountIdByAddress: Record<InternalAccount['address'], AccountId>;
 };
 
 /**
@@ -148,6 +151,11 @@ export type AccountsControllerAccountAddedEvent = {
   payload: [InternalAccount];
 };
 
+export type AccountsControllerAccountsAddedEvent = {
+  type: `${typeof controllerName}:accountsAdded`;
+  payload: [InternalAccount[]];
+};
+
 /**
  * @deprecated This type is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
@@ -155,6 +163,11 @@ export type AccountsControllerAccountAddedEvent = {
 export type AccountsControllerAccountRemovedEvent = {
   type: `${typeof controllerName}:accountRemoved`;
   payload: [AccountId];
+};
+
+export type AccountsControllerAccountsRemovedEvent = {
+  type: `${typeof controllerName}:accountsRemoved`;
+  payload: [AccountId[]];
 };
 
 /**
@@ -214,7 +227,9 @@ export type AccountsControllerEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
   | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountsAddedEvent
   | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountsRemovedEvent
   | AccountsControllerAccountRenamedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
   | AccountsControllerAccountTransactionsUpdatedEvent
@@ -237,6 +252,12 @@ const accountsControllerMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  accountIdByAddress: {
+    includeInStateLogs: false,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const defaultState: AccountsControllerState = {
@@ -244,6 +265,7 @@ const defaultState: AccountsControllerState = {
     accounts: {},
     selectedAccount: '',
   },
+  accountIdByAddress: {},
 };
 
 /**
@@ -308,6 +330,9 @@ export class AccountsController extends BaseController<
     messenger: AccountsControllerMessenger;
     state: AccountsControllerState;
   }) {
+    const accountIdByAddress = constructAccountIdByAddress(
+      state?.internalAccounts?.accounts ?? {},
+    );
     super({
       messenger,
       name: controllerName,
@@ -315,6 +340,7 @@ export class AccountsController extends BaseController<
       state: {
         ...defaultState,
         ...state,
+        accountIdByAddress,
       },
     });
 
@@ -477,9 +503,23 @@ export class AccountsController extends BaseController<
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    return this.listMultichainAccounts().find(
-      (account) => account.address.toLowerCase() === address.toLowerCase(),
-    );
+    // We need to have a fallback as a cache miss might be attributed to a checksummed address being passed.
+    let accountId = this.state.accountIdByAddress[address];
+    if (!accountId) {
+      // FIXME: We should not need lower-cased addresses, but some consumers might
+      // still be using non-normalized addresses. For now we keep it
+      // for convenience, but we will need to remove this fallback
+      // at some point.
+      // NOTE: We should only hit that branch for EVM accounts only.
+      const lowercasedAddress = address.toLowerCase();
+      accountId = this.state.accountIdByAddress[lowercasedAddress];
+      if (accountId) {
+        log(
+          `Cache missed for account ID: ${accountId}, received address: "${address}", matched address: "${lowercasedAddress}"`,
+        );
+      }
+    }
+    return accountId ? this.getAccount(accountId) : undefined;
   }
 
   /**
@@ -616,6 +656,8 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
+    log('Synchronizing accounts with keyrings...');
+
     const keyringAccountIndexes = new Map<string, number>();
 
     const existingInternalAccounts = this.state.internalAccounts.accounts;
@@ -667,7 +709,10 @@ export class AccountsController extends BaseController<
 
     this.#update((state) => {
       state.internalAccounts.accounts = internalAccounts;
+      state.accountIdByAddress = constructAccountIdByAddress(internalAccounts);
     });
+
+    log('Accounts synchronized!');
   }
 
   /**
@@ -679,9 +724,13 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
+      const accountIdByAddress = constructAccountIdByAddress(
+        backup.internalAccounts.accounts,
+      );
       this.update(
         (currentState: WritableDraft<AccountsControllerStrictState>) => {
           currentState.internalAccounts = backup.internalAccounts;
+          currentState.accountIdByAddress = accountIdByAddress;
         },
       );
     }
@@ -828,6 +877,8 @@ export class AccountsController extends BaseController<
       return;
     }
 
+    log('Synchronizing accounts with keyrings (through :stateChange)...');
+
     // State patches.
     const generatePatch = (): StatePatch => {
       return {
@@ -904,11 +955,12 @@ export class AccountsController extends BaseController<
 
     this.#update(
       (state) => {
-        const { internalAccounts } = state;
+        const { internalAccounts, accountIdByAddress } = state;
 
         for (const patch of [patches.snap, patches.normal]) {
           for (const account of patch.removed) {
             delete internalAccounts.accounts[account.id];
+            delete accountIdByAddress[account.address];
 
             diff.removed.push(account.id);
           }
@@ -937,6 +989,8 @@ export class AccountsController extends BaseController<
                 },
               };
 
+              accountIdByAddress[account.address] = account.id;
+
               diff.added.push(internalAccounts.accounts[account.id]);
             }
           }
@@ -949,12 +1003,26 @@ export class AccountsController extends BaseController<
         for (const id of diff.removed) {
           this.messenger.publish('AccountsController:accountRemoved', id);
         }
+        if (diff.removed.length > 0) {
+          this.messenger.publish(
+            'AccountsController:accountsRemoved',
+            diff.removed,
+          );
+        }
 
         for (const account of diff.added) {
           this.messenger.publish('AccountsController:accountAdded', account);
         }
+        if (diff.added.length > 0) {
+          this.messenger.publish(
+            'AccountsController:accountsAdded',
+            diff.added,
+          );
+        }
       },
     );
+
+    log('Accounts synchronized (through :stateChange)!');
 
     // NOTE: Since we also track "updated" accounts with our patches, we could fire a new event
     // like `accountUpdated` (we would still need to check if anything really changed on the account).

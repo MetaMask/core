@@ -29,6 +29,8 @@ export type {
   AssetsControllerGetCustomAssetsAction,
   AssetsControllerHideAssetAction,
   AssetsControllerUnhideAssetAction,
+  AssetsControllerGetExchangeRatesForBridgeAction,
+  AssetsControllerGetStateForTransactionPayAction,
   AssetsControllerMethodActions,
 } from './AssetsController-method-action-types';
 
@@ -158,7 +160,17 @@ export type {
 export { DetectionMiddleware } from './middlewares';
 
 // Utilities
-export { normalizeAssetId } from './utils';
+export {
+  normalizeAssetId,
+  formatExchangeRatesForBridge,
+  formatStateForTransactionPay,
+} from './utils';
+export type {
+  AccountForLegacyFormat,
+  BridgeExchangeRatesFormat,
+  LegacyToken,
+  TransactionPayLegacyFormat,
+} from './utils';
 
 // Selectors
 export {

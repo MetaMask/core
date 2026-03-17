@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New `addRequest()` public method ([#8183](https://github.com/MetaMask/core/pull/8183))
+- Expose missing public `ApprovalController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `ApprovalController:add`
+    - `ApprovalController:addAndShowApprovalRequest`
+    - `ApprovalController:get`
+    - `ApprovalController:getApprovalCount`
+    - `ApprovalController:getTotalApprovalCount`
+  - Corresponding action types (e.g. `ApprovalControllerAddAction`) are available as well.
+
 ### Changed
 
+- **BREAKING:** Standardize names of `ApprovalController` methods ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - All existing methods for handling requests have been renamed so they include `Request` (e.g. `clear()` -> `clearRequest()`). You will need to update usage appropriately.
+  - The error handling method `error()` has been renamed to include `show` (`error()` -> `showError()`). You will need to update usage appropriately.
+- **BREAKING:** Rename get-state action type: `GetApprovalsState` → `ApprovalControllerGetStateAction` ([#8183](https://github.com/MetaMask/core/pull/8183))
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
 
 ## [8.0.0]

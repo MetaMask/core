@@ -1,15 +1,20 @@
-import { getClientHeaders, StatusTypes } from '@metamask/bridge-controller';
+import {
+  BridgeClientId,
+  ChainId,
+  getClientHeaders,
+  StatusTypes,
+} from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
-  IntentOrder,
+  IntentStatusResponse,
   IntentOrderStatus,
-  validateIntentOrderResponse,
+  validateIntentStatusResponse,
 } from './validators';
 import type { FetchFunction, StatusResponse } from '../types';
 
 export type IntentSubmissionParams = {
-  srcChainId: string;
+  srcChainId: ChainId;
   quoteId: string;
   signature: string;
   order: unknown;
@@ -20,35 +25,38 @@ export type IntentSubmissionParams = {
 export type IntentApi = {
   submitIntent(
     params: IntentSubmissionParams,
-    clientId: string,
-    jwt: string,
-  ): Promise<IntentOrder>;
+    clientId: BridgeClientId,
+  ): Promise<IntentStatusResponse>;
   getOrderStatus(
     orderId: string,
     aggregatorId: string,
-    srcChainId: string,
-    clientId: string,
-    jwt: string,
-  ): Promise<IntentOrder>;
+    srcChainId: ChainId,
+    clientId: BridgeClientId,
+  ): Promise<IntentStatusResponse>;
 };
+
+export type GetJwtFn = () => Promise<string | undefined>;
 
 export class IntentApiImpl implements IntentApi {
   readonly #baseUrl: string;
 
   readonly #fetchFn: FetchFunction;
 
-  constructor(baseUrl: string, fetchFn: FetchFunction) {
+  readonly #getJwt: GetJwtFn;
+
+  constructor(baseUrl: string, fetchFn: FetchFunction, getJwt: GetJwtFn) {
     this.#baseUrl = baseUrl;
     this.#fetchFn = fetchFn;
+    this.#getJwt = getJwt;
   }
 
   async submitIntent(
     params: IntentSubmissionParams,
-    clientId: string,
-    jwt: string | undefined,
-  ): Promise<IntentOrder> {
+    clientId: BridgeClientId,
+  ): Promise<IntentStatusResponse> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
     try {
+      const jwt = await this.#getJwt();
       const response = await this.#fetchFn(endpoint, {
         method: 'POST',
         headers: {
@@ -57,7 +65,7 @@ export class IntentApiImpl implements IntentApi {
         },
         body: JSON.stringify(params),
       });
-      if (!validateIntentOrderResponse(response)) {
+      if (!validateIntentStatusResponse(response)) {
         throw new Error('Invalid submitOrder response');
       }
       return response;
@@ -72,17 +80,17 @@ export class IntentApiImpl implements IntentApi {
   async getOrderStatus(
     orderId: string,
     aggregatorId: string,
-    srcChainId: string,
-    clientId: string,
-    jwt: string | undefined,
-  ): Promise<IntentOrder> {
+    srcChainId: ChainId,
+    clientId: BridgeClientId,
+  ): Promise<IntentStatusResponse> {
     const endpoint = `${this.#baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {
+      const jwt = await this.#getJwt();
       const response = await this.#fetchFn(endpoint, {
         method: 'GET',
         headers: getClientHeaders({ clientId, jwt }),
       });
-      if (!validateIntentOrderResponse(response)) {
+      if (!validateIntentStatusResponse(response)) {
         throw new Error('Invalid getOrderStatus response');
       }
       return response;
@@ -95,17 +103,17 @@ export class IntentApiImpl implements IntentApi {
   }
 }
 
-export type IntentStatusTranslation = {
+export type IntentBridgeStatus = {
   status: StatusResponse;
   txHash?: string;
   transactionStatus: TransactionStatus;
 };
 
 export const translateIntentOrderToBridgeStatus = (
-  intentOrder: IntentOrder,
+  intentOrder: IntentStatusResponse,
   srcChainId: number,
   fallbackTxHash?: string,
-): IntentStatusTranslation => {
+): IntentBridgeStatus => {
   let statusType: StatusTypes;
   switch (intentOrder.status) {
     case IntentOrderStatus.CONFIRMED:
@@ -138,7 +146,7 @@ export const translateIntentOrderToBridgeStatus = (
 
   return {
     status,
-    txHash: intentOrder.txHash,
+    txHash,
     transactionStatus: mapIntentOrderStatusToTransactionStatus(
       intentOrder.status,
     ),
