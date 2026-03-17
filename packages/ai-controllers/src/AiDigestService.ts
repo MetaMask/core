@@ -96,8 +96,8 @@ const RelatedAssetStruct = structType({
 const MarketOverviewTrendStruct = structType({
   title: string(),
   description: string(),
-  category: enums(trendCategoryValues),
-  impact: enums(trendImpactValues),
+  category: optional(enums(trendCategoryValues)),
+  impact: optional(enums(trendImpactValues)),
   articles: array(ArticleStruct),
   relatedAssets: array(RelatedAssetStruct),
 });
@@ -105,10 +105,7 @@ const MarketOverviewTrendStruct = structType({
 const MarketOverviewStruct = structType({
   version: optional(string()),
   generatedAt: string(),
-  headline: optional(string()),
-  summary: optional(string()),
   trends: array(MarketOverviewTrendStruct),
-  sources: optional(array(SourceStruct)),
   metadata: optional(array(AIResponseMetadataStruct)),
 });
 

@@ -145,14 +145,14 @@ export type RelatedAsset = {
 export type MarketOverviewTrend = {
   title: string;
   description: string;
-  category:
+  category?:
     | 'geopolitical'
     | 'macro'
     | 'regulatory'
     | 'technical'
     | 'social'
     | 'other';
-  impact: 'positive' | 'negative' | 'neutral';
+  impact?: 'positive' | 'negative' | 'neutral';
   articles: Article[];
   relatedAssets: RelatedAsset[];
 };
@@ -167,10 +167,7 @@ export type AIResponseMetadata = {
 export type MarketOverview = {
   version?: string;
   generatedAt: string;
-  headline?: string;
-  summary?: string;
   trends: MarketOverviewTrend[];
-  sources?: Source[];
   metadata?: AIResponseMetadata[];
 };
 
