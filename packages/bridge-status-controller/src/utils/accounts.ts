@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { BridgeStatusControllerMessenger } from 'src/types';
+import { BridgeStatusControllerMessenger } from '../types';
 
 export const getAccountByAddress = (
   messenger: BridgeStatusControllerMessenger,
