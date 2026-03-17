@@ -22,8 +22,6 @@ import { getIntentFromQuote } from './intent-api';
 import * as snaps from './snaps';
 import {
   getStatusRequestParams,
-  getTxMetaFields,
-  handleNonEvmTxResponse,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   toBatchTxParams,
@@ -404,7 +402,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       } as never;
 
-      const result = getTxMetaFields(mockQuoteResponse);
+      const result = snaps.getTxMetaFields(mockQuoteResponse);
 
       expect(result).toStrictEqual({
         destinationChainId: formatChainIdToHex(ChainId.POLYGON),
@@ -498,7 +496,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as never;
 
       const approvalTxId = '0x1234567890abcdef';
-      const result = getTxMetaFields(mockQuoteResponse, approvalTxId);
+      const result = snaps.getTxMetaFields(mockQuoteResponse, approvalTxId);
 
       expect(result.approvalTxId).toBe(approvalTxId);
     });
@@ -576,7 +574,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = getTxMetaFields(mockQuoteResponse as never);
+      const result = snaps.getTxMetaFields(mockQuoteResponse as never);
 
       // Should use fallback mainnet chain ID when CAIP format can't be converted to hex
       expect(result.destinationChainId).toBe('0x1');
@@ -671,14 +669,19 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const signature = 'solanaSignature123';
 
-      const result = handleNonEvmTxResponse(signature, mockQuoteResponse, {
-        metadata: {
-          snap: { id: undefined },
-        },
-        options: { scope: formatChainIdToCaip(ChainId.SOLANA) },
-        id: 'test-account-id',
-        address: selectedAccountAddress,
-      } as never);
+      const result = snaps.handleNonEvmTxResponse(
+        signature,
+        mockQuoteResponse.trade,
+        mockQuoteResponse,
+        {
+          metadata: {
+            snap: { id: undefined },
+          },
+          options: { scope: formatChainIdToCaip(ChainId.SOLANA) },
+          id: 'test-account-id',
+          address: selectedAccountAddress,
+        } as never,
+      );
 
       expect(result).toMatchObject({
         id: expect.any(String),
@@ -781,8 +784,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -866,8 +870,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         signature: 'solanaSignature123',
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -954,8 +959,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1041,8 +1047,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1128,8 +1135,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1211,8 +1219,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const snapResponse = { transactionId: 'new-unified-tx-id-123' };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1306,8 +1315,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const snapResponse = { result: {} } as { result: Record<string, string> };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1345,6 +1355,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimatedProcessingTimeInSeconds: 600,
         trade: {
           unsignedPsbtBase64: 'cHNidP8BAH0CAAAAAe...',
+          inputsToSign: [],
         },
         // QuoteMetadata fields
         sentAmount: {
@@ -1390,8 +1401,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const snapResponse = { transactionId: 'btc_tx_123' };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockBitcoinQuote.trade,
         mockBitcoinQuote as never,
         mockSolanaAccount,
       );
@@ -1655,12 +1667,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
         metadata: {
           snap: { id: 'test-snap-id' },
         },
-      } as never;
+      };
 
       const result = snaps.getClientRequest(
         mockQuoteResponse.trade,
         mockQuoteResponse.quote.srcChainId,
-        mockAccount,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
       );
 
       expect(result).toMatchObject({
@@ -1698,12 +1711,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
         metadata: {
           snap: { id: 'test-snap-id' },
         },
-      } as never;
+      };
 
       const result = snaps.getClientRequest(
         tronTrade,
         ChainId.TRON,
-        mockAccount,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
       );
 
       expect(result).toStrictEqual({ mocked: true });

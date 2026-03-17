@@ -1,14 +1,8 @@
-import type { AccountsControllerState } from '@metamask/accounts-controller';
-import {
-  ChainId,
-  extractTradeData,
-  formatChainIdToHex,
-  isCrossChain,
-} from '@metamask/bridge-controller';
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { ChainId, formatChainIdToHex } from '@metamask/bridge-controller';
 import type {
   QuoteMetadata,
   QuoteResponse,
-  Trade,
   TxData,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
@@ -22,17 +16,13 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import { createProjectLogger } from '@metamask/utils';
-import { v4 as uuid } from 'uuid';
 
 import { getAccountByAddress } from './accounts';
 import { calculateGasFees } from './gas';
 import { getNetworkClientIdByChainId } from './network';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { APPROVAL_DELAY_MS } from '../constants';
-import type {
-  BridgeStatusControllerMessenger,
-  SolanaTransactionMeta,
-} from '../types';
+import type { BridgeStatusControllerMessenger } from '../types';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
@@ -44,126 +34,6 @@ export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
     destChainId: quoteResponse.quote.destChainId,
     quote: quoteResponse.quote,
     refuel: Boolean(quoteResponse.quote.refuel),
-  };
-};
-
-export const getTxMetaFields = (
-  quoteResponse: Omit<QuoteResponse<Trade, Trade>, 'approval' | 'trade'> &
-    QuoteMetadata,
-  approvalTxId?: string,
-): Omit<
-  TransactionMeta,
-  'networkClientId' | 'status' | 'time' | 'txParams' | 'id' | 'chainId'
-> => {
-  // Handle destination chain ID - should always be convertible for EVM destinations
-  let destinationChainId;
-  try {
-    destinationChainId = formatChainIdToHex(quoteResponse.quote.destChainId);
-  } catch {
-    // Fallback for non-EVM destination (shouldn't happen for BTC->EVM)
-    destinationChainId = '0x1' as `0x${string}`; // Default to mainnet
-  }
-
-  return {
-    destinationChainId,
-    sourceTokenAmount: quoteResponse.quote.srcTokenAmount,
-    sourceTokenSymbol: quoteResponse.quote.srcAsset.symbol,
-    sourceTokenDecimals: quoteResponse.quote.srcAsset.decimals,
-    sourceTokenAddress: quoteResponse.quote.srcAsset.address,
-
-    destinationTokenAmount: quoteResponse.quote.destTokenAmount,
-    destinationTokenSymbol: quoteResponse.quote.destAsset.symbol,
-    destinationTokenDecimals: quoteResponse.quote.destAsset.decimals,
-    destinationTokenAddress: quoteResponse.quote.destAsset.address,
-
-    // chainId is now excluded from this function and handled by the caller
-    approvalTxId,
-    // this is the decimal (non atomic) amount (not USD value) of source token to swap
-    swapTokenValue: quoteResponse.sentAmount.amount,
-  };
-};
-
-/**
- * Handles the response from non-EVM transaction submission
- * Works with the new unified ClientRequest:signAndSendTransaction interface
- * Supports Solana, Bitcoin, and other non-EVM chains
- *
- * @param snapResponse - The response from the snap after transaction submission
- * @param quoteResponse - The quote response containing trade details and metadata
- * @param selectedAccount - The selected account information
- * @returns The transaction metadata including non-EVM specific fields
- */
-export const handleNonEvmTxResponse = (
-  snapResponse:
-    | string
-    | { transactionId: string } // New unified interface response
-    | { result: Record<string, string> }
-    | { signature: string },
-  quoteResponse: Omit<QuoteResponse<Trade>, 'approval'> & QuoteMetadata,
-  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
-): TransactionMeta & SolanaTransactionMeta => {
-  const selectedAccountAddress = selectedAccount.address;
-  const snapId = selectedAccount.metadata.snap?.id;
-  let hash;
-  // Handle different response formats
-  if (typeof snapResponse === 'string') {
-    hash = snapResponse;
-  } else if (snapResponse && typeof snapResponse === 'object') {
-    // Check for new unified interface response format first
-    if ('transactionId' in snapResponse && snapResponse.transactionId) {
-      hash = snapResponse.transactionId;
-    } else if (
-      'result' in snapResponse &&
-      snapResponse.result &&
-      typeof snapResponse.result === 'object'
-    ) {
-      // Try to extract signature from common locations in response object
-      hash =
-        snapResponse.result.signature ||
-        snapResponse.result.txid ||
-        snapResponse.result.hash ||
-        snapResponse.result.txHash;
-    } else if (
-      'signature' in snapResponse &&
-      snapResponse.signature &&
-      typeof snapResponse.signature === 'string'
-    ) {
-      hash = snapResponse.signature;
-    }
-  }
-
-  const isBridgeTx = isCrossChain(
-    quoteResponse.quote.srcChainId,
-    quoteResponse.quote.destChainId,
-  );
-
-  let hexChainId;
-  try {
-    hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
-  } catch {
-    // TODO: Fix chain ID activity list handling for Bitcoin
-    // Fallback to Ethereum mainnet for now
-    hexChainId = '0x1' as `0x${string}`;
-  }
-
-  // Extract the transaction data for storage
-  const tradeData = extractTradeData(quoteResponse.trade);
-
-  // Create a transaction meta object with bridge-specific fields
-  return {
-    ...getTxMetaFields(quoteResponse),
-    time: Date.now(),
-    id: hash ?? uuid(),
-    chainId: hexChainId,
-    networkClientId: snapId ?? hexChainId,
-    txParams: { from: selectedAccountAddress, data: tradeData },
-    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-    status: TransactionStatus.submitted,
-    hash, // Add the transaction signature as hash
-    origin: snapId,
-    // Add an explicit flag to mark this as a non-EVM transaction
-    isSolana: true, // TODO deprecate this and use chainId to detect non-EVM chains
-    isBridgeTx,
   };
 };
 

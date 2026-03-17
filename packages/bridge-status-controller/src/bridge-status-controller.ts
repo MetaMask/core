@@ -1,4 +1,3 @@
-import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import type {
   QuoteMetadata,
@@ -90,7 +89,7 @@ import {
   getNetworkClientIdByChainId,
   getSelectedChainId,
 } from './utils/network';
-import { getClientRequest } from './utils/snaps';
+import { handleNonEvmTx } from './utils/snaps';
 import { getApprovalTraceParams, getTraceParams } from './utils/trace';
 import {
   findAndUpdateTransactionsInBatch,
@@ -98,7 +97,6 @@ import {
   getStatusRequestParams,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
-  handleNonEvmTxResponse,
   generateActionId,
   waitForTxConfirmation,
 } from './utils/transaction';
@@ -886,60 +884,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    *******************************************************
    */
 
-  /**
-   * Submits the transaction to the snap using the new unified ClientRequest interface
-   * Works for all non-EVM chains (Solana, BTC, Tron)
-   * This adds an approval tx to the ApprovalsController in the background
-   * The client needs to handle the approval tx by redirecting to the confirmation page with the approvalTxId in the URL
-   *
-   * @param trade - The trade data (can be approval or main trade)
-   * @param quoteResponse - The quote response containing metadata
-   * @param selectedAccount - The account to submit the transaction for
-   * @returns The transaction meta
-   */
-  readonly #handleNonEvmTx = async (
-    trade: Trade,
-    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
-    selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
-  ): Promise<TransactionMeta> => {
-    if (!selectedAccount.metadata?.snap?.id) {
-      throw new Error(
-        'Failed to submit cross-chain swap transaction: undefined snap id',
-      );
-    }
-
-    const request = getClientRequest(
-      trade,
-      quoteResponse.quote.srcChainId,
-      selectedAccount,
-    );
-    const requestResponse = (await this.messenger.call(
-      'SnapController:handleRequest',
-      request,
-    )) as
-      | string
-      | { transactionId: string }
-      | { result: Record<string, string> }
-      | { signature: string };
-
-    // Create quote response with the specified trade
-    // This allows the same method to handle both approvals and main trades
-    const txQuoteResponse: QuoteResponse<Trade> & QuoteMetadata = {
-      ...quoteResponse,
-      trade,
-    };
-
-    const txMeta = handleNonEvmTxResponse(
-      requestResponse,
-      txQuoteResponse,
-      selectedAccount,
-    );
-
-    // TODO remove this eventually, just returning it now to match extension behavior
-    // OR if the snap can propagate the snapRequestId or keyringReqId to the ApprovalsController, this can return the approvalTxId instead and clients won't need to subscribe to the ApprovalsController state to redirect
-    return txMeta;
-  };
-
   readonly #waitForHashAndReturnFinalTxMeta = async (
     hashPromise?: Awaited<
       ReturnType<TransactionController['addTransaction']>
@@ -1267,7 +1211,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             try {
               return quoteResponse.approval &&
                 isTronTrade(quoteResponse.approval)
-                ? await this.#handleNonEvmTx(
+                ? await handleNonEvmTx(
+                    this.messenger,
                     quoteResponse.approval,
                     quoteResponse,
                     selectedAccount,
@@ -1311,7 +1256,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                 'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
               );
             }
-            return await this.#handleNonEvmTx(
+            return await handleNonEvmTx(
+              this.messenger,
               quoteResponse.trade,
               quoteResponse,
               selectedAccount,
