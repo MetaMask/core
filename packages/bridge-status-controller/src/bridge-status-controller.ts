@@ -90,11 +90,11 @@ import {
   getNetworkClientIdByChainId,
   getSelectedChainId,
 } from './utils/network';
+import { getClientRequest } from './utils/snaps';
 import { getApprovalTraceParams, getTraceParams } from './utils/trace';
 import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
-  getClientRequest,
   getStatusRequestParams,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,

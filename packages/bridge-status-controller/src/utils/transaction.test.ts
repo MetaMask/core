@@ -26,7 +26,6 @@ import {
   handleNonEvmTxResponse,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
-  getClientRequest,
   toBatchTxParams,
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
@@ -1658,7 +1657,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       } as never;
 
-      const result = getClientRequest(
+      const result = snaps.getClientRequest(
         mockQuoteResponse.trade,
         mockQuoteResponse.quote.srcChainId,
         mockAccount,
@@ -1701,7 +1700,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       } as never;
 
-      const result = getClientRequest(tronTrade, ChainId.TRON, mockAccount);
+      const result = snaps.getClientRequest(
+        tronTrade,
+        ChainId.TRON,
+        mockAccount,
+      );
 
       expect(result).toStrictEqual({ mocked: true });
       expect(createClientRequestSpy).toHaveBeenCalledWith(

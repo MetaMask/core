@@ -2,8 +2,6 @@ import type { AccountsControllerState } from '@metamask/accounts-controller';
 import {
   ChainId,
   extractTradeData,
-  isTronTrade,
-  formatChainIdToCaip,
   formatChainIdToHex,
   isCrossChain,
 } from '@metamask/bridge-controller';
@@ -29,7 +27,6 @@ import { v4 as uuid } from 'uuid';
 import { getAccountByAddress } from './accounts';
 import { calculateGasFees } from './gas';
 import { getNetworkClientIdByChainId } from './network';
-import { createClientTransactionRequest } from './snaps';
 import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type {
@@ -201,42 +198,6 @@ export const handleMobileHardwareWalletDelay = async (
     );
     await mobileHardwareWalletDelay;
   }
-};
-
-/**
- * Creates a request to sign and send a transaction for non-EVM chains
- * Uses the new unified ClientRequest:signAndSendTransaction interface
- *
- * @param trade - The trade data
- * @param srcChainId - The source chain ID
- * @param selectedAccount - The selected account information
- * @returns The snap request object for signing and sending transaction
- */
-export const getClientRequest = (
-  trade: Trade,
-  srcChainId: number,
-  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string],
-) => {
-  const scope = formatChainIdToCaip(srcChainId);
-
-  const transactionData = extractTradeData(trade);
-
-  // Tron trades need the visible flag and contract type to be included in the request options
-  const options = isTronTrade(trade)
-    ? {
-        visible: trade.visible,
-        type: trade.raw_data?.contract?.[0]?.type,
-      }
-    : undefined;
-
-  // Use the new unified interface
-  return createClientTransactionRequest(
-    selectedAccount.metadata.snap?.id as string,
-    transactionData,
-    scope,
-    selectedAccount.id,
-    options,
-  );
 };
 
 export const waitForTxConfirmation = async (
