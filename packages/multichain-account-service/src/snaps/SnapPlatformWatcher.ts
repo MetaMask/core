@@ -10,8 +10,8 @@ type KeyringControllerStateSlice = {
   keyrings: { type: KeyringTypes | string }[];
 };
 
-/** How long to wait for the Snap keyring to appear before rejecting (ms). */
-const SNAP_KEYRING_WAIT_TIMEOUT_MS = 5_000;
+/** Default wait for Snap keyring to appear before rejecting (ms). */
+export const DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS = 5_000;
 
 /** Error message when Snap keyring does not appear within the timeout. */
 const SNAP_KEYRING_TIMEOUT_MESSAGE =
@@ -32,12 +32,20 @@ export type SnapPlatformWatcherOptions = {
    * Resolves when onboarding is complete.
    */
   ensureOnboardingComplete?: () => Promise<void>;
+  /**
+   * How long to wait for the Snap keyring to appear before rejecting (ms).
+   *
+   * @default DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS
+   */
+  snapKeyringWaitTimeoutMs?: number;
 };
 
 export class SnapPlatformWatcher {
   readonly #messenger: MultichainAccountServiceMessenger;
 
   readonly #ensureOnboardingComplete?: () => Promise<void>;
+
+  readonly #snapKeyringWaitTimeoutMs: number;
 
   readonly #isReadyOnce: DeferredPromise<void>;
 
@@ -49,6 +57,8 @@ export class SnapPlatformWatcher {
   ) {
     this.#messenger = messenger;
     this.#ensureOnboardingComplete = options.ensureOnboardingComplete;
+    this.#snapKeyringWaitTimeoutMs =
+      options.snapKeyringWaitTimeoutMs ?? DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS;
 
     this.#isReady = false;
     this.#isReadyOnce = createDeferredPromise<void>();
@@ -134,7 +144,7 @@ export class SnapPlatformWatcher {
       timeoutRef.id = setTimeout(() => {
         this.#messenger.unsubscribe('KeyringController:stateChange', listener);
         reject(new Error(SNAP_KEYRING_TIMEOUT_MESSAGE));
-      }, SNAP_KEYRING_WAIT_TIMEOUT_MS);
+      }, this.#snapKeyringWaitTimeoutMs);
 
       this.#messenger.subscribe('KeyringController:stateChange', listener);
     });

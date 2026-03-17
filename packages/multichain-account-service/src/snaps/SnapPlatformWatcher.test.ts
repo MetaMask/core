@@ -359,13 +359,36 @@ describe('SnapPlatformWatcher', () => {
 
       jest.useFakeTimers();
       const ensurePromise = watcher.ensureCanUseSnapPlatform();
-      // Attach rejection handler before advancing timers to avoid unhandled rejection; await after.
-      // eslint-disable-next-line jest/valid-expect -- we await expectRejection after advancing timers
+      // Attach rejection handler before advancing timers to avoid unhandled rejection.
+      // eslint-disable-next-line jest/valid-expect -- assertion is awaited after advancing timers
       const expectRejection = expect(ensurePromise).rejects.toThrow(
         'Snap platform or keyrings still not ready. Aborting.',
       );
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(5_000);
+      jest.useRealTimers();
+
+      await expectRejection;
+    });
+
+    it('uses custom snapKeyringWaitTimeoutMs when provided', async () => {
+      const { rootMessenger, messenger, mocks } = setup();
+      mocks.KeyringController.getState.mockReturnValue({ keyrings: [] });
+
+      const watcher = new SnapPlatformWatcher(messenger, {
+        snapKeyringWaitTimeoutMs: 100,
+      });
+      publishIsReadyState(rootMessenger, true);
+
+      jest.useFakeTimers();
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      // Attach a rejection handler before advancing timers to avoid unhandled rejection.
+      // eslint-disable-next-line jest/valid-expect -- assertion is awaited after advancing timers
+      const expectRejection = expect(ensurePromise).rejects.toThrow(
+        'Snap platform or keyrings still not ready. Aborting.',
+      );
+      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(100);
       jest.useRealTimers();
 
       await expectRejection;

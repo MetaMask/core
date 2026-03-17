@@ -178,6 +178,7 @@ export class MultichainAccountService {
 
     this.#watcher = new SnapPlatformWatcher(messenger, {
       ensureOnboardingComplete,
+      snapKeyringWaitTimeoutMs: config?.snapWatcher?.timeoutMs,
     });
 
     this.#messenger.registerMethodActionHandlers(
