@@ -1,9 +1,11 @@
 import { Interface } from '@ethersproject/abi';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import {
   buildAcrossActionFromCall,
   CREATE_PROXY_SIGNATURE,
+  getAcrossDestination,
   getTransferRecipient,
   isExtractableOutputTokenTransferCall,
   SAFE_EXEC_TRANSACTION_SIGNATURE,
@@ -122,10 +124,51 @@ describe('across-actions', () => {
     });
   });
 
+  it('builds an Across destination directly from a transfer transaction', () => {
+    expect(
+      getAcrossDestination(
+        {
+          txParams: {
+            data: buildTransferData(),
+            from: REQUEST_MOCK.from,
+          },
+        } as TransactionMeta,
+        REQUEST_MOCK,
+      ),
+    ).toStrictEqual({
+      actions: [],
+      recipient: TRANSFER_RECIPIENT.toLowerCase(),
+    });
+  });
+
+  it('prefers nested destination calls over top-level calldata', () => {
+    expect(
+      getAcrossDestination(
+        {
+          nestedTransactions: [
+            {
+              data: buildTransferData(),
+              to: TRANSFER_TARGET,
+            },
+          ],
+          txParams: {
+            data: buildCreateProxyData(),
+            from: REQUEST_MOCK.from,
+            to: CREATE_PROXY_TARGET,
+          },
+        } as TransactionMeta,
+        REQUEST_MOCK,
+      ),
+    ).toStrictEqual({
+      actions: [],
+      recipient: TRANSFER_RECIPIENT.toLowerCase(),
+    });
+  });
+
   it('throws when decoding a supported action that requires a target without one', () => {
     expect(() =>
       buildAcrossActionFromCall({ data: buildCreateProxyData() }, REQUEST_MOCK),
-    ).toThrow(/Across only supports transfer-style/u);
+    ).toThrow(/Across only supports direct token transfers/u);
   });
 
   it('throws when the calldata does not match a supported signature', () => {
@@ -137,7 +180,7 @@ describe('across-actions', () => {
         },
         REQUEST_MOCK,
       ),
-    ).toThrow(/Across only supports transfer-style/u);
+    ).toThrow(/Destination selector: 0xdeadbeef/u);
   });
 
   it('extracts and normalizes transfer recipients from calldata', () => {
@@ -148,7 +191,7 @@ describe('across-actions', () => {
 
   it('throws when asking for a transfer recipient from non-transfer calldata', () => {
     expect(() => getTransferRecipient(buildCreateProxyData())).toThrow(
-      /Across only supports transfer-style/u,
+      /Across only supports direct token transfers/u,
     );
   });
 

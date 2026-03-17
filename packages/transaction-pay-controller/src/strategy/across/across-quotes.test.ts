@@ -767,7 +767,7 @@ describe('Across Quotes', () => {
             ],
           } as TransactionMeta,
         }),
-      ).rejects.toThrow(/Across only supports transfer-style/u);
+      ).rejects.toThrow(/Destination selector: 0xdeadbeef/u);
     });
 
     it('throws when createProxy calldata is missing target', async () => {
@@ -786,7 +786,7 @@ describe('Across Quotes', () => {
             nestedTransactions: [{ data: createProxyData }],
           } as TransactionMeta,
         }),
-      ).rejects.toThrow(/Across only supports transfer-style/u);
+      ).rejects.toThrow(/Across only supports direct token transfers/u);
     });
 
     it('throws when execTransaction calldata is missing target', async () => {
@@ -805,7 +805,7 @@ describe('Across Quotes', () => {
             nestedTransactions: [{ data: execTransactionData }],
           } as TransactionMeta,
         }),
-      ).rejects.toThrow(/Across only supports transfer-style/u);
+      ).rejects.toThrow(/Across only supports direct token transfers/u);
     });
 
     it('throws when destination flow is not transfer-style', async () => {
@@ -821,7 +821,7 @@ describe('Across Quotes', () => {
             },
           },
         }),
-      ).rejects.toThrow(/Across only supports transfer-style/u);
+      ).rejects.toThrow(/Across only supports direct token transfers/u);
     });
 
     it('throws when txParams include authorization list', async () => {
@@ -1606,7 +1606,7 @@ describe('Across Quotes', () => {
             },
           } as TransactionMeta,
         }),
-      ).rejects.toThrow(/Across only supports transfer-style/u);
+      ).rejects.toThrow(/Across only supports direct token transfers/u);
     });
 
     it('uses txParams data when single nested transaction has no data', async () => {
@@ -1627,7 +1627,7 @@ describe('Across Quotes', () => {
             },
           } as TransactionMeta,
         }),
-      ).rejects.toThrow(/Across only supports transfer-style/u);
+      ).rejects.toThrow(/Destination selector: 0xdeadbeef/u);
     });
 
     it('omits slippage param when slippage is undefined', async () => {
@@ -1709,7 +1709,7 @@ describe('Across Quotes', () => {
             },
           } as TransactionMeta,
         }),
-      ).rejects.toThrow(/Across only supports transfer-style/u);
+      ).rejects.toThrow(/Across only supports direct token transfers/u);
     });
 
     it('handles nested transactions with undefined data', async () => {
@@ -1759,7 +1759,7 @@ describe('Across Quotes', () => {
             },
           } as TransactionMeta,
         }),
-      ).rejects.toThrow(/Across only supports transfer-style/u);
+      ).rejects.toThrow(/Destination selector: 0xdeadbeef/u);
     });
   });
 });

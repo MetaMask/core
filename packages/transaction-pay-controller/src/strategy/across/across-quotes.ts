@@ -1,16 +1,10 @@
 import { successfulFetch, toHex } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { getAcrossOrderedTransactions } from './transactions';
-import type { AcrossDestinationCall } from './across-actions';
-import {
-  buildAcrossActionFromCall,
-  getTransferRecipient,
-  isExtractableOutputTokenTransferCall,
-} from './across-actions';
+import { getAcrossDestination } from './across-actions';
 import type {
   AcrossAction,
   AcrossActionRequestBody,
@@ -40,11 +34,6 @@ const UNSUPPORTED_AUTHORIZATION_LIST_ERROR =
   'Across does not support type-4/EIP-7702 authorization lists yet';
 
 type AcrossQuoteWithoutMetaMask = Omit<AcrossQuote, 'metamask'>;
-
-type AcrossDestination = {
-  actions: AcrossAction[];
-  recipient: Hex;
-};
 
 /**
  * Fetch Across quotes.
@@ -195,72 +184,6 @@ async function requestAcrossApproval(
   const response = await successfulFetch(url, options);
 
   return (await response.json()) as AcrossSwapApprovalResponse;
-}
-
-function getAcrossDestination(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-): AcrossDestination {
-  const { from } = request;
-  const destinationCalls = getDestinationCalls(transaction);
-  const swapRecipientTransferCallIndex = destinationCalls.findIndex((call) =>
-    isExtractableOutputTokenTransferCall(call, request),
-  );
-
-  if (destinationCalls.length === 0) {
-    return {
-      actions: [],
-      recipient: from,
-    };
-  }
-
-  if (swapRecipientTransferCallIndex !== -1) {
-    const swapRecipientTransferCall =
-      destinationCalls[swapRecipientTransferCallIndex];
-
-    return {
-      actions: destinationCalls
-        .filter((_, index) => index !== swapRecipientTransferCallIndex)
-        .map((call) => buildAcrossActionFromCall(call, request)),
-      recipient: getTransferRecipient(swapRecipientTransferCall.data),
-    };
-  }
-
-  return {
-    actions: destinationCalls.map((call) =>
-      buildAcrossActionFromCall(call, request),
-    ),
-    recipient: from,
-  };
-}
-
-function getDestinationCalls(
-  transaction: TransactionMeta,
-): AcrossDestinationCall[] {
-  const nestedCalls = (
-    transaction.nestedTransactions ?? []
-  ).flatMap<AcrossDestinationCall>((nestedTx: { data?: Hex; to?: Hex }) =>
-    nestedTx.data !== undefined && nestedTx.data !== '0x'
-      ? [{ data: nestedTx.data, target: nestedTx.to }]
-      : [],
-  );
-
-  if (nestedCalls.length > 0) {
-    return nestedCalls;
-  }
-
-  const data = transaction.txParams?.data as Hex | undefined;
-
-  if (data === undefined || data === '0x') {
-    return [];
-  }
-
-  return [
-    {
-      data,
-      target: transaction.txParams?.to as Hex | undefined,
-    },
-  ];
 }
 
 async function normalizeQuote(
