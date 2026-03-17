@@ -1,6 +1,12 @@
 import { BigNumber } from '@ethersproject/bignumber';
 import * as ethersContractUtils from '@ethersproject/contracts';
 import { SolScope } from '@metamask/keyring-api';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 
 import { BridgeController } from './bridge-controller';
@@ -33,6 +39,62 @@ import {
   mockSseEventSourceWithWarnings,
   mockSseServerError,
 } from '../tests/mock-sse';
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<BridgeControllerMessenger>,
+  MessengerEvents<BridgeControllerMessenger>
+>;
+
+const BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS = [
+  'AccountsController:getAccountByAddress',
+  'AuthenticationController:getBearerToken',
+  'CurrencyRateController:getState',
+  'TokenRatesController:getState',
+  'MultichainAssetsRatesController:getState',
+  'SnapController:handleRequest',
+  'NetworkController:findNetworkClientIdByChainId',
+  'NetworkController:getNetworkClientById',
+  'RemoteFeatureFlagController:getState',
+  'AssetsController:getExchangeRatesForBridge',
+] as const;
+
+const messengerCallMock = jest.fn();
+
+function buildController(
+  options: Partial<ConstructorParameters<typeof BridgeController>[0]> = {},
+): { controller: BridgeController; rootMessenger: RootMessenger } {
+  const newRootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  const messenger: BridgeControllerMessenger = new Messenger({
+    namespace: 'BridgeController',
+    parent: newRootMessenger,
+  });
+
+  newRootMessenger.delegate({
+    messenger,
+    actions: [...BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS],
+  });
+
+  for (const action of BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS) {
+    newRootMessenger.registerActionHandler(action, (...args) =>
+      messengerCallMock(action, ...args),
+    );
+  }
+
+  const controller = new BridgeController({
+    messenger,
+    getLayer1GasFee: jest.fn().mockResolvedValue('0x1'),
+    clientId: BridgeClientId.EXTENSION,
+    fetchFn: jest.fn(),
+    trackMetaMetricsFn: jest.fn(),
+    clientVersion: '13.8.0',
+    ...options,
+  });
+
+  return { controller, rootMessenger: newRootMessenger };
+}
 
 const FIRST_FETCH_DELAY = 4000;
 const SECOND_FETCH_DELAY = 9000;
@@ -75,12 +137,7 @@ describe('BridgeController SSE', function () {
     fetchBridgeQuotesSpy: jest.SpyInstance,
     consoleLogSpy: jest.SpyInstance;
 
-  const messengerMock = {
-    call: jest.fn(),
-    registerActionHandler: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-    publish: jest.fn(),
-  } as unknown as jest.Mocked<BridgeControllerMessenger>;
+  let rootMessenger: RootMessenger;
   const getLayer1GasFeeMock = jest.fn();
   const mockFetchFn = jest.fn();
   const trackMetaMetricsFn = jest.fn();
@@ -98,7 +155,7 @@ describe('BridgeController SSE', function () {
         },
       });
     getLayer1GasFeeMock.mockResolvedValue('0x1');
-    messengerMock.call.mockImplementation(
+    messengerCallMock.mockImplementation(
       (...args: Parameters<BridgeControllerMessenger['call']>) => {
         switch (args[0]) {
           case 'AuthenticationController:getBearerToken':
@@ -136,14 +193,12 @@ describe('BridgeController SSE', function () {
       chainRanking: [{ chainId: 'eip155:1' as const, name: 'Ethereum' }],
     });
 
-    bridgeController = new BridgeController({
-      messenger: messengerMock,
+    ({ controller: bridgeController, rootMessenger } = buildController({
       getLayer1GasFee: getLayer1GasFeeMock,
-      clientId: BridgeClientId.EXTENSION,
       fetchFn: mockFetchFn,
       trackMetaMetricsFn,
       clientVersion: '13.8.0',
-    });
+    }));
 
     jest.useFakeTimers();
     stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
@@ -159,7 +214,8 @@ describe('BridgeController SSE', function () {
     mockFetchFn.mockImplementationOnce(async () => {
       return mockSseEventSource(mockBridgeQuotesNativeErc20 as QuoteResponse[]);
     });
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteRequest,
       metricsContext,
     );
@@ -302,7 +358,8 @@ describe('BridgeController SSE', function () {
         destChainId,
       };
 
-      await bridgeController.updateBridgeQuoteRequestParams(
+      await rootMessenger.call(
+        'BridgeController:updateBridgeQuoteRequestParams',
         usdtQuoteRequest,
         metricsContext,
       );
@@ -390,7 +447,7 @@ describe('BridgeController SSE', function () {
   );
 
   it('should use resetApproval and insufficientBal fallback values if provider is not found', async function () {
-    messengerMock.call.mockImplementation(
+    messengerCallMock.mockImplementation(
       (...args: Parameters<BridgeControllerMessenger['call']>) => {
         if (args[0] === 'AuthenticationController:getBearerToken') {
           return 'AUTH_TOKEN';
@@ -436,7 +493,8 @@ describe('BridgeController SSE', function () {
       srcChainId: '0x1',
     };
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       usdtQuoteRequest,
       metricsContext,
     );
@@ -534,7 +592,8 @@ describe('BridgeController SSE', function () {
         SECOND_FETCH_DELAY,
       );
     });
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteRequest,
       metricsContext,
     );
@@ -623,7 +682,8 @@ describe('BridgeController SSE', function () {
       );
     });
     mockFetchFn.mockRejectedValueOnce('Network error');
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteRequest,
       metricsContext,
     );
@@ -716,7 +776,8 @@ describe('BridgeController SSE', function () {
       );
     });
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteRequest,
       metricsContext,
     );
@@ -762,7 +823,8 @@ describe('BridgeController SSE', function () {
       assetExchangeRates: {},
     };
     // Start new quote request
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       { ...quoteRequest, srcTokenAmount: '10' },
       {
         stx_enabled: true,
@@ -889,7 +951,8 @@ describe('BridgeController SSE', function () {
         FOURTH_FETCH_DELAY,
       );
     });
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteRequest,
       metricsContext,
     );
@@ -927,7 +990,8 @@ describe('BridgeController SSE', function () {
     expect(consoleLogSpy).toHaveBeenCalledTimes(1);
 
     // Start new quote request
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       { ...quoteRequest, srcTokenAmount: '10' },
       {
         stx_enabled: true,
@@ -1069,7 +1133,8 @@ describe('BridgeController SSE', function () {
     mockFetchFn.mockImplementationOnce(async () => {
       return mockSseServerError('timeout from server');
     });
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteRequest,
       metricsContext,
     );

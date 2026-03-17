@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/bridge-controller",
@@ -85,6 +86,7 @@
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "ts-jest": "^29.2.5",
+    "tsx": "^4.21.0",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"

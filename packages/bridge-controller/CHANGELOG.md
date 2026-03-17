@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose all public `BridgeController` methods through its messenger
+  - The following actions are now available:
+    - `BridgeController:updateBridgeQuoteRequestParams`
+    - `BridgeController:fetchQuotes`
+    - `BridgeController:stopPollingForQuotes`
+    - `BridgeController:setLocation`
+    - `BridgeController:resetState`
+    - `BridgeController:setChainIntervalLength`
+    - `BridgeController:trackUnifiedSwapBridgeEvent`
+  - Corresponding action types are now exported (e.g. `BridgeControllerResetStateAction`)
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.1.1` to `^37.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))

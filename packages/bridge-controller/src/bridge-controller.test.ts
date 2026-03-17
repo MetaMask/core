@@ -7,6 +7,12 @@ import {
   SolAccountType,
   SolScope,
 } from '@metamask/keyring-api';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import nock from 'nock';
 
 import { BridgeController } from './bridge-controller';
@@ -49,13 +55,6 @@ const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 jest.mock('uuid', () => ({
   v4: (): string => 'test-uuid-1234',
 }));
-
-const messengerMock = {
-  call: jest.fn(),
-  registerActionHandler: jest.fn(),
-  registerInitialEventPayload: jest.fn(),
-  publish: jest.fn(),
-} as unknown as jest.Mocked<BridgeControllerMessenger>;
 
 jest.mock('@ethersproject/contracts', () => {
   return {
@@ -100,20 +99,66 @@ const metricsContext = {
   warnings: [],
 };
 
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<BridgeControllerMessenger>,
+  MessengerEvents<BridgeControllerMessenger>
+>;
+
+const BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS = [
+  'AccountsController:getAccountByAddress',
+  'AuthenticationController:getBearerToken',
+  'CurrencyRateController:getState',
+  'TokenRatesController:getState',
+  'MultichainAssetsRatesController:getState',
+  'SnapController:handleRequest',
+  'NetworkController:findNetworkClientIdByChainId',
+  'NetworkController:getNetworkClientById',
+  'RemoteFeatureFlagController:getState',
+  'AssetsController:getExchangeRatesForBridge',
+] as const;
+
+const messengerCallMock = jest.fn();
+
+function buildController(
+  options: Partial<ConstructorParameters<typeof BridgeController>[0]> = {},
+): { controller: BridgeController; rootMessenger: RootMessenger } {
+  const newRootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  const messenger: BridgeControllerMessenger = new Messenger({
+    namespace: 'BridgeController',
+    parent: newRootMessenger,
+  });
+  newRootMessenger.delegate({
+    messenger,
+    actions: [...BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS],
+  });
+  for (const action of BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS) {
+    newRootMessenger.registerActionHandler(action, (...args) =>
+      messengerCallMock(action, ...args),
+    );
+  }
+  const controller = new BridgeController({
+    messenger,
+    getLayer1GasFee: getLayer1GasFeeMock,
+    clientId: BridgeClientId.EXTENSION,
+    clientVersion: '13.7.0',
+    fetchFn: mockFetchFn,
+    trackMetaMetricsFn,
+    ...options,
+  });
+  return { controller, rootMessenger: newRootMessenger };
+}
+
 describe('BridgeController', function () {
   let bridgeController: BridgeController;
+  let rootMessenger: RootMessenger;
 
   beforeEach(function () {
     jest.clearAllMocks();
     jest.clearAllTimers();
-    bridgeController = new BridgeController({
-      messenger: messengerMock,
-      getLayer1GasFee: getLayer1GasFeeMock,
-      clientId: BridgeClientId.EXTENSION,
-      clientVersion: '13.7.0',
-      fetchFn: mockFetchFn,
-      trackMetaMetricsFn,
-    });
+    ({ controller: bridgeController, rootMessenger } = buildController());
 
     nock(BRIDGE_PROD_API_BASE_URL)
       .get('/getTokens?chainId=10')
@@ -146,7 +191,7 @@ describe('BridgeController', function () {
           usd: '100',
         },
       });
-    bridgeController.resetState();
+    rootMessenger.call('BridgeController:resetState');
   });
 
   it('constructor should setup correctly', function () {
@@ -166,7 +211,7 @@ describe('BridgeController', function () {
         marketData: {},
         currentCurrency: 'USD',
       };
-      messengerMock.call.mockImplementation(
+      messengerCallMock.mockImplementation(
         (actionType: string): ReturnType<BridgeControllerMessenger['call']> => {
           if (actionType === 'AuthenticationController:getBearerToken') {
             return 'AUTH_TOKEN';
@@ -191,7 +236,8 @@ describe('BridgeController', function () {
         'selectIsAssetExchangeRateInState',
       );
 
-      await bridgeController.updateBridgeQuoteRequestParams(
+      await rootMessenger.call(
+        'BridgeController:updateBridgeQuoteRequestParams',
         {
           srcChainId: '0x1',
           destChainId: '0xa',
@@ -207,16 +253,16 @@ describe('BridgeController', function () {
       jest.advanceTimersToNextTimer();
       await flushPromises();
 
-      expect(messengerMock.call).toHaveBeenCalledWith(
+      expect(messengerCallMock).toHaveBeenCalledWith(
         'MultichainAssetsRatesController:getState',
       );
-      expect(messengerMock.call).toHaveBeenCalledWith(
+      expect(messengerCallMock).toHaveBeenCalledWith(
         'CurrencyRateController:getState',
       );
-      expect(messengerMock.call).toHaveBeenCalledWith(
+      expect(messengerCallMock).toHaveBeenCalledWith(
         'TokenRatesController:getState',
       );
-      expect(messengerMock.call).not.toHaveBeenCalledWith(
+      expect(messengerCallMock).not.toHaveBeenCalledWith(
         'AssetsController:getExchangeRatesForBridge',
       );
 
@@ -234,16 +280,10 @@ describe('BridgeController', function () {
 
     it('calls AssetsController:getExchangeRatesForBridge when getUseAssetsControllerForRates returns true', async function () {
       jest.useFakeTimers();
-      const controllerWithAssetsRates = new BridgeController({
-        messenger: messengerMock,
-        getLayer1GasFee: getLayer1GasFeeMock,
-        clientId: BridgeClientId.EXTENSION,
-        clientVersion: '13.7.0',
-        fetchFn: mockFetchFn,
-        trackMetaMetricsFn,
+      const { rootMessenger: assetsRatesRootMessenger } = buildController({
         getUseAssetsControllerForRates: (): boolean => true,
       });
-      controllerWithAssetsRates.resetState();
+      assetsRatesRootMessenger.call('BridgeController:resetState');
 
       const hasSufficientBalanceSpy = jest
         .spyOn(balanceUtils, 'hasSufficientBalance')
@@ -255,7 +295,7 @@ describe('BridgeController', function () {
         marketData: {},
         currentCurrency: 'EUR',
       };
-      messengerMock.call.mockImplementation(
+      messengerCallMock.mockImplementation(
         (actionType: string): ReturnType<BridgeControllerMessenger['call']> => {
           if (actionType === 'AuthenticationController:getBearerToken') {
             return 'AUTH_TOKEN';
@@ -276,7 +316,8 @@ describe('BridgeController', function () {
         'selectIsAssetExchangeRateInState',
       );
 
-      await controllerWithAssetsRates.updateBridgeQuoteRequestParams(
+      await assetsRatesRootMessenger.call(
+        'BridgeController:updateBridgeQuoteRequestParams',
         {
           srcChainId: '0x1',
           destChainId: '0xa',
@@ -292,10 +333,10 @@ describe('BridgeController', function () {
       jest.advanceTimersToNextTimer();
       await flushPromises();
 
-      expect(messengerMock.call).toHaveBeenCalledWith(
+      expect(messengerCallMock).toHaveBeenCalledWith(
         'AssetsController:getExchangeRatesForBridge',
       );
-      expect(messengerMock.call).not.toHaveBeenCalledWith(
+      expect(messengerCallMock).not.toHaveBeenCalledWith(
         'MultichainAssetsRatesController:getState',
       );
 
@@ -315,7 +356,7 @@ describe('BridgeController', function () {
         .spyOn(balanceUtils, 'hasSufficientBalance')
         .mockResolvedValue(true);
 
-      messengerMock.call.mockImplementation(
+      messengerCallMock.mockImplementation(
         (actionType: string): ReturnType<BridgeControllerMessenger['call']> => {
           if (actionType === 'AuthenticationController:getBearerToken') {
             return 'AUTH_TOKEN';
@@ -355,7 +396,8 @@ describe('BridgeController', function () {
         slippage: 0.5,
       };
 
-      await bridgeController.updateBridgeQuoteRequestParams(
+      await rootMessenger.call(
+        'BridgeController:updateBridgeQuoteRequestParams',
         quoteParams,
         metricsContext,
       );
@@ -435,22 +477,23 @@ describe('BridgeController', function () {
       bridgeController,
       'setIntervalLength',
     );
-    (messengerMock.call as jest.Mock).mockImplementation(() => {
+    messengerCallMock.mockImplementation(() => {
       return remoteFeatureFlagControllerState;
     });
 
-    bridgeController.setChainIntervalLength();
+    rootMessenger.call('BridgeController:setChainIntervalLength');
 
     expect(setIntervalLengthSpy).toHaveBeenCalledTimes(1);
     expect(setIntervalLengthSpy).toHaveBeenCalledWith(3);
   });
 
   it('updateBridgeQuoteRequestParams should update the quoteRequest state', async function () {
-    messengerMock.call.mockReturnValue({
+    messengerCallMock.mockReturnValue({
       currentCurrency: 'usd',
     } as never);
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       { srcChainId: 1, walletAddress: '0x123' },
       metricsContext,
     );
@@ -461,7 +504,8 @@ describe('BridgeController', function () {
     });
     expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       { destChainId: 10, walletAddress: '0x123' },
       metricsContext,
     );
@@ -471,7 +515,8 @@ describe('BridgeController', function () {
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
     });
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       {
         destChainId: undefined,
         walletAddress: '0x123abc',
@@ -484,7 +529,8 @@ describe('BridgeController', function () {
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
     });
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       {
         srcTokenAddress: undefined,
         walletAddress: '0x123',
@@ -496,7 +542,8 @@ describe('BridgeController', function () {
       srcTokenAddress: undefined,
     });
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       {
         srcTokenAmount: '100000',
         destTokenAddress: '0x123',
@@ -514,7 +561,8 @@ describe('BridgeController', function () {
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
     });
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       {
         srcTokenAddress: '0x2ABC',
         walletAddress: '0x123',
@@ -526,7 +574,7 @@ describe('BridgeController', function () {
       srcTokenAddress: '0x2ABC',
     });
 
-    bridgeController.resetState();
+    rootMessenger.call('BridgeController:resetState');
     expect(bridgeController.state.quoteRequest).toStrictEqual({
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
     });
@@ -544,7 +592,7 @@ describe('BridgeController', function () {
       .spyOn(balanceUtils, 'hasSufficientBalance')
       .mockResolvedValue(true);
 
-    messengerMock.call.mockReturnValue({
+    messengerCallMock.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
       currencyRates: {},
@@ -582,7 +630,8 @@ describe('BridgeController', function () {
     const quoteRequest = {
       ...quoteParams,
     };
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -623,7 +672,7 @@ describe('BridgeController', function () {
     const hasSufficientBalanceSpy = jest
       .spyOn(balanceUtils, 'hasSufficientBalance')
       .mockResolvedValue(true);
-    messengerMock.call.mockImplementation(
+    messengerCallMock.mockImplementation(
       (...args: Parameters<BridgeControllerMessenger['call']>) => {
         switch (args[0]) {
           case 'AuthenticationController:getBearerToken':
@@ -712,7 +761,8 @@ describe('BridgeController', function () {
     const quoteRequest = {
       ...quoteParams,
     };
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -846,7 +896,8 @@ describe('BridgeController', function () {
     // Incoming request update aborts current polling
     jest.advanceTimersToNextTimer();
     await flushPromises();
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       { ...quoteRequest, srcTokenAmount: '10', insufficientBal: false },
       {
         stx_enabled: true,
@@ -905,7 +956,7 @@ describe('BridgeController', function () {
       .mockImplementation(jest.fn());
 
     const setupMessengerMock = (shouldMinBalanceFail = false): void => {
-      messengerMock.call.mockImplementation(
+      messengerCallMock.mockImplementation(
         (
           ...args: Parameters<BridgeControllerMessenger['call']>
         ): ReturnType<BridgeControllerMessenger['call']> => {
@@ -1016,7 +1067,8 @@ describe('BridgeController', function () {
     /*
     Set quote request with Solana srcChainId
     */
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -1072,7 +1124,7 @@ describe('BridgeController', function () {
     );
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     expect(
-      messengerMock.call.mock.calls.filter(([action]) =>
+      messengerCallMock.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
     ).toHaveLength(3);
@@ -1080,7 +1132,8 @@ describe('BridgeController', function () {
     /*
     Update quote request params to EVM and back to Solana
     */
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       { ...quoteParams, srcChainId: '0x1' },
       metricsContext,
     );
@@ -1096,7 +1149,8 @@ describe('BridgeController', function () {
     /*
     Add destWalletAddress
     */
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       { ...quoteParams, destWalletAddress: 'SolanaWalletAddres1234' },
       metricsContext,
     );
@@ -1109,7 +1163,8 @@ describe('BridgeController', function () {
       }),
     );
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -1144,7 +1199,7 @@ describe('BridgeController', function () {
     );
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     expect(
-      messengerMock.call.mock.calls.filter(([action]) =>
+      messengerCallMock.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
     ).toHaveLength(9);
@@ -1153,7 +1208,8 @@ describe('BridgeController', function () {
     Test min balance fetch failure
     */
     setupMessengerMock(true);
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       { ...quoteParams, srcTokenAmount: '11111' },
       metricsContext,
     );
@@ -1193,12 +1249,12 @@ describe('BridgeController', function () {
     // Verify error handling
     expect(consoleErrorSpy.mock.calls).toMatchSnapshot();
     expect(
-      messengerMock.call.mock.calls.filter(([action]) =>
+      messengerCallMock.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
     ).toHaveLength(12);
     expect(
-      messengerMock.call.mock.calls.filter(([action]) =>
+      messengerCallMock.mock.calls.filter(([action]) =>
         action.includes('SnapController'),
       ),
     ).toMatchSnapshot();
@@ -1216,7 +1272,7 @@ describe('BridgeController', function () {
     const hasSufficientBalanceSpy = jest
       .spyOn(balanceUtils, 'hasSufficientBalance')
       .mockResolvedValue(false);
-    messengerMock.call.mockImplementation(
+    messengerCallMock.mockImplementation(
       (...args: Parameters<BridgeControllerMessenger['call']>) => {
         switch (args[0]) {
           case 'AuthenticationController:getBearerToken':
@@ -1276,7 +1332,8 @@ describe('BridgeController', function () {
     const quoteRequest = {
       ...quoteParams,
     };
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -1358,7 +1415,8 @@ describe('BridgeController', function () {
     );
     const firstFetchTime = bridgeController.state.quotesLastFetched;
     expect(firstFetchTime).toBeGreaterThan(0);
-    bridgeController.trackUnifiedSwapBridgeEvent(
+    rootMessenger.call(
+      'BridgeController:trackUnifiedSwapBridgeEvent',
       UnifiedSwapBridgeEventName.QuotesReceived,
       {
         warnings: ['low_return'],
@@ -1408,7 +1466,7 @@ describe('BridgeController', function () {
       .spyOn(balanceUtils, 'hasSufficientBalance')
       .mockResolvedValue(false);
 
-    messengerMock.call.mockImplementation(
+    messengerCallMock.mockImplementation(
       (
         ...args: Parameters<BridgeControllerMessenger['call']>
       ): ReturnType<BridgeControllerMessenger['call']> => {
@@ -1489,7 +1547,8 @@ describe('BridgeController', function () {
     const quoteRequest = {
       ...quoteParams,
     };
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -1533,12 +1592,13 @@ describe('BridgeController', function () {
   it('updateBridgeQuoteRequestParams should not trigger quote polling if request is invalid', async function () {
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-    messengerMock.call.mockReturnValue({
+    messengerCallMock.mockReturnValue({
       address: '0x123WalletAddress',
       provider: jest.fn(),
     } as never);
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       {
         walletAddress: '0x123WalletAddress',
         srcChainId: 1,
@@ -1574,12 +1634,13 @@ describe('BridgeController', function () {
   it('updateBridgeQuoteRequestParams should not trigger quote polling if bridging to or from solana and destWalletAddress is undefined', async function () {
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-    messengerMock.call.mockReturnValue({
+    messengerCallMock.mockReturnValue({
       address: '0xabcWalletAddress',
       provider: jest.fn(),
     } as never);
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       {
         walletAddress: '0xabcWalletAddress',
         srcChainId: 1,
@@ -1615,7 +1676,7 @@ describe('BridgeController', function () {
   it('updateBridgeQuoteRequestParams should include undefined Authentication header if getBearerToken throws an error', async function () {
     jest.useFakeTimers();
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-    messengerMock.call.mockImplementation(
+    messengerCallMock.mockImplementation(
       (...args: Parameters<BridgeControllerMessenger['call']>) => {
         switch (args[0]) {
           case 'AuthenticationController:getBearerToken':
@@ -1661,7 +1722,8 @@ describe('BridgeController', function () {
       slippage: 0.5,
     };
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -1675,7 +1737,7 @@ describe('BridgeController', function () {
   it('updateBridgeQuoteRequestParams should include auth token as Authentication header', async function () {
     jest.useFakeTimers();
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-    messengerMock.call.mockImplementation(
+    messengerCallMock.mockImplementation(
       (...args: Parameters<BridgeControllerMessenger['call']>) => {
         switch (args[0]) {
           case 'AuthenticationController:getBearerToken':
@@ -1719,7 +1781,8 @@ describe('BridgeController', function () {
       slippage: 0.5,
     };
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -1781,7 +1844,7 @@ describe('BridgeController', function () {
       const hasSufficientBalanceSpy = jest
         .spyOn(balanceUtils, 'hasSufficientBalance')
         .mockResolvedValue(false);
-      messengerMock.call.mockImplementation(
+      messengerCallMock.mockImplementation(
         (...args: Parameters<BridgeControllerMessenger['call']>) => {
           switch (args[0]) {
             case 'AuthenticationController:getBearerToken':
@@ -1841,7 +1904,8 @@ describe('BridgeController', function () {
       const quoteRequest = {
         ...quoteParams,
       };
-      await bridgeController.updateBridgeQuoteRequestParams(
+      await rootMessenger.call(
+        'BridgeController:updateBridgeQuoteRequestParams',
         quoteParams,
         metricsContext,
       );
@@ -1940,7 +2004,7 @@ describe('BridgeController', function () {
   it('should handle errors from fetchBridgeQuotes', async () => {
     jest.useFakeTimers();
     const fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuotes');
-    messengerMock.call.mockReturnValue({
+    messengerCallMock.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
     } as never);
@@ -1991,7 +2055,8 @@ describe('BridgeController', function () {
       walletAddress: 'eip:id/id:id/0x123',
     };
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -2009,13 +2074,14 @@ describe('BridgeController', function () {
     expect(bridgeController.state.quotes).toStrictEqual([]);
 
     // Verify state is reset
-    bridgeController.resetState();
+    rootMessenger.call('BridgeController:resetState');
     expect(bridgeController.state.quoteFetchError).toBeNull();
     expect(bridgeController.state.quotesLoadingStatus).toBeNull();
     expect(bridgeController.state.quotes).toStrictEqual([]);
 
     // Verify quotes are fetched
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -2069,7 +2135,7 @@ describe('BridgeController', function () {
       );
 
     // Minimal messenger/env setup to allow polling to start
-    messengerMock.call.mockReturnValue({
+    messengerCallMock.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
       currencyRates: {},
@@ -2089,7 +2155,8 @@ describe('BridgeController', function () {
       slippage: 0.5,
     };
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -2173,7 +2240,7 @@ describe('BridgeController', function () {
         .spyOn(balanceUtils, 'hasSufficientBalance')
         .mockResolvedValue(false);
 
-      messengerMock.call.mockImplementation(
+      messengerCallMock.mockImplementation(
         (
           ...args: Parameters<BridgeControllerMessenger['call']>
         ): ReturnType<BridgeControllerMessenger['call']> => {
@@ -2291,7 +2358,8 @@ describe('BridgeController', function () {
         slippage: 0.5,
       };
 
-      await bridgeController.updateBridgeQuoteRequestParams(
+      await rootMessenger.call(
+        'BridgeController:updateBridgeQuoteRequestParams',
         quoteParams,
         metricsContext,
       );
@@ -2343,7 +2411,7 @@ describe('BridgeController', function () {
       });
 
       // Verify snap interaction
-      const snapCalls = messengerMock.call.mock.calls.filter(
+      const snapCalls = messengerCallMock.mock.calls.filter(
         ([methodName]) => methodName === 'SnapController:handleRequest',
       );
 
@@ -2375,7 +2443,7 @@ describe('BridgeController', function () {
       },
     })) as unknown as QuoteResponse[];
 
-    messengerMock.call.mockImplementation(
+    messengerCallMock.mockImplementation(
       (
         ...args: Parameters<BridgeControllerMessenger['call']>
       ): ReturnType<BridgeControllerMessenger['call']> => {
@@ -2451,7 +2519,8 @@ describe('BridgeController', function () {
       slippage: 0.5,
     };
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -2493,7 +2562,7 @@ describe('BridgeController', function () {
       .spyOn(console, 'error')
       .mockImplementation(jest.fn());
 
-    messengerMock.call.mockImplementation(
+    messengerCallMock.mockImplementation(
       (
         ...args: Parameters<BridgeControllerMessenger['call']>
       ): ReturnType<BridgeControllerMessenger['call']> => {
@@ -2548,7 +2617,8 @@ describe('BridgeController', function () {
       slippage: 0.5,
     };
 
-    await bridgeController.updateBridgeQuoteRequestParams(
+    await rootMessenger.call(
+      'BridgeController:updateBridgeQuoteRequestParams',
       quoteParams,
       metricsContext,
     );
@@ -2590,7 +2660,8 @@ describe('BridgeController', function () {
       // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
       jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
       // Add walletAddress to the quoteRequest because it's required for some events
-      await bridgeController.updateBridgeQuoteRequestParams(
+      await rootMessenger.call(
+        'BridgeController:updateBridgeQuoteRequestParams',
         {
           walletAddress: '0x123',
         },
@@ -2603,7 +2674,7 @@ describe('BridgeController', function () {
         },
       );
       jest.clearAllMocks();
-      messengerMock.call.mockImplementationOnce(
+      messengerCallMock.mockImplementationOnce(
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
             provider: jest.fn() as never,
@@ -2614,7 +2685,7 @@ describe('BridgeController', function () {
           } as never;
         },
       );
-      messengerMock.call.mockImplementationOnce(
+      messengerCallMock.mockImplementationOnce(
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
             provider: jest.fn() as never,
@@ -2625,7 +2696,7 @@ describe('BridgeController', function () {
           } as never;
         },
       );
-      messengerMock.call.mockImplementationOnce(
+      messengerCallMock.mockImplementationOnce(
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
             type: EthAccountType.Eoa,
@@ -2649,7 +2720,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the ButtonClicked event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.ButtonClicked,
         {
           location: MetaMetricsSwapsEventSource.MainView,
@@ -2663,7 +2735,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the PageViewed event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.PageViewed,
         { abc: 1 },
       );
@@ -2673,7 +2746,8 @@ describe('BridgeController', function () {
     });
 
     it('should track InputChanged with an enum quick amount preset label', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.InputChanged,
         {
           input: 'token_amount_source',
@@ -2695,7 +2769,8 @@ describe('BridgeController', function () {
     });
 
     it('should track InputChanged with arbitrary quick amount preset labels', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.InputChanged,
         {
           input: 'token_amount_source',
@@ -2703,7 +2778,8 @@ describe('BridgeController', function () {
           input_amount_preset: '85%',
         },
       );
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.InputChanged,
         {
           input: 'token_amount_source',
@@ -2730,7 +2806,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the InputSourceDestinationFlipped event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.InputSourceDestinationSwitched,
         {
           token_symbol_destination: 'USDC',
@@ -2748,7 +2825,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the AllQuotesOpened event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.AllQuotesOpened,
         {
           price_impact: 6,
@@ -2765,7 +2843,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the AllQuotesSorted event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.AllQuotesSorted,
         {
           sort_order: SortOrder.COST_ASC,
@@ -2784,7 +2863,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the QuoteSelected event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.QuoteSelected,
         {
           is_best_quote: true,
@@ -2805,7 +2885,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the QuotesReceived event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.QuotesReceived,
         {
           warnings: ['insufficient_balance'],
@@ -2821,14 +2902,15 @@ describe('BridgeController', function () {
           usd_balance_source: 0,
         },
       );
-      expect(messengerMock.call.mock.calls).toMatchSnapshot();
+      expect(messengerCallMock.mock.calls).toMatchSnapshot();
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
     it('should track the AssetDetailTooltipClicked event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.AssetDetailTooltipClicked,
         {
           token_name: 'ETH',
@@ -2849,7 +2931,7 @@ describe('BridgeController', function () {
       jest.clearAllMocks();
 
       jest.restoreAllMocks();
-      messengerMock.call.mockImplementation(() => {
+      messengerCallMock.mockImplementation(() => {
         return {
           provider: jest.fn() as never,
           rpcUrl: 'https://mainnet.infura.io/v3/123',
@@ -2861,18 +2943,14 @@ describe('BridgeController', function () {
     });
 
     it('should track the Submitted event', () => {
-      const controller = new BridgeController({
-        messenger: messengerMock,
-        getLayer1GasFee: getLayer1GasFeeMock,
-        clientId: BridgeClientId.EXTENSION,
+      const { rootMessenger: localRootMessenger } = buildController({
         clientVersion: '1.0.0',
-        fetchFn: mockFetchFn,
-        trackMetaMetricsFn,
         state: {
           ...EMPTY_INIT_STATE,
         },
       });
-      controller.trackUnifiedSwapBridgeEvent(
+      localRootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.Submitted,
         {
           action_type: MetricsActionType.SWAPBRIDGE_V1,
@@ -2901,7 +2979,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the Completed event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.Completed,
         {
           action_type: MetricsActionType.SWAPBRIDGE_V1,
@@ -2939,7 +3018,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the Failed event', () => {
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.Failed,
         {
           allowance_reset_transaction: StatusTypes.PENDING,
@@ -2970,20 +3050,15 @@ describe('BridgeController', function () {
           security_warnings: [],
         },
       );
-      expect(messengerMock.call).toHaveBeenCalledTimes(0);
+      expect(messengerCallMock).toHaveBeenCalledTimes(0);
       expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
       expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
     });
 
     it('should track the Failed event before tx is submitted', () => {
-      const controller = new BridgeController({
-        messenger: messengerMock,
-        getLayer1GasFee: getLayer1GasFeeMock,
-        clientId: BridgeClientId.EXTENSION,
+      const { rootMessenger: localRootMessenger } = buildController({
         clientVersion: '1.0.0',
-        fetchFn: mockFetchFn,
-        trackMetaMetricsFn,
         state: {
           quoteRequest: {
             srcChainId: SolScope.Mainnet,
@@ -2997,7 +3072,8 @@ describe('BridgeController', function () {
           quotes: mockBridgeQuotesSolErc20 as never,
         },
       });
-      controller.trackUnifiedSwapBridgeEvent(
+      localRootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.Failed,
         {
           error_message: 'Failed to submit tx',
@@ -3021,13 +3097,8 @@ describe('BridgeController', function () {
     });
 
     it('should track the StatusValidationFailed event', () => {
-      const controller = new BridgeController({
-        messenger: messengerMock,
-        getLayer1GasFee: getLayer1GasFeeMock,
-        clientId: BridgeClientId.EXTENSION,
+      const { rootMessenger: localRootMessenger } = buildController({
         clientVersion: '1.0.0',
-        fetchFn: mockFetchFn,
-        trackMetaMetricsFn,
         state: {
           quoteRequest: {
             srcChainId: SolScope.Mainnet,
@@ -3041,7 +3112,8 @@ describe('BridgeController', function () {
           quotes: mockBridgeQuotesSolErc20 as never,
         },
       });
-      controller.trackUnifiedSwapBridgeEvent(
+      localRootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.StatusValidationFailed,
         {
           failures: ['Failed to submit tx'],
@@ -3057,7 +3129,7 @@ describe('BridgeController', function () {
   describe('trackUnifiedSwapBridgeEvent client-side call exceptions', () => {
     beforeEach(() => {
       jest.clearAllMocks();
-      messengerMock.call.mockImplementation(
+      messengerCallMock.mockImplementation(
         (
           ...args: Parameters<BridgeControllerMessenger['call']>
         ): ReturnType<BridgeControllerMessenger['call']> => {
@@ -3092,14 +3164,18 @@ describe('BridgeController', function () {
           } as never;
         },
       );
-      bridgeController.setLocation(MetaMetricsSwapsEventSource.TrendingExplore);
+      rootMessenger.call(
+        'BridgeController:setLocation',
+        MetaMetricsSwapsEventSource.TrendingExplore,
+      );
     });
 
     it('should not track the event if the account keyring type is not set', async () => {
       const errorSpy = jest
         .spyOn(console, 'error')
         .mockImplementationOnce(jest.fn());
-      await bridgeController.updateBridgeQuoteRequestParams(
+      await rootMessenger.call(
+        'BridgeController:updateBridgeQuoteRequestParams',
         {
           walletAddress: '0x123',
         },
@@ -3111,7 +3187,8 @@ describe('BridgeController', function () {
           token_symbol_destination: 'USDC',
         },
       );
-      bridgeController.trackUnifiedSwapBridgeEvent(
+      rootMessenger.call(
+        'BridgeController:trackUnifiedSwapBridgeEvent',
         UnifiedSwapBridgeEventName.QuotesReceived,
         {
           warnings: ['low_return'],
@@ -3191,8 +3268,8 @@ describe('BridgeController', function () {
             },
           },
         });
-      (messengerMock.call as jest.Mock).mockResolvedValueOnce('AUTH_TOKEN');
-      (messengerMock.call as jest.Mock).mockReturnValueOnce(() => ({
+      messengerCallMock.mockResolvedValueOnce('AUTH_TOKEN');
+      messengerCallMock.mockReturnValueOnce(() => ({
         address: '0x123',
       }));
     });
@@ -3206,7 +3283,8 @@ describe('BridgeController', function () {
         });
       const expectedControllerState = bridgeController.state;
 
-      const quotes = await bridgeController.fetchQuotes(
+      const quotes = await rootMessenger.call(
+        'BridgeController:fetchQuotes',
         {
           srcChainId: SolScope.Mainnet,
           destChainId: '1',
@@ -3274,7 +3352,8 @@ describe('BridgeController', function () {
       const expectedControllerState = bridgeController.state;
 
       await expect(
-        bridgeController.fetchQuotes(
+        rootMessenger.call(
+          'BridgeController:fetchQuotes',
           {
             srcChainId: SolScope.Mainnet,
             destChainId: '1',
@@ -3306,7 +3385,8 @@ describe('BridgeController', function () {
         });
       const expectedControllerState = bridgeController.state;
 
-      const quotes = await bridgeController.fetchQuotes(
+      const quotes = await rootMessenger.call(
+        'BridgeController:fetchQuotes',
         {
           srcChainId: SolScope.Mainnet,
           destChainId: '1',
@@ -3370,7 +3450,8 @@ describe('BridgeController', function () {
         });
       const expectedControllerState = bridgeController.state;
 
-      const quotes = await bridgeController.fetchQuotes(
+      const quotes = await rootMessenger.call(
+        'BridgeController:fetchQuotes',
         {
           srcChainId: SolScope.Mainnet,
           destChainId: '1',
@@ -3434,7 +3515,10 @@ describe('BridgeController', function () {
           validationFailures: [],
         });
 
-      const quotes = await bridgeController.fetchQuotes(makeQuoteRequest());
+      const quotes = await rootMessenger.call(
+        'BridgeController:fetchQuotes',
+        makeQuoteRequest(),
+      );
 
       expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
       expect(quotes).toHaveLength(2);
