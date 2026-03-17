@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.1.0]
+
 ### Added
 
 - New public wrapper methods: `getDelegationTransaction()`, `getStrategy()` ([#8183](https://github.com/MetaMask/core/pull/8183))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^2.3.0` to `^2.4.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/assets-controllers` from `^100.2.1` to `^101.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/bridge-controller` from `^69.1.0` to `^69.1.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/bridge-status-controller` from `^68.1.0` to `^69.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/gas-fee-controller` from `^26.0.3` to `^26.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/transaction-controller` from `^62.22.0` to `^63.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
 
 ## [17.0.0]
 
@@ -530,7 +541,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.1.0...HEAD
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.0.0...@metamask/transaction-pay-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.5.0...@metamask/transaction-pay-controller@17.0.0
 [16.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.1...@metamask/transaction-pay-controller@16.5.0
 [16.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.0...@metamask/transaction-pay-controller@16.4.1

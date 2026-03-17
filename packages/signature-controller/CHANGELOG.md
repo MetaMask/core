@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.1.0]
+
 ### Added
 
 - Expose missing public `SignatureController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
@@ -25,7 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/gator-permissions-controller` from `^2.0.0` to `^2.1.0` ([#8156](https://github.com/MetaMask/core/pull/8156))
+- Bump `@metamask/approval-controller` from `^8.0.0` to `^9.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/logging-controller` from `^7.0.1` to `^8.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/gator-permissions-controller` from `^2.0.0` to `^2.1.1` ([#8156](https://github.com/MetaMask/core/pull/8156), [#8225](https://github.com/MetaMask/core/pull/8225))
 
 ## [39.0.5]
 
@@ -709,7 +713,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.0...HEAD
+[39.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.5...@metamask/signature-controller@39.1.0
 [39.0.5]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.4...@metamask/signature-controller@39.0.5
 [39.0.4]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.3...@metamask/signature-controller@39.0.4
 [39.0.3]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.0.2...@metamask/signature-controller@39.0.3
