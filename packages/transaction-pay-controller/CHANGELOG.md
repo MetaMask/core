@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove type assertions when reading hex values from bridge quote data ([#8188](https://github.com/MetaMask/core/pull/8188))
+
 ## [17.1.0]
 
 ### Added

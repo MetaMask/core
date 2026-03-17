@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Narrow the HexStringSchema and HexStringSchema's inferred type (string -> Hex) to fix type errors surfaced when using the QuoteReponse's `trade` and `approval` data ([#8188](https://github.com/MetaMask/core/pull/8188))
+- **BREAKING:** Narrow the HexStringSchema and HexStringSchema's inferred type (string -> Hex) to fix type errors surfaced when using the QuoteReponse's `trade` and `approval` data ([#8188](https://github.com/MetaMask/core/pull/8188))
 
 ## [69.1.1]
 
