@@ -58,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `RampsController:transakCancelOrder`
     - `RampsController:transakCancelAllActiveOrders`
     - `RampsController:transakGetActiveOrders`
-  - Corresponding action types are now exported (e.g. `RampsControllerGetOrderAction`, `RampsControllerMethodActions`)
+  - Corresponding action types are now exported (e.g. `RampsControllerGetOrderAction`)
 
 ## [12.0.0]
 
