@@ -19,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `GasFeeController:getTimeEstimate`
   - Corresponding action types (e.g. `GasFeeControllerResetPollingAction`) are available as well.
 
-
 ## [26.0.3]
 
 ### Changed
