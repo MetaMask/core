@@ -2,7 +2,23 @@ export * from './Caveat';
 export * from './errors';
 export * from './Permission';
 export * from './PermissionController';
-export type * from './PermissionController-method-action-types';
+export type {
+  PermissionControllerClearStateAction,
+  PermissionControllerGetSubjectNamesAction,
+  PermissionControllerGetPermissionsAction,
+  PermissionControllerHasPermissionAction,
+  PermissionControllerHasPermissionsAction,
+  PermissionControllerRevokeAllPermissionsAction,
+  PermissionControllerRevokePermissionsAction,
+  PermissionControllerRevokePermissionForAllSubjectsAction,
+  PermissionControllerGetCaveatAction,
+  PermissionControllerUpdateCaveatAction,
+  PermissionControllerGrantPermissionsAction,
+  PermissionControllerGrantPermissionsIncrementalAction,
+  PermissionControllerRequestPermissionsAction,
+  PermissionControllerRequestPermissionsIncrementalAction,
+  PermissionControllerGetEndowmentsAction,
+} from './PermissionController-method-action-types';
 export type {
   ExtractSpecifications,
   HandlerMiddlewareFunction,
