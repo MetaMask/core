@@ -299,7 +299,7 @@ describe('BtcAccountProvider', () => {
       const { provider, mocks } = setup({
         accounts,
         // Force v1 by not providing the config at all, so it relies on the default value.
-        config: asConfig({ createAccounts: { v2: undefined } }),
+        config: asConfig({ createAccounts: { batched: undefined } }),
       });
 
       await provider.createAccounts({
@@ -457,12 +457,12 @@ describe('BtcAccountProvider', () => {
     });
   });
 
-  describe('v2', () => {
+  describe('v2 - batched', () => {
     it('creates accounts', async () => {
       const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
       const { provider, mocks } = setup({
         accounts,
-        config: asConfig({ createAccounts: { v2: true } }),
+        config: asConfig({ createAccounts: { batched: true } }),
       });
 
       const newGroupIndex = accounts.length; // Group-index are 0-based.
@@ -488,7 +488,7 @@ describe('BtcAccountProvider', () => {
       const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
       const { provider } = setup({
         accounts,
-        config: asConfig({ createAccounts: { v2: true } }),
+        config: asConfig({ createAccounts: { batched: true } }),
       });
 
       const newAccounts = await provider.createAccounts({
@@ -504,7 +504,7 @@ describe('BtcAccountProvider', () => {
       const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
       const { provider, mocks } = setup({
         accounts,
-        config: asConfig({ createAccounts: { v2: true } }),
+        config: asConfig({ createAccounts: { batched: true } }),
       });
 
       const from = 1;
@@ -529,7 +529,7 @@ describe('BtcAccountProvider', () => {
     it('creates accounts with range starting from 0', async () => {
       const { provider, mocks } = setup({
         accounts: [],
-        config: asConfig({ createAccounts: { v2: true } }),
+        config: asConfig({ createAccounts: { batched: true } }),
       });
 
       const newAccounts = await provider.createAccounts({
@@ -546,7 +546,7 @@ describe('BtcAccountProvider', () => {
     it('creates a single account when range from equals to', async () => {
       const { provider, mocks } = setup({
         accounts: [],
-        config: asConfig({ createAccounts: { v2: true } }),
+        config: asConfig({ createAccounts: { batched: true } }),
       });
 
       const newAccounts = await provider.createAccounts({
@@ -567,7 +567,7 @@ describe('BtcAccountProvider', () => {
     it('throws if the account creation process takes too long', async () => {
       const { provider, mocks } = setup({
         accounts: [],
-        config: asConfig({ createAccounts: { v2: true } }),
+        config: asConfig({ createAccounts: { batched: true } }),
       });
 
       mocks.keyring.createAccounts.mockImplementation(

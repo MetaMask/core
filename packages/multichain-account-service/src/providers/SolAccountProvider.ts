@@ -39,7 +39,7 @@ export const SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG: SnapAccountProviderConfig = {
     backOffMs: 1000,
   },
   createAccounts: {
-    v2: false, // For now, the Snap is not fully v2 compliant.
+    batched: false, // For now, the Snap is not fully v2 compliant.
     timeoutMs: 3000,
   },
   resyncAccounts: {

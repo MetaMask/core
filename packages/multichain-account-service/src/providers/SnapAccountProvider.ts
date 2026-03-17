@@ -43,7 +43,7 @@ export type SnapAccountProviderConfig = {
     backOffMs: number;
   };
   createAccounts: {
-    v2: boolean;
+    batched: boolean;
     timeoutMs: number;
   };
   resyncAccounts?: {
@@ -329,11 +329,11 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       let groupIndexOffset = 0;
       let snapAccounts: KeyringAccount[] = [];
 
-      const v2 = this.config.createAccounts.v2 ?? false;
+      const batched = this.config.createAccounts.batched ?? false;
       const { entropySource } = options;
 
       if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
-        if (v2) {
+        if (batched) {
           // Batch account creations.
           snapAccounts = await withTimeout(
             keyring.createAccounts(options),
@@ -360,7 +360,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
         // Group indices are sequential, so we just need the starting index.
         groupIndexOffset = options.range.from;
       } else {
-        if (v2) {
+        if (batched) {
           // Create account using new v2-like flow (no async flow + no Snap keyring events).
           snapAccounts = await withTimeout(
             keyring.createAccounts(options),
