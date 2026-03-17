@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `SeedlessOnboardingController:checkNodeAuthTokenExpired`
     - `SeedlessOnboardingController:checkMetadataAccessTokenExpired`
     - `SeedlessOnboardingController:checkAccessTokenExpired`
-  - Corresponding action types are now exported (e.g. `SeedlessOnboardingControllerGetAccessTokenAction`, `SeedlessOnboardingControllerMethodActions`)
+  - Corresponding action types are now exported (e.g. `SeedlessOnboardingControllerGetAccessTokenAction`)
 
 ## [9.0.0]
 

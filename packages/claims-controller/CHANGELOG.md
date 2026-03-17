@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `ClaimsController:deleteClaimDraft`
     - `ClaimsController:deleteAllClaimDrafts`
     - `ClaimsController:clearState`
-  - Corresponding action types are now exported (e.g. `ClaimsControllerGetClaimsAction`, `ClaimsControllerMethodActions`)
+  - Corresponding action types are now exported (e.g. `ClaimsControllerGetClaimsAction`)
 
 ### Changed
 

@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `ShieldController:clearState`
     - `ShieldController:checkCoverage`
     - `ShieldController:checkSignatureCoverage`
-  - Corresponding action types are now exported (e.g. `ShieldControllerCheckCoverageAction`, `ShieldControllerMethodActions`)
+  - Corresponding action types are now exported (e.g. `ShieldControllerCheckCoverageAction`)
 
 ## [5.0.2]
 
