@@ -1924,6 +1924,25 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.transactions[1].type).toBe(TransactionType.swap);
     });
 
+    it('uses swap approval type for resetApproval when isBridgeTx is false', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        includeResetApproval: true,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messenger: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        resetApproval: mockQuoteResponse.resetApproval,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.transactions).toHaveLength(2);
+      expect(result.transactions[0].type).toBe(TransactionType.swapApproval);
+      expect(result.transactions[1].type).toBe(TransactionType.swap);
+    });
+
     it('should handle gasIncluded with gasIncluded7702', async () => {
       const mockQuoteResponse = createMockQuoteResponse({
         gasIncluded: true,
@@ -2333,6 +2352,46 @@ describe('Bridge Status Controller Transaction Utils', () => {
       );
       expect(result.tradeMeta).toStrictEqual(
         expect.objectContaining({ id: 'tx1', type: TransactionType.bridge }),
+      );
+    });
+
+    it('should handle 7702 bridgeApproval transactions by matching data', () => {
+      const txs = [
+        createMockTransaction({
+          id: 'tx1',
+          data: '0xapprovalData',
+          authorizationList: ['0xAuth1'],
+          type: TransactionType.batch,
+        }),
+      ];
+
+      mockMessagingSystem = createMockMessagingSystemWithTxs(
+        txs,
+      ) as unknown as BridgeStatusControllerMessenger;
+
+      const txDataByType = {
+        [TransactionType.bridgeApproval]: '0xapprovalData',
+      };
+
+      const result = findAndUpdateTransactionsInBatch({
+        messenger: mockMessagingSystem,
+        batchId,
+        txDataByType,
+        updateTransactionFn: mockUpdateTransactionFn,
+      });
+
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'tx1',
+          type: TransactionType.bridgeApproval,
+        }),
+        'Update tx type to bridgeApproval',
+      );
+      expect(result.approvalMeta).toStrictEqual(
+        expect.objectContaining({
+          id: 'tx1',
+          type: TransactionType.bridgeApproval,
+        }),
       );
     });
   });
