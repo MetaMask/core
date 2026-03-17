@@ -28,6 +28,7 @@ import type { Infer } from '@metamask/superstruct';
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionConfirmedEvent,
@@ -40,7 +41,6 @@ import type { CaipAssetType } from '@metamask/utils';
 import type { BridgeStatusController } from './bridge-status-controller';
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 import type { StatusResponseSchema } from './utils/validators';
-import { TransactionControllerEstimateGasFeeAction } from '../../transaction-controller/src/TransactionController';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error

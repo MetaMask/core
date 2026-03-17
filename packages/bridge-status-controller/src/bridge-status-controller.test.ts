@@ -2788,7 +2788,7 @@ describe('BridgeStatusController', () => {
           ([action]) => action === 'TransactionController:updateTransaction',
         ),
       ).toHaveLength(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(14);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(15);
     });
 
     it('should throw an error if approval tx fails', async () => {
@@ -3358,7 +3358,7 @@ describe('BridgeStatusController', () => {
           ([action]) => action === 'TransactionController:addTransaction',
         ),
       ).toHaveLength(2);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(15);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(16);
     });
 
     it('should successfully submit an EVM swap transaction with featureId', async () => {
@@ -3439,7 +3439,7 @@ describe('BridgeStatusController', () => {
           ([action]) => action === 'TransactionController:addTransaction',
         ),
       ).toHaveLength(0);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(8);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(9);
       expect(controller.state.txHistory[result.id]).toMatchSnapshot();
     });
 
@@ -3821,7 +3821,7 @@ describe('BridgeStatusController', () => {
           ([action]) => action === 'TransactionController:addTransactionBatch',
         ),
       ).toHaveLength(0);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(4);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(5);
     });
 
     it('should throw error if batched tx is not found', async () => {
@@ -3873,7 +3873,7 @@ describe('BridgeStatusController', () => {
           ([action]) => action === 'TransactionController:addTransactionBatch',
         ),
       ).toHaveLength(1);
-      expect(mockMessengerCall).toHaveBeenCalledTimes(11);
+      expect(mockMessengerCall).toHaveBeenCalledTimes(12);
     });
   });
 

@@ -1731,7 +1731,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         from: '0x1',
         value: '0x1',
       };
-      const result = toBatchTxParams(true, mockTrade, {});
+      const result = toBatchTxParams(true, mockTrade as TxData, {});
       expect(result).toStrictEqual({
         data: '0x1',
         from: '0x1',
@@ -1938,7 +1938,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: false,
         trade: mockQuoteResponse.trade,
         resetApproval: mockQuoteResponse.resetApproval,
-        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
       });
 
       expect(result.transactions).toHaveLength(2);
@@ -2038,15 +2037,19 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: true,
         trade: mockQuoteResponse.trade,
         isDelegatedAccount: true,
-        estimateGasFeeFn: mockEstimateGasFeeFn,
       });
 
       // 7702 should be enabled for delegated accounts
       expect(result.disable7702).toBe(false);
       // Gas is NOT sponsored
       expect(result.isGasFeeIncluded).toBe(false);
-      // Gas estimation should have been called (not skipped)
-      expect(mockEstimateGasFeeFn).toHaveBeenCalled();
+      expect(mockMessagingSystem.call).toHaveBeenCalledWith(
+        'TransactionController:estimateGasFee',
+        {
+          chainId: mockQuoteResponse.trade.chainId,
+          txParams: mockQuoteResponse.trade,
+        },
+      );
       // Transaction params should include gas fields
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].params).toHaveProperty('gas');
@@ -2114,7 +2117,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     // Helper function to create mock messaging system with transactions
-    const mockMessengerCallHandlers = (
+    const createMockMessagingSystemWithTxs = (
       txs: ReturnType<typeof createMockTransaction>[],
     ) => {
       return {
@@ -2149,7 +2152,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           data: '0xapprovalData',
         }),
       ];
-      const mockMessenger = mockMessengerCallHandlers(txs);
+      const mockMessenger = createMockMessagingSystemWithTxs(txs);
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -2209,7 +2212,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      const mockMessenger = mockMessengerCallHandlers(txs);
+      const mockMessenger = createMockMessagingSystemWithTxs(txs);
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -2252,7 +2255,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      const mockMessenger = mockMessengerCallHandlers(txs);
+      const mockMessenger = createMockMessagingSystemWithTxs(txs);
 
       const txDataByType = {
         [TransactionType.swapApproval]: '0xapprovalData',
@@ -2302,7 +2305,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      const mockMessenger = mockMessengerCallHandlers(txs);
+      const mockMessenger = createMockMessagingSystemWithTxs(txs);
 
       const txDataByType = {
         [TransactionType.bridge]: '0xswapData',
@@ -2359,7 +2362,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      const mockMessenger = mockMessengerCallHandlers(txs);
+      const mockMessenger = createMockMessagingSystemWithTxs(txs);
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -2389,7 +2392,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      const mockMessenger = mockMessengerCallHandlers(txs);
+      const mockMessenger = createMockMessagingSystemWithTxs(txs);
 
       const txDataByType = {
         [TransactionType.bridge]: '0xbridgeData',
@@ -2397,7 +2400,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Test with bridge transaction — should match batch type for 7702
       const result = findAndUpdateTransactionsInBatch({
-        messenger: mockMessagingSystem,
+        messenger: mockMessenger,
         batchId,
         txDataByType,
       });
@@ -2409,8 +2412,17 @@ describe('Bridge Status Controller Transaction Utils', () => {
         ),
       ).toHaveLength(0);
       // Should match since 7702 bridge transactions use batch type
-      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'tx1', type: TransactionType.bridge }),
+      expect(mockMessenger.call).toHaveBeenCalledWith(
+        'TransactionController:updateTransaction',
+        {
+          batchId,
+          id: 'tx1',
+          txParams: {
+            authorizationList: ['0xAuth1'],
+            data: '0xbatchData',
+          },
+          type: TransactionType.bridge,
+        },
         'Update tx type to bridge',
       );
       expect(result.tradeMeta).toStrictEqual(
@@ -2428,7 +2440,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      mockMessagingSystem = createMockMessagingSystemWithTxs(
+      const mockMessagingSystem = createMockMessagingSystemWithTxs(
         txs,
       ) as unknown as BridgeStatusControllerMessenger;
 
@@ -2440,14 +2452,19 @@ describe('Bridge Status Controller Transaction Utils', () => {
         messenger: mockMessagingSystem,
         batchId,
         txDataByType,
-        updateTransactionFn: mockUpdateTransactionFn,
       });
 
-      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
-        expect.objectContaining({
+      expect(mockMessagingSystem.call).toHaveBeenCalledWith(
+        'TransactionController:updateTransaction',
+        {
+          batchId,
           id: 'tx1',
+          txParams: {
+            authorizationList: ['0xAuth1'],
+            data: '0xapprovalData',
+          },
           type: TransactionType.bridgeApproval,
-        }),
+        },
         'Update tx type to bridgeApproval',
       );
       expect(result.approvalMeta).toStrictEqual(
