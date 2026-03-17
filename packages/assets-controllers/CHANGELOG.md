@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/approval-controller` from `^8.0.0` to `^9.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
 - Bump `@metamask/network-enablement-controller` from `^4.2.0` to `^5.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
 - Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
-- Bump `@metamask/phishing-controller` from `^16.3.0` to `^16.3.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/phishing-controller` from `^16.3.0` to `^17.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
 - Updated `ApprovalController` method calls (`accept` → `acceptRequest`) ([#8183](https://github.com/MetaMask/core/pull/8183))
 - **BREAKING:** Standardize names of `AccountTrackerController` messenger action types ([#8164](https://github.com/MetaMask/core/pull/8164))
   - All existing types for messenger actions have been renamed so they include `Controller` (e.g. `AccountTrackerUpdateNativeBalancesAction` -> `AccountTrackerControllerUpdateNativeBalancesAction`). You will need to update imports appropriately.
