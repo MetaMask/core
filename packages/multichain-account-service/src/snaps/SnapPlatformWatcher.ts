@@ -10,8 +10,12 @@ type KeyringControllerStateSlice = {
   keyrings: { type: KeyringTypes | string }[];
 };
 
-/** How long to wait for the Snap keyring to appear before giving up (ms). */
+/** How long to wait for the Snap keyring to appear before rejecting (ms). */
 const SNAP_KEYRING_WAIT_TIMEOUT_MS = 5_000;
+
+/** Error message when Snap keyring does not appear within the timeout. */
+const SNAP_KEYRING_TIMEOUT_MESSAGE =
+  'Snap platform or keyrings still not ready. Aborting.';
 
 /**
  * Returns true if the given KeyringController state slice contains a Snap keyring.
@@ -76,7 +80,7 @@ export class SnapPlatformWatcher {
   /**
    * Waits for KeyringController to have a Snap keyring available.
    * Checks once, then subscribes to KeyringController:stateChange until the keyring
-   * appears or the timeout is reached.
+   * appears or the timeout is reached (then throws).
    */
   async #waitForSnapKeyring(): Promise<void> {
     if (this.#hasSnapKeyring()) {
@@ -108,10 +112,10 @@ export class SnapPlatformWatcher {
 
   /**
    * Subscribes to KeyringController:stateChange and resolves when a Snap keyring
-   * appears in state, or after the timeout.
+   * appears in state, or rejects with an error after the timeout.
    */
   async #waitForSnapKeyringViaStateChange(): Promise<void> {
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       const timeoutRef: { id: ReturnType<typeof setTimeout> | undefined } = {
         id: undefined,
       };
@@ -129,7 +133,7 @@ export class SnapPlatformWatcher {
 
       timeoutRef.id = setTimeout(() => {
         this.#messenger.unsubscribe('KeyringController:stateChange', listener);
-        resolve();
+        reject(new Error(SNAP_KEYRING_TIMEOUT_MESSAGE));
       }, SNAP_KEYRING_WAIT_TIMEOUT_MS);
 
       this.#messenger.subscribe('KeyringController:stateChange', listener);

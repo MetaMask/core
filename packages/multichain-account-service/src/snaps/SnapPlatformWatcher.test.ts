@@ -263,7 +263,7 @@ describe('SnapPlatformWatcher', () => {
       expect(mocks.KeyringController.getState).toHaveBeenCalled();
     });
 
-    it('resolves when Snap keyring appears via stateChange before timeout (listener path)', async () => {
+    it('resolves when Snap keyring appears via stateChange (listener path)', async () => {
       const rootMessenger = getRootMessenger();
       const mocks = {
         SnapController: { getState: jest.fn() },
@@ -306,7 +306,52 @@ describe('SnapPlatformWatcher', () => {
       expect(await ensurePromise).toBeUndefined();
     });
 
-    it('resolves after timeout when Snap keyring never appears (initial check returns empty)', async () => {
+    it('resolves when getState throws but stateChange later delivers Snap keyring (covers #hasSnapKeyring catch path)', async () => {
+      const rootMessenger = getRootMessenger();
+      const mocks = {
+        SnapController: { getState: jest.fn() },
+        KeyringController: { getState: jest.fn() },
+      };
+      mocks.SnapController.getState.mockReturnValue({ isReady: true });
+      mocks.KeyringController.getState.mockImplementation(() => {
+        throw new Error('KeyringController locked');
+      });
+      rootMessenger.registerActionHandler(
+        'SnapController:getState',
+        mocks.SnapController.getState,
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:getState',
+        mocks.KeyringController.getState,
+      );
+      const messenger = getMultichainAccountServiceMessenger(rootMessenger);
+      const subscribeSpy = jest.spyOn(messenger, 'subscribe');
+      const watcher = new SnapPlatformWatcher(messenger);
+
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(subscribeSpy.mock.calls.map((call) => call[0])).toContain(
+        'KeyringController:stateChange',
+      );
+      const stateChangeCall = subscribeSpy.mock.calls.find(
+        (call) => call[0] === 'KeyringController:stateChange',
+      );
+      if (stateChangeCall === undefined) {
+        throw new Error(
+          'KeyringController:stateChange subscribe call not found',
+        );
+      }
+      const listener = stateChangeCall[1] as (state: {
+        keyrings: { type: string }[];
+      }) => void;
+      listener({ keyrings: [{ type: KeyringTypes.snap }] });
+
+      expect(await ensurePromise).toBeUndefined();
+    });
+
+    it('rejects with explicit error when Snap keyring does not appear within timeout', async () => {
       const { rootMessenger, watcher, mocks } = setup();
 
       mocks.KeyringController.getState.mockReturnValue({ keyrings: [] });
@@ -314,26 +359,16 @@ describe('SnapPlatformWatcher', () => {
 
       jest.useFakeTimers();
       const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      // Attach rejection handler before advancing timers to avoid unhandled rejection; await after.
+      // eslint-disable-next-line jest/valid-expect -- we await expectRejection after advancing timers
+      const expectRejection = expect(ensurePromise).rejects.toThrow(
+        'Snap platform or keyrings still not ready. Aborting.',
+      );
       await Promise.resolve();
       await jest.advanceTimersByTimeAsync(5_000);
       jest.useRealTimers();
-      expect(await ensurePromise).toBeUndefined();
-    });
 
-    it('resolves after timeout when getState throws (covers #hasSnapKeyring catch path)', async () => {
-      const { rootMessenger, watcher, mocks } = setup();
-
-      mocks.KeyringController.getState.mockImplementation(() => {
-        throw new Error('KeyringController locked');
-      });
-      publishIsReadyState(rootMessenger, true);
-
-      jest.useFakeTimers();
-      const ensurePromise = watcher.ensureCanUseSnapPlatform();
-      await Promise.resolve();
-      await jest.advanceTimersByTimeAsync(5_000);
-      jest.useRealTimers();
-      expect(await ensurePromise).toBeUndefined();
+      await expectRejection;
     });
 
     it('waits for ensureOnboardingComplete first when platform is already ready', async () => {
