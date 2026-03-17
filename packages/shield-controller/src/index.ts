@@ -14,7 +14,6 @@ export type {
   ShieldControllerStateChangeEvent,
 } from './ShieldController';
 export type {
-  ShieldControllerMethodActions,
   ShieldControllerStartAction,
   ShieldControllerStopAction,
   ShieldControllerClearStateAction,
