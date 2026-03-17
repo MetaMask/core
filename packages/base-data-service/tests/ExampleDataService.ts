@@ -131,4 +131,8 @@ export class ExampleDataService extends BaseDataService<
       page,
     );
   }
+
+  destroy(): void {
+    super.destroy();
+  }
 }

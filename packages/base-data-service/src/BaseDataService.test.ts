@@ -161,4 +161,22 @@ describe('BaseDataService', () => {
       },
     );
   });
+
+  it('does not emit events after being destroyed', async () => {
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    service.destroy();
+
+    const assets = [
+      'eip155:1/slip44:60',
+      'bip122:000000000019d6689c085ae165831e93/slip44:0',
+      'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+    ];
+
+    await service.getAssets(assets);
+
+    expect(publishSpy).toHaveBeenCalledTimes(0);
+  });
 });

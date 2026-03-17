@@ -80,6 +80,8 @@ export class BaseDataService<
 
   readonly #queryClient: QueryClient;
 
+  readonly #queryCacheUnsubscribe: () => void;
+
   constructor({
     name,
     messenger,
@@ -109,8 +111,15 @@ export class BaseDataService<
       },
     });
 
+    this.#queryCacheUnsubscribe = this.#queryClient
+      .getQueryCache()
+      .subscribe((event) => {
+        if (['added', 'updated', 'removed'].includes(event.type)) {
+          this.#broadcastCacheUpdate(event.query.queryKey);
+        }
+      });
+
     this.#registerMessageHandlers();
-    this.#setupCacheListener();
   }
 
   #registerMessageHandlers(): void {
@@ -120,12 +129,9 @@ export class BaseDataService<
     );
   }
 
-  #setupCacheListener(): void {
-    this.#queryClient.getQueryCache().subscribe((event) => {
-      if (['added', 'updated', 'removed'].includes(event.type)) {
-        this.#broadcastCacheUpdate(event.query.queryKey);
-      }
-    });
+  protected destroy(): void {
+    this.messenger.clearSubscriptions();
+    this.#queryCacheUnsubscribe();
   }
 
   protected async fetchQuery<
