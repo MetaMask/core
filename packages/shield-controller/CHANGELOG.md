@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose all public `ShieldController` methods through its messenger ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - The following actions are now available:
+    - `ShieldController:start`
+    - `ShieldController:stop`
+    - `ShieldController:clearState`
+    - `ShieldController:checkCoverage`
+    - `ShieldController:checkSignatureCoverage`
+  - Corresponding action types are now exported (e.g. `ShieldControllerCheckCoverageAction`, `ShieldControllerMethodActions`)
+
 ## [5.0.2]
 
 ### Changed

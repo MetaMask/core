@@ -10,10 +10,17 @@ export type {
   ShieldControllerMessenger,
   ShieldControllerState,
   ShieldControllerGetStateAction,
-  ShieldControllerCheckCoverageAction,
   ShieldControllerCoverageResultReceivedEvent,
   ShieldControllerStateChangeEvent,
 } from './ShieldController';
+export type {
+  ShieldControllerMethodActions,
+  ShieldControllerStartAction,
+  ShieldControllerStopAction,
+  ShieldControllerClearStateAction,
+  ShieldControllerCheckCoverageAction,
+  ShieldControllerCheckSignatureCoverageAction,
+} from './ShieldController-method-action-types';
 export {
   ShieldController,
   getDefaultShieldControllerState,
