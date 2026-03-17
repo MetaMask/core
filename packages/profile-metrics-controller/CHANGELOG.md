@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Reduce default initial delay duration from 10 minutes to 1 minute ([#8216](https://github.com/MetaMask/core/pull/8216)
+- Reduce default initial delay duration from 10 minutes to 1 minute ([#8216](https://github.com/MetaMask/core/pull/8216))
 
 ## [3.0.4]
 
