@@ -1,4 +1,11 @@
-export type * from './DelegationController-method-action-types';
+export type {
+  DelegationControllerSignDelegationAction,
+  DelegationControllerStoreAction,
+  DelegationControllerListAction,
+  DelegationControllerRetrieveAction,
+  DelegationControllerChainAction,
+  DelegationControllerDeleteAction,
+} from './DelegationController-method-action-types';
 export type {
   DelegationControllerGetStateAction,
   DelegationControllerActions,
