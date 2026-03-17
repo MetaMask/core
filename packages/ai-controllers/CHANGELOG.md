@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export new `RelatedAsset` type representing a rich asset object returned in `MarketOverviewTrend.relatedAssets` ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+
+### Changed
+
+- **BREAKING:** `MarketOverviewTrend.relatedAssets` is now `RelatedAsset[]` instead of `string[]`. Each entry includes `name`, `symbol`, `caip19`, `sourceAssetId`, and optional `hlPerpsMarket` fields ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+- `MarketOverview.headline`, `summary`, and `sources` are now optional fields to match the live `/market-overview` API response ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+- `AiDigestService.fetchMarketOverview` now accepts both flat `MarketOverview` and `{ report: MarketOverview }` enveloped responses, matching the live API shape ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+
 ## [0.3.0]
 
 ### Changed

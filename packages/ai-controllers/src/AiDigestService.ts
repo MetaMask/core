@@ -85,24 +85,48 @@ const MarketInsightsDigestEnvelopeStruct = structType({
 
 // Market Overview structs
 
+const RelatedAssetStruct = structType({
+  name: string(),
+  symbol: string(),
+  caip19: array(string()),
+  sourceAssetId: string(),
+  hlPerpsMarket: optional(string()),
+});
+
 const MarketOverviewTrendStruct = structType({
   title: string(),
   description: string(),
   category: enums(trendCategoryValues),
   impact: enums(trendImpactValues),
   articles: array(ArticleStruct),
-  relatedAssets: array(string()),
+  relatedAssets: array(RelatedAssetStruct),
 });
 
 const MarketOverviewStruct = structType({
   version: optional(string()),
   generatedAt: string(),
-  headline: string(),
-  summary: string(),
+  headline: optional(string()),
+  summary: optional(string()),
   trends: array(MarketOverviewTrendStruct),
-  sources: array(SourceStruct),
+  sources: optional(array(SourceStruct)),
   metadata: optional(array(AIResponseMetadataStruct)),
 });
+
+const MarketOverviewReportEnvelopeStruct = structType({
+  report: MarketOverviewStruct,
+});
+
+const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
+  if (is(value, MarketOverviewStruct)) {
+    return value;
+  }
+
+  if (is(value, MarketOverviewReportEnvelopeStruct)) {
+    return value.report;
+  }
+
+  return null;
+};
 
 const getNormalizedMarketInsightsReport = (
   value: unknown,
@@ -145,13 +169,13 @@ export class AiDigestService implements DigestService {
       );
     }
 
-    const body: unknown = await response.json();
+    const overview = getNormalizedMarketOverview(await response.json());
 
-    if (!is(body, MarketOverviewStruct)) {
+    if (!overview) {
       throw new Error(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     }
 
-    return body;
+    return overview;
   }
 
   /**
