@@ -80,9 +80,9 @@ export const calculateGasFees = async (
   const transactionParams = {
     ...trade,
     gas: gasLimit?.toString(),
-    data: trade.data as `0x${string}`,
-    to: trade.to as `0x${string}`,
-    value: trade.value as `0x${string}`,
+    data: trade.data,
+    to: trade.to,
+    value: trade.value,
   };
   const { gasFeeEstimates } = messenger.call('GasFeeController:getState');
   const { estimates: txGasFeeEstimates } = await messenger.call(

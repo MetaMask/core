@@ -1469,7 +1469,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               const atomicBatchSupport = await this.messenger.call(
                 'TransactionController:isAtomicBatchSupported',
                 {
-                  address: (quoteResponse.trade as TxData).from as Hex,
+                  address: (quoteResponse.trade as TxData).from,
                   chainIds: [hexChainId],
                 },
               );

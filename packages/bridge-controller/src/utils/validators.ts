@@ -40,23 +40,23 @@ export enum ActionTypes {
   REFUEL = 'refuel',
 }
 
-const HexAddressSchema = define<string>('HexAddress', (v: unknown) =>
-  isValidHexAddress(v as string, { allowNonPrefixed: false }),
+const HexAddressSchema = define<`0x${string}`>('HexAddress', (data: unknown) =>
+  isValidHexAddress(data as string, { allowNonPrefixed: false }),
 );
 
-const HexStringSchema = define<string>('HexString', (v: unknown) =>
-  isStrictHexString(v as string),
+const HexStringSchema = define<`0x${string}`>('HexString', (data: unknown) =>
+  isStrictHexString(data as string),
 );
 
 const VersionStringSchema = define<string>(
   'VersionString',
-  (v: unknown) =>
-    typeof v === 'string' &&
-    /^(\d+\.*){2}\d+$/u.test(v) &&
-    v.split('.').length === 3,
+  (data: unknown) =>
+    typeof data === 'string' &&
+    /^(\d+\.*){2}\d+$/u.test(data) &&
+    data.split('.').length === 3,
 );
 
-export const truthyString = (s: string) => Boolean(s?.length);
+export const truthyString = (data: string): boolean => Boolean(data?.length);
 const TruthyDigitStringSchema = pattern(string(), /^\d+$/u);
 
 const ChainIdSchema = number();
