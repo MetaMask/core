@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/bridge-controller` from `^69.1.0` to `^69.2.0` ([#8223](https://github.com/MetaMask/core/pull/8223))
+- **BREAKING:** `BridgeStatusControllerMessenger` must now allow `TransactionController:isAtomicBatchSupported` action ([#8125](https://github.com/MetaMask/core/pull/8125))
 - Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
 
 ### Fixed
