@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/address-book-controller` from `^7.0.1` to `^7.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+
 ## [28.0.0]
 
 ### Added
