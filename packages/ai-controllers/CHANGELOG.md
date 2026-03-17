@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export new `RelatedAsset` type representing a rich asset object returned in `MarketOverviewTrend.relatedAssets` ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+- Export new `RelatedAsset` type representing a rich asset object returned in `MarketOverviewTrend.relatedAssets` ([#8218](https://github.com/MetaMask/core/pull/8218)).
 
 ### Changed
 
-- **BREAKING:** `MarketOverviewTrend.relatedAssets` is now `RelatedAsset[]` instead of `string[]`. Each entry includes `name`, `symbol`, `caip19`, `sourceAssetId`, and optional `hlPerpsMarket` fields ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
-- `MarketOverview.headline`, `summary`, and `sources` are now optional fields to match the live `/market-overview` API response ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
-- `AiDigestService.fetchMarketOverview` now accepts both flat `MarketOverview` and `{ report: MarketOverview }` enveloped responses, matching the live API shape ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+- **BREAKING:** `MarketOverviewTrend.relatedAssets` is now `RelatedAsset[]` instead of `string[]`. Each entry includes `name`, `symbol`, `caip19`, `sourceAssetId`, and optional `hlPerpsMarket` fields ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- `MarketOverview.headline`, `summary`, and `sources` are now optional fields to match the live `/market-overview` API response ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- `AiDigestService.fetchMarketOverview` now accepts both flat `MarketOverview` and `{ report: MarketOverview }` enveloped responses, matching the live API shape ([#8218](https://github.com/MetaMask/core/pull/8218)).
 
 ## [0.3.0]
 
