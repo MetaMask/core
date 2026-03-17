@@ -1,9 +1,6 @@
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type {
-  KeyringMetadata,
-  KeyringObject,
-} from '@metamask/keyring-controller';
+import type { KeyringMetadata } from '@metamask/keyring-controller';
 
 import type { CashAccountServiceMessenger } from './types';
 
@@ -33,36 +30,24 @@ export class CashAccountService {
    * @returns The metadata of the newly created Cash keyring.
    */
   async createCashAccount(entropySource: string): Promise<KeyringMetadata> {
-    const { keyrings } = this.#messenger.call('KeyringController:getState');
-
-    const hdKeyringsFromState = keyrings.filter(
-      (kr: KeyringObject) => kr.type === KeyringTypes.hd,
-    );
-    const hdKeyringIndex = hdKeyringsFromState.findIndex(
-      (kr: KeyringObject) => kr.metadata.id === entropySource,
-    );
-    if (hdKeyringIndex === -1) {
-      throw new Error(
-        `No HD keyring found for entropy source: ${entropySource}`,
-      );
-    }
-
-    const hdKeyrings = this.#messenger.call(
-      'KeyringController:getKeyringsByType',
-      KeyringTypes.hd,
-    ) as HdKeyring[];
-
-    const hdKeyring = hdKeyrings[hdKeyringIndex];
-    if (!hdKeyring?.mnemonic) {
-      throw new Error(
-        'HD keyring does not have a mnemonic for the given entropy source.',
-      );
-    }
+    const mnemonic = (await this.#messenger.call(
+      'KeyringController:withKeyring',
+      { id: entropySource },
+      async ({ keyring }) => {
+        const hdKeyring = keyring as unknown as HdKeyring;
+        if (!hdKeyring.mnemonic) {
+          throw new Error(
+            'HD keyring does not have a mnemonic for the given entropy source.',
+          );
+        }
+        return hdKeyring.mnemonic;
+      },
+    )) as Uint8Array;
 
     return await this.#messenger.call(
       'KeyringController:addNewKeyring',
       KeyringTypes.cash,
-      { mnemonic: hdKeyring.mnemonic },
+      { mnemonic },
     );
   }
 }
