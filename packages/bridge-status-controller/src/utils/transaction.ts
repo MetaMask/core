@@ -8,7 +8,6 @@ import {
   isCrossChain,
 } from '@metamask/bridge-controller';
 import type {
-  Intent,
   QuoteMetadata,
   QuoteResponse,
   Trade,
@@ -37,7 +36,6 @@ import type {
   BridgeStatusControllerMessenger,
   SolanaTransactionMeta,
 } from '../types';
-import type { BridgeStatusControllerState } from '../types';
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
@@ -275,32 +273,6 @@ export const waitForTxConfirmation = async (
   }
 };
 
-export const rekeyHistoryItemInState = (
-  state: BridgeStatusControllerState,
-  actionId: string,
-  txMeta: { id: string; hash?: string },
-): boolean => {
-  const historyItem = state.txHistory[actionId];
-  if (!historyItem) {
-    return false;
-  }
-
-  state.txHistory[txMeta.id] = {
-    ...historyItem,
-    txMetaId: txMeta.id,
-    originalTransactionId: historyItem.originalTransactionId ?? txMeta.id,
-    status: {
-      ...historyItem.status,
-      srcChain: {
-        ...historyItem.status.srcChain,
-        txHash: txMeta.hash ?? historyItem.status.srcChain?.txHash,
-      },
-    },
-  };
-  delete state.txHistory[actionId];
-  return true;
-};
-
 export const toBatchTxParams = (
   skipGasFields: boolean,
   { chainId, gasLimit, ...trade }: TxData,
@@ -523,25 +495,3 @@ export const findAndUpdateTransactionsInBatch = ({
 
   return txBatch;
 };
-
-/**
- * Determines the key to use for storing a bridge history item.
- * Uses actionId for pre-submission tracking, or bridgeTxMetaId for post-submission.
- *
- * @param actionId - The action ID used for pre-submission tracking
- * @param bridgeTxMetaId - The transaction meta ID from bridgeTxMeta
- * @returns The key to use for the history item
- * @throws Error if neither actionId nor bridgeTxMetaId is provided
- */
-export function getHistoryKey(
-  actionId: string | undefined,
-  bridgeTxMetaId: string | undefined,
-): string {
-  const historyKey = actionId ?? bridgeTxMetaId;
-  if (!historyKey) {
-    throw new Error(
-      'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
-    );
-  }
-  return historyKey;
-}

@@ -17,6 +17,7 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
+import { rekeyHistoryItemInState, getHistoryKey } from './history';
 import { getIntentFromQuote } from './intent-api';
 import * as snaps from './snaps';
 import {
@@ -29,8 +30,6 @@ import {
   toBatchTxParams,
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
-  getHistoryKey,
-  rekeyHistoryItemInState,
   waitForTxConfirmation,
 } from './transaction';
 import { APPROVAL_DELAY_MS } from '../constants';

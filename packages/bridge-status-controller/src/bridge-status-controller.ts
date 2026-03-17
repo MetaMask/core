@@ -66,6 +66,11 @@ import {
 } from './utils/bridge-status';
 import { getTxGasEstimates } from './utils/gas';
 import {
+  getInitialHistoryItem,
+  rekeyHistoryItemInState,
+  shouldPollHistoryItem,
+} from './utils/history';
+import {
   getIntentFromQuote,
   IntentSubmissionParams,
   mapIntentOrderStatusToTransactionStatus,
@@ -90,14 +95,12 @@ import {
   findAndUpdateTransactionsInBatch,
   getAddTransactionBatchParams,
   getClientRequest,
-  getHistoryKey,
   getStatusRequestParams,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   handleNonEvmTxResponse,
   generateActionId,
   waitForTxConfirmation,
-  rekeyHistoryItemInState,
 } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -404,7 +407,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
 
     // Restart polling if it was stopped and this tx still needs status updates
-    if (this.#shouldPollHistoryItem(historyItem)) {
+    if (shouldPollHistoryItem(historyItem)) {
       // Check if polling was stopped (no active polling token)
       const existingPollingToken =
         this.#pollingTokensByTxMetaId[targetTxMetaId];
@@ -489,7 +492,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       })
       // Only restart polling for items that still require status updates
       .filter((historyItem) => {
-        return this.#shouldPollHistoryItem(historyItem);
+        return shouldPollHistoryItem(historyItem);
       });
 
     incompleteHistoryItems.forEach((historyItem) => {
@@ -508,71 +511,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #addTxToHistory = (
-    startPollingForBridgeTxStatusArgs: StartPollingForBridgeTxStatusArgsSerialized,
-    actionId?: string,
+    ...args: Parameters<typeof getInitialHistoryItem>
   ): void => {
-    const {
-      bridgeTxMeta,
-      statusRequest,
-      quoteResponse,
-      startTime,
-      slippagePercentage,
-      initialDestAssetBalance,
-      targetContractAddress,
-      approvalTxId,
-      isStxEnabled,
-      location,
-      abTests,
-      activeAbTests,
-      accountAddress: selectedAddress,
-    } = startPollingForBridgeTxStatusArgs;
-
-    // Determine the key for this history item:
-    // - For pre-submission (non-batch EVM): use actionId
-    // - For post-submission or other cases: use bridgeTxMeta.id
-    const historyKey = getHistoryKey(actionId, bridgeTxMeta?.id);
-
-    // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
-    // We know it's in progress but not the exact status yet
-    const txHistoryItem: BridgeHistoryItem = {
-      txMetaId: bridgeTxMeta?.id,
-      actionId,
-      originalTransactionId:
-        (bridgeTxMeta as unknown as { originalTransactionId: string })
-          ?.originalTransactionId || bridgeTxMeta?.id, // Keep original for intent transactions
-      batchId: bridgeTxMeta?.batchId,
-      quote: quoteResponse.quote,
-      startTime,
-      estimatedProcessingTimeInSeconds:
-        quoteResponse.estimatedProcessingTimeInSeconds,
-      slippagePercentage,
-      pricingData: {
-        amountSent: quoteResponse.sentAmount?.amount ?? '0',
-        amountSentInUsd: quoteResponse.sentAmount?.usd ?? undefined,
-        quotedGasInUsd: quoteResponse.gasFee?.effective?.usd ?? undefined,
-        quotedReturnInUsd: quoteResponse.toTokenAmount?.usd ?? undefined,
-        quotedGasAmount: quoteResponse.gasFee?.effective?.amount ?? undefined,
-      },
-      initialDestAssetBalance,
-      targetContractAddress,
-      account: selectedAddress,
-      status: {
-        // We always have a PENDING status when we start polling for a tx, don't need the Bridge API for that
-        // Also we know the bare minimum fields for status at this point in time
-        status: StatusTypes.PENDING,
-        srcChain: {
-          chainId: statusRequest.srcChainId,
-          txHash: statusRequest.srcTxHash,
-        },
-      },
-      hasApprovalTx: Boolean(quoteResponse.approval),
-      approvalTxId,
-      isStxEnabled: Boolean(isStxEnabled),
-      featureId: quoteResponse.featureId,
-      location,
-      ...(abTests && { abTests }),
-      ...(activeAbTests && { activeAbTests }),
-    };
+    const { historyKey, txHistoryItem } = getInitialHistoryItem(...args);
     this.update((state) => {
       // Use actionId as key for pre-submission, or txMeta.id for post-submission
       state.txHistory[historyKey] = txHistoryItem;
@@ -608,24 +549,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (!txHistoryItem) {
       return;
     }
-    if (this.#shouldPollHistoryItem(txHistoryItem)) {
+    if (shouldPollHistoryItem(txHistoryItem)) {
       this.#pollingTokensByTxMetaId[txId] = this.startPolling({
         bridgeTxMetaId: txId,
       });
     }
-  };
-
-  readonly #shouldPollHistoryItem = (
-    historyItem: BridgeHistoryItem,
-  ): boolean => {
-    const isIntent = Boolean(historyItem?.quote?.intent);
-    const isBridgeTx = isCrossChain(
-      historyItem.quote.srcChainId,
-      historyItem.quote.destChainId,
-    );
-    const isTronTx = isTronChainId(historyItem.quote.srcChainId);
-
-    return [isBridgeTx, isIntent, isTronTx].some(Boolean);
   };
 
   /**
