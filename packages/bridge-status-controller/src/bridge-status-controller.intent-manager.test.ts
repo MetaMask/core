@@ -147,9 +147,26 @@ describe('IntentManager', () => {
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    expect(mockCall.mock.calls[0][0]).toMatchInlineSnapshot(
-      `"TransactionController:getState"`,
-    );
+    expect(mockCall.mock.calls).toMatchInlineSnapshot(`
+      [
+        [
+          "TransactionController:getState",
+        ],
+        [
+          "TransactionController:updateTransaction",
+          {
+            "hash": "0xhash",
+            "id": "tx-2",
+            "status": "confirmed",
+            "txReceipt": {
+              "status": "0x1",
+              "transactionHash": "0xhash",
+            },
+          },
+          "BridgeStatusController - Intent order status updated: completed",
+        ],
+      ]
+    `);
   });
 
   it('getIntentTransactionStatus returns undefined when getOrderStatus rejects with non-Error', async () => {
