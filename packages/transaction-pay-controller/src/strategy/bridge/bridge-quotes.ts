@@ -167,10 +167,10 @@ export async function refreshQuote(
  * @returns Batch transaction.
  */
 function getBatchTransaction(transaction: TxData): BatchTransaction {
-  const data = transaction.data as Hex;
+  const { data } = transaction;
   const gas = transaction.gasLimit ? toHex(transaction.gasLimit) : undefined;
-  const to = transaction.to as Hex;
-  const value = transaction.value as Hex;
+  const { to } = transaction;
+  const { value } = transaction;
 
   return {
     data,
