@@ -35,9 +35,11 @@ export class CashAccountService {
   async createCashAccount(entropySource: string): Promise<KeyringMetadata> {
     const { keyrings } = this.#messenger.call('KeyringController:getState');
 
-    const hdKeyringIndex = keyrings.findIndex(
-      (kr: KeyringObject) =>
-        kr.type === KeyringTypes.hd && kr.metadata.id === entropySource,
+    const hdKeyringsFromState = keyrings.filter(
+      (kr: KeyringObject) => kr.type === KeyringTypes.hd,
+    );
+    const hdKeyringIndex = hdKeyringsFromState.findIndex(
+      (kr: KeyringObject) => kr.metadata.id === entropySource,
     );
     if (hdKeyringIndex === -1) {
       throw new Error(
