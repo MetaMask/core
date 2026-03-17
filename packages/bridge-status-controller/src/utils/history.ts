@@ -2,7 +2,8 @@ import {
   StatusTypes,
   isCrossChain,
   isTronChainId,
-} from '../../../bridge-controller/src';
+} from '@metamask/bridge-controller';
+
 import type {
   BridgeHistoryItem,
   BridgeStatusControllerState,
