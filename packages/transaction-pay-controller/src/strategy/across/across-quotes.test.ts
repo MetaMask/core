@@ -483,7 +483,7 @@ describe('Across Quotes', () => {
       expect(getRequestBody().actions).toStrictEqual([]);
     });
 
-    it('uses decoded actions for predict setup transactions', async () => {
+    it('uses decoded actions for supported setup transactions', async () => {
       const createProxyData = buildCreateProxyData();
       const execTransactionData = buildExecTransactionData();
       const transferData = buildTransferData(TRANSFER_RECIPIENT, 0);
@@ -497,7 +497,6 @@ describe('Across Quotes', () => {
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
           ...TRANSACTION_META_MOCK,
-          type: TransactionType.predictDeposit,
           nestedTransactions: [
             { to: FACTORY_ADDRESS, data: createProxyData },
             { to: SAFE_ADDRESS, data: execTransactionData },
@@ -509,7 +508,7 @@ describe('Across Quotes', () => {
       const [url] = successfulFetchMock.mock.calls[0];
       const params = new URL(url as string).searchParams;
 
-      expect(params.get('recipient')).toBe(FROM_MOCK);
+      expect(params.get('recipient')).toBe(TRANSFER_RECIPIENT.toLowerCase());
       expect(getRequestBody().actions).toStrictEqual([
         {
           args: [
@@ -585,23 +584,6 @@ describe('Across Quotes', () => {
           target: SAFE_ADDRESS,
           value: '0',
         },
-        {
-          args: [
-            {
-              populateDynamically: false,
-              value: TRANSFER_RECIPIENT.toLowerCase(),
-            },
-            {
-              balanceSourceToken: QUOTE_REQUEST_MOCK.targetTokenAddress,
-              populateDynamically: true,
-              value: '0',
-            },
-          ],
-          functionSignature: 'function transfer(address to, uint256 value)',
-          isNativeTransfer: false,
-          target: QUOTE_REQUEST_MOCK.targetTokenAddress,
-          value: '0',
-        },
       ]);
     });
 
@@ -618,7 +600,6 @@ describe('Across Quotes', () => {
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
           ...TRANSACTION_META_MOCK,
-          type: TransactionType.predictDeposit,
           nestedTransactions: [
             { to: FACTORY_ADDRESS, data: createProxyData },
             { data: transferData },
@@ -627,14 +608,26 @@ describe('Across Quotes', () => {
       });
 
       const body = getRequestBody();
-      expect(body.actions).toHaveLength(2);
-      expect(body.actions[1]).toMatchObject({
-        functionSignature: 'function transfer(address to, uint256 value)',
-        target: QUOTE_REQUEST_MOCK.targetTokenAddress,
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('recipient')).toBe(TRANSFER_RECIPIENT.toLowerCase());
+      expect(body.actions).toHaveLength(1);
+      expect(body.actions[0]).toMatchObject({
+        functionSignature:
+          'function createProxy(address paymentToken, uint256 payment, address payable paymentReceiver, (uint8 v, bytes32 r, bytes32 s) createSig)',
+        target: FACTORY_ADDRESS,
       });
     });
 
-    it('uses from address for predict deposits with no calldata', async () => {
+    it('uses the first transfer in a batch as recipient and keeps later transfers as post-swap actions', async () => {
+      const firstTransferRecipient =
+        '0x1111111111111111111111111111111111111111' as Hex;
+      const secondTransferRecipient =
+        '0x2222222222222222222222222222222222222222' as Hex;
+      const firstTransferData = buildTransferData(firstTransferRecipient, 0);
+      const secondTransferData = buildTransferData(secondTransferRecipient, 0);
+
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as Response);
@@ -644,8 +637,55 @@ describe('Across Quotes', () => {
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
           ...TRANSACTION_META_MOCK,
-          type: TransactionType.predictDeposit,
+          nestedTransactions: [
+            {
+              to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+              data: firstTransferData,
+            },
+            {
+              to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+              data: secondTransferData,
+            },
+          ],
+        } as TransactionMeta,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('recipient')).toBe(
+        firstTransferRecipient.toLowerCase(),
+      );
+      expect(getRequestBody().actions).toStrictEqual([
+        {
+          args: [
+            {
+              populateDynamically: false,
+              value: secondTransferRecipient.toLowerCase(),
+            },
+            {
+              balanceSourceToken: QUOTE_REQUEST_MOCK.targetTokenAddress,
+              populateDynamically: true,
+              value: '0',
+            },
+          ],
+          functionSignature: 'function transfer(address to, uint256 value)',
+          isNativeTransfer: false,
+          target: QUOTE_REQUEST_MOCK.targetTokenAddress,
+          value: '0',
         },
+      ]);
+    });
+
+    it('uses from address when no destination calldata exists', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
       });
 
       const [url] = successfulFetchMock.mock.calls[0];
@@ -655,7 +695,7 @@ describe('Across Quotes', () => {
       expect(getRequestBody().actions).toStrictEqual([]);
     });
 
-    it('falls back to top-level predict setup calldata when no nested calldata exists', async () => {
+    it('falls back to top-level setup calldata when no nested calldata exists', async () => {
       const createProxyData = buildCreateProxyData();
 
       successfulFetchMock.mockResolvedValue({
@@ -667,7 +707,6 @@ describe('Across Quotes', () => {
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
           ...TRANSACTION_META_MOCK,
-          type: TransactionType.predictDeposit,
           txParams: {
             from: FROM_MOCK,
             to: FACTORY_ADDRESS,
@@ -709,7 +748,7 @@ describe('Across Quotes', () => {
       ]);
     });
 
-    it('throws for unsupported predict setup calldata', async () => {
+    it('throws for unsupported setup calldata', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as Response);
@@ -720,7 +759,6 @@ describe('Across Quotes', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
             ...TRANSACTION_META_MOCK,
-            type: TransactionType.predictDeposit,
             nestedTransactions: [
               {
                 to: FACTORY_ADDRESS,
@@ -732,7 +770,7 @@ describe('Across Quotes', () => {
       ).rejects.toThrow(/Across only supports transfer-style/u);
     });
 
-    it('throws when predict createProxy calldata is missing target', async () => {
+    it('throws when createProxy calldata is missing target', async () => {
       const createProxyData = buildCreateProxyData();
 
       successfulFetchMock.mockResolvedValue({
@@ -745,14 +783,13 @@ describe('Across Quotes', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
             ...TRANSACTION_META_MOCK,
-            type: TransactionType.predictDeposit,
             nestedTransactions: [{ data: createProxyData }],
           } as TransactionMeta,
         }),
       ).rejects.toThrow(/Across only supports transfer-style/u);
     });
 
-    it('throws when predict execTransaction calldata is missing target', async () => {
+    it('throws when execTransaction calldata is missing target', async () => {
       const execTransactionData = buildExecTransactionData();
 
       successfulFetchMock.mockResolvedValue({
@@ -765,7 +802,6 @@ describe('Across Quotes', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
             ...TRANSACTION_META_MOCK,
-            type: TransactionType.predictDeposit,
             nestedTransactions: [{ data: execTransactionData }],
           } as TransactionMeta,
         }),
@@ -1547,33 +1583,30 @@ describe('Across Quotes', () => {
       expect(params.get('recipient')).toBe(FROM_MOCK);
     });
 
-    it('uses nested transaction transfer recipient when available', async () => {
+    it('throws when nested transactions mix a transfer with unsupported calldata', async () => {
       const transferData = buildTransferData(TRANSFER_RECIPIENT);
 
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as Response);
 
-      await getAcrossQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          nestedTransactions: [
-            { data: transferData },
-            { data: '0xbeef' as Hex },
-          ],
-          txParams: {
-            from: FROM_MOCK,
-            data: '0xabc' as Hex,
-          },
-        } as TransactionMeta,
-      });
-
-      const [url] = successfulFetchMock.mock.calls[0];
-      const params = new URL(url as string).searchParams;
-
-      expect(params.get('recipient')).toBe(TRANSFER_RECIPIENT.toLowerCase());
+      await expect(
+        getAcrossQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            nestedTransactions: [
+              { data: transferData },
+              { data: '0xbeef' as Hex },
+            ],
+            txParams: {
+              from: FROM_MOCK,
+              data: '0xabc' as Hex,
+            },
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(/Across only supports transfer-style/u);
     });
 
     it('uses txParams data when single nested transaction has no data', async () => {
@@ -1653,33 +1686,30 @@ describe('Across Quotes', () => {
       expect(result).toHaveLength(1);
     });
 
-    it('extracts recipient from token transfer in nested transactions array', async () => {
+    it('throws when nested transactions include unsupported calldata before a transfer', async () => {
       const transferData = buildTransferData(TRANSFER_RECIPIENT);
 
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as Response);
 
-      await getAcrossQuotes({
-        messenger,
-        requests: [QUOTE_REQUEST_MOCK],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          nestedTransactions: [
-            { data: '0xother' as Hex },
-            { data: transferData },
-          ],
-          txParams: {
-            from: FROM_MOCK,
-            data: '0xnonTransferData' as Hex,
-          },
-        } as TransactionMeta,
-      });
-
-      const [url] = successfulFetchMock.mock.calls[0];
-      const params = new URL(url as string).searchParams;
-
-      expect(params.get('recipient')).toBe(TRANSFER_RECIPIENT.toLowerCase());
+      await expect(
+        getAcrossQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            nestedTransactions: [
+              { data: '0xother' as Hex },
+              { data: transferData },
+            ],
+            txParams: {
+              from: FROM_MOCK,
+              data: '0xnonTransferData' as Hex,
+            },
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(/Across only supports transfer-style/u);
     });
 
     it('handles nested transactions with undefined data', async () => {

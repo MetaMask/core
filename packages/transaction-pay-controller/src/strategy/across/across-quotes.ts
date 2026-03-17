@@ -1,12 +1,16 @@
-import { Interface } from '@ethersproject/abi';
 import { successfulFetch, toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { getAcrossOrderedTransactions } from './transactions';
+import type { AcrossDestinationCall } from './across-actions';
+import {
+  buildAcrossActionFromCall,
+  getTransferRecipient,
+  isExtractableOutputTokenTransferCall,
+} from './across-actions';
 import type {
   AcrossAction,
   AcrossActionRequestBody,
@@ -29,37 +33,17 @@ import { getPayStrategiesConfig, getSlippage } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
-import { TOKEN_TRANSFER_FOUR_BYTE } from '../relay/constants';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 
-const TOKEN_TRANSFER_SIGNATURE = 'function transfer(address to, uint256 value)';
-const CREATE_PROXY_SIGNATURE =
-  'function createProxy(address paymentToken, uint256 payment, address payable paymentReceiver, (uint8 v, bytes32 r, bytes32 s) createSig)';
-const SAFE_EXEC_TRANSACTION_SIGNATURE =
-  'function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures)';
-
-const TOKEN_TRANSFER_INTERFACE = new Interface([TOKEN_TRANSFER_SIGNATURE]);
-const CREATE_PROXY_INTERFACE = new Interface([CREATE_PROXY_SIGNATURE]);
-const SAFE_EXEC_TRANSACTION_INTERFACE = new Interface([
-  SAFE_EXEC_TRANSACTION_SIGNATURE,
-]);
-
 const UNSUPPORTED_AUTHORIZATION_LIST_ERROR =
   'Across does not support type-4/EIP-7702 authorization lists yet';
-const UNSUPPORTED_DESTINATION_ERROR =
-  'Across only supports transfer-style destination flows at the moment';
 
 type AcrossQuoteWithoutMetaMask = Omit<AcrossQuote, 'metamask'>;
 
 type AcrossDestination = {
   actions: AcrossAction[];
   recipient: Hex;
-};
-
-type AcrossDestinationCall = {
-  data: Hex;
-  target?: Hex;
 };
 
 /**
@@ -219,39 +203,9 @@ function getAcrossDestination(
 ): AcrossDestination {
   const { from } = request;
   const destinationCalls = getDestinationCalls(transaction);
-  const transferCall = destinationCalls.find((call) =>
-    isTransferCall(call.data),
+  const swapRecipientTransferCallIndex = destinationCalls.findIndex((call) =>
+    isExtractableOutputTokenTransferCall(call, request),
   );
-
-  if (transaction.type === TransactionType.predictDeposit) {
-    if (destinationCalls.length === 0) {
-      return {
-        actions: [],
-        recipient: from,
-      };
-    }
-
-    if (destinationCalls.length === 1 && transferCall) {
-      return {
-        actions: [],
-        recipient: getTransferRecipient(transferCall.data),
-      };
-    }
-
-    return {
-      actions: destinationCalls.map((call) =>
-        buildAcrossActionFromCall(call, request),
-      ),
-      recipient: from,
-    };
-  }
-
-  if (transferCall) {
-    return {
-      actions: [],
-      recipient: getTransferRecipient(transferCall.data),
-    };
-  }
 
   if (destinationCalls.length === 0) {
     return {
@@ -260,175 +214,23 @@ function getAcrossDestination(
     };
   }
 
-  throw new Error(UNSUPPORTED_DESTINATION_ERROR);
-}
+  if (swapRecipientTransferCallIndex !== -1) {
+    const swapRecipientTransferCall =
+      destinationCalls[swapRecipientTransferCallIndex];
 
-function buildAcrossActionFromCall(
-  call: AcrossDestinationCall,
-  request: QuoteRequest,
-): AcrossAction {
-  if (isTransferCall(call.data)) {
-    return buildAcrossTransferAction(call, request);
+    return {
+      actions: destinationCalls
+        .filter((_, index) => index !== swapRecipientTransferCallIndex)
+        .map((call) => buildAcrossActionFromCall(call, request)),
+      recipient: getTransferRecipient(swapRecipientTransferCall.data),
+    };
   }
-
-  if (isCreateProxyCall(call.data)) {
-    return buildCreateProxyAction(call);
-  }
-
-  if (isSafeExecTransactionCall(call.data)) {
-    return buildSafeExecTransactionAction(call);
-  }
-
-  throw new Error(UNSUPPORTED_DESTINATION_ERROR);
-}
-
-function buildAcrossTransferAction(
-  call: AcrossDestinationCall,
-  request: QuoteRequest,
-): AcrossAction {
-  return {
-    args: [
-      {
-        populateDynamically: false,
-        value: getTransferRecipient(call.data),
-      },
-      {
-        balanceSourceToken: request.targetTokenAddress,
-        populateDynamically: true,
-        value: '0',
-      },
-    ],
-    functionSignature: TOKEN_TRANSFER_SIGNATURE,
-    isNativeTransfer: false,
-    target: call.target ?? request.targetTokenAddress,
-    value: '0',
-  };
-}
-
-function buildCreateProxyAction(call: AcrossDestinationCall): AcrossAction {
-  if (!call.target) {
-    throw new Error(UNSUPPORTED_DESTINATION_ERROR);
-  }
-
-  const [paymentToken, payment, paymentReceiver, createSig] =
-    CREATE_PROXY_INTERFACE.decodeFunctionData('createProxy', call.data) as [
-      Hex,
-      BigNumber,
-      Hex,
-      { r: Hex; s: Hex; v: number },
-    ];
 
   return {
-    args: [
-      {
-        populateDynamically: false,
-        value: normalizeHexString(paymentToken),
-      },
-      {
-        populateDynamically: false,
-        value: payment.toString(),
-      },
-      {
-        populateDynamically: false,
-        value: normalizeHexString(paymentReceiver),
-      },
-      {
-        populateDynamically: false,
-        value: [
-          String(createSig.v),
-          normalizeHexString(createSig.r),
-          normalizeHexString(createSig.s),
-        ],
-      },
-    ],
-    functionSignature: CREATE_PROXY_SIGNATURE,
-    isNativeTransfer: false,
-    target: call.target,
-    value: '0',
-  };
-}
-
-function buildSafeExecTransactionAction(
-  call: AcrossDestinationCall,
-): AcrossAction {
-  if (!call.target) {
-    throw new Error(UNSUPPORTED_DESTINATION_ERROR);
-  }
-
-  const [
-    to,
-    value,
-    data,
-    operation,
-    safeTxGas,
-    baseGas,
-    gasPrice,
-    gasToken,
-    refundReceiver,
-    signatures,
-  ] = SAFE_EXEC_TRANSACTION_INTERFACE.decodeFunctionData(
-    'execTransaction',
-    call.data,
-  ) as [
-    Hex,
-    BigNumber,
-    Hex,
-    number,
-    BigNumber,
-    BigNumber,
-    BigNumber,
-    Hex,
-    Hex,
-    Hex,
-  ];
-
-  return {
-    args: [
-      {
-        populateDynamically: false,
-        value: normalizeHexString(to),
-      },
-      {
-        populateDynamically: false,
-        value: value.toString(),
-      },
-      {
-        populateDynamically: false,
-        value: normalizeHexString(data),
-      },
-      {
-        populateDynamically: false,
-        value: String(operation),
-      },
-      {
-        populateDynamically: false,
-        value: safeTxGas.toString(),
-      },
-      {
-        populateDynamically: false,
-        value: baseGas.toString(),
-      },
-      {
-        populateDynamically: false,
-        value: gasPrice.toString(),
-      },
-      {
-        populateDynamically: false,
-        value: normalizeHexString(gasToken),
-      },
-      {
-        populateDynamically: false,
-        value: normalizeHexString(refundReceiver),
-      },
-      {
-        populateDynamically: false,
-        value: normalizeHexString(signatures),
-      },
-    ],
-    functionSignature: SAFE_EXEC_TRANSACTION_SIGNATURE,
-    isNativeTransfer: false,
-    target: call.target,
-    value: '0',
+    actions: destinationCalls.map((call) =>
+      buildAcrossActionFromCall(call, request),
+    ),
+    recipient: from,
   };
 }
 
@@ -459,31 +261,6 @@ function getDestinationCalls(
       target: transaction.txParams?.to as Hex | undefined,
     },
   ];
-}
-
-function isTransferCall(data: Hex): boolean {
-  return data.startsWith(TOKEN_TRANSFER_FOUR_BYTE);
-}
-
-function isCreateProxyCall(data: Hex): boolean {
-  return data.startsWith(CREATE_PROXY_INTERFACE.getSighash('createProxy'));
-}
-
-function isSafeExecTransactionCall(data: Hex): boolean {
-  return data.startsWith(
-    SAFE_EXEC_TRANSACTION_INTERFACE.getSighash('execTransaction'),
-  );
-}
-
-function getTransferRecipient(data: Hex): Hex {
-  return TOKEN_TRANSFER_INTERFACE.decodeFunctionData(
-    'transfer',
-    data,
-  ).to.toLowerCase() as Hex;
-}
-
-function normalizeHexString(value: string): string {
-  return value.toLowerCase();
 }
 
 async function normalizeQuote(

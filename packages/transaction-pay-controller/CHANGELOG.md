@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support gasless Relay deposits via `execute` endpoint ([#8133](https://github.com/MetaMask/core/pull/8133))
 - Build Across post-swap transfer actions for `predictDeposit` quotes so Predict deposits can bridge swapped output into the destination proxy wallet ([#8159](https://github.com/MetaMask/core/pull/8159))
-- Improve `predictDeposit` Across quote handling to decode proxy-setup destination calls into post-swap actions while sending transfer-only deposits directly to the destination recipient ([#8208](https://github.com/MetaMask/core/pull/8208))
+- Improve Across quote handling to decode supported destination calls into post-swap actions while sending transfer-only destinations directly to the destination recipient ([#8208](https://github.com/MetaMask/core/pull/8208))
 
 ### Changed
 
