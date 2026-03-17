@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose all public `SeedlessOnboardingController` methods through its messenger ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Expose all public `SeedlessOnboardingController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
   - The following actions are now available:
     - `SeedlessOnboardingController:fetchMetadataAccessCreds`
     - `SeedlessOnboardingController:preloadToprfNodeDetails`
