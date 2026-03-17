@@ -1,3 +1,4 @@
+import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type { StateMetadata } from '@metamask/base-controller';
 import type {
   QuoteMetadata,
@@ -12,7 +13,6 @@ import {
   isNonEvmChainId,
   StatusTypes,
   UnifiedSwapBridgeEventName,
-  formatChainIdToCaip,
   isCrossChain,
   isTronChainId,
   isEvmTxData,
@@ -46,7 +46,6 @@ import {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
-  TraceName,
 } from './constants';
 import type {
   BridgeStatusControllerState,
