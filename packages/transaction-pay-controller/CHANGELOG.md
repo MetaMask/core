@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
 ### Added
 
 - **BREAKING:** Add `AssetsControllerGetStateForTransactionPayAction` to the `AllowedActions` messenger type ([#8163](https://github.com/MetaMask/core/pull/8163))
@@ -15,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `getTokenBalance`, `getTokenInfo`, and `getTokenFiatRate` now source token metadata, balances, and pricing from `AssetsControllerGetStateForTransactionPayAction` when the `assetsUnifyState` remote feature flag is enabled, falling back to individual controller state calls otherwise ([#8163](https://github.com/MetaMask/core/pull/8163))
 - Zero out source network fees in Relay strategy when quote indicates execute flow ([#8181](https://github.com/MetaMask/core/pull/8181))
+- Harden relay status polling ([#8189](https://github.com/MetaMask/core/pull/8189))
+  - Throw if status not recognised.
+  - Support feature flags for polling interval and timeout.
+  - Ignore transient network errors.
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
 
 ## [16.5.0]
 
@@ -519,7 +526,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.5.0...@metamask/transaction-pay-controller@17.0.0
 [16.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.1...@metamask/transaction-pay-controller@16.5.0
 [16.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.0...@metamask/transaction-pay-controller@16.4.1
 [16.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.3.0...@metamask/transaction-pay-controller@16.4.0
