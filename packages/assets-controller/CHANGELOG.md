@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Per-data-source latency inside parallel middlewares: `durationByDataSource` now includes entries such as `ParallelMiddleware.TokenDataSource`, `ParallelMiddleware.PriceDataSource`, and `ParallelBalanceMiddleware.<SourceName>` (ms), so traces can see which internal sources contributed to `ParallelMiddleware` and `ParallelBalanceMiddleware` timings.
+
 ### Changed
 
-- **BREAKING:** Rename first-init-fetch measurement from MetaMetrics to Sentry: option `trackMetaMetricsEvent` is now `reportFirstInitFetchToSentry`, and type `AssetsControllerFirstInitFetchMetaMetricsPayload` is now `AssetsControllerFirstInitFetchSentryPayload`. Consumers should report the payload to Sentry (e.g. via addBreadcrumb or setMeasurement) instead of MetaMetrics.
+- **BREAKING:** First-init-fetch measurement moved from MetaMetrics to Sentry. Option `trackMetaMetricsEvent` is replaced by `trace: TraceCallback`. Type `AssetsControllerFirstInitFetchMetaMetricsPayload` is removed; trace request data is not typed in this package. ([#8147](https://github.com/MetaMask/core/pull/8147))
 
 ## [2.4.0]
 
