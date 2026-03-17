@@ -32,5 +32,5 @@ export type {
   SubjectMetadataControllerClearStateAction,
   SubjectMetadataControllerAddSubjectMetadataAction,
   SubjectMetadataControllerGetSubjectMetadataAction,
-  SubjectMetadataControllerTrimMetadataStateAction
+  SubjectMetadataControllerTrimMetadataStateAction,
 } from './SubjectMetadataController-method-action-types';
