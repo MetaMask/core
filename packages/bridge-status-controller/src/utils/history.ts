@@ -83,8 +83,6 @@ export const getInitialHistoryItem = (
   // - For post-submission or other cases: use bridgeTxMeta.id
   const historyKey = getHistoryKey(actionId, bridgeTxMeta?.id);
 
-  // throw new Error(JSON.stringify({ bridgeTxMeta }, null, 2));
-  console.error(JSON.stringify({ bridgeTxMeta }, null, 2));
   // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
   // We know it's in progress but not the exact status yet
   const txHistoryItem = {
