@@ -57,6 +57,7 @@ import type {
 import type { BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
 import { getAccountByAddress } from './utils/accounts';
+import { getJwt } from './utils/authentication';
 import { stopPollingForQuotes, trackMetricsEvent } from './utils/bridge';
 import {
   fetchBridgeTxStatus,
@@ -199,7 +200,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       updateTransactionFn: this.#updateTransactionFn,
       customBridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
       fetchFn: this.#fetchFn,
-      getJwt: this.#getJwt,
     });
 
     // Register action handlers
@@ -714,7 +714,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         const response = await fetchBridgeTxStatus(
           statusRequest,
           this.#clientId,
-          await this.#getJwt(),
+          await getJwt(this.messenger),
           this.#fetchFn,
           this.#config.customBridgeApiBaseUrl,
         );
@@ -801,18 +801,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     } catch (error) {
       console.warn('Failed to fetch bridge tx status', error);
       this.#handleFetchFailure(bridgeTxMetaId);
-    }
-  };
-
-  readonly #getJwt = async (): Promise<string | undefined> => {
-    try {
-      const token = await this.messenger.call(
-        'AuthenticationController:getBearerToken',
-      );
-      return token;
-    } catch (error) {
-      console.error('Error getting JWT token for bridge-api request', error);
-      return undefined;
     }
   };
 
