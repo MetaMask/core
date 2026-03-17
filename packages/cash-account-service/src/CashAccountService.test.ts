@@ -1,6 +1,5 @@
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type { KeyringObject } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -25,18 +24,11 @@ const MOCK_MNEMONIC = new Uint8Array([
 
 const MOCK_ENTROPY_SOURCE = 'mock-entropy-source-id';
 
-const MOCK_HD_KEYRING: KeyringObject = {
-  type: KeyringTypes.hd,
-  accounts: ['0x1234'],
-  metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
-};
-
 function setup(): {
   service: CashAccountService;
   rootMessenger: RootMessenger;
   mocks: {
-    getState: jest.Mock;
-    getKeyringsByType: jest.Mock;
+    withKeyring: jest.Mock;
     addNewKeyring: jest.Mock;
   };
 } {
@@ -53,21 +45,19 @@ function setup(): {
   rootMessenger.delegate({
     messenger,
     actions: [
-      'KeyringController:getState',
-      'KeyringController:getKeyringsByType',
+      'KeyringController:withKeyring',
       'KeyringController:addNewKeyring',
     ],
     events: [],
   });
 
   const mocks = {
-    getState: jest.fn().mockReturnValue({
-      isUnlocked: true,
-      keyrings: [MOCK_HD_KEYRING],
+    withKeyring: jest.fn().mockImplementation(async (_selector, operation) => {
+      return operation({
+        keyring: { mnemonic: MOCK_MNEMONIC } as unknown as HdKeyring,
+        metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
+      });
     }),
-    getKeyringsByType: jest
-      .fn()
-      .mockReturnValue([{ mnemonic: MOCK_MNEMONIC } as unknown as HdKeyring]),
     addNewKeyring: jest.fn().mockResolvedValue({
       id: 'new-cash-keyring-id',
       name: '',
@@ -75,12 +65,8 @@ function setup(): {
   };
 
   rootMessenger.registerActionHandler(
-    'KeyringController:getState',
-    mocks.getState,
-  );
-  rootMessenger.registerActionHandler(
-    'KeyringController:getKeyringsByType',
-    mocks.getKeyringsByType,
+    'KeyringController:withKeyring',
+    mocks.withKeyring,
   );
   rootMessenger.registerActionHandler(
     'KeyringController:addNewKeyring',
@@ -99,7 +85,10 @@ describe('CashAccountService', () => {
 
       const result = await service.createCashAccount(MOCK_ENTROPY_SOURCE);
 
-      expect(mocks.getKeyringsByType).toHaveBeenCalledWith(KeyringTypes.hd);
+      expect(mocks.withKeyring).toHaveBeenCalledWith(
+        { id: MOCK_ENTROPY_SOURCE },
+        expect.any(Function),
+      );
       expect(mocks.addNewKeyring).toHaveBeenCalledWith(KeyringTypes.cash, {
         mnemonic: MOCK_MNEMONIC,
       });
@@ -117,45 +106,15 @@ describe('CashAccountService', () => {
       expect(result).toStrictEqual({ id: 'new-cash-keyring-id', name: '' });
     });
 
-    it('finds the correct HD keyring when non-HD keyrings precede it', async () => {
-      const { service, mocks } = setup();
-      mocks.getState.mockReturnValue({
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: KeyringTypes.simple,
-            accounts: ['0xabc'],
-            metadata: { id: 'simple-1', name: '' },
-          },
-          MOCK_HD_KEYRING,
-        ],
-      });
-
-      const result = await service.createCashAccount(MOCK_ENTROPY_SOURCE);
-
-      expect(mocks.getKeyringsByType).toHaveBeenCalledWith(KeyringTypes.hd);
-      expect(mocks.addNewKeyring).toHaveBeenCalledWith(KeyringTypes.cash, {
-        mnemonic: MOCK_MNEMONIC,
-      });
-      expect(result).toStrictEqual({ id: 'new-cash-keyring-id', name: '' });
-    });
-
-    it('throws if no HD keyring matches the entropy source', async () => {
-      const { service } = setup();
-
-      await expect(
-        service.createCashAccount('nonexistent-entropy-source'),
-      ).rejects.toThrow(
-        'No HD keyring found for entropy source: nonexistent-entropy-source',
-      );
-    });
-
     it('throws if the HD keyring has no mnemonic', async () => {
       const { service, mocks } = setup();
 
-      mocks.getKeyringsByType.mockReturnValue([
-        { mnemonic: null } as unknown as HdKeyring,
-      ]);
+      mocks.withKeyring.mockImplementation(async (_selector, operation) => {
+        return operation({
+          keyring: { mnemonic: null } as unknown as HdKeyring,
+          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
+        });
+      });
 
       await expect(
         service.createCashAccount(MOCK_ENTROPY_SOURCE),

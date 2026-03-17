@@ -1,7 +1,6 @@
 import type {
   KeyringControllerAddNewKeyringAction,
-  KeyringControllerGetKeyringsByTypeAction,
-  KeyringControllerGetStateAction,
+  KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 
@@ -11,8 +10,7 @@ import type { CashAccountServiceMethodActions } from './CashAccountService-metho
 export type CashAccountServiceActions = CashAccountServiceMethodActions;
 
 type AllowedActions =
-  | KeyringControllerGetStateAction
-  | KeyringControllerGetKeyringsByTypeAction
+  | KeyringControllerWithKeyringAction
   | KeyringControllerAddNewKeyringAction;
 
 type AllowedEvents = never;
