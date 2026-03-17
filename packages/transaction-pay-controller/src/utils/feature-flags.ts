@@ -7,6 +7,7 @@ import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import {
   RELAY_EXECUTE_URL,
+  RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
 } from '../strategy/relay/constants';
 
@@ -86,6 +87,8 @@ export type PayStrategiesConfigRaw = {
     enabled?: boolean;
     executeEnabled?: boolean;
     originGasOverhead?: string;
+    pollingInterval?: number;
+    pollingTimeout?: number;
   };
 };
 
@@ -229,6 +232,36 @@ export function getRelayOriginGasOverhead(
     featureFlags.payStrategies?.relay?.originGasOverhead ??
     DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD
   );
+}
+
+/**
+ * Get the relay status polling interval in milliseconds.
+ * Falls back to the constant default when not configured.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling interval in milliseconds.
+ */
+export function getRelayPollingInterval(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  return (
+    featureFlags.payStrategies?.relay?.pollingInterval ?? RELAY_POLLING_INTERVAL
+  );
+}
+
+/**
+ * Get the relay status polling timeout in milliseconds.
+ * Returns 0 or undefined to indicate no timeout.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling timeout in milliseconds, or undefined when not configured.
+ */
+export function getRelayPollingTimeout(
+  messenger: TransactionPayControllerMessenger,
+): number | undefined {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  return featureFlags.payStrategies?.relay?.pollingTimeout;
 }
 
 /**

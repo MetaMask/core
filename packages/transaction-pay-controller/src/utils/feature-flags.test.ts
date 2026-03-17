@@ -13,6 +13,8 @@ import {
   getFallbackGas,
   DEFAULT_RELAY_EXECUTE_URL,
   getRelayOriginGasOverhead,
+  getRelayPollingInterval,
+  getRelayPollingTimeout,
   isEIP7702Chain,
   isRelayExecuteEnabled,
   getFeatureFlags,
@@ -497,6 +499,69 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getRelayOriginGasOverhead(messenger)).toBe('500000');
+    });
+  });
+
+  describe('getRelayPollingInterval', () => {
+    it('returns default when no feature flags are set', () => {
+      expect(getRelayPollingInterval(messenger)).toBe(1000);
+    });
+
+    it('returns configured value when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                pollingInterval: 5000,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getRelayPollingInterval(messenger)).toBe(5000);
+    });
+  });
+
+  describe('getRelayPollingTimeout', () => {
+    it('returns undefined when no feature flags are set', () => {
+      expect(getRelayPollingTimeout(messenger)).toBeUndefined();
+    });
+
+    it('returns configured value when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                pollingTimeout: 30000,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getRelayPollingTimeout(messenger)).toBe(30000);
+    });
+
+    it('returns zero when set to zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                pollingTimeout: 0,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getRelayPollingTimeout(messenger)).toBe(0);
     });
   });
 
