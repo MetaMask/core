@@ -117,6 +117,29 @@ describe('CashAccountService', () => {
       expect(result).toStrictEqual({ id: 'new-cash-keyring-id', name: '' });
     });
 
+    it('finds the correct HD keyring when non-HD keyrings precede it', async () => {
+      const { service, mocks } = setup();
+      mocks.getState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.simple,
+            accounts: ['0xabc'],
+            metadata: { id: 'simple-1', name: '' },
+          },
+          MOCK_HD_KEYRING,
+        ],
+      });
+
+      const result = await service.createCashAccount(MOCK_ENTROPY_SOURCE);
+
+      expect(mocks.getKeyringsByType).toHaveBeenCalledWith(KeyringTypes.hd);
+      expect(mocks.addNewKeyring).toHaveBeenCalledWith(KeyringTypes.cash, {
+        mnemonic: MOCK_MNEMONIC,
+      });
+      expect(result).toStrictEqual({ id: 'new-cash-keyring-id', name: '' });
+    });
+
     it('throws if no HD keyring matches the entropy source', async () => {
       const { service } = setup();
 
