@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.1]
 
-### Uncategorized
-
-- chore: mark getAccounts → getPermittedAccountsForOrigin rename as breaking in eip-5792-middleware changelog ([#8060](https://github.com/MetaMask/core/pull/8060))
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^62.19.0` to `^63.0.0` ([#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
