@@ -127,6 +127,8 @@ export function getMessengerMock({
     TransactionControllerEstimateGasBatchAction['handler']
   > = jest.fn();
 
+  const getAssetsControllerStateMock = jest.fn();
+
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -241,12 +243,18 @@ export function getMessengerMock({
       'TransactionController:estimateGasBatch',
       estimateGasBatchMock,
     );
+
+    messenger.registerActionHandler(
+      'AssetsController:getStateForTransactionPay',
+      getAssetsControllerStateMock,
+    );
   }
 
   const publish = messenger.publish.bind(messenger);
 
   return {
     addTransactionMock,
+    getAssetsControllerStateMock,
     addTransactionBatchMock,
     estimateGasMock,
     estimateGasBatchMock,

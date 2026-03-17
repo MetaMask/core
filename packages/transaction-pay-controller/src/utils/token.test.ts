@@ -10,13 +10,13 @@ import {
   getTokenBalance,
   getTokenInfo,
   getTokenFiatRate,
-  getAllTokenBalances,
   getNativeToken,
   isSameToken,
   getLiveTokenBalance,
   normalizeTokenAddress,
   TokenAddressTarget,
 } from './token';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
@@ -50,6 +50,8 @@ const PROVIDER_MOCK = { request: jest.fn() };
 describe('Token Utils', () => {
   const {
     messenger,
+    getAssetsControllerStateMock,
+    getRemoteFeatureFlagControllerStateMock,
     getTokensControllerStateMock,
     getNetworkClientByIdMock,
     getTokenBalanceControllerStateMock,
@@ -68,6 +70,10 @@ describe('Token Utils', () => {
     mockBalanceOf = jest.fn();
     mockGetBalance = jest.fn();
 
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+    });
+
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
 
     getNetworkClientByIdMock.mockReturnValue({
@@ -84,7 +90,44 @@ describe('Token Utils', () => {
     }));
   });
 
+  function enableAssetsUnifyState(): void {
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        assetsUnifyState: {
+          enabled: true,
+          featureVersion: '1',
+          minimumVersion: null,
+        },
+      },
+    });
+  }
+
   describe('getTokenInfo', () => {
+    it('returns decimals and symbol from AssetsController when assets unify state feature is enabled', () => {
+      enableAssetsUnifyState();
+      getAssetsControllerStateMock.mockReturnValue({
+        allTokens: {
+          [CHAIN_ID_MOCK]: {
+            test123: [
+              {
+                address: TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+                decimals: DECIMALS_MOCK,
+                symbol: SYMBOL_MOCK,
+              },
+            ],
+          },
+        },
+      });
+
+      const result = getTokenInfo(messenger, TOKEN_ADDRESS_MOCK, CHAIN_ID_MOCK);
+
+      expect(result).toStrictEqual({
+        decimals: DECIMALS_MOCK,
+        symbol: SYMBOL_MOCK,
+      });
+    });
+
     it('returns decimals and symbol from controller state', () => {
       getTokensControllerStateMock.mockReturnValue({
         allTokens: {
@@ -192,6 +235,51 @@ describe('Token Utils', () => {
   });
 
   describe('getTokenBalance', () => {
+    it('returns token balance from AssetsController when assets unify state feature is enabled', () => {
+      enableAssetsUnifyState();
+      getAssetsControllerStateMock.mockReturnValue({
+        tokenBalances: {
+          [FROM_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              [TOKEN_ADDRESS_MOCK]: BALANCE_MOCK,
+            },
+          },
+        },
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+      );
+
+      expect(result).toBe('291');
+    });
+
+    it('returns native balance from AssetsController when assets unify state feature is enabled', () => {
+      enableAssetsUnifyState();
+      getAssetsControllerStateMock.mockReturnValue({
+        tokenBalances: {},
+        accountsByChainId: {
+          [CHAIN_ID_MOCK]: {
+            [FROM_MOCK]: {
+              balance: '0x123',
+            },
+          },
+        },
+      });
+
+      const result = getTokenBalance(
+        messenger,
+        FROM_MOCK,
+        CHAIN_ID_MOCK,
+        NATIVE_TOKEN_ADDRESS,
+      );
+
+      expect(result).toBe('291');
+    });
+
     it('returns balance from controller state', () => {
       getTokenBalanceControllerStateMock.mockReturnValue({
         tokenBalances: {
@@ -278,6 +366,37 @@ describe('Token Utils', () => {
   });
 
   describe('getTokenFiatRate', () => {
+    it('returns fiat rates from AssetsController when assets unify state feature is enabled', () => {
+      enableAssetsUnifyState();
+
+      getAssetsControllerStateMock.mockReturnValue({
+        marketData: {
+          [CHAIN_ID_MOCK]: {
+            [TOKEN_ADDRESS_MOCK]: {
+              price: 2.0,
+            },
+          },
+        },
+        currencyRates: {
+          [TICKER_MOCK]: {
+            conversionRate: 3.0,
+            usdConversionRate: 4.0,
+          },
+        },
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        TOKEN_ADDRESS_MOCK,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toStrictEqual({
+        fiatRate: '6',
+        usdRate: '8',
+      });
+    });
+
     it('returns fiat rates', () => {
       findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
 
@@ -627,55 +746,6 @@ describe('Token Utils', () => {
         usd: '1.234567',
         fiat: '1.04938195',
       });
-    });
-  });
-
-  describe('getAllTokenBalances', () => {
-    it('returns all token balances including native token', () => {
-      getTokenBalanceControllerStateMock.mockReturnValue({
-        tokenBalances: {
-          [FROM_MOCK]: {
-            '0x1': {
-              [TOKEN_ADDRESS_MOCK]: '0x10',
-              [TOKEN_ADDRESS_2_MOCK]: '0x20',
-            },
-            '0x2': {
-              [TOKEN_ADDRESS_MOCK]: '0x30',
-            },
-          },
-        },
-      });
-
-      getAccountTrackerControllerStateMock.mockReturnValue({
-        accountsByChainId: {
-          '0x1': {
-            [FROM_MOCK]: {
-              balance: '0x40',
-            },
-          },
-          '0x2': {
-            [FROM_MOCK]: {
-              balance: '0x50',
-            },
-          },
-          '0x3': {
-            [FROM_MOCK]: {
-              balance: '0x60',
-            },
-          },
-        },
-      });
-
-      const result = getAllTokenBalances(messenger, FROM_MOCK);
-
-      expect(result).toStrictEqual([
-        { chainId: '0x1', tokenAddress: TOKEN_ADDRESS_MOCK, balance: '16' },
-        { chainId: '0x1', tokenAddress: TOKEN_ADDRESS_2_MOCK, balance: '32' },
-        { chainId: '0x1', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '64' },
-        { chainId: '0x2', tokenAddress: TOKEN_ADDRESS_MOCK, balance: '48' },
-        { chainId: '0x2', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '80' },
-        { chainId: '0x3', tokenAddress: NATIVE_TOKEN_ADDRESS, balance: '96' },
-      ]);
     });
   });
 

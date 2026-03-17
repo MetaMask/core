@@ -298,6 +298,31 @@ export function getSlippage(
 }
 
 /**
+ * Get the AssetsUnifyState feature flag state.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if the assets unify state feature is enabled, false otherwise.
+ */
+export function getAssetsUnifyStateFeature(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const assetsUnifyState = state.remoteFeatureFlags.assetsUnifyState as
+    | {
+        enabled: boolean;
+        featureVersion: string | null;
+      }
+    | undefined;
+
+  const AssetsUnifyStateFeatureVersion = '1';
+
+  return (
+    Boolean(assetsUnifyState?.enabled) &&
+    assetsUnifyState?.featureVersion === AssetsUnifyStateFeatureVersion
+  );
+}
+
+/**
  * Get a value from a record using a case-insensitive key lookup.
  *
  * @param record - The record to search.

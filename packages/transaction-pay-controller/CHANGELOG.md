@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `AssetsControllerGetStateForTransactionPayAction` to the `AllowedActions` messenger type ([#8163](https://github.com/MetaMask/core/pull/8163))
+
 ### Changed
 
+- `getTokenBalance`, `getTokenInfo`, and `getTokenFiatRate` now source token metadata, balances, and pricing from `AssetsControllerGetStateForTransactionPayAction` when the `assetsUnifyState` remote feature flag is enabled, falling back to individual controller state calls otherwise ([#8163](https://github.com/MetaMask/core/pull/8163))
 - Zero out source network fees in Relay strategy when quote indicates execute flow ([#8181](https://github.com/MetaMask/core/pull/8181))
 
 ## [16.5.0]

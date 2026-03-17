@@ -1,3 +1,4 @@
+import type { AssetsControllerGetStateForTransactionPayAction } from '@metamask/assets-controller';
 import type {
   CurrencyRateControllerActions,
   TokenBalancesControllerGetStateAction,
@@ -39,6 +40,7 @@ import type { TransactionPayControllerMethodActions } from './TransactionPayCont
 
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
+  | AssetsControllerGetStateForTransactionPayAction
   | BridgeControllerActions
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions

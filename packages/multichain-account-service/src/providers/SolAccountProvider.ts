@@ -43,6 +43,9 @@ export const SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG: SnapAccountProviderConfig = {
   createAccounts: {
     timeoutMs: 3000,
   },
+  resyncAccounts: {
+    autoRemoveExtraSnapAccounts: true,
+  },
 };
 
 export class SolAccountProvider extends SnapAccountProvider {

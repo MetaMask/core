@@ -64,20 +64,6 @@ export type NftDetectionControllerMessenger = Messenger<
 >;
 
 /**
- * Set of supported networks for NFT detection.
- */
-const supportedNftDetectionNetworks: Set<Hex> = new Set([
-  '0x1', // Mainnet
-  '0x38', // BSC
-  '0x89', // Polygon
-  '0xa86a', // Avalanche
-  '0xe708', // Linea Mainnet
-  '0x2105', // Base
-  '0x531', // Sei
-  '0x8f', // Monad
-]);
-
-/**
  * @type ApiNft
  *
  * NFT object coming from OpenSea api
@@ -188,7 +174,7 @@ export type ApiNftCreator = {
 
 export type ReservoirResponse = {
   tokens: TokensResponse[];
-  continuation?: string;
+  continuation?: string | null;
 };
 
 export type TokensResponse = {
@@ -540,8 +526,21 @@ export class NftDetectionController extends BaseController<
     const convertedChainIds = chainIds.map((chainId) =>
       convertHexToDecimal(chainId).toString(),
     );
+
+    const filteredChainIds = convertedChainIds.filter(
+      (chainId) => chainId !== '0',
+    );
+
+    // Avoid making the API call for non-EVM chains
+    if (filteredChainIds.length === 0) {
+      return {
+        tokens: [],
+        continuation: null,
+      };
+    }
+
     const url = this.#getOwnerNftApi({
-      chainIds: convertedChainIds,
+      chainIds: filteredChainIds,
       address,
       next: cursor,
     });
@@ -575,12 +574,8 @@ export class NftDetectionController extends BaseController<
       options?.userAddress ??
       this.messenger.call('AccountsController:getSelectedAccount').address;
 
-    // filter out unsupported chainIds
-    const supportedChainIds = chainIds.filter((chainId) =>
-      supportedNftDetectionNetworks.has(chainId),
-    );
     /* istanbul ignore if */
-    if (supportedChainIds.length === 0 || this.#disabled) {
+    if (chainIds.length === 0 || this.#disabled) {
       return;
     }
     /* istanbul ignore else */
@@ -611,11 +606,7 @@ export class NftDetectionController extends BaseController<
     let resultNftApi: ReservoirResponse;
     try {
       do {
-        resultNftApi = await this.#getOwnerNfts(
-          userAddress,
-          supportedChainIds,
-          next,
-        );
+        resultNftApi = await this.#getOwnerNfts(userAddress, chainIds, next);
         apiNfts = resultNftApi.tokens.filter(
           (elm) =>
             elm.token.isSpam === false &&

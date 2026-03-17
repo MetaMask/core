@@ -723,6 +723,10 @@ export type PerpsControllerActions =
   | {
       type: 'PerpsController:resetSelectedPaymentToken';
       handler: PerpsController['resetSelectedPaymentToken'];
+    }
+  | {
+      type: 'PerpsController:startEligibilityMonitoring';
+      handler: PerpsController['startEligibilityMonitoring'];
     };
 
 /**
@@ -750,6 +754,13 @@ export type PerpsControllerOptions = {
    * Must be provided by the platform (mobile/extension) at instantiation time.
    */
   infrastructure: PerpsPlatformDependencies;
+  /**
+   * When true, defers geo-blocking eligibility checks until
+   * {@link PerpsController.startEligibilityMonitoring} is called.
+   * Use this during wallet onboarding to prevent the geolocation fetch
+   * from firing before onboarding is complete.
+   */
+  deferEligibilityCheck?: boolean;
 };
 
 type BlockedRegionList = {
@@ -792,6 +803,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'saveOrderBookGrouping',
   'setSelectedPaymentToken',
   'resetSelectedPaymentToken',
+  'startEligibilityMonitoring',
 ] as const;
 
 /**
@@ -889,6 +901,8 @@ export class PerpsController extends BaseController<
 
   #standaloneProviderHip3Version: number | null = null;
 
+  #eligibilityCheckDeferred: boolean;
+
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
 
@@ -914,6 +928,7 @@ export class PerpsController extends BaseController<
     state = {},
     clientConfig = {},
     infrastructure,
+    deferEligibilityCheck = false,
   }: PerpsControllerOptions) {
     super({
       name: 'PerpsController',
@@ -921,6 +936,8 @@ export class PerpsController extends BaseController<
       messenger,
       state: { ...getDefaultPerpsControllerState(), ...state },
     });
+
+    this.#eligibilityCheckDeferred = deferEligibilityCheck;
 
     // Store options for dependency injection
     this.#options = {
@@ -3698,15 +3715,41 @@ export class PerpsController extends BaseController<
    */
 
   /**
-   * Fetch geo location
+   * Activates geo-blocking eligibility monitoring.
+   * Call this after onboarding is complete when the controller was constructed
+   * with `deferEligibilityCheck: true`.
    *
-   * Returned in Country or Country-Region format
-   * Example: FR, DE, US-MI, CA-ON
+   * Reads the current RemoteFeatureFlagController state, performs the initial
+   * eligibility check, and unblocks the existing stateChange subscription so
+   * future feature-flag updates flow through normally.
+   * Safe to call multiple times; subsequent calls simply re-check eligibility.
    */
+  startEligibilityMonitoring(): void {
+    this.#eligibilityCheckDeferred = false;
+
+    try {
+      const currentState = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      this.refreshEligibilityOnFeatureFlagChange(currentState);
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.startEligibilityMonitoring'),
+        this.#getErrorContext('startEligibilityMonitoring', {
+          operation: 'readRemoteFeatureFlags',
+        }),
+      );
+    }
+  }
+
   /**
    * Refresh eligibility status
    */
   async refreshEligibility(): Promise<void> {
+    if (this.#eligibilityCheckDeferred) {
+      return;
+    }
+
     // Capture the current version before starting the async operation.
     // This prevents race conditions where stale eligibility checks
     // (started with fallback config) overwrite results from newer checks
