@@ -3,7 +3,6 @@ export type {
   Result,
   TransactionControllerActions,
   TransactionControllerEvents,
-  TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerPostTransactionBalanceUpdatedEvent,
