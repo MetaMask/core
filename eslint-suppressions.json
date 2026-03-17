@@ -573,14 +573,8 @@
     }
   },
   "packages/bridge-controller/src/utils/validators.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
     "@typescript-eslint/naming-convention": {
       "count": 1
-    },
-    "id-length": {
-      "count": 4
     }
   },
   "packages/bridge-controller/tests/mock-sse.ts": {
@@ -589,16 +583,6 @@
     },
     "id-length": {
       "count": 2
-    }
-  },
-  "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
-    "no-new": {
-      "count": 1
-    }
-  },
-  "packages/bridge-status-controller/src/utils/gas.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
     }
   },
   "packages/bridge-status-controller/src/utils/snaps.ts": {
@@ -611,15 +595,7 @@
       "count": 3
     }
   },
-  "packages/bridge-status-controller/src/utils/transaction.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 3
-    }
-  },
   "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
     }
