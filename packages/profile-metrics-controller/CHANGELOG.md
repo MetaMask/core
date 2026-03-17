@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
+
 ## [3.0.5]
 
 ### Changed
 
 - Reduce default initial delay duration from 10 minutes to 1 minute ([#8216](https://github.com/MetaMask/core/pull/8216))
-- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
 
 ## [3.0.4]
 
