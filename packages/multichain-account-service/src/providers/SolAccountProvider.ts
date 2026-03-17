@@ -92,7 +92,7 @@ export class SolAccountProvider extends SnapAccountProvider {
   ): Promise<KeyringAccount> {
     return keyring.createAccount({
       entropySource,
-      derivationPath: this.#getDerivationpath(groupIndex),
+      derivationPath: this.#getDerivationPath(groupIndex),
     });
   }
 
@@ -108,7 +108,7 @@ export class SolAccountProvider extends SnapAccountProvider {
       type: KeyringAccountEntropyTypeOption.Mnemonic,
       id: entropySource,
       groupIndex,
-      derivationPath: this.#getDerivationpath(groupIndex),
+      derivationPath: this.#getDerivationPath(groupIndex),
     };
 
     assertIsBip44Account(account);
