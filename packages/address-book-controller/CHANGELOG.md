@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `AddressBookController` method through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following action is now available:
+    - `AddressBookController:clear`
+  - Corresponding action type (`AddressBookControllerClearAction`) is available as well.
+
 ### Changed
 
 - Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))

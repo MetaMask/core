@@ -60,6 +60,7 @@ import type {
   DataResponse,
   Middleware,
 } from '../types';
+import { normalizeAssetId } from '../utils';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
@@ -379,27 +380,48 @@ export class RpcDataSource extends AbstractDataSource<
    *
    * @param result - The balance fetch result.
    */
-  #handleBalanceUpdate(result: BalanceFetchResult): void {
+  async #handleBalanceUpdate(result: BalanceFetchResult): Promise<void> {
     const newBalances: Record<string, { amount: string }> = {};
 
     // Convert hex chain ID to CAIP-2 format
     const chainIdDecimal = parseInt(result.chainId, 16);
     const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
 
+    // Normalize asset IDs from BalanceFetcher (lowercase) to checksummed form
+    const normalizedBalances = result.balances.map((b) => ({
+      ...b,
+      assetId: normalizeAssetId(b.assetId),
+    }));
+
     // Collect metadata for all balances
     const assetsInfo = this.#collectMetadataForBalances(
-      result.balances,
+      normalizedBalances,
       caipChainId,
     );
 
-    // Convert balances to human-readable format using metadata
-    for (const balance of result.balances) {
-      const metadata = assetsInfo[balance.assetId];
-      // Default to 18 decimals (ERC20 standard) for consistent human-readable format
-      const decimals = metadata?.decimals ?? 18;
+    // Convert balances to human-readable format.
+    // Fallback chain: state → pipeline metadata → RPC call → 18.
+    const existingMetadata = this.#getExistingAssetsMetadata();
+    for (const balance of normalizedBalances) {
+      const stateMetadata = existingMetadata[balance.assetId];
+      const pipelineMetadata = assetsInfo[balance.assetId];
+      let decimals: number | undefined =
+        stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+
+      if (decimals === undefined) {
+        const parsed = parseCaipAssetType(balance.assetId);
+        if (parsed.assetNamespace === 'erc20') {
+          decimals = await this.#fetchDecimalsViaRpc(
+            caipChainId,
+            parsed.assetReference,
+          );
+        }
+      }
+
+      const resolvedDecimals = decimals ?? 18;
       const humanReadableAmount = this.#convertToHumanReadable(
         balance.balance,
-        decimals,
+        resolvedDecimals,
       );
 
       newBalances[balance.assetId] = {
@@ -755,6 +777,40 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
+   * Fetch the `decimals()` value from an ERC20 contract via RPC.
+   *
+   * @param chainId - CAIP-2 chain ID.
+   * @param tokenAddress - The token contract address.
+   * @returns The decimals value, or undefined if the call fails.
+   */
+  async #fetchDecimalsViaRpc(
+    chainId: ChainId,
+    tokenAddress: string,
+  ): Promise<number | undefined> {
+    try {
+      const provider = this.#getProvider(chainId);
+      if (!provider) {
+        return undefined;
+      }
+      // ERC20 decimals() selector: keccak256("decimals()") = 0x313ce567
+      const result = await provider.call({
+        to: tokenAddress,
+        data: '0x313ce567',
+      });
+      if (!result || result === '0x') {
+        return undefined;
+      }
+      const parsed = parseInt(result, 16);
+      if (Number.isNaN(parsed) || parsed < 0 || parsed > 255) {
+        return undefined;
+      }
+      return parsed;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Get the data source name.
    *
    * @returns The name of this data source.
@@ -858,13 +914,32 @@ export class RpcDataSource extends AbstractDataSource<
       for (const chainId of chainsForAccount) {
         const hexChainId = caipChainIdToHex(chainId);
 
+        // Extract ERC20 token addresses from customAssets for this chain
+        const customTokenAddresses: Address[] = [];
+        if (request.customAssets) {
+          for (const assetId of request.customAssets) {
+            try {
+              const parsed = parseCaipAssetType(assetId);
+              const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
+              if (
+                assetChainId === chainId &&
+                parsed.assetNamespace === 'erc20'
+              ) {
+                customTokenAddresses.push(parsed.assetReference as Address);
+              }
+            } catch {
+              // Skip unparseable asset IDs
+            }
+          }
+        }
+
         try {
           // Use BalanceFetcher for batched balance fetching
           const result = await this.#balanceFetcher.fetchBalancesForTokens(
             hexChainId,
             accountId,
             address as Address,
-            [], // Empty array means just native token
+            customTokenAddresses,
             { includeNative: true },
           );
 
@@ -872,21 +947,45 @@ export class RpcDataSource extends AbstractDataSource<
             assetsBalance[accountId] = {};
           }
 
+          // Normalize asset IDs from BalanceFetcher (which uses lowercase
+          // addresses) to checksummed form so they match assetsInfo state keys.
+          const normalizedBalances = result.balances.map((b) => ({
+            ...b,
+            assetId: normalizeAssetId(b.assetId),
+          }));
+
           // Collect metadata for all balances
           const balanceMetadata = this.#collectMetadataForBalances(
-            result.balances,
+            normalizedBalances,
             chainId,
           );
           Object.assign(assetsInfo, balanceMetadata);
 
-          // Convert balances to human-readable format
-          for (const balance of result.balances) {
-            const metadata = assetsInfo[balance.assetId];
-            // Default to 18 decimals (ERC20 standard) for consistent human-readable format
-            const decimals = metadata?.decimals ?? 18;
+          // Convert balances to human-readable format using decimals from
+          // assetsInfo state (which includes pendingMetadata from addCustomAsset).
+          // Fallback chain: state → pipeline metadata → RPC call → 18.
+          const existingMetadata = this.#getExistingAssetsMetadata();
+          for (const balance of normalizedBalances) {
+            const stateMetadata = existingMetadata[balance.assetId];
+            const pipelineMetadata = assetsInfo[balance.assetId];
+            let decimals: number | undefined =
+              stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+
+            if (decimals === undefined) {
+              const parsed = parseCaipAssetType(balance.assetId);
+              if (parsed.assetNamespace === 'erc20') {
+                decimals = await this.#fetchDecimalsViaRpc(
+                  chainId,
+                  parsed.assetReference,
+                );
+              }
+            }
+
+            const resolvedDecimals = decimals ?? 18;
+
             const humanReadableAmount = this.#convertToHumanReadable(
               balance.balance,
-              decimals,
+              resolvedDecimals,
             );
 
             assetsBalance[accountId][balance.assetId] = {

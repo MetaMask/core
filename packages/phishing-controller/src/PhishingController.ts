@@ -460,11 +460,11 @@ export class PhishingController extends BaseController<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #detector: any;
 
-  #stalelistRefreshInterval: number;
+  readonly #stalelistRefreshInterval: number;
 
-  #hotlistRefreshInterval: number;
+  readonly #hotlistRefreshInterval: number;
 
-  #c2DomainBlocklistRefreshInterval: number;
+  readonly #c2DomainBlocklistRefreshInterval: number;
 
   readonly #urlScanCache: CacheManager<PhishingDetectionScanResult>;
 
@@ -726,64 +726,6 @@ export class PhishingController extends BaseController<
    */
   updatePhishingDetector() {
     this.#detector = new PhishingDetector(this.state.phishingLists);
-  }
-
-  /**
-   * Set the interval at which the stale phishing list will be refetched.
-   * Fetching will only occur on the next call to test/bypass.
-   * For immediate update to the phishing list, call {@link updateStalelist} directly.
-   *
-   * @param interval - the new interval, in ms.
-   */
-  setStalelistRefreshInterval(interval: number) {
-    this.#stalelistRefreshInterval = interval;
-  }
-
-  /**
-   * Set the interval at which the hot list will be refetched.
-   * Fetching will only occur on the next call to test/bypass.
-   * For immediate update to the phishing list, call {@link updateHotlist} directly.
-   *
-   * @param interval - the new interval, in ms.
-   */
-  setHotlistRefreshInterval(interval: number) {
-    this.#hotlistRefreshInterval = interval;
-  }
-
-  /**
-   * Set the interval at which the C2 domain blocklist will be refetched.
-   * Fetching will only occur on the next call to test/bypass.
-   * For immediate update to the phishing list, call {@link updateHotlist} directly.
-   *
-   * @param interval - the new interval, in ms.
-   */
-  setC2DomainBlocklistRefreshInterval(interval: number) {
-    this.#c2DomainBlocklistRefreshInterval = interval;
-  }
-
-  /**
-   * Set the time-to-live for URL scan cache entries.
-   *
-   * @param ttl - The TTL in seconds.
-   */
-  setUrlScanCacheTTL(ttl: number) {
-    this.#urlScanCache.setTTL(ttl);
-  }
-
-  /**
-   * Set the maximum number of entries in the URL scan cache.
-   *
-   * @param maxSize - The maximum cache size.
-   */
-  setUrlScanCacheMaxSize(maxSize: number) {
-    this.#urlScanCache.setMaxSize(maxSize);
-  }
-
-  /**
-   * Clear the URL scan cache.
-   */
-  clearUrlScanCache() {
-    this.#urlScanCache.clear();
   }
 
   /**

@@ -10,25 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801)), ([#8190](https://github.com/MetaMask/core/pull/8190))
+- Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
+  - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
+  - This behavior was enabled by default and can now be turned off by the clients.
 
 ### Changed
 
+- Optimize `{Sol,Btc,Trx}AccountProvider.createAccounts` for range operations ([#8131](https://github.com/MetaMask/core/pull/8131))
+  - Each Snaps have to implement the new `keyring_createAccounts` method accordingly and enable the batch option using the provider's configuration object.
+  - Batch account creation with the new `SnapKeyring.createAccounts` method.
+  - Significantly reduces lock acquisitions and API calls for batch operations.
 - Optimize `EvmAccountProvider.createAccounts` for range operations ([#7801](https://github.com/MetaMask/core/pull/7801))
   - Batch account creation with single a `withKeyring` call for entire range instead of one call per account.
   - Batch account creation with single `keyring.addAccounts` call.
   - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
   - Significantly reduces lock acquisitions and API calls for batch operations.
-
-## [7.1.0]
-
-### Added
-
-- Add new optional `ensureOnboardingComplete` callback ([#8124](https://github.com/MetaMask/core/pull/8124))
-  - This allows the service to wait for the user to re-onboard after a wallet reset.
-
-### Changed
-
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
 
 ### Removed
 
@@ -40,6 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent wallet's lock by-pass when creating non-EVM account asynchronously ([#7801](https://github.com/MetaMask/core/pull/7801))
   - The `waitForAllProvidersToFinishCreatingAccounts` option (when set to `false`) was causing account creation to be asynchronous for non-EVM providers, which was potentially creating accounts after the wallet's internal lock was released.
   - We now run an internal account alignment operation which locks the wallet properly and runs in the background.
+
+## [7.1.0]
+
+### Added
+
+- Add new optional `ensureOnboardingComplete` callback ([#8124](https://github.com/MetaMask/core/pull/8124))
+  - This allows the service to wait for the user to re-onboard after a wallet reset.
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
 
 ## [7.0.0]
 

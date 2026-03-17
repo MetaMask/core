@@ -25,9 +25,20 @@ import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
 import { toASCII } from 'punycode/punycode.js';
 
+import type { EnsControllerMethodActions } from './EnsController-method-action-types';
+
 const log = createProjectLogger('ens-controller');
 
 const name = 'EnsController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'clear',
+  'delete',
+  'get',
+  'resetState',
+  'reverseResolveAddress',
+  'set',
+] as const;
 
 // Map of chainIDs and ENS registry contract addresses
 export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
@@ -76,10 +87,14 @@ export type EnsControllerState = {
   ensResolutionsByAddress: { [key: string]: string };
 };
 
-export type EnsControllerActions = ControllerGetStateAction<
+export type EnsControllerGetStateAction = ControllerGetStateAction<
   typeof name,
   EnsControllerState
 >;
+
+export type EnsControllerActions =
+  | EnsControllerGetStateAction
+  | EnsControllerMethodActions;
 
 export type EnsControllerEvents = ControllerStateChangeEvent<
   typeof name,
@@ -173,6 +188,11 @@ export class EnsController extends BaseController<
         ...state,
       },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.#setDefaultEthProvider(registriesByChainId);
 

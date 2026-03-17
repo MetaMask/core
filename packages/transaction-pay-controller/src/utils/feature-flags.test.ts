@@ -9,9 +9,12 @@ import {
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
   DEFAULT_STRATEGY_ORDER,
+  getAssetsUnifyStateFeature,
   getFallbackGas,
   DEFAULT_RELAY_EXECUTE_URL,
   getRelayOriginGasOverhead,
+  getRelayPollingInterval,
+  getRelayPollingTimeout,
   isEIP7702Chain,
   isRelayExecuteEnabled,
   getFeatureFlags,
@@ -499,6 +502,69 @@ describe('Feature Flags Utils', () => {
     });
   });
 
+  describe('getRelayPollingInterval', () => {
+    it('returns default when no feature flags are set', () => {
+      expect(getRelayPollingInterval(messenger)).toBe(1000);
+    });
+
+    it('returns configured value when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                pollingInterval: 5000,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getRelayPollingInterval(messenger)).toBe(5000);
+    });
+  });
+
+  describe('getRelayPollingTimeout', () => {
+    it('returns undefined when no feature flags are set', () => {
+      expect(getRelayPollingTimeout(messenger)).toBeUndefined();
+    });
+
+    it('returns configured value when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                pollingTimeout: 30000,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getRelayPollingTimeout(messenger)).toBe(30000);
+    });
+
+    it('returns zero when set to zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: {
+                pollingTimeout: 0,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getRelayPollingTimeout(messenger)).toBe(0);
+    });
+  });
+
   describe('getPayStrategiesConfig', () => {
     it('returns defaults when pay strategies config is missing', () => {
       const config = getPayStrategiesConfig(messenger);
@@ -560,6 +626,85 @@ describe('Feature Flags Utils', () => {
         }),
       );
     });
+  });
+
+  describe('getAssetsUnifyStateFeature', () => {
+    type AssetsUnifyingState =
+      | {
+          enabled: boolean;
+          featureVersion: string | null;
+        }
+      | undefined;
+
+    const failureCases: {
+      description: string;
+      assetsUnifyingState: AssetsUnifyingState;
+    }[] = [
+      {
+        description: 'returns false when assetsUnifyState is not set',
+        assetsUnifyingState: undefined,
+      },
+      {
+        description: 'returns false when assetsUnifyState.enabled is false',
+        assetsUnifyingState: {
+          enabled: false,
+          featureVersion: '1',
+        },
+      },
+      {
+        description:
+          'returns false when featureVersion does not match expected version',
+        assetsUnifyingState: {
+          enabled: true,
+          featureVersion: '2',
+        },
+      },
+    ];
+
+    const successCases = [
+      {
+        description:
+          'returns true when assetsUnifyState is enabled and featureVersion matches',
+        assetsUnifyingState: {
+          enabled: true,
+          featureVersion: '1',
+        },
+      },
+    ];
+
+    const arrangeMocks = (assetsUnifyState: AssetsUnifyingState): void => {
+      const defaultRemoteFeatureFlagsState =
+        getDefaultRemoteFeatureFlagControllerState();
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...defaultRemoteFeatureFlagsState,
+        remoteFeatureFlags: {
+          ...defaultRemoteFeatureFlagsState.remoteFeatureFlags,
+          ...(assetsUnifyState ? { assetsUnifyState } : {}),
+        },
+      });
+    };
+
+    it.each(failureCases)(
+      '$description',
+      ({ assetsUnifyingState }: (typeof failureCases)[number]) => {
+        arrangeMocks(assetsUnifyingState);
+
+        const result = getAssetsUnifyStateFeature(messenger);
+
+        expect(result).toBe(false);
+      },
+    );
+
+    it.each(successCases)(
+      '$description',
+      ({ assetsUnifyingState }: (typeof successCases)[number]) => {
+        arrangeMocks(assetsUnifyingState);
+
+        const result = getAssetsUnifyStateFeature(messenger);
+
+        expect(result).toBe(true);
+      },
+    );
   });
 
   describe('getStrategyOrder', () => {

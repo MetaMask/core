@@ -148,6 +148,7 @@ function createMessengerMock() {
 
   const messenger = {
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
     call: callMock,

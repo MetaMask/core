@@ -2452,6 +2452,7 @@ describe('BridgeStatusController', () => {
     const setupEventTrackingMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockImplementationOnce(jest.fn()); // track event
+      mockCall.mockReturnValueOnce([]); // isAtomicBatchSupported
     };
 
     const setupApprovalMocks = (mockCall: jest.Mock) => {
@@ -2952,6 +2953,7 @@ describe('BridgeStatusController', () => {
         },
       });
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockReturnValueOnce([]); // isAtomicBatchSupported
 
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
@@ -3034,6 +3036,7 @@ describe('BridgeStatusController', () => {
         },
       });
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
+      mockMessengerCall.mockReturnValueOnce([]); // isAtomicBatchSupported
 
       setupApprovalMocks(mockMessengerCall);
       setupBridgeMocks(mockMessengerCall);
@@ -3295,6 +3298,7 @@ describe('BridgeStatusController', () => {
     const setupEventTrackingMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockImplementationOnce(jest.fn()); // track event
+      mockCall.mockReturnValueOnce([]); // isAtomicBatchSupported
     };
 
     const setupApprovalMocks = () => {
@@ -3359,6 +3363,7 @@ describe('BridgeStatusController', () => {
 
     it('should successfully submit an EVM swap transaction with featureId', async () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce([]); // isAtomicBatchSupported
       setupApprovalMocks();
       setupBridgeMocks();
 

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `GasFeeController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `GasFeeController:resetPolling`
+    - `GasFeeController:fetchGasFeeEstimates`
+    - `GasFeeController:getGasFeeEstimatesAndStartPolling`
+    - `GasFeeController:disconnectPoller`
+    - `GasFeeController:stopPolling`
+    - `GasFeeController:getTimeEstimate`
+  - Corresponding action types (e.g. `GasFeeControllerResetPollingAction`) are available as well.
+
 ## [26.0.3]
 
 ### Changed

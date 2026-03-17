@@ -15,9 +15,9 @@ import type {
 } from '../../types';
 import type { FeatureFlags } from '../../utils/feature-flags';
 import {
-  isEIP7702Chain,
-  isRelayExecuteEnabled,
   getFeatureFlags,
+  getRelayPollingInterval,
+  getRelayPollingTimeout,
 } from '../../utils/feature-flags';
 import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
 import {
@@ -135,8 +135,8 @@ describe('Relay Submit Utils', () => {
   const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
   const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
 
-  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
-  const isRelayExecuteEnabledMock = jest.mocked(isRelayExecuteEnabled);
+  const getRelayPollingIntervalMock = jest.mocked(getRelayPollingInterval);
+  const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
 
   const {
     addTransactionMock,
@@ -155,8 +155,8 @@ describe('Relay Submit Utils', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    isEIP7702ChainMock.mockReturnValue(false);
-    isRelayExecuteEnabledMock.mockReturnValue(false);
+    getRelayPollingIntervalMock.mockReturnValue(1);
+    getRelayPollingTimeoutMock.mockReturnValue(undefined);
 
     getLiveTokenBalanceMock.mockResolvedValue('9999999999');
     normalizeTokenAddressMock.mockImplementation(
@@ -595,6 +595,121 @@ describe('Relay Submit Utils', () => {
       },
     );
 
+    it('throws if relay returns unrecognized status', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({ status: 'unknown_status' }),
+      } as Response);
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Relay returned unrecognized status: unknown_status',
+      );
+    });
+
+    it.each(['delayed', 'depositing', 'pending', 'submitted', 'waiting'])(
+      'continues polling on pending status %s',
+      async (pendingStatus) => {
+        successfulFetchMock
+          .mockResolvedValueOnce({
+            json: async () => ({ status: pendingStatus }),
+          } as Response)
+          .mockResolvedValue({
+            json: async () => STATUS_RESPONSE_MOCK,
+          } as Response);
+
+        await submitRelayQuotes(request);
+
+        expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+      },
+    );
+
+    it('reads polling interval from feature flags', async () => {
+      await submitRelayQuotes(request);
+
+      expect(getRelayPollingIntervalMock).toHaveBeenCalledWith(messenger);
+    });
+
+    it('ignores network errors and retries when no timeout is set', async () => {
+      successfulFetchMock
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValue({
+          json: async () => STATUS_RESPONSE_MOCK,
+        } as Response);
+
+      const result = await submitRelayQuotes(request);
+
+      expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+    });
+
+    it('ignores network errors until timeout is reached', async () => {
+      getRelayPollingTimeoutMock.mockReturnValue(100);
+
+      jest.spyOn(Date, 'now').mockReturnValue(0);
+
+      successfulFetchMock
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockImplementation(() => {
+          jest.spyOn(Date, 'now').mockReturnValue(200);
+          return Promise.reject(new Error('Network error'));
+        });
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Relay polling timed out',
+      );
+    });
+
+    it('throws timeout error with last status when polling exceeds configured timeout', async () => {
+      getRelayPollingTimeoutMock.mockReturnValue(100);
+
+      jest.spyOn(Date, 'now').mockReturnValue(0);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({ status: 'pending' }),
+        } as Response)
+        .mockImplementation(() => {
+          jest.spyOn(Date, 'now').mockReturnValue(200);
+          return Promise.resolve({
+            json: async () => ({ status: 'pending' }),
+          } as Response);
+        });
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Relay polling timed out (last status: pending)',
+      );
+    });
+
+    it('does not timeout when polling timeout is zero', async () => {
+      getRelayPollingTimeoutMock.mockReturnValue(0);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({ status: 'pending' }),
+        } as Response)
+        .mockResolvedValue({
+          json: async () => STATUS_RESPONSE_MOCK,
+        } as Response);
+
+      await submitRelayQuotes(request);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not timeout when polling timeout is undefined', async () => {
+      getRelayPollingTimeoutMock.mockReturnValue(undefined);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({ status: 'pending' }),
+        } as Response)
+        .mockResolvedValue({
+          json: async () => STATUS_RESPONSE_MOCK,
+        } as Response);
+
+      await submitRelayQuotes(request);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+    });
+
     it('updates transaction', async () => {
       await submitRelayQuotes(request);
 
@@ -1022,8 +1137,7 @@ describe('Relay Submit Utils', () => {
       } as FeatureFlags;
 
       beforeEach(() => {
-        isEIP7702ChainMock.mockReturnValue(true);
-        isRelayExecuteEnabledMock.mockReturnValue(true);
+        request.quotes[0].original.metamask.isExecute = true;
         getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
         getFeatureFlagsMock.mockReturnValue(FEATURE_FLAGS_MOCK);
 
@@ -1113,6 +1227,10 @@ describe('Relay Submit Utils', () => {
           ...request.quotes[0],
           original: {
             ...ORIGINAL_QUOTE_MOCK,
+            metamask: {
+              ...ORIGINAL_QUOTE_MOCK.metamask,
+              isExecute: true,
+            },
             steps: [
               {
                 ...ORIGINAL_QUOTE_MOCK.steps[0],
@@ -1261,17 +1379,13 @@ describe('Relay Submit Utils', () => {
         });
       });
 
-      it('uses TransactionController path when chain is not EIP-7702', async () => {
-        isEIP7702ChainMock.mockReturnValue(false);
+      it('uses TransactionController path when isExecute is not set', async () => {
+        request.quotes[0].original.metamask.isExecute = undefined;
 
-        await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
-        expect(addTransactionMock).toHaveBeenCalledTimes(1);
-      });
-
-      it('uses TransactionController path when executeEnabled is false', async () => {
-        isRelayExecuteEnabledMock.mockReturnValue(false);
+        successfulFetchMock.mockReset();
+        successfulFetchMock.mockResolvedValue({
+          json: async () => STATUS_RESPONSE_MOCK,
+        } as Response);
 
         await submitRelayQuotes(request);
 

@@ -5,7 +5,7 @@
 
 import { TransactionFactory } from '@ethereumjs/tx';
 import type {
-  AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
@@ -848,8 +848,8 @@ describe('TransactionController', () => {
     approve: (approvalResult?: Partial<AddResult>) => void;
     reject: (rejectionError: unknown) => void;
     actionHandlerMock: jest.Mock<
-      ReturnType<AddApprovalRequest['handler']>,
-      Parameters<AddApprovalRequest['handler']>
+      ReturnType<ApprovalControllerAddRequestAction['handler']>,
+      Parameters<ApprovalControllerAddRequestAction['handler']>
     >;
   } {
     const { promise, resolve, reject } = createDeferredPromise<AddResult>();
@@ -877,8 +877,8 @@ describe('TransactionController', () => {
     };
 
     const actionHandlerMock: jest.Mock<
-      ReturnType<AddApprovalRequest['handler']>,
-      Parameters<AddApprovalRequest['handler']>
+      ReturnType<ApprovalControllerAddRequestAction['handler']>,
+      Parameters<ApprovalControllerAddRequestAction['handler']>
     > = jest.fn().mockReturnValue(promise);
     if (options.state === 'approved') {
       approveTransaction(options.result);
@@ -1218,6 +1218,164 @@ describe('TransactionController', () => {
         ['111', TransactionStatus.failed],
         ['123', TransactionStatus.failed],
       ]);
+    });
+
+    it('uses alternate error message when all required transactions are confirmed', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222', '333'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(1),
+          status: TransactionStatus.confirmed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '333',
+          chainId: toHex(16),
+          status: TransactionStatus.confirmed,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      const incompleteTransaction = transactions.find((tx) => tx.id === '123');
+
+      expect(incompleteTransaction?.status).toBe(TransactionStatus.failed);
+      expect(incompleteTransaction?.error?.message).toBe(
+        'Transaction incomplete at startup with all required transactions confirmed',
+      );
+    });
+
+    it('uses default error message when not all required transactions are confirmed', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222', '333'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(1),
+          status: TransactionStatus.confirmed,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '333',
+          chainId: toHex(16),
+          status: TransactionStatus.submitted,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      const incompleteTransaction = transactions.find((tx) => tx.id === '123');
+
+      expect(incompleteTransaction?.status).toBe(TransactionStatus.failed);
+      expect(incompleteTransaction?.error?.message).toBe(
+        'Transaction incomplete at startup',
+      );
+    });
+
+    it('uses default error message when transaction has no required transaction IDs', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const mockedControllerState = {
+        transactions: mockedTransactions,
+        methodData: {},
+        lastFetchedBlockNumbers: {},
+      };
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: mockedControllerState as any,
+        },
+      });
+
+      await flushPromises();
+
+      const { transactions } = controller.state;
+
+      const incompleteTransaction = transactions.find((tx) => tx.id === '123');
+
+      expect(incompleteTransaction?.status).toBe(TransactionStatus.failed);
+      expect(incompleteTransaction?.error?.message).toBe(
+        'Transaction incomplete at startup',
+      );
     });
 
     it('removes unapproved transactions', async () => {

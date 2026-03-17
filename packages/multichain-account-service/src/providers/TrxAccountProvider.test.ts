@@ -7,6 +7,7 @@ import type {
   InternalAccount,
 } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
+import deepmerge from 'deepmerge';
 
 import { AccountProviderWrapper } from './AccountProviderWrapper';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider';
@@ -24,8 +25,18 @@ import {
   MOCK_TRX_ACCOUNT_1,
   MOCK_TRX_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
+  toGroupIndexRangeArray,
 } from '../tests';
-import type { RootMessenger } from '../tests';
+import type { RootMessenger, DeepPartial } from '../tests';
+
+function asConfig(
+  partial: DeepPartial<SnapAccountProviderConfig>,
+): SnapAccountProviderConfig {
+  return deepmerge(
+    TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+    partial,
+  ) as SnapAccountProviderConfig;
+}
 
 class MockTronKeyring {
   readonly type = 'MockTronKeyring';
@@ -69,9 +80,39 @@ class MockTronKeyring {
       return account;
     });
 
+  createAccounts: SnapKeyring['createAccounts'] = jest
+    .fn()
+    .mockImplementation((_, options) => {
+      const groupIndices =
+        options.type === 'bip44:derive-index'
+          ? [options.groupIndex]
+          : toGroupIndexRangeArray(options.range);
+
+      return groupIndices.map((groupIndex) => {
+        const found = this.accounts.find(
+          (account) =>
+            isBip44Account(account) &&
+            account.options.entropy.groupIndex === groupIndex,
+        );
+
+        if (found) {
+          return found; // Idempotent.
+        }
+
+        const account = MockAccountBuilder.from(MOCK_TRX_ACCOUNT_1)
+          .withUuid()
+          .withAddressSuffix(`${groupIndex}`)
+          .withGroupIndex(groupIndex)
+          .get();
+        this.accounts.push(account);
+        return account;
+      });
+    });
+
   // Add discoverAccounts method to match the provider's usage
   discoverAccounts = jest.fn().mockResolvedValue([]);
 }
+
 class MockTrxAccountProvider extends TrxAccountProvider {
   override async ensureCanUseSnapPlatform(): Promise<void> {
     // Override to avoid waiting during tests.
@@ -103,6 +144,7 @@ function setup({
     handleRequest: jest.Mock;
     keyring: {
       createAccount: jest.Mock;
+      createAccounts: jest.Mock;
       discoverAccounts: jest.Mock;
     };
   };
@@ -173,6 +215,7 @@ function setup({
       handleRequest: mockHandleRequest,
       keyring: {
         createAccount: keyring.createAccount as jest.Mock,
+        createAccounts: keyring.createAccounts as jest.Mock,
         discoverAccounts: keyring.discoverAccounts,
       },
     },
@@ -231,147 +274,300 @@ describe('TrxAccountProvider', () => {
     expect(provider.isAccountCompatible(account)).toBe(false);
   });
 
-  it('creates accounts', async () => {
-    const accounts = [MOCK_TRX_ACCOUNT_1];
-    const { provider, keyring } = setup({
-      accounts,
-    });
-
-    const newGroupIndex = accounts.length; // Group-index are 0-based.
-    const newAccounts = await provider.createAccounts({
-      type: AccountCreationType.Bip44DeriveIndex,
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: newGroupIndex,
-    });
-    expect(newAccounts).toHaveLength(1);
-    expect(keyring.createAccount).toHaveBeenCalled();
-  });
-
-  it('does not re-create accounts (idempotent)', async () => {
-    const accounts = [MOCK_TRX_ACCOUNT_1];
-    const { provider } = setup({
-      accounts,
-    });
-
-    const newAccounts = await provider.createAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 0,
-      type: AccountCreationType.Bip44DeriveIndex,
-    });
-    expect(newAccounts).toHaveLength(1);
-    expect(newAccounts[0]).toStrictEqual(MOCK_TRX_ACCOUNT_1);
-  });
-
-  it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
-    const accounts = [MOCK_TRX_ACCOUNT_1];
-    const { provider, keyring } = setup({
-      accounts,
-    });
-
-    const from = 1;
-    const newAccounts = await provider.createAccounts({
-      type: AccountCreationType.Bip44DeriveIndexRange,
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      range: {
-        from,
-        to: 3,
-      },
-    });
-
-    expect(newAccounts).toHaveLength(3);
-    expect(keyring.createAccount).toHaveBeenCalledTimes(3);
-
-    // Verify each account has the correct group index.
-    for (const [index, account] of newAccounts.entries()) {
-      expect(isBip44Account(account)).toBe(true);
-      expect(account.options.entropy.groupIndex).toBe(from + index);
-    }
-  });
-
-  it('creates accounts with range starting from 0', async () => {
-    const { provider, keyring } = setup({
-      accounts: [],
-    });
-
-    const newAccounts = await provider.createAccounts({
-      type: AccountCreationType.Bip44DeriveIndexRange,
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      range: {
-        from: 0,
-        to: 2,
-      },
-    });
-
-    expect(newAccounts).toHaveLength(3);
-    expect(keyring.createAccount).toHaveBeenCalledTimes(3);
-  });
-
-  it('creates a single account when range from equals to', async () => {
-    const { provider, keyring } = setup({
-      accounts: [],
-    });
-
-    const newAccounts = await provider.createAccounts({
-      type: AccountCreationType.Bip44DeriveIndexRange,
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      range: {
-        from: 5,
-        to: 5,
-      },
-    });
-
-    expect(newAccounts).toHaveLength(1);
-    expect(keyring.createAccount).toHaveBeenCalledTimes(1);
-    expect(
-      isBip44Account(newAccounts[0]) &&
-        newAccounts[0].options.entropy.groupIndex,
-    ).toBe(5);
-  });
-
-  it('throws if the account creation process takes too long', async () => {
-    const { provider, mocks } = setup({
-      accounts: [],
-    });
-
-    mocks.keyring.createAccount.mockImplementation(() => {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(MOCK_TRX_ACCOUNT_1);
-        }, 4000);
+  describe('v1', () => {
+    it('uses v1 by default when no config is provided', async () => {
+      const accounts = [MOCK_TRX_ACCOUNT_1];
+      const { provider, mocks } = setup({
+        accounts,
+        // Force v1 by not providing the config at all, so it relies on the default value.
+        config: asConfig({ createAccounts: { batched: undefined } }),
       });
-    });
 
-    await expect(
-      provider.createAccounts({
+      await provider.createAccounts({
         type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: accounts.length,
+      });
+
+      expect(mocks.keyring.createAccount).toHaveBeenCalled();
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('creates accounts', async () => {
+      const accounts = [MOCK_TRX_ACCOUNT_1];
+      const { provider, mocks } = setup({ accounts });
+
+      const newGroupIndex = accounts.length; // Group-index are 0-based.
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: newGroupIndex,
+      });
+      expect(newAccounts).toHaveLength(1);
+      expect(mocks.keyring.createAccount).toHaveBeenCalled();
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('does not re-create accounts (idempotent)', async () => {
+      const accounts = [MOCK_TRX_ACCOUNT_1];
+      const { provider } = setup({ accounts });
+
+      const newAccounts = await provider.createAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
-      }),
-    ).rejects.toThrow('Timed out');
+        type: AccountCreationType.Bip44DeriveIndex,
+      });
+      expect(newAccounts).toHaveLength(1);
+      expect(newAccounts[0]).toStrictEqual(MOCK_TRX_ACCOUNT_1);
+    });
+
+    it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
+      const accounts = [MOCK_TRX_ACCOUNT_1];
+      const { provider, mocks } = setup({ accounts });
+
+      const from = 1;
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from, to: 3 },
+      });
+
+      expect(newAccounts).toHaveLength(3);
+      expect(mocks.keyring.createAccount).toHaveBeenCalledTimes(3);
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+
+      // Verify each account has the correct group index.
+      for (const [index, account] of newAccounts.entries()) {
+        expect(isBip44Account(account)).toBe(true);
+        expect(account.options.entropy.groupIndex).toBe(from + index);
+      }
+    });
+
+    it('creates accounts with range starting from 0', async () => {
+      const { provider, mocks } = setup({ accounts: [] });
+
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from: 0, to: 2 },
+      });
+
+      expect(newAccounts).toHaveLength(3);
+      expect(mocks.keyring.createAccount).toHaveBeenCalledTimes(3);
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('creates a single account when range from equals to', async () => {
+      const { provider, mocks } = setup({ accounts: [] });
+
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from: 5, to: 5 },
+      });
+
+      expect(newAccounts).toHaveLength(1);
+      expect(mocks.keyring.createAccount).toHaveBeenCalledTimes(1);
+      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+      expect(
+        isBip44Account(newAccounts[0]) &&
+          newAccounts[0].options.entropy.groupIndex,
+      ).toBe(5);
+    });
+
+    it('throws if the account creation process takes too long', async () => {
+      const { provider, mocks } = setup({ accounts: [] });
+
+      mocks.keyring.createAccount.mockImplementation(() => {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(MOCK_TRX_ACCOUNT_1);
+          }, 4000);
+        });
+      });
+
+      await expect(
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow('Timed out');
+    });
+
+    // Skip this test for now, since we manually inject those options upon
+    // account creation, so it cannot fails (until the Tron Snap starts
+    // using the new typed options).
+    // eslint-disable-next-line jest/no-disabled-tests
+    it.skip('throws if the created account is not BIP-44 compatible', async () => {
+      const accounts = [MOCK_TRX_ACCOUNT_1];
+      const { provider, mocks } = setup({
+        accounts,
+      });
+
+      mocks.keyring.createAccount.mockResolvedValue({
+        ...MOCK_TRX_ACCOUNT_1,
+        options: {}, // No options, so it cannot be BIP-44 compatible.
+      });
+
+      await expect(
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow('Created account is not BIP-44 compatible');
+    });
+
+    it('discover accounts at a new group index creates an account', async () => {
+      const { provider, mocks } = setup({ accounts: [] });
+
+      // Simulate one discovered account at the requested index.
+      mocks.keyring.discoverAccounts.mockResolvedValue([
+        MOCK_TRX_DISCOVERED_ACCOUNT_1,
+      ]);
+
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+      // Ensure we did go through creation path
+      expect(mocks.keyring.createAccount).toHaveBeenCalled();
+      // Provider should now expose one account (newly created)
+      expect(provider.getAccounts()).toHaveLength(1);
+    });
   });
 
-  // Skip this test for now, since we manually inject those options upon
-  // account creation, so it cannot fails (until the Tron Snap starts
-  // using the new typed options).
-  // eslint-disable-next-line jest/no-disabled-tests
-  it.skip('throws if the created account is not BIP-44 compatible', async () => {
-    const accounts = [MOCK_TRX_ACCOUNT_1];
-    const { provider, mocks } = setup({
-      accounts,
-    });
+  describe('v2 - batched', () => {
+    it('creates accounts', async () => {
+      const accounts = [MOCK_TRX_ACCOUNT_1];
+      const { provider, mocks } = setup({
+        accounts,
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
 
-    mocks.keyring.createAccount.mockResolvedValue({
-      ...MOCK_TRX_ACCOUNT_1,
-      options: {}, // No options, so it cannot be BIP-44 compatible.
-    });
-
-    await expect(
-      provider.createAccounts({
+      const newGroupIndex = accounts.length; // Group-index are 0-based.
+      const newAccounts = await provider.createAccounts({
         type: AccountCreationType.Bip44DeriveIndex,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: newGroupIndex,
+      });
+      expect(newAccounts).toHaveLength(1);
+      // Batch endpoint must be called, NOT the singular one.
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith(
+        TrxAccountProvider.TRX_SNAP_ID,
+        {
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: newGroupIndex,
+        },
+      );
+      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+    });
+
+    it('does not re-create accounts (idempotent)', async () => {
+      const accounts = [MOCK_TRX_ACCOUNT_1];
+      const { provider } = setup({
+        accounts,
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      const newAccounts = await provider.createAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
-      }),
-    ).rejects.toThrow('Created account is not BIP-44 compatible');
+        type: AccountCreationType.Bip44DeriveIndex,
+      });
+      expect(newAccounts).toHaveLength(1);
+      expect(newAccounts[0]).toStrictEqual(MOCK_TRX_ACCOUNT_1);
+    });
+
+    it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
+      const accounts = [MOCK_TRX_ACCOUNT_1];
+      const { provider, mocks } = setup({
+        accounts,
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      const from = 1;
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from, to: 3 },
+      });
+
+      expect(newAccounts).toHaveLength(3);
+      // Single batch call, NOT three individual calls.
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledTimes(1);
+      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+
+      // Verify each account has the correct group index.
+      for (const [index, account] of newAccounts.entries()) {
+        expect(isBip44Account(account)).toBe(true);
+        expect(account.options.entropy.groupIndex).toBe(from + index);
+      }
+    });
+
+    it('creates accounts with range starting from 0', async () => {
+      const { provider, mocks } = setup({
+        accounts: [],
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from: 0, to: 2 },
+      });
+
+      expect(newAccounts).toHaveLength(3);
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledTimes(1);
+      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+    });
+
+    it('creates a single account when range from equals to', async () => {
+      const { provider, mocks } = setup({
+        accounts: [],
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      const newAccounts = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: { from: 5, to: 5 },
+      });
+
+      expect(newAccounts).toHaveLength(1);
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledTimes(1);
+      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+      expect(
+        isBip44Account(newAccounts[0]) &&
+          newAccounts[0].options.entropy.groupIndex,
+      ).toBe(5);
+    });
+
+    it('throws if the account creation process takes too long', async () => {
+      const { provider, mocks } = setup({
+        accounts: [],
+        config: asConfig({ createAccounts: { batched: true } }),
+      });
+
+      mocks.keyring.createAccounts.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve([MOCK_TRX_ACCOUNT_1]), 4000);
+          }),
+      );
+
+      await expect(
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow('Timed out');
+    });
   });
 
   it('throws an error when type is not "bip44:derive-index"', async () => {
@@ -387,28 +583,6 @@ describe('TrxAccountProvider', () => {
     ).rejects.toThrow(
       'Unsupported create account option type: unsupported-type',
     );
-  });
-
-  it('discover accounts at a new group index creates an account', async () => {
-    const { provider, mocks } = setup({
-      accounts: [],
-    });
-
-    // Simulate one discovered account at the requested index.
-    mocks.keyring.discoverAccounts.mockResolvedValue([
-      MOCK_TRX_DISCOVERED_ACCOUNT_1,
-    ]);
-
-    const discovered = await provider.discoverAccounts({
-      entropySource: MOCK_HD_KEYRING_1.metadata.id,
-      groupIndex: 0,
-    });
-
-    expect(discovered).toHaveLength(1);
-    // Ensure we did go through creation path
-    expect(mocks.keyring.createAccount).toHaveBeenCalled();
-    // Provider should now expose one account (newly created)
-    expect(provider.getAccounts()).toHaveLength(1);
   });
 
   it('returns existing account if it already exists at index', async () => {
@@ -447,13 +621,11 @@ describe('TrxAccountProvider', () => {
   it('does not run discovery if disabled', async () => {
     const { provider } = setup({
       accounts: [MOCK_TRX_ACCOUNT_1],
-      config: {
-        ...TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+      config: asConfig({
         discovery: {
-          ...TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG.discovery,
           enabled: false,
         },
-      },
+      }),
     });
 
     expect(

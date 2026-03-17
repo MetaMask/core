@@ -74,6 +74,7 @@ export type RelayQuote = {
   };
   metamask: {
     gasLimits: number[];
+    isExecute?: boolean;
     isMaxGasStation?: boolean;
   };
   request: RelayQuoteRequest;
@@ -130,14 +131,15 @@ export type RelayExecuteResponse = {
 };
 
 export type RelayStatus =
-  | 'waiting'
+  | 'delayed'
+  | 'depositing'
+  | 'failure'
   | 'pending'
+  | 'refund'
+  | 'refunded'
   | 'submitted'
   | 'success'
-  | 'delayed'
-  | 'refunded'
-  | 'refund'
-  | 'failure';
+  | 'waiting';
 
 export type RelayStatusResponse = {
   status: RelayStatus;
