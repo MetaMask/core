@@ -43,7 +43,19 @@ export type SnapAccountProviderConfig = {
     backOffMs: number;
   };
   createAccounts: {
+    /**
+     * Whether to enable account batching with `createAccounts` method. If `true`, accounts will
+     * be created in batch.
+     *
+     * NOTE: The Snap has to implement this optional method for batching support.
+     * Defaults to `false`.
+     */
     batched: boolean;
+    /**
+     * Timeout for account creation operations.
+     *
+     * NOTE: The value might have to be adapted in case batching is enabled!
+     */
     timeoutMs: number;
   };
   resyncAccounts?: {
