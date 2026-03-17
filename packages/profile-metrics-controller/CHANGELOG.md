@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Reduce default initial delay duration from 10 minutes to 1 minute
+
 ## [3.0.4]
 
 ### Fixed
