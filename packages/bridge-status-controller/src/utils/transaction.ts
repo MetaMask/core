@@ -300,7 +300,7 @@ export const rekeyHistoryItemInState = (
 };
 
 export const toBatchTxParams = (
-  disable7702: boolean,
+  skipGasFields: boolean,
   { chainId, gasLimit, ...trade }: TxData,
   {
     maxFeePerGas,
@@ -314,7 +314,7 @@ export const toBatchTxParams = (
     to: trade.to as `0x${string}`,
     value: trade.value as `0x${string}`,
   };
-  if (!disable7702) {
+  if (skipGasFields) {
     return params;
   }
 
@@ -343,6 +343,7 @@ export const getAddTransactionBatchParams = async ({
     toTokenAmount,
   },
   requireApproval = false,
+  isDelegatedAccount = false,
   estimateGasFeeFn,
 }: {
   messenger: BridgeStatusControllerMessenger;
@@ -354,6 +355,7 @@ export const getAddTransactionBatchParams = async ({
   approval?: TxData;
   resetApproval?: TxData;
   requireApproval?: boolean;
+  isDelegatedAccount?: boolean;
 }) => {
   const isGasless = gasIncluded || gasIncluded7702;
   const selectedAccount = messenger.call(
@@ -371,13 +373,16 @@ export const getAddTransactionBatchParams = async ({
     hexChainId,
   );
 
-  // When an active quote has gasIncluded7702 set to true,
-  // enable 7702 gasless txs for smart accounts
-  const disable7702 = gasIncluded7702 !== true;
+  // Gas fields should be omitted only when gas is sponsored via 7702
+  const skipGasFields = gasIncluded7702 === true;
+  // Enable 7702 batching when the quote includes gasless 7702 support,
+  // or when the account is already delegated (to avoid the in-flight
+  // transaction limit for delegated accounts)
+  const disable7702 = !skipGasFields && !isDelegatedAccount;
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
     const gasFees = await calculateGasFees(
-      disable7702,
+      skipGasFields,
       messenger,
       estimateGasFeeFn,
       resetApproval,
@@ -389,12 +394,12 @@ export const getAddTransactionBatchParams = async ({
       type: isBridgeTx
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
-      params: toBatchTxParams(disable7702, resetApproval, gasFees),
+      params: toBatchTxParams(skipGasFields, resetApproval, gasFees),
     });
   }
   if (approval) {
     const gasFees = await calculateGasFees(
-      disable7702,
+      skipGasFields,
       messenger,
       estimateGasFeeFn,
       approval,
@@ -406,11 +411,11 @@ export const getAddTransactionBatchParams = async ({
       type: isBridgeTx
         ? TransactionType.bridgeApproval
         : TransactionType.swapApproval,
-      params: toBatchTxParams(disable7702, approval, gasFees),
+      params: toBatchTxParams(skipGasFields, approval, gasFees),
     });
   }
   const gasFees = await calculateGasFees(
-    disable7702,
+    skipGasFields,
     messenger,
     estimateGasFeeFn,
     trade,
@@ -420,7 +425,7 @@ export const getAddTransactionBatchParams = async ({
   );
   transactions.push({
     type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-    params: toBatchTxParams(disable7702, trade, gasFees),
+    params: toBatchTxParams(skipGasFields, trade, gasFees),
     assetsFiatValues: {
       sending: sentAmount?.valueInCurrency?.toString(),
       receiving: toTokenAmount?.valueInCurrency?.toString(),
@@ -465,6 +470,11 @@ export const findAndUpdateTransactionsInBatch = ({
   // This is a workaround to update the tx type after the tx is signed
   // TODO: remove this once the tx type for batch txs is preserved in the tx controller
   Object.entries(txDataByType).forEach(([txType, txData]) => {
+    // Skip types not present in the batch (e.g. swap entry is undefined for bridge txs)
+    if (txData === undefined) {
+      return;
+    }
+
     // Find transaction by batchId and either matching data or delegation characteristics
     const txMeta = txs.find((tx) => {
       if (tx.batchId !== batchId) {
@@ -482,14 +492,16 @@ export const findAndUpdateTransactionsInBatch = ({
         // For 7702 transactions, we need to match based on transaction type
         // since the data field might be different (batch execute call)
         if (
-          txType === TransactionType.swap &&
+          (txType === TransactionType.swap ||
+            txType === TransactionType.bridge) &&
           tx.type === TransactionType.batch
         ) {
           return true;
         }
         // Also check if it's an approval transaction for 7702
         if (
-          txType === TransactionType.swapApproval &&
+          (txType === TransactionType.swapApproval ||
+            txType === TransactionType.bridgeApproval) &&
           tx.txParams.data === txData
         ) {
           return true;

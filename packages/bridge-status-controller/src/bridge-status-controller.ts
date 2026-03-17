@@ -34,6 +34,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type {
+  IsAtomicBatchSupportedResultEntry,
   TransactionController,
   TransactionMeta,
   TransactionParams,
@@ -1358,6 +1359,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
     let approvalTxId: string | undefined;
+    let isDelegatedAccount = false;
     const startTime = Date.now();
 
     const isBridgeTx = isCrossChain(
@@ -1479,7 +1481,33 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
             );
           }
-          if (isStxEnabledOnClient || quoteResponse.quote.gasIncluded7702) {
+          // Check if the account is an EIP-7702 delegated account
+          // Delegated accounts only allow 1 in-flight tx, so approve + swap
+          // must be batched into a single transaction
+          const hexChainId = formatChainIdToHex(quoteResponse.quote.srcChainId);
+          isDelegatedAccount = await (async (): Promise<boolean> => {
+            try {
+              const atomicBatchSupport = await this.messenger.call(
+                'TransactionController:isAtomicBatchSupported',
+                {
+                  address: (quoteResponse.trade as TxData).from as Hex,
+                  chainIds: [hexChainId],
+                },
+              );
+              return atomicBatchSupport.some(
+                (entry: IsAtomicBatchSupportedResultEntry) =>
+                  entry.isSupported && entry.delegationAddress,
+              );
+            } catch {
+              return false;
+            }
+          })();
+
+          if (
+            isStxEnabledOnClient ||
+            quoteResponse.quote.gasIncluded7702 ||
+            isDelegatedAccount
+          ) {
             const { tradeMeta, approvalMeta } =
               await this.#handleEvmTransactionBatch({
                 isBridgeTx,
@@ -1491,6 +1519,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
                 trade: quoteResponse.trade,
                 quoteResponse,
                 requireApproval,
+                isDelegatedAccount,
               });
 
             approvalTxId = approvalMeta?.id;
@@ -1563,7 +1592,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const isNonBatchEvm =
         !isNonEvmChainId(quoteResponse.quote.srcChainId) &&
         !isStxEnabledOnClient &&
-        !quoteResponse.quote.gasIncluded7702;
+        !quoteResponse.quote.gasIncluded7702 &&
+        !isDelegatedAccount;
 
       if (!isNonBatchEvm) {
         // Add swap or bridge tx to history

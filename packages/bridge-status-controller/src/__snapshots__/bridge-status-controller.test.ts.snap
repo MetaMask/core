@@ -580,6 +580,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should call handleMobileHar
     },
   ],
   [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -819,6 +828,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
     },
   ],
   [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0x2105",
+      ],
+    },
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -1055,6 +1073,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "usd_amount_source": 1.01,
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
+    },
+  ],
+  [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xe708",
+      ],
     },
   ],
   [
@@ -1364,6 +1391,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     },
   ],
   [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -1561,6 +1597,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "usd_amount_source": 1.01,
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
+    },
+  ],
+  [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
     },
   ],
   [
@@ -1800,6 +1845,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "usd_amount_source": 1.01,
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
+    },
+  ],
+  [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
     },
   ],
   [
@@ -2157,6 +2211,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
     },
   ],
   [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -2430,6 +2493,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
     },
   ],
   [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -2689,6 +2761,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
     },
   ],
   [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -2766,6 +2847,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
     },
   ],
   [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -2837,6 +2927,15 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "usd_amount_source": 1.01,
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0,
+    },
+  ],
+  [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
     },
   ],
   [
@@ -3248,6 +3347,15 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
     },
   ],
   [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
+  ],
+  [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
   ],
@@ -3315,6 +3423,15 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   [
     "AccountsController:getAccountByAddress",
     "0xaccount1",
+  ],
+  [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -3524,6 +3641,15 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "usd_amount_source": 1.01,
       "usd_quoted_gas": 0,
       "usd_quoted_return": 0,
+    },
+  ],
+  [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
     },
   ],
   [

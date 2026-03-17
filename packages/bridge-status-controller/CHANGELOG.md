@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [69.0.0]
+
 ### Added
 
 - Added more unit test coverage for intents and EVM transactions. Also refactored some mocks and code blocks to improve testability ([#8186](https://github.com/MetaMask/core/pull/8186))
@@ -14,7 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^69.1.0` to `^69.2.0` ([#8223](https://github.com/MetaMask/core/pull/8223))
+- **BREAKING:** `BridgeStatusControllerMessenger` must now allow `TransactionController:isAtomicBatchSupported` action ([#8125](https://github.com/MetaMask/core/pull/8125))
 - Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
+
+### Fixed
+
+- Delegated accounts (EIP-7702) now use batched transactions to avoid in-flight transaction limit ([#8125](https://github.com/MetaMask/core/pull/8125))
+- Bridge transaction types now properly matched in 7702 batch path ([#8125](https://github.com/MetaMask/core/pull/8125))
+- Delegated account batch transactions now recorded in bridge status history ([#8125](https://github.com/MetaMask/core/pull/8125))
+- Gas fields now included for delegated account transactions that are not gas-sponsored ([#8125](https://github.com/MetaMask/core/pull/8125))
 
 ## [68.1.0]
 
@@ -1029,7 +1039,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@69.0.0...HEAD
+[69.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.1.0...@metamask/bridge-status-controller@69.0.0
 [68.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.2...@metamask/bridge-status-controller@68.1.0
 [68.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.1...@metamask/bridge-status-controller@68.0.2
 [68.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@68.0.0...@metamask/bridge-status-controller@68.0.1
