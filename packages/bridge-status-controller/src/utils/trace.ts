@@ -3,7 +3,8 @@ import {
   formatChainIdToCaip,
   isCrossChain,
   QuoteResponse,
-} from '../../../bridge-controller/src';
+} from '@metamask/bridge-controller';
+
 import { TraceName } from '../constants';
 
 export const getTraceParams = (
