@@ -3033,7 +3033,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
           );
         },
       );
@@ -3210,7 +3210,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
           );
         },
       );

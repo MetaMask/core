@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Removed public `renewRefreshToken` method — refresh token rotation is now handled by `rotateRefreshToken`, which can also be called directly ([#8148](https://github.com/MetaMask/core/pull/8148))
 
+### Fixed
+
+- Fixed `FailedToFetchAuthPubKey` errors caused by expired tokens in `addNewSecretData` and `changePassword` — `assertPasswordInSync` is now called inside the token-refresh wrapper so expired `nodeAuthTokens` are refreshed before reaching the backend
+
 ## [8.1.0]
 
 ### Changed

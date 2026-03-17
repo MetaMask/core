@@ -658,12 +658,12 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
 
-      await this.#assertPasswordInSync({
-        skipCache: true,
-        skipLock: true, // skip lock since we already have the lock
-      });
-
       const performBackup = async (): Promise<void> => {
+        await this.#assertPasswordInSync({
+          skipCache: true,
+          skipLock: true, // skip lock since we already have the lock
+        });
+
         // verify the password and unlock the vault
         const { toprfEncryptionKey, toprfAuthKeyPair } =
           await this.#unlockVaultAndGetVaultData();
@@ -754,12 +754,11 @@ export class SeedlessOnboardingController<
         skipLock: true, // skip lock since we already have the lock
       });
 
-      const { latestKeyIndex } = await this.#assertPasswordInSync({
-        skipCache: true,
-        skipLock: true, // skip lock since we already have the lock
-      });
-
       const attemptChangePassword = async (): Promise<void> => {
+        const { latestKeyIndex } = await this.#assertPasswordInSync({
+          skipCache: true,
+          skipLock: true, // skip lock since we already have the lock
+        });
         // load keyring encryption key if it exists
         let keyringEncryptionKey: string | undefined;
         if (this.state.encryptedKeyringEncryptionKey) {
