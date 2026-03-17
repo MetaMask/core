@@ -1823,47 +1823,52 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       }) as never;
 
-    const createMockMessagingSystem = () => ({
-      call: jest.fn().mockImplementation((method: string) => {
-        if (method === 'AccountsController:getAccountByAddress') {
-          return mockAccount;
-        }
-        if (method === 'NetworkController:getNetworkConfiguration') {
-          return {
-            chainId: '0x1',
-            rpcUrl: 'https://mainnet.infura.io/v3/API_KEY',
-          };
-        }
-        if (method === 'GasFeeController:getState') {
-          return {
-            gasFeeEstimates: {
-              low: {
-                suggestedMaxFeePerGas: '20',
-                suggestedMaxPriorityFeePerGas: '1',
+    const createMockMessagingSystem = (
+      estimateGasFeeOverrides: Record<string, unknown> = {},
+    ) =>
+      ({
+        call: jest.fn().mockImplementation((method: string) => {
+          if (method === 'AccountsController:getAccountByAddress') {
+            return mockAccount;
+          }
+          if (method === 'NetworkController:getNetworkConfiguration') {
+            return {
+              chainId: '0x1',
+              rpcUrl: 'https://mainnet.infura.io/v3/API_KEY',
+            };
+          }
+          if (method === 'GasFeeController:getState') {
+            return {
+              gasFeeEstimates: {
+                low: {
+                  suggestedMaxFeePerGas: '20',
+                  suggestedMaxPriorityFeePerGas: '1',
+                },
+                medium: {
+                  suggestedMaxFeePerGas: '30',
+                  suggestedMaxPriorityFeePerGas: '2',
+                },
+                high: {
+                  suggestedMaxFeePerGas: '40',
+                  suggestedMaxPriorityFeePerGas: '3',
+                },
               },
-              medium: {
-                suggestedMaxFeePerGas: '30',
-                suggestedMaxPriorityFeePerGas: '2',
-              },
-              high: {
-                suggestedMaxFeePerGas: '40',
-                suggestedMaxPriorityFeePerGas: '3',
-              },
-            },
-          };
-        }
-        if (method === 'TransactionController:estimateGasFee') {
-          return {
-            estimates: {},
-          };
-        }
-        return undefined;
-      }),
-    });
+            };
+          }
+          if (method === 'TransactionController:estimateGasFee') {
+            return (
+              estimateGasFeeOverrides ?? {
+                estimates: {},
+              }
+            );
+          }
+          return undefined;
+        }),
+      }) as unknown as BridgeStatusControllerMessenger;
 
     beforeEach(() => {
-      mockMessagingSystem =
-        createMockMessagingSystem() as unknown as BridgeStatusControllerMessenger;
+      jest.clearAllMocks();
+      mockMessagingSystem = createMockMessagingSystem();
     });
 
     it('should handle gasIncluded7702 flag set to true', async () => {
@@ -2022,7 +2027,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         gasIncluded7702: false,
       });
 
-      const mockEstimateGasFeeFn = jest.fn().mockResolvedValue({
+      const mockMessenger = createMockMessagingSystem({
         estimates: {
           medium: {
             maxFeePerGas: '0xabc',
@@ -2030,10 +2035,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
         },
       });
+      const callSpy = jest.spyOn(mockMessenger, 'call');
 
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
-        messenger: mockMessagingSystem,
+        messenger: mockMessenger,
         isBridgeTx: true,
         trade: mockQuoteResponse.trade,
         isDelegatedAccount: true,
@@ -2043,13 +2049,35 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.disable7702).toBe(false);
       // Gas is NOT sponsored
       expect(result.isGasFeeIncluded).toBe(false);
-      expect(mockMessagingSystem.call).toHaveBeenCalledWith(
-        'TransactionController:estimateGasFee',
-        {
-          chainId: mockQuoteResponse.trade.chainId,
-          txParams: mockQuoteResponse.trade,
-        },
-      );
+      expect(callSpy.mock.calls).toMatchInlineSnapshot(`
+        [
+          [
+            "AccountsController:getAccountByAddress",
+            "0xUserAddress",
+          ],
+          [
+            "NetworkController:findNetworkClientIdByChainId",
+            "0x1",
+          ],
+          [
+            "GasFeeController:getState",
+          ],
+          [
+            "TransactionController:estimateGasFee",
+            {
+              "chainId": "0x1",
+              "networkClientId": undefined,
+              "transactionParams": {
+                "data": "0xbridgeData",
+                "from": "0xUserAddress",
+                "gas": "21000",
+                "to": "0xBridgeContract",
+                "value": "0x1000",
+              },
+            },
+          ],
+        ]
+      `);
       // Transaction params should include gas fields
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].params).toHaveProperty('gas');
@@ -2064,15 +2092,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
         gasIncluded7702: true,
       });
 
-      const mockEstimateGasFeeFn = jest.fn().mockResolvedValue({});
-
+      const callSpy = jest.spyOn(mockMessagingSystem, 'call');
       const result = await getAddTransactionBatchParams({
         quoteResponse: mockQuoteResponse,
         messenger: mockMessagingSystem,
         isBridgeTx: true,
         trade: mockQuoteResponse.trade,
         isDelegatedAccount: true,
-        estimateGasFeeFn: mockEstimateGasFeeFn,
       });
 
       // 7702 should be enabled
@@ -2080,7 +2106,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
       // Gas IS sponsored
       expect(result.isGasFeeIncluded).toBe(true);
       // Gas estimation should NOT have been called (skipped because gas is sponsored)
-      expect(mockEstimateGasFeeFn).not.toHaveBeenCalled();
+      expect(
+        callSpy.mock.calls.filter(
+          ([action]) => action === 'TransactionController:estimateGasFee',
+        ),
+      ).toHaveLength(0);
       // Transaction params should NOT include gas fields
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].params).not.toHaveProperty('gas');
@@ -2132,7 +2162,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           }
           return undefined;
         }),
-      };
+      } as unknown as BridgeStatusControllerMessenger;
     };
 
     beforeEach(() => {
@@ -2152,7 +2182,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
           data: '0xapprovalData',
         }),
       ];
-      const mockMessenger = createMockMessagingSystemWithTxs(txs);
+      const mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+      const callSpy = jest.spyOn(mockMessagingSystem, 'call');
 
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
@@ -2160,13 +2191,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
       };
 
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
+        messenger: mockMessagingSystem,
         batchId,
         txDataByType,
       });
 
       expect(
-        mockMessenger.call.mock.calls.filter(
+        callSpy.mock.calls.filter(
           ([action]) => action === 'TransactionController:updateTransaction',
         ),
       ).toMatchInlineSnapshot(`
@@ -2213,7 +2244,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ];
 
       const mockMessenger = createMockMessagingSystemWithTxs(txs);
-
+      const callSpy = jest.spyOn(mockMessenger, 'call');
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
       };
@@ -2226,8 +2257,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Should identify and update 7702 transaction with delegationAddress
       expect(
-        mockMessenger.call.mock.calls.find(
-          (call) => call[0] === 'TransactionController:updateTransaction',
+        callSpy.mock.calls.find(
+          ([action]) => action === 'TransactionController:updateTransaction',
         ),
       ).toMatchInlineSnapshot(`
         [
@@ -2256,7 +2287,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ];
 
       const mockMessenger = createMockMessagingSystemWithTxs(txs);
-
+      const callSpy = jest.spyOn(mockMessenger, 'call');
       const txDataByType = {
         [TransactionType.swapApproval]: '0xapprovalData',
       };
@@ -2269,7 +2300,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Should match 7702 approval transaction by data
       expect(
-        mockMessenger.call.mock.calls.filter(
+        callSpy.mock.calls.filter(
           (call) => call[0] === 'TransactionController:updateTransaction',
         ),
       ).toMatchInlineSnapshot(`
@@ -2306,7 +2337,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ];
 
       const mockMessenger = createMockMessagingSystemWithTxs(txs);
-
+      const callSpy = jest.spyOn(mockMessenger, 'call');
       const txDataByType = {
         [TransactionType.bridge]: '0xswapData',
         [TransactionType.bridgeApproval]: '0xapprovalData',
@@ -2320,7 +2351,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Should update regular transactions by matching data
       expect(
-        mockMessenger.call.mock.calls.filter(
+        callSpy.mock.calls.filter(
           (call) => call[0] === 'TransactionController:updateTransaction',
         ),
       ).toMatchInlineSnapshot(`
@@ -2362,21 +2393,21 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      const mockMessenger = createMockMessagingSystemWithTxs(txs);
-
+      const mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
+      const callSpy = jest.spyOn(mockMessagingSystem, 'call');
       const txDataByType = {
         [TransactionType.swap]: '0xswapData',
       };
 
       findAndUpdateTransactionsInBatch({
-        messenger: mockMessenger as unknown as BridgeStatusControllerMessenger,
+        messenger: mockMessagingSystem,
         batchId,
         txDataByType,
       });
 
       // Should not update transactions with different batchId
       expect(
-        mockMessenger.call.mock.calls.filter(
+        callSpy.mock.calls.filter(
           (call) => call[0] === 'TransactionController:updateTransaction',
         ),
       ).toHaveLength(0);
@@ -2392,7 +2423,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
 
-      const mockMessenger = createMockMessagingSystemWithTxs(txs);
+      const mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
 
       const txDataByType = {
         [TransactionType.bridge]: '0xbridgeData',
@@ -2400,19 +2431,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       // Test with bridge transaction — should match batch type for 7702
       const result = findAndUpdateTransactionsInBatch({
-        messenger: mockMessenger,
+        messenger: mockMessagingSystem,
         batchId,
         txDataByType,
       });
 
-      // Should not match since it's looking for bridge but finds batch type
-      expect(
-        mockMessenger.call.mock.calls.filter(
-          (call) => call[0] === 'TransactionController:updateTransaction',
-        ),
-      ).toHaveLength(0);
       // Should match since 7702 bridge transactions use batch type
-      expect(mockMessenger.call).toHaveBeenCalledWith(
+      expect(mockMessagingSystem.call).toHaveBeenCalledWith(
         'TransactionController:updateTransaction',
         {
           batchId,
