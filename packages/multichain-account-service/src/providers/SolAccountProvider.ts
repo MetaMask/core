@@ -79,7 +79,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     );
   }
 
-  #getDerivationpath(groupIndex: number): string {
+  #getDerivationPath(groupIndex: number): string {
     return `m/44'/501'/${groupIndex}'/0'`;
   }
 
