@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `BridgeStatusControllerMessenger` must now allow `TransactionController:isAtomicBatchSupported` action ([#8125](https://github.com/MetaMask/core/pull/8125))
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
 
 ### Fixed
 
@@ -21,10 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bridge transaction types now properly matched in 7702 batch path ([#8125](https://github.com/MetaMask/core/pull/8125))
 - Delegated account batch transactions now recorded in bridge status history ([#8125](https://github.com/MetaMask/core/pull/8125))
 - Gas fields now included for delegated account transactions that are not gas-sponsored ([#8125](https://github.com/MetaMask/core/pull/8125))
-
-### Changed
-
-- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
 
 ## [68.1.0]
 

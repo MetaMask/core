@@ -4556,11 +4556,6 @@ export class TransactionController extends BaseController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:isAtomicBatchSupported`,
-      this.isAtomicBatchSupported.bind(this),
-    );
   }
 
   #deleteTransaction(transactionId: string): void {
