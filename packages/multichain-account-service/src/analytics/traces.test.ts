@@ -1,18 +1,8 @@
 import type { TraceRequest } from '@metamask/controller-utils';
 
-import { traceFallback } from './traces';
-import { TraceName } from '../constants/traces';
+import { traceFallback, TraceName } from './traces';
 
 describe('MultichainAccountService - Traces', () => {
-  describe('TraceName', () => {
-    it('contains expected trace names', () => {
-      expect(TraceName).toStrictEqual({
-        SnapDiscoverAccounts: 'Snap Discover Accounts',
-        EvmDiscoverAccounts: 'EVM Discover Accounts',
-      });
-    });
-  });
-
   describe('traceFallback', () => {
     let mockTraceRequest: TraceRequest;
 

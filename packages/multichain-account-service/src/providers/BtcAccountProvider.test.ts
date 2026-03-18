@@ -16,7 +16,7 @@ import {
   BtcAccountProvider,
 } from './BtcAccountProvider';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../analytics/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,

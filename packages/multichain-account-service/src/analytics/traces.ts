@@ -23,3 +23,11 @@ export const traceFallback: TraceCallback = async <ReturnType>(
   }
   return await Promise.resolve(fn());
 };
+
+/**
+ * Trace names.
+ */
+export enum TraceName {
+  SnapDiscoverAccounts = 'Snap Discover Accounts',
+  EvmDiscoverAccounts = 'EVM Discover Accounts',
+}
