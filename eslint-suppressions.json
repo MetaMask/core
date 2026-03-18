@@ -601,11 +601,6 @@
       "count": 4
     }
   },
-  "packages/bridge-status-controller/src/utils/snaps.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
@@ -617,9 +612,6 @@
     }
   },
   "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
     }

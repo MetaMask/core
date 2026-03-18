@@ -36,4 +36,3 @@ export type {
 export type { NetworkFilterOptions } from './config-registry-api-service/filters';
 export { ConfigRegistryApiService } from './config-registry-api-service/config-registry-api-service';
 export { filterNetworks } from './config-registry-api-service/filters';
-export { isConfigRegistryApiEnabled } from './utils/feature-flags';

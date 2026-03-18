@@ -4,8 +4,8 @@ import { TransactionMeta } from '@metamask/transaction-controller';
 
 import type { BridgeStatusControllerMessenger, FetchFunction } from './types';
 import type { BridgeHistoryItem } from './types';
+import { getJwt } from './utils/authentication';
 import {
-  GetJwtFn,
   IntentApi,
   IntentApiImpl,
   IntentBridgeStatus,
@@ -34,17 +34,19 @@ export class IntentManager {
     updateTransactionFn,
     customBridgeApiBaseUrl,
     fetchFn,
-    getJwt,
   }: {
     messenger: BridgeStatusControllerMessenger;
     updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
     customBridgeApiBaseUrl: string;
     fetchFn: FetchFunction;
-    getJwt: GetJwtFn;
   }) {
     this.#messenger = messenger;
     this.#updateTransactionFn = updateTransactionFn;
-    this.intentApi = new IntentApiImpl(customBridgeApiBaseUrl, fetchFn, getJwt);
+    this.intentApi = new IntentApiImpl(
+      customBridgeApiBaseUrl,
+      fetchFn,
+      async () => await getJwt(messenger),
+    );
   }
 
   /**
