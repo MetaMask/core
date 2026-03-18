@@ -20,11 +20,13 @@ import {
   InvalidateQueryFilters,
   QueryClient,
   QueryClientConfig,
-  QueryKey,
   WithRequired,
   dehydrate,
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
+
+// Data service queries use the following format: ['ServiceActionName', ...params]
+export type QueryKey = [string, ...Json[]];
 
 export type GranularCacheUpdatedPayload =
   | { type: 'added' | 'updated'; state: DehydratedState }

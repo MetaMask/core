@@ -1,4 +1,3 @@
-import { Json } from '@metamask/utils';
 import {
   useQuery as useQueryTanStack,
   useInfiniteQuery as useInfiniteQueryTanStack,
@@ -11,11 +10,10 @@ import {
   UseInfiniteQueryResult,
 } from '@tanstack/react-query';
 
+import { QueryKey } from './BaseDataService';
+
 // We provide re-exports of the underlying TanStack Query hooks with narrower types,
 // removing `staleTime` and `queryFn` which aren't useful when using data services.
-
-// Data service queries use the following format: ['ServiceActionName', ...params]
-export type QueryKey = [string, ...Json[]];
 
 /**
  * Consume a query from a data service.

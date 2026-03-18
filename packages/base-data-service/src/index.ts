@@ -6,6 +6,7 @@ export type {
   DataServiceEvents,
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
+  QueryKey,
 } from './BaseDataService';
 export { BaseDataService } from './BaseDataService';
 export { createUIQueryClient } from './createUIQueryClient';
