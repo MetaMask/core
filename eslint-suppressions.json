@@ -1710,6 +1710,16 @@
       "count": 2
     }
   },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.ts": {
+    "local/no-cross-package-relative-imports": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/source-amounts.ts": {
+    "local/no-cross-package-relative-imports": {
+      "count": 1
+    }
+  },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 6
