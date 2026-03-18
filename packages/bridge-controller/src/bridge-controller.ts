@@ -410,9 +410,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return sortQuotes(quotesWithFees, featureId);
   };
 
-  readonly #trackQuoteValidationFailures = (
-    validationFailures: string[],
-  ) => {
+  readonly #trackQuoteValidationFailures = (validationFailures: string[]) => {
     if (validationFailures.length === 0) {
       return;
     }
