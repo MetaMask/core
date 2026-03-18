@@ -12,6 +12,8 @@ import {
 import type { KeyringObject } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
+import { traceFallback } from './analytics';
+import { isPerfEnabled, wrapWithLocalPerfTrace } from './analytics/perf';
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
@@ -45,6 +47,12 @@ import {
   setupBip44AccountProvider,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
+
+// Mock perf helpers so tests can control isPerfEnabled() without setting DEBUG env var.
+jest.mock('./analytics/perf', () => ({
+  isPerfEnabled: jest.fn().mockReturnValue(false),
+  wrapWithLocalPerfTrace: jest.fn((trace) => trace),
+}));
 
 // Mock providers.
 jest.mock('./providers/EvmAccountProvider', () => {
@@ -134,11 +142,13 @@ async function setup({
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
   providerConfigs,
+  config,
 }: {
   rootMessenger?: RootMessenger;
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
   providerConfigs?: MultichainAccountServiceOptions['providerConfigs'];
+  config?: MultichainAccountServiceOptions['config'];
 } = {}): Promise<{
   service: MultichainAccountService;
   rootMessenger: RootMessenger;
@@ -262,6 +272,7 @@ async function setup({
   const service = new MultichainAccountService({
     messenger,
     providerConfigs,
+    config,
   });
 
   await service.init();
@@ -316,6 +327,90 @@ describe('MultichainAccountService', () => {
         messenger,
         providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
+      );
+    });
+
+    it('passes traceFallback to providers when no config.trace is provided and perf is disabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(false);
+
+      const { mocks, messenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+      });
+
+      expect(wrapWithLocalPerfTrace).not.toHaveBeenCalled();
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        traceFallback,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        traceFallback,
+      );
+    });
+
+    it('passes config.trace to providers when provided and perf is disabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(false);
+      const customTrace = jest.fn();
+
+      const { mocks, messenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        config: { trace: customTrace },
+      });
+
+      expect(wrapWithLocalPerfTrace).not.toHaveBeenCalled();
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        customTrace,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        customTrace,
+      );
+    });
+
+    it('wraps trace with local perf trace and passes it to providers when perf is enabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(true);
+      const wrappedTrace = jest.fn();
+      jest.mocked(wrapWithLocalPerfTrace).mockReturnValue(wrappedTrace);
+
+      const { mocks, messenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+      });
+
+      expect(wrapWithLocalPerfTrace).toHaveBeenCalledTimes(1);
+      expect(wrapWithLocalPerfTrace).toHaveBeenCalledWith(traceFallback);
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        wrappedTrace,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        wrappedTrace,
+      );
+    });
+
+    it('wraps config.trace with local perf trace when perf is enabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(true);
+      const customTrace = jest.fn();
+      const wrappedTrace = jest.fn();
+      jest.mocked(wrapWithLocalPerfTrace).mockReturnValue(wrappedTrace);
+
+      const { mocks } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        config: { trace: customTrace },
+      });
+
+      expect(wrapWithLocalPerfTrace).toHaveBeenCalledWith(customTrace);
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        expect.anything(),
+        undefined,
+        wrappedTrace,
       );
     });
 

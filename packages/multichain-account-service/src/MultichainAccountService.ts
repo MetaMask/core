@@ -6,6 +6,9 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
+import {
+  TraceCallback,
+} from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -13,6 +16,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
 import { traceFallback } from './analytics';
+import { isPerfEnabled, wrapWithLocalPerfTrace } from './analytics/perf';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -153,23 +157,28 @@ export class MultichainAccountService {
     this.#messenger = messenger;
     this.#wallets = new Map();
 
-    // Pass trace callback directly to preserve original 'this' context
-    // This avoids binding the callback to the MultichainAccountService instance
-    const traceCallback = config?.trace ?? traceFallback;
+    // Pass trace callback directly to preserve original 'this' context.
+    // This avoids binding the callback to the MultichainAccountService instance.
+    let trace: TraceCallback = config?.trace ?? traceFallback;
+
+    // Wrap the trace callback with local performance tracing if performance logging is enabled.
+    if (isPerfEnabled()) {
+      trace = wrapWithLocalPerfTrace(trace);
+    }
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(
         this.#messenger,
         providerConfigs?.[EVM_ACCOUNT_PROVIDER_NAME],
-        traceCallback,
+        trace,
       ),
       new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(
           this.#messenger,
           providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
-          traceCallback,
+          trace,
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
