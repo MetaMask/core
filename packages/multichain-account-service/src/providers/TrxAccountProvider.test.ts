@@ -147,6 +147,7 @@ function setup({
       createAccounts: jest.Mock;
       discoverAccounts: jest.Mock;
     };
+    trace: jest.Mock;
   };
 } {
   const keyring = new MockTronKeyring(accounts);
@@ -201,8 +202,16 @@ function setup({
       }),
   );
 
+  const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+    return await fn();
+  });
+
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const trxProvider = new MockTrxAccountProvider(multichainMessenger, config);
+  const trxProvider = new MockTrxAccountProvider(
+    multichainMessenger,
+    config,
+    mockTrace,
+  );
   const accountIds = accounts.map((account) => account.id);
   trxProvider.init(accountIds);
   const provider = new AccountProviderWrapper(multichainMessenger, trxProvider);
@@ -218,6 +227,7 @@ function setup({
         createAccounts: keyring.createAccounts as jest.Mock,
         discoverAccounts: keyring.discoverAccounts,
       },
+      trace: mockTrace,
     },
   };
 }
@@ -638,15 +648,7 @@ describe('TrxAccountProvider', () => {
 
   describe('trace functionality', () => {
     it('calls trace callback during account discovery', async () => {
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
-        expect(request.data).toStrictEqual({
-          provider: TRX_ACCOUNT_PROVIDER_NAME,
-        });
-        return await fn();
-      });
-
-      const { messenger, mocks } = setup({
+      const { provider, mocks } = setup({
         accounts: [],
       });
 
@@ -655,25 +657,19 @@ describe('TrxAccountProvider', () => {
         MOCK_TRX_DISCOVERED_ACCOUNT_1,
       ]);
 
-      const multichainMessenger =
-        getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new MockTrxAccountProvider(
-        multichainMessenger,
-        undefined,
-        mockTrace,
-      );
-      const provider = new AccountProviderWrapper(
-        multichainMessenger,
-        trxProvider,
-      );
-
       const discovered = await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
         groupIndex: 0,
       });
 
       expect(discovered).toHaveLength(1);
-      expect(mockTrace).toHaveBeenCalledTimes(1);
+      expect(mocks.trace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: TraceName.SnapDiscoverAccounts,
+          data: { provider: TRX_ACCOUNT_PROVIDER_NAME },
+        }),
+        expect.any(Function),
+      );
     });
 
     it('uses fallback trace when no trace callback is provided', async () => {
@@ -691,35 +687,14 @@ describe('TrxAccountProvider', () => {
       });
 
       expect(discovered).toHaveLength(1);
-      // No trace errors, fallback trace should be used silently
     });
 
     it('trace callback is called even when discovery returns empty results', async () => {
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
-        expect(request.data).toStrictEqual({
-          provider: TRX_ACCOUNT_PROVIDER_NAME,
-        });
-        return await fn();
-      });
-
-      const { messenger, mocks } = setup({
+      const { provider, mocks } = setup({
         accounts: [],
       });
 
       mocks.keyring.discoverAccounts.mockResolvedValue([]);
-
-      const multichainMessenger =
-        getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new MockTrxAccountProvider(
-        multichainMessenger,
-        undefined,
-        mockTrace,
-      );
-      const provider = new AccountProviderWrapper(
-        multichainMessenger,
-        trxProvider,
-      );
 
       const discovered = await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -727,32 +702,16 @@ describe('TrxAccountProvider', () => {
       });
 
       expect(discovered).toStrictEqual([]);
-      expect(mockTrace).toHaveBeenCalledTimes(1);
+      expect(mocks.trace).toHaveBeenCalledTimes(1);
     });
 
     it('trace callback receives error when discovery fails', async () => {
       const mockError = new Error('Discovery failed');
-      const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
-        return await fn();
-      });
-
-      const { messenger, mocks } = setup({
+      const { provider, mocks } = setup({
         accounts: [],
       });
 
       mocks.keyring.discoverAccounts.mockRejectedValue(mockError);
-
-      const multichainMessenger =
-        getMultichainAccountServiceMessenger(messenger);
-      const trxProvider = new MockTrxAccountProvider(
-        multichainMessenger,
-        undefined,
-        mockTrace,
-      );
-      const provider = new AccountProviderWrapper(
-        multichainMessenger,
-        trxProvider,
-      );
 
       await expect(
         provider.discoverAccounts({
@@ -761,7 +720,7 @@ describe('TrxAccountProvider', () => {
         }),
       ).rejects.toThrow(mockError);
 
-      expect(mockTrace).toHaveBeenCalledTimes(1);
+      expect(mocks.trace).toHaveBeenCalledTimes(1);
     });
   });
 
