@@ -463,10 +463,11 @@ export class SeedlessOnboardingController<
       );
     }
 
-    // Check if token is expired and refresh if needed
+    // Use the same 90%-lifetime threshold as checkMetadataAccessTokenExpired
+    // so both code paths agree on when a refresh is needed.
     const decodedToken = decodeJWTToken(metadataAccessToken);
-    if (decodedToken.exp < Math.floor(Date.now() / 1000)) {
-      // Token is expired, refresh it
+    if (isTokenNearExpiry(decodedToken.exp, decodedToken.iat)) {
+      // Token is near expiry or already expired, refresh it
       await this.refreshAuthTokens();
 
       // Get the new token after refresh
@@ -503,7 +504,7 @@ export class SeedlessOnboardingController<
    * @param params.userId - user email or id from Social login
    * @param params.groupedAuthConnectionId - Optional grouped authConnectionId to be used for the authenticate request.
    * @param params.socialLoginEmail - The user email from Social login.
-   * @param params.refreshToken - refresh token for refreshing expired nodeAuthTokens.
+   * @param params.refreshToken - Refresh token issued during OAuth login. Written to state when provided.
    * @param params.revokeToken - revoke token for revoking refresh token and get new refresh token and new revoke token.
    * @param params.accessToken - Access token for pairing with profile sync auth service and to access other services.
    * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
@@ -657,12 +658,12 @@ export class SeedlessOnboardingController<
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
 
-      await this.#assertPasswordInSync({
-        skipCache: true,
-        skipLock: true, // skip lock since we already have the lock
-      });
-
       const performBackup = async (): Promise<void> => {
+        await this.#assertPasswordInSync({
+          skipCache: true,
+          skipLock: true, // skip lock since we already have the lock
+        });
+
         // verify the password and unlock the vault
         const { toprfEncryptionKey, toprfAuthKeyPair } =
           await this.#unlockVaultAndGetVaultData();
@@ -753,12 +754,11 @@ export class SeedlessOnboardingController<
         skipLock: true, // skip lock since we already have the lock
       });
 
-      const { latestKeyIndex } = await this.#assertPasswordInSync({
-        skipCache: true,
-        skipLock: true, // skip lock since we already have the lock
-      });
-
       const attemptChangePassword = async (): Promise<void> => {
+        const { latestKeyIndex } = await this.#assertPasswordInSync({
+          skipCache: true,
+          skipLock: true, // skip lock since we already have the lock
+        });
         // load keyring encryption key if it exists
         let keyringEncryptionKey: string | undefined;
         if (this.state.encryptedKeyringEncryptionKey) {
@@ -2118,13 +2118,21 @@ export class SeedlessOnboardingController<
    * @returns A promise that resolves when the tokens have been refreshed.
    */
   async refreshAuthTokens(): Promise<void> {
+    // Coalesce concurrent calls to avoid issuing parallel HTTP requests
+    // with the same refresh token.
     if (this.#pendingRefreshPromise) {
       return this.#pendingRefreshPromise;
     }
-    this.#pendingRefreshPromise = this.#doRefreshAuthTokens().finally(() => {
-      this.#pendingRefreshPromise = undefined;
+
+    const promise = this.#doRefreshAuthTokens().finally(() => {
+      if (this.#pendingRefreshPromise === promise) {
+        this.#pendingRefreshPromise = undefined;
+      }
     });
-    return this.#pendingRefreshPromise;
+
+    this.#pendingRefreshPromise = promise;
+
+    return promise;
   }
 
   /**
@@ -2161,25 +2169,12 @@ export class SeedlessOnboardingController<
 
     try {
       const { idTokens, accessToken, metadataAccessToken } = res;
-      // re-authenticate with the new id tokens to set new node auth tokens
-      // NOTE: here we can't provide the `revokeToken` value to the `authenticate` method because `refreshAuthTokens` method can be called when the wallet (vault) is locked
-      // NOTE: use this.state.refreshToken (current value) rather than the
-      // `refreshToken` captured at the start of this method. If renewRefreshToken()
-      // ran concurrently while our HTTP call was in-flight, it will have already
-      // updated state.refreshToken to the new token. Using the captured (now-stale)
-      // value would overwrite that newer token and revert the state, causing the
-      // old token to be used for subsequent refreshes — and once that old token is
-      // revoked (15 s after the renewal), every subsequent refresh will return 401.
-      await this.authenticate({
+      // Re-authenticate with the refreshed id tokens to update node auth
+      // tokens, accessToken, and metadataAccessToken in state.
+      await this.#reAuthenticate({
         idTokens,
         accessToken,
         metadataAccessToken,
-        authConnection: this.state.authConnection,
-        authConnectionId: this.state.authConnectionId,
-        groupedAuthConnectionId: this.state.groupedAuthConnectionId,
-        userId: this.state.userId,
-        refreshToken: this.state.refreshToken,
-        skipLock: true,
       });
 
       // update the vault with new access token if wallet is unlocked
@@ -2194,6 +2189,19 @@ export class SeedlessOnboardingController<
           vaultData: updatedVaultData,
           pwEncKey,
         });
+
+        // Proactively rotate the refresh token now that we have vault access.
+        await this.rotateRefreshToken().catch((error) => {
+          // Rotation failure is intentionally non-fatal: the JWT refresh
+          // itself succeeded and the caller should not be blocked.
+          // However the user is now operating with a stale refresh token
+          // that may be revoked server-side, so log prominently.
+          log(
+            'Failed to rotate refresh token after successful JWT refresh. ' +
+              'The user may be logged out when the old token is revoked.',
+            error,
+          );
+        });
       }
     } catch (error) {
       log('Error refreshing node auth tokens', error);
@@ -2207,55 +2215,124 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Renew the refresh token - get new refresh token and new revoke token
-   * and also updates the vault with the new revoke token.
-   * This method is to be called after user is authenticated.
+   * Re-authenticate the user using freshly issued tokens from a JWT refresh.
    *
-   * @param password - The password to encrypt the vault.
-   * @returns A Promise that resolves to void.
+   * Unlike the public `authenticate` method, this variant is called exclusively
+   * from token-refresh paths where the user's identity has already been
+   * established.  It only accepts the tokens returned by the JWT-refresh
+   * service (`idTokens`, `accessToken`, `metadataAccessToken`) and reads all
+   * other auth-connection details from the existing controller state.
+   *
+   * `refreshToken` and `revokeToken` are intentionally absent — token-refresh
+   * paths must not touch `state.refreshToken` directly; that field is managed
+   * exclusively by `rotateRefreshToken`.
+   *
+   * @param params - Tokens issued by the JWT-refresh service.
+   * @param params.idTokens - New node id tokens.
+   * @param params.accessToken - New access token.
+   * @param params.metadataAccessToken - New metadata access token.
+   * @returns A promise that resolves to the authentication result.
    */
-  async renewRefreshToken(password: string): Promise<void> {
-    return await this.#withControllerLock(async () => {
-      this.#assertIsAuthenticatedUser(this.state);
-      const { refreshToken, vaultEncryptionKey } = this.state;
-      const {
-        toprfEncryptionKey: rawToprfEncryptionKey,
-        toprfPwEncryptionKey: rawToprfPwEncryptionKey,
-        toprfAuthKeyPair: rawToprfAuthKeyPair,
-        revokeToken,
-      } = await this.#unlockVaultAndGetVaultData({
-        password,
-        encryptionKey: vaultEncryptionKey,
+  async #reAuthenticate(params: {
+    idTokens: string[];
+    accessToken: string;
+    metadataAccessToken: string;
+  }): Promise<AuthenticateResult> {
+    const { idTokens, accessToken, metadataAccessToken } = params;
+    const {
+      authConnection,
+      authConnectionId,
+      groupedAuthConnectionId,
+      userId,
+      socialLoginEmail,
+    } = this.state;
+
+    try {
+      const authenticationResult = await this.toprfClient.authenticate({
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        authConnectionId: authConnectionId!,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        userId: userId!,
+        idTokens,
+        groupedAuthConnectionId,
       });
 
-      const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken(
+      this.update((state) => {
+        state.nodeAuthTokens = authenticationResult.nodeAuthTokens;
+        state.authConnection = authConnection;
+        state.authConnectionId = authConnectionId;
+        state.groupedAuthConnectionId = groupedAuthConnectionId;
+        state.userId = userId;
+        state.socialLoginEmail = socialLoginEmail;
+        state.metadataAccessToken = metadataAccessToken;
+        state.accessToken = accessToken;
+        assertIsSeedlessOnboardingUserAuthenticated(state);
+        state.isSeedlessOnboardingUserAuthenticated = true;
+      });
+
+      return authenticationResult;
+    } catch (error) {
+      log('Error re-authenticating user', error);
+      throw new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.AuthenticationError,
         {
-          connection: this.state.authConnection,
-          revokeToken,
+          cause: error,
         },
       );
+    }
+  }
 
-      if (newRevokeToken && newRefreshToken) {
-        this.update((state) => {
-          // set new revoke token in state temporarily for persisting in vault
-          state.revokeToken = newRevokeToken;
-          // set new refresh token to persist in state
-          state.refreshToken = newRefreshToken;
-        });
+  /**
+   * Rotate the refresh token — fetch a new refresh/revoke token pair from the
+   * auth service and persist the new revoke token in the vault.
+   *
+   * This method should be called after a successful JWT refresh.
+   *
+   * @returns A Promise that resolves to void.
+   */
+  async rotateRefreshToken(): Promise<void> {
+    this.#assertIsAuthenticatedUser(this.state);
 
-        await this.#createNewVaultWithAuthData({
-          password,
-          rawToprfEncryptionKey,
-          rawToprfPwEncryptionKey,
-          rawToprfAuthKeyPair,
-        });
-        // add the old refresh token to the list to be revoked later when possible
-        this.#addRefreshTokenToRevokeList({
-          refreshToken,
-          revokeToken,
-        });
-      }
+    const vaultData = this.#cachedDecryptedVaultData;
+    // Safety net: the caller (#doRefreshAuthTokens) already guards with
+    // `this.#isUnlocked && this.#cachedDecryptedVaultData`, so this branch
+    // is unreachable in normal flow. This check is added to satisfy the linter and
+    // to make sure any future caller of this method does not bypass the check.
+    /* istanbul ignore if */
+    if (!vaultData) {
+      throw new SeedlessOnboardingError(
+        SeedlessOnboardingControllerErrorMessage.VaultLocked,
+      );
+    }
+    const { refreshToken } = this.state;
+    const { toprfPwEncryptionKey: pwEncKey, revokeToken } = vaultData;
+    const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken({
+      connection: this.state.authConnection,
+      revokeToken,
     });
+
+    if (newRevokeToken && newRefreshToken) {
+      // Persist the new revoke token to the vault first. Only update state after
+      // the vault write succeeds, so state and vault stay in sync if the write fails.
+      await this.#updateVault({
+        vaultData: {
+          ...vaultData,
+          revokeToken: newRevokeToken,
+        },
+        pwEncKey,
+      });
+
+      this.update((state) => {
+        state.revokeToken = newRevokeToken;
+        state.refreshToken = newRefreshToken;
+      });
+
+      // add the old refresh token to the list to be revoked later when possible
+      this.#addRefreshTokenToRevokeList({
+        refreshToken,
+        revokeToken,
+      });
+    }
   }
 
   /**
@@ -2466,14 +2543,16 @@ export class SeedlessOnboardingController<
     const firstAuthToken = nodeAuthTokens[0]?.authToken;
     // node auth token is base64 encoded json object
     const decodedToken = decodeNodeAuthToken(firstAuthToken);
-    // check if the token is expired
-    return decodedToken.exp < Date.now() / 1000;
+    // Node auth tokens do not carry a reliable iat field — use exact expiry.
+    return isTokenNearExpiry(decodedToken.exp);
   }
 
   /**
-   * Check if the current metadata access token is expired.
+   * Check if the current metadata access token should be refreshed.
+   * Returns true when the token is expired or when less than 10% of its
+   * lifetime remains (proactive refresh).
    *
-   * @returns True if the metadata access token is expired, false otherwise.
+   * @returns True if the metadata access token should be refreshed, false otherwise.
    */
   public checkMetadataAccessTokenExpired(): boolean {
     try {
@@ -2481,17 +2560,19 @@ export class SeedlessOnboardingController<
       const { metadataAccessToken } = this.state;
       // assertIsAuthenticatedUser will throw if metadataAccessToken is missing
       const decodedToken = decodeJWTToken(metadataAccessToken as string);
-      return decodedToken.exp < Math.floor(Date.now() / 1000);
+      return isTokenNearExpiry(decodedToken.exp, decodedToken.iat);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
     }
   }
 
   /**
-   * Check if the current access token is expired.
+   * Check if the current access token should be refreshed.
+   * Returns true when the token is expired or when less than 10% of its
+   * lifetime remains (proactive refresh).
    * When the vault is locked, the access token is not accessible, so we return false.
    *
-   * @returns True if the access token is expired, false otherwise.
+   * @returns True if the access token should be refreshed, false otherwise.
    */
   public checkAccessTokenExpired(): boolean {
     try {
@@ -2501,11 +2582,38 @@ export class SeedlessOnboardingController<
         return true; // Consider missing token as expired
       }
       const decodedToken = decodeJWTToken(accessToken);
-      return decodedToken.exp < Math.floor(Date.now() / 1000);
+      return isTokenNearExpiry(decodedToken.exp, decodedToken.iat);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens
     }
   }
+}
+
+/**
+ * Determine whether a token should be proactively refreshed.
+ *
+ * When `iat` is provided: returns `true` when less than 10% of the token's
+ * lifetime remains (i.e. we are in the last 10% before expiry).
+ * When `iat` is omitted (e.g. node auth tokens): returns `true` when the token
+ * is already expired.
+ *
+ * @param exp - Token expiration time in seconds (Unix epoch).
+ * @param iat - Optional issued-at time in seconds (Unix epoch). Required for 10% threshold.
+ * @returns True if the token should be refreshed.
+ */
+function isTokenNearExpiry(exp: number, iat?: number): boolean {
+  const now = Date.now() / 1000;
+  if (iat === undefined) {
+    return now >= exp;
+  }
+  const lifetime = exp - iat;
+  // Guard against malformed tokens where iat >= exp (zero or negative lifetime).
+  // Fall back to exact-expiry check so bad tokens are always considered stale.
+  if (lifetime <= 0) {
+    return now >= exp;
+  }
+  const remaining = exp - now;
+  return remaining <= 0.1 * lifetime;
 }
 
 /**

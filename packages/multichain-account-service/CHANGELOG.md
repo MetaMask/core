@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
   - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
   - This behavior was enabled by default and can now be turned off by the clients.
+- Add new `snapPlatformWatcher.timeoutMs` configuration ([#8196](https://github.com/MetaMask/core/pull/8196))
+  - Allows configuring how long to wait for the Snap keyring to appear in `KeyringController` before timing out (Default is 5000 ms).
 
 ### Changed
 
@@ -36,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent wallet's lock by-pass when creating non-EVM account asynchronously ([#7801](https://github.com/MetaMask/core/pull/7801))
   - The `waitForAllProvidersToFinishCreatingAccounts` option (when set to `false`) was causing account creation to be asynchronous for non-EVM providers, which was potentially creating accounts after the wallet's internal lock was released.
   - We now run an internal account alignment operation which locks the wallet properly and runs in the background.
+- Wait for Snap keyring in KeyringController before non-EVM account creation ([#8196](https://github.com/MetaMask/core/pull/8196))
+  - After wallet reset or restore, the Snap keyring is created lazily (e.g. when `getSnapKeyring()` runs). We now wait for it to appear (via `KeyringController:getState` and `KeyringController:stateChange`) with a timeout, avoiding "Keyring not found" error.
 
 ## [7.1.0]
 

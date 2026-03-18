@@ -24,6 +24,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { CHAIN_IDS } from '@metamask/transaction-controller';
 import {
   TransactionType,
   TransactionStatus,
@@ -53,7 +54,6 @@ import type {
 import * as bridgeStatusUtils from './utils/bridge-status';
 import * as transactionUtils from './utils/transaction';
 import { flushPromises } from '../../../tests/helpers';
-import { CHAIN_IDS } from '../../bridge-controller/src/constants/chains';
 
 type AllBridgeStatusControllerActions =
   MessengerActions<BridgeStatusControllerMessenger>;

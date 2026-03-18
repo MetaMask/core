@@ -33,5 +33,3 @@ export type {
 export { BridgeId, BridgeStatusAction } from './types';
 
 export { BridgeStatusController } from './bridge-status-controller';
-
-export { getTxMetaFields } from './utils/transaction';
