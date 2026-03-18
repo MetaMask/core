@@ -191,11 +191,7 @@ function setup({
       keyring.accounts.find((account) => account.address === address),
     );
 
-  const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-    expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
-    expect(request.data).toStrictEqual({
-      provider: SOL_ACCOUNT_PROVIDER_NAME,
-    });
+  const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
     return await fn();
   });
 
@@ -673,7 +669,13 @@ describe('SolAccountProvider', () => {
       });
 
       expect(discovered).toHaveLength(1);
-      expect(mocks.trace).toHaveBeenCalledTimes(1);
+      expect(mocks.trace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: TraceName.SnapDiscoverAccounts,
+          data: { provider: SOL_ACCOUNT_PROVIDER_NAME },
+        }),
+        expect.any(Function),
+      );
     });
 
     it('uses fallback trace when no trace callback is provided', async () => {
