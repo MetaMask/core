@@ -3,7 +3,10 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import { createDeferredPromise } from '@metamask/utils';
 
-import { SnapPlatformWatcher } from './SnapPlatformWatcher';
+import {
+  DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS,
+  SnapPlatformWatcher,
+} from './SnapPlatformWatcher';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -410,7 +413,9 @@ describe('SnapPlatformWatcher', () => {
         'Snap platform or keyrings still not ready. Aborting.',
       );
       await Promise.resolve();
-      await jest.advanceTimersByTimeAsync(5_001);
+      await jest.advanceTimersByTimeAsync(
+        DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS + 1,
+      );
       jest.useRealTimers();
 
       await expectRejection;
