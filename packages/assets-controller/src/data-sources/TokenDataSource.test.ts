@@ -687,7 +687,35 @@ describe('TokenDataSource', () => {
     );
   });
 
-  it('middleware fetches native asset IDs even when there are no detected assets', async () => {
+  it('middleware fetches native asset IDs even when detectedAssets is undefined', async () => {
+    const { controller, apiClient } = setupController({
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    // detectedAssets is intentionally omitted (undefined) to mirror the real-world
+    // case where DetectionMiddleware finds zero balances and zero custom assets
+    const context = createMiddlewareContext({
+      response: {},
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]).toBeDefined();
+  });
+
+  it('middleware fetches native asset IDs when detectedAssets is an empty object', async () => {
     const { controller, apiClient } = setupController({
       supportedNetworks: ['eip155:1'],
       nativeAssetIds: [MOCK_NATIVE_ASSET],

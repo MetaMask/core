@@ -191,40 +191,38 @@ export class TokenDataSource {
       // Extract response from context
       const { response } = ctx;
 
-      // Only fetch metadata for detected assets (assets without metadata)
-      if (!response.detectedAssets) {
-        return next(ctx);
-      }
-
       const { assetsInfo: stateMetadata } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
-
-      for (const detectedIds of Object.values(response.detectedAssets)) {
-        for (const assetId of detectedIds) {
-          // Skip if response already has metadata with image
-          const responseMetadata = response.assetsInfo?.[assetId];
-          if (responseMetadata?.image) {
-            continue;
-          }
-
-          // Skip if state already has metadata with image
-          const existingMetadata = stateMetadata[assetId];
-          if (existingMetadata?.image) {
-            continue;
-          }
-
-          // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
-          if (isStakingContractAssetId(assetId)) {
-            continue;
-          }
-
-          assetIdsNeedingMetadata.add(assetId);
-        }
-      }
 
       // Always include native asset IDs from NetworkEnablementController
       for (const nativeAssetId of this.#getNativeAssetIds()) {
         assetIdsNeedingMetadata.add(nativeAssetId);
+      }
+
+      // Also fetch metadata for detected assets that are missing it
+      if (response.detectedAssets) {
+        for (const detectedIds of Object.values(response.detectedAssets)) {
+          for (const assetId of detectedIds) {
+            // Skip if response already has metadata with image
+            const responseMetadata = response.assetsInfo?.[assetId];
+            if (responseMetadata?.image) {
+              continue;
+            }
+
+            // Skip if state already has metadata with image
+            const existingMetadata = stateMetadata[assetId];
+            if (existingMetadata?.image) {
+              continue;
+            }
+
+            // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
+            if (isStakingContractAssetId(assetId)) {
+              continue;
+            }
+
+            assetIdsNeedingMetadata.add(assetId);
+          }
+        }
       }
 
       if (assetIdsNeedingMetadata.size === 0) {
