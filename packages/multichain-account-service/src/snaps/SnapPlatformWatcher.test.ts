@@ -298,10 +298,53 @@ describe('SnapPlatformWatcher', () => {
           'KeyringController:stateChange subscribe call not found',
         );
       }
-      const listener = stateChangeCall[1] as (state: {
-        keyrings: { type: string }[];
-      }) => void;
-      listener({ keyrings: [{ type: KeyringTypes.snap }] });
+      const listener = stateChangeCall[1] as (
+        keyrings: {
+          type: string;
+        }[],
+      ) => void;
+      listener([{ type: KeyringTypes.snap }]);
+
+      expect(await ensurePromise).toBeUndefined();
+    });
+
+    it('resolves when Snap keyring appears via published stateChange (selector path)', async () => {
+      const rootMessenger = getRootMessenger();
+      const mocks = {
+        SnapController: { getState: jest.fn() },
+        KeyringController: { getState: jest.fn() },
+      };
+      mocks.SnapController.getState.mockReturnValue({ isReady: true });
+      mocks.KeyringController.getState.mockReturnValue({ keyrings: [] });
+      rootMessenger.registerActionHandler(
+        'SnapController:getState',
+        mocks.SnapController.getState,
+      );
+      rootMessenger.registerActionHandler(
+        'KeyringController:getState',
+        mocks.KeyringController.getState,
+      );
+      const messenger = getMultichainAccountServiceMessenger(rootMessenger);
+      const watcher = new SnapPlatformWatcher(messenger);
+
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      rootMessenger.publish(
+        'KeyringController:stateChange',
+        {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.snap,
+              accounts: [],
+              metadata: { id: 'snap', name: 'Snap' },
+            },
+          ],
+        },
+        [],
+      );
 
       expect(await ensurePromise).toBeUndefined();
     });
@@ -343,10 +386,12 @@ describe('SnapPlatformWatcher', () => {
           'KeyringController:stateChange subscribe call not found',
         );
       }
-      const listener = stateChangeCall[1] as (state: {
-        keyrings: { type: string }[];
-      }) => void;
-      listener({ keyrings: [{ type: KeyringTypes.snap }] });
+      const listener = stateChangeCall[1] as (
+        keyrings: {
+          type: string;
+        }[],
+      ) => void;
+      listener([{ type: KeyringTypes.snap }]);
 
       expect(await ensurePromise).toBeUndefined();
     });
@@ -365,10 +410,32 @@ describe('SnapPlatformWatcher', () => {
         'Snap platform or keyrings still not ready. Aborting.',
       );
       await Promise.resolve();
-      await jest.advanceTimersByTimeAsync(5_000);
+      await jest.advanceTimersByTimeAsync(5_001);
       jest.useRealTimers();
 
       await expectRejection;
+    });
+
+    it('rejects when timeout fires (covers timeout callback path)', async () => {
+      const { rootMessenger, messenger, mocks } = setup();
+      mocks.KeyringController.getState.mockReturnValue({ keyrings: [] });
+      const watcher = new SnapPlatformWatcher(messenger, {
+        snapKeyringWaitTimeoutMs: 1,
+      });
+      publishIsReadyState(rootMessenger, true);
+
+      jest.useFakeTimers();
+      const ensurePromise = watcher.ensureCanUseSnapPlatform();
+      await Promise.resolve();
+      await Promise.resolve();
+      // Attach rejection handler before advancing timers to avoid unhandled rejection.
+      // eslint-disable-next-line jest/valid-expect -- assertion is awaited after advancing timers
+      const rejectionAssertion = expect(ensurePromise).rejects.toThrow(
+        'Snap platform or keyrings still not ready. Aborting.',
+      );
+      await jest.advanceTimersByTimeAsync(10);
+      jest.useRealTimers();
+      await rejectionAssertion;
     });
 
     it('uses custom snapKeyringWaitTimeoutMs when provided', async () => {

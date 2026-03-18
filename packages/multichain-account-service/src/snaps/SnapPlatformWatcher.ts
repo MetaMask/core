@@ -130,8 +130,10 @@ export class SnapPlatformWatcher {
         id: undefined,
       };
 
-      const listener = (state: KeyringControllerStateSlice): void => {
-        if (stateHasSnapKeyring(state)) {
+      const listener = (
+        keyrings: KeyringControllerStateSlice['keyrings'],
+      ): void => {
+        if (stateHasSnapKeyring({ keyrings })) {
           clearTimeout(timeoutRef.id);
           this.#messenger.unsubscribe(
             'KeyringController:stateChange',
@@ -149,7 +151,7 @@ export class SnapPlatformWatcher {
       this.#messenger.subscribe(
         'KeyringController:stateChange',
         listener,
-        (state) => ({ keyrings: state.keyrings }),
+        (state) => state.keyrings,
       );
     });
   }
