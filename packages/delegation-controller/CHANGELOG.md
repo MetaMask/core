@@ -9,15 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose missing public `DelegationController` methods through its messenger ([#8205](https://github.com/MetaMask/core/pull/8205))
-  - The following actions are now available:
-    - `DelegationController:signDelegation`
-    - `DelegationController:store`
-    - `DelegationController:list`
-    - `DelegationController:retrieve`
-    - `DelegationController:chain`
-    - `DelegationController:delete`
-  - Corresponding action types (e.g. `DelegationControllerSignDelegationAction`) are available as well.
+- Export `DelegationControllerGetStateAction` type ([#8205](https://github.com/MetaMask/core/pull/8205))
 
 ## [2.0.2]
 
