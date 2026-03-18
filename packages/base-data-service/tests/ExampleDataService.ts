@@ -1,3 +1,4 @@
+import { ConstantBackoff } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
 
@@ -68,6 +69,11 @@ export class ExampleDataService extends BaseDataService<
     super({
       name: serviceName,
       messenger,
+      servicePolicyOptions: {
+        maxRetries: 2,
+        maxConsecutiveFailures: 3,
+        backoff: new ConstantBackoff(0),
+      },
     });
 
     messenger.registerActionHandler(

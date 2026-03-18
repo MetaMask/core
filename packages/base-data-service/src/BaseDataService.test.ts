@@ -1,5 +1,7 @@
+import { BrokenCircuitError } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 import { hashQueryKey } from '@tanstack/query-core';
+import { cleanAll } from 'nock';
 
 import { ExampleDataService, serviceName } from '../tests/ExampleDataService';
 import {
@@ -200,5 +202,73 @@ describe('BaseDataService', () => {
     await service.getAssets(assets);
 
     expect(publishSpy).toHaveBeenCalledTimes(0);
+  });
+
+  describe('service policy', () => {
+    beforeEach(() => {
+      cleanAll();
+    });
+
+    it('retries failed queries using the service policy', async () => {
+      const messenger = new Messenger({ namespace: serviceName });
+      const service = new ExampleDataService(messenger);
+
+      mockAssets({ status: 500 });
+      mockAssets({ status: 500 });
+      mockAssets();
+
+      const result = await service.getAssets(MOCK_ASSETS);
+
+      expect(result).toStrictEqual([
+        {
+          assetId: 'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+          decimals: 18,
+          name: 'Dai Stablecoin',
+          symbol: 'DAI',
+        },
+        {
+          assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+          decimals: 8,
+          name: 'Bitcoin',
+          symbol: 'BTC',
+        },
+        {
+          assetId: 'eip155:1/slip44:60',
+          decimals: 18,
+          name: 'Ethereum',
+          symbol: 'ETH',
+        },
+      ]);
+    });
+
+    it('throws after exhausting service policy retries', async () => {
+      const messenger = new Messenger({ namespace: serviceName });
+      const service = new ExampleDataService(messenger);
+
+      mockAssets({ status: 500 });
+      mockAssets({ status: 500 });
+      mockAssets({ status: 500 });
+
+      await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
+        'invalid json response body',
+      );
+    });
+
+    it('breaks the circuit after consecutive failures', async () => {
+      const messenger = new Messenger({ namespace: serviceName });
+      const service = new ExampleDataService(messenger);
+
+      mockAssets({ status: 500 });
+      mockAssets({ status: 500 });
+      mockAssets({ status: 500 });
+
+      await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
+        'invalid json response body',
+      );
+
+      await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
+        BrokenCircuitError,
+      );
+    });
   });
 });

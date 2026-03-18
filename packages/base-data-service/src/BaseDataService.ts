@@ -1,4 +1,9 @@
 import {
+  createServicePolicy,
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from '@metamask/controller-utils';
+import {
   Messenger,
   ActionConstraint,
   EventConstraint,
@@ -88,6 +93,8 @@ export class BaseDataService<
 
   protected messenger: ServiceMessenger;
 
+  readonly #policy: ServicePolicy;
+
   readonly #queryClient: QueryClient;
 
   readonly #queryCacheUnsubscribe: () => void;
@@ -96,10 +103,12 @@ export class BaseDataService<
     name,
     messenger,
     queryClientConfig = {},
+    servicePolicyOptions,
   }: {
     name: ServiceName;
     messenger: ServiceMessenger;
     queryClientConfig?: QueryClientConfig;
+    servicePolicyOptions?: CreateServicePolicyOptions;
   }) {
     this.name = name;
 
@@ -120,6 +129,8 @@ export class BaseDataService<
         mutations: queryClientConfig.defaultOptions?.mutations,
       },
     });
+
+    this.#policy = createServicePolicy(servicePolicyOptions);
 
     this.#queryCacheUnsubscribe = this.#queryClient
       .getQueryCache()
@@ -159,7 +170,11 @@ export class BaseDataService<
       'queryKey' | 'queryFn'
     >,
   ): Promise<TData> {
-    return this.#queryClient.fetchQuery(options);
+    return this.#queryClient.fetchQuery({
+      ...options,
+      queryFn: (context) =>
+        this.#policy.execute(() => options.queryFn(context)),
+    });
   }
 
   protected async fetchInfiniteQuery<
@@ -185,10 +200,12 @@ export class BaseDataService<
       const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
         queryFn: (context) =>
-          options.queryFn({
-            ...context,
-            pageParam: context.pageParam ?? pageParam,
-          }),
+          this.#policy.execute(() =>
+            options.queryFn({
+              ...context,
+              pageParam: context.pageParam ?? pageParam,
+            }),
+          ),
       });
 
       return result.pages[0];
