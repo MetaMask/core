@@ -6,9 +6,7 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
-import {
-  TraceCallback,
-} from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';

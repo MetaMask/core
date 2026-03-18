@@ -4343,6 +4343,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^37.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/controller-utils": "npm:^11.19.0"
     "@metamask/eth-hd-keyring": "npm:^13.0.0"
     "@metamask/eth-snap-keyring": "npm:^19.0.0"
     "@metamask/key-tree": "npm:^10.1.1"
