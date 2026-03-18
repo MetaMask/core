@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `NftDetectionController` now accepts a `removeNft` callback (matching `NftController['removeNft']`) and automatically removes NFTs from state during detection when the backend marks them as spam (`isSpam: true`)
+
 ## [101.0.1]
 
 ### Changed

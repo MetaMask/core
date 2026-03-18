@@ -1135,6 +1135,148 @@ describe('NftDetectionController', () => {
     );
   });
 
+  it('should remove NFTs from state when the API now marks them as spam', async () => {
+    const mockAddNfts = jest.fn();
+    const mockRemoveNft = jest.fn();
+    const selectedAddress = '0xSpamDetect';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    const spamContract = '0xSpamContract';
+    const spamTokenId = '42';
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: spamContract,
+              kind: 'erc721',
+              name: 'Spam NFT',
+              description: 'This NFT is now spam',
+              image: 'image/spam.png',
+              tokenId: spamTokenId,
+              metadata: {
+                imageOriginal: 'imageOriginal/spam.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    const mockGetNftState = jest.fn().mockReturnValue({
+      ...getDefaultNftControllerState(),
+      allNfts: {
+        [selectedAddress]: {
+          '0x1': [
+            {
+              address: spamContract,
+              tokenId: spamTokenId,
+              name: 'Spam NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      },
+    });
+
+    await withController(
+      {
+        options: {
+          addNfts: mockAddNfts,
+          removeNft: mockRemoveNft,
+          getNftState: mockGetNftState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await jestAdvanceTime({ duration: 1 });
+        mockAddNfts.mockReset();
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockRemoveNft).toHaveBeenCalledWith(
+          spamContract,
+          spamTokenId,
+          expect.any(String),
+          { userAddress: selectedAddress },
+        );
+        expect(mockAddNfts).toHaveBeenCalledWith([], selectedAddress, Source.Detected);
+      },
+    );
+  });
+
+  it('should not remove NFTs from state when spam NFT does not exist in state', async () => {
+    const mockAddNfts = jest.fn();
+    const mockRemoveNft = jest.fn();
+    const selectedAddress = '0xSpamDetectNoState';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xSpamContract',
+              kind: 'erc721',
+              name: 'Spam NFT',
+              tokenId: '42',
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    await withController(
+      {
+        options: {
+          addNfts: mockAddNfts,
+          removeNft: mockRemoveNft,
+          getNftState: getDefaultNftControllerState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await jestAdvanceTime({ duration: 1 });
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockRemoveNft).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   it('should stop pagination when signal is aborted', async () => {
     const mockAddNfts = jest.fn();
     const selectedAddress = '0xAbortSignal';
@@ -1383,6 +1525,7 @@ async function withController<ReturnValue>(
     messenger: nftDetectionControllerMessenger,
     disabled: true,
     addNfts: jest.fn(),
+    removeNft: jest.fn(),
     getNftState: getDefaultNftControllerState,
     ...options,
   });
