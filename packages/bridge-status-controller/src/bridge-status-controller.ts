@@ -136,6 +136,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     customBridgeApiBaseUrl: string;
   };
 
+  readonly #addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
+
   readonly #trace: TraceCallback;
 
   constructor({
@@ -143,6 +145,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     state,
     clientId,
     fetchFn,
+    addTransactionBatchFn,
     config,
     traceFn,
   }: {
@@ -150,6 +153,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     state?: Partial<BridgeStatusControllerState>;
     clientId: BridgeClientId;
     fetchFn: FetchFunction;
+    addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
     config?: {
       customBridgeApiBaseUrl?: string;
     };
@@ -168,6 +172,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
+    this.#addTransactionBatchFn = addTransactionBatchFn;
     this.#config = {
       customBridgeApiBaseUrl:
         config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
@@ -1099,10 +1104,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       )?.params.data,
     };
 
-    const { batchId } = await this.messenger.call(
-      'TransactionController:addTransactionBatch',
-      transactionParams,
-    );
+    const { batchId } = await this.#addTransactionBatchFn(transactionParams);
 
     const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
       messenger: this.messenger,

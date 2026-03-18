@@ -27,7 +27,6 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
   TransactionControllerAddTransactionAction,
-  TransactionControllerAddTransactionBatchAction,
   TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
@@ -322,7 +321,6 @@ type AllowedActions =
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction
   | TransactionControllerAddTransactionAction
-  | TransactionControllerAddTransactionBatchAction
   | TransactionControllerEstimateGasFeeAction
   | TransactionControllerIsAtomicBatchSupportedAction
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>

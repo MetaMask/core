@@ -15,12 +15,12 @@ import type {
   TransactionController,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { TransactionBatchSingleRequest } from '@metamask/transaction-controller';
 import { createProjectLogger } from '@metamask/utils';
 
 import { getAccountByAddress } from './accounts';
 import { calculateGasFees } from './gas';
 import { getNetworkClientIdByChainId } from './network';
-import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type { BridgeStatusControllerMessenger } from '../types';
 

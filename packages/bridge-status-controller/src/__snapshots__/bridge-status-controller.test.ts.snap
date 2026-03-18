@@ -1508,6 +1508,40 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 3`] = `
 [
   [
+    {
+      "disable7702": true,
+      "from": "0xaccount1",
+      "isGasFeeIncluded": false,
+      "isGasFeeSponsored": false,
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "transactions": [
+        {
+          "assetsFiatValues": {
+            "receiving": "2.9999",
+            "sending": "2.00",
+          },
+          "params": {
+            "data": "0xdata",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xbridgeContract",
+            "value": "0x0",
+          },
+          "type": "bridge",
+        },
+      ],
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 4`] = `
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     {
@@ -1586,36 +1620,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
         "to": "0xbridgeContract",
         "value": "0x0",
       },
-    },
-  ],
-  [
-    "TransactionController:addTransactionBatch",
-    {
-      "disable7702": true,
-      "from": "0xaccount1",
-      "isGasFeeIncluded": false,
-      "isGasFeeSponsored": false,
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": false,
-      "transactions": [
-        {
-          "assetsFiatValues": {
-            "receiving": "2.9999",
-            "sending": "2.00",
-          },
-          "params": {
-            "data": "0xdata",
-            "from": "0xaccount1",
-            "gas": "0x5208",
-            "maxFeePerGas": "0x0",
-            "maxPriorityFeePerGas": "0x0",
-            "to": "0xbridgeContract",
-            "value": "0x0",
-          },
-          "type": "bridge",
-        },
-      ],
     },
   ],
   [
@@ -3396,6 +3400,155 @@ exports[`BridgeStatusController submitTx: EVM swap should estimate gas when gasI
 }
 `;
 
+exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAtomicBatchSupported failure 1`] = `
+[
+  [
+    "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
+    undefined,
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "BridgeController:trackUnifiedSwapBridgeEvent",
+    "Unified SwapBridge Submitted",
+    {
+      "action_type": "swapbridge-v1",
+      "chain_id_destination": "eip155:42161",
+      "chain_id_source": "eip155:42161",
+      "custom_slippage": false,
+      "gas_included": false,
+      "gas_included_7702": false,
+      "is_hardware_wallet": false,
+      "location": "Main View",
+      "price_impact": 0,
+      "provider": "lifi_across",
+      "quoted_time_minutes": 0,
+      "stx_enabled": false,
+      "swap_type": "single_chain",
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
+      "usd_amount_source": 1.01,
+      "usd_quoted_gas": 2.5778,
+      "usd_quoted_return": 0,
+    },
+  ],
+  [
+    "TransactionController:isAtomicBatchSupported",
+    {
+      "address": "0xaccount1",
+      "chainIds": [
+        "0xa4b1",
+      ],
+    },
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  [
+    "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum-client-id",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xapprovalData",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xtokenContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xapprovalData",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xtokenContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum-client-id",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "swapApproval",
+    },
+  ],
+  [
+    "TransactionController:getState",
+  ],
+  [
+    "AccountsController:getAccountByAddress",
+    "0xaccount1",
+  ],
+  [
+    "NetworkController:findNetworkClientIdByChainId",
+    "0xa4b1",
+  ],
+  [
+    "GasFeeController:getState",
+  ],
+  [
+    "TransactionController:estimateGasFee",
+    {
+      "chainId": "0xa4b1",
+      "networkClientId": "arbitrum",
+      "transactionParams": {
+        "chainId": "0xa4b1",
+        "data": "0xdata",
+        "from": "0xaccount1",
+        "gas": "21000",
+        "gasLimit": "21000",
+        "to": "0xbridgeContract",
+        "value": "0x0",
+      },
+    },
+  ],
+  [
+    "TransactionController:addTransaction",
+    {
+      "chainId": "0xa4b1",
+      "data": "0xdata",
+      "from": "0xaccount1",
+      "gas": "0x5208",
+      "gasLimit": "21000",
+      "maxFeePerGas": undefined,
+      "maxPriorityFeePerGas": undefined,
+      "to": "0xbridgeContract",
+      "value": "0x0",
+    },
+    {
+      "actionId": "1234567890.456",
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "type": "swap",
+    },
+  ],
+  [
+    "TransactionController:getState",
+  ],
+]
+`;
+
 exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with approval 2`] = `
 {
   "account": "0xaccount1",
@@ -3659,6 +3812,52 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 3`] = `
 [
   [
+    {
+      "disable7702": true,
+      "from": "0xaccount1",
+      "isGasFeeIncluded": false,
+      "isGasFeeSponsored": false,
+      "networkClientId": "arbitrum",
+      "origin": "metamask",
+      "requireApproval": false,
+      "transactions": [
+        {
+          "params": {
+            "data": "0xapprovalData",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xtokenContract",
+            "value": "0x0",
+          },
+          "type": "swapApproval",
+        },
+        {
+          "assetsFiatValues": {
+            "receiving": "2.9999",
+            "sending": "2.00",
+          },
+          "params": {
+            "data": "0xdata",
+            "from": "0xaccount1",
+            "gas": "0x5208",
+            "maxFeePerGas": "0x0",
+            "maxPriorityFeePerGas": "0x0",
+            "to": "0xbridgeContract",
+            "value": "0x0",
+          },
+          "type": "swap",
+        },
+      ],
+    },
+  ],
+]
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 4`] = `
+[
+  [
     "BridgeController:stopPollingForQuotes",
     "Transaction submitted",
     undefined,
@@ -3740,48 +3939,6 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
         "to": "0xbridgeContract",
         "value": "0x0",
       },
-    },
-  ],
-  [
-    "TransactionController:addTransactionBatch",
-    {
-      "disable7702": true,
-      "from": "0xaccount1",
-      "isGasFeeIncluded": false,
-      "isGasFeeSponsored": false,
-      "networkClientId": "arbitrum",
-      "origin": "metamask",
-      "requireApproval": false,
-      "transactions": [
-        {
-          "params": {
-            "data": "0xapprovalData",
-            "from": "0xaccount1",
-            "gas": "0x5208",
-            "maxFeePerGas": "0x0",
-            "maxPriorityFeePerGas": "0x0",
-            "to": "0xtokenContract",
-            "value": "0x0",
-          },
-          "type": "swapApproval",
-        },
-        {
-          "assetsFiatValues": {
-            "receiving": "2.9999",
-            "sending": "2.00",
-          },
-          "params": {
-            "data": "0xdata",
-            "from": "0xaccount1",
-            "gas": "0x5208",
-            "maxFeePerGas": "0x0",
-            "maxPriorityFeePerGas": "0x0",
-            "to": "0xbridgeContract",
-            "value": "0x0",
-          },
-          "type": "swap",
-        },
-      ],
     },
   ],
   [
