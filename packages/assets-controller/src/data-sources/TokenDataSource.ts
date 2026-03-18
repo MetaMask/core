@@ -19,6 +19,8 @@ import type {
 
 const CONTROLLER_NAME = 'TokenDataSource';
 
+const MIN_TOKEN_OCCURRENCES = 3;
+
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // ============================================================================
@@ -252,17 +254,53 @@ export class TokenDataSource {
             includeLabels: true,
             includeRwaData: true,
             includeAggregators: true,
+            includeOccurrences: true,
           },
         );
 
         response.assetsInfo ??= {};
 
+        const filteredOutAssets = new Set<string>();
+
         for (const assetData of metadataResponse) {
+          const parsed = parseCaipAssetType(assetData.assetId as CaipAssetType);
+          const isNative = parsed.assetNamespace === 'slip44';
+
+          if (
+            !isNative &&
+            (assetData.occurrences ?? 0) < MIN_TOKEN_OCCURRENCES
+          ) {
+            filteredOutAssets.add(assetData.assetId);
+            continue;
+          }
+
           const caipAssetId = assetData.assetId as Caip19AssetId;
           response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
             assetData.assetId,
             assetData,
           );
+        }
+
+        if (filteredOutAssets.size > 0) {
+          if (response.assetsBalance) {
+            for (const accountBalances of Object.values(
+              response.assetsBalance,
+            )) {
+              for (const assetId of filteredOutAssets) {
+                delete (accountBalances as Record<string, unknown>)[assetId];
+              }
+            }
+          }
+
+          if (response.detectedAssets) {
+            for (const [accountId, assetIds] of Object.entries(
+              response.detectedAssets,
+            )) {
+              response.detectedAssets[accountId] = assetIds.filter(
+                (id) => !filteredOutAssets.has(id),
+              );
+            }
+          }
         }
       } catch (error) {
         log('Failed to fetch metadata', { error });

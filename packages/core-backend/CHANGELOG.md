@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `includeOccurrences` option to `V3AssetsQueryOptions` so the tokens v3 assets API can be called with `includeOccurrences: true` to return token list occurrence counts in the response ([#8227](https://github.com/MetaMask/core/pull/8227))
+
 ## [6.1.1]
 
 ### Changed

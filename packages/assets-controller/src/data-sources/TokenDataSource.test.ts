@@ -205,6 +205,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
     expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toStrictEqual({
@@ -321,6 +322,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
   });
@@ -354,6 +356,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
   });
@@ -548,6 +551,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
     expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
@@ -581,6 +585,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
   });
@@ -616,6 +621,7 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
     );
   });
@@ -649,7 +655,105 @@ describe('TokenDataSource', () => {
         includeMetadata: true,
         includeRwaData: true,
         includeAggregators: true,
+        includeOccurrences: true,
       },
+    );
+  });
+
+  it('middleware filters out non-native assets with occurrences < 3', async () => {
+    const lowOccurrenceAsset =
+      'eip155:1/erc20:0x1111111111111111111111111111111111111111' as Caip19AssetId;
+
+    const { controller } = setupController({
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_TOKEN_ASSET, { occurrences: 5 }),
+        createMockAssetResponse(lowOccurrenceAsset, { occurrences: 2 }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [MOCK_TOKEN_ASSET, lowOccurrenceAsset],
+        },
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '100' },
+            [lowOccurrenceAsset]: { amount: '50' },
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[lowOccurrenceAsset]).toBeUndefined();
+
+    const accountBalances = context.response.assetsBalance?.[
+      'mock-account-id'
+    ] as Record<string, unknown> | undefined;
+    expect(accountBalances?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(accountBalances?.[lowOccurrenceAsset]).toBeUndefined();
+
+    expect(context.response.detectedAssets?.['mock-account-id']).toContain(
+      MOCK_TOKEN_ASSET,
+    );
+    expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
+      lowOccurrenceAsset,
+    );
+  });
+
+  it('middleware filters out non-native assets with undefined occurrences', async () => {
+    const noOccurrenceAsset =
+      'eip155:1/erc20:0x2222222222222222222222222222222222222222' as Caip19AssetId;
+
+    const { controller } = setupController({
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(noOccurrenceAsset, { occurrences: undefined }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [noOccurrenceAsset],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[noOccurrenceAsset]).toBeUndefined();
+  });
+
+  it('middleware keeps native assets regardless of occurrences', async () => {
+    const { controller } = setupController({
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+          occurrences: 0,
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {},
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]?.type).toBe(
+      'native',
     );
   });
 

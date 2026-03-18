@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `TokenDataSource` now always includes native token asset IDs (from `NetworkEnablementController.nativeAssetIdentifiers`) in metadata fetch calls, ensuring native tokens always have up-to-date metadata ([#8227](https://github.com/MetaMask/core/pull/8227))
+- `TokenDataSource` now filters out non-native tokens with fewer than 3 occurrences from metadata responses, and also removes their balances and detected asset entries, to prevent spam tokens from being stored in state ([#8227](https://github.com/MetaMask/core/pull/8227))
+- `TokenDataSource` now requests `includeOccurrences` when fetching v3 asset metadata ([#8227](https://github.com/MetaMask/core/pull/8227))
 
 ## [2.4.0]
 
