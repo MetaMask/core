@@ -297,13 +297,13 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
    * @param featureFlagValue - The new value of the feature flag.
    */
   #onFeatureFlagChange(featureFlagValue: Json): void {
-    if (typeof featureFlagValue !== 'boolean') {
-      return;
-    }
-
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
 
-    if (featureFlagValue && isUnlocked) {
+    if (
+      typeof featureFlagValue === 'boolean' &&
+      featureFlagValue &&
+      isUnlocked
+    ) {
       this.startPolling(null);
     } else {
       this.stopAllPolling();

@@ -1310,7 +1310,7 @@ describe('ConfigRegistryController', () => {
       );
     });
 
-    it('does not start polling when the flag value is invalid', async () => {
+    it('does not start polling when the old flag value is `false` and the new flag value is invalid', async () => {
       await withController(
         async ({
           controller,
@@ -1319,7 +1319,7 @@ describe('ConfigRegistryController', () => {
           mockKeyringControllerGetState,
         }) => {
           mockRemoteFeatureFlagGetState.mockReturnValue({
-            remoteFeatureFlags: { configRegistryApiEnabled: 'invalid_value' },
+            remoteFeatureFlags: { configRegistryApiEnabled: false },
             cacheTimestamp: Date.now(),
           });
           mockKeyringControllerGetState.mockReturnValue({
@@ -1337,6 +1337,37 @@ describe('ConfigRegistryController', () => {
           );
 
           expect(startPollingSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('stops polling when the old flag value is `true` and the new flag value is invalid', async () => {
+      await withController(
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+          mockKeyringControllerGetState,
+        }) => {
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: true },
+            cacheTimestamp: Date.now(),
+          });
+          mockKeyringControllerGetState.mockReturnValue({
+            isUnlocked: true,
+          });
+          const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
+
+          rootMessenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: { configRegistryApiEnabled: 'invalid_value' },
+              cacheTimestamp: Date.now(),
+            },
+            [],
+          );
+
+          expect(stopAllPollingSpy).toHaveBeenCalled();
         },
       );
     });
