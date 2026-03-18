@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prevent `getSelectedAccount` and `getSelectedMultichainAccount` from throwing when `selectedAccount` is `undefined` ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+- Prevent `getSelectedAccount` and `getSelectedMultichainAccount` from throwing when `selectedAccount` is `undefined` ([#8231](https://github.com/MetaMask/core/pull/8231))
 
 ## [37.0.0]
 
