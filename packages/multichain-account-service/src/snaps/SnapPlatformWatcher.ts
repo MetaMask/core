@@ -146,7 +146,11 @@ export class SnapPlatformWatcher {
         reject(new Error(SNAP_KEYRING_TIMEOUT_MESSAGE));
       }, this.#snapKeyringWaitTimeoutMs);
 
-      this.#messenger.subscribe('KeyringController:stateChange', listener);
+      this.#messenger.subscribe(
+        'KeyringController:stateChange',
+        listener,
+        (state) => ({ keyrings: state.keyrings }),
+      );
     });
   }
 
