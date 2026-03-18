@@ -91,7 +91,7 @@
     }
   },
   "packages/account-tree-controller/src/types.ts": {
-    "local/no-cross-package-relative-imports": {
+    "import-x/no-relative-packages": {
       "count": 1
     }
   },
@@ -133,7 +133,7 @@
     }
   },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
-    "local/no-cross-package-relative-imports": {
+    "import-x/no-relative-packages": {
       "count": 1
     }
   },
@@ -261,7 +261,7 @@
     "id-length": {
       "count": 1
     },
-    "local/no-cross-package-relative-imports": {
+    "import-x/no-relative-packages": {
       "count": 1
     },
     "no-negated-condition": {
@@ -272,7 +272,7 @@
     }
   },
   "packages/assets-controllers/src/NftDetectionController.ts": {
-    "local/no-cross-package-relative-imports": {
+    "import-x/no-relative-packages": {
       "count": 1
     }
   },
@@ -633,7 +633,7 @@
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
     },
-    "local/no-cross-package-relative-imports": {
+    "import-x/no-relative-packages": {
       "count": 1
     }
   },
@@ -1711,12 +1711,12 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.ts": {
-    "local/no-cross-package-relative-imports": {
+    "import-x/no-relative-packages": {
       "count": 1
     }
   },
   "packages/transaction-pay-controller/src/utils/source-amounts.ts": {
-    "local/no-cross-package-relative-imports": {
+    "import-x/no-relative-packages": {
       "count": 1
     }
   },
