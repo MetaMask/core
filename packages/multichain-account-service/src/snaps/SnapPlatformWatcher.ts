@@ -7,7 +7,7 @@ import { MultichainAccountServiceMessenger } from '../types';
 
 /** Minimal KeyringController state shape needed to detect Snap keyring. */
 type KeyringControllerStateSlice = {
-  keyrings: { type: KeyringTypes | string }[];
+  keyrings: { type: string }[];
 };
 
 /** Default wait for Snap keyring to appear before rejecting (ms). */
