@@ -1,23 +1,18 @@
-import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
+import { Json } from '@metamask/utils';
 
-const FEATURE_FLAG_KEY = 'configRegistryApiEnabled';
+export const FEATURE_FLAG_KEY = 'configRegistryApiEnabled';
 const DEFAULT_FEATURE_FLAG_VALUE = false;
 
 /**
  * Selector: returns whether the config registry API feature flag is enabled
- * from the given RemoteFeatureFlagController state.
+ * from the given flag value.
  *
- * @param state - The RemoteFeatureFlagController state.
+ * @param featureFlagValue - The feature flag value
  * @returns True if the feature flag is enabled, false otherwise.
  */
-export function isConfigRegistryApiEnabled(
-  state: RemoteFeatureFlagControllerState,
-): boolean {
-  const { remoteFeatureFlags } = state;
-  const flagValue = remoteFeatureFlags?.[FEATURE_FLAG_KEY];
-
-  if (typeof flagValue === 'boolean') {
-    return flagValue;
+export function isConfigRegistryApiEnabled(featureFlagValue: Json): boolean {
+  if (typeof featureFlagValue === 'boolean' && featureFlagValue) {
+    return true;
   }
 
   return DEFAULT_FEATURE_FLAG_VALUE;
