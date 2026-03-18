@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+
 ### Changed
 
 - Token refresh now uses a dedicated private `#reAuthenticate` method that only accepts the tokens returned by the JWT-refresh service (`idTokens`, `accessToken`, `metadataAccessToken`), making the re-authentication path stricter than the initial `authenticate` call ([#8148](https://github.com/MetaMask/core/pull/8148))
