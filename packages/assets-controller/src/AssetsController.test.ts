@@ -1,4 +1,5 @@
 /* eslint-disable jest/unbound-method */
+import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -13,7 +14,6 @@ import {
   getDefaultAssetsControllerState,
 } from './AssetsController';
 import type {
-  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
@@ -79,14 +79,12 @@ type WithControllerOptions = {
   isBasicFunctionality?: () => boolean;
   /**
    * When set, registers ClientController:getState so the controller sees this UI state.
-   * Required for tests that rely on asset tracking running (e.g. trackMetaMetricsEvent on unlock).
+   * Required for tests that rely on asset tracking running (e.g. trace on unlock).
    */
   clientControllerState?: { isUiOpen: boolean };
-  /** Extra options passed to AssetsController constructor (e.g. trackMetaMetricsEvent). */
+  /** Extra options passed to AssetsController constructor (e.g. trace). */
   controllerOptions?: Partial<{
-    trackMetaMetricsEvent: (
-      payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
-    ) => void;
+    trace: TraceCallback;
     priceDataSourceConfig: PriceDataSourceConfig;
     isEnabled: () => boolean;
   }>;
@@ -1198,13 +1196,19 @@ describe('AssetsController', () => {
       });
     });
 
-    it('invokes trackMetaMetricsEvent with first init fetch duration on unlock', async () => {
-      const trackMetaMetricsEvent = jest.fn();
+    it('invokes trace with first init fetch trace request on unlock', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
+            fn?.(),
+        );
+      const trace = traceMock as unknown as TraceCallback;
 
       await withController(
         {
           clientControllerState: { isUiOpen: true },
-          controllerOptions: { trackMetaMetricsEvent },
+          controllerOptions: { trace },
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
@@ -1218,30 +1222,41 @@ describe('AssetsController', () => {
           // Allow #start() -> getAssets() to resolve so the callback runs
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
-          expect(trackMetaMetricsEvent).toHaveBeenCalledWith(
-            expect.objectContaining({
-              durationMs: expect.any(Number),
-              chainIds: expect.any(Array),
-              durationByDataSource: expect.any(Object),
+          expect(traceMock).toHaveBeenCalledTimes(1);
+          const [request] = traceMock.mock.calls[0];
+          expect(request).toMatchObject({
+            name: 'AssetsController First Init Fetch',
+            data: expect.objectContaining({
+              duration_ms: expect.any(Number),
+              chain_ids: expect.any(String),
             }),
-          );
-          const payload = trackMetaMetricsEvent.mock
-            .calls[0][0] as AssetsControllerFirstInitFetchMetaMetricsPayload;
-          expect(payload.durationMs).toBeGreaterThanOrEqual(0);
-          expect(Array.isArray(payload.chainIds)).toBe(true);
-          expect(typeof payload.durationByDataSource).toBe('object');
+            tags: { controller: 'AssetsController' },
+          });
+          const {
+            duration_ms: durationMs,
+            chain_ids: chainIds,
+            ...durationByDataSource
+          } = request.data ?? {};
+          expect(durationMs).toBeGreaterThanOrEqual(0);
+          expect(typeof chainIds).toBe('string');
+          expect(typeof durationByDataSource).toBe('object');
         },
       );
     });
 
-    it('invokes trackMetaMetricsEvent only once per session until lock', async () => {
-      const trackMetaMetricsEvent = jest.fn();
+    it('invokes trace only once per session until lock', async () => {
+      const traceMock = jest
+        .fn()
+        .mockImplementation(
+          async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
+            fn?.(),
+        );
+      const trace = traceMock as unknown as TraceCallback;
 
       await withController(
         {
           clientControllerState: { isUiOpen: true },
-          controllerOptions: { trackMetaMetricsEvent },
+          controllerOptions: { trace },
         },
         async ({ messenger }) => {
           // UI must be open and keyring unlocked for asset tracking to run
@@ -1256,7 +1271,7 @@ describe('AssetsController', () => {
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          expect(trackMetaMetricsEvent).toHaveBeenCalledTimes(1);
+          expect(traceMock).toHaveBeenCalledTimes(1);
         },
       );
     });

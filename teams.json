@@ -72,5 +72,5 @@
   "metamask/analytics-data-regulation-controller": "team-extension-platform,team-mobile-platform",
   "metamask/remote-feature-flag-controller": "team-extension-platform,team-mobile-platform",
   "metamask/storage-service": "team-extension-platform,team-mobile-platform",
-  "metamask/config-registry-controller": "team-core-platform"
+  "metamask/config-registry-controller": "team-networks"
 }

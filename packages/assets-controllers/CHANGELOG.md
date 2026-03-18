@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `TokenBalancesController` no longer crashes when `AccountActivityService:statusChanged` emits non-EVM chain IDs (e.g. `solana:mainnet`); such chains are now silently skipped ([#8228](https://github.com/MetaMask/core/pull/8228))
+
 ## [101.0.0]
 
 ### Added
