@@ -46,7 +46,6 @@
 /packages/ramps-controller                  @MetaMask/ramp
 
 ## Networks Team
-
 /packages/config-registry-controller        @MetaMask/networks
 
 ## Notifications Team
@@ -138,6 +137,8 @@
 /packages/assets-controller/CHANGELOG.md          @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/chain-agnostic-permission/package.json  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/chain-agnostic-permission/CHANGELOG.md  @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/config-registry-controller/CHANGELOG.md @MetaMask/networks @MetaMask/core-platform
+/packages/config-registry-controller/package.json @MetaMask/networks @MetaMask/core-platform
 /packages/delegation-controller/package.json      @MetaMask/delegation @MetaMask/core-platform
 /packages/delegation-controller/CHANGELOG.md      @MetaMask/delegation @MetaMask/core-platform
 /packages/earn-controller/package.json            @MetaMask/metamask-earn @MetaMask/core-platform
@@ -218,5 +219,3 @@
 /packages/ai-controllers/CHANGELOG.md @MetaMask/social-ai @MetaMask/core-platform
 /packages/client-controller/package.json @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/client-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/config-registry-controller/CHANGELOG.md @MetaMask/networks @MetaMask/core-platform
-/packages/config-registry-controller/package.json @MetaMask/networks @MetaMask/core-platform
