@@ -83,17 +83,28 @@ export class SolAccountProvider extends SnapAccountProvider {
     return `m/44'/501'/${groupIndex}'/0'`;
   }
 
-  protected override createAccountV1(
+  protected override async createAccountV1(
     keyring: RestrictedSnapKeyring,
     {
       entropySource,
       groupIndex,
     }: { entropySource: EntropySourceId; groupIndex: number },
   ): Promise<KeyringAccount> {
-    return keyring.createAccount({
-      entropySource,
-      derivationPath: this.#getDerivationPath(groupIndex),
-    });
+    return await super.trace(
+      {
+        name: TraceName.ProviderCreateAccountV1,
+        data: {
+          provider: this.getName(),
+          groupIndex,
+        },
+      },
+      async () => {
+        return keyring.createAccount({
+          entropySource,
+          derivationPath: this.#getDerivationPath(groupIndex),
+        });
+      },
+    );
   }
 
   protected override toBip44Account(
