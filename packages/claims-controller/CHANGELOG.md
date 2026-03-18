@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix type of actions union within `ClaimsControllerMessenger` and `ClaimsServiceMessenger` not to be `any` ([#8236](https://github.com/MetaMask/core/pull/8236))
+
 ### Changed
 
 - Update dependencies ([#8236](https://github.com/MetaMask/core/pull/8236))
