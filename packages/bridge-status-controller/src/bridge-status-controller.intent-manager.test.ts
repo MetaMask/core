@@ -38,7 +38,6 @@ const createManagerOptions = (overrides?: {
   messenger: overrides?.messenger ?? { call: jest.fn() },
   customBridgeApiBaseUrl: 'https://example.com',
   fetchFn: overrides?.fetchFn ?? jest.fn(),
-  getJwt: jest.fn().mockResolvedValue(undefined),
 });
 
 describe('IntentManager', () => {

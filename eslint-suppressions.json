@@ -585,9 +585,14 @@
       "count": 2
     }
   },
-  "packages/bridge-status-controller/src/utils/snaps.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
+  "packages/bridge-status-controller/src/bridge-status-controller.test.ts": {
+    "no-new": {
       "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/utils/gas.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 4
     }
   },
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {

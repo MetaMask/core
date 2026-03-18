@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Replace transaction handlers provided to the `BridgeStatusController` constructor with calls to the TransactionController, through the controller messenger. Clients will need to add the `TransactionControllerUpdateTransactionAction`, `TransactionControllerAddTransactionAction`, `TransactionControllerAddTransactionBatchAction` and `TransactionControllerEstimateGasFeeAction` permissions to their controller init modules in addition to updating the constructor ([#8188](https://github.com/MetaMask/core/pull/8188))
+- Moved controller calls from bridge-status-controller.ts to their own utils for better readability ([#8226](https://github.com/MetaMask/core/pull/8226))
 
 ## [69.0.0]
 

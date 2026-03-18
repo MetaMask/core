@@ -1033,6 +1033,33 @@ describe('SeedlessOnboardingController', () => {
         );
       });
     });
+
+    it('should skip the controller lock when skipLock is true', async () => {
+      await withController(async ({ controller, toprfClient }) => {
+        jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+          nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+          isNewUser: false,
+        });
+
+        const authResult = await controller.authenticate({
+          idTokens,
+          authConnectionId,
+          userId,
+          authConnection,
+          socialLoginEmail,
+          refreshToken,
+          revokeToken,
+          accessToken,
+          metadataAccessToken,
+          skipLock: true,
+        });
+
+        expect(authResult.isNewUser).toBe(false);
+        expect(controller.state.isSeedlessOnboardingUserAuthenticated).toBe(
+          true,
+        );
+      });
+    });
   });
 
   describe('checkPasswordOutdated', () => {
@@ -2578,6 +2605,47 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should throw InvalidRevokeToken if vault data is missing revokeToken', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const encKey = mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const pwEncKey = mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+      const encryptor = createMockVaultEncryptor();
+
+      // Build a vault without the revokeToken field.
+      const vaultPayload = JSON.stringify({
+        toprfEncryptionKey: bytesToBase64(encKey),
+        toprfPwEncryptionKey: bytesToBase64(pwEncKey),
+        toprfAuthKeyPair: JSON.stringify({
+          sk: `0x${authKeyPair.sk.toString(16)}`,
+          pk: bytesToBase64(authKeyPair.pk),
+        }),
+        accessToken,
+        // revokeToken intentionally omitted
+      });
+
+      const { vault: vaultWithoutRevokeToken, exportedKeyString } =
+        await encryptor.encryptWithDetail(MOCK_PASSWORD, vaultPayload);
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: vaultWithoutRevokeToken,
+            vaultEncryptionKey: exportedKeyString,
+            vaultEncryptionSalt: JSON.parse(vaultWithoutRevokeToken).salt,
+          }),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.submitPassword(MOCK_PASSWORD),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
+          );
+        },
+      );
+    });
   });
 
   describe('verifyPassword', () => {
@@ -2965,7 +3033,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.OutdatedPassword,
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
           );
         },
       );
@@ -3142,7 +3210,7 @@ describe('SeedlessOnboardingController', () => {
           await expect(
             controller.changePassword(NEW_MOCK_PASSWORD, MOCK_PASSWORD),
           ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
+            SeedlessOnboardingControllerErrorMessage.FailedToChangePassword,
           );
         },
       );
@@ -4407,6 +4475,58 @@ describe('SeedlessOnboardingController', () => {
           },
         );
       });
+
+      it('should return true when node auth token is past its expiry', async () => {
+        const expiredToken = createMockNodeAuthToken({
+          exp: Math.floor(Date.now() / 1000) - 1,
+        });
+        await withController(
+          {
+            state: {
+              ...getMockInitialControllerState({
+                withMockAuthenticatedUser: true,
+              }),
+              // assertIsAuthenticatedUser requires ≥ 3 tokens; only the first is checked
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS.map((token, i) => ({
+                ...token,
+                authToken: i === 0 ? expiredToken : token.authToken,
+              })),
+            },
+          },
+          async ({ controller }) => {
+            jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
+
+            const isExpired = controller.checkNodeAuthTokenExpired();
+            expect(isExpired).toBe(true);
+          },
+        );
+      });
+
+      it('should return false when node auth token has not yet reached its expiry', async () => {
+        const validToken = createMockNodeAuthToken({
+          exp: Math.floor(Date.now() / 1000) + 7000,
+        });
+        await withController(
+          {
+            state: {
+              ...getMockInitialControllerState({
+                withMockAuthenticatedUser: true,
+              }),
+              // assertIsAuthenticatedUser requires ≥ 3 tokens; only the first is checked
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS.map((token, idx) => ({
+                ...token,
+                authToken: idx === 0 ? validToken : token.authToken,
+              })),
+            },
+          },
+          async ({ controller }) => {
+            jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
+
+            const isExpired = controller.checkNodeAuthTokenExpired();
+            expect(isExpired).toBe(false);
+          },
+        );
+      });
     });
 
     describe('checkIsPasswordOutdated with token refresh', () => {
@@ -4673,6 +4793,10 @@ describe('SeedlessOnboardingController', () => {
             // Unlock controller first
             await controller.submitPassword(OLD_PASSWORD);
 
+            // Capture before the call — proactive renewRefreshToken inside
+            // refreshAuthTokens will rotate state.refreshToken afterwards.
+            const originalRefreshToken = controller.state.refreshToken;
+
             const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
             const encryptorSpy = jest.spyOn(encryptor, 'encryptWithDetail');
 
@@ -4713,7 +4837,7 @@ describe('SeedlessOnboardingController', () => {
             // Verify that getNewRefreshToken was called
             expect(mockRefreshJWTToken).toHaveBeenCalledWith({
               connection: controller.state.authConnection,
-              refreshToken: controller.state.refreshToken,
+              refreshToken: originalRefreshToken,
             });
 
             // Verify that recoverEncKey was called twice (once failed, once succeeded)
@@ -5192,6 +5316,10 @@ describe('SeedlessOnboardingController', () => {
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
             await controller.submitPassword(MOCK_PASSWORD);
 
+            // Capture before the call — proactive renewRefreshToken inside
+            // refreshAuthTokens will rotate state.refreshToken afterwards.
+            const originalRefreshToken = controller.state.refreshToken;
+
             // Mock authenticate for token refresh
             jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -5202,7 +5330,7 @@ describe('SeedlessOnboardingController', () => {
 
             expect(mockRefreshJWTToken).toHaveBeenCalledWith({
               connection: controller.state.authConnection,
-              refreshToken: controller.state.refreshToken,
+              refreshToken: originalRefreshToken,
             });
 
             expect(toprfClient.authenticate).toHaveBeenCalledWith({
@@ -5560,63 +5688,211 @@ describe('SeedlessOnboardingController', () => {
         );
       });
 
-      it('should use live state.refreshToken in authenticate when token was rotated concurrently', async () => {
+      it('should re-authenticate using only the new idTokens from the JWT refresh', async () => {
         await withController(
           {
             state: getMockInitialControllerState({
               withMockAuthenticatedUser: true,
             }),
           },
-          async ({ controller, mockRefreshJWTToken }) => {
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
+            const newIdTokens = ['newIdToken'];
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: newIdTokens,
+              metadataAccessToken: 'mock-metadata-access-token',
+              accessToken,
+            });
+
+            const toprfAuthSpy = jest
+              .spyOn(toprfClient, 'authenticate')
+              .mockResolvedValue({
+                nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+                isNewUser: false,
+              });
+
+            await controller.refreshAuthTokens();
+
+            // #reAuthenticate passes only idTokens to the TOPRF client —
+            // refreshToken and revokeToken are structurally absent.
+            expect(toprfAuthSpy).toHaveBeenCalledWith(
+              expect.objectContaining({ idTokens: newIdTokens }),
+            );
+          },
+        );
+      });
+
+      it('should proactively call renewRefreshToken after vault update when vault is unlocked', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+              vaultEncryptionKey,
+              vaultEncryptionSalt,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            mockRenewRefreshToken,
+            mockRefreshJWTToken,
+          }) => {
+            await controller.submitPassword(MOCK_PASSWORD);
+
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['newIdToken'],
+              metadataAccessToken: 'mock-metadata-access-token',
+              accessToken,
+            });
+
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            await controller.refreshAuthTokens();
+
+            expect(mockRenewRefreshToken).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should not call renewRefreshToken when vault is locked', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, toprfClient, mockRenewRefreshToken }) => {
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            await controller.refreshAuthTokens();
+
+            expect(mockRenewRefreshToken).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('should swallow renewRefreshToken errors and still resolve when vault is unlocked', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+              vaultEncryptionKey,
+              vaultEncryptionSalt,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            mockRenewRefreshToken,
+            mockRefreshJWTToken,
+          }) => {
+            await controller.submitPassword(MOCK_PASSWORD);
+
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['newIdToken'],
+              metadataAccessToken: 'mock-metadata-access-token',
+              accessToken,
+            });
+
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            // Make the proactive renewal fail — the error is caught and logged.
+            mockRenewRefreshToken.mockRejectedValueOnce(
+              new Error('renewal failed'),
+            );
+
+            // refreshAuthTokens must still resolve even when renewal fails.
+            expect(await controller.refreshAuthTokens()).toBeUndefined();
+          },
+        );
+      });
+
+      it('should queue old refresh token for revocation after successful rotation', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+              vaultEncryptionKey,
+              vaultEncryptionSalt,
+            }),
+          },
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
+            await controller.submitPassword(MOCK_PASSWORD);
+
             const originalRefreshToken = controller.state.refreshToken;
-            const rotatedRefreshToken = 'rotated-refresh-token-from-renew';
+            const originalRevokeToken = controller.state.revokeToken;
 
-            let resolveRefresh!: () => void;
-            const refreshBarrier = new Promise<void>((resolve) => {
-              resolveRefresh = resolve;
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['newIdToken'],
+              metadataAccessToken: 'mock-metadata-access-token',
+              accessToken,
             });
 
-            mockRefreshJWTToken.mockImplementation(async () => {
-              await refreshBarrier;
-              return {
-                idTokens: ['newIdToken'],
-                metadataAccessToken: 'mock-metadata-access-token',
-                accessToken,
-              };
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
             });
 
-            // Spy on the controller's own authenticate method — this is the
-            // call that receives the refreshToken parameter. The inner
-            // toprfClient.authenticate call does not carry refreshToken.
-            const authenticateSpy = jest
-              .spyOn(controller, 'authenticate')
-              .mockResolvedValue();
+            await controller.refreshAuthTokens();
 
-            // Start the refresh — it is now blocked at the HTTP call.
-            const refreshPromise = controller.refreshAuthTokens();
-
-            // Simulate renewRefreshToken writing a new token to state while the
-            // HTTP call is in-flight. refreshAuthTokens holds no controller lock,
-            // so these two can genuinely overlap in production.
-            // @ts-expect-error Accessing protected method for testing
-            controller.update((state) => {
-              state.refreshToken = rotatedRefreshToken;
-            });
-
-            // Release the HTTP call and let refreshAuthTokens complete.
-            resolveRefresh();
-            await refreshPromise;
-
-            // authenticate must have received the live state value, not the
-            // value captured at the start of the method. Using the stale
-            // captured value would overwrite the newer token in state, causing
-            // all subsequent refreshes to 401 once the old token is revoked.
-            expect(authenticateSpy).toHaveBeenCalledWith(
-              expect.objectContaining({ refreshToken: rotatedRefreshToken }),
+            // After successful rotation the old token pair should be queued
+            // for background revocation.
+            expect(controller.state.pendingToBeRevokedTokens).toStrictEqual(
+              expect.arrayContaining([
+                {
+                  refreshToken: originalRefreshToken,
+                  revokeToken: originalRevokeToken,
+                },
+              ]),
             );
-            expect(authenticateSpy).not.toHaveBeenCalledWith(
-              expect.objectContaining({ refreshToken: originalRefreshToken }),
+          },
+        );
+      });
+
+      it('should update state.refreshToken after successful rotation', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+              vaultEncryptionKey,
+              vaultEncryptionSalt,
+            }),
+          },
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
+            await controller.submitPassword(MOCK_PASSWORD);
+
+            const originalRefreshToken = controller.state.refreshToken;
+
+            mockRefreshJWTToken.mockResolvedValueOnce({
+              idTokens: ['newIdToken'],
+              metadataAccessToken: 'mock-metadata-access-token',
+              accessToken,
+            });
+
+            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            await controller.refreshAuthTokens();
+
+            // rotateRefreshToken writes the new refresh token to state.
+            expect(controller.state.refreshToken).not.toBe(
+              originalRefreshToken,
             );
+            expect(controller.state.refreshToken).toBe('newRefreshToken');
           },
         );
       });
@@ -5691,12 +5967,72 @@ describe('SeedlessOnboardingController', () => {
 
       expect(controller.refreshAuthTokens).toHaveBeenCalled();
     });
+
+    it('should call refreshAuthTokens when 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; 9 500 s have elapsed → past the 90 % mark
+      const nearExpiryToken = createMockJWTToken({
+        iat: now - 9500,
+        exp: now + 500,
+      });
+      const { messenger } = mockSeedlessOnboardingMessenger();
+      const controller = new SeedlessOnboardingController({
+        messenger,
+        encryptor: createMockVaultEncryptor(),
+        refreshJWTToken: jest.fn(),
+        revokeRefreshToken: jest.fn(),
+        state: getMockInitialControllerState({
+          withMockAuthenticatedUser: true,
+          metadataAccessToken: nearExpiryToken,
+        }),
+        renewRefreshToken: jest.fn(),
+      });
+
+      jest.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
+
+      await controller.fetchMetadataAccessCreds();
+
+      expect(controller.refreshAuthTokens).toHaveBeenCalled();
+    });
+
+    it('should not call refreshAuthTokens when less than 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; only 3 000 s have elapsed → well below 90 %
+      const freshToken = createMockJWTToken({
+        iat: now - 3000,
+        exp: now + 7000,
+      });
+      const { messenger } = mockSeedlessOnboardingMessenger();
+      const controller = new SeedlessOnboardingController({
+        messenger,
+        encryptor: createMockVaultEncryptor(),
+        refreshJWTToken: jest.fn(),
+        revokeRefreshToken: jest.fn(),
+        state: getMockInitialControllerState({
+          withMockAuthenticatedUser: true,
+          metadataAccessToken: freshToken,
+        }),
+        renewRefreshToken: jest.fn(),
+      });
+
+      jest.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
+
+      const result = await controller.fetchMetadataAccessCreds();
+
+      expect(controller.refreshAuthTokens).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({
+        metadataAccessToken: freshToken,
+      });
+    });
   });
 
   describe('checkMetadataAccessTokenExpired', () => {
     it('should return false if metadata access token is not expired', async () => {
-      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const validToken = createMockJWTToken({ exp: futureExp });
+      const now = Math.floor(Date.now() / 1000);
+      const validToken = createMockJWTToken({
+        iat: now,
+        exp: now + 3600, // 1 hour lifetime, 0% elapsed
+      });
 
       await withController(
         {
@@ -5718,8 +6054,11 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should return true if metadata access token is expired', async () => {
-      const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const expiredToken = createMockJWTToken({ exp: pastExp });
+      const now = Math.floor(Date.now() / 1000);
+      const expiredToken = createMockJWTToken({
+        iat: now - 7200,
+        exp: now - 3600, // issued 2 h ago, expired 1 h ago
+      });
 
       await withController(
         {
@@ -5730,6 +6069,85 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller }) => {
           // Restore the original implementation to test the real logic
+          jest
+            .spyOn(controller, 'checkMetadataAccessTokenExpired')
+            .mockRestore();
+
+          const result = controller.checkMetadataAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return true when 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; 9 001 s have elapsed → just past the 90 % mark
+      const tokenAt90Percent = createMockJWTToken({
+        iat: now - 9001,
+        exp: now + 999,
+      });
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            metadataAccessToken: tokenAt90Percent,
+          }),
+        },
+        async ({ controller }) => {
+          jest
+            .spyOn(controller, 'checkMetadataAccessTokenExpired')
+            .mockRestore();
+
+          const result = controller.checkMetadataAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return false when less than 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; only 3 000 s have elapsed → well below the 90 % mark
+      const tokenBelow90Percent = createMockJWTToken({
+        iat: now - 3000,
+        exp: now + 7000,
+      });
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            metadataAccessToken: tokenBelow90Percent,
+          }),
+        },
+        async ({ controller }) => {
+          jest
+            .spyOn(controller, 'checkMetadataAccessTokenExpired')
+            .mockRestore();
+
+          const result = controller.checkMetadataAccessTokenExpired();
+          expect(result).toBe(false);
+        },
+      );
+    });
+
+    it('should return true when token has zero lifetime (iat === exp)', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // Zero lifetime: iat === exp. Falls back to exact-expiry check;
+      // exp is in the past so returns true.
+      const malformedToken = createMockJWTToken({
+        iat: now - 10,
+        exp: now - 10,
+      });
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            metadataAccessToken: malformedToken,
+          }),
+        },
+        async ({ controller }) => {
           jest
             .spyOn(controller, 'checkMetadataAccessTokenExpired')
             .mockRestore();
@@ -5773,8 +6191,11 @@ describe('SeedlessOnboardingController', () => {
 
   describe('checkAccessTokenExpired', () => {
     it('should return false if access token is not expired', async () => {
-      const futureExp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
-      const validToken = createMockJWTToken({ exp: futureExp });
+      const now = Math.floor(Date.now() / 1000);
+      const validToken = createMockJWTToken({
+        iat: now,
+        exp: now + 3600, // 1 hour lifetime, 0% elapsed
+      });
 
       await withController(
         {
@@ -5794,8 +6215,11 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should return true if access token is expired', async () => {
-      const pastExp = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
-      const expiredToken = createMockJWTToken({ exp: pastExp });
+      const now = Math.floor(Date.now() / 1000);
+      const expiredToken = createMockJWTToken({
+        iat: now - 7200,
+        exp: now - 3600, // issued 2 h ago, expired 1 h ago
+      });
 
       await withController(
         {
@@ -5810,6 +6234,54 @@ describe('SeedlessOnboardingController', () => {
 
           const result = controller.checkAccessTokenExpired();
           expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return true when 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; 9 001 s have elapsed → just past the 90 % mark
+      const tokenAt90Percent = createMockJWTToken({
+        iat: now - 9001,
+        exp: now + 999,
+      });
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            accessToken: tokenAt90Percent,
+          }),
+        },
+        async ({ controller }) => {
+          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+
+          const result = controller.checkAccessTokenExpired();
+          expect(result).toBe(true);
+        },
+      );
+    });
+
+    it('should return false when less than 90% of token lifetime has elapsed', async () => {
+      const now = Math.floor(Date.now() / 1000);
+      // 10 000 s lifetime; only 3 000 s have elapsed → well below the 90 % mark
+      const tokenBelow90Percent = createMockJWTToken({
+        iat: now - 3000,
+        exp: now + 7000,
+      });
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            accessToken: tokenBelow90Percent,
+          }),
+        },
+        async ({ controller }) => {
+          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+
+          const result = controller.checkAccessTokenExpired();
+          expect(result).toBe(false);
         },
       );
     });
@@ -6134,11 +6606,11 @@ describe('SeedlessOnboardingController', () => {
     });
   });
 
-  describe('renewRefreshToken', () => {
+  describe('rotateRefreshToken', () => {
     const MOCK_PASSWORD = 'mock-password';
     const MOCK_REVOKE_TOKEN = 'newRevokeToken';
 
-    it('should successfully renew refresh token and update vault', async () => {
+    it('should call the renewal service with connection and revokeToken from vault', async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
       const MOCK_ENCRYPTION_KEY =
         mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
@@ -6165,17 +6637,20 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, mockRenewRefreshToken }) => {
-          await controller.renewRefreshToken(MOCK_PASSWORD);
+          // Unlock vault so #cachedDecryptedVaultData is populated.
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          await controller.rotateRefreshToken();
 
           expect(mockRenewRefreshToken).toHaveBeenCalledWith({
             connection: controller.state.authConnection,
-            revokeToken: controller.state.revokeToken,
+            revokeToken: MOCK_REVOKE_TOKEN,
           });
         },
       );
     });
 
-    it('should throw error if revoke token is missing', async () => {
+    it('should update state with new tokens and queue old token for revocation', async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
       const MOCK_ENCRYPTION_KEY =
         mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
@@ -6184,42 +6659,105 @@ describe('SeedlessOnboardingController', () => {
       const MOCK_AUTH_KEY_PAIR =
         mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
 
-      // Create vault data without revoke token manually
-      const encryptor = createMockVaultEncryptor();
-      const serializedKeyData = JSON.stringify({
-        toprfEncryptionKey: bytesToBase64(MOCK_ENCRYPTION_KEY),
-        toprfPwEncryptionKey: bytesToBase64(MOCK_PASSWORD_ENCRYPTION_KEY),
-        toprfAuthKeyPair: JSON.stringify({
-          sk: `0x${MOCK_AUTH_KEY_PAIR.sk.toString(16)}`,
-          pk: bytesToBase64(MOCK_AUTH_KEY_PAIR.pk),
-        }),
-        // Intentionally omit revokeToken
-        accessToken,
-      });
-
-      const { vault: encryptedMockVault, exportedKeyString } =
-        await encryptor.encryptWithDetail(MOCK_PASSWORD, serializedKeyData);
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_REVOKE_TOKEN,
+      );
 
       await withController(
         {
           state: getMockInitialControllerState({
             withMockAuthenticatedUser: true,
-            vault: encryptedMockVault,
-            vaultEncryptionKey: exportedKeyString,
-            vaultEncryptionSalt: JSON.parse(encryptedMockVault).salt,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
           }),
         },
         async ({ controller }) => {
-          await expect(
-            controller.renewRefreshToken(MOCK_PASSWORD),
-          ).rejects.toThrow(
-            SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
+          // Unlock vault so #cachedDecryptedVaultData is populated.
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          const originalRefreshToken = controller.state.refreshToken;
+
+          await controller.rotateRefreshToken();
+
+          // State should be updated with new tokens
+          expect(controller.state.refreshToken).toBe('newRefreshToken');
+          expect(controller.state.revokeToken).toBe('newRevokeToken');
+
+          // Old token should be queued for revocation
+          expect(controller.state.pendingToBeRevokedTokens).toHaveLength(1);
+          expect(controller.state.pendingToBeRevokedTokens?.[0]).toStrictEqual({
+            refreshToken: originalRefreshToken,
+            revokeToken: MOCK_REVOKE_TOKEN,
+          });
+        },
+      );
+    });
+
+    it('should throw when user is not authenticated', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.rotateRefreshToken()).rejects.toThrow(
+          SeedlessOnboardingControllerErrorMessage.MissingAuthUserInfo,
+        );
+      });
+    });
+
+    it('should not update state when renewal returns null tokens', async () => {
+      const mockToprfEncryptor = createMockToprfEncryptor();
+      const MOCK_ENCRYPTION_KEY =
+        mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
+      const MOCK_PASSWORD_ENCRYPTION_KEY =
+        mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
+      const MOCK_AUTH_KEY_PAIR =
+        mockToprfEncryptor.deriveAuthKeyPair(MOCK_PASSWORD);
+
+      const mockResult = await createMockVault(
+        MOCK_ENCRYPTION_KEY,
+        MOCK_PASSWORD_ENCRYPTION_KEY,
+        MOCK_AUTH_KEY_PAIR,
+        MOCK_PASSWORD,
+        MOCK_REVOKE_TOKEN,
+      );
+
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            vault: mockResult.encryptedMockVault,
+            vaultEncryptionKey: mockResult.vaultEncryptionKey,
+            vaultEncryptionSalt: mockResult.vaultEncryptionSalt,
+          }),
+        },
+        async ({ controller, mockRenewRefreshToken }) => {
+          // Unlock vault so #cachedDecryptedVaultData is populated.
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          const originalRefreshToken = controller.state.refreshToken;
+          const originalRevokeToken = controller.state.revokeToken;
+
+          // Mock renewal to return null tokens
+          mockRenewRefreshToken.mockResolvedValueOnce({
+            newRevokeToken: null,
+            newRefreshToken: null,
+          });
+
+          await controller.rotateRefreshToken();
+
+          // State should remain unchanged
+          expect(controller.state.refreshToken).toBe(originalRefreshToken);
+          expect(controller.state.revokeToken).toBe(originalRevokeToken);
+          expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(
+            0,
           );
         },
       );
     });
 
-    it('should not queue old token for revocation when vault creation fails', async () => {
+    it('should not queue old token for revocation when vault update fails', async () => {
       const mockToprfEncryptor = createMockToprfEncryptor();
       const MOCK_ENC_KEY = mockToprfEncryptor.deriveEncKey(MOCK_PASSWORD);
       const MOCK_PW_ENC_KEY = mockToprfEncryptor.derivePwEncKey(MOCK_PASSWORD);
@@ -6244,18 +6782,29 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, encryptor }) => {
-          // Force vault re-encryption to fail so #createNewVaultWithAuthData throws.
+          // Unlock vault so #cachedDecryptedVaultData is populated.
+          await controller.submitPassword(MOCK_PASSWORD);
+
+          // Fail the vault update (new revokeToken inside rotateRefreshToken).
+          const originalEncryptWithKey =
+            encryptor.encryptWithKey.bind(encryptor);
           jest
             .spyOn(encryptor, 'encryptWithKey')
-            .mockRejectedValueOnce(new Error('Storage full'));
+            .mockImplementation(async () => {
+              throw new Error('Storage full');
+            });
 
-          await expect(
-            controller.renewRefreshToken(MOCK_PASSWORD),
-          ).rejects.toThrow('Storage full');
+          // rotateRefreshToken should throw since the vault update failed.
+          await expect(controller.rotateRefreshToken()).rejects.toThrow(
+            'Storage full',
+          );
 
-          // The old token must NOT be in pendingToBeRevokedTokens. Queueing it
-          // before confirming the new vault was persisted would schedule the
-          // user's only valid refresh token for revocation.
+          // Restore encryptor so we can verify state
+          jest
+            .spyOn(encryptor, 'encryptWithKey')
+            .mockImplementation(originalEncryptWithKey);
+
+          // The old token must NOT be in pendingToBeRevokedTokens.
           expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(
             0,
           );
