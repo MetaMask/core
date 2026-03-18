@@ -26,7 +26,6 @@ import type { SortOptionId } from './constants/perpsConfig';
 import { PERPS_ERROR_CODES } from './perpsErrorCodes';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider';
 import { HyperLiquidProvider } from './providers/HyperLiquidProvider';
-import { MYXProvider } from './providers/MYXProvider';
 import { AccountService } from './services/AccountService';
 import { DataLakeService } from './services/DataLakeService';
 import { DepositService } from './services/DepositService';
@@ -110,6 +109,7 @@ import type {
 import type {
   PerpsControllerAllowedActions,
   PerpsControllerAllowedEvents,
+  PerpsControllerMessengerBase,
 } from './types/messenger';
 import type { CandleData } from './types/perps-types';
 import {
@@ -1441,8 +1441,11 @@ export class PerpsController extends BaseController<
         this.providers.set('hyperliquid', hyperLiquidProvider);
 
         // Register MYX provider if enabled via feature flag
+        // Uses dynamic import so @myx-trade/sdk is excluded from the bundle
+        // unless MM_PERPS_MYX_PROVIDER_ENABLED=true is set at build time.
         const isMYXEnabled = this.#isMYXProviderEnabled();
         if (isMYXEnabled) {
+          const { MYXProvider } = await import('./providers/MYXProvider.js');
           const myxProvider = new MYXProvider({
             isTestnet: PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet,
             platformDependencies: this.#options.infrastructure,
