@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update dependencies ([#8236](https://github.com/MetaMask/core/pull/8236))
+  - Add `@metamask/keyring-controller` ^25.1.0
+  - Add `@metamask/profile-sync-controller` ^28.0.0
+
 ## [0.4.3]
 
 ### Changed
