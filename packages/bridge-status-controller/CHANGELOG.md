@@ -75,6 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expose all public `BridgeStatusController` methods through its messenger
+  - The following actions are now available:
+    - `BridgeStatusController:submitTx`
+    - `BridgeStatusController:submitIntent`
+    - `BridgeStatusController:restartPollingForFailedAttempts`
+    - `BridgeStatusController:getBridgeHistoryItemByTxMetaId`
+  - Corresponding action types are now exported (e.g. `BridgeStatusControllerStartPollingForBridgeTxStatusAction`)
 - Added more unit test coverage for intents and EVM transactions. Also refactored some mocks and code blocks to improve testability ([#8186](https://github.com/MetaMask/core/pull/8186))
 
 ### Changed

@@ -36,11 +36,11 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/bridge-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/bridge-controller",
+    "generate-method-action-types": "tsx ../../packages/messenger/src/generate-action-types/cli.ts",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
