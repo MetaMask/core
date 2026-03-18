@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
   - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
   - This behavior was enabled by default and can now be turned off by the clients.
-- Add `snapKeyringWaitTimeoutMs` option to Snap platform watcher configuration ([#8196](https://github.com/MetaMask/core/pull/8196))
-  - Allows configuring how long to wait for the Snap keyring to appear in KeyringController before timing out. Default is 5000 ms.
+- Add new `snapPlatformWatcher.timeoutMs` configuration ([#8196](https://github.com/MetaMask/core/pull/8196))
+  - Allows configuring how long to wait for the Snap keyring to appear in `KeyringController` before timing out (Default is 5000 ms).
 
 ### Changed
 
