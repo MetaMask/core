@@ -90,6 +90,11 @@
       "count": 1
     }
   },
+  "packages/account-tree-controller/src/types.ts": {
+    "local/no-cross-package-relative-imports": {
+      "count": 1
+    }
+  },
   "packages/account-tree-controller/tests/mockMessenger.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -125,6 +130,11 @@
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 6
+    }
+  },
+  "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
+    "local/no-cross-package-relative-imports": {
+      "count": 1
     }
   },
   "packages/assets-controllers/jest.environment.js": {
@@ -251,11 +261,19 @@
     "id-length": {
       "count": 1
     },
+    "local/no-cross-package-relative-imports": {
+      "count": 1
+    },
     "no-negated-condition": {
       "count": 1
     },
     "no-param-reassign": {
       "count": 2
+    }
+  },
+  "packages/assets-controllers/src/NftDetectionController.ts": {
+    "local/no-cross-package-relative-imports": {
+      "count": 1
     }
   },
   "packages/assets-controllers/src/RatesController/RatesController.test.ts": {
@@ -613,6 +631,9 @@
   },
   "packages/bridge-status-controller/src/utils/transaction.ts": {
     "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "local/no-cross-package-relative-imports": {
       "count": 1
     }
   },

@@ -3,6 +3,10 @@ import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
 
+// ESLint can load this file.
+// eslint-disable-next-line import-x/extensions
+import noCrossPackageRelativeImports from './scripts/eslint-rules/no-cross-package-relative-imports.mjs';
+
 const NODE_LTS_VERSION = 22;
 
 const config = createConfig([
@@ -51,6 +55,24 @@ const config = createConfig([
     languageOptions: {
       sourceType: 'script',
       ecmaVersion: 2020,
+    },
+  },
+  {
+    // Prohibit relative imports that cross package boundaries in non-test files.
+    // This is like the `no-relative-packages` rule in the `import-x` plugin,
+    // but does not suggest that engineers use subpath imports that may or may
+    // not exist in order to correct lint violations.
+    files: ['packages/*/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
+    plugins: {
+      local: {
+        rules: {
+          'no-cross-package-relative-imports': noCrossPackageRelativeImports,
+        },
+      },
+    },
+    rules: {
+      'local/no-cross-package-relative-imports': 'error',
     },
   },
   {
