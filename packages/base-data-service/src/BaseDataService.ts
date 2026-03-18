@@ -145,6 +145,7 @@ export class BaseDataService<
   protected destroy(): void {
     this.#queryCacheUnsubscribe();
     this.messenger.clearSubscriptions();
+    this.messenger.clearActions();
   }
 
   protected async fetchQuery<
@@ -174,15 +175,13 @@ export class BaseDataService<
     >,
     pageParam?: TPageParam,
   ): Promise<TData> {
-    const query = this.#queryClient
-      .getQueryCache()
-      .find<
-        TQueryFnData,
-        TError,
-        InfiniteData<TData>
-      >({ queryKey: options.queryKey });
+    const cache = this.#queryClient.getQueryCache();
 
-    if (!query?.state.data || !pageParam) {
+    const query = cache.find<TQueryFnData, TError, InfiniteData<TData>>({
+      queryKey: options.queryKey,
+    });
+
+    if (!query?.state.data || pageParam === undefined) {
       const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
         queryFn: (context) =>
