@@ -248,6 +248,7 @@ const setup = (options?: {
     },
     clientId: options?.clientId ?? BridgeClientId.EXTENSION,
     fetchFn: (...args: any[]) => mockFetchFn(...args),
+    addTransactionBatchFn: jest.fn(),
     config: { customBridgeApiBaseUrl: 'http://localhost' },
     traceFn: (_req: any, fn?: any): any => fn?.(),
   });
@@ -1052,6 +1053,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       state,
       clientId: BridgeClientId.EXTENSION,
       fetchFn: jest.fn(),
+      addTransactionBatchFn: jest.fn(),
       config: { customBridgeApiBaseUrl: 'http://localhost' },
       traceFn: (_r: any, fn?: any): any => fn?.(),
     });
