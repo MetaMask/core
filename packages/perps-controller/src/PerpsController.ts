@@ -109,7 +109,6 @@ import type {
 import type {
   PerpsControllerAllowedActions,
   PerpsControllerAllowedEvents,
-  PerpsControllerMessengerBase,
 } from './types/messenger';
 import type { CandleData } from './types/perps-types';
 import {
