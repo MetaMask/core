@@ -67,6 +67,7 @@ export type DataServiceEvents<ServiceName extends string> =
 // Defaults to apply to all data service queries if no default option specified
 const queryClientDefaults: DefaultOptions = {
   queries: {
+    retry: false,
     staleTime: inMilliseconds(1, Duration.Minute),
   },
 };
@@ -112,6 +113,8 @@ export class BaseDataService<
   }) {
     this.name = name;
 
+    // We are storing a separately typed messenger for known actions and events provided by data services
+    // and a generic public one that is typed using the generic parameters and accessible to implementations.
     this.#messenger = messenger as unknown as Messenger<
       ServiceName,
       DataServiceActions<ServiceName>,

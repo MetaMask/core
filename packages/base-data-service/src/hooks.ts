@@ -1,9 +1,9 @@
+import { Json } from '@metamask/utils';
 import {
   useQuery as useQueryTanStack,
   useInfiniteQuery as useInfiniteQueryTanStack,
   OmitKeyof,
   UseQueryOptions,
-  QueryKey,
   InitialDataFunction,
   NonUndefinedGuard,
   UseInfiniteQueryOptions,
@@ -14,6 +14,16 @@ import {
 // We provide re-exports of the underlying TanStack Query hooks with narrower types,
 // removing `staleTime` and `queryFn` which aren't useful when using data services.
 
+// Data service queries use the following format: ['ServiceActionName', ...params]
+export type QueryKey = [string, ...Json[]];
+
+/**
+ * Consume a query from a data service.
+ *
+ * @param options - The query options. Keep in mind that `staleTime` and `queryFn` are not supported
+ * when querying data services.
+ * @returns The query results.
+ */
 export function useQuery<
   TQueryFnData = unknown,
   TError = unknown,
@@ -33,6 +43,13 @@ export function useQuery<
   return useQueryTanStack(options);
 }
 
+/**
+ * Consume a paginated query from a data service.
+ *
+ * @param options - The query options. Keep in mind that `staleTime` and `queryFn` are not supported
+ * when querying data services.
+ * @returns The paginated query results.
+ */
 export function useInfiniteQuery<
   TQueryFnData = unknown,
   TError = unknown,
