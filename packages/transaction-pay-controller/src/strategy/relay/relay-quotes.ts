@@ -13,7 +13,11 @@ import {
 } from './gas-station';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
-import type { RelayQuote, RelayQuoteRequest } from './types';
+import type {
+  RelayQuote,
+  RelayQuoteMetamask,
+  RelayQuoteRequest,
+} from './types';
 import { TransactionPayStrategy } from '../..';
 import type { TransactionMeta } from '../../../../transaction-controller/src';
 import {
@@ -471,9 +475,9 @@ async function normalizeQuote(
 
   const targetAmount = getFiatValueFromUsd(targetAmountUsd, usdToFiatRate);
 
-  const metamask = {
+  const metamask: RelayQuoteMetamask = {
     ...quote.metamask,
-    gasLimits,
+    gasLimits: is7702 ? [gasLimits[0]] : gasLimits,
     is7702,
   };
 
@@ -782,8 +786,8 @@ async function calculateSourceNetworkGasLimit(
   gasLimits: number[];
   is7702: boolean;
 }> {
-  const transactions = params.map((singleParams, index) =>
-    toRelayQuoteGasTransaction(singleParams, index, fromOverride),
+  const transactions = params.map((singleParams) =>
+    toRelayQuoteGasTransaction(singleParams, fromOverride),
   );
 
   const relayGasResult = await estimateQuoteGasLimits({
@@ -803,30 +807,14 @@ async function calculateSourceNetworkGasLimit(
 
 function toRelayQuoteGasTransaction(
   singleParams: RelayQuote['steps'][0]['items'][0]['data'],
-  index: number,
   fromOverride?: Hex,
 ): QuoteGasTransaction {
-  const requiredParams = singleParams as Partial<
-    RelayQuote['steps'][0]['items'][0]['data']
-  >;
-
-  if (
-    requiredParams.chainId === undefined ||
-    requiredParams.data === undefined ||
-    requiredParams.from === undefined ||
-    requiredParams.to === undefined
-  ) {
-    throw new Error(
-      `Relay transaction params missing required gas estimation fields at index ${index}`,
-    );
-  }
-
   return {
-    chainId: toHex(requiredParams.chainId),
-    data: requiredParams.data,
-    from: fromOverride ?? requiredParams.from,
+    chainId: toHex(singleParams.chainId),
+    data: singleParams.data,
+    from: fromOverride ?? singleParams.from,
     gas: fromOverride ? undefined : singleParams.gas,
-    to: requiredParams.to,
+    to: singleParams.to,
     value: singleParams.value ?? '0',
   };
 }

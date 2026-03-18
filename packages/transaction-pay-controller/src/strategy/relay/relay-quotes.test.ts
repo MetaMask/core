@@ -2840,12 +2840,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow(
-        'Failed to fetch Relay quotes: Error: Relay transaction params missing required gas estimation fields at index 1',
-      );
-
-      expect(estimateGasBatchMock).not.toHaveBeenCalled();
-      expect(estimateGasMock).not.toHaveBeenCalled();
+      ).rejects.toThrow('Failed to fetch Relay quotes');
     });
 
     it('throws when relay transaction estimation fields are missing', async () => {
@@ -2867,12 +2862,7 @@ describe('Relay Quotes Utils', () => {
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         }),
-      ).rejects.toThrow(
-        'Failed to fetch Relay quotes: Error: Relay transaction params missing required gas estimation fields at index 0',
-      );
-
-      expect(estimateGasBatchMock).not.toHaveBeenCalled();
-      expect(estimateGasMock).not.toHaveBeenCalled();
+      ).rejects.toThrow('Failed to fetch Relay quotes');
     });
 
     describe('gas buffer support', () => {

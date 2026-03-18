@@ -958,17 +958,6 @@ describe('Relay Submit Utils', () => {
           }),
         );
       });
-
-      it('throws when a 7702 post-quote batch is missing its combined gas limit', async () => {
-        request.quotes[0].original.metamask.gasLimits = [];
-        request.quotes[0].original.metamask.is7702 = true;
-
-        await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Missing quote gas limit for Relay 7702 batch',
-        );
-
-        expect(addTransactionBatchMock).not.toHaveBeenCalled();
-      });
     });
 
     it('adds transaction batch with single gasLimit7702', async () => {

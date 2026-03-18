@@ -556,22 +556,12 @@ async function calculateSourceNetworkCost(
     };
   }
 
-  const transactionGasLimits = orderedTransactions.map((transaction, index) => {
-    const gasEstimate = gasEstimates.gasLimits[index];
-
-    if (!gasEstimate) {
-      throw new Error(
-        transaction.kind === 'swap'
-          ? 'Across swap gas estimate missing'
-          : `Across approval gas estimate missing at index ${index}`,
-      );
-    }
-
-    return {
-      gasEstimate,
+  const transactionGasLimits = orderedTransactions.map(
+    (transaction, index) => ({
+      gasEstimate: gasEstimates.gasLimits[index],
       transaction,
-    };
-  });
+    }),
+  );
 
   const estimate = sumAmounts(
     transactionGasLimits.map(({ gasEstimate, transaction }) =>
