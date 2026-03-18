@@ -345,6 +345,7 @@ describe('SmartTransactionsController', () => {
       const captureExceptionSpy = jest.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
+        captureException: captureExceptionSpy,
       });
 
       rootMessenger.registerActionHandler(
@@ -381,10 +382,6 @@ describe('SmartTransactionsController', () => {
           },
         }),
       );
-      rootMessenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        captureExceptionSpy,
-      );
 
       const messenger = new Messenger<
         'SmartTransactionsController',
@@ -404,7 +401,6 @@ describe('SmartTransactionsController', () => {
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
           'TransactionController:updateTransaction',
-          'ErrorReportingService:captureException',
         ],
         events: [
           'NetworkController:stateChange',
@@ -451,6 +447,7 @@ describe('SmartTransactionsController', () => {
       const captureExceptionSpy = jest.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
+        captureException: captureExceptionSpy,
       });
 
       rootMessenger.registerActionHandler(
@@ -489,10 +486,6 @@ describe('SmartTransactionsController', () => {
           },
         }),
       );
-      rootMessenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        captureExceptionSpy,
-      );
 
       const messenger = new Messenger<
         'SmartTransactionsController',
@@ -512,7 +505,6 @@ describe('SmartTransactionsController', () => {
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
           'TransactionController:updateTransaction',
-          'ErrorReportingService:captureException',
         ],
         events: [
           'NetworkController:stateChange',
@@ -555,6 +547,7 @@ describe('SmartTransactionsController', () => {
       const captureExceptionSpy = jest.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
+        captureException: captureExceptionSpy,
       });
 
       rootMessenger.registerActionHandler(
@@ -591,10 +584,6 @@ describe('SmartTransactionsController', () => {
           },
         }),
       );
-      rootMessenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        captureExceptionSpy,
-      );
 
       const messenger = new Messenger<
         'SmartTransactionsController',
@@ -614,7 +603,6 @@ describe('SmartTransactionsController', () => {
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
           'TransactionController:updateTransaction',
-          'ErrorReportingService:captureException',
         ],
         events: [
           'NetworkController:stateChange',
@@ -658,7 +646,6 @@ describe('SmartTransactionsController', () => {
     });
 
     it('reports error to ErrorReportingService when feature flags become invalid after state change', async () => {
-      const captureExceptionSpy = jest.fn();
       const getStateMock = jest.fn().mockReturnValue({
         remoteFeatureFlags: {
           smartTransactionsNetworks: {
@@ -666,8 +653,10 @@ describe('SmartTransactionsController', () => {
           },
         },
       });
+      const captureExceptionSpy = jest.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
+        captureException: captureExceptionSpy,
       });
 
       rootMessenger.registerActionHandler(
@@ -700,10 +689,6 @@ describe('SmartTransactionsController', () => {
         'RemoteFeatureFlagController:getState',
         getStateMock,
       );
-      rootMessenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        captureExceptionSpy,
-      );
 
       const messenger = new Messenger<
         'SmartTransactionsController',
@@ -723,7 +708,6 @@ describe('SmartTransactionsController', () => {
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
           'TransactionController:updateTransaction',
-          'ErrorReportingService:captureException',
         ],
         events: [
           'NetworkController:stateChange',
@@ -776,6 +760,7 @@ describe('SmartTransactionsController', () => {
       const captureExceptionSpy = jest.fn();
       const rootMessenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
+        captureException: captureExceptionSpy,
       });
 
       rootMessenger.registerActionHandler(
@@ -817,10 +802,6 @@ describe('SmartTransactionsController', () => {
           },
         }),
       );
-      rootMessenger.registerActionHandler(
-        'ErrorReportingService:captureException',
-        captureExceptionSpy,
-      );
 
       const messenger = new Messenger<
         'SmartTransactionsController',
@@ -840,7 +821,6 @@ describe('SmartTransactionsController', () => {
           'TransactionController:getNonceLock',
           'TransactionController:getTransactions',
           'TransactionController:updateTransaction',
-          'ErrorReportingService:captureException',
         ],
         events: [
           'NetworkController:stateChange',
@@ -3259,6 +3239,7 @@ async function withController<ReturnValue>(
 
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
+    captureException: jest.fn(),
   });
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
@@ -3339,10 +3320,6 @@ async function withController<ReturnValue>(
       remoteFeatureFlags,
     }),
   );
-  rootMessenger.registerActionHandler(
-    'ErrorReportingService:captureException',
-    jest.fn(),
-  );
 
   const messenger = new Messenger<
     'SmartTransactionsController',
@@ -3362,7 +3339,6 @@ async function withController<ReturnValue>(
       'TransactionController:getNonceLock',
       'TransactionController:getTransactions',
       'TransactionController:updateTransaction',
-      'ErrorReportingService:captureException',
     ],
     events: [
       'NetworkController:stateChange',

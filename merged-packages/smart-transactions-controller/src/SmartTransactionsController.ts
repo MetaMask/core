@@ -11,7 +11,6 @@ import {
   isSafeDynamicKey,
   type TraceCallback,
 } from '@metamask/controller-utils';
-import type { ErrorReportingServiceCaptureExceptionAction } from '@metamask/error-reporting-service';
 import EthQuery from '@metamask/eth-query';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -167,8 +166,7 @@ type AllowedActions =
   | RemoteFeatureFlagControllerGetStateAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetTransactionsAction
-  | TransactionControllerUpdateTransactionAction
-  | ErrorReportingServiceCaptureExceptionAction;
+  | TransactionControllerUpdateTransactionAction;
 
 export type SmartTransactionsControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -292,8 +290,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
 
     // Report each validation error to Sentry
     for (const error of errors) {
-      this.messenger.call(
-        'ErrorReportingService:captureException',
+      this.messenger.captureException?.(
         new Error(
           `[SmartTransactionsController] Feature flag validation failed: ${
             error.message

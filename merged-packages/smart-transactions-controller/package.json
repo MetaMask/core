@@ -50,8 +50,11 @@
     "@metamask/eth-json-rpc-provider": "^4.1.6",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/messenger": "^0.3.0",
-    "@metamask/polling-controller": "^15.0.0",
+    "@metamask/network-controller": "^30.0.0",
+    "@metamask/polling-controller": "^16.0.0",
+    "@metamask/remote-feature-flag-controller": "^4.1.0",
     "@metamask/superstruct": "^3.1.0",
+    "@metamask/transaction-controller": "^63.0.0",
     "@metamask/utils": "^11.0.0",
     "bignumber.js": "^9.0.1",
     "fast-json-patch": "^3.1.0",
@@ -63,16 +66,12 @@
     "@lavamoat/allow-scripts": "^3.2.1",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.1.0",
-    "@metamask/error-reporting-service": "^3.0.0",
     "@metamask/eslint-config": "^12.2.0",
     "@metamask/eslint-config-jest": "^12.1.0",
     "@metamask/eslint-config-nodejs": "^12.1.0",
     "@metamask/eslint-config-typescript": "^12.1.0",
-    "@metamask/gas-fee-controller": "^22.0.0",
+    "@metamask/gas-fee-controller": "^26.0.0",
     "@metamask/json-rpc-engine": "^10.0.1",
-    "@metamask/network-controller": "^25.0.0",
-    "@metamask/remote-feature-flag-controller": "^2.0.0",
-    "@metamask/transaction-controller": "^61.0.0",
     "@ts-bridge/cli": "^0.6.3",
     "@types/jest": "^26.0.24",
     "@types/lodash": "^4.14.194",
@@ -96,12 +95,6 @@
     "sinon": "^9.2.4",
     "ts-jest": "^29.1.4",
     "typescript": "~4.8.4"
-  },
-  "peerDependencies": {
-    "@metamask/error-reporting-service": "^3.0.0",
-    "@metamask/network-controller": "^25.0.0",
-    "@metamask/remote-feature-flag-controller": "^2.0.0",
-    "@metamask/transaction-controller": "^61.0.0"
   },
   "peerDependenciesMeta": {
     "@metamask/accounts-controller": {
@@ -130,7 +123,9 @@
       "@lavamoat/preinstall-always-fail": false,
       "@metamask/controller-utils>ethereumjs-util>ethereum-cryptography>keccak": false,
       "@metamask/controller-utils>ethereumjs-util>ethereum-cryptography>secp256k1": false,
-      "@metamask/controller-utils>babel-runtime>core-js": false
+      "@metamask/controller-utils>babel-runtime>core-js": false,
+      "@metamask/transaction-controller>@metamask/core-backend>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
+      "@metamask/transaction-controller>@metamask/core-backend>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
   }
 }
