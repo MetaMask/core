@@ -17,14 +17,12 @@ import { Duration, inMilliseconds, Json } from '@metamask/utils';
 import type { ConfigRegistryApiServiceFetchConfigAction } from './config-registry-api-service/config-registry-api-service-method-action-types';
 import type { RegistryNetworkConfig } from './config-registry-api-service/types';
 import type { ConfigRegistryControllerMethodActions } from './ConfigRegistryController-method-action-types';
-import {
-  FEATURE_FLAG_KEY,
-  isConfigRegistryApiEnabled,
-} from './utils/feature-flags';
 
 const controllerName = 'ConfigRegistryController';
 
 export const DEFAULT_POLLING_INTERVAL = inMilliseconds(1, Duration.Day);
+
+const FEATURE_FLAG_KEY = 'configRegistryApiEnabled';
 
 /**
  * State for the ConfigRegistryController.
@@ -208,11 +206,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   }
 
   async _executePoll(_input: null): Promise<void> {
-    if (!this.#isConfigRegistryEnabled()) {
-      // Skip fetch when API is disabled; client will use built-in config.
-      return;
-    }
-
     try {
       const result = await this.messenger.call(
         'ConfigRegistryApiService:fetchConfig',
@@ -285,7 +278,7 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
    * Handle wallet unlock event by starting polling if the config registry API is enabled.
    */
   #onUnlock(): void {
-    if (this.#isConfigRegistryEnabled()) {
+    if (this.#isFeatureFlagEnabled()) {
       this.startPolling(null);
     }
   }
@@ -304,8 +297,13 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
    * @param featureFlagValue - The new value of the feature flag.
    */
   #onFeatureFlagChange(featureFlagValue: Json): void {
+    if (typeof featureFlagValue !== 'boolean') {
+      return;
+    }
+
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
-    if (isConfigRegistryApiEnabled(featureFlagValue) && isUnlocked) {
+
+    if (featureFlagValue && isUnlocked) {
       this.startPolling(null);
     } else {
       this.stopAllPolling();
@@ -317,10 +315,15 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
    *
    * @returns Whether the config registry API is enabled.
    */
-  #isConfigRegistryEnabled(): boolean {
+  #isFeatureFlagEnabled(): boolean {
     const featureFlagValue = this.messenger.call(
       'RemoteFeatureFlagController:getState',
     ).remoteFeatureFlags[FEATURE_FLAG_KEY];
-    return isConfigRegistryApiEnabled(featureFlagValue);
+
+    if (typeof featureFlagValue !== 'boolean') {
+      return false;
+    }
+
+    return featureFlagValue;
   }
 }
