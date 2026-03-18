@@ -14,6 +14,7 @@ import {
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
 } from './constants';
+import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
 import { getRelayStatus, submitRelayExecute } from './relay-api';
 import type {
   RelayExecuteRequest,
@@ -100,7 +101,12 @@ async function executeSingleQuote(
     },
   );
 
-  await submitTransactions(quote, transaction, messenger);
+  if (quote.request.isHyperliquidSource) {
+    const from = transaction.txParams.from as Hex;
+    await submitHyperliquidWithdraw(quote, from, messenger);
+  } else {
+    await submitTransactions(quote, transaction, messenger);
+  }
 
   const targetHash = await waitForRelayCompletion(
     quote.original,

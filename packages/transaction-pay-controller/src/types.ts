@@ -33,6 +33,7 @@ import type {
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
@@ -59,7 +60,8 @@ export type AllowedActions =
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerUpdateTransactionAction
+  | KeyringControllerSignTypedMessageAction;
 
 export type AllowedEvents =
   | BridgeStatusControllerStateChangeEvent
