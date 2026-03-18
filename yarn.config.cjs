@@ -116,16 +116,11 @@ module.exports = defineConfig({
         }
 
         // All non-root packages must have the same "build" script.
-        // perps-controller extends the standard build with a post-build step
-        // that strips MYX SDK files from dist/ by default (opt-in via
-        // MM_PERPS_MYX_PROVIDER_ENABLED=true).
-        if (workspace.ident !== '@metamask/perps-controller') {
-          expectWorkspaceField(
-            workspace,
-            'scripts.build',
-            'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
-          );
-        }
+        expectWorkspaceField(
+          workspace,
+          'scripts.build',
+          'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
+        );
 
         // All non-root packages must have the same "build:all" script.
         expectWorkspaceField(
