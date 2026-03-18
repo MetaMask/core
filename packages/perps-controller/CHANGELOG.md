@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Exclude `@myx-trade/sdk` from build output by default, reducing bundled size by ~57% ([#8234](https://github.com/MetaMask/core/pull/8234))
-  - MYX provider files are stripped from `dist/` unless `MM_PERPS_MYX_PROVIDER_ENABLED=true` is set at build time
-  - Static import of `MYXProvider` replaced with dynamic `import()` to break the eager dependency chain
+  - MYX provider files are excluded from the package when publishing
+  - Static import of `MYXProvider` replaced with dynamic `import()` that depends upon `MM_PERPS_MYX_PROVIDER_ENABLED=true` to break the eager dependency chain
 
 ## [1.2.0]
 
