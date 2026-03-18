@@ -1,6 +1,7 @@
 export type {
   SelectedNetworkControllerState,
   SelectedNetworkControllerStateChangeEvent,
+  SelectedNetworkControllerGetStateAction,
   SelectedNetworkControllerGetSelectedNetworkStateAction,
   SelectedNetworkControllerActions,
   SelectedNetworkControllerEvents,

@@ -71,14 +71,19 @@ export type SelectedNetworkControllerStateChangeEvent =
     SelectedNetworkControllerState
   >;
 
+export type SelectedNetworkControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  SelectedNetworkControllerState
+>;
+
+/**
+ * @deprecated Use `SelectedNetworkControllerGetStateAction` instead.
+ */
 export type SelectedNetworkControllerGetSelectedNetworkStateAction =
-  ControllerGetStateAction<
-    typeof controllerName,
-    SelectedNetworkControllerState
-  >;
+  SelectedNetworkControllerGetStateAction;
 
 export type SelectedNetworkControllerActions =
-  | SelectedNetworkControllerGetSelectedNetworkStateAction
+  | SelectedNetworkControllerGetStateAction
   | SelectedNetworkControllerMethodActions;
 
 type AllowedActions =
