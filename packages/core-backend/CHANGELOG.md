@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0]
+
 ### Added
 
 - Add `includeOccurrences` option to `V3AssetsQueryOptions` so the tokens v3 assets API can be called with `includeOccurrences: true` to return token list occurrence counts in the response ([#8227](https://github.com/MetaMask/core/pull/8227))
@@ -242,7 +244,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.0...HEAD
+[6.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.1.1...@metamask/core-backend@6.2.0
 [6.1.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.1.0...@metamask/core-backend@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.0.0...@metamask/core-backend@6.1.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@5.1.1...@metamask/core-backend@6.0.0
