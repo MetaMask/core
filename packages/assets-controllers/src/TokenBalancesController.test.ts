@@ -4993,6 +4993,68 @@ describe('TokenBalancesController', () => {
       jest.useRealTimers();
     });
 
+    it('should skip non-EVM chains like solana without crashing', async () => {
+      jest.useFakeTimers();
+
+      const { controller, messenger } = setupController();
+
+      const updateConfigSpy = jest.spyOn(
+        controller,
+        'updateChainPollingConfigs',
+      );
+
+      messenger.publish('AccountActivityService:statusChanged', {
+        chainIds: ['solana:mainnet'],
+        status: 'up',
+      });
+
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+
+      expect(updateConfigSpy).not.toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it('should process EVM chains and skip non-EVM chains in mixed status changes', async () => {
+      jest.useFakeTimers();
+
+      const { controller, messenger } = setupController();
+
+      const updateConfigSpy = jest.spyOn(
+        controller,
+        'updateChainPollingConfigs',
+      );
+
+      messenger.publish('AccountActivityService:statusChanged', {
+        chainIds: ['eip155:1', 'solana:mainnet'],
+        status: 'up',
+      });
+
+      jest.advanceTimersByTime(5000);
+      await flushPromises();
+      jest.advanceTimersByTime(30000);
+      await flushPromises();
+
+      expect(updateConfigSpy).toHaveBeenCalledTimes(1);
+      expect(updateConfigSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          '0x1': { interval: 300000 },
+        }),
+        { immediateUpdate: true },
+      );
+      expect(updateConfigSpy).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          'solana:mainnet': expect.anything(),
+        }),
+        expect.anything(),
+      );
+
+      jest.useRealTimers();
+    });
+
     it('should handle multiple chains in a single balance update', async () => {
       const accountAddress = '0x1234567890123456789012345678901234567890';
       const token1 = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // USDC

@@ -1467,22 +1467,36 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       return;
     }
 
-    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
+    try {
+      const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
 
-    for (const [chainId, status] of changes) {
-      const hexChainId = caipChainIdToHex(chainId);
+      for (const [chainId, status] of changes) {
+        if (
+          isCaipChainId(chainId) &&
+          parseCaipChainId(chainId).namespace !== 'eip155'
+        ) {
+          continue;
+        }
 
-      chainConfigs[hexChainId] =
-        status === 'down'
-          ? { interval: this.#defaultInterval }
-          : { interval: this.#websocketActivePollingInterval };
+        const hexChainId = caipChainIdToHex(chainId);
+
+        chainConfigs[hexChainId] =
+          status === 'down'
+            ? { interval: this.#defaultInterval }
+            : { interval: this.#websocketActivePollingInterval };
+      }
+
+      if (Object.keys(chainConfigs).length === 0) {
+        return;
+      }
+
+      const jitterDelay = Math.random() * this.#defaultInterval;
+      setTimeout(() => {
+        this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
+      }, jitterDelay);
+    } catch (error) {
+      console.warn('Error processing accumulated status changes:', error);
     }
-
-    const jitterDelay = Math.random() * this.#defaultInterval;
-
-    setTimeout(() => {
-      this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
-    }, jitterDelay);
   }
 
   override destroy(): void {
