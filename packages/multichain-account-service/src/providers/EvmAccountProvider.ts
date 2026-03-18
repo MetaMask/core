@@ -302,10 +302,11 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const response = await withRetry(
       () =>
         withTimeout(
-          provider.request({
-            method,
-            params: [address, 'latest'],
-          }),
+          () =>
+            provider.request({
+              method,
+              params: [address, 'latest'],
+            }),
           this.#config.discovery.timeoutMs,
         ),
       {

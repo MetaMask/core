@@ -139,11 +139,12 @@ export class SolAccountProvider extends SnapAccountProvider {
           const discoveredAccounts = await withRetry(
             () =>
               withTimeout(
-                client.discoverAccounts(
-                  [SolScope.Mainnet],
-                  entropySource,
-                  groupIndex,
-                ),
+                () =>
+                  client.discoverAccounts(
+                    [SolScope.Mainnet],
+                    entropySource,
+                    groupIndex,
+                  ),
                 this.config.discovery.timeoutMs,
               ),
             {

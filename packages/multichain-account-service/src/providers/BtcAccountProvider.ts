@@ -114,11 +114,12 @@ export class BtcAccountProvider extends SnapAccountProvider {
           const discoveredAccounts = await withRetry(
             () =>
               withTimeout(
-                client.discoverAccounts(
-                  [BtcScope.Mainnet],
-                  entropySource,
-                  groupIndex,
-                ),
+                () =>
+                  client.discoverAccounts(
+                    [BtcScope.Mainnet],
+                    entropySource,
+                    groupIndex,
+                  ),
                 this.config.discovery.timeoutMs,
               ),
             {

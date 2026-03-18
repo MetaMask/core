@@ -25,11 +25,12 @@ describe('utils', () => {
   it('throws if the RPC request times out', async () => {
     await expect(
       withTimeout(
-        new Promise((resolve) => {
-          setTimeout(() => {
-            resolve(null);
-          }, 600);
-        }),
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(null);
+            }, 600);
+          }),
       ),
     ).rejects.toThrow(TimeoutError);
   });
