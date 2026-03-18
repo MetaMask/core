@@ -107,9 +107,14 @@ function setupController(
   options: {
     supportedNetworks?: string[];
     assetsResponse?: V3AssetResponse[];
+    nativeAssetIds?: string[];
   } = {},
 ): SetupResult {
-  const { supportedNetworks = ['eip155:1'], assetsResponse = [] } = options;
+  const {
+    supportedNetworks = ['eip155:1'],
+    assetsResponse = [],
+    nativeAssetIds = [],
+  } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
     namespace: MOCK_ANY_NAMESPACE,
@@ -120,6 +125,7 @@ function setupController(
   const controller = new TokenDataSource({
     queryApiClient:
       apiClient as unknown as TokenDataSourceOptions['queryApiClient'],
+    getNativeAssetIds: (): string[] => nativeAssetIds,
   });
 
   return {
@@ -644,6 +650,138 @@ describe('TokenDataSource', () => {
         includeRwaData: true,
         includeAggregators: true,
       },
+    );
+  });
+
+  it('middleware always includes native asset IDs in the fetch', async () => {
+    const { controller, apiClient } = setupController({
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_TOKEN_ASSET),
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [MOCK_TOKEN_ASSET],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      expect.arrayContaining([MOCK_TOKEN_ASSET, MOCK_NATIVE_ASSET]),
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]).toBeDefined();
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]?.type).toBe(
+      'native',
+    );
+  });
+
+  it('middleware fetches native asset IDs even when there are no detected assets', async () => {
+    const { controller, apiClient } = setupController({
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+    expect(context.response.assetsInfo?.[MOCK_NATIVE_ASSET]).toBeDefined();
+  });
+
+  it('middleware deduplicates native asset IDs with detected assets', async () => {
+    const { controller, apiClient } = setupController({
+      supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [MOCK_NATIVE_ASSET],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+  });
+
+  it('middleware includes multiple native asset IDs across chains', async () => {
+    const polygonNativeAsset = 'eip155:137/slip44:966' as Caip19AssetId;
+
+    const { controller, apiClient } = setupController({
+      supportedNetworks: ['eip155:1', 'eip155:137'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET, polygonNativeAsset],
+      assetsResponse: [
+        createMockAssetResponse(MOCK_NATIVE_ASSET, {
+          name: 'Ethereum',
+          symbol: 'ETH',
+        }),
+        createMockAssetResponse(polygonNativeAsset, {
+          name: 'Polygon',
+          symbol: 'POL',
+        }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': [MOCK_TOKEN_ASSET],
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        MOCK_TOKEN_ASSET,
+        MOCK_NATIVE_ASSET,
+        polygonNativeAsset,
+      ]),
+      expect.objectContaining({ includeIconUrl: true }),
     );
   });
 });

@@ -669,6 +669,12 @@ export class AssetsController extends BaseController<
     });
     this.#tokenDataSource = new TokenDataSource({
       queryApiClient,
+      getNativeAssetIds: (): string[] => {
+        const { nativeAssetIdentifiers } = this.messenger.call(
+          'NetworkEnablementController:getState',
+        );
+        return Object.values(nativeAssetIdentifiers);
+      },
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,

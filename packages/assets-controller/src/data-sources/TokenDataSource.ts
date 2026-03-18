@@ -38,6 +38,8 @@ export type TokenDataSourceAllowedActions = never;
 export type TokenDataSourceOptions = {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
+  /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
+  getNativeAssetIds: () => string[];
 };
 
 // ============================================================================
@@ -117,8 +119,12 @@ export class TokenDataSource {
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
+  /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
+  readonly #getNativeAssetIds: () => string[];
+
   constructor(options: TokenDataSourceOptions) {
     this.#apiClient = options.queryApiClient;
+    this.#getNativeAssetIds = options.getNativeAssetIds;
   }
 
   /**
@@ -214,6 +220,11 @@ export class TokenDataSource {
 
           assetIdsNeedingMetadata.add(assetId);
         }
+      }
+
+      // Always include native asset IDs from NetworkEnablementController
+      for (const nativeAssetId of this.#getNativeAssetIds()) {
+        assetIdsNeedingMetadata.add(nativeAssetId);
       }
 
       if (assetIdsNeedingMetadata.size === 0) {
