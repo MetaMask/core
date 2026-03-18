@@ -115,9 +115,9 @@ export const toBatchTxParams = (
 ): BatchTransactionParams => {
   const params = {
     ...trade,
-    data: trade.data,
-    to: trade.to,
-    value: trade.value,
+    data: trade.data as `0x${string}`,
+    to: trade.to as `0x${string}`,
+    value: trade.value as `0x${string}`,
   };
   if (skipGasFields) {
     return params;
@@ -234,7 +234,7 @@ export const getAddTransactionBatchParams = async ({
     networkClientId,
     requireApproval,
     origin: 'metamask',
-    from: trade.from,
+    from: trade.from as `0x${string}`,
     transactions,
   };
 

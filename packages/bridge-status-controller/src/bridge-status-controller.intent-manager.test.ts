@@ -41,6 +41,10 @@ const createManagerOptions = (overrides?: {
 });
 
 describe('IntentManager', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('returns early when no original tx id is present', () => {
     const options = createManagerOptions();
     const manager = new IntentManager(options);
@@ -148,6 +152,9 @@ describe('IntentManager', () => {
 
     expect(mockCall.mock.calls).toMatchInlineSnapshot(`
       [
+        [
+          "AuthenticationController:getBearerToken",
+        ],
         [
           "TransactionController:getState",
         ],
@@ -326,12 +333,15 @@ describe('IntentManager', () => {
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    expect(mockCall).toHaveBeenCalledTimes(2);
+    expect(mockCall).toHaveBeenCalledTimes(3);
 
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
     expect(mockCall.mock.calls).toMatchInlineSnapshot(`
       [
+        [
+          "AuthenticationController:getBearerToken",
+        ],
         [
           "TransactionController:getState",
         ],
@@ -396,12 +406,15 @@ describe('IntentManager', () => {
     );
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
-    expect(mockCall).toHaveBeenCalledTimes(2);
+    expect(mockCall).toHaveBeenCalledTimes(3);
 
     manager.syncTransactionFromIntentStatus('order-3', historyItem);
 
     expect(mockCall.mock.calls).toMatchInlineSnapshot(`
       [
+        [
+          "AuthenticationController:getBearerToken",
+        ],
         [
           "TransactionController:getState",
         ],
@@ -559,6 +572,9 @@ describe('IntentManager', () => {
 
     expect(mockCall.mock.calls).toMatchInlineSnapshot(`
       [
+        [
+          "AuthenticationController:getBearerToken",
+        ],
         [
           "TransactionController:getState",
         ],

@@ -735,7 +735,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       });
 
       if (historyItem.quote.intent) {
-        await this.#intentManager.syncTransactionFromIntentStatus(
+        this.#intentManager.syncTransactionFromIntentStatus(
           bridgeTxMetaId,
           historyItem,
         );
@@ -1281,7 +1281,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               const atomicBatchSupport = await this.messenger.call(
                 'TransactionController:isAtomicBatchSupported',
                 {
-                  address: (quoteResponse.trade as TxData).from,
+                  address: (quoteResponse.trade as TxData)
+                    .from as `0x${string}`,
                   chainIds: [hexChainId],
                 },
               );

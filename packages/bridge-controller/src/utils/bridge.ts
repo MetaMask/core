@@ -126,7 +126,7 @@ export const getEthUsdtResetData = (
     '0',
   ]);
 
-  return data as Hex;
+  return data;
 };
 
 export const isEthUsdt = (
