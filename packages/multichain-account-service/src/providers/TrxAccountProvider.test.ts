@@ -673,13 +673,20 @@ describe('TrxAccountProvider', () => {
     });
 
     it('uses fallback trace when no trace callback is provided', async () => {
-      const { provider, mocks } = setup({
-        accounts: [],
-      });
+      const { messenger, mocks } = setup({ accounts: [] });
 
       mocks.keyring.discoverAccounts.mockResolvedValue([
         MOCK_TRX_DISCOVERED_ACCOUNT_1,
       ]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      // No trace callback (defaults to `traceFallback`).
+      const trxProvider = new MockTrxAccountProvider(multichainMessenger);
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        trxProvider,
+      );
 
       const discovered = await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,

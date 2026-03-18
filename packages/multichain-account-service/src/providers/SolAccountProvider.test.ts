@@ -679,11 +679,18 @@ describe('SolAccountProvider', () => {
     });
 
     it('uses fallback trace when no trace callback is provided', async () => {
-      const { provider, mocks } = setup({
-        accounts: [],
-      });
+      const { messenger, mocks } = setup({ accounts: [] });
 
       mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      // No trace callback (defaults to `traceFallback`).
+      const solProvider = new MockSolAccountProvider(multichainMessenger);
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        solProvider,
+      );
 
       const discovered = await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,

@@ -686,11 +686,18 @@ describe('BtcAccountProvider', () => {
     });
 
     it('uses fallback trace when no trace callback is provided', async () => {
-      const { provider, mocks } = setup({
-        accounts: [],
-      });
+      const { messenger, mocks } = setup({ accounts: [] });
 
       mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      // No trace callback (defaults to `traceFallback`).
+      const btcProvider = new MockBtcAccountProvider(multichainMessenger);
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        btcProvider,
+      );
 
       const discovered = await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
