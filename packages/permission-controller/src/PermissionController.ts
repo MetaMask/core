@@ -267,7 +267,7 @@ function getDefaultState<
 /**
  * Gets the state of the {@link PermissionController}.
  */
-type PermissionControllerGetStateAction = ControllerGetStateAction<
+export type PermissionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   PermissionControllerState<PermissionConstraint>
 >;
