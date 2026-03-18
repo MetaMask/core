@@ -73,7 +73,14 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
     featureId: undefined,
     approval: undefined,
     resetApproval: undefined,
-    trade: '0xdeadbeef',
+    trade: {
+      chainId: 1,
+      from: '0x9008D19f58AAbd9eD0D60971565AA8510560ab4a',
+      to: '0x0000000000000000000000000000000000000001',
+      data: '0x',
+      value: '0x0',
+      gasLimit: 21000,
+    },
     ...overrides,
   };
 };
@@ -326,6 +333,7 @@ describe('BridgeStatusController (intent swaps)', () => {
   });
 
   it('submitIntent: completes when approval tx confirms', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1773879217428);
     const { controller, accountAddress } = setup({
       approvalStatus: TransactionStatus.confirmed,
     });
@@ -356,7 +364,28 @@ describe('BridgeStatusController (intent swaps)', () => {
         quoteResponse,
         accountAddress,
       }),
-    ).resolves.toBeDefined();
+    ).resolves.toMatchInlineSnapshot(`
+      {
+        "chainId": "0x1",
+        "hash": undefined,
+        "id": "intentDisplayTxId1",
+        "isIntentTx": true,
+        "networkClientId": "network-client-id-1",
+        "orderUid": "order-uid-approve-1",
+        "status": "submitted",
+        "time": 1773879217428,
+        "txParams": {
+          "chainId": "0x1",
+          "data": "0xpprove-1",
+          "from": "0xAccount1",
+          "gas": "0x5208",
+          "gasPrice": "0x3b9aca00",
+          "to": "0x9008D19f58AAbd9eD0D60971565AA8510560ab41",
+          "value": "0x0",
+        },
+        "type": "swap",
+      }
+    `);
 
     expect(submitIntentSpy).toHaveBeenCalled();
   });

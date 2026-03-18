@@ -1843,7 +1843,8 @@ describe('BridgeStatusController', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       jest.clearAllTimers();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       mockMessengerCall = jest.fn();
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
@@ -1852,6 +1853,10 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // track event
       mockMessengerCall.mockResolvedValueOnce('signature');
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [],
+      });
 
       const { controller, startPollingForBridgeTxStatusSpy } =
         getController(mockMessengerCall);
@@ -2055,7 +2060,8 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
       jest.clearAllTimers();
       mockMessengerCall = jest.fn();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
@@ -2065,6 +2071,7 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockResolvedValueOnce({
         signature: 'signature',
       });
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
       mockMessengerCall.mockReturnValueOnce({
         transactions: [],
       });
@@ -2279,7 +2286,9 @@ describe('BridgeStatusController', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       jest.clearAllTimers();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
       mockMessengerCall = jest.fn();
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
@@ -2465,8 +2474,13 @@ describe('BridgeStatusController', () => {
       jest.clearAllMocks();
       jest.clearAllTimers();
       mockMessengerCall = jest.fn();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValue(0.456);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567893);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.458);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
@@ -3308,8 +3322,11 @@ describe('BridgeStatusController', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       mockMessengerCall = jest.fn();
-      jest.spyOn(Date, 'now').mockReturnValue(1234567890);
-      jest.spyOn(Math, 'random').mockReturnValue(0.456);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
+      jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
@@ -4875,6 +4892,10 @@ describe('BridgeStatusController', () => {
 
       it('should not append auth token to status request when getBearerToken throws an error', async () => {
         const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        consoleFnSpy = jest
+          .spyOn(console, 'error')
+          .mockImplementationOnce(jest.fn());
+        consoleFnSpy.mockImplementationOnce(jest.fn());
 
         messengerCallSpy.mockImplementation(() => {
           throw new Error(
@@ -4915,7 +4936,18 @@ describe('BridgeStatusController', () => {
             headers: { 'X-Client-Id': BridgeClientId.EXTENSION },
           },
         );
-        expect(consoleFnSpy).not.toHaveBeenCalled();
+        expect(consoleFnSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "Error getting JWT token for bridge-api request",
+              [Error: AuthenticationController:getBearerToken not implemented],
+            ],
+            [
+              "Error getting JWT token for bridge-api request",
+              [Error: AuthenticationController:getBearerToken not implemented],
+            ],
+          ]
+        `);
       });
     });
   });
