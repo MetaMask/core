@@ -36,6 +36,7 @@
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:strip-myx": "find dist/providers dist/services -name 'MYXProvider.*' -o -name 'MYXClientService.*' 2>/dev/null | xargs rm -f",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/perps-controller",

@@ -1,5 +1,0 @@
-# Exclude MYX SDK provider files from published package.
-# MYX support is behind a feature flag and @myx-trade/sdk adds ~1.3MB to the bundle.
-# These files are built but stripped at publish time.
-dist/providers/MYXProvider.*
-dist/services/MYXClientService.*
