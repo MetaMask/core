@@ -121,11 +121,13 @@ export const mockSseEventSourceWithWarnings = (
           let eventIndex = 0;
           mockWarnings.forEach((warning) => {
             emitLine(controller, `event: token_warning\n`);
+            // eslint-disable-next-line no-plusplus
             emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
             emitLine(controller, `data: ${JSON.stringify(warning)}\n\n`);
           });
           mockQuotes.forEach((quote) => {
             emitLine(controller, `event: quote\n`);
+            // eslint-disable-next-line no-plusplus
             emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
             emitLine(controller, `data: ${JSON.stringify(quote)}\n\n`);
           });
