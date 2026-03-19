@@ -146,7 +146,10 @@ describe('CashAccountService', () => {
 
       mocks.withKeyring.mockImplementation(async (_selector, operation) => {
         return operation({
-          keyring: { type: 'HD Key Tree', mnemonic: null } as unknown as HdKeyring,
+          keyring: {
+            type: 'HD Key Tree',
+            mnemonic: null,
+          } as unknown as HdKeyring,
           metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
         });
       });
