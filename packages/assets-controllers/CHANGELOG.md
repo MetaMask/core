@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `TokenBalancesController` batches rapid `updateBalances` calls: multiple requests within a short timeframe are coalesced and processed once, reducing redundant balance fetches ([#8246](https://github.com/MetaMask/core/pull/8246))
+
 ## [101.0.1]
 
 ### Changed

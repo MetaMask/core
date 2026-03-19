@@ -419,12 +419,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       UPDATE_BALANCES_BATCH_MS,
       (merged: UpdateBalancesOptions): Promise<void> =>
         this.#executeUpdateBalances(merged).catch((error) => {
-          // With batched updateBalances, errors occur in the debounced flush.
-          // Log as polling failure so callers (e.g. interval polling) see consistent error reporting.
-          const chainIds = merged.chainIds ?? [];
-          const chainsLabel =
-            chainIds.length > 0 ? chainIds.join(', ') : 'unknown chains';
-          console.warn(`Polling failed for chains ${chainsLabel}:`, error);
+          console.warn('Batched updated balances failed:', error);
         }),
     );
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
@@ -722,7 +717,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainIds: ChainIdHex[];
     queryAllAccounts?: boolean;
   }): Promise<void> {
-    await this.updateBalances({ chainIds, queryAllAccounts });
+    await this.#executeUpdateBalances({ chainIds, queryAllAccounts });
   }
 
   updateChainPollingConfigs(
