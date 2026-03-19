@@ -83,6 +83,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
 - [`@metamask/ramps-controller`](packages/ramps-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
+- [`@metamask/react-data-query`](packages/react-data-query)
 - [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/sample-controllers`](packages/sample-controllers)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
@@ -166,6 +167,7 @@ linkStyle default opacity:0.5
   profile_sync_controller(["@metamask/profile-sync-controller"]);
   ramps_controller(["@metamask/ramps-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
+  react_data_query(["@metamask/react-data-query"]);
   remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   sample_controllers(["@metamask/sample-controllers"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
