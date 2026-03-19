@@ -90,11 +90,6 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/types.ts": {
-    "import-x/no-relative-packages": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/tests/mockMessenger.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
