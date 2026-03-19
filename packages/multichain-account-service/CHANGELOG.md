@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Batch account creation with single `keyring.addAccounts` call.
   - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
   - Significantly reduces lock acquisitions and API calls for batch operations.
+- Do not report `TimeoutError` errors ([#8249](https://github.com/MetaMask/core/pull/8249))
+  - All other kind of errors are still reported as usual.
 
 ### Removed
 
