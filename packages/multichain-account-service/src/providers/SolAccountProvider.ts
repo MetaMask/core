@@ -90,21 +90,10 @@ export class SolAccountProvider extends SnapAccountProvider {
       groupIndex,
     }: { entropySource: EntropySourceId; groupIndex: number },
   ): Promise<KeyringAccount> {
-    return await super.trace(
-      {
-        name: TraceName.ProviderCreateAccountV1,
-        data: {
-          provider: this.getName(),
-          groupIndex,
-        },
-      },
-      async () => {
-        return keyring.createAccount({
-          entropySource,
-          derivationPath: this.#getDerivationPath(groupIndex),
-        });
-      },
-    );
+    return keyring.createAccount({
+      entropySource,
+      derivationPath: this.#getDerivationPath(groupIndex),
+    });
   }
 
   protected override toBip44Account(
