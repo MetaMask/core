@@ -129,7 +129,7 @@ linkStyle default opacity:0.5
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
-  data_query_react(["@metamask/react-data-query"]);
+  react_data_query(["@metamask/react-data-query"]);
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
   eip_5792_middleware(["@metamask/eip-5792-middleware"]);
