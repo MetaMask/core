@@ -760,7 +760,7 @@ export class MultichainAccountWallet<
             context.stopped = true;
 
             const errorMessage = message(
-              `failed (with: "${(error as Error).message}")`,
+              `failed (with: "${toErrorMessage(error)}")`,
               targetGroupIndex,
             );
 
