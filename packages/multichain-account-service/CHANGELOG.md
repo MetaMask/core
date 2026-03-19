@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
   - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
   - This behavior was enabled by default and can now be turned off by the clients.
+- Add more tracing (alignment, create account v1/v2) ([#8244](https://github.com/MetaMask/core/pull/8244))
+- Add local perf tracing ([#8244](https://github.com/MetaMask/core/pull/8244))
+  - Each traces are now automatically wrapped and will log performance timings using the internal logger.
+  - Only enabled if `metamask:multichain-account-service` is part of `DEBUG` (env var) filters.
 
 ### Changed
 
