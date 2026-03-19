@@ -764,20 +764,11 @@ export class MultichainAccountWallet<
       const from = 0;
       const to = nextGroupIndex - 1;
 
-      await this.#withLock('in-progress:alignment', async () => {
-        await this.#trace(
-          {
-            name: TraceName.WalletAlignment,
-            data: {
-              from,
-              to,
-              ...toProviderDataTraces(this.#providers),
-            },
-          },
-          async () =>
-            await this.#alignAccountsForRange({ from, to }, this.#providers),
-        );
-      });
+      await this.#withLock(
+        'in-progress:alignment',
+        async () =>
+          await this.#alignAccountsForRange({ from, to }, this.#providers),
+      );
 
       this.#log('Aligned!');
     }
@@ -796,13 +787,15 @@ export class MultichainAccountWallet<
     if (group) {
       this.#log(`Aligning accounts for group "${group.id}"...`);
 
-      await this.#withLock('in-progress:alignment', async () => {
-        await this.#alignAccountsForRange(
-          { from: groupIndex, to: groupIndex },
-          this.#providers,
-          { trace: { data: { groupIndex } } },
-        );
-      });
+      await this.#withLock(
+        'in-progress:alignment',
+        async () =>
+          await this.#alignAccountsForRange(
+            { from: groupIndex, to: groupIndex },
+            this.#providers,
+            { trace: { data: { groupIndex } } },
+          ),
+      );
 
       this.#log(`Aligned accounts for group "${group.id}"!`);
     }
