@@ -347,7 +347,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     pendingChanges: new Map(),
   };
 
-  readonly #batchedUpdateBalances: (options: UpdateBalancesOptions) => void;
+  readonly #batchedUpdateBalances: (
+    options: UpdateBalancesOptions,
+  ) => Promise<void>;
 
   constructor({
     messenger,
@@ -422,9 +424,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
               ),
       UPDATE_BALANCES_BATCH_MS,
       (merged: UpdateBalancesOptions): Promise<void> =>
-        this.#executeUpdateBalances(merged).catch((error) => {
-          console.warn('Batched updated balances failed:', error);
-        }),
+        this.#executeUpdateBalances(merged),
     );
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
@@ -742,7 +742,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     if (!this.isActive) {
       return;
     }
-    this.#batchedUpdateBalances(options);
+    await this.#batchedUpdateBalances(options);
   }
 
   async #executeUpdateBalances({
