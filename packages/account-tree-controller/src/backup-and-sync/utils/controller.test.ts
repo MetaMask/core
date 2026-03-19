@@ -27,8 +27,8 @@ describe('BackupAndSyncUtils - Controller', () => {
       state: {
         accountTree: {
           wallets: {},
-          selectedAccountGroup: '',
         },
+        selectedAccountGroup: '',
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       },
