@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/data-query-react",
+  "name": "@metamask/react-data-query",
   "version": "0.0.0",
   "description": "Provides React utilities for consuming data services",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/data-query-react#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/react-data-query#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -38,8 +38,8 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/data-query-react",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/data-query-react",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/react-data-query",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/react-data-query",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",

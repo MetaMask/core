@@ -1,14 +1,14 @@
-# `@metamask/data-query-react`
+# `@metamask/react-data-query`
 
 Provides React utilities for consuming data services
 
 ## Installation
 
-`yarn add @metamask/data-query-react`
+`yarn add @metamask/react-data-query`
 
 or
 
-`npm install @metamask/data-query-react`
+`npm install @metamask/react-data-query`
 
 ## Contributing
 

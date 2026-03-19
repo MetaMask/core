@@ -3407,9 +3407,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/data-query-react@workspace:packages/data-query-react":
+"@metamask/react-data-query@workspace:packages/react-data-query":
   version: 0.0.0-use.local
-  resolution: "@metamask/data-query-react@workspace:packages/data-query-react"
+  resolution: "@metamask/react-data-query@workspace:packages/react-data-query"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@ts-bridge/cli": "npm:^0.6.4"

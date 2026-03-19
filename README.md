@@ -45,7 +45,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/connectivity-controller`](packages/connectivity-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/core-backend`](packages/core-backend)
-- [`@metamask/data-query-react`](packages/data-query-react)
+- [`@metamask/react-data-query`](packages/react-data-query)
 - [`@metamask/delegation-controller`](packages/delegation-controller)
 - [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
@@ -129,7 +129,7 @@ linkStyle default opacity:0.5
   connectivity_controller(["@metamask/connectivity-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   core_backend(["@metamask/core-backend"]);
-  data_query_react(["@metamask/data-query-react"]);
+  data_query_react(["@metamask/react-data-query"]);
   delegation_controller(["@metamask/delegation-controller"]);
   earn_controller(["@metamask/earn-controller"]);
   eip_5792_middleware(["@metamask/eip-5792-middleware"]);
