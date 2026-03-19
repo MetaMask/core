@@ -4408,11 +4408,11 @@ describe('AccountTreeController', () => {
         {
           "accountGroupsMetadata": {},
           "accountTree": {
-            "selectedAccountGroup": "",
             "wallets": {},
           },
           "accountWalletsMetadata": {},
           "hasAccountTreeSyncingSyncedAtLeastOnce": false,
+          "selectedAccountGroup": "",
         }
       `);
     });
@@ -4431,6 +4431,7 @@ describe('AccountTreeController', () => {
           "accountGroupsMetadata": {},
           "accountWalletsMetadata": {},
           "hasAccountTreeSyncingSyncedAtLeastOnce": false,
+          "selectedAccountGroup": "",
         }
       `);
     });
@@ -4448,12 +4449,12 @@ describe('AccountTreeController', () => {
         {
           "accountGroupsMetadata": {},
           "accountTree": {
-            "selectedAccountGroup": "",
             "wallets": {},
           },
           "accountWalletsMetadata": {},
           "hasAccountTreeSyncingSyncedAtLeastOnce": false,
           "isAccountTreeSyncingInProgress": false,
+          "selectedAccountGroup": "",
         }
       `);
     });
