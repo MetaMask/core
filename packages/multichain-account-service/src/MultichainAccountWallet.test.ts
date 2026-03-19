@@ -14,6 +14,7 @@ import {
   AccountCreationType,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { createDeferredPromise } from '@metamask/utils';
 
 import type { WalletState } from './MultichainAccountWallet';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -519,11 +520,21 @@ describe('MultichainAccountWallet', () => {
       ];
       evmProvider.createAccounts.mockResolvedValueOnce(evmAccounts);
 
-      jest.spyOn(wallet, 'alignAccounts').mockResolvedValue(undefined);
+      // We use a non-resolving mock for SOL provider because we want to verify
+      // that it's not called during group creation, but rather during the deferred alignment.
+      const {
+        promise: mockSolCreateAccountsPromise,
+        resolve: mockSolCreateAccountsResolve,
+      } = createDeferredPromise();
+      jest
+        .spyOn(solProvider, 'createAccounts')
+        .mockImplementationOnce(() => mockSolCreateAccountsPromise);
 
       // With wait=false (default), only EVM accounts are created immediately.
       const groups = await wallet.createMultichainAccountGroups({ to: 2 });
 
+      // At this point, only EVM provider should have been called to create accounts for groups 1 and 2, but
+      // the SOL provider is has been scheduled, so it shouldn't block.
       expect(groups).toHaveLength(3);
       expect(groups[0].groupIndex).toBe(0); // Existing group.
       expect(groups[1].groupIndex).toBe(1); // New group.
@@ -531,7 +542,9 @@ describe('MultichainAccountWallet', () => {
       expect(wallet.getAccountGroups()).toHaveLength(3);
 
       // SOL provider is not called during group creation; it's deferred to alignment.
-      expect(solProvider.createAccounts).not.toHaveBeenCalled();
+      mockSolCreateAccountsResolve();
+      await mockSolCreateAccountsPromise;
+      expect(solProvider.createAccounts).toHaveBeenCalled();
     });
 
     it('returns all existing groups when maxGroupIndex is less than nextGroupIndex', async () => {
@@ -551,8 +564,6 @@ describe('MultichainAccountWallet', () => {
       const { wallet } = setup({
         accounts: [[mockEvmAccount0, mockEvmAccount1, mockEvmAccount2]],
       });
-
-      jest.spyOn(wallet, 'alignAccounts').mockResolvedValue(undefined);
 
       // Request groups 0-1 when groups 0-2 exist.
       const groups = await wallet.createMultichainAccountGroups({ to: 1 });

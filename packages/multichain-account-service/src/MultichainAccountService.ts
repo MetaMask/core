@@ -123,6 +123,8 @@ export class MultichainAccountService {
 
   readonly #providers: Bip44AccountProvider[];
 
+  readonly #trace: TraceCallback;
+
   readonly #wallets: Map<
     MultichainAccountWalletId,
     MultichainAccountWallet<Bip44Account<KeyringAccount>>
@@ -163,6 +165,9 @@ export class MultichainAccountService {
     if (isPerfEnabled()) {
       trace = wrapWithLocalPerfTrace(trace);
     }
+
+    // This trace is passed down to wallets and providers to be used for tracing operations within them.
+    this.#trace = trace;
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
@@ -270,6 +275,7 @@ export class MultichainAccountService {
         entropySource,
         providers: this.#providers,
         messenger: this.#messenger,
+        trace: this.#trace,
       });
       wallet.init(serviceState[entropySource]);
       this.#wallets.set(wallet.id, wallet);

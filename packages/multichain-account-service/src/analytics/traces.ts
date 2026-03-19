@@ -4,6 +4,8 @@ import type {
   TraceRequest,
 } from '@metamask/controller-utils';
 
+import { Bip44AccountProvider } from '../providers';
+
 /**
  * Fallback function for tracing.
  * This function is used when no specific trace function is provided.
@@ -25,6 +27,25 @@ export const traceFallback: TraceCallback = async <ReturnType>(
 };
 
 /**
+ * Compute trace data for a list of providers.
+ *
+ * @param providers Providers to be included in the trace data.
+ * @returns An object mapping provider names to true, indicating their presence in the trace.
+ */
+export function toProviderDataTraces(
+  providers: Bip44AccountProvider[],
+): Record<string, boolean> {
+  // We cannot use complex objects within traces, so we just map provider names with true.
+  return providers.reduce(
+    (data, provider) => ({
+      ...data,
+      [provider.getName()]: true,
+    }),
+    {},
+  );
+}
+
+/**
  * Trace names.
  */
 export enum TraceName {
@@ -32,4 +53,7 @@ export enum TraceName {
   EvmDiscoverAccounts = 'EVM Discover Accounts',
   ProviderCreateAccountV1 = 'Provider Create Account (v1)',
   ProviderCreateAccounts = 'Provider Create Accounts (v2 - batched)',
+  WalletAlignment = 'Wallet Alignment',
+  WalletCreateMultichainAccountGroup = 'Wallet Create Multichain Account Group',
+  WalletCreateMultichainAccountGroups = 'Wallet Create Multichain Account Groups',
 }
