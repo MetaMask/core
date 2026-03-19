@@ -1443,7 +1443,9 @@ export class PhishingController extends BaseController<
       this.update((draftState) => {
         draftState.stalelistLastFetched = timeNow;
         draftState.hotlistLastFetched = timeNow;
-        draftState.c2DomainBlocklistLastFetched = timeNow;
+        if (c2DomainBlocklistResponse) {
+          draftState.c2DomainBlocklistLastFetched = timeNow;
+        }
       });
     }
 
@@ -1535,26 +1537,20 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateC2DomainBlocklist() {
-    let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
-
-    try {
-      c2DomainBlocklistResponse =
-        await this.#queryConfig<C2DomainBlocklistResponse>(
-          `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
-            this.state.c2DomainBlocklistLastFetched,
-          )}`,
-        );
-    } finally {
-      // Set `c2DomainBlocklistLastFetched` even for failed requests to prevent server from being overwhelmed with
-      // traffic after a network disruption.
-      this.update((draftState) => {
-        draftState.c2DomainBlocklistLastFetched = fetchTimeNow();
-      });
-    }
+    const c2DomainBlocklistResponse =
+      await this.#queryConfig<C2DomainBlocklistResponse>(
+        `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
+          this.state.c2DomainBlocklistLastFetched,
+        )}`,
+      );
 
     if (!c2DomainBlocklistResponse) {
       return;
     }
+
+    this.update((draftState) => {
+      draftState.c2DomainBlocklistLastFetched = fetchTimeNow();
+    });
 
     const recentlyAddedC2Domains = c2DomainBlocklistResponse.recentlyAdded;
     const recentlyRemovedC2Domains = c2DomainBlocklistResponse.recentlyRemoved;

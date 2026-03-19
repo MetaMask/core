@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `PhishingController` no longer advances `c2DomainBlocklistLastFetched` when the C2 domain blocklist fetch fails, allowing the blocklist to be retried on the next update cycle ([#8250](https://github.com/MetaMask/core/pull/8250))
+
 ## [17.0.0]
 
 ### Changed
