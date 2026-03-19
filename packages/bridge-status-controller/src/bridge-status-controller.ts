@@ -1089,6 +1089,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
    * @returns The transaction meta
+   * @throws An error if transaction submission fails before it gets published
    */
   submitTx = async (
     accountAddress: string,
@@ -1370,6 +1371,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param params.tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
    * @returns A lightweight TransactionMeta-like object for history linking
+   * @throws An error if intent or transaction submission fails before they get published
    */
   submitIntent = async (params: {
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
