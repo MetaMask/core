@@ -23,7 +23,11 @@ import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { withTimeout } from './utils';
-import { toCreateAccountsV2DataTraces, traceFallback, TraceName } from '../analytics';
+import {
+  toCreateAccountsV2DataTraces,
+  traceFallback,
+  TraceName,
+} from '../analytics';
 import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { createSentryError } from '../utils';
