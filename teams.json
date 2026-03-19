@@ -40,7 +40,7 @@
   "metamask/base-controller": "team-core-platform",
   "metamask/base-data-service": "team-core-platform",
   "metamask/build-utils": "team-core-platform",
-  "metamask/cash-account-service": "team-earn",
+  "metamask/cash-account-service": "team-accounts-framework,team-earn",
   "metamask/composable-controller": "team-core-platform",
   "metamask/connectivity-controller": "team-core-platform",
   "metamask/geolocation-controller": "team-core-platform",
