@@ -28,6 +28,12 @@ const ALLOWED_INCONSISTENT_DEPENDENCIES = {
 };
 
 /**
+ * These packages are allowed as peer dependencies without requiring installation as
+ * devDependencies.
+ */
+const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
+
+/**
  * Aliases for the Yarn type definitions, to make the code more readable.
  *
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Yarn} Yarn
@@ -744,6 +750,10 @@ function expectPeerDependenciesAlsoListedAsDevDependencies(
     const peerDependency = dependencyInstancesByType.get('peerDependencies');
 
     if (!peerDependency) {
+      continue;
+    }
+
+    if (ALLOWED_PEER_DEPENDENCIES.includes(dependencyIdent)) {
       continue;
     }
 
