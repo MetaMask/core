@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add required `sortAccountIdsByLastSelected` hook to `wallet_getSession` and `wallet_createSession` handlers to ensure each scope's `accounts` value is returned with the most recently selected account IDs ordered first
+
 ### Changed
 
 - Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
