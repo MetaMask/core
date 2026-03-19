@@ -28,6 +28,7 @@ import type { GroupState } from './MultichainAccountGroup';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
+import { isTimeoutError } from './providers';
 import { EvmAccountProvider } from './providers/EvmAccountProvider';
 import type { MultichainAccountServiceMessenger } from './types';
 import {
@@ -250,22 +251,28 @@ export class MultichainAccountWallet<
         ? `from group index ${from} to ${to}`
         : `for group index ${to}`;
 
-      const errorMessage = `Unable to create ${modeDescription} ${rangeDescription} with provider "${provider.getName()}". Error: ${(error as Error).message}`;
-      this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
+      const errorMessage = `Unable to create ${modeDescription} ${rangeDescription} with provider "${provider.getName()}". Error: ${toErrorMessage(error)}`;
+      if (isTimeoutError(error)) {
+        this.#log(`${WARNING_PREFIX} ${errorMessage}`);
+        console.warn(errorMessage, error);
+      } else {
+        this.#log(`${ERROR_PREFIX} ${errorMessage}`);
+        console.error(errorMessage, error);
 
-      const sentryError = createSentryError(
-        `Unable to create ${modeDescription} with provider "${provider.getName()}"`,
-        error as Error,
-        {
-          range: {
-            from,
-            to,
+        const sentryError = createSentryError(
+          `Unable to create ${modeDescription} with provider "${provider.getName()}"`,
+          error as Error,
+          {
+            range: {
+              from,
+              to,
+            },
+            provider: provider.getName(),
+            isBatching,
           },
-          provider: provider.getName(),
-          isBatching,
-        },
-      );
-      this.#messenger.captureException?.(sentryError);
+        );
+        this.#messenger.captureException?.(sentryError);
+      }
       throw error;
     }
   }
@@ -751,23 +758,29 @@ export class MultichainAccountWallet<
             });
           } catch (error) {
             context.stopped = true;
-            console.error(error);
-            log(
-              message(
-                `failed (with: "${(error as Error).message}")`,
-                targetGroupIndex,
-              ),
-              error,
+
+            const errorMessage = message(
+              `failed (with: "${(error as Error).message}")`,
+              targetGroupIndex,
             );
-            const sentryError = createSentryError(
-              'Unable to discover accounts',
-              error as Error,
-              {
-                provider: providerName,
-                groupIndex: targetGroupIndex,
-              },
-            );
-            this.#messenger.captureException?.(sentryError);
+
+            if (isTimeoutError(error)) {
+              log(`${WARNING_PREFIX} ${errorMessage}`);
+              console.warn(error);
+            } else {
+              log(`${ERROR_PREFIX} ${errorMessage}`);
+              console.error(errorMessage, error);
+
+              const sentryError = createSentryError(
+                'Unable to discover accounts',
+                error as Error,
+                {
+                  provider: providerName,
+                  groupIndex: targetGroupIndex,
+                },
+              );
+              this.#messenger.captureException?.(sentryError);
+            }
             break;
           }
 

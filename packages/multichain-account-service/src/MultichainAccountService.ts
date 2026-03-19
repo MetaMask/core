@@ -13,13 +13,14 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
 import { traceFallback } from './analytics';
-import { projectLogger as log } from './logger';
+import { ERROR_PREFIX, projectLogger as log, WARNING_PREFIX } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import {
   EvmAccountProviderConfig,
   Bip44AccountProvider,
   EVM_ACCOUNT_PROVIDER_NAME,
+  isTimeoutError,
 } from './providers';
 import {
   AccountProviderWrapper,
@@ -36,7 +37,7 @@ import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
 } from './types';
-import { createSentryError } from './utils';
+import { createSentryError, toErrorMessage } from './utils';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -298,14 +299,24 @@ export class MultichainAccountService {
         try {
           await provider.resyncAccounts(accounts);
         } catch (error) {
-          const errorMessage = `Unable to re-sync provider "${provider.getName()}"`;
-          log(errorMessage);
-          console.error(errorMessage);
+          const errorMessage = `Unable to re-sync provider "${provider.getName()}: ${toErrorMessage(error)}"`;
 
-          const sentryError = createSentryError(errorMessage, error as Error, {
-            provider: provider.getName(),
-          });
-          this.#messenger.captureException?.(sentryError);
+          if (isTimeoutError(error)) {
+            log(`${WARNING_PREFIX} ${errorMessage}`);
+            console.warn(errorMessage, error);
+          } else {
+            log(`${ERROR_PREFIX} ${errorMessage}`);
+            console.error(errorMessage, error);
+
+            const sentryError = createSentryError(
+              errorMessage,
+              error as Error,
+              {
+                provider: provider.getName(),
+              },
+            );
+            this.#messenger.captureException?.(sentryError);
+          }
         }
       }),
     );

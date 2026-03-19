@@ -22,11 +22,11 @@ import { HandlerType } from '@metamask/snaps-utils';
 import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
-import { withTimeout } from './utils';
+import { isTimeoutError, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
-import { projectLogger as log, WARNING_PREFIX } from '../logger';
+import { ERROR_PREFIX, projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
-import { createSentryError } from '../utils';
+import { createSentryError, toErrorMessage } from '../utils';
 
 export type RestrictedSnapKeyring = {
   createAccount: (options: Record<string, Json>) => Promise<KeyringAccount>;
@@ -230,12 +230,22 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                   snapAccounts.delete(snapAccountId);
                 }
               } catch (error) {
-                const sentryError = createSentryError(
-                  `Unable to delete de-synced Snap account: ${this.snapId}`,
-                  error as Error,
-                  { provider: this.getName(), snapAccountId },
-                );
-                this.messenger.captureException?.(sentryError);
+                const errorMessage = `Unable to delete de-synced Snap account: ${this.snapId}: ${toErrorMessage(error)}`;
+
+                if (isTimeoutError(error)) {
+                  log(`${WARNING_PREFIX} ${errorMessage}`);
+                  console.warn(errorMessage, error);
+                } else {
+                  log(`${ERROR_PREFIX} ${errorMessage}`);
+                  console.error(errorMessage, error);
+
+                  const sentryError = createSentryError(
+                    `Unable to delete de-synced Snap account: ${this.snapId}`,
+                    error as Error,
+                    { provider: this.getName(), snapAccountId },
+                  );
+                  this.messenger.captureException?.(sentryError);
+                }
               }
             }),
           );
@@ -269,15 +279,25 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 });
               }
             } catch (error) {
-              const sentryError = createSentryError(
-                `Unable to re-sync account: ${groupIndex}`,
-                error as Error,
-                {
-                  provider: this.getName(),
-                  groupIndex,
-                },
-              );
-              this.messenger.captureException?.(sentryError);
+              const errorMessage = `Unable to re-sync account: ${groupIndex}: ${toErrorMessage(error)}`;
+
+              if (isTimeoutError(error)) {
+                log(`${WARNING_PREFIX} ${errorMessage}`);
+                console.warn(errorMessage, error);
+              } else {
+                log(`${ERROR_PREFIX} ${errorMessage}`);
+                console.error(errorMessage, error);
+
+                const sentryError = createSentryError(
+                  `Unable to re-sync account: ${groupIndex}`,
+                  error as Error,
+                  {
+                    provider: this.getName(),
+                    groupIndex,
+                  },
+                );
+                this.messenger.captureException?.(sentryError);
+              }
             }
           }),
         );
