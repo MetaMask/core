@@ -2004,12 +2004,14 @@ export class RampsController extends BaseController<
       if (idx === -1) {
         state.orders.push({
           ...order,
+          walletAddress: order.walletAddress || wallet,
           providerOrderId: orderCode,
         } as Draft<RampsOrder>);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
           ...order,
+          walletAddress: order.walletAddress || wallet,
           providerOrderId: orderCode,
         } as Draft<RampsOrder>;
       }
