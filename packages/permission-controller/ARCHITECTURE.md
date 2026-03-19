@@ -397,7 +397,7 @@ console.log(existingPermissions)
 ### Requesting permissions incrementally
 
 ```typescript
-// Given an artifically truncated permission state of:
+// Given an artificially truncated permission state of:
 // {
 //   'metamask.io': {
 //     wallet_getSecretArray: {
