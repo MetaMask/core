@@ -412,10 +412,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#subscribeToControllers();
     this.#batchedUpdateBalances = createBatchedHandler(
       (buffer) =>
-        buffer.reduce<UpdateBalancesOptions>(
-          (acc, opts) => mergeUpdateBalancesOptions(acc, opts),
-          {},
-        ),
+        buffer.length === 0
+          ? {}
+          : buffer
+              .slice(1)
+              .reduce<UpdateBalancesOptions>(
+                (acc, opts) => mergeUpdateBalancesOptions(acc, opts),
+                buffer[0],
+              ),
       UPDATE_BALANCES_BATCH_MS,
       (merged: UpdateBalancesOptions): Promise<void> =>
         this.#executeUpdateBalances(merged).catch((error) => {

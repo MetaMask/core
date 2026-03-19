@@ -19,15 +19,23 @@ export const waitFor = async (
   const startTime = Date.now();
 
   return new Promise<void>((resolve, reject) => {
+    let lastError: unknown;
     const intervalId = setInterval(() => {
       try {
         assertionFn();
         clearInterval(intervalId);
         resolve();
-      } catch {
+      } catch (error) {
+        lastError = error;
         if (Date.now() - startTime >= timeoutMs) {
           clearInterval(intervalId);
-          reject(new Error(`waitFor: timeout reached after ${timeoutMs}ms`));
+          const assertionDetail =
+            lastError instanceof Error ? lastError.message : String(lastError);
+          reject(
+            new Error(
+              `waitFor: timeout reached after ${timeoutMs}ms. Last assertion error: ${assertionDetail}`,
+            ),
+          );
         }
       }
     }, intervalMs);
