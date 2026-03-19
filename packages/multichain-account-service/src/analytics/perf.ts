@@ -10,13 +10,14 @@ import { createModuleLogger, projectLogger } from '../logger';
 const log = createModuleLogger(projectLogger, 'perf');
 
 /**
- * Returns true when DEBUG=metamask:multichain-account-service (or a matching glob) is set.
+ * Returns true when DEBUG=metamask:multichain-account-service, DEBUG=metamask:multichain-account-service:perf
+ * or a matching glob is set.
  * Re-uses the same enable/disable logic as the rest of the package loggers.
  *
  * @returns True if performance logging is enabled, false otherwise.
  */
 export function isPerfEnabled(): boolean {
-  return projectLogger.enabled;
+  return projectLogger.enabled || log.enabled;
 }
 
 /**
