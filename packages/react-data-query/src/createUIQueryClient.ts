@@ -9,7 +9,7 @@ import {
   QueryKey,
 } from '@tanstack/query-core';
 
-import { GranularCacheUpdatedPayload } from './BaseDataService';
+import { GranularCacheUpdatedPayload } from '@metamask/base-data-service';
 
 type SubscriptionCallback = (payload: GranularCacheUpdatedPayload) => void;
 type JsonSubscriptionCallback = (data: Json) => void;

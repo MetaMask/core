@@ -4,8 +4,8 @@
     "baseUrl": "./"
   },
   "references": [
-    { "path": "../messenger/tsconfig.build.json" },
-    { "path": "../controller-utils/tsconfig.build.json" }
+    { "path": "../messenger" },
+    { "path": "../controller-utils" }
   ],
   "include": ["../../types", "./src", "./tests"]
 }

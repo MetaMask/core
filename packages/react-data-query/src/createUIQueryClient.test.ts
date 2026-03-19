@@ -14,12 +14,12 @@ import {
   ExampleDataServiceEvents,
   GetActivityResponse,
   PageParam,
-} from '../tests/ExampleDataService';
+} from '../../base-data-service/tests/ExampleDataService';
 import {
   mockAssets,
   mockTransactionsPage1,
   mockTransactionsPage2,
-} from '../tests/mocks';
+} from '../../base-data-service/tests/mocks';
 
 const DATA_SERVICES = ['ExampleDataService'];
 

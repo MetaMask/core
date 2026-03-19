@@ -10,7 +10,7 @@ import {
   UseInfiniteQueryResult,
 } from '@tanstack/react-query';
 
-import { QueryKey } from './BaseDataService';
+import { QueryKey } from '@metamask/base-data-service';
 
 // We provide re-exports of the underlying TanStack Query hooks with narrower types,
 // removing `staleTime` and `queryFn` which aren't useful when using data services.

@@ -9,5 +9,3 @@ export type {
   QueryKey,
 } from './BaseDataService';
 export { BaseDataService } from './BaseDataService';
-export { createUIQueryClient } from './createUIQueryClient';
-export { useQuery, useInfiniteQuery } from './hooks';
