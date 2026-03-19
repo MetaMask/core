@@ -23,7 +23,7 @@ import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { withTimeout } from './utils';
-import { traceFallback, TraceName } from '../analytics';
+import { toCreateAccountsV2DataTraces, traceFallback, TraceName } from '../analytics';
 import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { createSentryError } from '../utils';
@@ -372,7 +372,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
             this.trace(
               {
                 name: TraceName.ProviderCreateAccounts,
-                data: { provider: this.getName() },
+                data: {
+                  provider: this.getName(),
+                  ...toCreateAccountsV2DataTraces(optionsV2),
+                },
               },
               () => keyring.createAccounts(optionsV2),
             ),

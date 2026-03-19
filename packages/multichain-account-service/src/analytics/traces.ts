@@ -3,6 +3,8 @@ import type {
   TraceContext,
   TraceRequest,
 } from '@metamask/controller-utils';
+import { CreateAccountOptions } from '@metamask/keyring-api';
+import { group } from 'console';
 
 import { Bip44AccountProvider } from '../providers';
 
@@ -43,6 +45,28 @@ export function toProviderDataTraces(
     }),
     {},
   );
+}
+
+/**
+ * Compute trace data for `createAccounts` options.
+ *
+ * @param options The `createAccounts` options.
+ * @returns An object containing options data depending on its type.
+ */
+export function toCreateAccountsV2DataTraces(
+  options: CreateAccountOptions,
+): Record<string, string | number | boolean> {
+  if (options.type === 'bip44:derive-index') {
+    return {
+      groupIndex: options.groupIndex,
+    };
+  } else if (options.type === 'bip44:derive-index-range') {
+    return {
+      from: options.range.from,
+      to: options.range.to,
+    };
+  }
+  return {};
 }
 
 /**
