@@ -779,7 +779,7 @@ export class MultichainAccountWallet<
               console.error(errorMessage, error);
 
               const sentryError = createSentryError(
-                'Unable to discover accounts',
+                errorMessage,
                 error as Error,
                 {
                   provider: providerName,
