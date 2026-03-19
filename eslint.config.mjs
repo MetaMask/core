@@ -144,7 +144,7 @@ const config = createConfig([
       sourceType: 'module',
     },
   },
-  // Prevent cross-package imports
+  // Prevent cross-package relative imports
   {
     files: ['packages/*/src/**/*.ts'],
     ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
