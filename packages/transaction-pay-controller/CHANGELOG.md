@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^2.4.0` to `^3.0.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
 - Bump `@metamask/assets-controllers` from `^101.0.0` to `^101.0.1` ([#8232](https://github.com/MetaMask/core/pull/8232))
 - Remove duplication in gas estimation for Relay and Across strategies ([#8145](https://github.com/MetaMask/core/pull/8145))
+- Improve Across quote handling to decode supported destination calls into post-swap actions while sending transfer-only destinations directly to the destination recipient ([#8208](https://github.com/MetaMask/core/pull/8208))
 
 ## [17.1.0]
 
@@ -50,7 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support gasless Relay deposits via `execute` endpoint ([#8133](https://github.com/MetaMask/core/pull/8133))
 - Build Across post-swap transfer actions for `predictDeposit` quotes so Predict deposits can bridge swapped output into the destination proxy wallet ([#8159](https://github.com/MetaMask/core/pull/8159))
-- Improve Across quote handling to decode supported destination calls into post-swap actions while sending transfer-only destinations directly to the destination recipient ([#8208](https://github.com/MetaMask/core/pull/8208))
 
 ### Changed
 

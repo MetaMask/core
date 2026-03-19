@@ -3,8 +3,8 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getAcrossOrderedTransactions } from './transactions';
 import { getAcrossDestination } from './across-actions';
+import { getAcrossOrderedTransactions } from './transactions';
 import type {
   AcrossAction,
   AcrossActionRequestBody,
