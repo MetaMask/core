@@ -35,9 +35,7 @@ export class CashAccountService {
       { id: entropySource },
       async ({ keyring }) => {
         if (keyring.type !== HdKeyring.type) {
-          throw new Error(
-            'HD keyring  not have a mnemonic for the given entropy source.',
-          );
+          throw new Error('Got keyring without HD Keyring type');
         }
         const hdKeyring = keyring as HdKeyring;
 
