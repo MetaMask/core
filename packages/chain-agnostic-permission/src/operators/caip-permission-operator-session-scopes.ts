@@ -45,14 +45,19 @@ export const getInternalScopesObject = (
  * @param internalScopesObject - The InternalScopesObject to convert.
  * @param hooks - An object containing the following properties:
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
+ * @param [hooks.sortAccountIdsByLastSelected] - Optional function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by last selected.
  * @returns A NormalizedScopesObject.
  */
 const getNormalizedScopesObject = (
   internalScopesObject: InternalScopesObject,
   {
     getNonEvmSupportedMethods,
+    sortAccountIdsByLastSelected,
   }: {
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    sortAccountIdsByLastSelected?: (
+      accounts: CaipAccountId[],
+    ) => CaipAccountId[];
   },
 ) => {
   const normalizedScopes: NormalizedScopesObject = {};
@@ -83,10 +88,14 @@ const getNormalizedScopesObject = (
         notifications = [];
       }
 
+      const sortedAccounts = sortAccountIdsByLastSelected
+        ? sortAccountIdsByLastSelected(accounts)
+        : accounts;
+
       normalizedScopes[scopeString] = {
         methods,
         notifications,
-        accounts,
+        accounts: sortedAccounts,
       };
     },
   );
@@ -101,6 +110,7 @@ const getNormalizedScopesObject = (
  * @param caip25CaveatValue - The CAIP-25 CaveatValue to convert.
  * @param hooks - An object containing the following properties:
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
+ * @param [hooks.sortAccountIdsByLastSelected] - Optional function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by last selected.
  * @returns A NormalizedScopesObject.
  */
 export const getSessionScopes = (
@@ -110,16 +120,22 @@ export const getSessionScopes = (
   >,
   {
     getNonEvmSupportedMethods,
+    sortAccountIdsByLastSelected,
   }: {
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    sortAccountIdsByLastSelected?: (
+      accounts: CaipAccountId[],
+    ) => CaipAccountId[];
   },
 ) => {
   return mergeNormalizedScopes(
     getNormalizedScopesObject(caip25CaveatValue.requiredScopes, {
       getNonEvmSupportedMethods,
+      sortAccountIdsByLastSelected,
     }),
     getNormalizedScopesObject(caip25CaveatValue.optionalScopes, {
       getNonEvmSupportedMethods,
+      sortAccountIdsByLastSelected,
     }),
   );
 };
