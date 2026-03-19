@@ -36,8 +36,8 @@ export function createBatchedHandler<Item>(
     eventBuffer = [];
     pendingSettlers = [];
 
-    const merged = aggregatorFn(buffer);
     try {
+      const merged = aggregatorFn(buffer);
       await onFlush(merged);
       settlers.forEach((settler) => settler.resolve());
     } catch (error) {

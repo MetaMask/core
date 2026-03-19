@@ -113,7 +113,6 @@ export function mergeUpdateBalancesOptions(
   a: UpdateBalancesOptions,
   b: UpdateBalancesOptions,
 ): UpdateBalancesOptions {
-  // We will take
   const chainIds = a.chainIds && b.chainIds && union(a.chainIds, b.chainIds);
   const tokenAddresses =
     a.tokenAddresses &&
@@ -411,7 +410,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isUnlocked = isUnlocked;
 
-    this.#subscribeToControllers();
     this.#batchedUpdateBalances = createBatchedHandler(
       (buffer) =>
         buffer.length === 0
@@ -426,6 +424,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       (merged: UpdateBalancesOptions): Promise<void> =>
         this.#executeUpdateBalances(merged),
     );
+
+    this.#subscribeToControllers();
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 

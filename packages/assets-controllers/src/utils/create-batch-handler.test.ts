@@ -136,6 +136,23 @@ describe('createBatchedHandler', () => {
       expect(onFlush).toHaveBeenCalledWith(1);
     });
 
+    const actAssertRejected = async (
+      capture: (n: number) => Promise<void>,
+      expectedError: unknown,
+    ): Promise<void> => {
+      const p1 = capture(1);
+      const p2 = capture(2);
+      const settled = Promise.allSettled([p1, p2]);
+
+      await advanceAndFlush();
+      const [r1, r2] = await settled;
+
+      expect(r1.status).toBe('rejected');
+      expect((r1 as PromiseRejectedResult).reason).toBe(expectedError);
+      expect(r2.status).toBe('rejected');
+      expect((r2 as PromiseRejectedResult).reason).toBe(expectedError);
+    };
+
     it('rejects all callers in the same batch when onFlush throws', async () => {
       const error = new Error('flush failed');
       const onFlush = jest.fn().mockRejectedValue(error);
@@ -145,17 +162,24 @@ describe('createBatchedHandler', () => {
         onFlush,
       );
 
-      const p1 = capture(1);
-      const p2 = capture(2);
-      const settled = Promise.allSettled([p1, p2]);
+      await actAssertRejected(capture, error);
+      expect(onFlush).toHaveBeenCalled();
+    });
 
-      await advanceAndFlush();
-      const [r1, r2] = await settled;
+    it('rejects all callers in the same batch when aggregatorFn throws', async () => {
+      const error = new Error('aggregation failed');
+      const aggregatorFn = jest.fn(() => {
+        throw error;
+      });
+      const onFlush = jest.fn().mockResolvedValue(undefined);
+      const capture = createBatchedHandler<number>(
+        aggregatorFn,
+        TEST_BATCH_MS,
+        onFlush,
+      );
 
-      expect(r1.status).toBe('rejected');
-      expect((r1 as PromiseRejectedResult).reason).toBe(error);
-      expect(r2.status).toBe('rejected');
-      expect((r2 as PromiseRejectedResult).reason).toBe(error);
+      await actAssertRejected(capture, error);
+      expect(onFlush).not.toHaveBeenCalled();
     });
   });
 });
