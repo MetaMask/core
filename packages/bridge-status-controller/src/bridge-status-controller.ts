@@ -1142,20 +1142,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
           // Add pre-submission history keyed by actionId
           // This ensures we have quote data available if transaction fails during submission
-          this.#addTxToHistory(
-            {
-              accountAddress: selectedAccount.address,
-              quoteResponse,
-              slippagePercentage: 0,
-              isStxEnabled: isStxEnabledOnClient,
-              startTime,
-              approvalTxId,
-              location,
-              abTests,
-              activeAbTests,
-            },
+          this.#addTxToHistory({
+            accountAddress: selectedAccount.address,
+            quoteResponse,
+            slippagePercentage: 0,
+            isStxEnabled: isStxEnabledOnClient,
+            startTime,
+            approvalTxId,
+            location,
+            abTests,
+            activeAbTests,
             actionId,
-          );
+          });
 
           // Pass txFee when gasIncluded is true to use the quote's gas fees
           // instead of re-estimating (which would fail for max native token swaps)

@@ -109,6 +109,9 @@ export type RefuelStatusResponse = object & StatusResponse;
 export type BridgeHistoryItem = {
   txMetaId?: string; // Optional: not available pre-submission or on sync failure
   actionId?: string; // Only for non-batch EVM transactions
+  /**
+   * @deprecated the txMeta or orderUid should be used instead
+   */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
@@ -211,7 +214,12 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta?: TransactionMeta;
+  bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
+  actionId?: string;
+  /**
+   * @deprecated the txMeta or orderUid should be used instead
+   */
+  originalTransactionId?: string;
   quoteResponse: QuoteResponse & QuoteMetadata;
   startTime?: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
