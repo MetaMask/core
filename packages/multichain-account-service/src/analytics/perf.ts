@@ -53,7 +53,7 @@ export function tick(request: TraceRequest): () => void {
  * @param trace - The original trace callback to wrap.
  * @returns A new trace callback that logs the duration of the traced operation.
  */
-export function wrapWithLocalPerfTrace(trace: TraceCallback): TraceCallback {
+export function withLocalPerfTrace(trace: TraceCallback): TraceCallback {
   return async <ReturnType>(
     request: TraceRequest,
     fn?: (context?: TraceContext) => ReturnType,

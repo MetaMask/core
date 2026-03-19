@@ -1,6 +1,6 @@
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 
-import { isPerfEnabled, tick, wrapWithLocalPerfTrace } from './perf';
+import { isPerfEnabled, tick, withLocalPerfTrace } from './perf';
 import { projectLogger } from '../logger';
 
 jest.mock('../logger', () => ({
@@ -94,7 +94,7 @@ describe('perf', () => {
     });
   });
 
-  describe('wrapWithLocalPerfTrace', () => {
+  describe('withLocalPerfTrace', () => {
     const request: TraceRequest = { name: 'wrapped-op' };
     let mockTrace: jest.MockedFunction<TraceCallback>;
 
@@ -112,7 +112,7 @@ describe('perf', () => {
       mockProjectLogger.enabled = false;
       mockTrace.mockResolvedValue('result');
 
-      const wrapped = wrapWithLocalPerfTrace(mockTrace);
+      const wrapped = withLocalPerfTrace(mockTrace);
       const fn = jest.fn().mockReturnValue('result');
       const result = await wrapped(request, fn);
 
@@ -130,7 +130,7 @@ describe('perf', () => {
         .mockReturnValueOnce(100);
       mockTrace.mockResolvedValue('result');
 
-      const wrapped = wrapWithLocalPerfTrace(mockTrace);
+      const wrapped = withLocalPerfTrace(mockTrace);
       const fn = jest.fn().mockReturnValue('result');
       const result = await wrapped(request, fn);
 
@@ -149,7 +149,7 @@ describe('perf', () => {
       const error = new Error('trace failed');
       mockTrace.mockRejectedValue(error);
 
-      const wrapped = wrapWithLocalPerfTrace(mockTrace);
+      const wrapped = withLocalPerfTrace(mockTrace);
 
       await expect(wrapped(request, jest.fn())).rejects.toThrow(error);
       // performance.now called once for tick (start) and once for tock (end)
@@ -160,7 +160,7 @@ describe('perf', () => {
       mockProjectLogger.enabled = false;
       mockTrace.mockResolvedValue(undefined);
 
-      const wrapped = wrapWithLocalPerfTrace(mockTrace);
+      const wrapped = withLocalPerfTrace(mockTrace);
       await wrapped(request);
 
       expect(mockTrace).toHaveBeenCalledWith(request, undefined);

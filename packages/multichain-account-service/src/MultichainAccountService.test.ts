@@ -13,7 +13,7 @@ import type { KeyringObject } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import { traceFallback } from './analytics';
-import { isPerfEnabled, wrapWithLocalPerfTrace } from './analytics/perf';
+import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
@@ -51,7 +51,7 @@ import type { MultichainAccountServiceMessenger } from './types';
 // Mock perf helpers so tests can control isPerfEnabled() without setting DEBUG env var.
 jest.mock('./analytics/perf', () => ({
   isPerfEnabled: jest.fn().mockReturnValue(false),
-  wrapWithLocalPerfTrace: jest.fn((trace) => trace),
+  withLocalPerfTrace: jest.fn((trace) => trace),
 }));
 
 // Mock providers.
@@ -337,7 +337,7 @@ describe('MultichainAccountService', () => {
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
       });
 
-      expect(wrapWithLocalPerfTrace).not.toHaveBeenCalled();
+      expect(withLocalPerfTrace).not.toHaveBeenCalled();
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         undefined,
@@ -359,7 +359,7 @@ describe('MultichainAccountService', () => {
         config: { trace: customTrace },
       });
 
-      expect(wrapWithLocalPerfTrace).not.toHaveBeenCalled();
+      expect(withLocalPerfTrace).not.toHaveBeenCalled();
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         undefined,
@@ -375,14 +375,14 @@ describe('MultichainAccountService', () => {
     it('wraps trace with local perf trace and passes it to providers when perf is enabled', async () => {
       jest.mocked(isPerfEnabled).mockReturnValue(true);
       const wrappedTrace = jest.fn();
-      jest.mocked(wrapWithLocalPerfTrace).mockReturnValue(wrappedTrace);
+      jest.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
 
       const { mocks, messenger } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
       });
 
-      expect(wrapWithLocalPerfTrace).toHaveBeenCalledTimes(1);
-      expect(wrapWithLocalPerfTrace).toHaveBeenCalledWith(traceFallback);
+      expect(withLocalPerfTrace).toHaveBeenCalledTimes(1);
+      expect(withLocalPerfTrace).toHaveBeenCalledWith(traceFallback);
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         undefined,
@@ -399,14 +399,14 @@ describe('MultichainAccountService', () => {
       jest.mocked(isPerfEnabled).mockReturnValue(true);
       const customTrace = jest.fn();
       const wrappedTrace = jest.fn();
-      jest.mocked(wrapWithLocalPerfTrace).mockReturnValue(wrappedTrace);
+      jest.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
 
       const { mocks } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
         config: { trace: customTrace },
       });
 
-      expect(wrapWithLocalPerfTrace).toHaveBeenCalledWith(customTrace);
+      expect(withLocalPerfTrace).toHaveBeenCalledWith(customTrace);
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         expect.anything(),
         undefined,

@@ -14,7 +14,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
 import { traceFallback } from './analytics';
-import { isPerfEnabled, wrapWithLocalPerfTrace } from './analytics/perf';
+import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -163,7 +163,7 @@ export class MultichainAccountService {
 
     // Wrap the trace callback with local performance tracing if performance logging is enabled.
     if (isPerfEnabled()) {
-      trace = wrapWithLocalPerfTrace(trace);
+      trace = withLocalPerfTrace(trace);
     }
 
     // This trace is passed down to wallets and providers to be used for tracing operations within them.
