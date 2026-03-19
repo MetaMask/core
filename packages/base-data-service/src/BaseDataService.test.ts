@@ -197,7 +197,7 @@ describe('BaseDataService', () => {
 
     expect(publishSpy).toHaveBeenCalledTimes(0);
   });
-  
+
   it('invalidates queries when requested', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
@@ -211,7 +211,7 @@ describe('BaseDataService', () => {
     await service.invalidateQueries({ queryKey });
 
     expect(publishSpy).toHaveBeenCalledTimes(8);
-  })
+  });
 
   describe('service policy', () => {
     beforeEach(() => {
