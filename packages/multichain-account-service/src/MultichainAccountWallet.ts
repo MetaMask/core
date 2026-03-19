@@ -766,7 +766,7 @@ export class MultichainAccountWallet<
 
             if (isTimeoutError(error)) {
               log(`${WARNING_PREFIX} ${errorMessage}`);
-              console.warn(error);
+              console.warn(errorMessage, error);
             } else {
               log(`${ERROR_PREFIX} ${errorMessage}`);
               console.error(errorMessage, error);
