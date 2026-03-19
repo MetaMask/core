@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `sortAccountIdsByLastSelected` parameter to `getSessionScopes` function that is applied to each scope's `accounts` value when provided
+- Add optional `sortAccountIdsByLastSelected` parameter to `getSessionScopes` function to enable custom account ordering within session scopes ([#8255](https://github.com/MetaMask/core/pull/8255))
 
 ### Changed
 
