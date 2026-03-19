@@ -1,3 +1,4 @@
+import { GranularCacheUpdatedPayload } from '@metamask/base-data-service';
 import { assert, Json } from '@metamask/utils';
 import {
   hydrate,
@@ -8,8 +9,6 @@ import {
   parseFilterArgs,
   QueryKey,
 } from '@tanstack/query-core';
-
-import { GranularCacheUpdatedPayload } from '@metamask/base-data-service';
 
 type SubscriptionCallback = (payload: GranularCacheUpdatedPayload) => void;
 type JsonSubscriptionCallback = (data: Json) => void;
