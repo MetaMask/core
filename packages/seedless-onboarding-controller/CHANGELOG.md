@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
+### Uncategorized
+
+- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
+
 ### Changed
 
 - Token refresh now uses a dedicated private `#reAuthenticate` method that only accepts the tokens returned by the JWT-refresh service (`idTokens`, `accessToken`, `metadataAccessToken`), making the re-authentication path stricter than the initial `authenticate` call ([#8148](https://github.com/MetaMask/core/pull/8148))
@@ -306,7 +312,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `checkIsPasswordOutdated`: Check if the password is current device is outdated, i.e. user changed password in another device.
     - `clearState`: Reset the state of the controller to the defaults.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.1.0...@metamask/seedless-onboarding-controller@9.0.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@8.0.0...@metamask/seedless-onboarding-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.1.0...@metamask/seedless-onboarding-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/seedless-onboarding-controller@7.0.0...@metamask/seedless-onboarding-controller@7.1.0
