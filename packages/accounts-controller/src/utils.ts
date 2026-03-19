@@ -39,6 +39,9 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.qr: {
       return 'QR';
     }
+    case KeyringTypes.cash: {
+      return 'Cash Account';
+    }
     case KeyringTypes.snap: {
       return 'Snap Account';
     }
