@@ -30,7 +30,7 @@ export class CashAccountService {
    * @returns The metadata of the newly created Cash keyring.
    */
   async createCashAccount(entropySource: string): Promise<KeyringMetadata> {
-    const mnemonic = (await this.#messenger.call(
+    const mnemonic = await this.#messenger.call(
       'KeyringController:withKeyring',
       { id: entropySource },
       async ({ keyring }) => {
@@ -48,7 +48,7 @@ export class CashAccountService {
         }
         return hdKeyring.mnemonic;
       },
-    )) as Uint8Array;
+    );
 
     const existingCashMetadata = (await this.#messenger
       .call(
