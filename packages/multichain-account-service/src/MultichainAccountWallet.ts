@@ -251,19 +251,20 @@ export class MultichainAccountWallet<
         ? `from group index ${from} to ${to}`
         : `for group index ${to}`;
 
-      const sentryMessage = `Unable to create ${modeDescription} with provider "${provider.getName()}"`;
-      const errorMessage = `Unable to create ${modeDescription} ${rangeDescription} with provider "${provider.getName()}"`;
+      const errorMessage = `Unable to create ${modeDescription} with provider "${provider.getName()}"`;
 
       if (isTimeoutError(error)) {
         this.#log(
-          `${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
+          `${WARNING_PREFIX} ${errorMessage} (${rangeDescription}): ${toErrorMessage(error)}`,
         );
         console.warn(errorMessage, error);
       } else {
-        this.#log(`${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`);
+        this.#log(
+          `${ERROR_PREFIX} ${errorMessage} (${rangeDescription}): ${toErrorMessage(error)}`,
+        );
         console.error(errorMessage, error);
 
-        const sentryError = createSentryError(sentryMessage, error as Error, {
+        const sentryError = createSentryError(errorMessage, error as Error, {
           range: {
             from,
             to,
@@ -766,7 +767,7 @@ export class MultichainAccountWallet<
               ),
             );
 
-            const errorMessage = `Unable to discover accounts with provider "${providerName}" for group index: ${targetGroupIndex}`;
+            const errorMessage = `Unable to discover accounts with provider "${providerName}"`;
 
             if (isTimeoutError(error)) {
               log(
