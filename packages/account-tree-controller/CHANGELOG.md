@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING**: Move `selectedAccountGroup` to top-level persisted state to prevent selected account group from reverting after app restart ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+- **BREAKING**: Move `selectedAccountGroup` to top-level persisted state to prevent selected account group from reverting after app restart ([#8245](https://github.com/MetaMask/core/pull/8245))
 - Batch multichain account groups creation in backup and sync ([#7907](https://github.com/MetaMask/core/pull/7907))
   - This prevents multiple consecutive tree rebuilds, as well as keyring updates and thus improves performance during the initial backup and sync process.
 - Use `:accounts{Added,Removed}` batched events to reduce number of state updates ([#8160](https://github.com/MetaMask/core/pull/8160))

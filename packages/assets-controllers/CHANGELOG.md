@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `AssetListState` type now requires a top-level `selectedAccountGroup` property, matching the updated `AccountTreeControllerState` shape where `selectedAccountGroup` was moved out of `accountTree` ([#8245](https://github.com/MetaMask/core/pull/8245))
+
 ## [101.0.1]
 
 ### Changed
