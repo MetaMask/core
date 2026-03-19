@@ -31,6 +31,7 @@ import {
   createMockStateChangePayload,
   createMockTransaction,
   formatHostnameToUrl,
+  isOutOfDate,
   TEST_ADDRESSES,
 } from './tests/utils';
 import type { PhishingDetectionScanResult, AddressScanResult } from './types';
@@ -39,7 +40,7 @@ import {
   RecommendedAction,
   AddressScanResultType,
 } from './types';
-import { getHostnameFromUrl } from './utils';
+import { fetchTimeNow, getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
 
@@ -193,7 +194,9 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+
+    await controller.maybeUpdateState();
+
     const result = controller.test(`https://${allowlistedHostname}/path`);
 
     expect(result).toMatchObject({
@@ -223,61 +226,788 @@ describe('PhishingController', () => {
     expect(nockScope.isDone()).toBe(false);
   });
 
-  it('should not re-request when an update is in progress', async () => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-      .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
-      .reply(200, {
-        data: [
-          {
-            url: 'this-should-not-be-in-default-blocklist.com',
-            timestamp: 1,
-            isRemoval: true,
-            targetList: 'eth_phishing_detect_config.blocklist',
-          },
-          {
-            url: 'this-should-not-be-in-default-blocklist.com',
-            timestamp: 2,
-            targetList: 'eth_phishing_detect_config.blocklist',
-          },
-        ],
-      });
-
-    const controller = getPhishingController({
-      hotlistRefreshInterval: 10,
-      state: {
-        phishingLists: [
-          {
+  describe('maybeUpdateState', () => {
+    it('should update all phishing lists when maybeUpdateState is called and all lists are out of date', async () => {
+      const exampleBlockedUrl = 'example-blocked-website.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+      const exampleBlockedUrlOne =
+        'https://another-example-blocked-website.com';
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
             allowlist: [],
-            blocklist: [],
-            c2DomainBlocklist: [],
-            blocklistPaths: {},
+            blocklist: [exampleBlockedUrl],
+            blocklistPaths: [],
             fuzzylist: [],
             tolerance: 0,
-            lastUpdated: 1,
-            name: ListNames.MetaMask,
             version: 0,
+            lastUpdated: 1,
           },
-        ],
-      },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, {
+          data: [
+            {
+              url: exampleBlockedUrlOne,
+              timestamp: 2,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+          ],
+        });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController();
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 0,
+          lastUpdated: 2,
+          name: ListNames.MetaMask,
+          version: 0,
+        },
+      ]);
     });
-    jest.advanceTimersByTime(1000 * 10);
-    const pendingUpdate = controller.updateHotlist();
 
-    expect(controller.isHotlistOutOfDate()).toBe(true);
-    const pendingUpdateTwo = controller.updateHotlist();
-    expect(nockScope.activeMocks()).toHaveLength(1);
+    it('should remove an entry from the blocklist when the hotlist indicates it should be removed', async () => {
+      const exampleBlockedUrl = 'example-blocked-website.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+      const exampleBlockedUrlTwo = 'another-example-blocked-website.com';
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            allowlist: [],
+            blocklist: [exampleBlockedUrl],
+            blocklistPaths: [],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, {
+          data: [
+            {
+              url: exampleBlockedUrlTwo,
+              timestamp: 2,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+            {
+              url: exampleBlockedUrl,
+              timestamp: 2,
+              targetList: 'eth_phishing_detect_config.blocklist',
+              isRemoval: true,
+            },
+          ],
+        });
 
-    // Cleanup pending operations
-    await pendingUpdate;
-    await pendingUpdateTwo;
-  });
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
 
-  describe('maybeUpdateState', () => {
-    let nockScope: nock.Scope;
-    beforeEach(() => {
-      nockScope = nock(PHISHING_CONFIG_BASE_URL)
+      const controller = getPhishingController();
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [exampleBlockedUrlTwo],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 2,
+          name: ListNames.MetaMask,
+        },
+      ]);
+    });
+
+    it('should correctly process blocklist entries with paths into blocklistPaths', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            allowlist: [],
+            blocklist: ['example.com'],
+            blocklistPaths: ['malicious.com/phishing'],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController();
+      await controller.maybeUpdateState();
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: ['example.com'],
+          c2DomainBlocklist: [],
+          blocklistPaths: {
+            'malicious.com': {
+              phishing: {},
+            },
+          },
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 1,
+          name: ListNames.MetaMask,
+        },
+      ]);
+    });
+
+    it('should not update phishing lists if fetch returns 304', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(304)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(304);
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should not update phishing lists if fetch returns 500', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(500)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(500);
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(500);
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should not throw when there is a network error', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .replyWithError('network error')
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .replyWithError('network error');
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .replyWithError('network error');
+
+      const controller = getPhishingController();
+
+      expect(await controller.maybeUpdateState()).toBeUndefined();
+    });
+
+    describe('an update is in progress', () => {
+      it('should not fetch phishing lists again', async () => {
+        const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+          .get(METAMASK_STALELIST_FILE)
+          .delay(100)
+          .reply(200, {
+            data: {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              tolerance: 0,
+              version: 0,
+              lastUpdated: 1,
+            },
+          })
+          .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+          .delay(100)
+          .reply(200, { data: [] });
+
+        const controller = getPhishingController();
+        const firstPromise = controller.maybeUpdateState();
+        const secondPromise = controller.maybeUpdateState();
+
+        jest.advanceTimersByTime(1000 * 100);
+
+        await firstPromise;
+        await secondPromise;
+
+        // This second update would throw if it fetched, because the
+        // nock interceptor was not persisted.
+        expect(nockScope.isDone()).toBe(true);
+      });
+
+      it('should wait until the in-progress update has completed', async () => {
+        nock(PHISHING_CONFIG_BASE_URL)
+          .get(METAMASK_STALELIST_FILE)
+          .delay(100)
+          .reply(200, {
+            data: {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              tolerance: 0,
+              version: 0,
+              lastUpdated: 1,
+            },
+          })
+          .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+          .delay(100)
+          .reply(200, { data: [] });
+
+        const controller = getPhishingController();
+        const firstPromise = controller.maybeUpdateState();
+        const secondPromise = controller.maybeUpdateState();
+        jest.advanceTimersByTime(1000 * 99);
+
+        await expect(secondPromise).toNeverResolve();
+
+        // Cleanup pending operations
+        await firstPromise;
+        await secondPromise;
+      });
+    });
+
+    it('should not update phishing lists if hotlist fetch returns 404', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .reply(404);
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          ...controller.state.phishingLists[0],
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should not make API calls to update hotlist when phishingLists array is empty', async () => {
+      const testBlockedDomain = 'some-test-blocked-url.com';
+      const hotlistNock = nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .reply(200, {
+          data: [
+            {
+              targetList: 'eth_phishing_detect_config.blocklist',
+              url: testBlockedDomain,
+              timestamp: 1,
+            },
+          ],
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [],
+        },
+      });
+      await controller.maybeUpdateState();
+
+      expect(hotlistNock.isDone()).toBe(false);
+    });
+
+    it('should handle empty hotlist and request blocklist responses gracefully', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+      await controller.maybeUpdateState();
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should handle errors during hotlist fetching gracefully', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .replyWithError('network error');
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [exampleRequestBlockedHash],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 1,
+            },
+          ],
+        },
+      });
+
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 1,
+        },
+      ]);
+    });
+
+    it('should handle empty data during hotlist fetching gracefully', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 0,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(200, { data: undefined });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}`)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        hotlistRefreshInterval: 0,
+        stalelistRefreshInterval: 500000,
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should update the C2 domain blocklist if the fetch returns 200', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      // Mocking the request to the C2 domain blocklist endpoint
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          c2DomainBlocklistLastFetched: 0,
+          stalelistLastFetched: fetchTimeNow(),
+        },
+      });
+
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
+    });
+
+    it('should not update the C2 domain blocklist if the fetch returns 404', async () => {
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(404);
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          c2DomainBlocklistLastFetched: 0,
+        },
+      });
+
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
+    });
+
+    it('should update request blocklist with additions and removals', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+      const exampleRequestBlockedHashTwo = 'd3bkcslj57l47pamplifyapp';
+
+      // Mock the request blocklist response with additions and removals
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [exampleRequestBlockedHashTwo],
+          lastFetchedAt: 1,
+        });
+
+      // Initialize the controller with an existing state
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [exampleRequestBlockedHashTwo],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          stalelistLastFetched: fetchTimeNow(),
+        },
+      });
+
+      await controller.maybeUpdateState();
+
+      // Check the updated state
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should handle empty recentlyAdded and recentlyRemoved in the response', async () => {
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          c2DomainBlocklistLastFetched: 0,
+        },
+      });
+
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
+    });
+
+    it('should handle errors during C2 domain blocklist fetching gracefully', async () => {
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .replyWithError('network error');
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          c2DomainBlocklistLastFetched: 0,
+        },
+      });
+
+      await controller.maybeUpdateState();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
+    });
+
+    it('should not have stalelist be out of date immediately after maybeUpdateState is called', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+
+      const nockScope = nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
@@ -314,56 +1044,210 @@ describe('PhishingController', () => {
           recentlyRemoved: [],
           lastFetchedAt: 1,
         });
-    });
 
-    it('should not have stalelist be out of date immediately after maybeUpdateState is called', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
-      expect(controller.isStalelistOutOfDate()).toBe(true);
+
+      const stalelistLastFetchedBeforeUpdate =
+        controller.state.stalelistLastFetched;
+
+      expect(isOutOfDate(stalelistLastFetchedBeforeUpdate, 10)).toBe(true);
+
       await controller.maybeUpdateState();
-      expect(controller.isStalelistOutOfDate()).toBe(false);
+
+      const stalelistLastFetchedAfterUpdate =
+        controller.state.stalelistLastFetched;
+
+      expect(isOutOfDate(stalelistLastFetchedAfterUpdate, 10)).toBe(false);
+
       expect(nockScope.isDone()).toBe(true);
     });
 
-    it('should not be out of date after maybeUpdateStalelist is called but before refresh interval has passed', async () => {
+    it('should not be out of date after maybemaybeUpdateState is called but before refresh interval has passed', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+
+      const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            blocklist: ['this-should-not-be-in-default-blocklist.com'],
+            blocklistPaths: [],
+            fuzzylist: [],
+            allowlist: ['this-should-not-be-in-default-allowlist.com'],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, {
+          data: [
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 2,
+              isRemoval: true,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 3,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+          ],
+        });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
-      expect(controller.isStalelistOutOfDate()).toBe(true);
+
+      const stalelistLastFetchedBeforeUpdate =
+        controller.state.stalelistLastFetched;
+
+      expect(isOutOfDate(stalelistLastFetchedBeforeUpdate, 10)).toBe(true);
+
       await controller.maybeUpdateState();
+
       jest.advanceTimersByTime(1000 * 5);
-      expect(controller.isStalelistOutOfDate()).toBe(false);
+
+      const stalelistLastFetchedAfterUpdate =
+        controller.state.stalelistLastFetched;
+
+      expect(isOutOfDate(stalelistLastFetchedAfterUpdate, 10)).toBe(false);
+
       expect(nockScope.isDone()).toBe(true);
     });
 
     it('should still be out of date while update is in progress', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+
+      const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            blocklist: ['this-should-not-be-in-default-blocklist.com'],
+            blocklistPaths: [],
+            fuzzylist: [],
+            allowlist: ['this-should-not-be-in-default-allowlist.com'],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, {
+          data: [
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 2,
+              isRemoval: true,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 3,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+          ],
+        });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
       // do not wait
       const maybeUpdatePhisingListPromise = controller.maybeUpdateState();
-      expect(controller.isStalelistOutOfDate()).toBe(true);
+
+      const stalelistLastFetchedBeforeUpdate =
+        controller.state.stalelistLastFetched;
+
+      expect(isOutOfDate(stalelistLastFetchedBeforeUpdate, 10)).toBe(true);
+
       await maybeUpdatePhisingListPromise;
-      expect(controller.isStalelistOutOfDate()).toBe(false);
+
+      const stalelistLastFetchedDuringUpdate =
+        controller.state.stalelistLastFetched;
+
+      expect(isOutOfDate(stalelistLastFetchedDuringUpdate, 10)).toBe(false);
+
       jest.advanceTimersByTime(1000 * 10);
-      expect(controller.isStalelistOutOfDate()).toBe(true);
+
+      const stalelistLastFetchedAfterUpdate =
+        controller.state.stalelistLastFetched;
+
+      expect(isOutOfDate(stalelistLastFetchedAfterUpdate, 10)).toBe(true);
+
       expect(nockScope.isDone()).toBe(true);
     });
 
     it('should call update only if it is out of date, otherwise it should not call update', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+
+      const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            blocklist: ['this-should-not-be-in-default-blocklist.com'],
+            blocklistPaths: [],
+            fuzzylist: [],
+            allowlist: ['this-should-not-be-in-default-allowlist.com'],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, {
+          data: [
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 2,
+              isRemoval: true,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 3,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+          ],
+        });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
       const controller = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      expect(controller.isStalelistOutOfDate()).toBe(false);
+      const { stalelistLastFetched } = controller.state;
+
+      expect(isOutOfDate(stalelistLastFetched, 10)).toBe(false);
+
       await controller.maybeUpdateState();
+
       expect(
         controller.test(
           formatHostnameToUrl('this-should-not-be-in-default-blocklist.com'),
@@ -407,7 +1291,7 @@ describe('PhishingController', () => {
     });
 
     it('should not have hotlist be out of date immediately after maybeUpdateState is called', async () => {
-      nockScope = nock(PHISHING_CONFIG_BASE_URL)
+      nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(200, {
           data: [
@@ -424,6 +1308,14 @@ describe('PhishingController', () => {
             },
           ],
         });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
       jest.useFakeTimers({
         doNotFake: ['nextTick', 'queueMicrotask'],
         now: 50,
@@ -433,27 +1325,76 @@ describe('PhishingController', () => {
         stalelistRefreshInterval: 50,
       });
       jest.advanceTimersByTime(1000 * 10);
-      expect(controller.isHotlistOutOfDate()).toBe(true);
+
+      const hotlistLastFetchedBeforeUpdate =
+        controller.state.hotlistLastFetched;
+
+      expect(isOutOfDate(hotlistLastFetchedBeforeUpdate, 10)).toBe(true);
+
       await controller.maybeUpdateState();
-      expect(controller.isHotlistOutOfDate()).toBe(false);
+
+      const hotlistLastFetchedAfterUpdate = controller.state.hotlistLastFetched;
+
+      expect(isOutOfDate(hotlistLastFetchedAfterUpdate, 10)).toBe(false);
     });
 
     it('should not have c2DomainBlocklist be out of date immediately after maybeUpdateState is called', async () => {
-      nockScope = nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            blocklist: ['this-should-not-be-in-default-blocklist.com'],
+            blocklistPaths: [],
+            fuzzylist: [],
+            allowlist: ['this-should-not-be-in-default-allowlist.com'],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, {
+          data: [
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 2,
+              isRemoval: true,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 3,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+          ],
+        });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
           recentlyRemoved: [],
           lastFetchedAt: 1,
         });
+
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
-      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
+
+      const { c2DomainBlocklistLastFetched } = controller.state;
+
+      expect(isOutOfDate(c2DomainBlocklistLastFetched, 10)).toBe(true);
       await controller.maybeUpdateState();
-      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
+
+      const {
+        c2DomainBlocklistLastFetched: c2DomainBlocklistLastFetchedAfterUpdate,
+      } = controller.state;
+
+      expect(isOutOfDate(c2DomainBlocklistLastFetchedAfterUpdate, 10)).toBe(
+        false,
+      );
     });
 
     it('replaces existing phishing lists with completely new list from phishing detection API', async () => {
@@ -484,7 +1425,6 @@ describe('PhishingController', () => {
         },
       });
 
-      cleanAll();
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
@@ -536,117 +1476,36 @@ describe('PhishingController', () => {
 
       jest.useRealTimers();
     });
-  });
 
-  describe('isStalelistOutOfDate', () => {
-    it('should not be out of date upon construction', () => {
+    it('should not re-request a hotlist update when an update is in progress', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        stalelistRefreshInterval: 10,
-      });
+      const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
+        .reply(200, {
+          data: [
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 1,
+              isRemoval: true,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+            {
+              url: 'this-should-not-be-in-default-blocklist.com',
+              timestamp: 2,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+          ],
+        });
 
-      expect(controller.isStalelistOutOfDate()).toBe(false);
-    });
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
 
-    it('should not be out of date after some of the refresh interval has passed', () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        stalelistRefreshInterval: 10,
-      });
-      jest.advanceTimersByTime(1000 * 5);
-
-      expect(controller.isStalelistOutOfDate()).toBe(false);
-    });
-
-    it('should be out of date after the refresh interval has passed', () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        stalelistRefreshInterval: 10,
-      });
-      jest.advanceTimersByTime(1000 * 10);
-
-      expect(controller.isStalelistOutOfDate()).toBe(true);
-    });
-
-    it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        stalelistRefreshInterval: 10,
-      });
-      jest.advanceTimersByTime(1000 * 10);
-      const pendingUpdate = controller.updateStalelist();
-
-      expect(controller.isStalelistOutOfDate()).toBe(true);
-
-      // Cleanup pending operations
-      await pendingUpdate;
-    });
-
-    it('should not be out of date if the phishing lists were just updated', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        stalelistRefreshInterval: 10,
-      });
-      await controller.updateStalelist();
-
-      expect(controller.isStalelistOutOfDate()).toBe(false);
-    });
-
-    it('should not be out of date if the phishing lists were recently updated', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        stalelistRefreshInterval: 10,
-      });
-      await controller.updateStalelist();
-      jest.advanceTimersByTime(1000 * 5);
-
-      expect(controller.isStalelistOutOfDate()).toBe(false);
-    });
-
-    it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        stalelistRefreshInterval: 10,
-      });
-      await controller.updateStalelist();
-      jest.advanceTimersByTime(1000 * 10);
-
-      expect(controller.isStalelistOutOfDate()).toBe(true);
-    });
-  });
-
-  describe('isHotlistOutOfDate', () => {
-    it('should not be out of date upon construction', () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        hotlistRefreshInterval: 10,
-      });
-
-      expect(controller.isHotlistOutOfDate()).toBe(false);
-    });
-
-    it('should not be out of date after some of the refresh interval has passed', () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        hotlistRefreshInterval: 10,
-      });
-      jest.advanceTimersByTime(1000 * 5);
-
-      expect(controller.isHotlistOutOfDate()).toBe(false);
-    });
-
-    it('should be out of date after the refresh interval has passed', () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        hotlistRefreshInterval: 10,
-      });
-      jest.advanceTimersByTime(1000 * 10);
-
-      expect(controller.isHotlistOutOfDate()).toBe(true);
-    });
-
-    it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
         state: {
@@ -666,121 +1525,108 @@ describe('PhishingController', () => {
         },
       });
       jest.advanceTimersByTime(1000 * 10);
-      const pendingUpdate = controller.updateHotlist();
+      const pendingUpdate = controller.maybeUpdateState();
 
-      expect(controller.isHotlistOutOfDate()).toBe(true);
-
-      // Cleanup pending operations
-      await pendingUpdate;
-    });
-
-    it('should not be out of date if the phishing lists were just updated', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        hotlistRefreshInterval: 10,
-      });
-      await controller.updateHotlist();
-
-      expect(controller.isHotlistOutOfDate()).toBe(false);
-    });
-
-    it('should not be out of date if the phishing lists were recently updated', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        hotlistRefreshInterval: 10,
-      });
-      await controller.updateHotlist();
-      jest.advanceTimersByTime(1000 * 5);
-
-      expect(controller.isHotlistOutOfDate()).toBe(false);
-    });
-
-    it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        hotlistRefreshInterval: 10,
-      });
-      await controller.updateHotlist();
-      jest.advanceTimersByTime(1000 * 10);
-
-      expect(controller.isHotlistOutOfDate()).toBe(true);
-    });
-  });
-
-  describe('isC2DomainBlocklistOutOfDate', () => {
-    it('should not be out of date upon construction', () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        c2DomainBlocklistRefreshInterval: 10,
-      });
-
-      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
-    });
-
-    it('should not be out of date after some of the refresh interval has passed', () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        c2DomainBlocklistRefreshInterval: 10,
-      });
-      jest.advanceTimersByTime(1000 * 5);
-
-      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
-    });
-
-    it('should be out of date after the refresh interval has passed', () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        c2DomainBlocklistRefreshInterval: 10,
-      });
-      jest.advanceTimersByTime(1000 * 10);
-
-      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
-    });
-
-    it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        c2DomainBlocklistRefreshInterval: 10,
-      });
-      jest.advanceTimersByTime(1000 * 10);
-      const pendingUpdate = controller.updateC2DomainBlocklist();
-
-      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
+      const pendingUpdateTwo = controller.maybeUpdateState();
+      expect(nockScope.activeMocks()).toHaveLength(1);
 
       // Cleanup pending operations
       await pendingUpdate;
+      await pendingUpdateTwo;
     });
 
-    it('should not be out of date if the C2 domain blocklist was just updated', async () => {
+    it('should not re-request a stalelist update when an update is in progress', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
+        .reply(200, {
+          data: {
+            blocklist: [],
+            blocklistPaths: ['example.com/path'],
+            fuzzylist: ['new-fuzzy-site.com'],
+            allowlist: ['new-safe-site.com'],
+            tolerance: 2,
+            version: 2,
+            lastUpdated: 2,
+          },
+        });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
       const controller = getPhishingController({
-        c2DomainBlocklistRefreshInterval: 10,
+        stalelistRefreshInterval: 10,
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 0,
+              lastUpdated: 1,
+              name: ListNames.MetaMask,
+              version: 0,
+            },
+          ],
+        },
       });
-      await controller.updateC2DomainBlocklist();
-
-      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
-    });
-
-    it('should not be out of date if the C2 domain blocklist was recently updated', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        c2DomainBlocklistRefreshInterval: 10,
-      });
-      await controller.updateC2DomainBlocklist();
-      jest.advanceTimersByTime(1000 * 5);
-
-      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
-    });
-
-    it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
-        c2DomainBlocklistRefreshInterval: 10,
-      });
-      await controller.updateC2DomainBlocklist();
       jest.advanceTimersByTime(1000 * 10);
+      const pendingUpdate = controller.maybeUpdateState();
 
-      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
+      const pendingUpdateTwo = controller.maybeUpdateState();
+      expect(nockScope.activeMocks()).toHaveLength(1);
+
+      // Cleanup pending operations
+      await pendingUpdate;
+      await pendingUpdateTwo;
+    });
+
+    it('should not re-request a C2DomainBlocklist update when an update is in progress', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const nockScope = nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 2,
+        });
+
+      const controller = getPhishingController({
+        c2DomainBlocklistRefreshInterval: 10,
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 0,
+              lastUpdated: 1,
+              name: ListNames.MetaMask,
+              version: 0,
+            },
+          ],
+        },
+      });
+      jest.advanceTimersByTime(1000 * 10);
+      const pendingUpdate = controller.maybeUpdateState();
+
+      const pendingUpdateTwo = controller.maybeUpdateState();
+      expect(nockScope.activeMocks()).toHaveLength(1);
+
+      // Cleanup pending operations
+      await pendingUpdate;
+      await pendingUpdateTwo;
     });
   });
 
@@ -810,7 +1656,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(controller.test(formatHostnameToUrl('metamask.io'))).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.Allowlist,
@@ -836,7 +1682,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(controller.test(formatHostnameToUrl('i❤.ws'))).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
@@ -861,7 +1707,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(controller.test(formatHostnameToUrl('xn--i-7iq.ws'))).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
@@ -894,7 +1740,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(controller.test(formatHostnameToUrl('etnerscan.io'))).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Blocklist,
@@ -928,7 +1774,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(
       controller.test(formatHostnameToUrl('myetherẉalletṭ.com')),
     ).toMatchObject({
@@ -964,7 +1810,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(
       controller.test(formatHostnameToUrl('xn--myetherallet-4k5fwn.com')),
     ).toMatchObject({
@@ -1008,7 +1854,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(
       controller.test(
         formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
@@ -1038,7 +1884,7 @@ describe('PhishingController', () => {
       .reply(500);
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(
       controller.test(
         formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
@@ -1075,7 +1921,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(controller.test(formatHostnameToUrl('opensea.io'))).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.Allowlist,
@@ -1109,7 +1955,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(controller.test(formatHostnameToUrl('ohpensea.io'))).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Fuzzy,
@@ -1134,7 +1980,7 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(
       controller.test(
         formatHostnameToUrl('this-is-the-official-website-of-opensea.io'),
@@ -1171,7 +2017,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
       controller.test(formatHostnameToUrl(unsafeDomain)).result,
@@ -1211,7 +2057,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
       controller.test(formatHostnameToUrl(unsafeDomain)).result,
@@ -1252,7 +2098,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     const unsafeDomain = 'myetherẉalletṭ.com';
     assert.equal(
       controller.test(formatHostnameToUrl(unsafeDomain)).result,
@@ -1292,7 +2138,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
     assert.equal(
       controller.test(formatHostnameToUrl(unsafeDomain)).result,
@@ -1332,7 +2178,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     expect(controller.test('https://example.com/path')).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Blocklist,
@@ -1397,889 +2243,6 @@ describe('PhishingController', () => {
     });
   });
 
-  describe('updateStalelist', () => {
-    it('should update lists with addition to hotlist', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 2 });
-      const exampleBlockedUrl = 'example-blocked-website.com';
-      const exampleRequestBlockedHash =
-        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
-      const exampleBlockedUrlOne =
-        'https://another-example-blocked-website.com';
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(METAMASK_STALELIST_FILE)
-        .reply(200, {
-          data: {
-            allowlist: [],
-            blocklist: [exampleBlockedUrl],
-            blocklistPaths: [],
-            fuzzylist: [],
-            tolerance: 0,
-            version: 0,
-            lastUpdated: 1,
-          },
-        })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-        .reply(200, {
-          data: [
-            {
-              url: exampleBlockedUrlOne,
-              timestamp: 2,
-              targetList: 'eth_phishing_detect_config.blocklist',
-            },
-          ],
-        });
-
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
-        .reply(200, {
-          recentlyAdded: [exampleRequestBlockedHash],
-          recentlyRemoved: [],
-          lastFetchedAt: 1,
-        });
-
-      const controller = getPhishingController();
-      await controller.updateStalelist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
-          c2DomainBlocklist: [exampleRequestBlockedHash],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 0,
-          lastUpdated: 2,
-          name: ListNames.MetaMask,
-          version: 0,
-        },
-      ]);
-    });
-
-    it('should update lists with removal diff from hotlist', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 2 });
-      const exampleBlockedUrl = 'example-blocked-website.com';
-      const exampleRequestBlockedHash =
-        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
-      const exampleBlockedUrlTwo = 'another-example-blocked-website.com';
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(METAMASK_STALELIST_FILE)
-        .reply(200, {
-          data: {
-            allowlist: [],
-            blocklist: [exampleBlockedUrl],
-            blocklistPaths: [],
-            fuzzylist: [],
-            tolerance: 0,
-            version: 0,
-            lastUpdated: 1,
-          },
-        })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-        .reply(200, {
-          data: [
-            {
-              url: exampleBlockedUrlTwo,
-              timestamp: 2,
-              targetList: 'eth_phishing_detect_config.blocklist',
-            },
-            {
-              url: exampleBlockedUrl,
-              timestamp: 2,
-              targetList: 'eth_phishing_detect_config.blocklist',
-              isRemoval: true,
-            },
-          ],
-        });
-
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
-        .reply(200, {
-          recentlyAdded: [exampleRequestBlockedHash],
-          recentlyRemoved: [],
-          lastFetchedAt: 1,
-        });
-
-      const controller = getPhishingController();
-      await controller.updateStalelist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [exampleBlockedUrlTwo],
-          c2DomainBlocklist: [exampleRequestBlockedHash],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 0,
-          version: 0,
-          lastUpdated: 2,
-          name: ListNames.MetaMask,
-        },
-      ]);
-    });
-
-    it('should correctly process blocklist entries with paths into blocklistPaths', async () => {
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(METAMASK_STALELIST_FILE)
-        .reply(200, {
-          data: {
-            allowlist: [],
-            blocklist: ['example.com'],
-            blocklistPaths: ['malicious.com/phishing'],
-            fuzzylist: [],
-            tolerance: 0,
-            version: 0,
-            lastUpdated: 1,
-          },
-        })
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-        .reply(200, { data: [] });
-
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
-        .reply(200, {
-          recentlyAdded: [],
-          recentlyRemoved: [],
-          lastFetchedAt: 1,
-        });
-
-      const controller = getPhishingController();
-      await controller.updateStalelist();
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: ['example.com'],
-          c2DomainBlocklist: [],
-          blocklistPaths: {
-            'malicious.com': {
-              phishing: {},
-            },
-          },
-          fuzzylist: [],
-          tolerance: 0,
-          version: 0,
-          lastUpdated: 1,
-          name: ListNames.MetaMask,
-        },
-      ]);
-    });
-
-    it('should not update phishing lists if fetch returns 304', async () => {
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(METAMASK_STALELIST_FILE)
-        .reply(304)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-        .reply(304);
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-        },
-      });
-      await controller.updateStalelist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          version: 1,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ]);
-    });
-
-    it('should not update phishing lists if fetch returns 500', async () => {
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(METAMASK_STALELIST_FILE)
-        .reply(500)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-        .reply(500);
-
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
-        .reply(500);
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-        },
-      });
-      await controller.updateStalelist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          version: 1,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ]);
-    });
-
-    it('should not throw when there is a network error', async () => {
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(METAMASK_STALELIST_FILE)
-        .replyWithError('network error')
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-        .replyWithError('network error');
-
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
-        .replyWithError('network error');
-
-      const controller = getPhishingController();
-
-      expect(await controller.updateStalelist()).toBeUndefined();
-    });
-
-    describe('an update is in progress', () => {
-      it('should not fetch phishing lists again', async () => {
-        jest.useFakeTimers({
-          doNotFake: ['nextTick', 'queueMicrotask'],
-          now: 0,
-        });
-        const nockScope = nock(PHISHING_CONFIG_BASE_URL)
-          .get(METAMASK_STALELIST_FILE)
-          .delay(100)
-          .reply(200, {
-            data: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-              tolerance: 0,
-              version: 0,
-              lastUpdated: 1,
-            },
-          })
-          .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-          .delay(100)
-          .reply(200, { data: [] });
-
-        const controller = getPhishingController();
-        const firstPromise = controller.updateStalelist();
-        const secondPromise = controller.updateStalelist();
-
-        jest.advanceTimersByTime(1000 * 100);
-
-        await firstPromise;
-        await secondPromise;
-
-        // This second update would throw if it fetched, because the
-        // nock interceptor was not persisted.
-        expect(nockScope.isDone()).toBe(true);
-      });
-
-      it('should wait until the in-progress update has completed', async () => {
-        jest.useFakeTimers({
-          doNotFake: ['nextTick', 'queueMicrotask'],
-          now: 0,
-        });
-        nock(PHISHING_CONFIG_BASE_URL)
-          .get(METAMASK_STALELIST_FILE)
-          .delay(100)
-          .reply(200, {
-            data: {
-              allowlist: [],
-              blocklist: [],
-              fuzzylist: [],
-              tolerance: 0,
-              version: 0,
-              lastUpdated: 1,
-            },
-          })
-          .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-          .delay(100)
-          .reply(200, { data: [] });
-
-        const controller = getPhishingController();
-        const firstPromise = controller.updateStalelist();
-        const secondPromise = controller.updateStalelist();
-        jest.advanceTimersByTime(1000 * 99);
-
-        await expect(secondPromise).toNeverResolve();
-
-        // Cleanup pending operations
-        await firstPromise;
-        await secondPromise;
-      });
-    });
-  });
-  describe('updateHotlist', () => {
-    it('should update phishing lists if hotlist fetch returns 200', async () => {
-      const testBlockedDomain = 'some-test-blocked-url.com';
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
-        .reply(200, {
-          data: [
-            {
-              targetList: 'eth_phishing_detect_config.blocklist',
-              url: testBlockedDomain,
-              timestamp: 1,
-            },
-          ],
-        });
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-        },
-      });
-      await controller.updateHotlist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [testBlockedDomain],
-          c2DomainBlocklist: [],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          name: ListNames.MetaMask,
-          version: 1,
-          lastUpdated: 1,
-        },
-      ]);
-    });
-
-    it('should not update phishing lists if hotlist fetch returns 404', async () => {
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
-        .reply(404);
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-        },
-      });
-      await controller.updateHotlist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          ...controller.state.phishingLists[0],
-          lastUpdated: 0,
-        },
-      ]);
-    });
-
-    it('should not make API calls to update hotlist when phishingLists array is empty', async () => {
-      const testBlockedDomain = 'some-test-blocked-url.com';
-      const hotlistNock = nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
-        .reply(200, {
-          data: [
-            {
-              targetList: 'eth_phishing_detect_config.blocklist',
-              url: testBlockedDomain,
-              timestamp: 1,
-            },
-          ],
-        });
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [],
-        },
-      });
-      await controller.updateHotlist();
-
-      expect(hotlistNock.isDone()).toBe(false);
-    });
-
-    it('should handle empty hotlist and request blocklist responses gracefully', async () => {
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
-        .reply(200, { data: [] });
-
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
-        .reply(200, {
-          recentlyAdded: [],
-          recentlyRemoved: [],
-          lastFetchedAt: 1,
-        });
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-        },
-      });
-      await controller.updateHotlist();
-      await controller.updateC2DomainBlocklist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          version: 1,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ]);
-    });
-
-    it('should handle errors during hotlist fetching gracefully', async () => {
-      const exampleRequestBlockedHash =
-        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
-
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
-        .replyWithError('network error');
-
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
-        .reply(200, {
-          recentlyAdded: [exampleRequestBlockedHash],
-          recentlyRemoved: [],
-          lastFetchedAt: 1,
-        });
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [exampleRequestBlockedHash],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 1,
-            },
-          ],
-        },
-      });
-
-      await controller.updateHotlist();
-      await controller.updateC2DomainBlocklist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [exampleRequestBlockedHash],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          name: ListNames.MetaMask,
-          version: 1,
-          lastUpdated: 1,
-        },
-      ]);
-    });
-    it('should handle missing hotlist data and non-empty domain blocklist gracefully', async () => {
-      const exampleRequestBlockedHash =
-        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
-
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
-        .reply(500);
-
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
-        .reply(200, {
-          recentlyAdded: [exampleRequestBlockedHash],
-          recentlyRemoved: [],
-          lastFetchedAt: 1,
-        });
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-        },
-      });
-
-      await controller.updateHotlist();
-      await controller.updateC2DomainBlocklist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [exampleRequestBlockedHash],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          name: ListNames.MetaMask,
-          version: 1,
-          lastUpdated: 0,
-        },
-      ]);
-    });
-  });
-
-  describe('updateC2DomainBlocklist', () => {
-    it('should update the C2 domain blocklist if the fetch returns 200', async () => {
-      const exampleRequestBlockedHash =
-        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
-
-      // Mocking the request to the C2 domain blocklist endpoint
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
-        .reply(200, {
-          recentlyAdded: [exampleRequestBlockedHash],
-          recentlyRemoved: [],
-          lastFetchedAt: 1,
-        });
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-          c2DomainBlocklistLastFetched: 0,
-        },
-      });
-
-      await controller.updateC2DomainBlocklist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [exampleRequestBlockedHash],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          version: 1,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ]);
-      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
-    });
-
-    it('should not update the C2 domain blocklist if the fetch returns 404', async () => {
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
-        .reply(404);
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-          c2DomainBlocklistLastFetched: 0,
-        },
-      });
-
-      await controller.updateC2DomainBlocklist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          version: 1,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ]);
-      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
-    });
-
-    it('should update request blocklist with additions and removals', async () => {
-      const exampleRequestBlockedHash =
-        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
-      const exampleRequestBlockedHashTwo = 'd3bkcslj57l47pamplifyapp';
-
-      // Mock the request blocklist response with additions and removals
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
-        .reply(200, {
-          recentlyAdded: [exampleRequestBlockedHash],
-          recentlyRemoved: [exampleRequestBlockedHashTwo],
-          lastFetchedAt: 1,
-        });
-
-      // Initialize the controller with an existing state
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [exampleRequestBlockedHashTwo],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-        },
-      });
-
-      await controller.updateC2DomainBlocklist();
-
-      // Check the updated state
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [exampleRequestBlockedHash],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          name: ListNames.MetaMask,
-          version: 1,
-          lastUpdated: 0,
-        },
-      ]);
-    });
-
-    it('should handle an update that is already in progress', async () => {
-      const exampleRequestBlockedHash =
-        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
-
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
-        .reply(200, {
-          recentlyAdded: [exampleRequestBlockedHash],
-          recentlyRemoved: [],
-          lastFetchedAt: 1,
-        });
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-          c2DomainBlocklistLastFetched: 0,
-        },
-      });
-
-      const firstUpdatePromise = controller.updateC2DomainBlocklist();
-      const secondUpdatePromise = controller.updateC2DomainBlocklist();
-
-      await firstUpdatePromise;
-      await secondUpdatePromise;
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [exampleRequestBlockedHash],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          version: 1,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ]);
-      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
-    });
-
-    it('should handle empty recentlyAdded and recentlyRemoved in the response', async () => {
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
-        .reply(200, {
-          recentlyAdded: [],
-          recentlyRemoved: [],
-          lastFetchedAt: 1,
-        });
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-          c2DomainBlocklistLastFetched: 0,
-        },
-      });
-
-      await controller.updateC2DomainBlocklist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          version: 1,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ]);
-      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
-    });
-
-    it('should handle errors during C2 domain blocklist fetching gracefully', async () => {
-      nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
-        .replyWithError('network error');
-
-      const controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {},
-              fuzzylist: [],
-              tolerance: 3,
-              version: 1,
-              name: ListNames.MetaMask,
-              lastUpdated: 0,
-            },
-          ],
-          c2DomainBlocklistLastFetched: 0,
-        },
-      });
-
-      await controller.updateC2DomainBlocklist();
-
-      expect(controller.state.phishingLists).toStrictEqual([
-        {
-          allowlist: [],
-          blocklist: [],
-          c2DomainBlocklist: [],
-          blocklistPaths: {},
-          fuzzylist: [],
-          tolerance: 3,
-          version: 1,
-          name: ListNames.MetaMask,
-          lastUpdated: 0,
-        },
-      ]);
-      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
-    });
-  });
-
   describe('PhishingController - isBlockedRequest', () => {
     afterEach(() => {
       cleanAll();
@@ -2310,7 +2273,7 @@ describe('PhishingController', () => {
         });
 
       const controller = getPhishingController();
-      await controller.updateStalelist();
+      await controller.maybeUpdateState();
       const result = controller.isBlockedRequest('https://example.com');
       expect(result).toMatchObject({
         result: false,
@@ -2345,7 +2308,7 @@ describe('PhishingController', () => {
         });
 
       const controller = getPhishingController();
-      await controller.updateStalelist();
+      await controller.maybeUpdateState();
       const result = controller.isBlockedRequest(
         'https://develop.d3bkcslj57l47p.amplifyapp.com',
       );
@@ -2381,7 +2344,7 @@ describe('PhishingController', () => {
         });
 
       const controller = getPhishingController();
-      await controller.updateStalelist();
+      await controller.maybeUpdateState();
       const result = controller.isBlockedRequest('https://example.com');
       expect(result).toMatchObject({
         result: false,
@@ -2414,7 +2377,7 @@ describe('PhishingController', () => {
         });
 
       const controller = getPhishingController();
-      await controller.updateStalelist();
+      await controller.maybeUpdateState();
       const result = controller.isBlockedRequest('#$@(%&@#$(%');
       expect(result).toMatchObject({
         result: false,
@@ -2464,7 +2427,7 @@ describe('PhishingController', () => {
       });
 
     const controller = getPhishingController();
-    await controller.updateStalelist();
+    await controller.maybeUpdateState();
     const result = controller.isBlockedRequest(
       `https://${allowlistedDomain}/path`,
     );
@@ -2474,6 +2437,7 @@ describe('PhishingController', () => {
       type: PhishingDetectorResultType.Allowlist,
     });
   });
+
   describe('bypass', () => {
     let controller: PhishingController;
 

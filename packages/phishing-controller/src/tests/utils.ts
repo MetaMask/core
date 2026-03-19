@@ -5,6 +5,8 @@ import {
   SimulationTokenStandard,
 } from '@metamask/transaction-controller';
 
+import { fetchTimeNow } from '../utils';
+
 /**
  * Formats a hostname into a URL so we can parse it correctly
  * and pass full URLs into the PhishingDetector class. Previously
@@ -120,3 +122,14 @@ export const createMockStateChangePayload = (
   lastFetchedBlockNumbers: {},
   submitHistory: [],
 });
+
+/**
+ * Determines if a given timestamp is out of date based on a specified interval.
+ *
+ * @param lastUpdated - The timestamp of the last update (in milliseconds since epoch).
+ * @param interval - The interval (in milliseconds) to compare against.
+ *
+ * @returns True if the current time is greater than or equal to the last updated time plus the interval, indicating that the data is out of date; otherwise, false.
+ */
+export const isOutOfDate = (lastUpdated: number, interval: number): boolean =>
+  fetchTimeNow() - lastUpdated >= interval;

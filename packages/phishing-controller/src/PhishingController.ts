@@ -20,6 +20,7 @@ import { CacheManager } from './CacheManager';
 import type { CacheEntry } from './CacheManager';
 import { convertListToTrie, insertToTrie, matchedPathPrefix } from './PathTrie';
 import type { PathTrie } from './PathTrie';
+import type { PhishingControllerMethodActions } from './PhishingController-method-action-types';
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
@@ -374,30 +375,16 @@ export type PhishingControllerOptions = {
   state?: Partial<PhishingControllerState>;
 };
 
-export type MaybeUpdateState = {
-  type: `${typeof controllerName}:maybeUpdateState`;
-  handler: PhishingController['maybeUpdateState'];
-};
-
-export type TestOrigin = {
-  type: `${typeof controllerName}:testOrigin`;
-  handler: PhishingController['test'];
-};
-
-export type PhishingControllerBulkScanUrlsAction = {
-  type: `${typeof controllerName}:bulkScanUrls`;
-  handler: PhishingController['bulkScanUrls'];
-};
-
-export type PhishingControllerBulkScanTokensAction = {
-  type: `${typeof controllerName}:bulkScanTokens`;
-  handler: PhishingController['bulkScanTokens'];
-};
-
-export type PhishingControllerScanAddressAction = {
-  type: `${typeof controllerName}:scanAddress`;
-  handler: PhishingController['scanAddress'];
-};
+export const MESSENGER_EXPOSED_METHODS = [
+  'maybeUpdateState',
+  'test',
+  'isBlockedRequest',
+  'bypass',
+  'scanUrl',
+  'bulkScanUrls',
+  'bulkScanTokens',
+  'scanAddress',
+] as const;
 
 export type PhishingControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -406,11 +393,7 @@ export type PhishingControllerGetStateAction = ControllerGetStateAction<
 
 export type PhishingControllerActions =
   | PhishingControllerGetStateAction
-  | MaybeUpdateState
-  | TestOrigin
-  | PhishingControllerBulkScanUrlsAction
-  | PhishingControllerBulkScanTokensAction
-  | PhishingControllerScanAddressAction;
+  | PhishingControllerMethodActions;
 
 export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -558,9 +541,12 @@ export class PhishingController extends BaseController<
       },
     });
 
-    this.#registerMessageHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
-    this.updatePhishingDetector();
+    this.#updatePhishingDetector();
     this.#subscribeToTransactionControllerStateChange();
   }
 
@@ -568,37 +554,6 @@ export class PhishingController extends BaseController<
     this.messenger.subscribe(
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
-    );
-  }
-
-  /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
-   */
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:maybeUpdateState` as const,
-      this.maybeUpdateState.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:testOrigin` as const,
-      this.test.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:bulkScanUrls` as const,
-      this.bulkScanUrls.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:bulkScanTokens` as const,
-      this.bulkScanTokens.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:scanAddress` as const,
-      this.scanAddress.bind(this),
     );
   }
 
@@ -724,7 +679,7 @@ export class PhishingController extends BaseController<
   /**
    * Updates this.detector with an instance of PhishingDetector using the current state.
    */
-  updatePhishingDetector() {
+  #updatePhishingDetector() {
     this.#detector = new PhishingDetector(this.state.phishingLists);
   }
 
@@ -733,7 +688,7 @@ export class PhishingController extends BaseController<
    *
    * @returns Whether an update is needed
    */
-  isStalelistOutOfDate() {
+  #isStalelistOutOfDate() {
     return (
       fetchTimeNow() - this.state.stalelistLastFetched >=
       this.#stalelistRefreshInterval
@@ -745,7 +700,7 @@ export class PhishingController extends BaseController<
    *
    * @returns Whether an update is needed
    */
-  isHotlistOutOfDate() {
+  #isHotlistOutOfDate() {
     return (
       fetchTimeNow() - this.state.hotlistLastFetched >=
       this.#hotlistRefreshInterval
@@ -757,7 +712,7 @@ export class PhishingController extends BaseController<
    *
    * @returns Whether an update is needed
    */
-  isC2DomainBlocklistOutOfDate() {
+  #isC2DomainBlocklistOutOfDate() {
     return (
       fetchTimeNow() - this.state.c2DomainBlocklistLastFetched >=
       this.#c2DomainBlocklistRefreshInterval
@@ -767,24 +722,24 @@ export class PhishingController extends BaseController<
   /**
    * Conditionally update the phishing configuration.
    *
-   * If the stalelist configuration is out of date, this function will call `updateStalelist`
+   * If the stalelist configuration is out of date, this function will call `#updateStalelist`
    * to update the configuration. This will automatically grab the hotlist,
    * so it isn't necessary to continue on to download the hotlist and the c2 domain blocklist.
    *
    */
   async maybeUpdateState() {
-    const staleListOutOfDate = this.isStalelistOutOfDate();
+    const staleListOutOfDate = this.#isStalelistOutOfDate();
     if (staleListOutOfDate) {
-      await this.updateStalelist();
+      await this.#updateStalelist();
       return;
     }
-    const hotlistOutOfDate = this.isHotlistOutOfDate();
+    const hotlistOutOfDate = this.#isHotlistOutOfDate();
     if (hotlistOutOfDate) {
-      await this.updateHotlist();
+      await this.#updateHotlist();
     }
-    const c2DomainBlocklistOutOfDate = this.isC2DomainBlocklistOutOfDate();
+    const c2DomainBlocklistOutOfDate = this.#isC2DomainBlocklistOutOfDate();
     if (c2DomainBlocklistOutOfDate) {
-      await this.updateC2DomainBlocklist();
+      await this.#updateC2DomainBlocklist();
     }
   }
 
@@ -793,7 +748,7 @@ export class PhishingController extends BaseController<
    *
    * It is strongly recommended that you call {@link maybeUpdateState} before calling this,
    * to check whether the phishing configuration is up-to-date. It will be updated if necessary
-   * by calling {@link updateStalelist} or {@link updateHotlist}.
+   * by calling {@link #updateStalelist} or {@link #updateHotlist}.
    *
    * @param origin - Domain origin of a website.
    * @returns Whether the origin is an unapproved origin.
@@ -869,14 +824,15 @@ export class PhishingController extends BaseController<
    * If an update is in progress, no additional update will be made. Instead this will wait until
    * the in-progress update has finished.
    */
-  async updateC2DomainBlocklist() {
+  async #updateC2DomainBlocklist() {
     if (this.#isProgressC2DomainBlocklistUpdate) {
       await this.#isProgressC2DomainBlocklistUpdate;
       return;
     }
 
     try {
-      this.#isProgressC2DomainBlocklistUpdate = this.#updateC2DomainBlocklist();
+      this.#isProgressC2DomainBlocklistUpdate =
+        this.#_updateC2DomainBlocklist();
       await this.#isProgressC2DomainBlocklistUpdate;
     } finally {
       this.#isProgressC2DomainBlocklistUpdate = undefined;
@@ -889,14 +845,14 @@ export class PhishingController extends BaseController<
    * If an update is in progress, no additional update will be made. Instead this will wait until
    * the in-progress update has finished.
    */
-  async updateHotlist() {
+  async #updateHotlist() {
     if (this.#inProgressHotlistUpdate) {
       await this.#inProgressHotlistUpdate;
       return;
     }
 
     try {
-      this.#inProgressHotlistUpdate = this.#updateHotlist();
+      this.#inProgressHotlistUpdate = this.#_updateHotlist();
       await this.#inProgressHotlistUpdate;
     } finally {
       this.#inProgressHotlistUpdate = undefined;
@@ -909,14 +865,14 @@ export class PhishingController extends BaseController<
    * If an update is in progress, no additional update will be made. Instead this will wait until
    * the in-progress update has finished.
    */
-  async updateStalelist() {
+  async #updateStalelist() {
     if (this.#inProgressStalelistUpdate) {
       await this.#inProgressStalelistUpdate;
       return;
     }
 
     try {
-      this.#inProgressStalelistUpdate = this.#updateStalelist();
+      this.#inProgressStalelistUpdate = this.#_updateStalelist();
       await this.#inProgressStalelistUpdate;
     } finally {
       this.#inProgressStalelistUpdate = undefined;
@@ -930,7 +886,7 @@ export class PhishingController extends BaseController<
    * @param url - The URL to scan.
    * @returns The phishing detection scan result.
    */
-  scanUrl = async (url: string): Promise<PhishingDetectionScanResult> => {
+  async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
     const [hostname, ok] = getHostnameFromWebUrl(url);
     if (!ok) {
       return {
@@ -991,7 +947,7 @@ export class PhishingController extends BaseController<
     this.#urlScanCache.set(hostname, result);
 
     return result;
-  };
+  }
 
   /**
    * Scan multiple URLs for phishing in bulk. It will only scan the hostnames of the URLs.
@@ -1000,9 +956,9 @@ export class PhishingController extends BaseController<
    * @param urls - The URLs to scan.
    * @returns A mapping of URLs to their phishing detection scan results and errors.
    */
-  bulkScanUrls = async (
+  async bulkScanUrls(
     urls: string[],
-  ): Promise<BulkPhishingDetectionScanResponse> => {
+  ): Promise<BulkPhishingDetectionScanResponse> {
     if (!urls || urls.length === 0) {
       return {
         results: {},
@@ -1095,7 +1051,7 @@ export class PhishingController extends BaseController<
     }
 
     return combinedResponse;
-  };
+  }
 
   /**
    * Fetch bulk token scan results from the security alerts API.
@@ -1104,10 +1060,10 @@ export class PhishingController extends BaseController<
    * @param tokens - Array of token addresses to scan.
    * @returns The API response or null if there was an error.
    */
-  readonly #fetchTokenScanBulkResults = async (
+  async #fetchTokenScanBulkResults(
     chain: string,
     tokens: string[],
-  ): Promise<TokenScanApiResponse | null> => {
+  ): Promise<TokenScanApiResponse | null> {
     const timeout = 8000; // 8 seconds
     const apiResponse = await safelyExecuteWithTimeout(
       async () => {
@@ -1158,7 +1114,7 @@ export class PhishingController extends BaseController<
     }
 
     return apiResponse as TokenScanApiResponse;
-  };
+  }
 
   /**
    * Scan an address for security alerts.
@@ -1167,10 +1123,10 @@ export class PhishingController extends BaseController<
    * @param address - The address to scan.
    * @returns The address scan result.
    */
-  scanAddress = async (
+  async scanAddress(
     chainId: string,
     address: string,
-  ): Promise<AddressScanResult> => {
+  ): Promise<AddressScanResult> {
     if (!address || !chainId) {
       return {
         result_type: AddressScanResultType.ErrorResult,
@@ -1249,7 +1205,7 @@ export class PhishingController extends BaseController<
       result_type: apiResponse.result_type,
       label: apiResponse.label,
     };
-  };
+  }
 
   /**
    * Scan multiple tokens for malicious activity in bulk.
@@ -1263,9 +1219,9 @@ export class PhishingController extends BaseController<
    * addresses are lowercased; for non-EVM chains, original casing is preserved.
    * Tokens that fail to scan are omitted.
    */
-  bulkScanTokens = async (
+  async bulkScanTokens(
     request: BulkTokenScanRequest,
-  ): Promise<BulkTokenScanResponse> => {
+  ): Promise<BulkTokenScanResponse> {
     const { chainId, tokens } = request;
 
     if (!tokens || tokens.length === 0) {
@@ -1340,7 +1296,7 @@ export class PhishingController extends BaseController<
     }
 
     return results;
-  };
+  }
 
   /**
    * Process a batch of URLs (up to 50) for phishing detection.
@@ -1348,9 +1304,9 @@ export class PhishingController extends BaseController<
    * @param urls - A batch of URLs to scan.
    * @returns The scan results and errors for this batch.
    */
-  readonly #processBatch = async (
+  async #processBatch(
     urls: string[],
-  ): Promise<BulkPhishingDetectionScanResponse> => {
+  ): Promise<BulkPhishingDetectionScanResponse> {
     const apiResponse = await safelyExecuteWithTimeout(
       async () => {
         const res = await fetch(
@@ -1405,15 +1361,15 @@ export class PhishingController extends BaseController<
     }
 
     return apiResponse as BulkPhishingDetectionScanResponse;
-  };
+  }
 
   /**
    * Update the stalelist configuration.
    *
-   * This should only be called from the `updateStalelist` function, which is a wrapper around
+   * This should only be called from the `#updateStalelist` function, which is a wrapper around
    * this function that prevents redundant configuration updates.
    */
-  async #updateStalelist() {
+  async #_updateStalelist() {
     let stalelistResponse: DataResultWrapper<PhishingStalelist> | null = null;
     let hotlistDiffsResponse: DataResultWrapper<Hotlist> | null = null;
     let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
@@ -1474,16 +1430,16 @@ export class PhishingController extends BaseController<
     this.update((draftState) => {
       draftState.phishingLists = [newMetaMaskListState];
     });
-    this.updatePhishingDetector();
+    this.#updatePhishingDetector();
   }
 
   /**
    * Update the stalelist configuration.
    *
-   * This should only be called from the `updateStalelist` function, which is a wrapper around
+   * This should only be called from the `#updateStalelist` function, which is a wrapper around
    * this function that prevents redundant configuration updates.
    */
-  async #updateHotlist() {
+  async #_updateHotlist() {
     let hotlistResponse: DataResultWrapper<Hotlist> | null;
 
     try {
@@ -1501,6 +1457,7 @@ export class PhishingController extends BaseController<
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
       // traffic after a network disruption.
+      console.log('Setting hotlistLastFetched to now:', fetchTimeNow());
       this.update((draftState) => {
         draftState.hotlistLastFetched = fetchTimeNow();
       });
@@ -1525,16 +1482,16 @@ export class PhishingController extends BaseController<
     this.update((draftState) => {
       draftState.phishingLists = newPhishingLists;
     });
-    this.updatePhishingDetector();
+    this.#updatePhishingDetector();
   }
 
   /**
    * Update the C2 domain blocklist.
    *
-   * This should only be called from the `updateC2DomainBlocklist` function, which is a wrapper around
+   * This should only be called from the `#updateC2DomainBlocklist` function, which is a wrapper around
    * this function that prevents redundant configuration updates.
    */
-  async #updateC2DomainBlocklist() {
+  async #_updateC2DomainBlocklist() {
     let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
 
     try {
@@ -1574,7 +1531,7 @@ export class PhishingController extends BaseController<
     this.update((draftState) => {
       draftState.phishingLists = newPhishingLists;
     });
-    this.updatePhishingDetector();
+    this.#updatePhishingDetector();
   }
 
   async #queryConfig<ResponseType>(

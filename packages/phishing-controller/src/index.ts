@@ -1,5 +1,15 @@
 export * from './PhishingController';
 export type {
+  PhishingControllerMaybeUpdateStateAction,
+  PhishingControllerTestAction,
+  PhishingControllerIsBlockedRequestAction,
+  PhishingControllerBypassAction,
+  PhishingControllerScanUrlAction,
+  PhishingControllerBulkScanUrlsAction,
+  PhishingControllerScanAddressAction,
+  PhishingControllerBulkScanTokensAction,
+} from './PhishingController-method-action-types';
+export type {
   LegacyPhishingDetectorList,
   PhishingDetectorList,
   FuzzyTolerance,
