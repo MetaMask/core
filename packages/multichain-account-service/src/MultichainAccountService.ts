@@ -423,6 +423,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: result.id,
       messenger: this.#messenger,
+      trace: this.#trace,
     });
   }
 
@@ -447,6 +448,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
+      trace: this.#trace,
     });
   }
 
@@ -474,6 +476,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
+      trace: this.#trace,
     });
   }
 
