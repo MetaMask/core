@@ -48,6 +48,7 @@ import {
   getSmartTransactionsFeatureFlagsForChain,
 } from './featureFlags/feature-flags';
 import { validateSmartTransactionsFeatureFlags } from './featureFlags/validators';
+import type { SmartTransactionsControllerMethodActions } from './SmartTransactionsController-method-action-types';
 import type {
   Fees,
   IndividualTxFees,
@@ -154,11 +155,36 @@ export type SmartTransactionsControllerGetStateAction =
     SmartTransactionsControllerState
   >;
 
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'cancelSmartTransaction',
+  'checkPoll',
+  'clearFees',
+  'fetchLiveness',
+  'fetchSmartTransactionsStatus',
+  'getFees',
+  'getSmartTransactionByMinedTxHash',
+  'getTransactions',
+  'initializeSmartTransactionsForChainId',
+  'isNewSmartTransaction',
+  'poll',
+  'setOptInState',
+  'setStatusRefreshInterval',
+  'stop',
+  'submitSignedTransactions',
+  'trackStxStatusChange',
+  'updateSmartTransaction',
+  'updateSmartTransactions',
+  'wipeSmartTransactions',
+] as const;
+
 /**
  * The actions that can be performed using the {@link SmartTransactionsController}.
  */
 export type SmartTransactionsControllerActions =
-  SmartTransactionsControllerGetStateAction;
+  | SmartTransactionsControllerGetStateAction
+  | SmartTransactionsControllerMethodActions;
 
 type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
@@ -392,6 +418,11 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     this.messenger.subscribe('RemoteFeatureFlagController:stateChange', () => {
       this.#validateAndReportFeatureFlags();
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   async _executePoll({

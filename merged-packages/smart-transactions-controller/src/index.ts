@@ -9,6 +9,27 @@ export type {
   SmartTransactionsControllerSmartTransactionConfirmationDoneEvent,
   SmartTransactionsControllerEvents,
 } from './SmartTransactionsController';
+export type {
+  SmartTransactionsControllerCheckPollAction,
+  SmartTransactionsControllerInitializeSmartTransactionsForChainIdAction,
+  SmartTransactionsControllerPollAction,
+  SmartTransactionsControllerStopAction,
+  SmartTransactionsControllerSetOptInStateAction,
+  SmartTransactionsControllerTrackStxStatusChangeAction,
+  SmartTransactionsControllerIsNewSmartTransactionAction,
+  SmartTransactionsControllerUpdateSmartTransactionAction,
+  SmartTransactionsControllerUpdateSmartTransactionsAction,
+  SmartTransactionsControllerFetchSmartTransactionsStatusAction,
+  SmartTransactionsControllerClearFeesAction,
+  SmartTransactionsControllerGetFeesAction,
+  SmartTransactionsControllerSubmitSignedTransactionsAction,
+  SmartTransactionsControllerCancelSmartTransactionAction,
+  SmartTransactionsControllerFetchLivenessAction,
+  SmartTransactionsControllerSetStatusRefreshIntervalAction,
+  SmartTransactionsControllerGetTransactionsAction,
+  SmartTransactionsControllerGetSmartTransactionByMinedTxHashAction,
+  SmartTransactionsControllerWipeSmartTransactionsAction,
+} from './SmartTransactionsController-method-action-types';
 export {
   type Fee,
   type Fees,
