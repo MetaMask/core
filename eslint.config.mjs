@@ -54,16 +54,6 @@ const config = createConfig([
     },
   },
   {
-    // Prohibit relative imports that cross package boundaries in non-test
-    // files. The rule resolves each import to an absolute path, finds the
-    // nearest package.json for both sides, and reports when they differ.
-    files: ['packages/*/src/**/*.ts'],
-    ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
-    rules: {
-      'import-x/no-relative-packages': 'error',
-    },
-  },
-  {
     files: ['**/*.ts'],
     extends: [typescript],
     languageOptions: {
@@ -152,6 +142,14 @@ const config = createConfig([
     files: ['**/*.mjs'],
     languageOptions: {
       sourceType: 'module',
+    },
+  },
+  // Prevent cross-package imports
+  {
+    files: ['packages/*/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
+    rules: {
+      'import-x/no-relative-packages': 'error',
     },
   },
   {
