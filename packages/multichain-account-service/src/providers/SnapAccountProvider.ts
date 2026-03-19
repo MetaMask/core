@@ -230,17 +230,21 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                   snapAccounts.delete(snapAccountId);
                 }
               } catch (error) {
-                const errorMessage = `Unable to delete de-synced Snap account: ${this.snapId}: ${toErrorMessage(error)}`;
+                const errorMessage = `Unable to delete de-synced Snap account: ${this.snapId}`;
 
                 if (isTimeoutError(error)) {
-                  log(`${WARNING_PREFIX} ${errorMessage}`);
+                  log(
+                    `${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
+                  );
                   console.warn(errorMessage, error);
                 } else {
-                  log(`${ERROR_PREFIX} ${errorMessage}`);
+                  log(
+                    `${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
+                  );
                   console.error(errorMessage, error);
 
                   const sentryError = createSentryError(
-                    `Unable to delete de-synced Snap account: ${this.snapId}`,
+                    errorMessage,
                     error as Error,
                     { provider: this.getName(), snapAccountId },
                   );
@@ -279,17 +283,21 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 });
               }
             } catch (error) {
-              const errorMessage = `Unable to re-sync account: ${groupIndex}: ${toErrorMessage(error)}`;
+              const errorMessage = `Unable to re-sync account: ${groupIndex}`;
 
               if (isTimeoutError(error)) {
-                log(`${WARNING_PREFIX} ${errorMessage}`);
+                log(
+                  `${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
+                );
                 console.warn(errorMessage, error);
               } else {
-                log(`${ERROR_PREFIX} ${errorMessage}`);
+                log(
+                  `${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
+                );
                 console.error(errorMessage, error);
 
                 const sentryError = createSentryError(
-                  `Unable to re-sync account: ${groupIndex}`,
+                  errorMessage,
                   error as Error,
                   {
                     provider: this.getName(),

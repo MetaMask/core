@@ -299,13 +299,13 @@ export class MultichainAccountService {
         try {
           await provider.resyncAccounts(accounts);
         } catch (error) {
-          const errorMessage = `Unable to re-sync provider "${provider.getName()}": ${toErrorMessage(error)}"`;
+          const errorMessage = `Unable to re-sync provider "${provider.getName()}"`;
 
           if (isTimeoutError(error)) {
-            log(`${WARNING_PREFIX} ${errorMessage}`);
+            log(`${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`);
             console.warn(errorMessage, error);
           } else {
-            log(`${ERROR_PREFIX} ${errorMessage}`);
+            log(`${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`);
             console.error(errorMessage, error);
 
             const sentryError = createSentryError(

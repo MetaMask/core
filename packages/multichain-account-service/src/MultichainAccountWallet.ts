@@ -251,26 +251,26 @@ export class MultichainAccountWallet<
         ? `from group index ${from} to ${to}`
         : `for group index ${to}`;
 
-      const errorMessage = `Unable to create ${modeDescription} ${rangeDescription} with provider "${provider.getName()}". Error: ${toErrorMessage(error)}`;
+      const sentryMessage = `Unable to create ${modeDescription} with provider "${provider.getName()}"`;
+      const errorMessage = `Unable to create ${modeDescription} ${rangeDescription} with provider "${provider.getName()}"`;
+
       if (isTimeoutError(error)) {
-        this.#log(`${WARNING_PREFIX} ${errorMessage}`);
+        this.#log(
+          `${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
+        );
         console.warn(errorMessage, error);
       } else {
-        this.#log(`${ERROR_PREFIX} ${errorMessage}`);
+        this.#log(`${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`);
         console.error(errorMessage, error);
 
-        const sentryError = createSentryError(
-          `Unable to create ${modeDescription} with provider "${provider.getName()}"`,
-          error as Error,
-          {
-            range: {
-              from,
-              to,
-            },
-            provider: provider.getName(),
-            isBatching,
+        const sentryError = createSentryError(sentryMessage, error as Error, {
+          range: {
+            from,
+            to,
           },
-        );
+          provider: provider.getName(),
+          isBatching,
+        });
         this.#messenger.captureException?.(sentryError);
       }
       throw error;
@@ -759,16 +759,22 @@ export class MultichainAccountWallet<
           } catch (error) {
             context.stopped = true;
 
-            const errorMessage = message(
-              `failed (with: "${toErrorMessage(error)}")`,
-              targetGroupIndex,
+            log(
+              message(
+                `failed (with: "${toErrorMessage(error)}")`,
+                targetGroupIndex,
+              ),
             );
 
+            const errorMessage = `Unable to discover accounts with provider "${providerName}" for group index: ${targetGroupIndex}`;
+
             if (isTimeoutError(error)) {
-              log(`${WARNING_PREFIX} ${errorMessage}`);
+              log(
+                `${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
+              );
               console.warn(errorMessage, error);
             } else {
-              log(`${ERROR_PREFIX} ${errorMessage}`);
+              log(`${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`);
               console.error(errorMessage, error);
 
               const sentryError = createSentryError(
