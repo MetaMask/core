@@ -58,10 +58,6 @@ export async function* submitNonEvmHandler(
   args: SubmitStrategyParams,
 ): AsyncGenerator<SubmitStepResult, void, void> {
   const { quoteResponse, isBridgeTx } = args;
-  yield {
-    type: 'publishFailedEvent',
-    payload: true,
-  };
   if (
     !(
       isTronTrade(quoteResponse.trade) ||

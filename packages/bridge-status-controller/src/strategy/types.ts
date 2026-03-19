@@ -21,10 +21,6 @@ import type {
  */
 export type SubmitStepResult =
   | {
-      type: 'publishFailedEvent';
-      payload: boolean;
-    }
-  | {
       type: 'addHistoryItem';
       payload: Pick<
         StartPollingForBridgeTxStatusArgs,
