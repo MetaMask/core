@@ -1997,27 +1997,28 @@ export class RampsController extends BaseController<
       wallet,
     );
 
+    const healedWalletAddress = order.walletAddress || wallet;
+    const healedOrder = {
+      ...order,
+      walletAddress: healedWalletAddress,
+      providerOrderId: orderCode,
+    };
+
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing) => existing.providerOrderId === orderCode,
+        (existing: RampsOrder) => existing.providerOrderId === orderCode,
       );
       if (idx === -1) {
-        state.orders.push({
-          ...order,
-          walletAddress: order.walletAddress || wallet,
-          providerOrderId: orderCode,
-        } as Draft<RampsOrder>);
+        state.orders.push(healedOrder as Draft<RampsOrder>);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
-          ...order,
-          walletAddress: order.walletAddress || wallet,
-          providerOrderId: orderCode,
+          ...healedOrder,
         } as Draft<RampsOrder>;
       }
     });
 
-    return order;
+    return healedOrder;
   }
 
   /**

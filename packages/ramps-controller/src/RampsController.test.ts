@@ -5739,6 +5739,43 @@ describe('RampsController', () => {
         );
       });
     });
+
+    it('uses wallet param when updating existing order and API omits walletAddress', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const existingOrder = createMockOrder({
+          providerOrderId: 'abc-123',
+          status: RampsOrderStatus.Pending,
+          walletAddress: '0xexisting',
+        });
+        controller.addOrder(existingOrder);
+
+        const apiOrderWithoutWallet = {
+          ...createMockOrder({
+            providerOrderId: 'abc-123',
+            status: RampsOrderStatus.Completed,
+          }),
+          walletAddress: undefined,
+        } as unknown as RampsOrder;
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => apiOrderWithoutWallet,
+        );
+
+        await controller.getOrder(
+          'transak-staging',
+          'abc-123',
+          '0xwallet-from-param',
+        );
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.walletAddress).toBe(
+          '0xwallet-from-param',
+        );
+        expect(controller.state.orders[0]?.status).toBe(
+          RampsOrderStatus.Completed,
+        );
+      });
+    });
   });
 
   describe('getOrderFromCallback', () => {
@@ -5809,7 +5846,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'poll-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', pendingOrder);
@@ -5877,7 +5917,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'status-change-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', pendingOrder);
@@ -5914,7 +5957,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'no-change-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', pendingOrder);
@@ -5944,7 +5990,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'terminal-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', pendingOrder);
@@ -5974,7 +6023,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'unknown-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', pendingOrder);
@@ -6004,7 +6056,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'error-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', pendingOrder);
@@ -6054,7 +6109,10 @@ describe('RampsController', () => {
         const orderNoId = createMockOrder({
           providerOrderId: '',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', orderNoId);
@@ -6076,7 +6134,10 @@ describe('RampsController', () => {
         const orderNoWallet = createMockOrder({
           providerOrderId: 'no-wallet-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '',
         });
         rootMessenger.call('RampsController:addOrder', orderNoWallet);
@@ -6098,7 +6159,10 @@ describe('RampsController', () => {
         const order = createMockOrder({
           providerOrderId: 'strip-prefix-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', order);
@@ -6127,7 +6191,10 @@ describe('RampsController', () => {
         const order = createMockOrder({
           providerOrderId: 'backoff-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', order);
@@ -6157,7 +6224,10 @@ describe('RampsController', () => {
         const order = createMockOrder({
           providerOrderId: 'poll-min-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
           pollingSecondsMinimum: 120,
         });
@@ -6227,7 +6297,10 @@ describe('RampsController', () => {
         const completedOrder = createMockOrder({
           providerOrderId: 'completed-1',
           status: RampsOrderStatus.Completed,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', completedOrder);
@@ -6249,7 +6322,10 @@ describe('RampsController', () => {
         const order = createMockOrder({
           providerOrderId: 'reset-err-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', order);
@@ -6285,7 +6361,10 @@ describe('RampsController', () => {
         const pendingOrder = createMockOrder({
           providerOrderId: 'race-1',
           status: RampsOrderStatus.Pending,
-          provider: createMockProvider({ id: '/providers/transak', name: 'Transak' }),
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
           walletAddress: '0xabc',
         });
         rootMessenger.call('RampsController:addOrder', pendingOrder);
