@@ -103,8 +103,7 @@ export function createStateSnapshot(
     accountWalletsMetadata: JSON.parse(
       JSON.stringify(context.controller.state.accountWalletsMetadata),
     ),
-    selectedAccountGroup:
-      context.controller.state.selectedAccountGroup,
+    selectedAccountGroup: context.controller.state.selectedAccountGroup,
     accountTreeWallets: JSON.parse(
       JSON.stringify(context.controller.state.accountTree.wallets),
     ),

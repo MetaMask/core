@@ -3976,8 +3976,7 @@ describe('AccountTreeController', () => {
         MOCK_SNAP_ACCOUNT_1.id,
       ]);
 
-      const newSelectedGroup =
-        controller.state.selectedAccountGroup;
+      const newSelectedGroup = controller.state.selectedAccountGroup;
 
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
         newSelectedGroup,
@@ -4080,8 +4079,7 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      const initialSelectedGroup =
-        controller.state.selectedAccountGroup;
+      const initialSelectedGroup = controller.state.selectedAccountGroup;
       const walletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
@@ -4113,8 +4111,7 @@ describe('AccountTreeController', () => {
 
       controller.init();
 
-      const initialSelectedGroup =
-        controller.state.selectedAccountGroup;
+      const initialSelectedGroup = controller.state.selectedAccountGroup;
 
       jest.clearAllMocks();
 
@@ -4123,8 +4120,7 @@ describe('AccountTreeController', () => {
         MOCK_SNAP_ACCOUNT_1,
       );
 
-      const newSelectedGroup =
-        controller.state.selectedAccountGroup;
+      const newSelectedGroup = controller.state.selectedAccountGroup;
 
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
         newSelectedGroup,

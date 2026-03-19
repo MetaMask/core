@@ -333,9 +333,9 @@ describe('BackupAndSyncUtils - Controller', () => {
       expect(mockController.state.accountWalletsMetadata).toStrictEqual(
         mockSnapshot.accountWalletsMetadata,
       );
-      expect(
-        mockController.state.selectedAccountGroup,
-      ).toStrictEqual(mockSnapshot.selectedAccountGroup);
+      expect(mockController.state.selectedAccountGroup).toStrictEqual(
+        mockSnapshot.selectedAccountGroup,
+      );
       expect(mockController.state.accountTree.wallets).toStrictEqual(
         mockSnapshot.accountTreeWallets,
       );
