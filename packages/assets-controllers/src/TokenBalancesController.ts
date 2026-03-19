@@ -54,7 +54,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import { produce } from 'immer';
-import { isEqual } from 'lodash';
+import { isEqual, union } from 'lodash';
 
 import type { AccountTrackerControllerGetStateAction } from './AccountTrackerController';
 import type {
@@ -80,6 +80,7 @@ import type {
   TokensControllerState,
   TokensControllerStateChangeEvent,
 } from './TokensController';
+import { createBatchedHandler } from './utils/create-batch-handler';
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -88,6 +89,40 @@ const CONTROLLER = 'TokenBalancesController' as const;
 const DEFAULT_INTERVAL_MS = 30_000; // 30 seconds
 const DEFAULT_WEBSOCKET_ACTIVE_POLLING_INTERVAL_MS = 300_000; // 5 minutes
 
+/** Debounce wait (ms) for coalescing rapid updateBalances calls before flush */
+export const UPDATE_BALANCES_BATCH_MS = 50;
+
+export type UpdateBalancesOptions = {
+  chainIds?: ChainIdHex[];
+  tokenAddresses?: string[];
+  queryAllAccounts?: boolean;
+};
+
+/**
+ * Merges two UpdateBalancesOptions per queue-and-merge rules:
+ * - chainIds: union when both specify; undefined or empty means "all" so result becomes undefined.
+ * - tokenAddresses: union when both specify; undefined or empty means "all" so result becomes undefined.
+ * - queryAllAccounts: true if either is true.
+ * Exported for tests.
+ *
+ * @param a - First options (e.g. accumulated).
+ * @param b - Second options to merge in.
+ * @returns New merged options.
+ */
+export function mergeUpdateBalancesOptions(
+  a: UpdateBalancesOptions,
+  b: UpdateBalancesOptions,
+): UpdateBalancesOptions {
+  // We will take
+  const chainIds = a.chainIds && b.chainIds && union(a.chainIds, b.chainIds);
+  const tokenAddresses =
+    a.tokenAddresses &&
+    b.tokenAddresses &&
+    union(a.tokenAddresses, b.tokenAddresses);
+  const queryAllAccounts =
+    Boolean(a.queryAllAccounts) || Boolean(b.queryAllAccounts);
+  return { chainIds, tokenAddresses, queryAllAccounts };
+}
 const metadata: StateMetadata<TokenBalancesControllerState> = {
   tokenBalances: {
     includeInStateLogs: false,
@@ -312,6 +347,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     pendingChanges: new Map(),
   };
 
+  readonly #batchedUpdateBalances: (options: UpdateBalancesOptions) => void;
+
   constructor({
     messenger,
     interval = DEFAULT_INTERVAL_MS,
@@ -373,6 +410,23 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#isUnlocked = isUnlocked;
 
     this.#subscribeToControllers();
+    this.#batchedUpdateBalances = createBatchedHandler(
+      (buffer) =>
+        buffer.reduce<UpdateBalancesOptions>(
+          (acc, opts) => mergeUpdateBalancesOptions(acc, opts),
+          {},
+        ),
+      UPDATE_BALANCES_BATCH_MS,
+      (merged: UpdateBalancesOptions): Promise<void> =>
+        this.#executeUpdateBalances(merged).catch((error) => {
+          // With batched updateBalances, errors occur in the debounced flush.
+          // Log as polling failure so callers (e.g. interval polling) see consistent error reporting.
+          const chainIds = merged.chainIds ?? [];
+          const chainsLabel =
+            chainIds.length > 0 ? chainIds.join(', ') : 'unknown chains';
+          console.warn(`Polling failed for chains ${chainsLabel}:`, error);
+        }),
+    );
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
@@ -685,15 +739,18 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
-  async updateBalances({
+  async updateBalances(options: UpdateBalancesOptions = {}): Promise<void> {
+    if (!this.isActive) {
+      return;
+    }
+    this.#batchedUpdateBalances(options);
+  }
+
+  async #executeUpdateBalances({
     chainIds,
     tokenAddresses,
     queryAllAccounts = false,
-  }: {
-    chainIds?: ChainIdHex[];
-    tokenAddresses?: string[];
-    queryAllAccounts?: boolean;
-  } = {}): Promise<void> {
+  }: UpdateBalancesOptions = {}): Promise<void> {
     if (!this.isActive) {
       return;
     }
