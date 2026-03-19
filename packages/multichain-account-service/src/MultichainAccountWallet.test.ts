@@ -1133,7 +1133,9 @@ describe('MultichainAccountWallet', () => {
       providers[1].discoverAccounts.mockResolvedValueOnce([]);
       await wallet.discoverAccounts();
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to discover accounts'),
+        new Error(
+          'Unable to discover accounts with provider "Mocked Provider 0"',
+        ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
