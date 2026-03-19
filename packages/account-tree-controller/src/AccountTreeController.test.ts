@@ -629,8 +629,8 @@ describe('AccountTreeController', () => {
               },
             },
           },
-          selectedAccountGroup: expect.any(String), // Will be set to some group after init
         },
+        selectedAccountGroup: expect.any(String), // Will be set to some group after init
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
         isAccountTreeSyncingInProgress: false,
         accountGroupsMetadata: {
@@ -836,7 +836,7 @@ describe('AccountTreeController', () => {
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
 
-      expect(controller.state.accountTree.selectedAccountGroup).toStrictEqual(
+      expect(controller.state.selectedAccountGroup).toStrictEqual(
         defaultAccountGroupId,
       );
 
@@ -853,7 +853,7 @@ describe('AccountTreeController', () => {
         MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
       );
 
-      expect(controller.state.accountTree.selectedAccountGroup).toStrictEqual(
+      expect(controller.state.selectedAccountGroup).toStrictEqual(
         newDefaultAccountGroupId,
       );
     });
@@ -1211,8 +1211,8 @@ describe('AccountTreeController', () => {
               },
             },
           },
-          selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        selectedAccountGroup: expect.any(String), // Will be set after init
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
         accountGroupsMetadata: {
@@ -1300,8 +1300,8 @@ describe('AccountTreeController', () => {
               },
             },
           },
-          selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        selectedAccountGroup: expect.any(String), // Will be set after init
         isAccountTreeSyncingInProgress: false,
         hasAccountTreeSyncingSyncedAtLeastOnce: false,
         accountGroupsMetadata: {
@@ -1347,8 +1347,8 @@ describe('AccountTreeController', () => {
         accountTree: {
           // No wallets should be present.
           wallets: {},
-          selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        selectedAccountGroup: expect.any(String), // Will be set after init
       } as AccountTreeControllerState);
     });
 
@@ -1505,7 +1505,6 @@ describe('AccountTreeController', () => {
       );
       expect(controller.state).toStrictEqual({
         accountTree: {
-          selectedAccountGroup: walletId1Group,
           wallets: {
             [walletId1]: {
               id: walletId1,
@@ -1535,6 +1534,7 @@ describe('AccountTreeController', () => {
             },
           },
         },
+        selectedAccountGroup: walletId1Group,
         accountGroupsMetadata: {
           // Account groups now get metadata entries during init
           [walletId1Group]: {
@@ -1666,8 +1666,8 @@ describe('AccountTreeController', () => {
               },
             },
           },
-          selectedAccountGroup: expect.any(String), // Will be set after init
         },
+        selectedAccountGroup: expect.any(String), // Will be set after init
         accountGroupsMetadata: {
           // Both wallets now get metadata entries during init
           [walletId1Group]: {
@@ -3977,7 +3977,7 @@ describe('AccountTreeController', () => {
       ]);
 
       const newSelectedGroup =
-        controller.state.accountTree.selectedAccountGroup;
+        controller.state.selectedAccountGroup;
 
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
         newSelectedGroup,
@@ -4032,7 +4032,7 @@ describe('AccountTreeController', () => {
         MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
       );
 
-      expect(controller.state.accountTree.selectedAccountGroup).toStrictEqual(
+      expect(controller.state.selectedAccountGroup).toStrictEqual(
         defaultAccountGroupId,
       );
 
@@ -4056,7 +4056,7 @@ describe('AccountTreeController', () => {
         MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
       );
 
-      expect(controller.state.accountTree.selectedAccountGroup).toStrictEqual(
+      expect(controller.state.selectedAccountGroup).toStrictEqual(
         newDefaultAccountGroupId,
       );
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
@@ -4081,7 +4081,7 @@ describe('AccountTreeController', () => {
       controller.init();
 
       const initialSelectedGroup =
-        controller.state.accountTree.selectedAccountGroup;
+        controller.state.selectedAccountGroup;
       const walletId = toMultichainAccountWalletId(
         MOCK_HD_KEYRING_2.metadata.id,
       );
@@ -4114,7 +4114,7 @@ describe('AccountTreeController', () => {
       controller.init();
 
       const initialSelectedGroup =
-        controller.state.accountTree.selectedAccountGroup;
+        controller.state.selectedAccountGroup;
 
       jest.clearAllMocks();
 
@@ -4124,7 +4124,7 @@ describe('AccountTreeController', () => {
       );
 
       const newSelectedGroup =
-        controller.state.accountTree.selectedAccountGroup;
+        controller.state.selectedAccountGroup;
 
       expect(selectedAccountGroupChangeListener).toHaveBeenCalledWith(
         newSelectedGroup,
