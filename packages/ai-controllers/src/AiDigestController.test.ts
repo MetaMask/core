@@ -27,10 +27,7 @@ const mockReport: MarketInsightsReport = {
 const mockOverview: MarketOverview = {
   version: '1.0',
   generatedAt: '2026-02-11T10:32:52.403Z',
-  headline: 'Global crypto market update',
-  summary: 'Markets show mixed signals amid macro uncertainty.',
   trends: [],
-  sources: [],
 };
 
 const createMessenger = (): AiDigestControllerMessenger =>

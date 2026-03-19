@@ -11,6 +11,7 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
   BackendWebSocketServiceActions,
@@ -83,6 +84,8 @@ import {
 import type {
   AccountId,
   AssetPreferences,
+  AssetsControllerStateInternal,
+  AssetsDataSource,
   AssetsUpdateMode,
   ChainId,
   Caip19AssetId,
@@ -101,7 +104,6 @@ import type {
   Middleware,
   SubscriptionResponse,
   Asset,
-  AssetsControllerStateInternal,
 } from './types';
 import {
   normalizeAssetId,
@@ -293,23 +295,6 @@ export type AssetsControllerMessenger = Messenger<
 // CONTROLLER OPTIONS
 // ============================================================================
 
-/**
- * Payload for the first init/fetch MetaMetrics event.
- * Passed to the optional trackMetaMetricsEvent callback when the initial
- * asset fetch completes after unlock or app open.
- */
-export type AssetsControllerFirstInitFetchMetaMetricsPayload = {
-  /** Duration of the first init fetch in milliseconds (wall-clock). */
-  durationMs: number;
-  /** Chain IDs requested in the fetch (e.g. ['eip155:1', 'eip155:137']). */
-  chainIds: string[];
-  /**
-   * Exclusive latency in ms per data source (time spent in that source only).
-   * Sum of values approximates durationMs. Order: same as middleware chain.
-   */
-  durationByDataSource: Record<string, number>;
-};
-
 export type AssetsControllerOptions = {
   messenger: AssetsControllerMessenger;
   state?: Partial<AssetsControllerState>;
@@ -344,12 +329,11 @@ export type AssetsControllerOptions = {
   /** Optional configuration for RpcDataSource. */
   rpcDataSourceConfig?: RpcDataSourceConfig;
   /**
-   * Optional callback invoked when the first init/fetch completes (e.g. after unlock).
-   * Use this to track first init fetch duration in MetaMetrics.
+   * Optional trace callback. When provided, the controller invokes it with a
+   * trace request when the first init/fetch completes (e.g. after unlock).
+   * Use this to report first init fetch duration to Sentry (e.g. via addBreadcrumb or setMeasurement).
    */
-  trackMetaMetricsEvent?: (
-    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
-  ) => void;
+  trace?: TraceCallback;
   /** Optional configuration for AccountsApiDataSource. */
   accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
   /** Optional configuration for PriceDataSource. */
@@ -519,10 +503,8 @@ export class AssetsController extends BaseController<
   /** Default update interval hint passed to data sources */
   readonly #defaultUpdateInterval: number;
 
-  /** Optional callback for first init/fetch MetaMetrics (duration). */
-  readonly #trackMetaMetricsEvent?: (
-    payload: AssetsControllerFirstInitFetchMetaMetricsPayload,
-  ) => void;
+  /** Optional trace callback for first init/fetch measurement (duration). */
+  readonly #trace?: TraceCallback;
 
   /** Whether we have already reported first init fetch for this session (reset on #stop). */
   #firstInitFetchReported = false;
@@ -614,7 +596,7 @@ export class AssetsController extends BaseController<
     subscribeToBasicFunctionalityChange,
     queryApiClient,
     rpcDataSourceConfig,
-    trackMetaMetricsEvent,
+    trace,
     accountsApiDataSourceConfig,
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
@@ -632,7 +614,7 @@ export class AssetsController extends BaseController<
     this.#isEnabled = isEnabled();
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
-    this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
+    this.#trace = trace;
     const rpcConfig = rpcDataSourceConfig ?? {};
 
     this.#onActiveChainsUpdated = (
@@ -669,6 +651,12 @@ export class AssetsController extends BaseController<
     });
     this.#tokenDataSource = new TokenDataSource({
       queryApiClient,
+      getNativeAssetIds: (): string[] => {
+        const { nativeAssetIdentifiers } = this.messenger.call(
+          'NetworkEnablementController:getState',
+        );
+        return Object.values(nativeAssetIdentifiers);
+      },
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
@@ -917,7 +905,7 @@ export class AssetsController extends BaseController<
    * @returns Response and durationByDataSource (exclusive ms per source name).
    */
   async #executeMiddlewares(
-    sources: { getName(): string; assetsMiddleware: Middleware }[],
+    sources: AssetsDataSource[],
     request: DataRequest,
     initialResponse: DataResponse = {},
   ): Promise<{
@@ -978,6 +966,11 @@ export class AssetsController extends BaseController<
       const name = names[i];
       if (name !== undefined) {
         durationByDataSource[name] = exclusive;
+      }
+    }
+    if (result.durationByDataSource) {
+      for (const [key, ms] of Object.entries(result.durationByDataSource)) {
+        durationByDataSource[key] = ms;
       }
     }
     return { response: result.response, durationByDataSource };
@@ -1054,14 +1047,25 @@ export class AssetsController extends BaseController<
       const updateMode =
         options?.updateMode ?? (isPartialChainFetch ? 'merge' : 'full');
       await this.#updateState({ ...response, updateMode });
-      if (this.#trackMetaMetricsEvent && !this.#firstInitFetchReported) {
+      if (this.#trace && !this.#firstInitFetchReported) {
         this.#firstInitFetchReported = true;
         const durationMs = Date.now() - startTime;
-        this.#trackMetaMetricsEvent({
-          durationMs,
-          chainIds,
-          durationByDataSource,
-        });
+        try {
+          await this.#trace(
+            {
+              name: 'AssetsController First Init Fetch',
+              data: {
+                duration_ms: durationMs,
+                chain_ids: JSON.stringify(chainIds),
+                ...durationByDataSource,
+              },
+              tags: { controller: 'AssetsController' },
+            },
+            () => undefined,
+          );
+        } catch {
+          // Telemetry failure must not break.
+        }
       }
     }
 
@@ -1564,7 +1568,27 @@ export class AssetsController extends BaseController<
             ) {
               changedMetadata.push(key);
             }
-            metadata[key] = value;
+
+            const existing = metadata[key] as FungibleAssetMetadata | undefined;
+            const incoming = value as FungibleAssetMetadata;
+
+            // When the API returns no symbol or name for this token, it has no
+            // real knowledge of it (e.g. a user-deployed token not indexed by
+            // the API). Preserve richer metadata already in state (e.g. from
+            // pendingMetadata set by addCustomAsset) so that the correct
+            // decimals/symbol/name/image are not overwritten with empty values.
+            if (existing && !incoming.symbol && !incoming.name) {
+              metadata[key] = {
+                ...existing,
+                ...incoming,
+                symbol: existing.symbol,
+                name: existing.name,
+                decimals: existing.decimals ?? incoming.decimals,
+                image: existing.image ?? incoming.image,
+              };
+            } else {
+              metadata[key] = value;
+            }
           }
         }
 

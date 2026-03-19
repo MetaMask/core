@@ -102,7 +102,7 @@
   },
   "packages/address-book-controller/src/AddressBookController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 4
+      "count": 3
     },
     "@typescript-eslint/naming-convention": {
       "count": 3
@@ -125,9 +125,6 @@
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 6
-    },
-    "no-restricted-syntax": {
-      "count": 1
     }
   },
   "packages/assets-controllers/jest.environment.js": {
@@ -604,11 +601,6 @@
       "count": 4
     }
   },
-  "packages/bridge-status-controller/src/utils/snaps.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    }
-  },
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
@@ -620,9 +612,6 @@
     }
   },
   "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 7
-    },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
     }
@@ -1023,9 +1012,6 @@
   "packages/multichain-account-service/src/providers/SolAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
-    },
-    "id-length": {
-      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/TrxAccountProvider.ts": {
@@ -1264,7 +1250,7 @@
   },
   "packages/phishing-controller/src/PhishingController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 25
+      "count": 19
     },
     "@typescript-eslint/naming-convention": {
       "count": 1

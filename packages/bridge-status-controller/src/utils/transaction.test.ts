@@ -17,20 +17,16 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
+import { rekeyHistoryItemInState, getHistoryKey } from './history';
+import { getIntentFromQuote } from './intent-api';
 import * as snaps from './snaps';
 import {
   getStatusRequestParams,
-  getTxMetaFields,
-  handleNonEvmTxResponse,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
-  getClientRequest,
   toBatchTxParams,
   getAddTransactionBatchParams,
   findAndUpdateTransactionsInBatch,
-  getHistoryKey,
-  getIntentFromQuote,
-  rekeyHistoryItemInState,
   waitForTxConfirmation,
 } from './transaction';
 import { APPROVAL_DELAY_MS } from '../constants';
@@ -406,7 +402,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       } as never;
 
-      const result = getTxMetaFields(mockQuoteResponse);
+      const result = snaps.getTxMetaFields(mockQuoteResponse);
 
       expect(result).toStrictEqual({
         destinationChainId: formatChainIdToHex(ChainId.POLYGON),
@@ -500,7 +496,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as never;
 
       const approvalTxId = '0x1234567890abcdef';
-      const result = getTxMetaFields(mockQuoteResponse, approvalTxId);
+      const result = snaps.getTxMetaFields(mockQuoteResponse, approvalTxId);
 
       expect(result.approvalTxId).toBe(approvalTxId);
     });
@@ -578,7 +574,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = getTxMetaFields(mockQuoteResponse as never);
+      const result = snaps.getTxMetaFields(mockQuoteResponse as never);
 
       // Should use fallback mainnet chain ID when CAIP format can't be converted to hex
       expect(result.destinationChainId).toBe('0x1');
@@ -673,14 +669,19 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const signature = 'solanaSignature123';
 
-      const result = handleNonEvmTxResponse(signature, mockQuoteResponse, {
-        metadata: {
-          snap: { id: undefined },
-        },
-        options: { scope: formatChainIdToCaip(ChainId.SOLANA) },
-        id: 'test-account-id',
-        address: selectedAccountAddress,
-      } as never);
+      const result = snaps.handleNonEvmTxResponse(
+        signature,
+        mockQuoteResponse.trade,
+        mockQuoteResponse,
+        {
+          metadata: {
+            snap: { id: undefined },
+          },
+          options: { scope: formatChainIdToCaip(ChainId.SOLANA) },
+          id: 'test-account-id',
+          address: selectedAccountAddress,
+        } as never,
+      );
 
       expect(result).toMatchObject({
         id: expect.any(String),
@@ -783,8 +784,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -868,8 +870,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         signature: 'solanaSignature123',
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -956,8 +959,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1043,8 +1047,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1130,8 +1135,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1213,8 +1219,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const snapResponse = { transactionId: 'new-unified-tx-id-123' };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1308,8 +1315,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const snapResponse = { result: {} } as { result: Record<string, string> };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockQuoteResponse.trade,
         mockQuoteResponse,
         mockSolanaAccount,
       );
@@ -1347,6 +1355,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         estimatedProcessingTimeInSeconds: 600,
         trade: {
           unsignedPsbtBase64: 'cHNidP8BAH0CAAAAAe...',
+          inputsToSign: [],
         },
         // QuoteMetadata fields
         sentAmount: {
@@ -1392,8 +1401,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const snapResponse = { transactionId: 'btc_tx_123' };
 
-      const result = handleNonEvmTxResponse(
+      const result = snaps.handleNonEvmTxResponse(
         snapResponse,
+        mockBitcoinQuote.trade,
         mockBitcoinQuote as never,
         mockSolanaAccount,
       );
@@ -1657,12 +1667,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
         metadata: {
           snap: { id: 'test-snap-id' },
         },
-      } as never;
+      };
 
-      const result = getClientRequest(
+      const result = snaps.getClientRequest(
         mockQuoteResponse.trade,
         mockQuoteResponse.quote.srcChainId,
-        mockAccount,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
       );
 
       expect(result).toMatchObject({
@@ -1700,9 +1711,14 @@ describe('Bridge Status Controller Transaction Utils', () => {
         metadata: {
           snap: { id: 'test-snap-id' },
         },
-      } as never;
+      };
 
-      const result = getClientRequest(tronTrade, ChainId.TRON, mockAccount);
+      const result = snaps.getClientRequest(
+        tronTrade,
+        ChainId.TRON,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+      );
 
       expect(result).toStrictEqual({ mocked: true });
       expect(createClientRequestSpy).toHaveBeenCalledWith(
@@ -1721,7 +1737,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
   });
 
   describe('toBatchTxParams', () => {
-    it('should return params without gas if disable7702 is false', () => {
+    it('should return params without gas if skipGasFields is true', () => {
       const mockTrade = {
         chainId: 1,
         gasLimit: 1231,
@@ -1730,7 +1746,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         from: '0x1',
         value: '0x1',
       };
-      const result = toBatchTxParams(false, mockTrade, {});
+      const result = toBatchTxParams(true, mockTrade, {});
       expect(result).toStrictEqual({
         data: '0x1',
         from: '0x1',
@@ -1924,6 +1940,25 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.transactions[1].type).toBe(TransactionType.swap);
     });
 
+    it('uses swap approval type for resetApproval when isBridgeTx is false', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        includeResetApproval: true,
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messenger: mockMessagingSystem,
+        isBridgeTx: false,
+        trade: mockQuoteResponse.trade,
+        resetApproval: mockQuoteResponse.resetApproval,
+        estimateGasFeeFn: jest.fn().mockResolvedValue({}),
+      });
+
+      expect(result.transactions).toHaveLength(2);
+      expect(result.transactions[0].type).toBe(TransactionType.swapApproval);
+      expect(result.transactions[1].type).toBe(TransactionType.swap);
+    });
+
     it('should handle gasIncluded with gasIncluded7702', async () => {
       const mockQuoteResponse = createMockQuoteResponse({
         gasIncluded: true,
@@ -1998,6 +2033,75 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       expect(result.isGasFeeIncluded).toBe(false);
       expect(result.disable7702).toBe(true);
+    });
+
+    it('should enable 7702 but include gas fields when isDelegatedAccount is true and gasIncluded7702 is false', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: false,
+      });
+
+      const mockEstimateGasFeeFn = jest.fn().mockResolvedValue({
+        estimates: {
+          medium: {
+            maxFeePerGas: '0xabc',
+            maxPriorityFeePerGas: '0xdef',
+          },
+        },
+      });
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messenger: mockMessagingSystem,
+        isBridgeTx: true,
+        trade: mockQuoteResponse.trade,
+        isDelegatedAccount: true,
+        estimateGasFeeFn: mockEstimateGasFeeFn,
+      });
+
+      // 7702 should be enabled for delegated accounts
+      expect(result.disable7702).toBe(false);
+      // Gas is NOT sponsored
+      expect(result.isGasFeeIncluded).toBe(false);
+      // Gas estimation should have been called (not skipped)
+      expect(mockEstimateGasFeeFn).toHaveBeenCalled();
+      // Transaction params should include gas fields
+      expect(result.transactions).toHaveLength(1);
+      expect(result.transactions[0].params).toHaveProperty('gas');
+      expect(result.transactions[0].params).toHaveProperty('maxFeePerGas');
+      expect(result.transactions[0].params).toHaveProperty(
+        'maxPriorityFeePerGas',
+      );
+    });
+
+    it('should enable 7702 and omit gas fields when isDelegatedAccount is true and gasIncluded7702 is true', async () => {
+      const mockQuoteResponse = createMockQuoteResponse({
+        gasIncluded7702: true,
+      });
+
+      const mockEstimateGasFeeFn = jest.fn().mockResolvedValue({});
+
+      const result = await getAddTransactionBatchParams({
+        quoteResponse: mockQuoteResponse,
+        messenger: mockMessagingSystem,
+        isBridgeTx: true,
+        trade: mockQuoteResponse.trade,
+        isDelegatedAccount: true,
+        estimateGasFeeFn: mockEstimateGasFeeFn,
+      });
+
+      // 7702 should be enabled
+      expect(result.disable7702).toBe(false);
+      // Gas IS sponsored
+      expect(result.isGasFeeIncluded).toBe(true);
+      // Gas estimation should NOT have been called (skipped because gas is sponsored)
+      expect(mockEstimateGasFeeFn).not.toHaveBeenCalled();
+      // Transaction params should NOT include gas fields
+      expect(result.transactions).toHaveLength(1);
+      expect(result.transactions[0].params).not.toHaveProperty('gas');
+      expect(result.transactions[0].params).not.toHaveProperty('maxFeePerGas');
+      expect(result.transactions[0].params).not.toHaveProperty(
+        'maxPriorityFeePerGas',
+      );
     });
   });
 
@@ -2249,16 +2353,62 @@ describe('Bridge Status Controller Transaction Utils', () => {
         [TransactionType.bridge]: '0xbridgeData',
       };
 
-      // Test with bridge transaction (not swap)
-      findAndUpdateTransactionsInBatch({
+      // Test with bridge transaction — should match batch type for 7702
+      const result = findAndUpdateTransactionsInBatch({
         messenger: mockMessagingSystem,
         batchId,
         txDataByType,
         updateTransactionFn: mockUpdateTransactionFn,
       });
 
-      // Should not match since it's looking for bridge but finds batch type
-      expect(mockUpdateTransactionFn).not.toHaveBeenCalled();
+      // Should match since 7702 bridge transactions use batch type
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'tx1', type: TransactionType.bridge }),
+        'Update tx type to bridge',
+      );
+      expect(result.tradeMeta).toStrictEqual(
+        expect.objectContaining({ id: 'tx1', type: TransactionType.bridge }),
+      );
+    });
+
+    it('should handle 7702 bridgeApproval transactions by matching data', () => {
+      const txs = [
+        createMockTransaction({
+          id: 'tx1',
+          data: '0xapprovalData',
+          authorizationList: ['0xAuth1'],
+          type: TransactionType.batch,
+        }),
+      ];
+
+      mockMessagingSystem = createMockMessagingSystemWithTxs(
+        txs,
+      ) as unknown as BridgeStatusControllerMessenger;
+
+      const txDataByType = {
+        [TransactionType.bridgeApproval]: '0xapprovalData',
+      };
+
+      const result = findAndUpdateTransactionsInBatch({
+        messenger: mockMessagingSystem,
+        batchId,
+        txDataByType,
+        updateTransactionFn: mockUpdateTransactionFn,
+      });
+
+      expect(mockUpdateTransactionFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'tx1',
+          type: TransactionType.bridgeApproval,
+        }),
+        'Update tx type to bridgeApproval',
+      );
+      expect(result.approvalMeta).toStrictEqual(
+        expect.objectContaining({
+          id: 'tx1',
+          type: TransactionType.bridgeApproval,
+        }),
+      );
     });
   });
 

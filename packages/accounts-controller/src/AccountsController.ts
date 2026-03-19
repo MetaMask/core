@@ -442,7 +442,7 @@ export class AccountsController extends BaseController<
 
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (selectedAccount === '') {
+    if (!selectedAccount) {
       return EMPTY_ACCOUNT;
     }
 
@@ -481,7 +481,7 @@ export class AccountsController extends BaseController<
 
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (selectedAccount === '') {
+    if (!selectedAccount) {
       return EMPTY_ACCOUNT;
     }
 

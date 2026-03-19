@@ -110,6 +110,17 @@ export type MultichainAccountServiceMessenger = Messenger<
   MultichainAccountServiceEvents | AllowedEvents
 >;
 
+/**
+ * Config for the Snap platform watcher (SnapPlatformWatcher).
+ */
+export type SnapPlatformWatcherConfig = {
+  /**
+   * How long to wait for the Snap keyring to appear before rejecting (ms).
+   */
+  timeoutMs?: number;
+};
+
 export type MultichainAccountServiceConfig = {
   trace?: TraceCallback;
+  snapPlatformWatcher?: SnapPlatformWatcherConfig;
 };

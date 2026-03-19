@@ -4,4 +4,5 @@ export {
   createParallelMiddleware,
   mergeDataResponses,
 } from './ParallelMiddleware';
-export type { BalanceSource, TokenPriceSource } from './ParallelMiddleware';
+export type { BalanceSource } from './ParallelMiddleware';
+export type { AssetsDataSource } from '../types';

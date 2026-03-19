@@ -39,6 +39,7 @@ import {
 import {
   MOCK_HD_KEYRING_1,
   MOCK_HD_KEYRING_2,
+  MOCK_SNAP_KEYRING,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   makeMockAccountProvider,
@@ -1075,6 +1076,7 @@ describe('MultichainAccountService', () => {
     it('checks for Snap platform readiness with MultichainAccountService:ensureCanUseSnapPlatform', async () => {
       const { rootMessenger, spies } = await setup({
         accounts: [],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2, MOCK_SNAP_KEYRING],
       });
 
       await rootMessenger.call(
@@ -1435,6 +1437,7 @@ describe('MultichainAccountService', () => {
     it('delegates Snap platform readiness check to SnapPlatformWatcher (method)', async () => {
       const { service, spies } = await setup({
         accounts: [],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2, MOCK_SNAP_KEYRING],
       });
 
       await service.ensureCanUseSnapPlatform();

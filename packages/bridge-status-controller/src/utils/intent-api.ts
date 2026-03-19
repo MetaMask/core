@@ -1,15 +1,22 @@
-import { getClientHeaders, StatusTypes } from '@metamask/bridge-controller';
+import {
+  BridgeClientId,
+  ChainId,
+  getClientHeaders,
+  Intent,
+  QuoteResponse,
+  StatusTypes,
+} from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
-  IntentOrder,
+  IntentStatusResponse,
   IntentOrderStatus,
-  validateIntentOrderResponse,
+  validateIntentStatusResponse,
 } from './validators';
 import type { FetchFunction, StatusResponse } from '../types';
 
 export type IntentSubmissionParams = {
-  srcChainId: string;
+  srcChainId: ChainId;
   quoteId: string;
   signature: string;
   order: unknown;
@@ -20,14 +27,14 @@ export type IntentSubmissionParams = {
 export type IntentApi = {
   submitIntent(
     params: IntentSubmissionParams,
-    clientId: string,
-  ): Promise<IntentOrder>;
+    clientId: BridgeClientId,
+  ): Promise<IntentStatusResponse>;
   getOrderStatus(
     orderId: string,
     aggregatorId: string,
-    srcChainId: string,
-    clientId: string,
-  ): Promise<IntentOrder>;
+    srcChainId: ChainId,
+    clientId: BridgeClientId,
+  ): Promise<IntentStatusResponse>;
 };
 
 export type GetJwtFn = () => Promise<string | undefined>;
@@ -47,8 +54,8 @@ export class IntentApiImpl implements IntentApi {
 
   async submitIntent(
     params: IntentSubmissionParams,
-    clientId: string,
-  ): Promise<IntentOrder> {
+    clientId: BridgeClientId,
+  ): Promise<IntentStatusResponse> {
     const endpoint = `${this.#baseUrl}/submitOrder`;
     try {
       const jwt = await this.#getJwt();
@@ -60,7 +67,7 @@ export class IntentApiImpl implements IntentApi {
         },
         body: JSON.stringify(params),
       });
-      if (!validateIntentOrderResponse(response)) {
+      if (!validateIntentStatusResponse(response)) {
         throw new Error('Invalid submitOrder response');
       }
       return response;
@@ -75,9 +82,9 @@ export class IntentApiImpl implements IntentApi {
   async getOrderStatus(
     orderId: string,
     aggregatorId: string,
-    srcChainId: string,
-    clientId: string,
-  ): Promise<IntentOrder> {
+    srcChainId: ChainId,
+    clientId: BridgeClientId,
+  ): Promise<IntentStatusResponse> {
     const endpoint = `${this.#baseUrl}/getOrderStatus?orderId=${orderId}&aggregatorId=${encodeURIComponent(aggregatorId)}&srcChainId=${srcChainId}`;
     try {
       const jwt = await this.#getJwt();
@@ -85,7 +92,7 @@ export class IntentApiImpl implements IntentApi {
         method: 'GET',
         headers: getClientHeaders({ clientId, jwt }),
       });
-      if (!validateIntentOrderResponse(response)) {
+      if (!validateIntentStatusResponse(response)) {
         throw new Error('Invalid getOrderStatus response');
       }
       return response;
@@ -105,7 +112,7 @@ export type IntentBridgeStatus = {
 };
 
 export const translateIntentOrderToBridgeStatus = (
-  intentOrder: IntentOrder,
+  intentOrder: IntentStatusResponse,
   srcChainId: number,
   fallbackTxHash?: string,
 ): IntentBridgeStatus => {
@@ -165,4 +172,19 @@ export function mapIntentOrderStatusToTransactionStatus(
     default:
       return TransactionStatus.submitted;
   }
+}
+
+/**
+ * Extracts and validates the intent data from a quote response.
+ *
+ * @param quoteResponse - The quote response that may contain intent data
+ * @returns The intent data from the quote
+ * @throws Error if the quote does not contain intent data
+ */
+export function getIntentFromQuote(quoteResponse: QuoteResponse): Intent {
+  const { intent } = quoteResponse.quote;
+  if (!intent) {
+    throw new Error('submitIntent: missing intent data');
+  }
+  return intent;
 }

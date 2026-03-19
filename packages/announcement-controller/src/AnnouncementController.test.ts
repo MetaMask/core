@@ -14,20 +14,37 @@ import { AnnouncementController } from './AnnouncementController';
 
 const name = 'AnnouncementController';
 
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AnnouncementControllerActions,
+  AnnouncementControllerEvents
+>;
+
 /**
- * Constructs a restricted controller messenger.
+ * Constructs the root messenger.
  *
- * @returns A restricted controller messenger.
+ * @returns The root messenger.
  */
-function getMessenger(): AnnouncementControllerMessenger {
-  const messenger = new Messenger<
+function getRootMessenger(): RootMessenger {
+  return new Messenger<
     MockAnyNamespace,
     AnnouncementControllerActions,
     AnnouncementControllerEvents
   >({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @param rootMessenger - The root messenger to restrict.
+ * @returns A restricted controller messenger.
+ */
+function getMessenger(
+  rootMessenger = getRootMessenger(),
+): AnnouncementControllerMessenger {
   return new Messenger({
     namespace: name,
-    parent: messenger,
+    parent: rootMessenger,
   });
 }
 const allAnnouncements: AnnouncementMap = {
@@ -125,17 +142,21 @@ describe('announcement controller', () => {
 
   describe('resetViewed', () => {
     it('resets all announcement isShown states to false', () => {
+      const rootMessenger = getRootMessenger();
       const controller = new AnnouncementController({
-        messenger: getMessenger(),
+        messenger: getMessenger(rootMessenger),
         state: state2,
         allAnnouncements: allAnnouncements2,
       });
 
-      controller.updateViewed({ 1: true, 3: true });
+      rootMessenger.call('AnnouncementController:updateViewed', {
+        1: true,
+        3: true,
+      });
       expect(controller.state.announcements[1].isShown).toBe(true);
       expect(controller.state.announcements[3].isShown).toBe(true);
 
-      controller.resetViewed();
+      rootMessenger.call('AnnouncementController:resetViewed');
       Object.values(controller.state.announcements).forEach((announcement) => {
         expect(announcement.isShown).toBe(false);
       });
@@ -144,24 +165,29 @@ describe('announcement controller', () => {
 
   describe('update viewed announcements', () => {
     it('should update isShown status', () => {
+      const rootMessenger = getRootMessenger();
       const controller = new AnnouncementController({
-        messenger: getMessenger(),
+        messenger: getMessenger(rootMessenger),
         state: state2,
         allAnnouncements: allAnnouncements2,
       });
-      controller.updateViewed({ 1: true });
+      rootMessenger.call('AnnouncementController:updateViewed', { 1: true });
       expect(controller.state.announcements[1].isShown).toBe(true);
       expect(controller.state.announcements[2].isShown).toBe(false);
       expect(controller.state.announcements[3].isShown).toBe(false);
     });
 
     it('should update isShown of more than one announcement', () => {
+      const rootMessenger = getRootMessenger();
       const controller = new AnnouncementController({
-        messenger: getMessenger(),
+        messenger: getMessenger(rootMessenger),
         state: state2,
         allAnnouncements: allAnnouncements2,
       });
-      controller.updateViewed({ 2: true, 3: true });
+      rootMessenger.call('AnnouncementController:updateViewed', {
+        2: true,
+        3: true,
+      });
       expect(controller.state.announcements[1].isShown).toBe(false);
       expect(controller.state.announcements[2].isShown).toBe(true);
       expect(controller.state.announcements[3].isShown).toBe(true);

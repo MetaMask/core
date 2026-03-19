@@ -4,7 +4,7 @@ import type {
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
 } from '@metamask/accounts-controller';
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { ApprovalControllerAddRequestAction } from '@metamask/approval-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerStateChangeEvent,
@@ -297,7 +297,7 @@ export type NftControllerActions = NftControllerGetStateAction;
  * The external actions available to the {@link NftController}.
  */
 export type AllowedActions =
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
   | NetworkControllerGetNetworkClientByIdAction
