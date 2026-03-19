@@ -52,9 +52,15 @@ function setup(): {
   });
 
   const mocks = {
-    withKeyring: jest.fn().mockImplementation(async (_selector, operation) => {
+    withKeyring: jest.fn().mockImplementation(async (selector, operation) => {
+      if ('type' in selector) {
+        throw new Error('Keyring not found');
+      }
       return operation({
-        keyring: { mnemonic: MOCK_MNEMONIC } as unknown as HdKeyring,
+        keyring: {
+          type: 'HD Key Tree',
+          mnemonic: MOCK_MNEMONIC,
+        } as unknown as HdKeyring,
         metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
       });
     }),
@@ -106,12 +112,41 @@ describe('CashAccountService', () => {
       expect(result).toStrictEqual({ id: 'new-cash-keyring-id', name: '' });
     });
 
+    it('returns existing cash keyring metadata if a cash account already exists', async () => {
+      const { service, mocks } = setup();
+      const MOCK_CASH_METADATA = { id: 'existing-cash-keyring-id', name: '' };
+      const MOCK_CASH_ADDRESS = '0x1234567890abcdef1234567890abcdef12345678';
+
+      mocks.withKeyring.mockImplementation(async (selector, operation) => {
+        if ('type' in selector && selector.type === KeyringTypes.cash) {
+          return operation({
+            keyring: {
+              getAccounts: jest.fn().mockResolvedValue([MOCK_CASH_ADDRESS]),
+            },
+            metadata: MOCK_CASH_METADATA,
+          });
+        }
+        return operation({
+          keyring: {
+            type: 'HD Key Tree',
+            mnemonic: MOCK_MNEMONIC,
+          } as unknown as HdKeyring,
+          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
+        });
+      });
+
+      const result = await service.createCashAccount(MOCK_ENTROPY_SOURCE);
+
+      expect(result).toStrictEqual(MOCK_CASH_METADATA);
+      expect(mocks.addNewKeyring).not.toHaveBeenCalled();
+    });
+
     it('throws if the HD keyring has no mnemonic', async () => {
       const { service, mocks } = setup();
 
       mocks.withKeyring.mockImplementation(async (_selector, operation) => {
         return operation({
-          keyring: { mnemonic: null } as unknown as HdKeyring,
+          keyring: { type: 'HD Key Tree', mnemonic: null } as unknown as HdKeyring,
           metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
         });
       });
