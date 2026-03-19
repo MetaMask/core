@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KeyringTypes.cash` (`'Cash Keyring'`) to the `KeyringTypes` enum ([#8204](https://github.com/MetaMask/core/pull/8204))
+- Add `CashKeyring` (from `@metamask-previews/eth-cash-keyring`) as a built-in default keyring ([#8204](https://github.com/MetaMask/core/pull/8204))
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^21.0.0` to `^21.6.0` ([#7857](https://github.com/MetaMask/core/pull/7857), [#8259](https://github.com/MetaMask/core/pull/8259))
