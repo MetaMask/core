@@ -240,6 +240,72 @@ describe('PerpsController - deferEligibilityCheck', () => {
     });
   });
 
+  describe('stopEligibilityMonitoring', () => {
+    it('prevents geolocation calls after stop', async () => {
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        text: () => Promise.resolve('US'),
+      } as globalThis.Response);
+
+      const { controller, rootMessenger } = buildController({
+        deferEligibilityCheck: true,
+      });
+
+      controller.startEligibilityMonitoring();
+      controller.stopEligibilityMonitoring();
+
+      rootMessenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        { ...MOCK_REMOTE_FEATURE_FLAG_STATE },
+        [],
+      );
+
+      await new Promise((resolve) => process.nextTick(resolve));
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
+    });
+
+    it('is idempotent', () => {
+      const { controller } = buildController({
+        deferEligibilityCheck: true,
+      });
+
+      controller.startEligibilityMonitoring();
+      expect(() => {
+        controller.stopEligibilityMonitoring();
+        controller.stopEligibilityMonitoring();
+        controller.stopEligibilityMonitoring();
+      }).not.toThrow();
+    });
+
+    it('resumes monitoring when startEligibilityMonitoring is called again', () => {
+      const rootMessenger = getRootMessenger();
+      const getStateMock = jest
+        .fn()
+        .mockReturnValue(MOCK_REMOTE_FEATURE_FLAG_STATE);
+
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        getStateMock,
+      );
+
+      const controllerMessenger = getControllerMessenger(rootMessenger);
+      const controller = new PerpsController({
+        messenger: controllerMessenger,
+        infrastructure: buildMockInfrastructure(),
+        deferEligibilityCheck: true,
+      });
+
+      getStateMock.mockClear();
+
+      controller.startEligibilityMonitoring();
+      controller.stopEligibilityMonitoring();
+      controller.startEligibilityMonitoring();
+
+      expect(getStateMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('when deferEligibilityCheck is false (default)', () => {
     it('triggers eligibility processing during construction', () => {
       const refreshSpy = jest.spyOn(

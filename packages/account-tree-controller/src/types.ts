@@ -20,6 +20,7 @@ import type {
   MultichainAccountServiceCreateMultichainAccountGroupAction,
   MultichainAccountServiceCreateMultichainAccountGroupsAction,
 } from '@metamask/multichain-account-service';
+import type { MultichainAccountServiceWalletStatusChangeEvent } from '@metamask/multichain-account-service';
 import type {
   AuthenticationController,
   UserStorageController,
@@ -40,7 +41,6 @@ import type {
   AccountWalletObject,
   AccountTreeWalletPersistedMetadata,
 } from './wallet';
-import type { MultichainAccountServiceWalletStatusChangeEvent } from '../../multichain-account-service/src/types';
 
 // Backward compatibility aliases using indexed access types
 /**

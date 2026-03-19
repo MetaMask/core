@@ -8,6 +8,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type {
   BuyWidget,
   Country,
@@ -436,37 +437,11 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Sets selected token in the {@link RampsController}.
- */
-export type RampsControllerSetSelectedTokenAction = {
-  type: 'RampsController:setSelectedToken';
-  handler: RampsController['setSelectedToken'];
-};
-
-/**
- * Fetches quotes via the {@link RampsController}.
- */
-export type RampsControllerGetQuotesAction = {
-  type: 'RampsController:getQuotes';
-  handler: RampsController['getQuotes'];
-};
-
-/**
- * Fetches an order via the {@link RampsController}.
- */
-export type RampsControllerGetOrderAction = {
-  type: 'RampsController:getOrder';
-  handler: RampsController['getOrder'];
-};
-
-/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerActions =
   | RampsControllerGetStateAction
-  | RampsControllerGetOrderAction
-  | RampsControllerGetQuotesAction
-  | RampsControllerSetSelectedTokenAction;
+  | RampsControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -653,6 +628,56 @@ type OrderPollingMetadata = {
 
 // === CONTROLLER DEFINITION ===
 
+const MESSENGER_EXPOSED_METHODS = [
+  'executeRequest',
+  'abortRequest',
+  'getRequestState',
+  'setUserRegion',
+  'setSelectedProvider',
+  'init',
+  'getCountries',
+  'getTokens',
+  'setSelectedToken',
+  'getProviders',
+  'getPaymentMethods',
+  'setSelectedPaymentMethod',
+  'getQuotes',
+  'addOrder',
+  'removeOrder',
+  'startOrderPolling',
+  'stopOrderPolling',
+  'getBuyWidgetData',
+  'addPrecreatedOrder',
+  'getOrder',
+  'getOrderFromCallback',
+  'transakSetApiKey',
+  'transakSetAccessToken',
+  'transakClearAccessToken',
+  'transakSetAuthenticated',
+  'transakResetState',
+  'transakSendUserOtp',
+  'transakVerifyUserOtp',
+  'transakLogout',
+  'transakGetUserDetails',
+  'transakGetBuyQuote',
+  'transakGetKycRequirement',
+  'transakGetAdditionalRequirements',
+  'transakCreateOrder',
+  'transakGetOrder',
+  'transakGetUserLimits',
+  'transakRequestOtt',
+  'transakGeneratePaymentWidgetUrl',
+  'transakSubmitPurposeOfUsageForm',
+  'transakPatchUser',
+  'transakSubmitSsnDetails',
+  'transakConfirmPayment',
+  'transakGetTranslation',
+  'transakGetIdProofStatus',
+  'transakCancelOrder',
+  'transakCancelAllActiveOrders',
+  'transakGetActiveOrders',
+] as const;
+
 /**
  * Manages cryptocurrency on/off ramps functionality.
  */
@@ -751,21 +776,9 @@ export class RampsController extends BaseController<
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
 
-    this.#registerActionHandlers();
-  }
-
-  #registerActionHandlers(): void {
-    this.messenger.registerActionHandler(
-      'RampsController:getOrder',
-      this.getOrder.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'RampsController:getQuotes',
-      this.getQuotes.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'RampsController:setSelectedToken',
-      this.setSelectedToken.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

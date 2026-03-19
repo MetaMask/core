@@ -120,11 +120,10 @@ describe('gas calculation utils', () => {
       value: '0x1',
     };
 
-    it('should return empty object if 7702 is enabled (disable7702 is false)', async () => {
+    it('should return empty object if gas fields should be skipped (skipGasFields is true)', async () => {
       const result = await calculateGasFees(
-        false,
+        true,
         null as never,
-        jest.fn(),
         mockTrade,
         'mainnet',
         '0x1',
@@ -134,9 +133,8 @@ describe('gas calculation utils', () => {
 
     it('should txFee when provided', async () => {
       const result = await calculateGasFees(
-        true,
+        false,
         null as never,
-        jest.fn(),
         mockTrade,
         'mainnet',
         '0x1',
@@ -169,7 +167,7 @@ describe('gas calculation utils', () => {
             estimatedBaseFee: '0x1234',
           },
         });
-        const mockEstimateGasFeeFn = jest.fn().mockResolvedValueOnce({
+        mockCall.mockResolvedValueOnce({
           estimates: {
             [GasFeeEstimateLevel.Medium]: {
               maxFeePerGas: '0x1234567890',
@@ -178,9 +176,8 @@ describe('gas calculation utils', () => {
           },
         });
         const result = await calculateGasFees(
-          true,
+          false,
           { call: mockCall } as never,
-          mockEstimateGasFeeFn,
           { ...mockTrade, gasLimit },
           'mainnet',
           '0x1',
