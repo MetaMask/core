@@ -4,7 +4,6 @@ import type {
   TraceRequest,
 } from '@metamask/controller-utils';
 import { CreateAccountOptions } from '@metamask/keyring-api';
-import { group } from 'console';
 
 import { Bip44AccountProvider } from '../providers';
 

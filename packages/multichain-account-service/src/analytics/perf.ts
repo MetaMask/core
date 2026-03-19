@@ -5,6 +5,7 @@ import type {
 } from '@metamask/controller-utils';
 
 import { createModuleLogger, projectLogger } from '../logger';
+import { now } from './timer';
 
 const log = createModuleLogger(projectLogger, 'perf');
 
@@ -37,9 +38,9 @@ export function tick(request: TraceRequest): () => void {
     return () => undefined;
   }
 
-  const start = performance.now();
+  const start = now();
   return function tock(): void {
-    const duration = performance.now() - start;
+    const duration = now() - start;
 
     const context = request.data ? ` (${JSON.stringify(request.data)})` : '';
 
