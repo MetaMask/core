@@ -11,6 +11,7 @@ import {
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   submitEvmTransaction,
+  waitForTxConfirmation,
 } from '../utils/transaction';
 
 /**
@@ -105,9 +106,10 @@ export async function* submitEvmHandler(
     },
   );
   // Delay after approval
+  await handleMobileHardwareWalletDelay(requireApproval);
   if (approvalTxId) {
     await handleApprovalDelay(quoteResponse.quote.srcChainId);
-    await handleMobileHardwareWalletDelay(requireApproval);
+    await waitForTxConfirmation(args.messenger, approvalTxId);
   }
 
   // Generate trade actionId for pre-submission history
