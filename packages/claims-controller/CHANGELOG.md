@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update dependencies ([#8236](https://github.com/MetaMask/core/pull/8236))
+  - Add `@metamask/keyring-controller` ^25.1.0
+  - Add `@metamask/profile-sync-controller` ^28.0.0
+
+### Fixed
+
+- Fix type of actions union within `ClaimsControllerMessenger` and `ClaimsServiceMessenger` not to be `any` ([#8236](https://github.com/MetaMask/core/pull/8236))
+  - This was fixed by the addition of the dependencies above.
+
 ## [0.4.3]
 
 ### Changed

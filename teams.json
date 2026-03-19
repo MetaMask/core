@@ -50,6 +50,7 @@
   "metamask/polling-controller": "team-core-platform",
   "metamask/preferences-controller": "team-core-platform",
   "metamask/rate-limit-controller": "team-core-platform",
+  "metamask/react-data-query": "team-core-platform",
   "metamask/profile-metrics-controller": "team-core-platform",
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",

@@ -26,7 +26,6 @@ import type { SortOptionId } from './constants/perpsConfig';
 import { PERPS_ERROR_CODES } from './perpsErrorCodes';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider';
 import { HyperLiquidProvider } from './providers/HyperLiquidProvider';
-import { MYXProvider } from './providers/MYXProvider';
 import { AccountService } from './services/AccountService';
 import { DataLakeService } from './services/DataLakeService';
 import { DepositService } from './services/DepositService';
@@ -1440,17 +1439,30 @@ export class PerpsController extends BaseController<
         });
         this.providers.set('hyperliquid', hyperLiquidProvider);
 
-        // Register MYX provider if enabled via feature flag
+        // Register MYX provider if enabled via feature flag.
+        // Uses dynamic import so @myx-trade/sdk is excluded from the bundle
+        // unless MM_PERPS_MYX_PROVIDER_ENABLED=true is set at build time.
+        // Wrapped in try/catch so a missing module (stripped at build time)
+        // only skips MYX registration instead of aborting initialization.
         const isMYXEnabled = this.#isMYXProviderEnabled();
         if (isMYXEnabled) {
-          const myxProvider = new MYXProvider({
-            isTestnet: PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet,
-            platformDependencies: this.#options.infrastructure,
-          });
-          this.providers.set('myx', myxProvider);
-          this.#debugLog('PerpsController: MYX provider registered', {
-            isTestnet: PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet,
-          });
+          try {
+            const { MYXProvider } = await import('./providers/MYXProvider.js');
+            const myxProvider = new MYXProvider({
+              isTestnet:
+                PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet,
+              platformDependencies: this.#options.infrastructure,
+            });
+            this.providers.set('myx', myxProvider);
+            this.#debugLog('PerpsController: MYX provider registered', {
+              isTestnet:
+                PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet,
+            });
+          } catch {
+            this.#debugLog(
+              'PerpsController: MYX provider module not available (stripped from build), skipping registration',
+            );
+          }
         }
 
         // Set up active provider based on activeProvider value in state

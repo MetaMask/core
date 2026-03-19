@@ -144,6 +144,14 @@ const config = createConfig([
       sourceType: 'module',
     },
   },
+  // Prevent cross-package relative imports
+  {
+    files: ['packages/*/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/tests/**/*.ts'],
+    rules: {
+      'import-x/no-relative-packages': 'error',
+    },
+  },
   {
     files: ['packages/foundryup/**/*.{js,ts}'],
     rules: {

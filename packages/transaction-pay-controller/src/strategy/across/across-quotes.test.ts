@@ -5,6 +5,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getAcrossQuotes } from './across-quotes';
+import * as acrossTransactions from './transactions';
 import type { AcrossSwapApprovalResponse } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../../constants';
@@ -12,6 +13,7 @@ import { getMessengerMock } from '../../tests/messenger-mock';
 import type { QuoteRequest } from '../../types';
 import { getGasBuffer, getSlippage } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
+import * as quoteGasUtils from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
 
 jest.mock('../../utils/token');
@@ -22,6 +24,7 @@ jest.mock('../../utils/gas', () => ({
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
   getGasBuffer: jest.fn(),
+  isEIP7702Chain: jest.fn(),
   getSlippage: jest.fn(),
 }));
 
@@ -115,6 +118,7 @@ describe('Across Quotes', () => {
   const {
     messenger,
     estimateGasMock,
+    estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
@@ -738,16 +742,10 @@ describe('Across Quotes', () => {
     });
 
     it('includes approval gas costs and gas limits when approval transactions exist', async () => {
-      estimateGasMock
-        .mockRejectedValueOnce(new Error('Approval gas estimation failed'))
-        .mockResolvedValueOnce({
-          gas: '0x7530',
-          simulationFails: undefined,
-        })
-        .mockResolvedValueOnce({
-          gas: '0x5208',
-          simulationFails: undefined,
-        });
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 951000,
+        gasLimits: [900000, 30000, 21000],
+      });
 
       successfulFetchMock.mockResolvedValue({
         json: async () => ({
@@ -793,20 +791,162 @@ describe('Across Quotes', () => {
           gas: 21000,
         }),
       );
-      expect(result[0].original.metamask.gasLimits.approval).toStrictEqual([
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
         {
           estimate: 900000,
-          max: 1500000,
+          max: 900000,
         },
         {
           estimate: 30000,
           max: 30000,
         },
+        {
+          estimate: 21000,
+          max: 21000,
+        },
       ]);
-      expect(result[0].original.metamask.gasLimits.swap).toStrictEqual({
-        estimate: 21000,
-        max: 21000,
+    });
+
+    it('uses a combined batch gas limit when batch estimation returns a single gas limit', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 51000,
+        gasLimits: [51000],
       });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+              value: '0x1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith({
+        chainId: '0x1',
+        from: FROM_MOCK,
+        transactions: [
+          expect.objectContaining({
+            data: '0xaaaa',
+            to: '0xapprove1',
+            value: '0x1',
+          }),
+          expect.objectContaining({
+            data: QUOTE_MOCK.swapTx.data,
+            to: QUOTE_MOCK.swapTx.to,
+          }),
+        ],
+      });
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 51000,
+          max: 51000,
+        },
+      ]);
+      expect(result[0].original.metamask.is7702).toBe(true);
+      expect(calculateGasCostMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          chainId: '0x1',
+          gas: 51000,
+          maxFeePerGas: '0x1',
+          maxPriorityFeePerGas: '0x1',
+        }),
+      );
+      expect(calculateGasCostMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          chainId: '0x1',
+          gas: 51000,
+          isMax: true,
+          maxFeePerGas: '0x1',
+          maxPriorityFeePerGas: '0x1',
+        }),
+      );
+    });
+
+    it('throws when the shared gas estimator marks a quote as 7702 without a combined gas limit', async () => {
+      const estimateQuoteGasLimitsSpy = jest.spyOn(
+        quoteGasUtils,
+        'estimateQuoteGasLimits',
+      );
+
+      estimateQuoteGasLimitsSpy.mockResolvedValueOnce({
+        gasLimits: [],
+        is7702: true,
+        totalGasEstimate: 0,
+        totalGasLimit: 0,
+        usedBatch: true,
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        }),
+      ).rejects.toThrow(
+        'Failed to fetch Across quotes: Error: Across combined batch gas estimate missing',
+      );
+
+      estimateQuoteGasLimitsSpy.mockRestore();
+    });
+
+    it('throws when batch estimation fails for multiple transactions', async () => {
+      estimateGasBatchMock.mockRejectedValue(
+        new Error('Batch estimation failed'),
+      );
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+              value: '0x1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        }),
+      ).rejects.toThrow(
+        'Failed to fetch Across quotes: Error: Batch estimation failed',
+      );
+
+      expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+      expect(estimateGasMock).not.toHaveBeenCalled();
     });
 
     it('uses swapTx.gas from Across response when provided', async () => {
@@ -827,10 +967,12 @@ describe('Across Quotes', () => {
       });
 
       expect(estimateGasMock).not.toHaveBeenCalled();
-      expect(result[0].original.metamask.gasLimits.swap).toStrictEqual({
-        estimate: 24576,
-        max: 24576,
-      });
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 24576,
+          max: 24576,
+        },
+      ]);
       expect(calculateGasCostMock).toHaveBeenCalledWith(
         expect.objectContaining({
           chainId: '0x1',
@@ -857,10 +999,90 @@ describe('Across Quotes', () => {
       });
 
       expect(estimateGasMock).toHaveBeenCalledTimes(1);
-      expect(result[0].original.metamask.gasLimits.swap).toStrictEqual({
-        estimate: 21000,
-        max: 21000,
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 21000,
+          max: 21000,
+        },
+      ]);
+    });
+
+    it('falls back to the swap chain id when an approval transaction chain id is missing during cost calculation', async () => {
+      const estimateQuoteGasLimitsSpy = jest.spyOn(
+        quoteGasUtils,
+        'estimateQuoteGasLimits',
+      );
+      const orderedTransactionsSpy = jest.spyOn(
+        acrossTransactions,
+        'getAcrossOrderedTransactions',
+      );
+
+      estimateQuoteGasLimitsSpy.mockResolvedValueOnce({
+        gasLimits: [
+          {
+            estimate: 30000,
+            max: 35000,
+          },
+          {
+            estimate: 21000,
+            max: 22000,
+          },
+        ],
+        is7702: false,
+        totalGasEstimate: 51000,
+        totalGasLimit: 57000,
+        usedBatch: false,
       });
+      orderedTransactionsSpy.mockReturnValueOnce([
+        {
+          chainId: 1,
+          data: '0xaaaa' as Hex,
+          kind: 'approval',
+          to: '0xapprove1' as Hex,
+        },
+        {
+          ...QUOTE_MOCK.swapTx,
+          kind: 'swap',
+        },
+      ]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: undefined,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(calculateGasCostMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          chainId: '0x1',
+          gas: 30000,
+        }),
+      );
+      expect(calculateGasCostMock).toHaveBeenNthCalledWith(
+        3,
+        expect.objectContaining({
+          chainId: '0x1',
+          gas: 35000,
+          isMax: true,
+        }),
+      );
+
+      orderedTransactionsSpy.mockRestore();
+      estimateQuoteGasLimitsSpy.mockRestore();
     });
 
     it('handles missing approval transactions in Across quote response', async () => {
@@ -877,7 +1099,12 @@ describe('Across Quotes', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result[0].original.metamask.gasLimits.approval).toStrictEqual([]);
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 21000,
+          max: 21000,
+        },
+      ]);
       expect(calculateGasCostMock).toHaveBeenCalledTimes(2);
     });
 
