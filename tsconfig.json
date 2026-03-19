@@ -84,6 +84,9 @@
       "path": "./packages/core-backend"
     },
     {
+      "path": "./packages/data-query-react"
+    },
+    {
       "path": "./packages/delegation-controller"
     },
     {

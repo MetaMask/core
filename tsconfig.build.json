@@ -83,6 +83,9 @@
       "path": "./packages/core-backend/tsconfig.build.json"
     },
     {
+      "path": "./packages/data-query-react/tsconfig.build.json"
+    },
+    {
       "path": "./packages/delegation-controller/tsconfig.build.json"
     },
     {
