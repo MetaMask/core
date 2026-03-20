@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.0.1]
 
-### Uncategorized
-
-- gpg: Signature made Thu Mar 19 15:35:23 2026 CDT
-- gpg: Signature made Thu Mar 19 09:37:57 2026 CDT
-
 ### Added
 
 - Expose all public `RampsController` methods through its messenger ([#8221](https://github.com/MetaMask/core/pull/8221))
