@@ -10,12 +10,13 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
 } from './constants/bridge';
-import { ChainId, RequestStatus, TokenFeatureType } from './types';
+import { ChainId, RequestStatus } from './types';
 import type { BridgeControllerMessenger, QuoteResponse, TxData } from './types';
 import * as balanceUtils from './utils/balance';
 import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
+import { TokenFeatureType } from './utils/validators';
 import { flushPromises } from '../../../tests/helpers';
 import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';

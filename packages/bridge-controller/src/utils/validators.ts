@@ -476,9 +476,16 @@ export const validateQuoteResponse = (
   return true;
 };
 
+export enum TokenFeatureType {
+  MALICIOUS = 'Malicious',
+  WARNING = 'Warning',
+  INFO = 'Info',
+  BENIGN = 'Benign',
+}
+
 export const TokenFeatureSchema = type({
   feature_id: string(),
-  type: enums(['Malicious', 'Warning', 'Info', 'Benign']),
+  type: enums(Object.values(TokenFeatureType)),
   description: string(),
 });
 

@@ -68,7 +68,6 @@ export {
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
-  TokenFeatureType,
   type TokenFeature,
   type BridgeControllerGetStateAction,
   type BridgeControllerStateChangeEvent,
@@ -79,6 +78,7 @@ export {
   ActionTypes,
   BridgeAssetSchema,
   FeatureId,
+  TokenFeatureType,
 } from './utils/validators';
 
 export {

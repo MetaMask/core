@@ -323,13 +323,6 @@ export enum ChainId {
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
 
-export enum TokenFeatureType {
-  MALICIOUS = 'Malicious',
-  WARNING = 'Warning',
-  INFO = 'Info',
-  BENIGN = 'Benign',
-}
-
 export type TokenFeature = Infer<typeof TokenFeatureSchema>;
 
 export enum RequestStatus {
