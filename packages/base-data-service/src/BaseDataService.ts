@@ -18,6 +18,7 @@ import {
   InfiniteData,
   InvalidateOptions,
   InvalidateQueryFilters,
+  OmitKeyof,
   QueryClient,
   QueryClientConfig,
   WithRequired,
@@ -35,9 +36,9 @@ export type GranularCacheUpdatedPayload =
       state: null;
     };
 
-export type CacheUpdatedPayload = {
+export type CacheUpdatedPayload = GranularCacheUpdatedPayload & {
   hash: string;
-} & GranularCacheUpdatedPayload;
+};
 
 type CacheUpdatedType = CacheUpdatedPayload['type'];
 
@@ -49,7 +50,7 @@ export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   ) => Promise<void>;
 };
 
-export type DataServiceActions<ServiceName extends string> =
+type DataServiceActions<ServiceName extends string> =
   DataServiceInvalidateQueriesAction<ServiceName>;
 
 export type DataServiceCacheUpdatedEvent<ServiceName extends string> = {
@@ -62,7 +63,7 @@ export type DataServiceGranularCacheUpdatedEvent<ServiceName extends string> = {
   payload: [GranularCacheUpdatedPayload];
 };
 
-export type DataServiceEvents<ServiceName extends string> =
+type DataServiceEvents<ServiceName extends string> =
   | DataServiceCacheUpdatedEvent<ServiceName>
   | DataServiceGranularCacheUpdatedEvent<ServiceName>;
 
@@ -141,29 +142,26 @@ export class BaseDataService<
       .getQueryCache()
       .subscribe((event) => {
         if (['added', 'updated', 'removed'].includes(event.type)) {
-          this.#broadcastCacheUpdate(
+          this.#publishCacheUpdate(
             event.query.queryHash,
             event.type as CacheUpdatedType,
           );
         }
       });
 
-    this.#registerMessageHandlers();
-  }
-
-  #registerMessageHandlers(): void {
     this.#messenger.registerActionHandler(
       `${this.name}:invalidateQueries`,
       this.invalidateQueries.bind(this),
     );
   }
 
-  protected destroy(): void {
-    this.#queryCacheUnsubscribe();
-    this.messenger.clearSubscriptions();
-    this.messenger.clearActions();
-  }
-
+  /**
+   * Fetch a query.
+   *
+   * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
+   * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @returns The query results.
+   */
   protected async fetchQuery<
     TQueryFnData extends Json,
     TError = unknown,
@@ -171,7 +169,10 @@ export class BaseDataService<
     TQueryKey extends QueryKey = QueryKey,
   >(
     options: WithRequired<
-      FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+      OmitKeyof<
+        FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+        'retry' | 'retryDelay'
+      >,
       'queryKey' | 'queryFn'
     >,
   ): Promise<TData> {
@@ -182,6 +183,14 @@ export class BaseDataService<
     });
   }
 
+  /**
+   * Fetch a paginated query.
+   *
+   * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
+   * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param pageParam - An optional page parameter.
+   * @returns The query result, exclusively the requested page is returned.
+   */
   protected async fetchInfiniteQuery<
     TQueryFnData extends Json,
     TError = unknown,
@@ -190,7 +199,10 @@ export class BaseDataService<
     TPageParam extends Json = Json,
   >(
     options: WithRequired<
-      FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+      OmitKeyof<
+        FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+        'retry' | 'retryDelay'
+      >,
       'queryKey' | 'queryFn'
     >,
     pageParam?: TPageParam,
@@ -237,6 +249,13 @@ export class BaseDataService<
     return result.pages[pageIndex];
   }
 
+  /**
+   * Invalidate queries serviced by this data service.
+   *
+   * @param filters - Optional filter for selecting specific queries.
+   * @param options - Additional optional options for query invalidations.
+   * @returns Nothing.
+   */
   async invalidateQueries<TPageData extends Json>(
     filters?: InvalidateQueryFilters<TPageData>,
     options?: InvalidateOptions,
@@ -244,7 +263,23 @@ export class BaseDataService<
     return this.#queryClient.invalidateQueries(filters, options);
   }
 
-  #broadcastCacheUpdate(hash: string, type: CacheUpdatedType): void {
+  /**
+   * Prepares the service for garbage collection. This should be extended
+   * by any subclasses to clean up any additional connections or events.
+   */
+  protected destroy(): void {
+    this.#queryCacheUnsubscribe();
+    this.messenger.clearSubscriptions();
+    this.messenger.clearActions();
+  }
+
+  /**
+   * Publish `cacheUpdated` events when a given query changes.
+   *
+   * @param hash The hash of the query.
+   * @param type The type of cache update.
+   */
+  #publishCacheUpdate(hash: string, type: CacheUpdatedType): void {
     const state =
       type === 'added' || type === 'updated'
         ? dehydrate(this.#queryClient, {

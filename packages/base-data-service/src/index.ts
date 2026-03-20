@@ -2,8 +2,6 @@ export type {
   CacheUpdatedPayload,
   GranularCacheUpdatedPayload,
   DataServiceInvalidateQueriesAction,
-  DataServiceActions,
-  DataServiceEvents,
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
   QueryKey,
