@@ -28,12 +28,14 @@ export function handleMockCreateDelegation(
   callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
 ): nock.Scope {
   const reply = mockReply ?? { status: 200 };
-  return nock(MOCK_DELEGATIONS_URL)
-    .persist()
-    .post('')
-    .reply(reply.status, async (uri, requestBody) => {
-      await callback?.(uri, requestBody);
+  const interceptor = nock(MOCK_DELEGATIONS_URL).persist().post('');
+
+  if (callback) {
+    return interceptor.reply(reply.status, async (uri, requestBody) => {
+      await callback(uri, requestBody);
     });
+  }
+  return interceptor.reply(reply.status, reply.body);
 }
 
 export function handleMockRevokeDelegation(mockReply?: MockReply): nock.Scope {
@@ -62,10 +64,12 @@ export function handleMockPutNotificationPreferences(
   callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
 ): nock.Scope {
   const reply = mockReply ?? { status: 200 };
-  return nock(MOCK_NOTIFICATION_PREFERENCES_URL)
-    .persist()
-    .put('')
-    .reply(reply.status, async (uri, requestBody) => {
-      await callback?.(uri, requestBody);
+  const interceptor = nock(MOCK_NOTIFICATION_PREFERENCES_URL).persist().put('');
+
+  if (callback) {
+    return interceptor.reply(reply.status, async (uri, requestBody) => {
+      await callback(uri, requestBody);
     });
+  }
+  return interceptor.reply(reply.status, reply.body);
 }
