@@ -3119,26 +3119,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/cash-account-service@workspace:packages/cash-account-service":
-  version: 0.0.0-use.local
-  resolution: "@metamask/cash-account-service@workspace:packages/cash-account-service"
-  dependencies:
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^9.0.0"
-    "@metamask/eth-hd-keyring": "npm:^13.0.0"
-    "@metamask/keyring-controller": "npm:^25.1.0"
-    "@metamask/messenger": "npm:^0.3.0"
-    "@ts-bridge/cli": "npm:^0.6.4"
-    "@types/jest": "npm:^29.5.14"
-    deepmerge: "npm:^4.2.2"
-    jest: "npm:^29.7.0"
-    ts-jest: "npm:^29.2.5"
-    typedoc: "npm:^0.25.13"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.3.3"
-  languageName: unknown
-  linkType: soft
-
 "@metamask/chain-agnostic-permission@npm:^1.5.0, @metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission":
   version: 0.0.0-use.local
   resolution: "@metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission"
@@ -3708,7 +3688,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-hd-keyring@npm:13.1.0, @metamask/eth-hd-keyring@npm:^13.0.0":
+"@metamask/eth-hd-keyring@npm:13.1.0, @metamask/eth-hd-keyring@npm:^13.0.0, @metamask/eth-hd-keyring@npm:^13.1.0":
   version: 13.1.0
   resolution: "@metamask/eth-hd-keyring@npm:13.1.0"
   dependencies:
@@ -3817,6 +3797,16 @@ __metadata:
     typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft
+
+"@metamask/eth-money-keyring@npm:1.0.0":
+  version: 1.0.0
+  resolution: "@metamask/eth-money-keyring@npm:1.0.0"
+  dependencies:
+    "@metamask/eth-hd-keyring": "npm:^13.1.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+  checksum: 10/244caa4cba12550bf0cadca4923a5540d40391e9dee940d7fe980bf77d4d08d329825745c97f89fe4909763d6978921f38b6c3f925fab9e0acd969165d5da718
+  languageName: node
+  linkType: hard
 
 "@metamask/eth-query@npm:^4.0.0":
   version: 4.0.0
@@ -4243,6 +4233,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
     "@metamask/eth-hd-keyring": "npm:^13.0.0"
+    "@metamask/eth-money-keyring": "npm:1.0.0"
     "@metamask/eth-sig-util": "npm:^8.2.0"
     "@metamask/eth-simple-keyring": "npm:^11.0.0"
     "@metamask/keyring-api": "npm:^21.6.0"
@@ -4405,6 +4396,26 @@ __metadata:
   checksum: 10/2d456882c5180eaf02d07f578ee8b8806d18639349d086a6b3b68c87e7ea294749efc332bfe7c1d5fb700933e71f31a46d3cd07b94c4e91c80faea5f9729bf0d
   languageName: node
   linkType: hard
+
+"@metamask/money-account-service@workspace:packages/money-account-service":
+  version: 0.0.0-use.local
+  resolution: "@metamask/money-account-service@workspace:packages/money-account-service"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^9.0.0"
+    "@metamask/eth-hd-keyring": "npm:^13.0.0"
+    "@metamask/keyring-controller": "npm:^25.1.0"
+    "@metamask/messenger": "npm:^0.3.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
 
 "@metamask/multichain-account-service@npm:^7.1.0, @metamask/multichain-account-service@workspace:packages/multichain-account-service":
   version: 0.0.0-use.local

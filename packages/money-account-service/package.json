@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/cash-account-service",
+  "name": "@metamask/money-account-service",
   "version": "0.0.0",
-  "description": "Service to manage cash accounts",
+  "description": "Service to manage money accounts",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/cash-account-service#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/money-account-service#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -38,8 +38,8 @@
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/cash-account-service",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/cash-account-service",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/money-account-service",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/money-account-service",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",

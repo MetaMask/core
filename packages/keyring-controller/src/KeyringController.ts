@@ -3,6 +3,7 @@ import { isValidPrivate, getBinarySize } from '@ethereumjs/util';
 import { BaseController } from '@metamask/base-controller';
 import type * as encryptorUtils from '@metamask/browser-passworder';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
+import { MoneyKeyring } from '@metamask/eth-money-keyring';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type {
@@ -28,7 +29,6 @@ import {
   isValidJson,
   remove0x,
 } from '@metamask/utils';
-import { CashKeyring } from '@metamask-previews/eth-cash-keyring';
 import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
@@ -56,7 +56,7 @@ export enum KeyringTypes {
   /* eslint-disable @typescript-eslint/naming-convention */
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
-  cash = 'Cash Keyring',
+  money = 'Money Keyring',
   qr = 'QR Hardware Wallet Device',
   trezor = 'Trezor Hardware',
   oneKey = 'OneKey Hardware',
@@ -560,7 +560,7 @@ const defaultKeyringBuilders = [
   // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(SimpleKeyring),
   keyringBuilderFactory(HdKeyring),
-  keyringBuilderFactory(CashKeyring),
+  keyringBuilderFactory(MoneyKeyring),
 ];
 
 export const getDefaultKeyringState = (): KeyringControllerState => {
