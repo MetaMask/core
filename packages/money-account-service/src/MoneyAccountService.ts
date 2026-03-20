@@ -30,10 +30,14 @@ export class MoneyAccountService {
    * Creates a Money keyring derived from the HD keyring identified by
    * the given entropy source, and returns the new keyring's metadata.
    *
+   * If a keyring already existed, just returns null
+   *
    * @param entropySource - The metadata id of the HD keyring to derive from.
    * @returns The metadata of the newly created Money keyring.
    */
-  async createMoneyAccount(entropySource: string): Promise<KeyringMetadata> {
+  async createMoneyAccount(
+    entropySource: string,
+  ): Promise<KeyringMetadata | null> {
     const mnemonic = await this.#messenger.call(
       'KeyringController:withKeyring',
       { id: entropySource },
@@ -52,13 +56,12 @@ export class MoneyAccountService {
       },
     );
 
-    const existingMoneyMetadata = (await this.#messenger
+    const moneyAccountExists = await this.#messenger
       .call(
         'KeyringController:withKeyring',
         { type: KeyringTypes.money },
-        async ({ keyring, metadata }) => {
-          const accounts = await keyring.getAccounts();
-          return accounts.length > 0 ? metadata : null;
+        async () => {
+          return true;
         },
       )
       .catch((error: unknown) => {
@@ -66,13 +69,13 @@ export class MoneyAccountService {
           error instanceof KeyringControllerError &&
           error.message === KeyringControllerErrorMessage.KeyringNotFound
         ) {
-          return null;
+          return false;
         }
         throw error;
-      })) as KeyringMetadata | null;
+      });
 
-    if (existingMoneyMetadata) {
-      return existingMoneyMetadata;
+    if (moneyAccountExists) {
+      return null;
     }
 
     return await this.#messenger.call(

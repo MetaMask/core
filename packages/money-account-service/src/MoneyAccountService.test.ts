@@ -118,19 +118,12 @@ describe('MoneyAccountService', () => {
       expect(result).toStrictEqual({ id: 'new-money-keyring-id', name: '' });
     });
 
-    it('returns existing money keyring metadata if a money account already exists', async () => {
+    it('returns null if a money account already exists', async () => {
       const { service, mocks } = setup();
-      const MOCK_MONEY_METADATA = { id: 'existing-money-keyring-id', name: '' };
-      const MOCK_MONEY_ADDRESS = '0x1234567890abcdef1234567890abcdef12345678';
 
       mocks.withKeyring.mockImplementation(async (selector, operation) => {
         if ('type' in selector && selector.type === KeyringTypes.money) {
-          return operation({
-            keyring: {
-              getAccounts: jest.fn().mockResolvedValue([MOCK_MONEY_ADDRESS]),
-            },
-            metadata: MOCK_MONEY_METADATA,
-          });
+          return operation();
         }
         return operation({
           keyring: {
@@ -143,36 +136,8 @@ describe('MoneyAccountService', () => {
 
       const result = await service.createMoneyAccount(MOCK_ENTROPY_SOURCE);
 
-      expect(result).toStrictEqual(MOCK_MONEY_METADATA);
+      expect(result).toBeNull();
       expect(mocks.addNewKeyring).not.toHaveBeenCalled();
-    });
-
-    it('creates a new money keyring if an existing one has no accounts', async () => {
-      const { service, mocks } = setup();
-
-      mocks.withKeyring.mockImplementation(async (selector, operation) => {
-        if ('type' in selector && selector.type === KeyringTypes.money) {
-          return operation({
-            keyring: {
-              getAccounts: jest.fn().mockResolvedValue([]),
-            },
-            metadata: { id: 'empty-money-keyring-id', name: '' },
-          });
-        }
-        return operation({
-          keyring: {
-            type: 'HD Key Tree',
-            mnemonic: MOCK_MNEMONIC,
-          } as unknown as HdKeyring,
-          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
-        });
-      });
-
-      await service.createMoneyAccount(MOCK_ENTROPY_SOURCE);
-
-      expect(mocks.addNewKeyring).toHaveBeenCalledWith(KeyringTypes.money, {
-        mnemonic: MOCK_MNEMONIC,
-      });
     });
 
     it('re-throws errors other than KeyringNotFound when checking for an existing money keyring', async () => {
