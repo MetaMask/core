@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Moved more controller calls from bridge-status-controller.ts to their own utils ([#8215](https://github.com/MetaMask/core/pull/8215))
+
 ## [70.0.0]
 
 ### Changed
