@@ -14,7 +14,7 @@ const NODE_LTS_VERSION = 22;
  * to extend an upstream rule configuration rather than copy-pasting its options.
  *
  * @param {string} ruleName - The rule to collect options for.
- * @param {import('eslint').Linter.Config[]} configs - Flat config arrays to
+ * @param {import('eslint').Linter.Config[][]} configs - Flat config arrays to
  * collect options from.
  * @returns {unknown[]} The options from all matching rule entries, with the
  * leading severity element omitted.
