@@ -8,15 +8,18 @@ import type { ControllerInfo } from './parse-controller';
 
 describe('generateAllActionTypesFiles', () => {
   let tmpDir: string;
+  const originalExitCode = globalThis.process.exitCode;
 
   beforeEach(async () => {
     tmpDir = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), 'fix-action-types-'),
     );
+    globalThis.process.exitCode = undefined;
   });
 
   afterEach(async () => {
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
+    globalThis.process.exitCode = originalExitCode;
   });
 
   it('generates files for controllers (no ESLint)', async () => {
@@ -101,5 +104,42 @@ describe('generateAllActionTypesFiles', () => {
     ]);
     expect(mockESLintStatic.outputFixes).toHaveBeenCalled();
     expect(mockESLintStatic.getErrorResults).toHaveBeenCalled();
+  });
+
+  it('sets exitCode when ESLint reports errors', async () => {
+    const controller: ControllerInfo = {
+      name: 'TestController',
+      filePath: path.join(tmpDir, 'TestController.ts'),
+      exposedMethods: ['doStuff'],
+      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+    };
+
+    const mockESLint = {
+      lintFiles: jest.fn().mockResolvedValue([{ filePath: 'test.ts' }]),
+    };
+
+    const mockESLintStatic = {
+      outputFixes: jest.fn().mockResolvedValue(undefined),
+      getErrorResults: jest
+        .fn()
+        .mockReturnValue([{ filePath: 'test.ts', messages: ['err'] }]),
+    };
+
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    await generateAllActionTypesFiles(
+      [controller],
+      mockESLint,
+      mockESLintStatic,
+    );
+
+    expect(globalThis.process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '❌ ESLint errors:',
+      expect.anything(),
+    );
+
+    consoleSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
   });
 });

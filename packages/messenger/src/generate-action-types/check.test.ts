@@ -83,4 +83,63 @@ describe('checkActionTypesFiles', () => {
 
     expect(globalThis.process.exitCode).toBe(1);
   });
+
+  it('reports non-ENOENT errors when accessing files', async () => {
+    const controller: ControllerInfo = {
+      name: 'TestController',
+      filePath: path.join(tmpDir, 'TestController.ts'),
+      exposedMethods: ['doStuff'],
+      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+    };
+
+    // Mock fs.promises.access to throw a non-ENOENT error
+    const accessSpy = jest
+      .spyOn(fs.promises, 'access')
+      .mockRejectedValue(Object.assign(new Error('EPERM'), { code: 'EPERM' }));
+
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    await checkActionTypesFiles([controller], null, null);
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Error reading'),
+      expect.anything(),
+    );
+    expect(globalThis.process.exitCode).toBe(1);
+
+    accessSpy.mockRestore();
+    consoleSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('uses ESLint when provided', async () => {
+    const controller: ControllerInfo = {
+      name: 'TestController',
+      filePath: path.join(tmpDir, 'TestController.ts'),
+      exposedMethods: ['doStuff'],
+      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+    };
+
+    const content = generateActionTypesContent(controller);
+    await fs.promises.writeFile(
+      path.join(tmpDir, 'TestController-method-action-types.ts'),
+      content,
+      'utf8',
+    );
+
+    const mockESLint = {
+      lintFiles: jest.fn().mockResolvedValue([]),
+    };
+    const mockESLintStatic = {
+      outputFixes: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+    await checkActionTypesFiles([controller], mockESLint, mockESLintStatic);
+    consoleSpy.mockRestore();
+
+    expect(mockESLint.lintFiles).toHaveBeenCalled();
+    expect(mockESLintStatic.outputFixes).toHaveBeenCalled();
+    expect(globalThis.process.exitCode).toBeUndefined();
+  });
 });

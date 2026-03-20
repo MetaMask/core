@@ -18,17 +18,11 @@ module.exports = merge(baseConfig, {
 
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
-    './src/Messenger.ts': {
+    global: {
       branches: 100,
       functions: 100,
       lines: 100,
       statements: 100,
-    },
-    './src/generate-action-types/': {
-      branches: 70,
-      functions: 75,
-      lines: 75,
-      statements: 75,
     },
   },
 });

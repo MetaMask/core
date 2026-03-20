@@ -73,6 +73,7 @@ function extractJSDoc(node: MethodDeclaration, source: SourceFile): string {
     return formatJSDoc(rawJsDoc);
   }
 
+  // istanbul ignore next: defensive check — getJSDocCommentsAndTags always returns JSDoc nodes
   return '';
 }
 
@@ -113,6 +114,7 @@ function formatJSDoc(rawJsDoc: string): string {
  * @returns The method signature.
  */
 function extractMethodSignature(node: MethodDeclaration): string {
+  // istanbul ignore next: method declarations always have a name
   return node.name ? (node.name as Identifier).text : '';
 }
 
@@ -238,7 +240,8 @@ function findClassInSourceFile(
     source.statements.find(
       (node): node is ClassDeclaration =>
         isClassDeclaration(node) && node.name?.text === className,
-    ) ?? null
+    ) ?? // istanbul ignore next: class is always found when called from parseControllerFile
+    null
   );
 }
 
@@ -260,6 +263,7 @@ function findMethodInHierarchy(
   }
 
   const declarations = symbol.getDeclarations();
+  // istanbul ignore next: defensive check — symbols from getProperty always have declarations
   if (!declarations) {
     return null;
   }
@@ -270,6 +274,7 @@ function findMethodInHierarchy(
     }
   }
 
+  // istanbul ignore next: defensive fallback — property found but not a method declaration
   return null;
 }
 

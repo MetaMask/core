@@ -138,6 +138,299 @@ class TestService {
     expect(result).not.toBeNull();
     expect(result?.name).toBe('TestService');
   });
+
+  it('extracts methods without JSDoc', async () => {
+    const controllerFile = path.join(tmpDir, 'NoDocController.ts');
+    await fs.promises.writeFile(
+      controllerFile,
+      `
+const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;
+
+class NoDocController {
+  doStuff() {
+    return true;
+  }
+}
+`,
+      'utf8',
+    );
+
+    const result = await parseControllerFile(controllerFile);
+
+    expect(result).not.toBeNull();
+    expect(result?.methods[0].jsDoc).toBe('');
+  });
+
+  it('handles inherited methods via type checker', async () => {
+    // Create a tsconfig.json so the type checker can work
+    await fs.promises.writeFile(
+      path.join(tmpDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          target: 'ES2020',
+          module: 'commonjs',
+          strict: true,
+        },
+        include: ['./*.ts'],
+      }),
+      'utf8',
+    );
+
+    await fs.promises.writeFile(
+      path.join(tmpDir, 'BaseController.ts'),
+      `
+export class BaseController {
+  /**
+   * Base method.
+   */
+  baseMethod() {
+    return 'base';
+  }
+}
+`,
+      'utf8',
+    );
+
+    const controllerFile = path.join(tmpDir, 'ChildController.ts');
+    await fs.promises.writeFile(
+      controllerFile,
+      `
+import { BaseController } from './BaseController';
+
+const MESSENGER_EXPOSED_METHODS = ['doStuff', 'baseMethod'] as const;
+
+class ChildController extends BaseController {
+  doStuff() {
+    return true;
+  }
+}
+`,
+      'utf8',
+    );
+
+    const result = await parseControllerFile(controllerFile);
+
+    expect(result).not.toBeNull();
+    expect(result?.methods).toHaveLength(2);
+    expect(result?.methods[0].name).toBe('doStuff');
+    expect(result?.methods[1].name).toBe('baseMethod');
+    expect(result?.methods[1].jsDoc).toContain('Base method.');
+  });
+
+  it('handles inherited methods without JSDoc', async () => {
+    await fs.promises.writeFile(
+      path.join(tmpDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { target: 'ES2020', module: 'commonjs', strict: true },
+        include: ['./*.ts'],
+      }),
+      'utf8',
+    );
+
+    await fs.promises.writeFile(
+      path.join(tmpDir, 'BaseNoDoc.ts'),
+      `
+export class BaseNoDoc {
+  baseMethod() {
+    return 'base';
+  }
+}
+`,
+      'utf8',
+    );
+
+    const controllerFile = path.join(tmpDir, 'ChildNoDocController.ts');
+    await fs.promises.writeFile(
+      controllerFile,
+      `
+import { BaseNoDoc } from './BaseNoDoc';
+
+const MESSENGER_EXPOSED_METHODS = ['doStuff', 'baseMethod'] as const;
+
+class ChildNoDocController extends BaseNoDoc {
+  doStuff() {
+    return true;
+  }
+}
+`,
+      'utf8',
+    );
+
+    const result = await parseControllerFile(controllerFile);
+
+    expect(result).not.toBeNull();
+    expect(result?.methods).toHaveLength(2);
+    expect(result?.methods[1].name).toBe('baseMethod');
+    // Method without JSDoc should have empty string
+    expect(result?.methods[1].jsDoc).toBe('');
+  });
+
+  it('handles exposed method not found in hierarchy', async () => {
+    await fs.promises.writeFile(
+      path.join(tmpDir, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { target: 'ES2020', module: 'commonjs', strict: true },
+        include: ['./*.ts'],
+      }),
+      'utf8',
+    );
+
+    const controllerFile = path.join(tmpDir, 'MissingMethodController.ts');
+    await fs.promises.writeFile(
+      controllerFile,
+      `
+const MESSENGER_EXPOSED_METHODS = ['doStuff', 'nonExistentMethod'] as const;
+
+class MissingMethodController {
+  doStuff() {
+    return true;
+  }
+}
+`,
+      'utf8',
+    );
+
+    const result = await parseControllerFile(controllerFile);
+
+    expect(result).not.toBeNull();
+    expect(result?.methods).toHaveLength(2);
+    expect(result?.methods[1].name).toBe('nonExistentMethod');
+    expect(result?.methods[1].jsDoc).toBe('');
+  });
+
+  it('formats JSDoc with empty middle lines', async () => {
+    const controllerFile = path.join(tmpDir, 'EmptyLineDocController.ts');
+    await fs.promises.writeFile(
+      controllerFile,
+      `
+const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;
+
+class EmptyLineDocController {
+  /**
+   * First line.
+   *
+   * After empty line.
+   */
+  doStuff() {
+    return true;
+  }
+}
+`,
+      'utf8',
+    );
+
+    const result = await parseControllerFile(controllerFile);
+
+    expect(result).not.toBeNull();
+    expect(result?.methods[0].jsDoc).toContain(' *\n');
+    expect(result?.methods[0].jsDoc).toContain(' * First line.');
+    expect(result?.methods[0].jsDoc).toContain(' * After empty line.');
+  });
+
+  it('extracts JSDoc with non-standard middle lines', async () => {
+    const controllerFile = path.join(tmpDir, 'WeirdDocController.ts');
+    // Write file with a JSDoc containing a line without * prefix and an empty line without * prefix
+    const source = [
+      '',
+      "const MESSENGER_EXPOSED_METHODS = ['doStuff'] as const;",
+      '',
+      'class WeirdDocController {',
+      '  /**',
+      '    This line has no asterisk prefix.',
+      '    ',
+      '   */',
+      '  doStuff() {',
+      '    return true;',
+      '  }',
+      '}',
+      '',
+    ].join('\n');
+    await fs.promises.writeFile(controllerFile, source, 'utf8');
+
+    const result = await parseControllerFile(controllerFile);
+
+    expect(result).not.toBeNull();
+    expect(result?.methods[0].jsDoc).toContain(
+      ' * This line has no asterisk prefix.',
+    );
+    // The empty line (only whitespace, no *) should become ' *'
+    expect(result?.methods[0].jsDoc).toContain(' *\n');
+  });
+
+  it('handles inherited methods with malformed tsconfig', async () => {
+    // Write an invalid tsconfig to trigger readConfigFile error
+    await fs.promises.writeFile(
+      path.join(tmpDir, 'tsconfig.json'),
+      'this is not valid json',
+      'utf8',
+    );
+
+    const controllerFile = path.join(tmpDir, 'BadTsconfigController.ts');
+    await fs.promises.writeFile(
+      controllerFile,
+      `
+const MESSENGER_EXPOSED_METHODS = ['doStuff', 'inherited'] as const;
+
+class BadTsconfigController {
+  doStuff() {
+    return true;
+  }
+}
+`,
+      'utf8',
+    );
+
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation();
+    const result = await parseControllerFile(controllerFile);
+
+    expect(result).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('handles inherited methods when tsconfig is missing', async () => {
+    // No tsconfig.json in tmpDir — createProgramForFile should fail with assert
+    const controllerFile = path.join(tmpDir, 'NoTsconfigController.ts');
+    await fs.promises.writeFile(
+      controllerFile,
+      `
+const MESSENGER_EXPOSED_METHODS = ['doStuff', 'inheritedMethod'] as const;
+
+class NoTsconfigController {
+  doStuff() {
+    return true;
+  }
+}
+`,
+      'utf8',
+    );
+
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation();
+    const result = await parseControllerFile(controllerFile);
+
+    // Should return null because assert fails when type checker can't be created
+    expect(result).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('returns null and logs error for invalid file', async () => {
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation();
+
+    const result = await parseControllerFile('/nonexistent/file.ts');
+
+    expect(result).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
 });
 
 describe('findControllersWithExposedMethods', () => {
@@ -202,5 +495,19 @@ class FooController {
     await expect(
       findControllersWithExposedMethods('/nonexistent/path'),
     ).rejects.toThrow('The specified path is not a directory');
+  });
+
+  it('re-throws non-ENOENT errors from isDirectory', async () => {
+    const statSpy = jest
+      .spyOn(fs.promises, 'stat')
+      .mockRejectedValue(
+        Object.assign(new Error('EACCES'), { code: 'EACCES' }),
+      );
+
+    await expect(findControllersWithExposedMethods(tmpDir)).rejects.toThrow(
+      'EACCES',
+    );
+
+    statSpy.mockRestore();
   });
 });
