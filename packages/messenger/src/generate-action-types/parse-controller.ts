@@ -4,7 +4,6 @@ import * as path from 'node:path';
 import type {
   ArrayLiteralExpression,
   ClassDeclaration,
-  Identifier,
   MethodDeclaration,
   Node as TSNode,
   Program,
@@ -34,13 +33,11 @@ import {
 export type MethodInfo = {
   name: string;
   jsDoc: string;
-  signature: string;
 };
 
 export type ControllerInfo = {
   name: string;
   filePath: string;
-  exposedMethods: string[];
   methods: MethodInfo[];
 };
 
@@ -108,17 +105,6 @@ function formatJSDoc(rawJsDoc: string): string {
 }
 
 /**
- * Extracts method signature as a string for the handler type.
- *
- * @param node - The method declaration node.
- * @returns The method signature.
- */
-function extractMethodSignature(node: MethodDeclaration): string {
-  // istanbul ignore next: method declarations always have a name
-  return node.name ? (node.name as Identifier).text : '';
-}
-
-/**
  * Visits AST nodes to find exposed methods and controller class.
  *
  * @param context - The visitor context.
@@ -172,11 +158,9 @@ function createASTVisitor(context: VisitorContext): (node: TSNode) => void {
             ) {
               seenMethods.add(methodName);
               const jsDoc = extractJSDoc(member, context.sourceFile);
-              const signature = extractMethodSignature(member);
               context.methods.push({
                 name: methodName,
                 jsDoc,
-                signature,
               });
             }
           }
@@ -372,14 +356,13 @@ export async function parseControllerFile(
         const jsDoc = methodDeclaration
           ? extractJSDoc(methodDeclaration, methodDeclaration.getSourceFile())
           : '';
-        context.methods.push({ name: methodName, jsDoc, signature: '' });
+        context.methods.push({ name: methodName, jsDoc });
       }
     }
 
     return {
       name: context.className,
       filePath,
-      exposedMethods: context.exposedMethods,
       methods: context.methods,
     };
   } catch (error) {

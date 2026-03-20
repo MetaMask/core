@@ -26,12 +26,12 @@ describe('generateAllActionTypesFiles', () => {
     const controller: ControllerInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
-      exposedMethods: ['doStuff'],
-      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+
+      methods: [{ name: 'doStuff', jsDoc: '' }],
     };
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    await generateAllActionTypesFiles([controller], null, null);
+    await generateAllActionTypesFiles([controller], null);
     consoleSpy.mockRestore();
 
     const outputFile = path.join(
@@ -49,19 +49,17 @@ describe('generateAllActionTypesFiles', () => {
       {
         name: 'FooController',
         filePath: path.join(tmpDir, 'FooController.ts'),
-        exposedMethods: ['doFoo'],
-        methods: [{ name: 'doFoo', jsDoc: '', signature: 'doFoo' }],
+        methods: [{ name: 'doFoo', jsDoc: '' }],
       },
       {
         name: 'BarService',
         filePath: path.join(tmpDir, 'BarService.ts'),
-        exposedMethods: ['doBar'],
-        methods: [{ name: 'doBar', jsDoc: '', signature: 'doBar' }],
+        methods: [{ name: 'doBar', jsDoc: '' }],
       },
     ];
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    await generateAllActionTypesFiles(controllers, null, null);
+    await generateAllActionTypesFiles(controllers, null);
     consoleSpy.mockRestore();
 
     const fooFile = path.join(tmpDir, 'FooController-method-action-types.ts');
@@ -78,60 +76,51 @@ describe('generateAllActionTypesFiles', () => {
     const controller: ControllerInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
-      exposedMethods: ['doStuff'],
-      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+
+      methods: [{ name: 'doStuff', jsDoc: '' }],
     };
 
-    const mockESLint = {
-      lintFiles: jest.fn().mockResolvedValue([]),
-    };
-
-    const mockESLintStatic = {
-      outputFixes: jest.fn().mockResolvedValue(undefined),
-      getErrorResults: jest.fn().mockReturnValue([]),
+    const mockEslint = {
+      instance: { lintFiles: jest.fn().mockResolvedValue([]) },
+      static: {
+        outputFixes: jest.fn().mockResolvedValue(undefined),
+        getErrorResults: jest.fn().mockReturnValue([]),
+      },
     };
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    await generateAllActionTypesFiles(
-      [controller],
-      mockESLint,
-      mockESLintStatic,
-    );
+    await generateAllActionTypesFiles([controller], mockEslint);
     consoleSpy.mockRestore();
 
-    expect(mockESLint.lintFiles).toHaveBeenCalledWith([
+    expect(mockEslint.instance.lintFiles).toHaveBeenCalledWith([
       path.join(tmpDir, 'TestController-method-action-types.ts'),
     ]);
-    expect(mockESLintStatic.outputFixes).toHaveBeenCalled();
-    expect(mockESLintStatic.getErrorResults).toHaveBeenCalled();
+    expect(mockEslint.static.outputFixes).toHaveBeenCalled();
+    expect(mockEslint.static.getErrorResults).toHaveBeenCalled();
   });
 
   it('sets exitCode when ESLint reports errors', async () => {
     const controller: ControllerInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
-      exposedMethods: ['doStuff'],
-      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+      methods: [{ name: 'doStuff', jsDoc: '' }],
     };
 
-    const mockESLint = {
-      lintFiles: jest.fn().mockResolvedValue([{ filePath: 'test.ts' }]),
-    };
-
-    const mockESLintStatic = {
-      outputFixes: jest.fn().mockResolvedValue(undefined),
-      getErrorResults: jest
-        .fn()
-        .mockReturnValue([{ filePath: 'test.ts', messages: ['err'] }]),
+    const mockEslint = {
+      instance: {
+        lintFiles: jest.fn().mockResolvedValue([{ filePath: 'test.ts' }]),
+      },
+      static: {
+        outputFixes: jest.fn().mockResolvedValue(undefined),
+        getErrorResults: jest
+          .fn()
+          .mockReturnValue([{ filePath: 'test.ts', messages: ['err'] }]),
+      },
     };
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    await generateAllActionTypesFiles(
-      [controller],
-      mockESLint,
-      mockESLintStatic,
-    );
+    await generateAllActionTypesFiles([controller], mockEslint);
 
     expect(globalThis.process.exitCode).toBe(1);
     expect(consoleErrorSpy).toHaveBeenCalledWith(

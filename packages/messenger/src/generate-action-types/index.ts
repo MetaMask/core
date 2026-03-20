@@ -6,3 +6,4 @@ export {
   findControllersWithExposedMethods,
   parseControllerFile,
 } from './parse-controller';
+export type { ESLint } from './types';

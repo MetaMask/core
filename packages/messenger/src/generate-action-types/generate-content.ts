@@ -3,16 +3,6 @@ import * as path from 'node:path';
 import type { ControllerInfo } from './parse-controller';
 
 /**
- * Capitalizes the first letter of a string.
- *
- * @param str - The string to capitalize.
- * @returns The capitalized string.
- */
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/**
  * Generates the content for the action types file.
  *
  * @param controller - The controller information object.
@@ -34,7 +24,9 @@ import type { ${controller.name} } from '${controllerImportPath}';
   const actionTypeNames: string[] = [];
 
   for (const method of controller.methods) {
-    const actionTypeName = `${controller.name}${capitalize(method.name)}Action`;
+    const capitalizedName =
+      method.name.charAt(0).toUpperCase() + method.name.slice(1);
+    const actionTypeName = `${controller.name}${capitalizedName}Action`;
     const actionString = `${controller.name}:${method.name}`;
 
     actionTypeNames.push(actionTypeName);

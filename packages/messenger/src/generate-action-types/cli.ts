@@ -5,6 +5,7 @@ import yargs from 'yargs';
 import { checkActionTypesFiles } from './check';
 import { generateAllActionTypesFiles } from './fix';
 import { findControllersWithExposedMethods } from './parse-controller';
+import type { ESLint } from './types';
 
 type CommandLineArguments = {
   check: boolean;
@@ -62,21 +63,18 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
 /**
  * Attempt to load ESLint from the current project. Returns null if unavailable.
  *
- * @returns An object with an ESLint instance and the ESLint class, or null values.
+ * @returns An ESLint object with instance and static methods, or null if unavailable.
  */
-async function loadESLint(): Promise<{
-  eslint: InstanceType<typeof import('eslint').ESLint> | null;
-  eslintStatic: typeof import('eslint').ESLint | null;
-}> {
+async function loadESLint(): Promise<ESLint | null> {
   try {
-    const { ESLint } = await import('eslint');
-    const eslint = new ESLint({
+    const { ESLint: ESLintClass } = await import('eslint');
+    const instance = new ESLintClass({
       fix: true,
       errorOnUnmatchedPattern: false,
     });
-    return { eslint, eslintStatic: ESLint };
+    return { instance, static: ESLintClass };
   } catch {
-    return { eslint: null, eslintStatic: null };
+    return null;
   }
 }
 
@@ -99,13 +97,13 @@ async function main(): Promise<void> {
     `📦 Found ${controllers.length} controller(s) with exposed methods`,
   );
 
-  const { eslint, eslintStatic } = await loadESLint();
+  const eslint = await loadESLint();
 
   if (fix) {
-    await generateAllActionTypesFiles(controllers, eslint, eslintStatic);
+    await generateAllActionTypesFiles(controllers, eslint);
     console.log('\n🎉 All action types generated successfully!');
   } else {
-    await checkActionTypesFiles(controllers, eslint, eslintStatic);
+    await checkActionTypesFiles(controllers, eslint);
   }
 }
 

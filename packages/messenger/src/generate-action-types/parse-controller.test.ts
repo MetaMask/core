@@ -44,12 +44,10 @@ class TestController {
     expect(result).toStrictEqual({
       name: 'TestController',
       filePath: controllerFile,
-      exposedMethods: ['doStuff'],
       methods: [
         {
           name: 'doStuff',
           jsDoc: '/**\n * Does stuff.\n */',
-          signature: 'doStuff',
         },
       ],
     });
@@ -114,7 +112,9 @@ class PlainArrayController {
     const result = await parseControllerFile(controllerFile);
 
     expect(result).not.toBeNull();
-    expect(result?.exposedMethods).toStrictEqual(['doStuff']);
+    expect(result?.methods.map((method) => method.name)).toStrictEqual([
+      'doStuff',
+    ]);
   });
 
   it('works with Service class names', async () => {
@@ -380,9 +380,7 @@ class BadTsconfigController {
       'utf8',
     );
 
-    const consoleErrorSpy = jest
-      .spyOn(console, 'error')
-      .mockImplementation();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     const result = await parseControllerFile(controllerFile);
 
     expect(result).toBeNull();
@@ -408,9 +406,7 @@ class NoTsconfigController {
       'utf8',
     );
 
-    const consoleErrorSpy = jest
-      .spyOn(console, 'error')
-      .mockImplementation();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     const result = await parseControllerFile(controllerFile);
 
     // Should return null because assert fails when type checker can't be created
@@ -421,9 +417,7 @@ class NoTsconfigController {
   });
 
   it('returns null and logs error for invalid file', async () => {
-    const consoleErrorSpy = jest
-      .spyOn(console, 'error')
-      .mockImplementation();
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
     const result = await parseControllerFile('/nonexistent/file.ts');
 

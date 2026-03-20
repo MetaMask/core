@@ -3,26 +3,17 @@ import * as path from 'node:path';
 
 import { generateActionTypesContent } from './generate-content';
 import type { ControllerInfo } from './parse-controller';
-
-type ESLintInstance = {
-  lintFiles(files: string[]): Promise<{ output?: string; filePath: string }[]>;
-};
-
-type ESLintStatic = {
-  outputFixes(results: { output?: string; filePath: string }[]): Promise<void>;
-};
+import type { ESLint } from './types';
 
 /**
  * Checks if generated action types files are up to date.
  *
  * @param controllers - Array of controller information objects.
- * @param eslint - The ESLint instance to use for formatting.
- * @param eslintStatic - The ESLint class for static methods.
+ * @param eslint - Optional ESLint instance and static methods for formatting.
  */
 export async function checkActionTypesFiles(
   controllers: ControllerInfo[],
-  eslint: ESLintInstance | null,
-  eslintStatic: ESLintStatic | null,
+  eslint: ESLint | null,
 ): Promise<void> {
   let hasErrors = false;
 
@@ -71,13 +62,13 @@ export async function checkActionTypesFiles(
     }
 
     if (fileComparisonJobs.length > 0) {
-      if (eslint && eslintStatic) {
+      if (eslint) {
         console.log('\n📝 Running ESLint to compare files...');
 
-        const results = await eslint.lintFiles(
+        const results = await eslint.instance.lintFiles(
           fileComparisonJobs.map((job) => job.expectedTempFile),
         );
-        await eslintStatic.outputFixes(results);
+        await eslint.static.outputFixes(results);
       }
 
       for (const job of fileComparisonJobs) {

@@ -26,8 +26,8 @@ describe('checkActionTypesFiles', () => {
     const controller: ControllerInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
-      exposedMethods: ['doStuff'],
-      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+
+      methods: [{ name: 'doStuff', jsDoc: '' }],
     };
 
     const content = generateActionTypesContent(controller);
@@ -38,7 +38,7 @@ describe('checkActionTypesFiles', () => {
     );
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    await checkActionTypesFiles([controller], null, null);
+    await checkActionTypesFiles([controller], null);
     consoleSpy.mockRestore();
 
     expect(globalThis.process.exitCode).toBeUndefined();
@@ -48,8 +48,8 @@ describe('checkActionTypesFiles', () => {
     const controller: ControllerInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
-      exposedMethods: ['doStuff'],
-      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+
+      methods: [{ name: 'doStuff', jsDoc: '' }],
     };
 
     await fs.promises.writeFile(
@@ -60,7 +60,7 @@ describe('checkActionTypesFiles', () => {
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    await checkActionTypesFiles([controller], null, null);
+    await checkActionTypesFiles([controller], null);
     consoleSpy.mockRestore();
     consoleErrorSpy.mockRestore();
 
@@ -71,13 +71,13 @@ describe('checkActionTypesFiles', () => {
     const controller: ControllerInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
-      exposedMethods: ['doStuff'],
-      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+
+      methods: [{ name: 'doStuff', jsDoc: '' }],
     };
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    await checkActionTypesFiles([controller], null, null);
+    await checkActionTypesFiles([controller], null);
     consoleSpy.mockRestore();
     consoleErrorSpy.mockRestore();
 
@@ -88,8 +88,8 @@ describe('checkActionTypesFiles', () => {
     const controller: ControllerInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
-      exposedMethods: ['doStuff'],
-      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+
+      methods: [{ name: 'doStuff', jsDoc: '' }],
     };
 
     // Mock fs.promises.access to throw a non-ENOENT error
@@ -99,7 +99,7 @@ describe('checkActionTypesFiles', () => {
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    await checkActionTypesFiles([controller], null, null);
+    await checkActionTypesFiles([controller], null);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining('Error reading'),
@@ -116,8 +116,8 @@ describe('checkActionTypesFiles', () => {
     const controller: ControllerInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
-      exposedMethods: ['doStuff'],
-      methods: [{ name: 'doStuff', jsDoc: '', signature: 'doStuff' }],
+
+      methods: [{ name: 'doStuff', jsDoc: '' }],
     };
 
     const content = generateActionTypesContent(controller);
@@ -127,19 +127,20 @@ describe('checkActionTypesFiles', () => {
       'utf8',
     );
 
-    const mockESLint = {
-      lintFiles: jest.fn().mockResolvedValue([]),
-    };
-    const mockESLintStatic = {
-      outputFixes: jest.fn().mockResolvedValue(undefined),
+    const mockEslint = {
+      instance: { lintFiles: jest.fn().mockResolvedValue([]) },
+      static: {
+        outputFixes: jest.fn().mockResolvedValue(undefined),
+        getErrorResults: jest.fn().mockReturnValue([]),
+      },
     };
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    await checkActionTypesFiles([controller], mockESLint, mockESLintStatic);
+    await checkActionTypesFiles([controller], mockEslint);
     consoleSpy.mockRestore();
 
-    expect(mockESLint.lintFiles).toHaveBeenCalled();
-    expect(mockESLintStatic.outputFixes).toHaveBeenCalled();
+    expect(mockEslint.instance.lintFiles).toHaveBeenCalled();
+    expect(mockEslint.static.outputFixes).toHaveBeenCalled();
     expect(globalThis.process.exitCode).toBeUndefined();
   });
 });

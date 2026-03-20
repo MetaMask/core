@@ -6,7 +6,7 @@ describe('generateActionTypesContent', () => {
     const controller: ControllerInfo = {
       name: 'FooController',
       filePath: '/some/path/FooController.ts',
-      exposedMethods: ['doSomething'],
+
       methods: [
         {
           name: 'doSomething',
@@ -36,10 +36,10 @@ describe('generateActionTypesContent', () => {
     const controller: ControllerInfo = {
       name: 'BarController',
       filePath: '/some/path/BarController.ts',
-      exposedMethods: ['methodA', 'methodB'],
+
       methods: [
-        { name: 'methodA', jsDoc: '', signature: 'methodA' },
-        { name: 'methodB', jsDoc: '', signature: 'methodB' },
+        { name: 'methodA', jsDoc: '' },
+        { name: 'methodB', jsDoc: '' },
       ],
     };
 
@@ -56,7 +56,7 @@ describe('generateActionTypesContent', () => {
     const controller: ControllerInfo = {
       name: 'FooController',
       filePath: '/some/path/FooController.ts',
-      exposedMethods: ['doSomething'],
+
       methods: [
         {
           name: 'doSomething',
@@ -75,7 +75,7 @@ describe('generateActionTypesContent', () => {
     const controller: ControllerInfo = {
       name: 'EmptyController',
       filePath: '/some/path/EmptyController.ts',
-      exposedMethods: [],
+
       methods: [],
     };
 

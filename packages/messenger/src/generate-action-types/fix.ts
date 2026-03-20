@@ -3,29 +3,17 @@ import * as path from 'node:path';
 
 import { generateActionTypesContent } from './generate-content';
 import type { ControllerInfo } from './parse-controller';
-
-type ESLintInstance = {
-  lintFiles(files: string[]): Promise<{ output?: string; filePath: string }[]>;
-};
-
-type ESLintStatic = {
-  outputFixes(results: { output?: string; filePath: string }[]): Promise<void>;
-  getErrorResults(
-    results: { output?: string; filePath: string }[],
-  ): { output?: string; filePath: string }[];
-};
+import type { ESLint } from './types';
 
 /**
  * Generates action types files for all controllers.
  *
  * @param controllers - Array of controller information objects.
- * @param eslint - The ESLint instance to use for formatting.
- * @param eslintStatic - The ESLint class for static methods.
+ * @param eslint - Optional ESLint instance and static methods for formatting.
  */
 export async function generateAllActionTypesFiles(
   controllers: ControllerInfo[],
-  eslint: ESLintInstance | null,
-  eslintStatic: ESLintStatic | null,
+  eslint: ESLint | null,
 ): Promise<void> {
   const outputFiles: string[] = [];
 
@@ -44,12 +32,12 @@ export async function generateAllActionTypesFiles(
     console.log(`✅ Generated action types for ${controller.name}`);
   }
 
-  if (outputFiles.length > 0 && eslint && eslintStatic) {
+  if (outputFiles.length > 0 && eslint) {
     console.log('\n📝 Running ESLint on generated files...');
 
-    const results = await eslint.lintFiles(outputFiles);
-    await eslintStatic.outputFixes(results);
-    const errors = eslintStatic.getErrorResults(results);
+    const results = await eslint.instance.lintFiles(outputFiles);
+    await eslint.static.outputFixes(results);
+    const errors = eslint.static.getErrorResults(results);
     if (errors.length > 0) {
       console.error('❌ ESLint errors:', errors);
       globalThis.process.exitCode = 1;
