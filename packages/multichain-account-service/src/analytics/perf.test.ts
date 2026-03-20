@@ -1,6 +1,11 @@
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 
-import { isPerfEnabled, tick, withLocalPerfTrace } from './perf';
+import {
+  isPerfEnabled,
+  log as perfLog,
+  tick,
+  withLocalPerfTrace,
+} from './perf';
 import { now } from './timer';
 import { projectLogger } from '../logger';
 
@@ -10,15 +15,19 @@ jest.mock('./timer', () => ({
 
 jest.mock('../logger', () => ({
   projectLogger: { enabled: false },
-  createModuleLogger: jest.fn().mockReturnValue(jest.fn()),
+  createModuleLogger: jest
+    .fn()
+    .mockReturnValue(Object.assign(jest.fn(), { enabled: false })),
 }));
 
 const mockProjectLogger = projectLogger as { enabled: boolean };
+const mockPerfLog = perfLog as unknown as { enabled: boolean };
 
 describe('perf', () => {
   describe('isPerfEnabled', () => {
     it('returns false when projectLogger is disabled', () => {
       mockProjectLogger.enabled = false;
+      mockPerfLog.enabled = false;
       expect(isPerfEnabled()).toBe(false);
     });
 
@@ -26,6 +35,12 @@ describe('perf', () => {
       mockProjectLogger.enabled = true;
       expect(isPerfEnabled()).toBe(true);
       mockProjectLogger.enabled = false;
+    });
+
+    it('returns true when (perf) log is enabled', () => {
+      mockPerfLog.enabled = true;
+      expect(isPerfEnabled()).toBe(true);
+      mockPerfLog.enabled = false;
     });
   });
 
@@ -38,6 +53,7 @@ describe('perf', () => {
 
     afterEach(() => {
       mockProjectLogger.enabled = false;
+      mockPerfLog.enabled = false;
     });
 
     it('returns a no-op when perf is disabled', () => {

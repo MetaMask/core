@@ -7,7 +7,7 @@ import type {
 import { now } from './timer';
 import { createModuleLogger, projectLogger } from '../logger';
 
-const log = createModuleLogger(projectLogger, 'perf');
+export const log = createModuleLogger(projectLogger, 'perf');
 
 /**
  * Returns true when DEBUG=metamask:multichain-account-service, DEBUG=metamask:multichain-account-service:perf
