@@ -90,7 +90,6 @@ const RelatedAssetStruct = structType({
   caip19: array(string()),
   sourceAssetId: string(),
   hlPerpsMarket: optional(string()),
-  perpsAssetId: optional(string()),
 });
 
 const MarketOverviewTrendStruct = structType({

@@ -139,17 +139,12 @@ export type RelatedAsset = {
   /** Canonical source asset identifier (e.g. "bitcoin") */
   sourceAssetId: string;
   /**
-   * Optional HyperLiquid perps market symbol for regular crypto tokens that
-   * also trade on HyperLiquid (e.g. `BTC`, `ETH`, `SOL`).
-   * Present alongside `caip19` for on-chain assets.
+   * Optional HyperLiquid market identifier for this asset (e.g. `BTC`, `ETH`,
+   * `xyz:TSLA`). Covers both regular crypto tokens that trade on HyperLiquid
+   * and purely synthetic perps assets. Use this to resolve Perps icon URLs via
+   * `getAssetIconUrls` on clients when `caip19` is empty.
    */
   hlPerpsMarket?: string;
-  /**
-   * Optional HyperLiquid-style perps asset id for purely Perps-only synthetic
-   * assets that have no on-chain CAIP-19 id (e.g. `xyz:TSLA`, `xyz:AAPL`).
-   * Use this to resolve Perps icon URLs via `getAssetIconUrls` on clients.
-   */
-  perpsAssetId?: string;
 };
 
 export type MarketOverviewTrend = {
