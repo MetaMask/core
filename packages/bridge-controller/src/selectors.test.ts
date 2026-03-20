@@ -1739,8 +1739,16 @@ describe('Bridge Selectors', () => {
   describe('selectTokenWarnings', () => {
     it('should return the tokenWarnings array from state', () => {
       const warnings = [
-        { feature_id: 'HONEYPOT', type: 'Malicious', description: 'Token is a honeypot' },
-        { feature_id: 'FAKE_TOKEN', type: 'Warning', description: 'Possible fake token' },
+        {
+          feature_id: 'HONEYPOT',
+          type: 'Malicious',
+          description: 'Token is a honeypot',
+        },
+        {
+          feature_id: 'FAKE_TOKEN',
+          type: 'Warning',
+          description: 'Possible fake token',
+        },
       ];
       const state = { tokenWarnings: warnings } as BridgeAppState;
 
