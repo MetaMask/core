@@ -2469,6 +2469,30 @@ describe('RampsService', () => {
         'Malformed response received from order API',
       );
     });
+
+    it('does not add wallet query param when wallet is empty string', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockOrder);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrder',
+        'transak-staging',
+        'abc-123',
+        '',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const order = await orderPromise;
+
+      expect(order).toStrictEqual(mockOrder);
+    });
   });
 
   describe('RampsService:getOrderFromCallback', () => {

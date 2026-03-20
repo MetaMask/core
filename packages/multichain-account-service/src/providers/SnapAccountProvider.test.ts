@@ -28,6 +28,7 @@ import {
 } from './SnapAccountProvider';
 import { SolAccountProvider } from './SolAccountProvider';
 import { TrxAccountProvider } from './TrxAccountProvider';
+import { TimeoutError } from './utils';
 import { traceFallback } from '../analytics';
 import type { DeepPartial, RootMessenger } from '../tests';
 import {
@@ -799,6 +800,28 @@ describe('SnapAccountProvider', () => {
       );
     });
 
+    it('does not capture exception when deleteAccount times out', async () => {
+      const { provider, messenger, mocks } = setup({
+        accounts: mockAccounts,
+        config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
+      });
+
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      mocks.SnapController.handleKeyringRequest.deleteAccount.mockRejectedValue(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+
+      await provider.resyncAccounts([mockAccounts[0]]);
+
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
     it('does not delete accounts that exist in both Snap and MetaMask', async () => {
       const { provider, mocks } = setup({ accounts: mockAccounts });
 
@@ -902,12 +925,32 @@ describe('SnapAccountProvider', () => {
       expect(createAccountsSpy).toHaveBeenCalled();
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to re-sync account: 0'),
+        new Error('Unable to re-sync accounts'),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
         providerError,
       );
+    });
+
+    it('does not capture exception when re-sync times out', async () => {
+      const { provider, messenger } = setup({ accounts: [mockAccounts[0]] });
+
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      createAccountsSpy.mockRejectedValue(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+
+      await provider.resyncAccounts(mockAccounts);
+
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
   });
 

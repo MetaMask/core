@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `RampsController:transakGetActiveOrders`
   - Corresponding action types are now exported (e.g. `RampsControllerGetOrderAction`)
 
+### Fixed
+
+- Fix `getOrder` wallet handling so API requests and event payloads stay valid and consistent ([#8251](https://github.com/MetaMask/core/pull/8251))
+  - `RampsService.getOrder` no longer sends an empty `wallet` query parameter, avoiding invalid API responses (e.g. 400).
+  - `RampsController.getOrder` persists and returns a healed order (`walletAddress` and `providerOrderId`) so controller state matches the return value and `RampsController:orderStatusChanged` listeners.
+
 ## [12.0.0]
 
 ### Changed
