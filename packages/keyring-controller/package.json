@@ -48,7 +48,6 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask-previews/eth-cash-keyring": "0.0.0-25e4b24",
     "@metamask/base-controller": "^9.0.0",
     "@metamask/browser-passworder": "^6.0.0",
     "@metamask/eth-hd-keyring": "^13.0.0",
