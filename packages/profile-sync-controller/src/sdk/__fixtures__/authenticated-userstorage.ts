@@ -12,7 +12,7 @@ type MockReply = {
   body?: nock.Body;
 };
 
-export const handleMockListDelegations = (mockReply?: MockReply) => {
+export function handleMockListDelegations(mockReply?: MockReply): nock.Scope {
   const reply = mockReply ?? {
     status: 200,
     body: [MOCK_DELEGATION_RESPONSE],
@@ -21,12 +21,12 @@ export const handleMockListDelegations = (mockReply?: MockReply) => {
     .persist()
     .get('')
     .reply(reply.status, reply.body);
-};
+}
 
-export const handleMockCreateDelegation = (
+export function handleMockCreateDelegation(
   mockReply?: MockReply,
   callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
-) => {
+): nock.Scope {
   const reply = mockReply ?? { status: 200 };
   return nock(MOCK_DELEGATIONS_URL)
     .persist()
@@ -34,19 +34,19 @@ export const handleMockCreateDelegation = (
     .reply(reply.status, async (uri, requestBody) => {
       await callback?.(uri, requestBody);
     });
-};
+}
 
-export const handleMockRevokeDelegation = (mockReply?: MockReply) => {
+export function handleMockRevokeDelegation(mockReply?: MockReply): nock.Scope {
   const reply = mockReply ?? { status: 204 };
   return nock(MOCK_DELEGATIONS_URL)
     .persist()
     .delete(/.*/u)
     .reply(reply.status, reply.body);
-};
+}
 
-export const handleMockGetNotificationPreferences = (
+export function handleMockGetNotificationPreferences(
   mockReply?: MockReply,
-) => {
+): nock.Scope {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_NOTIFICATION_PREFERENCES,
@@ -55,12 +55,12 @@ export const handleMockGetNotificationPreferences = (
     .persist()
     .get('')
     .reply(reply.status, reply.body);
-};
+}
 
-export const handleMockPutNotificationPreferences = (
+export function handleMockPutNotificationPreferences(
   mockReply?: MockReply,
   callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
-) => {
+): nock.Scope {
   const reply = mockReply ?? { status: 200 };
   return nock(MOCK_NOTIFICATION_PREFERENCES_URL)
     .persist()
@@ -68,4 +68,4 @@ export const handleMockPutNotificationPreferences = (
     .reply(reply.status, async (uri, requestBody) => {
       await callback?.(uri, requestBody);
     });
-};
+}

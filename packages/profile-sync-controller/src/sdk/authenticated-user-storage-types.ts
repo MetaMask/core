@@ -99,6 +99,7 @@ export type SocialAIPreference = {
 
 /** Notification preferences for the authenticated user. */
 export type NotificationPreferences = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_activity: WalletActivityPreference;
   marketing: MarketingPreference;
   perps: PerpsPreference;

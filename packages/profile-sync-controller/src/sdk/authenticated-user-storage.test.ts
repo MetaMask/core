@@ -6,7 +6,7 @@ import {
   handleMockPutNotificationPreferences,
 } from './__fixtures__/authenticated-userstorage';
 import {
-  AUTHENTICATED_STORAGE_URL,
+  authenticatedStorageUrl,
   AuthenticatedUserStorage,
 } from './authenticated-user-storage';
 import { UserStorageError } from './errors';
@@ -19,7 +19,10 @@ import { Env } from '../shared/env';
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 
-function arrangeAuthenticatedUserStorage() {
+function arrangeAuthenticatedUserStorage(): {
+  storage: AuthenticatedUserStorage;
+  mockGetAccessToken: jest.Mock;
+} {
   const mockGetAccessToken = jest.fn().mockResolvedValue(MOCK_ACCESS_TOKEN);
   const storage = new AuthenticatedUserStorage({
     env: Env.PRD,
@@ -28,9 +31,9 @@ function arrangeAuthenticatedUserStorage() {
   return { storage, mockGetAccessToken };
 }
 
-describe('AuthenticatedUserStorage - AUTHENTICATED_STORAGE_URL()', () => {
+describe('AuthenticatedUserStorage - authenticatedStorageUrl()', () => {
   it('generates the base URL for a given environment', () => {
-    const result = AUTHENTICATED_STORAGE_URL(Env.PRD);
+    const result = authenticatedStorageUrl(Env.PRD);
     expect(result).toBe('https://user-storage.api.cx.metamask.io/api/v1');
   });
 });
@@ -211,8 +214,7 @@ describe('AuthenticatedUserStorage - preferences', () => {
 
 describe('AuthenticatedUserStorage - authorization', () => {
   it('passes the access token as a Bearer header', async () => {
-    const { storage, mockGetAccessToken } =
-      arrangeAuthenticatedUserStorage();
+    const { storage, mockGetAccessToken } = arrangeAuthenticatedUserStorage();
     handleMockListDelegations();
 
     await storage.delegations.list();

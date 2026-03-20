@@ -1,5 +1,3 @@
-import type { Env } from '../shared/env';
-import { getEnvUrls } from '../shared/env';
 import type {
   AuthenticatedUserStorageConfig,
   ClientType,
@@ -8,9 +6,12 @@ import type {
   NotificationPreferences,
 } from './authenticated-user-storage-types';
 import { UserStorageError } from './errors';
+import type { Env } from '../shared/env';
+import { getEnvUrls } from '../shared/env';
 
-export const AUTHENTICATED_STORAGE_URL = (env: Env) =>
-  `${getEnvUrls(env).userStorageApiUrl}/api/v1`;
+export function authenticatedStorageUrl(env: Env): string {
+  return `${getEnvUrls(env).userStorageApiUrl}/api/v1`;
+}
 
 type ErrorMessage = {
   message: string;
@@ -105,7 +106,7 @@ export class AuthenticatedUserStorage {
   async #listDelegations(): Promise<DelegationResponse[]> {
     try {
       const headers = await this.#getAuthorizationHeader();
-      const url = `${AUTHENTICATED_STORAGE_URL(this.#env)}/delegations`;
+      const url = `${authenticatedStorageUrl(this.#env)}/delegations`;
 
       const response = await fetch(url, {
         headers: { 'Content-Type': 'application/json', ...headers },
@@ -116,8 +117,8 @@ export class AuthenticatedUserStorage {
       }
 
       return (await response.json()) as DelegationResponse[];
-    } catch (e) {
-      throw this.#wrapError('list delegations', e);
+    } catch (error) {
+      throw this.#wrapError('list delegations', error);
     }
   }
 
@@ -127,7 +128,7 @@ export class AuthenticatedUserStorage {
   ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
-      const url = `${AUTHENTICATED_STORAGE_URL(this.#env)}/delegations`;
+      const url = `${authenticatedStorageUrl(this.#env)}/delegations`;
 
       const optionalHeaders: Record<string, string> = {};
       if (clientType) {
@@ -147,15 +148,15 @@ export class AuthenticatedUserStorage {
       if (!response.ok) {
         throw await this.#buildHttpError(response);
       }
-    } catch (e) {
-      throw this.#wrapError('create delegation', e);
+    } catch (error) {
+      throw this.#wrapError('create delegation', error);
     }
   }
 
   async #revokeDelegation(delegationHash: string): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
-      const url = `${AUTHENTICATED_STORAGE_URL(this.#env)}/delegations/${encodeURIComponent(delegationHash)}`;
+      const url = `${authenticatedStorageUrl(this.#env)}/delegations/${encodeURIComponent(delegationHash)}`;
 
       const response = await fetch(url, {
         method: 'DELETE',
@@ -165,15 +166,15 @@ export class AuthenticatedUserStorage {
       if (!response.ok) {
         throw await this.#buildHttpError(response);
       }
-    } catch (e) {
-      throw this.#wrapError('revoke delegation', e);
+    } catch (error) {
+      throw this.#wrapError('revoke delegation', error);
     }
   }
 
   async #getNotificationPreferences(): Promise<NotificationPreferences | null> {
     try {
       const headers = await this.#getAuthorizationHeader();
-      const url = `${AUTHENTICATED_STORAGE_URL(this.#env)}/preferences/notifications`;
+      const url = `${authenticatedStorageUrl(this.#env)}/preferences/notifications`;
 
       const response = await fetch(url, {
         headers: { 'Content-Type': 'application/json', ...headers },
@@ -188,8 +189,8 @@ export class AuthenticatedUserStorage {
       }
 
       return (await response.json()) as NotificationPreferences;
-    } catch (e) {
-      throw this.#wrapError('get notification preferences', e);
+    } catch (error) {
+      throw this.#wrapError('get notification preferences', error);
     }
   }
 
@@ -199,7 +200,7 @@ export class AuthenticatedUserStorage {
   ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
-      const url = `${AUTHENTICATED_STORAGE_URL(this.#env)}/preferences/notifications`;
+      const url = `${authenticatedStorageUrl(this.#env)}/preferences/notifications`;
 
       const optionalHeaders: Record<string, string> = {};
       if (clientType) {
@@ -219,11 +220,12 @@ export class AuthenticatedUserStorage {
       if (!response.ok) {
         throw await this.#buildHttpError(response);
       }
-    } catch (e) {
-      throw this.#wrapError('put notification preferences', e);
+    } catch (error) {
+      throw this.#wrapError('put notification preferences', error);
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.#getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };
@@ -239,13 +241,12 @@ export class AuthenticatedUserStorage {
     );
   }
 
-  #wrapError(operation: string, e: unknown): UserStorageError {
-    if (e instanceof UserStorageError) {
-      return e;
+  #wrapError(operation: string, thrown: unknown): UserStorageError {
+    if (thrown instanceof UserStorageError) {
+      return thrown;
     }
-    const message = e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    return new UserStorageError(
-      `failed to ${operation}. ${message}`,
-    );
+    const message =
+      thrown instanceof Error ? thrown.message : JSON.stringify(thrown ?? '');
+    return new UserStorageError(`failed to ${operation}. ${message}`);
   }
 }
