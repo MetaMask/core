@@ -241,7 +241,6 @@ linkStyle default opacity:0.5
   base_controller --> messenger;
   base_controller --> json_rpc_engine;
   bridge_controller --> accounts_controller;
-  bridge_controller --> assets_controller;
   bridge_controller --> assets_controllers;
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
@@ -259,7 +258,6 @@ linkStyle default opacity:0.5
   bridge_status_controller --> bridge_controller;
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> gas_fee_controller;
-  bridge_status_controller --> keyring_controller;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> polling_controller;
   bridge_status_controller --> profile_sync_controller;
@@ -268,8 +266,8 @@ linkStyle default opacity:0.5
   chain_agnostic_permission --> permission_controller;
   claims_controller --> base_controller;
   claims_controller --> controller_utils;
-  claims_controller --> keyring_controller;
   claims_controller --> messenger;
+  claims_controller --> keyring_controller;
   claims_controller --> profile_sync_controller;
   client_controller --> base_controller;
   client_controller --> messenger;
@@ -333,7 +331,6 @@ linkStyle default opacity:0.5
   gator_permissions_controller --> messenger;
   gator_permissions_controller --> transaction_controller;
   geolocation_controller --> base_controller;
-  geolocation_controller --> controller_utils;
   geolocation_controller --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
@@ -398,12 +395,6 @@ linkStyle default opacity:0.5
   perps_controller --> base_controller;
   perps_controller --> controller_utils;
   perps_controller --> messenger;
-  perps_controller --> account_tree_controller;
-  perps_controller --> keyring_controller;
-  perps_controller --> network_controller;
-  perps_controller --> profile_sync_controller;
-  perps_controller --> remote_feature_flag_controller;
-  perps_controller --> transaction_controller;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
@@ -412,6 +403,8 @@ linkStyle default opacity:0.5
   polling_controller --> controller_utils;
   polling_controller --> network_controller;
   preferences_controller --> base_controller;
+  preferences_controller --> controller_utils;
+  preferences_controller --> keyring_controller;
   preferences_controller --> messenger;
   profile_metrics_controller --> accounts_controller;
   profile_metrics_controller --> base_controller;
@@ -477,7 +470,6 @@ linkStyle default opacity:0.5
   transaction_controller --> remote_feature_flag_controller;
   transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
-  transaction_pay_controller --> assets_controller;
   transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
   transaction_pay_controller --> bridge_controller;
