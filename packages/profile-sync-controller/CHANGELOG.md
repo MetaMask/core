@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AuthenticatedUserStorage` SDK class for authenticated (non-encrypted) user storage endpoints ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Provides namespaced domain accessors: `delegations` (list, create, revoke) and `preferences` (getNotifications, putNotifications)
+  - Includes all TypeScript types for the delegation and notification preferences API schemas
+
 ### Changed
 
 - Bump `@metamask/address-book-controller` from `^7.0.1` to `^7.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
