@@ -1,5 +1,10 @@
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
+  MoneyKeyring,
+  MONEY_DERIVATION_PATH,
+} from '@metamask/eth-money-keyring';
+import type { MoneyKeyringSerializedState } from '@metamask/eth-money-keyring';
+import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
   KeyringTypes,
@@ -111,6 +116,8 @@ describe('MoneyAccountService', () => {
       );
       expect(mocks.addNewKeyring).toHaveBeenCalledWith(KeyringTypes.money, {
         mnemonic: MOCK_MNEMONIC,
+        numberOfAccounts: 1,
+        hdPath: MONEY_DERIVATION_PATH,
       });
       expect(result).toStrictEqual({ id: 'new-money-keyring-id', name: '' });
     });
@@ -154,6 +161,46 @@ describe('MoneyAccountService', () => {
       await expect(
         service.createMoneyAccount(MOCK_ENTROPY_SOURCE),
       ).rejects.toThrow('Got keyring without HD Keyring type');
+    });
+
+    it('passes params to addNewKeyring that produce a correctly initialized MoneyKeyring', async () => {
+      const { service, mocks } = setup();
+
+      // The real HdKeyring.serialize() returns mnemonic as number[] (via Array.from),
+      // not Uint8Array, so we match that format here for MoneyKeyring.deserialize to accept it.
+      mocks.withKeyring.mockImplementation(async (selector, operation) => {
+        if ('type' in selector) {
+          throw new KeyringControllerError(
+            KeyringControllerErrorMessage.KeyringNotFound,
+          );
+        }
+        return operation({
+          keyring: {
+            type: 'HD Key Tree',
+            mnemonic: MOCK_MNEMONIC,
+            serialize: jest
+              .fn()
+              .mockResolvedValue({ mnemonic: Array.from(MOCK_MNEMONIC) }),
+          } as unknown as HdKeyring,
+          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
+        });
+      });
+
+      let capturedOpts: unknown;
+      mocks.addNewKeyring.mockImplementation(async (_type, opts) => {
+        capturedOpts = opts;
+        return { id: 'new-money-keyring-id', name: '' };
+      });
+
+      await service.createMoneyAccount(MOCK_ENTROPY_SOURCE);
+
+      const moneyKeyring = new MoneyKeyring();
+      await moneyKeyring.deserialize(
+        capturedOpts as MoneyKeyringSerializedState,
+      );
+
+      expect(moneyKeyring.hdPath).toBe(MONEY_DERIVATION_PATH);
+      expect(await moneyKeyring.getAccounts()).toHaveLength(1);
     });
 
     it('throws if the HD keyring has no mnemonic', async () => {
