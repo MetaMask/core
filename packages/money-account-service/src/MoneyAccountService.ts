@@ -41,7 +41,7 @@ export class MoneyAccountService {
   async createMoneyAccount(
     entropySource: string,
   ): Promise<KeyringMetadata | null> {
-    const mnemonic = await this.#messenger.call(
+    const mnemonic = (await this.#messenger.call(
       'KeyringController:withKeyring',
       { id: entropySource },
       async ({ keyring }) => {
@@ -55,9 +55,10 @@ export class MoneyAccountService {
             'HD keyring does not have a mnemonic for the given entropy source.',
           );
         }
-        return hdKeyring.mnemonic;
+
+        return (await hdKeyring.serialize()).mnemonic;
       },
-    );
+    )) as number[];
 
     const { keyrings } = this.#messenger.call('KeyringController:getState');
 
