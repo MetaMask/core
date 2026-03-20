@@ -24,9 +24,9 @@ import { Semaphore } from 'async-mutex';
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { isTimeoutError, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
-import { ERROR_PREFIX, projectLogger as log, WARNING_PREFIX } from '../logger';
+import { logErrorAs, projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
-import { createSentryError, toErrorMessage } from '../utils';
+import { createSentryError } from '../utils';
 
 export type RestrictedSnapKeyring = {
   createAccount: (options: Record<string, Json>) => Promise<KeyringAccount>;
@@ -233,14 +233,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 const errorMessage = `Unable to delete de-synced Snap account: ${this.snapId}`;
 
                 if (isTimeoutError(error)) {
-                  log(
-                    `${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
-                  );
+                  logErrorAs('warn', errorMessage, error);
                   console.warn(errorMessage, error);
                 } else {
-                  log(
-                    `${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
-                  );
+                  logErrorAs('error', errorMessage, error);
                   console.error(errorMessage, error);
 
                   const sentryError = createSentryError(
@@ -286,14 +282,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
               const errorMessage = `Unable to re-sync account: ${groupIndex}`;
 
               if (isTimeoutError(error)) {
-                log(
-                  `${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
-                );
+                logErrorAs('warn', errorMessage, error);
                 console.warn(errorMessage, error);
               } else {
-                log(
-                  `${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
-                );
+                logErrorAs('error', errorMessage, error);
                 console.error(errorMessage, error);
 
                 const sentryError = createSentryError(

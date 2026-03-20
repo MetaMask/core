@@ -21,6 +21,7 @@ import type { Logger } from './logger';
 import {
   createModuleLogger,
   ERROR_PREFIX,
+  logErrorAs,
   projectLogger as log,
   WARNING_PREFIX,
 } from './logger';
@@ -254,14 +255,10 @@ export class MultichainAccountWallet<
       const errorMessage = `Unable to create ${modeDescription} with provider "${provider.getName()}"`;
 
       if (isTimeoutError(error)) {
-        this.#log(
-          `${WARNING_PREFIX} ${errorMessage} (${rangeDescription}): ${toErrorMessage(error)}`,
-        );
+        logErrorAs('warn', `${errorMessage} (${rangeDescription})`, error);
         console.warn(errorMessage, error);
       } else {
-        this.#log(
-          `${ERROR_PREFIX} ${errorMessage} (${rangeDescription}): ${toErrorMessage(error)}`,
-        );
+        logErrorAs('error', `${errorMessage} (${rangeDescription})`, error);
         console.error(errorMessage, error);
 
         const sentryError = createSentryError(errorMessage, error as Error, {
@@ -770,12 +767,10 @@ export class MultichainAccountWallet<
             const errorMessage = `Unable to discover accounts with provider "${providerName}"`;
 
             if (isTimeoutError(error)) {
-              log(
-                `${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`,
-              );
+              logErrorAs('warn', errorMessage, error);
               console.warn(errorMessage, error);
             } else {
-              log(`${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`);
+              logErrorAs('error', errorMessage, error);
               console.error(errorMessage, error);
 
               const sentryError = createSentryError(

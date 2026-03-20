@@ -13,7 +13,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
 import { traceFallback } from './analytics';
-import { ERROR_PREFIX, projectLogger as log, WARNING_PREFIX } from './logger';
+import { logErrorAs, projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
 import {
@@ -37,7 +37,7 @@ import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
 } from './types';
-import { createSentryError, toErrorMessage } from './utils';
+import { createSentryError } from './utils';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -302,10 +302,10 @@ export class MultichainAccountService {
           const errorMessage = `Unable to re-sync provider "${provider.getName()}"`;
 
           if (isTimeoutError(error)) {
-            log(`${WARNING_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`);
+            logErrorAs('warn', errorMessage, error);
             console.warn(errorMessage, error);
           } else {
-            log(`${ERROR_PREFIX} ${errorMessage}: ${toErrorMessage(error)}`);
+            logErrorAs('error', errorMessage, error);
             console.error(errorMessage, error);
 
             const sentryError = createSentryError(
