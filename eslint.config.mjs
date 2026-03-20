@@ -123,21 +123,21 @@ const config = createConfig([
         ]),
         {
           selector:
-            'ExportNamedDeclaration > ExportSpecifier[local.name="AllowedActions"]',
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedActions$/]',
           message:
-            'Do not export AllowedActions from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-action-types',
+            'Do not export AllowedActions types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-action-types',
         },
         {
           selector:
-            'ExportNamedDeclaration > ExportSpecifier[local.name="AllowedEvents"]',
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedEvents$/]',
           message:
-            'Do not export AllowedEvents from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-event-types',
+            'Do not export AllowedEvents types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-event-types',
         },
         {
           selector:
-            'ExportNamedDeclaration > ExportSpecifier[exported.name=/MethodActions$/]',
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/MethodActions$/]',
           message:
-            'Do not export *MethodActions union types from package index files. Internal messenger actions are already available via the *Actions type. Export the individual action types (along with *Actions) instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#expose-controller-methods-through-messenger-in-bulk',
+            'Do not export *MethodActions types from package index files. Internal messenger actions are already available via the *Actions type. Export the individual action types (along with *Actions) instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#expose-controller-methods-through-messenger-in-bulk',
         },
       ],
     },

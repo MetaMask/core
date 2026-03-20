@@ -459,7 +459,7 @@ Instead, you can follow this process:
 2. Remove manual action registrations; instead, call `registerMethodActionHandlers` and pass `MESSENGER_EXPOSED_METHODS`.
 3. Remove messenger action types; instead, run `yarn generate-method-action-types`. This will create a file called `${ControllerName}-method-action-types.ts`, which exports a type called `${ControllerName}MethodActions`.
 4. Import `${ControllerName}-method-action-types.ts` in your controller file, and add `${ControllerName}MethodActions` to `${ControllerName}Actions`.
-5. Export the action types from `${ControllerName}-method-action-types.ts` in your package's `index.ts` file. Do **not** export the`${ControllerName}MethodActions` type.
+5. Export the action types from `${ControllerName}-method-action-types.ts` in your package's `index.ts` file. Do **not** export the `${ControllerName}MethodActions` type.
 
 ✅
 
