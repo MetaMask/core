@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose all public `SeedlessOnboardingController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
+  - The following actions are now available:
+    - `SeedlessOnboardingController:fetchMetadataAccessCreds`
+    - `SeedlessOnboardingController:preloadToprfNodeDetails`
+    - `SeedlessOnboardingController:authenticate`
+    - `SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase`
+    - `SeedlessOnboardingController:addNewSecretData`
+    - `SeedlessOnboardingController:fetchAllSecretData`
+    - `SeedlessOnboardingController:changePassword`
+    - `SeedlessOnboardingController:updateBackupMetadataState`
+    - `SeedlessOnboardingController:verifyVaultPassword`
+    - `SeedlessOnboardingController:getSecretDataBackupState`
+    - `SeedlessOnboardingController:submitPassword`
+    - `SeedlessOnboardingController:setLocked`
+    - `SeedlessOnboardingController:syncLatestGlobalPassword`
+    - `SeedlessOnboardingController:submitGlobalPassword`
+    - `SeedlessOnboardingController:checkIsPasswordOutdated`
+    - `SeedlessOnboardingController:getIsUserAuthenticated`
+    - `SeedlessOnboardingController:clearState`
+    - `SeedlessOnboardingController:storeKeyringEncryptionKey`
+    - `SeedlessOnboardingController:loadKeyringEncryptionKey`
+    - `SeedlessOnboardingController:refreshAuthTokens`
+    - `SeedlessOnboardingController:revokePendingRefreshTokens`
+    - `SeedlessOnboardingController:rotateRefreshToken`
+    - `SeedlessOnboardingController:checkNodeAuthTokenExpired`
+    - `SeedlessOnboardingController:checkMetadataAccessTokenExpired`
+    - `SeedlessOnboardingController:checkAccessTokenExpired`
+  - Corresponding action types are now exported (e.g. `SeedlessOnboardingControllerGetAccessTokenAction`)
+
 ## [9.0.0]
 
 ### Changed

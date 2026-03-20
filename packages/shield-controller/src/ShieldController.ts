@@ -18,6 +18,7 @@ import { cloneDeep, isEqual } from 'lodash';
 
 import { controllerName } from './constants';
 import { projectLogger, createModuleLogger } from './logger';
+import type { ShieldControllerMethodActions } from './ShieldController-method-action-types';
 import type {
   CoverageResult,
   NormalizeSignatureRequestFn,
@@ -25,6 +26,14 @@ import type {
 } from './types';
 
 const log = createModuleLogger(projectLogger, 'ShieldController');
+
+const MESSENGER_EXPOSED_METHODS = [
+  'start',
+  'stop',
+  'clearState',
+  'checkCoverage',
+  'checkSignatureCoverage',
+] as const;
 
 export type CoverageResultRecordEntry = {
   /**
@@ -64,17 +73,12 @@ export type ShieldControllerGetStateAction = ControllerGetStateAction<
   ShieldControllerState
 >;
 
-export type ShieldControllerCheckCoverageAction = {
-  type: `${typeof controllerName}:checkCoverage`;
-  handler: ShieldController['checkCoverage'];
-};
-
 /**
  * The internal actions available to the ShieldController.
  */
 export type ShieldControllerActions =
   | ShieldControllerGetStateAction
-  | ShieldControllerCheckCoverageAction;
+  | ShieldControllerMethodActions;
 
 export type ShieldControllerCoverageResultReceivedEvent = {
   type: `${typeof controllerName}:coverageResultReceived`;
@@ -199,6 +203,11 @@ export class ShieldController extends BaseController<
       this.#handleSignatureControllerStateChange.bind(this);
     this.#started = false;
     this.#normalizeSignatureRequest = normalizeSignatureRequest;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**

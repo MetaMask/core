@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose all public `ClaimsController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
+  - The following actions are now available:
+    - `ClaimsController:fetchClaimsConfigurations`
+    - `ClaimsController:getSubmitClaimConfig`
+    - `ClaimsController:generateClaimSignature`
+    - `ClaimsController:getClaims`
+    - `ClaimsController:saveOrUpdateClaimDraft`
+    - `ClaimsController:getClaimDrafts`
+    - `ClaimsController:deleteClaimDraft`
+    - `ClaimsController:deleteAllClaimDrafts`
+    - `ClaimsController:clearState`
+  - Corresponding action types are now exported (e.g. `ClaimsControllerGetClaimsAction`)
+
 ### Changed
 
 - Update dependencies ([#8236](https://github.com/MetaMask/core/pull/8236))
