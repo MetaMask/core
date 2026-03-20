@@ -68,6 +68,7 @@ function setup(): {
         keyring: {
           type: 'HD Key Tree',
           mnemonic: MOCK_MNEMONIC,
+          serialize: jest.fn().mockResolvedValue({ mnemonic: MOCK_MNEMONIC }),
         } as unknown as HdKeyring,
         metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
       });
