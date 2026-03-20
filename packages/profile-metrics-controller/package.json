@@ -40,7 +40,7 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/profile-metrics-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/profile-metrics-controller",
-    "generate-method-action-types": "tsx ../../packages/messenger-generate-action-types/src/cli.ts",
+    "generate-method-action-types": "tsx ../../packages/messenger/src/generate-action-types/cli.ts",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -62,7 +62,6 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-internal-api": "^10.0.0",
-    "@metamask/messenger-generate-action-types": "^0.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

@@ -113,7 +113,7 @@ module.exports = defineConfig({
         // exports correctly.
         if (
           workspace.ident !== '@metamask/foundryup' &&
-          workspace.ident !== '@metamask/messenger-generate-action-types'
+          workspace.ident !== '@metamask/messenger'
         ) {
           expectCorrectWorkspaceExports(workspace);
         }

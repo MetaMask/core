@@ -58,7 +58,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
-- [`@metamask/messenger-generate-action-types`](packages/messenger-generate-action-types)
 - [`@metamask/geolocation-controller`](packages/geolocation-controller)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
@@ -143,7 +142,6 @@ linkStyle default opacity:0.5
   foundryup(["@metamask/foundryup"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   gator_permissions_controller(["@metamask/gator-permissions-controller"]);
-  messenger_generate_action_types(["@metamask/messenger-generate-action-types"]);
   geolocation_controller(["@metamask/geolocation-controller"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);

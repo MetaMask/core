@@ -14,13 +14,21 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  coveragePathIgnorePatterns: ['./src/generate-action-types/cli.ts'],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
-    global: {
+    './src/Messenger.ts': {
       branches: 100,
       functions: 100,
       lines: 100,
       statements: 100,
+    },
+    './src/generate-action-types/': {
+      branches: 70,
+      functions: 75,
+      lines: 75,
+      statements: 75,
     },
   },
 });

@@ -222,7 +222,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/messenger-generate-action-types/**/*.{js,ts}'],
+    files: ['packages/messenger/src/generate-action-types/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
     },

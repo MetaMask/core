@@ -122,9 +122,6 @@
       "path": "./packages/gator-permissions-controller/tsconfig.build.json"
     },
     {
-      "path": "./packages/messenger-generate-action-types/tsconfig.build.json"
-    },
-    {
       "path": "./packages/geolocation-controller/tsconfig.build.json"
     },
     {

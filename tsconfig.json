@@ -117,9 +117,6 @@
       "path": "./packages/gator-permissions-controller"
     },
     {
-      "path": "./packages/messenger-generate-action-types"
-    },
-    {
       "path": "./packages/geolocation-controller"
     },
     {
