@@ -57,7 +57,7 @@
     "@metamask/client-controller": "^1.0.0",
     "@metamask/controller-utils": "^11.19.0",
     "@metamask/core-backend": "^6.2.0",
-    "@metamask/keyring-api": "^21.5.0",
+    "@metamask/keyring-api": "^21.6.0",
     "@metamask/keyring-controller": "^25.1.0",
     "@metamask/keyring-internal-api": "^10.0.0",
     "@metamask/keyring-snap-client": "^8.2.0",
