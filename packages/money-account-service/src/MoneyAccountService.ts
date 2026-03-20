@@ -59,25 +59,13 @@ export class MoneyAccountService {
       },
     );
 
-    const moneyAccountExists = await this.#messenger
-      .call(
-        'KeyringController:withKeyring',
-        { type: KeyringTypes.money },
-        async () => {
-          return true;
-        },
-      )
-      .catch((error: unknown) => {
-        if (
-          error instanceof KeyringControllerError &&
-          error.message === KeyringControllerErrorMessage.KeyringNotFound
-        ) {
-          return false;
-        }
-        throw error;
-      });
+    const { keyrings } = this.#messenger.call('KeyringController:getState');
 
-    if (moneyAccountExists) {
+    const moneyKeyringExists = keyrings.some(
+      (keyring) => keyring.type === KeyringTypes.money,
+    );
+
+    if (moneyKeyringExists) {
       return null;
     }
 

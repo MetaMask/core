@@ -34,6 +34,7 @@ function setup(): {
   mocks: {
     withKeyring: jest.Mock;
     addNewKeyring: jest.Mock;
+    getState: jest.Mock;
   };
 } {
   const rootMessenger: RootMessenger = new Messenger({
@@ -51,6 +52,7 @@ function setup(): {
     actions: [
       'KeyringController:withKeyring',
       'KeyringController:addNewKeyring',
+      'KeyringController:getState',
     ],
     events: [],
   });
@@ -74,6 +76,7 @@ function setup(): {
       id: 'new-money-keyring-id',
       name: '',
     }),
+    getState: jest.fn().mockReturnValue({ keyrings: [] }),
   };
 
   rootMessenger.registerActionHandler(
@@ -83,6 +86,10 @@ function setup(): {
   rootMessenger.registerActionHandler(
     'KeyringController:addNewKeyring',
     mocks.addNewKeyring,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:getState',
+    mocks.getState,
   );
 
   const service = new MoneyAccountService({ messenger });
@@ -121,45 +128,14 @@ describe('MoneyAccountService', () => {
     it('returns null if a money account already exists', async () => {
       const { service, mocks } = setup();
 
-      mocks.withKeyring.mockImplementation(async (selector, operation) => {
-        if ('type' in selector && selector.type === KeyringTypes.money) {
-          return operation();
-        }
-        return operation({
-          keyring: {
-            type: 'HD Key Tree',
-            mnemonic: MOCK_MNEMONIC,
-          } as unknown as HdKeyring,
-          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
-        });
+      mocks.getState.mockReturnValue({
+        keyrings: [{ type: KeyringTypes.money }],
       });
 
       const result = await service.createMoneyAccount(MOCK_ENTROPY_SOURCE);
 
       expect(result).toBeNull();
       expect(mocks.addNewKeyring).not.toHaveBeenCalled();
-    });
-
-    it('re-throws errors other than KeyringNotFound when checking for an existing money keyring', async () => {
-      const { service, mocks } = setup();
-      const unexpectedError = new KeyringControllerError('Unexpected error');
-
-      mocks.withKeyring.mockImplementation(async (selector, operation) => {
-        if ('type' in selector && selector.type === KeyringTypes.money) {
-          throw unexpectedError;
-        }
-        return operation({
-          keyring: {
-            type: 'HD Key Tree',
-            mnemonic: MOCK_MNEMONIC,
-          } as unknown as HdKeyring,
-          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
-        });
-      });
-
-      await expect(
-        service.createMoneyAccount(MOCK_ENTROPY_SOURCE),
-      ).rejects.toThrow(unexpectedError);
     });
 
     it('throws if the keyring is not an HD keyring', async () => {

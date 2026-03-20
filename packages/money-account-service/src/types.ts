@@ -1,6 +1,7 @@
 import type {
   KeyringControllerAddNewKeyringAction,
   KeyringControllerWithKeyringAction,
+  KeyringControllerGetStateAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 
@@ -11,7 +12,8 @@ export type MoneyAccountServiceActions = MoneyAccountServiceMethodActions;
 
 type AllowedActions =
   | KeyringControllerWithKeyringAction
-  | KeyringControllerAddNewKeyringAction;
+  | KeyringControllerAddNewKeyringAction
+  | KeyringControllerGetStateAction;
 
 type AllowedEvents = never;
 
