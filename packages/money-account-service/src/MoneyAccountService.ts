@@ -10,7 +10,10 @@ import type { MoneyAccountServiceMessenger } from './types';
 
 export const serviceName = 'MoneyAccountService';
 
-const MESSENGER_EXPOSED_METHODS = ['createMoneyAccount'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'createMoneyAccount',
+  'getMoneyAccount',
+] as const;
 
 export class MoneyAccountService {
   readonly #messenger: MoneyAccountServiceMessenger;
@@ -83,5 +86,28 @@ export class MoneyAccountService {
       KeyringTypes.money,
       { mnemonic },
     );
+  }
+
+  /**
+   * Returns the Money keyring metadata if one exists, otherwise null.
+   *
+   * @returns The metadata of the Money keyring, or null if none exists.
+   */
+  async getMoneyAccount(): Promise<KeyringMetadata | null> {
+    return (await this.#messenger
+      .call(
+        'KeyringController:withKeyring',
+        { type: KeyringTypes.money },
+        async ({ metadata }) => metadata,
+      )
+      .catch((error: unknown) => {
+        if (
+          error instanceof KeyringControllerError &&
+          error.message === KeyringControllerErrorMessage.KeyringNotFound
+        ) {
+          return null;
+        }
+        throw error;
+      })) as KeyringMetadata | null;
   }
 }
