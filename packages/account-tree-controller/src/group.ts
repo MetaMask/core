@@ -27,6 +27,8 @@ export type AccountTreeGroupPersistedMetadata = {
   pinned?: UpdatableField<boolean>;
   /** Whether this group is hidden in the UI */
   hidden?: UpdatableField<boolean>;
+  /** Timestamp of the last time this group was selected (local-only, not synced) */
+  lastSelected?: number;
 };
 
 export const MAX_SORT_ORDER = 9999;
