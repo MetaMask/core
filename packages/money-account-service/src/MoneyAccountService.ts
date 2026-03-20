@@ -1,5 +1,9 @@
 import { HdKeyring } from '@metamask/eth-hd-keyring';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import {
+  KeyringControllerError,
+  KeyringControllerErrorMessage,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 
 import type { MoneyAccountServiceMessenger } from './types';
@@ -57,7 +61,15 @@ export class MoneyAccountService {
           return accounts.length > 0 ? metadata : null;
         },
       )
-      .catch(() => null)) as KeyringMetadata | null;
+      .catch((error: unknown) => {
+        if (
+          error instanceof KeyringControllerError &&
+          error.message === KeyringControllerErrorMessage.KeyringNotFound
+        ) {
+          return null;
+        }
+        throw error;
+      })) as KeyringMetadata | null;
 
     if (existingMoneyMetadata) {
       return existingMoneyMetadata;
