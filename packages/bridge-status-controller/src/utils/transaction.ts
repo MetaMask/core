@@ -15,12 +15,12 @@ import type {
   TransactionController,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { TransactionBatchSingleRequest } from '@metamask/transaction-controller';
 import { createProjectLogger } from '@metamask/utils';
 
 import { getAccountByAddress } from './accounts';
 import { calculateGasFees } from './gas';
 import { getNetworkClientIdByChainId } from './network';
-import type { TransactionBatchSingleRequest } from '../../../transaction-controller/src/types';
 import { APPROVAL_DELAY_MS } from '../constants';
 import type { BridgeStatusControllerMessenger } from '../types';
 
@@ -149,14 +149,12 @@ export const getAddTransactionBatchParams = async ({
   },
   requireApproval = false,
   isDelegatedAccount = false,
-  estimateGasFeeFn,
 }: {
   messenger: BridgeStatusControllerMessenger;
   isBridgeTx: boolean;
   trade: TxData;
   quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> &
     Partial<QuoteMetadata>;
-  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee;
   approval?: TxData;
   resetApproval?: TxData;
   requireApproval?: boolean;
@@ -183,7 +181,6 @@ export const getAddTransactionBatchParams = async ({
     const gasFees = await calculateGasFees(
       skipGasFields,
       messenger,
-      estimateGasFeeFn,
       resetApproval,
       networkClientId,
       hexChainId,
@@ -200,7 +197,6 @@ export const getAddTransactionBatchParams = async ({
     const gasFees = await calculateGasFees(
       skipGasFields,
       messenger,
-      estimateGasFeeFn,
       approval,
       networkClientId,
       hexChainId,
@@ -216,7 +212,6 @@ export const getAddTransactionBatchParams = async ({
   const gasFees = await calculateGasFees(
     skipGasFields,
     messenger,
-    estimateGasFeeFn,
     trade,
     networkClientId,
     hexChainId,
@@ -248,12 +243,10 @@ export const getAddTransactionBatchParams = async ({
 
 export const findAndUpdateTransactionsInBatch = ({
   messenger,
-  updateTransactionFn,
   batchId,
   txDataByType,
 }: {
   messenger: BridgeStatusControllerMessenger;
-  updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
   batchId: string;
   txDataByType: { [key in TransactionType]?: string };
 }) => {
@@ -275,7 +268,7 @@ export const findAndUpdateTransactionsInBatch = ({
     }
 
     // Find transaction by batchId and either matching data or delegation characteristics
-    const txMeta = txs.find((tx) => {
+    const txMeta = txs.find((tx: TransactionMeta) => {
       if (tx.batchId !== batchId) {
         return false;
       }
@@ -313,7 +306,11 @@ export const findAndUpdateTransactionsInBatch = ({
 
     if (txMeta) {
       const updatedTx = { ...txMeta, type: txType as TransactionType };
-      updateTransactionFn(updatedTx, `Update tx type to ${txType}`);
+      messenger.call(
+        'TransactionController:updateTransaction',
+        updatedTx,
+        `Update tx type to ${txType}`,
+      );
       txBatch[
         [TransactionType.bridgeApproval, TransactionType.swapApproval].includes(
           txType as TransactionType,

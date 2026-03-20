@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose all public `RampsController` methods through its messenger ([#8221](https://github.com/MetaMask/core/pull/8221))
+  - The following actions are now available:
+    - `RampsController:executeRequest`
+    - `RampsController:abortRequest`
+    - `RampsController:getRequestState`
+    - `RampsController:setUserRegion`
+    - `RampsController:setSelectedProvider`
+    - `RampsController:init`
+    - `RampsController:getCountries`
+    - `RampsController:getTokens`
+    - `RampsController:getProviders`
+    - `RampsController:getPaymentMethods`
+    - `RampsController:setSelectedPaymentMethod`
+    - `RampsController:addOrder`
+    - `RampsController:removeOrder`
+    - `RampsController:startOrderPolling`
+    - `RampsController:stopOrderPolling`
+    - `RampsController:getBuyWidgetData`
+    - `RampsController:addPrecreatedOrder`
+    - `RampsController:getOrderFromCallback`
+    - `RampsController:transakSetApiKey`
+    - `RampsController:transakSetAccessToken`
+    - `RampsController:transakClearAccessToken`
+    - `RampsController:transakSetAuthenticated`
+    - `RampsController:transakResetState`
+    - `RampsController:transakSendUserOtp`
+    - `RampsController:transakVerifyUserOtp`
+    - `RampsController:transakLogout`
+    - `RampsController:transakGetUserDetails`
+    - `RampsController:transakGetBuyQuote`
+    - `RampsController:transakGetKycRequirement`
+    - `RampsController:transakGetAdditionalRequirements`
+    - `RampsController:transakCreateOrder`
+    - `RampsController:transakGetOrder`
+    - `RampsController:transakGetUserLimits`
+    - `RampsController:transakRequestOtt`
+    - `RampsController:transakGeneratePaymentWidgetUrl`
+    - `RampsController:transakSubmitPurposeOfUsageForm`
+    - `RampsController:transakPatchUser`
+    - `RampsController:transakSubmitSsnDetails`
+    - `RampsController:transakConfirmPayment`
+    - `RampsController:transakGetTranslation`
+    - `RampsController:transakGetIdProofStatus`
+    - `RampsController:transakCancelOrder`
+    - `RampsController:transakCancelAllActiveOrders`
+    - `RampsController:transakGetActiveOrders`
+  - Corresponding action types are now exported (e.g. `RampsControllerGetOrderAction`)
+
+### Fixed
+
+- Fix `getOrder` wallet handling so API requests and event payloads stay valid and consistent ([#8251](https://github.com/MetaMask/core/pull/8251))
+  - `RampsService.getOrder` no longer sends an empty `wallet` query parameter, avoiding invalid API responses (e.g. 400).
+  - `RampsController.getOrder` persists and returns a healed order (`walletAddress` and `providerOrderId`) so controller state matches the return value and `RampsController:orderStatusChanged` listeners.
+
 ## [12.0.0]
 
 ### Changed

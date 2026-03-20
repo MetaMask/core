@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** `AssetListState` type now requires a top-level `selectedAccountGroup` property, matching the updated `AccountTreeControllerState` shape where `selectedAccountGroup` was moved out of `accountTree` ([#8245](https://github.com/MetaMask/core/pull/8245))
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 
 ## [101.0.1]
 

@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `PermissionController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The following actions are now available:
+    - `PermissionController:clearState`
+  - Corresponding action types (e.g. `PermissionControllerClearStateAction`) are
+    available as well.
+- Expose missing public `SubjectMetadataController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The following actions are now available:
+    - `SubjectMetadataController:clearState`
+    - `SubjectMetadataController:trimMetadataState`
+  - Corresponding action types
+    (e.g. `SubjectMetadataControllerClearStateAction`) are available as well.
+
+### Changed
+
+- Deprecate action types in favor of `PermissionController...Action` and `SubjectMetadataController...Action` types ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - For the `PermissionController`:
+    - `GetPermissionControllerState` is now `PermissionControllerGetStateAction`.
+    - `GetSubjects` is now `PermissionControllerGetSubjectsAction`.
+    - `GetPermissions` is now `PermissionControllerGetPermissionsAction`.
+    - `HasPermissions` is now `PermissionControllerHasPermissionsAction`.
+    - `HasPermission` is now `PermissionControllerHasPermissionAction`.
+    - `GrantPermissions` is now `PermissionControllerGrantPermissionsAction`.
+    - `GrantPermissionsIncremental` is now `PermissionControllerGrantPermissionsIncrementalAction`.
+    - `RequestPermissions` is now `PermissionControllerRequestPermissionsAction`.
+    - `RequestPermissionsIncremental` is now `PermissionControllerRequestPermissionsIncrementalAction`.
+    - `RevokePermissions` is now `PermissionControllerRevokePermissionsAction`.
+    - `RevokeAllPermissions` is now `PermissionControllerRevokeAllPermissionsAction`.
+    - `RevokePermissionForAllSubjects` is now `PermissionControllerRevokePermissionForAllSubjectsAction`.
+    - `UpdateCaveat` is now `PermissionControllerUpdateCaveatAction`.
+    - `GetCaveat` is now `PermissionControllerGetCaveatAction`.
+    - `ClearPermissions` is now `PermissionControllerClearPermissionsAction`.
+    - `GetEndowments` is now `PermissionControllerGetEndowmentsAction`.
+  - For the `SubjectMetadataController`:
+    - `GetSubjectMetadataControllerState` is now `SubjectMetadataControllerGetStateAction`.
+    - `GetSubjectMetadata` is now `SubjectMetadataControllerGetMetadataAction`.
+    - `AddSubjectMetadata` is now `SubjectMetadataControllerAddMetadataAction`.
+  - The old types are still exported but are now marked as deprecated and will
+    be removed in a future release.
+
 ## [12.2.1]
 
 ### Changed

@@ -26,10 +26,13 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
+  TransactionControllerAddTransactionAction,
+  TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerTransactionFailedEvent,
+  TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
@@ -316,6 +319,9 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | HandleSnapRequest
   | TransactionControllerGetStateAction
+  | TransactionControllerUpdateTransactionAction
+  | TransactionControllerAddTransactionAction
+  | TransactionControllerEstimateGasFeeAction
   | TransactionControllerIsAtomicBatchSupportedAction
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>

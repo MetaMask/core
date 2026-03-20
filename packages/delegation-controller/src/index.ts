@@ -5,6 +5,9 @@ export type {
   DelegationControllerRetrieveAction,
   DelegationControllerChainAction,
   DelegationControllerDeleteAction,
+} from './DelegationController-method-action-types';
+export type {
+  DelegationControllerGetStateAction,
   DelegationControllerActions,
   DelegationControllerEvents,
   DelegationControllerMessenger,
