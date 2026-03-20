@@ -2,15 +2,17 @@
 import { ReadableStream } from 'node:stream/web';
 
 import { flushPromises } from '../../../tests/helpers';
-import type { QuoteResponse, Trade } from '../src';
+import type { QuoteResponse, TokenFeature, Trade } from '../src';
 
-export const advanceToNthTimer = (n = 1) => {
+type MockSseResponse = { status: number; ok: boolean; body: ReadableStream };
+
+export const advanceToNthTimer = (n = 1): void => {
   for (let i = 0; i < n; i++) {
     jest.advanceTimersToNextTimer();
   }
 };
 
-export const advanceToNthTimerThenFlush = async (n = 1) => {
+export const advanceToNthTimerThenFlush = async (n = 1): Promise<void> => {
   advanceToNthTimer(n);
   await flushPromises();
 };
@@ -22,7 +24,7 @@ export const advanceToNthTimerThenFlush = async (n = 1) => {
  * @param index - the index of the event
  * @returns a unique event id
  */
-const getEventId = (index: number) => {
+const getEventId = (index: number): string => {
   return `${Date.now().toString()}-${index}`;
 };
 
@@ -30,7 +32,7 @@ const emitLine = (
   // eslint-disable-next-line n/no-unsupported-features/node-builtins
   controller: ReadableStreamDefaultController,
   line: string,
-) => {
+): void => {
   controller.enqueue(Buffer.from(line));
 };
 
@@ -44,12 +46,12 @@ const emitLine = (
 export const mockSseEventSource = (
   mockQuotes: QuoteResponse[],
   delay: number = 3000,
-) => {
+): MockSseResponse => {
   return {
     status: 200,
     ok: true,
     body: new ReadableStream({
-      start(controller) {
+      start(controller): void {
         setTimeout(() => {
           mockQuotes.forEach((quote, id) => {
             emitLine(controller, `event: quote\n`);
@@ -73,12 +75,12 @@ export const mockSseEventSource = (
 export const mockSseEventSourceWithMultipleDelays = async (
   mockQuotes: QuoteResponse<Trade, Trade>[],
   delay: number = 4000,
-) => {
+): Promise<MockSseResponse> => {
   return {
     status: 200,
     ok: true,
     body: new ReadableStream({
-      async start(controller) {
+      async start(controller): Promise<void> {
         mockQuotes.forEach((quote, id) => {
           setTimeout(
             () => {
@@ -98,6 +100,45 @@ export const mockSseEventSourceWithMultipleDelays = async (
 };
 
 /**
+ * Simulates an SSE stream that emits both quote and token_warning events
+ *
+ * @param mockQuotes - a list of quotes to stream
+ * @param mockWarnings - a list of token warnings to stream
+ * @param delay - the delay in milliseconds
+ * @returns a delayed stream of quotes and token warnings
+ */
+export const mockSseEventSourceWithWarnings = (
+  mockQuotes: QuoteResponse[],
+  mockWarnings: TokenFeature[],
+  delay: number = 3000,
+): MockSseResponse => {
+  return {
+    status: 200,
+    ok: true,
+    body: new ReadableStream({
+      start(controller): void {
+        setTimeout(() => {
+          let eventIndex = 0;
+          mockWarnings.forEach((warning) => {
+            emitLine(controller, `event: token_warning\n`);
+            // eslint-disable-next-line no-plusplus
+            emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
+            emitLine(controller, `data: ${JSON.stringify(warning)}\n\n`);
+          });
+          mockQuotes.forEach((quote) => {
+            emitLine(controller, `event: quote\n`);
+            // eslint-disable-next-line no-plusplus
+            emitLine(controller, `id: ${getEventId(eventIndex++)}\n`);
+            emitLine(controller, `data: ${JSON.stringify(quote)}\n\n`);
+          });
+          controller.close();
+        }, delay);
+      },
+    }),
+  };
+};
+
+/**
  * This simulates responses from the fetch function for unit tests
  *
  * @param errorMessage - the error message to rethrow
@@ -107,12 +148,12 @@ export const mockSseEventSourceWithMultipleDelays = async (
 export const mockSseServerError = (
   errorMessage: string,
   delay: number = 3000,
-) => {
+): MockSseResponse => {
   return {
     status: 200,
     ok: true,
     body: new ReadableStream({
-      start(controller) {
+      start(controller): void {
         setTimeout(() => {
           emitLine(controller, `event: error\n`);
           emitLine(controller, `id: ${getEventId(1)}\n`);

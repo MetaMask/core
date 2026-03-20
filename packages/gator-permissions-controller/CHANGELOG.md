@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing public `GatorPermissionsController` methods through its messenger ([#8205](https://github.com/MetaMask/core/pull/8205))
+  - The following actions are now available:
+    - `GatorPermissionsController:initialize`
+  - Corresponding action types (e.g. `GatorPermissionsControllerInitializeAction`) are available as well.
+
 ## [2.1.1]
 
 ### Changed

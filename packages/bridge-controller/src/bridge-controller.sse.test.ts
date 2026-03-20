@@ -16,6 +16,7 @@ import * as balanceUtils from './utils/balance';
 import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
+import { TokenFeatureType } from './utils/validators';
 import { flushPromises } from '../../../tests/helpers';
 import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
@@ -25,6 +26,7 @@ import {
   advanceToNthTimerThenFlush,
   mockSseEventSource,
   mockSseEventSourceWithMultipleDelays,
+  mockSseEventSourceWithWarnings,
   mockSseServerError,
 } from '../tests/mock-sse';
 
@@ -193,8 +195,9 @@ describe('BridgeController SSE', function () {
       'AUTH_TOKEN',
       BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: expect.any(Function),
+        onQuoteValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
+        onTokenWarning: expect.any(Function),
         onClose: expect.any(Function),
       },
       '13.8.0',
@@ -332,8 +335,9 @@ describe('BridgeController SSE', function () {
         'AUTH_TOKEN',
         BRIDGE_PROD_API_BASE_URL,
         {
-          onValidationFailure: expect.any(Function),
+          onQuoteValidationFailure: expect.any(Function),
           onValidQuoteReceived: expect.any(Function),
+          onTokenWarning: expect.any(Function),
           onClose: expect.any(Function),
         },
         '13.8.0',
@@ -465,8 +469,9 @@ describe('BridgeController SSE', function () {
       'AUTH_TOKEN',
       BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: expect.any(Function),
+        onQuoteValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
+        onTokenWarning: expect.any(Function),
         onClose: expect.any(Function),
       },
       '13.8.0',
@@ -1098,8 +1103,9 @@ describe('BridgeController SSE', function () {
       'AUTH_TOKEN',
       BRIDGE_PROD_API_BASE_URL,
       {
-        onValidationFailure: expect.any(Function),
+        onQuoteValidationFailure: expect.any(Function),
         onValidQuoteReceived: expect.any(Function),
+        onTokenWarning: expect.any(Function),
         onClose: expect.any(Function),
       },
       '13.8.0',
@@ -1139,5 +1145,163 @@ describe('BridgeController SSE', function () {
     expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(0);
     // eslint-disable-next-line jest/no-restricted-matchers
     expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+  });
+
+  it('should populate tokenWarnings from token_warning SSE events', async function () {
+    const mockWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [mockWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([]);
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+
+    // After stream completes
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
+    expect(bridgeController.state.quotes.length).toBeGreaterThan(0);
+  });
+
+  it('should clear tokenWarnings on resetState', async function () {
+    const mockWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [mockWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
+
+    bridgeController.resetState();
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([]);
+  });
+
+  it('should deduplicate tokenWarnings with the same feature_id', async function () {
+    const mockWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    const duplicateWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Duplicate warning',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [mockWarning, duplicateWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
+  });
+
+  it('should deduplicate tokenWarnings with the same feature_id but different type', async function () {
+    const maliciousWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    const infoWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.INFO,
+      description: 'Informational notice',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [maliciousWarning, infoWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([
+      maliciousWarning,
+    ]);
+  });
+
+  it('should keep tokenWarnings with the same type but different feature_id', async function () {
+    const honeypotWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    const fakeTokenWarning = {
+      feature_id: 'FAKE_TOKEN',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Possible fake token',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [honeypotWarning, fakeTokenWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([
+      honeypotWarning,
+      fakeTokenWarning,
+    ]);
   });
 });

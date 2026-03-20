@@ -9,8 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/bridge-controller` from `^69.1.1` to `^69.2.0` ([#8265](https://github.com/MetaMask/core/pull/8265))
+
+## [18.0.0]
+
+### Changed
+
+- **BREAKING** Bump `@metamask/bridge-status-controller` from `^69.0.0` to `^70.0.0` ([#8252](https://github.com/MetaMask/core/pull/8252))
 - Bump `@metamask/assets-controller` from `^2.4.0` to `^3.0.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
 - Bump `@metamask/assets-controllers` from `^101.0.0` to `^101.0.1` ([#8232](https://github.com/MetaMask/core/pull/8232))
+- Remove duplication in gas estimation for Relay and Across strategies ([#8145](https://github.com/MetaMask/core/pull/8145))
 
 ## [17.1.0]
 
@@ -546,7 +554,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.1.0...@metamask/transaction-pay-controller@18.0.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.0.0...@metamask/transaction-pay-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.5.0...@metamask/transaction-pay-controller@17.0.0
 [16.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.1...@metamask/transaction-pay-controller@16.5.0

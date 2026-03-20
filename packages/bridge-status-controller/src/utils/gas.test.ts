@@ -124,7 +124,6 @@ describe('gas calculation utils', () => {
       const result = await calculateGasFees(
         true,
         null as never,
-        jest.fn(),
         mockTrade,
         'mainnet',
         '0x1',
@@ -136,7 +135,6 @@ describe('gas calculation utils', () => {
       const result = await calculateGasFees(
         false,
         null as never,
-        jest.fn(),
         mockTrade,
         'mainnet',
         '0x1',
@@ -169,7 +167,7 @@ describe('gas calculation utils', () => {
             estimatedBaseFee: '0x1234',
           },
         });
-        const mockEstimateGasFeeFn = jest.fn().mockResolvedValueOnce({
+        mockCall.mockResolvedValueOnce({
           estimates: {
             [GasFeeEstimateLevel.Medium]: {
               maxFeePerGas: '0x1234567890',
@@ -180,7 +178,6 @@ describe('gas calculation utils', () => {
         const result = await calculateGasFees(
           false,
           { call: mockCall } as never,
-          mockEstimateGasFeeFn,
           { ...mockTrade, gasLimit },
           'mainnet',
           '0x1',

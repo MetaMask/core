@@ -3474,6 +3474,7 @@ describe('BridgeController', function () {
           "quotesLastFetched": null,
           "quotesLoadingStatus": null,
           "quotesRefreshCount": 0,
+          "tokenWarnings": [],
         }
       `);
     });
@@ -3508,6 +3509,7 @@ describe('BridgeController', function () {
           "quotesLastFetched": null,
           "quotesLoadingStatus": null,
           "quotesRefreshCount": 0,
+          "tokenWarnings": [],
         }
       `);
     });

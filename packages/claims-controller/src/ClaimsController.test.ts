@@ -104,9 +104,11 @@ describe('ClaimsController', () => {
     });
 
     it('should fetch claims configurations successfully', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         const initialState = controller.state;
-        const configurations = await controller.fetchClaimsConfigurations();
+        const configurations = await rootMessenger.call(
+          'ClaimsController:fetchClaimsConfigurations',
+        );
         expect(configurations).toBeDefined();
 
         const expectedConfigurations = {
@@ -153,9 +155,11 @@ describe('ClaimsController', () => {
     });
 
     it('should be able to generate valid submit claim config', async () => {
-      await withController(async ({ controller }) => {
-        const submitClaimConfig =
-          await controller.getSubmitClaimConfig(MOCK_CLAIM);
+      await withController(async ({ rootMessenger }) => {
+        const submitClaimConfig = await rootMessenger.call(
+          'ClaimsController:getSubmitClaimConfig',
+          MOCK_CLAIM,
+        );
 
         expect(mockClaimServiceRequestHeaders).toHaveBeenCalledTimes(1);
         expect(mockClaimServiceGetClaimsApiUrl).toHaveBeenCalledTimes(1);
@@ -183,9 +187,12 @@ describe('ClaimsController', () => {
             ],
           },
         },
-        async ({ controller }) => {
+        async ({ rootMessenger }) => {
           await expect(
-            controller.getSubmitClaimConfig(MOCK_CLAIM),
+            rootMessenger.call(
+              'ClaimsController:getSubmitClaimConfig',
+              MOCK_CLAIM,
+            ),
           ).rejects.toThrow(
             ClaimsControllerErrorMessages.CLAIM_ALREADY_SUBMITTED,
           );
@@ -213,8 +220,9 @@ describe('ClaimsController', () => {
     });
 
     it('should generate a message and signature successfully', async () => {
-      await withController(async ({ controller }) => {
-        const signature = await controller.generateClaimSignature(
+      await withController(async ({ rootMessenger }) => {
+        const signature = await rootMessenger.call(
+          'ClaimsController:generateClaimSignature',
           1,
           MOCK_WALLET_ADDRESS,
         );
@@ -226,14 +234,18 @@ describe('ClaimsController', () => {
     });
 
     it('should throw an error if claims API response with invalid SIWE message', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ rootMessenger }) => {
         mockClaimServiceGenerateMessageForClaimSignature.mockRestore();
         mockClaimServiceGenerateMessageForClaimSignature.mockResolvedValueOnce({
           message: 'invalid SIWE message',
           nonce: 'B4Y8k8lGdMml0nrqk',
         });
         await expect(
-          controller.generateClaimSignature(1, MOCK_WALLET_ADDRESS),
+          rootMessenger.call(
+            'ClaimsController:generateClaimSignature',
+            1,
+            MOCK_WALLET_ADDRESS,
+          ),
         ).rejects.toThrow(
           ClaimsControllerErrorMessages.INVALID_SIGNATURE_MESSAGE,
         );
@@ -243,12 +255,12 @@ describe('ClaimsController', () => {
 
   describe('getClaims', () => {
     it('should be able to get the list of claims', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         mockClaimsServiceGetClaims.mockResolvedValueOnce([
           MOCK_CLAIM_1,
           MOCK_CLAIM_2,
         ]);
-        const claims = await controller.getClaims();
+        const claims = await rootMessenger.call('ClaimsController:getClaims');
         expect(claims).toBeDefined();
         expect(claims).toStrictEqual([MOCK_CLAIM_1, MOCK_CLAIM_2]);
         expect(mockClaimsServiceGetClaims).toHaveBeenCalledTimes(1);
@@ -294,9 +306,12 @@ describe('ClaimsController', () => {
     ];
 
     it('should be able to save a claim draft', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, rootMessenger }) => {
         const initialState = controller.state;
-        controller.saveOrUpdateClaimDraft(MOCK_DRAFT);
+        rootMessenger.call(
+          'ClaimsController:saveOrUpdateClaimDraft',
+          MOCK_DRAFT,
+        );
         const updatedState = controller.state;
         expect(updatedState).not.toBe(initialState);
         expect(updatedState.drafts).toHaveLength(1);
@@ -316,8 +331,10 @@ describe('ClaimsController', () => {
             drafts: MOCK_CLAIM_DRAFTS,
           },
         },
-        async ({ controller }) => {
-          const claimDrafts = controller.getClaimDrafts();
+        async ({ rootMessenger }) => {
+          const claimDrafts = rootMessenger.call(
+            'ClaimsController:getClaimDrafts',
+          );
           expect(claimDrafts).toBeDefined();
           expect(claimDrafts).toStrictEqual(MOCK_CLAIM_DRAFTS);
         },
@@ -331,8 +348,8 @@ describe('ClaimsController', () => {
             drafts: MOCK_CLAIM_DRAFTS,
           },
         },
-        async ({ controller }) => {
-          controller.saveOrUpdateClaimDraft({
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.call('ClaimsController:saveOrUpdateClaimDraft', {
             draftId: 'mock-draft-1',
             chainId: '0x1',
             email: 'test@test.com',
@@ -356,10 +373,13 @@ describe('ClaimsController', () => {
             drafts: MOCK_CLAIM_DRAFTS,
           },
         },
-        async ({ controller }) => {
+        async ({ controller, rootMessenger }) => {
           const initialState = controller.state;
           expect(initialState.drafts).toHaveLength(2);
-          controller.deleteClaimDraft('mock-draft-1');
+          rootMessenger.call(
+            'ClaimsController:deleteClaimDraft',
+            'mock-draft-1',
+          );
           const updatedState = controller.state;
           expect(updatedState.drafts).toHaveLength(1);
           expect(updatedState.drafts[0].draftId).toBe('mock-draft-2');
@@ -374,10 +394,10 @@ describe('ClaimsController', () => {
             drafts: MOCK_CLAIM_DRAFTS,
           },
         },
-        async ({ controller }) => {
+        async ({ controller, rootMessenger }) => {
           const initialState = controller.state;
           expect(initialState.drafts).toHaveLength(2);
-          controller.deleteAllClaimDrafts();
+          rootMessenger.call('ClaimsController:deleteAllClaimDrafts');
           const updatedState = controller.state;
           expect(updatedState.drafts).toHaveLength(0);
         },
@@ -397,11 +417,11 @@ describe('ClaimsController', () => {
             })),
           },
         },
-        async ({ controller }) => {
+        async ({ controller, rootMessenger }) => {
           expect(controller.state.claims).toHaveLength(2);
           expect(controller.state.drafts).toHaveLength(2);
 
-          controller.clearState();
+          rootMessenger.call('ClaimsController:clearState');
 
           expect(controller.state).toStrictEqual(
             getDefaultClaimsControllerState(),

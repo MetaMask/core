@@ -24,9 +24,9 @@ import { Semaphore } from 'async-mutex';
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { withTimeout } from './utils';
 import { traceFallback } from '../analytics';
+import { reportError } from '../errors';
 import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
-import { createSentryError } from '../utils';
 
 export type RestrictedSnapKeyring = {
   createAccount: (options: Record<string, Json>) => Promise<KeyringAccount>;
@@ -230,12 +230,15 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                   snapAccounts.delete(snapAccountId);
                 }
               } catch (error) {
-                const sentryError = createSentryError(
+                reportError(
+                  this.messenger,
                   `Unable to delete de-synced Snap account: ${this.snapId}`,
-                  error as Error,
-                  { provider: this.getName(), snapAccountId },
+                  error,
+                  {
+                    provider: this.getName(),
+                    snapAccountId,
+                  },
                 );
-                this.messenger.captureException?.(sentryError);
               }
             }),
           );
@@ -269,15 +272,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 });
               }
             } catch (error) {
-              const sentryError = createSentryError(
-                `Unable to re-sync account: ${groupIndex}`,
-                error as Error,
-                {
-                  provider: this.getName(),
-                  groupIndex,
-                },
-              );
-              this.messenger.captureException?.(sentryError);
+              reportError(this.messenger, 'Unable to re-sync accounts', error, {
+                provider: this.getName(),
+                groupIndex,
+              });
             }
           }),
         );
