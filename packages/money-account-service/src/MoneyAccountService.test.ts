@@ -1,5 +1,9 @@
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import {
+  KeyringControllerError,
+  KeyringControllerErrorMessage,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -54,7 +58,9 @@ function setup(): {
   const mocks = {
     withKeyring: jest.fn().mockImplementation(async (selector, operation) => {
       if ('type' in selector) {
-        throw new Error('Keyring not found');
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringNotFound,
+        );
       }
       return operation({
         keyring: {
@@ -167,6 +173,28 @@ describe('MoneyAccountService', () => {
       expect(mocks.addNewKeyring).toHaveBeenCalledWith(KeyringTypes.money, {
         mnemonic: MOCK_MNEMONIC,
       });
+    });
+
+    it('re-throws errors other than KeyringNotFound when checking for an existing money keyring', async () => {
+      const { service, mocks } = setup();
+      const unexpectedError = new KeyringControllerError('Unexpected error');
+
+      mocks.withKeyring.mockImplementation(async (selector, operation) => {
+        if ('type' in selector && selector.type === KeyringTypes.money) {
+          throw unexpectedError;
+        }
+        return operation({
+          keyring: {
+            type: 'HD Key Tree',
+            mnemonic: MOCK_MNEMONIC,
+          } as unknown as HdKeyring,
+          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
+        });
+      });
+
+      await expect(
+        service.createMoneyAccount(MOCK_ENTROPY_SOURCE),
+      ).rejects.toThrow(unexpectedError);
     });
 
     it('throws if the keyring is not an HD keyring', async () => {
