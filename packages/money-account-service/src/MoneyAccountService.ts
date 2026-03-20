@@ -1,4 +1,5 @@
 import { HdKeyring } from '@metamask/eth-hd-keyring';
+import { MONEY_DERIVATION_PATH } from '@metamask/eth-money-keyring';
 import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
@@ -73,7 +74,7 @@ export class MoneyAccountService {
     return await this.#messenger.call(
       'KeyringController:addNewKeyring',
       KeyringTypes.money,
-      { mnemonic },
+      { mnemonic, numberOfAccounts: 1, hdPath: MONEY_DERIVATION_PATH },
     );
   }
 

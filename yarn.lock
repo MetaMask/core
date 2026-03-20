@@ -3789,7 +3789,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-money-keyring@npm:1.0.0":
+"@metamask/eth-money-keyring@npm:1.0.0, @metamask/eth-money-keyring@npm:^1.0.0":
   version: 1.0.0
   resolution: "@metamask/eth-money-keyring@npm:1.0.0"
   dependencies:
@@ -4377,6 +4377,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/eth-hd-keyring": "npm:^13.0.0"
+    "@metamask/eth-money-keyring": "npm:^1.0.0"
     "@metamask/keyring-controller": "npm:^25.1.0"
     "@metamask/messenger": "npm:^0.3.0"
     "@ts-bridge/cli": "npm:^0.6.4"
