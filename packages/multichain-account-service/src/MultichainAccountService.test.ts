@@ -20,6 +20,10 @@ import type { Bip44AccountProvider } from './providers';
 import { TimeoutError } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import {
+  BTC_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProvider,
+} from './providers/BtcAccountProvider';
+import {
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
 } from './providers/EvmAccountProvider';
@@ -27,10 +31,6 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './providers/SolAccountProvider';
-import {
-  BTC_ACCOUNT_PROVIDER_NAME,
-  BtcAccountProvider,
-} from './providers/BtcAccountProvider';
 import {
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
