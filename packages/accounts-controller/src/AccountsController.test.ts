@@ -2726,7 +2726,7 @@ describe('AccountsController', () => {
       KeyringTypes.ledger,
       KeyringTypes.lattice,
       KeyringTypes.qr,
-      KeyringTypes.cash,
+      KeyringTypes.money,
     ])('should add accounts for %s type', async (keyringType) => {
       mockUUIDWithNormalAccounts([mockAccount]);
 

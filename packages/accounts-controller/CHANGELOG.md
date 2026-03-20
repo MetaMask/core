@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add support for `KeyringTypes.cash` in `keyringTypeToName`, mapping it to `'Cash Account'` ([#8204](https://github.com/MetaMask/core/pull/8204))
+- Add support for `KeyringTypes.money` in `keyringTypeToName`, mapping it to `'Money Account'` ([#8204](https://github.com/MetaMask/core/pull/8204))
 - Add `:accounts{Added,Removed}` batch events ([#8151](https://github.com/MetaMask/core/pull/8151))
   - Those new events can be used instead of single `:accountAdded` and `:accountRemoved` events to reduce the number of events emitted during batch operations (e.g. `KeyringController` state re-synchronization).
 

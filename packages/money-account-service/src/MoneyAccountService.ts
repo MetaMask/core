@@ -2,18 +2,18 @@ import { HdKeyring } from '@metamask/eth-hd-keyring';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 
-import type { CashAccountServiceMessenger } from './types';
+import type { MoneyAccountServiceMessenger } from './types';
 
-export const serviceName = 'CashAccountService';
+export const serviceName = 'MoneyAccountService';
 
-const MESSENGER_EXPOSED_METHODS = ['createCashAccount'] as const;
+const MESSENGER_EXPOSED_METHODS = ['createMoneyAccount'] as const;
 
-export class CashAccountService {
-  readonly #messenger: CashAccountServiceMessenger;
+export class MoneyAccountService {
+  readonly #messenger: MoneyAccountServiceMessenger;
 
   name: typeof serviceName = serviceName;
 
-  constructor({ messenger }: { messenger: CashAccountServiceMessenger }) {
+  constructor({ messenger }: { messenger: MoneyAccountServiceMessenger }) {
     this.#messenger = messenger;
 
     this.#messenger.registerMethodActionHandlers(
@@ -23,13 +23,13 @@ export class CashAccountService {
   }
 
   /**
-   * Creates a Cash keyring derived from the HD keyring identified by
+   * Creates a Money keyring derived from the HD keyring identified by
    * the given entropy source, and returns the new keyring's metadata.
    *
    * @param entropySource - The metadata id of the HD keyring to derive from.
-   * @returns The metadata of the newly created Cash keyring.
+   * @returns The metadata of the newly created Money keyring.
    */
-  async createCashAccount(entropySource: string): Promise<KeyringMetadata> {
+  async createMoneyAccount(entropySource: string): Promise<KeyringMetadata> {
     const mnemonic = await this.#messenger.call(
       'KeyringController:withKeyring',
       { id: entropySource },
@@ -48,10 +48,10 @@ export class CashAccountService {
       },
     );
 
-    const existingCashMetadata = (await this.#messenger
+    const existingMoneyMetadata = (await this.#messenger
       .call(
         'KeyringController:withKeyring',
-        { type: KeyringTypes.cash },
+        { type: KeyringTypes.money },
         async ({ keyring, metadata }) => {
           const accounts = await keyring.getAccounts();
           return accounts.length > 0 ? metadata : null;
@@ -59,13 +59,13 @@ export class CashAccountService {
       )
       .catch(() => null)) as KeyringMetadata | null;
 
-    if (existingCashMetadata) {
-      return existingCashMetadata;
+    if (existingMoneyMetadata) {
+      return existingMoneyMetadata;
     }
 
     return await this.#messenger.call(
       'KeyringController:addNewKeyring',
-      KeyringTypes.cash,
+      KeyringTypes.money,
       { mnemonic },
     );
   }

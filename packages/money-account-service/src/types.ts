@@ -4,10 +4,10 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type { serviceName } from './CashAccountService';
-import type { CashAccountServiceMethodActions } from './CashAccountService-method-action-types';
+import type { serviceName } from './MoneyAccountService';
+import type { MoneyAccountServiceMethodActions } from './MoneyAccountService-method-action-types';
 
-export type CashAccountServiceActions = CashAccountServiceMethodActions;
+export type MoneyAccountServiceActions = MoneyAccountServiceMethodActions;
 
 type AllowedActions =
   | KeyringControllerWithKeyringAction
@@ -15,8 +15,8 @@ type AllowedActions =
 
 type AllowedEvents = never;
 
-export type CashAccountServiceMessenger = Messenger<
+export type MoneyAccountServiceMessenger = Messenger<
   typeof serviceName,
-  CashAccountServiceActions | AllowedActions,
+  MoneyAccountServiceActions | AllowedActions,
   AllowedEvents
 >;

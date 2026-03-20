@@ -38,7 +38,7 @@
 
 ## Earn Team
 /packages/earn-controller                   @MetaMask/metamask-earn
-/packages/cash-account-service              @MetaMask/metamask-earn
+/packages/money-account-service              @MetaMask/metamask-earn
 
 ## Social AI Team
 /packages/ai-controllers                    @MetaMask/social-ai
@@ -117,7 +117,7 @@
 /packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/storage-service                       @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/client-controller                     @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/cash-account-service                  @MetaMask/accounts-engineers @MetaMask/metamask-earn
+/packages/money-account-service                  @MetaMask/accounts-engineers @MetaMask/metamask-earn
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -139,8 +139,8 @@
 /packages/assets-controller/package.json          @MetaMask/metamask-assets @MetaMask/core-platform
 /packages/assets-controller/CHANGELOG.md          @MetaMask/metamask-assets @MetaMask/core-platform
 
-/packages/cash-account-service/package.json       @MetaMask/metamask-earn @MetaMask/core-platform
-/packages/cash-account-service/CHANGELOG.md       @MetaMask/metamask-earn @MetaMask/core-platform
+/packages/money-account-service/package.json       @MetaMask/metamask-earn @MetaMask/core-platform
+/packages/money-account-service/CHANGELOG.md       @MetaMask/metamask-earn @MetaMask/core-platform
 /packages/chain-agnostic-permission/package.json  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/chain-agnostic-permission/CHANGELOG.md  @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/config-registry-controller/CHANGELOG.md @MetaMask/networks @MetaMask/core-platform
