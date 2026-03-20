@@ -925,7 +925,7 @@ describe('SnapAccountProvider', () => {
       expect(createAccountsSpy).toHaveBeenCalled();
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to re-sync account: 0'),
+        new Error('Unable to re-sync accounts'),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',

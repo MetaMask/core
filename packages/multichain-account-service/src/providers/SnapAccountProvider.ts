@@ -279,7 +279,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 });
               }
             } catch (error) {
-              const errorMessage = `Unable to re-sync account: ${groupIndex}`;
+              const errorMessage = 'Unable to re-sync accounts';
 
               if (isTimeoutError(error)) {
                 logErrorAs('warn', errorMessage, error);
