@@ -40,7 +40,7 @@ export const MOCK_DELEGATION_RESPONSE: DelegationResponse =
   MOCK_DELEGATION_SUBMISSION;
 
 export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
-  wallet_activity: {
+  walletActivity: {
     enabled: true,
     accounts: [
       {
