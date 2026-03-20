@@ -5,7 +5,6 @@ import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import type {
   GasFeeEstimates,
   TransactionMeta,
-  TransactionParams,
 } from '@metamask/transaction-controller';
 import {
   TransactionStatus,
@@ -134,6 +133,7 @@ const createMessengerHarness = (
   accountAddress: string,
   selectedChainId: string = '0x1',
   keyringType: string = 'HD Key Tree',
+  approvalStatus?: TransactionStatus,
 ): any => {
   const transactions: TransactionMeta[] = [];
 
@@ -158,6 +158,52 @@ const createMessengerHarness = (
         }
         case 'TransactionController:getState':
           return { transactions };
+        case 'TransactionController:estimateGasFee':
+          return { estimates: {} as GasFeeEstimates };
+        case 'TransactionController:addTransaction': {
+          // Approval TX path (submitIntent -> #handleApprovalTx -> #handleEvmTransaction)
+          if (
+            args[1]?.type === TransactionType.bridgeApproval ||
+            args[1]?.type === TransactionType.swapApproval
+          ) {
+            const hash = '0xapprovalhash1';
+
+            const approvalTx = {
+              id: 'approvalTxId1',
+              type: args[1]?.type,
+              status: approvalStatus ?? TransactionStatus.failed,
+              chainId: args[0]?.chainId ?? '0x1',
+              hash,
+              networkClientId: 'network-client-id-1',
+              time: Date.now(),
+              txParams: args[0],
+            };
+            transactions.push(approvalTx);
+
+            return {
+              result: Promise.resolve(hash),
+              transactionMeta: approvalTx,
+            };
+          }
+
+          // Intent “display tx” path
+          const intentTx = {
+            id: 'intentDisplayTxId1',
+            type: args[1]?.type,
+            status: TransactionStatus.submitted,
+            chainId: args[0]?.chainId ?? '0x1',
+            hash: undefined,
+            networkClientId: 'network-client-id-1',
+            time: Date.now(),
+            txParams: args[0],
+          };
+          transactions.push(intentTx);
+
+          return {
+            result: Promise.resolve('0xunused'),
+            transactionMeta: intentTx,
+          };
+        }
         case 'NetworkController:findNetworkClientIdByChainId':
           return 'network-client-id-1';
         case 'NetworkController:getState':
@@ -191,53 +237,7 @@ const setup = (options?: {
     accountAddress,
     options?.selectedChainId ?? '0x1',
     options?.keyringType,
-  );
-
-  const addTransactionFn = jest.fn(
-    async (txParams: TransactionParams, reqOpts: any) => {
-      // Approval TX path (submitIntent -> #handleApprovalTx -> #handleEvmTransaction)
-      if (
-        reqOpts?.type === TransactionType.bridgeApproval ||
-        reqOpts?.type === TransactionType.swapApproval
-      ) {
-        const hash = '0xapprovalhash1';
-
-        const approvalTx = {
-          id: 'approvalTxId1',
-          type: reqOpts.type,
-          status: options?.approvalStatus ?? TransactionStatus.failed,
-          chainId: txParams.chainId ?? '0x1',
-          hash,
-          networkClientId: 'network-client-id-1',
-          time: Date.now(),
-          txParams,
-        };
-        transactions.push(approvalTx);
-
-        return {
-          result: Promise.resolve(hash),
-          transactionMeta: approvalTx,
-        };
-      }
-
-      // Intent “display tx” path
-      const intentTx = {
-        id: 'intentDisplayTxId1',
-        type: reqOpts?.type,
-        status: TransactionStatus.submitted,
-        chainId: txParams.chainId ?? '0x1',
-        hash: undefined,
-        networkClientId: 'network-client-id-1',
-        time: Date.now(),
-        txParams,
-      };
-      transactions.push(intentTx);
-
-      return {
-        result: Promise.resolve('0xunused'),
-        transactionMeta: intentTx,
-      };
-    },
+    options?.approvalStatus,
   );
 
   const mockFetchFn = jest.fn();
@@ -248,12 +248,7 @@ const setup = (options?: {
     },
     clientId: options?.clientId ?? BridgeClientId.EXTENSION,
     fetchFn: (...args: any[]) => mockFetchFn(...args),
-    addTransactionFn,
     addTransactionBatchFn: jest.fn(),
-    updateTransactionFn: jest.fn(),
-    estimateGasFeeFn: jest.fn(async () => ({
-      estimates: {} as GasFeeEstimates,
-    })),
     config: { customBridgeApiBaseUrl: 'http://localhost' },
     traceFn: (_req: any, fn?: any): any => fn?.(),
   });
@@ -269,7 +264,6 @@ const setup = (options?: {
     controller,
     messenger,
     transactions,
-    addTransactionFn,
     startPollingSpy,
     stopPollingSpy,
     accountAddress,
@@ -1059,10 +1053,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       state,
       clientId: BridgeClientId.EXTENSION,
       fetchFn: jest.fn(),
-      addTransactionFn: jest.fn(),
       addTransactionBatchFn: jest.fn(),
-      updateTransactionFn: jest.fn(),
-      estimateGasFeeFn: jest.fn(),
       config: { customBridgeApiBaseUrl: 'http://localhost' },
       traceFn: (_r: any, fn?: any): any => fn?.(),
     });

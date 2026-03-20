@@ -1333,7 +1333,9 @@ export class RampsService {
       this.#getBaseUrl(RampsApiService.Orders),
     );
     this.#addCommonParams(url);
-    url.searchParams.set('wallet', wallet);
+    if (wallet) {
+      url.searchParams.set('wallet', wallet);
+    }
 
     const response = await this.#policy.execute(async () => {
       const fetchResponse = await this.#fetch(url);
