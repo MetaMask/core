@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Optional `perpsAssetId` on `RelatedAsset` for HyperLiquid-style market ids (e.g. `BTC`, `xyz:TSLA`), enabling Perps-aligned icon resolution on clients.
+- Optional `perpsAssetId` on `RelatedAsset` for HyperLiquid-style market ids (`xyz:TSLA`), enabling Perps icon resolution on clients ([#8263](https://github.com/MetaMask/core/pull/8263)).
 
 ### Changed
 
-- `AiDigestService.searchDigest` now uses the universal `asset` query parameter instead of the previous `caipAssetType` / `hlPerpsMarket` branching logic. The public TypeScript API is unchanged; any identifier (CAIP-19, ticker, name, perps market id) can be passed as before.
+- `AiDigestService.searchDigest` now uses the universal `asset` query parameter instead of the previous `caipAssetType` / `hlPerpsMarket` branching logic. The public TypeScript API is unchanged; any identifier (CAIP-19, ticker, name, perps market id) can be passed as before ([#8263](https://github.com/MetaMask/core/pull/8263)).
 
 ## [0.4.0]
 
