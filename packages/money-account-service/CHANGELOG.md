@@ -11,6 +11,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8204](https://github.com/MetaMask/core/pull/8204))
 
-### Fixed
-
 [Unreleased]: https://github.com/MetaMask/core/
