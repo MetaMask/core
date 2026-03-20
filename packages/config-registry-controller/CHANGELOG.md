@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Update Core Platform controllers to expose all methods through messenger ([#8193](https://github.com/MetaMask/core/pull/8193))
+
 ### Changed
 
 - **BREAKING:** `ConfigRegistryControllerMessenger` now requires `KeyringController:getState` action to be allowed ([#8230](https://github.com/MetaMask/core/pull/8230))
