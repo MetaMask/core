@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Fri Mar 20 05:54:35 2026 CDT
-- gpg: Signature made Tue Mar 17 14:42:17 2026 CDT
-- gpg: Signature made Tue Mar 17 05:49:13 2026 CDT
-- gpg: Signature made Wed Mar 11 07:26:45 2026 CDT
-- gpg: Signature made Tue Mar 10 11:00:23 2026 CDT
-
 ### Added
 
 - Expose public `EarnController` methods through its messenger ([#8173](https://github.com/MetaMask/core/pull/8173))

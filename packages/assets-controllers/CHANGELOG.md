@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Fri Mar 20 06:19:11 2026 CDT
-- gpg: Signature made Fri Mar 20 06:18:04 2026 CDT
-- gpg: Signature made Fri Mar 20 05:54:35 2026 CDT
-
 ### Added
 
 - Add Tempo Mainnet (`4217`/`0x1079`) and Tempo Moderato Testnet (`42431`/`0xa5bf`) support ([#8258](https://github.com/MetaMask/core/pull/8258))

@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- gpg: Signature made Wed Mar 18 10:58:46 2026 CDT
-- gpg: Signature made Thu Mar 12 07:58:20 2026 CDT
-
 ### Changed
 
 - **BREAKING:** `ConfigRegistryControllerMessenger` now requires `KeyringController:getState` action to be allowed ([#8230](https://github.com/MetaMask/core/pull/8230))
