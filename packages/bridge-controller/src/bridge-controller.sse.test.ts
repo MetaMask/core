@@ -1206,4 +1206,102 @@ describe('BridgeController SSE', function () {
     bridgeController.resetState();
     expect(bridgeController.state.tokenWarnings).toStrictEqual([]);
   });
+
+  it('should deduplicate tokenWarnings with the same feature_id', async function () {
+    const mockWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    const duplicateWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Duplicate warning',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [mockWarning, duplicateWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
+  });
+
+  it('should deduplicate tokenWarnings with the same feature_id but different type', async function () {
+    const maliciousWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    const infoWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.INFO,
+      description: 'Informational notice',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [maliciousWarning, infoWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([
+      maliciousWarning,
+    ]);
+  });
+
+  it('should keep tokenWarnings with the same type but different feature_id', async function () {
+    const honeypotWarning = {
+      feature_id: 'HONEYPOT',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Token is a honeypot',
+    };
+    const fakeTokenWarning = {
+      feature_id: 'FAKE_TOKEN',
+      type: TokenFeatureType.MALICIOUS,
+      description: 'Possible fake token',
+    };
+    mockFetchFn.mockImplementationOnce(async () => {
+      return mockSseEventSourceWithWarnings(
+        mockBridgeQuotesNativeErc20 as QuoteResponse[],
+        [honeypotWarning, fakeTokenWarning],
+      );
+    });
+
+    await bridgeController.updateBridgeQuoteRequestParams(
+      quoteRequest,
+      metricsContext,
+    );
+
+    jest.advanceTimersByTime(1000);
+    await advanceToNthTimerThenFlush();
+    jest.advanceTimersByTime(5000);
+    await flushPromises();
+
+    expect(bridgeController.state.tokenWarnings).toStrictEqual([
+      honeypotWarning,
+      fakeTokenWarning,
+    ]);
+  });
 });
