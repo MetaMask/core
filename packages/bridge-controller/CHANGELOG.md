@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [69.2.0]
+
 ### Added
 
 - Consume `token_warning` SSE events from the bridge-api quote stream and expose them as `tokenWarnings` in `BridgeControllerState` ([#8198](https://github.com/MetaMask/core/pull/8198))
@@ -1269,7 +1271,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.2.0...HEAD
+[69.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.1.1...@metamask/bridge-controller@69.2.0
 [69.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.1.0...@metamask/bridge-controller@69.1.1
 [69.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.0.1...@metamask/bridge-controller@69.1.0
 [69.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@69.0.0...@metamask/bridge-controller@69.0.1
