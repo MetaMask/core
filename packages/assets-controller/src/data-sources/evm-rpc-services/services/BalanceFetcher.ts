@@ -288,15 +288,12 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
         response.tokenAddress.toLowerCase() === ZERO_ADDRESS.toLowerCase();
       const tokenInfo = tokenInfoMap.get(response.tokenAddress.toLowerCase());
 
-      // ERC-20: use token info decimals when provided; if the caller omitted tokenInfos
-      // (empty map), fall back to 1 to avoid assuming 18. If token info exists but
-      // decimals are missing, skip — the caller should supply decimals or fetch via RPC upstream.
+      // Native uses 18. ERC-20 requires tokenInfos with decimals — skip if missing
+      // (callers must supply decimals from metadata or RPC upstream).
       let decimals: number;
       if (isNative) {
         decimals = 18;
-      } else if (tokenInfo === undefined) {
-        decimals = 1;
-      } else if (tokenInfo.decimals) {
+      } else if (tokenInfo?.decimals) {
         decimals = tokenInfo.decimals;
       } else {
         continue;
