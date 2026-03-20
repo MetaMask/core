@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Optional `perpsAssetId` on `RelatedAsset` for HyperLiquid-style market ids (`xyz:TSLA`), enabling Perps icon resolution on clients ([#8263](https://github.com/MetaMask/core/pull/8263)).
+- Optional `perpsAssetId` on `RelatedAsset` for purely Perps-only synthetic assets with no on-chain CAIP-19 id (`xyz:TSLA`). Distinct from the existing `hlPerpsMarket`, which identifies regular crypto tokens that also trade on HyperLiquid (`BTC`, `ETH`).
 
 ### Changed
 

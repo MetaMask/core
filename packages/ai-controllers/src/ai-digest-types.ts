@@ -139,14 +139,14 @@ export type RelatedAsset = {
   /** Canonical source asset identifier (e.g. "bitcoin") */
   sourceAssetId: string;
   /**
-   * Optional HyperLiquid perps market symbol (e.g. `BTC`).
-   *
-   * @deprecated Prefer `perpsAssetId` when available; this field is kept for
-   *   backward compatibility with older API payloads.
+   * Optional HyperLiquid perps market symbol for regular crypto tokens that
+   * also trade on HyperLiquid (e.g. `BTC`, `ETH`, `SOL`).
+   * Present alongside `caip19` for on-chain assets.
    */
   hlPerpsMarket?: string;
   /**
-   * Optional HyperLiquid-style perps asset id (e.g. `BTC`, `xyz:TSLA`).
+   * Optional HyperLiquid-style perps asset id for purely Perps-only synthetic
+   * assets that have no on-chain CAIP-19 id (e.g. `xyz:TSLA`, `xyz:AAPL`).
    * Use this to resolve Perps icon URLs via `getAssetIconUrls` on clients.
    */
   perpsAssetId?: string;
