@@ -603,7 +603,6 @@ export class MultichainAccountWallet<
         assertGroupIndexIsValid(groupIndex, this.getNextGroupIndex());
 
         // If the group already exists, return it.
-        // If the group already exists, return it.
         const existingGroup = this.getMultichainAccountGroup(groupIndex);
         if (existingGroup) {
           this.#log(
