@@ -1,5 +1,7 @@
 export * from './authentication';
 export * from './user-storage';
+export * from './authenticated-user-storage';
+export * from './authenticated-user-storage-types';
 export * from './errors';
 export * from './utils/messaging-signing-snap-requests';
 export * from '../shared/encryption';
