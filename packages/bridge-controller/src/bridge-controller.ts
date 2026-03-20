@@ -845,7 +845,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         },
         onTokenWarning: (warning) => {
           this.update((state) => {
-            state.tokenWarnings = [...state.tokenWarnings, warning];
+            const isDuplicate = state.tokenWarnings.some(
+              (existing) =>
+                existing.type === warning.type &&
+                existing.feature_id === warning.feature_id,
+            );
+            if (!isDuplicate) {
+              state.tokenWarnings = [...state.tokenWarnings, warning];
+            }
           });
         },
         onClose: async () => {
