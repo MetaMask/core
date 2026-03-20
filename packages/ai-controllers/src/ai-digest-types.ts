@@ -140,6 +140,7 @@ export type RelatedAsset = {
   sourceAssetId: string;
   /**
    * Optional HyperLiquid perps market symbol (e.g. `BTC`).
+   *
    * @deprecated Prefer `perpsAssetId` when available; this field is kept for
    *   backward compatibility with older API payloads.
    */
