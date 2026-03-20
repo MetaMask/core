@@ -106,6 +106,7 @@
 /packages/eth-json-rpc-middleware/src/wallet.*  @MetaMask/confirmations @MetaMask/wallet-api-platform-engineers
 /packages/eth-json-rpc-provider                 @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/foundryup                             @MetaMask/mobile-platform @MetaMask/extension-platform
+/packages/messenger-generate-action-types          @MetaMask/core-platform
 /packages/json-rpc-engine                       @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/json-rpc-middleware-stream            @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/keyring-controller                    @MetaMask/accounts-engineers @MetaMask/core-platform
