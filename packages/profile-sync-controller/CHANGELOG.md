@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AuthenticatedUserStorage` SDK class for authenticated (non-encrypted) user storage endpoints ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `AuthenticatedUserStorage` SDK class for authenticated (non-encrypted) user storage endpoints ([#8260](https://github.com/MetaMask/core/pull/8260))
   - Provides namespaced domain accessors: `delegations` (list, create, revoke) and `preferences` (getNotifications, putNotifications)
   - Includes all TypeScript types for the delegation and notification preferences API schemas
 
