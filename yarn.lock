@@ -2485,15 +2485,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask-previews/eth-cash-keyring@npm:0.0.0-25e4b24":
-  version: 0.0.0-25e4b24
-  resolution: "@metamask-previews/eth-cash-keyring@npm:0.0.0-25e4b24"
-  dependencies:
-    "@metamask/eth-hd-keyring": "npm:13.1.0"
-  checksum: 10/468cd1afb1a498406cd2b4dd01f5059fc7313739b30c9ed066789f779dc784b7dc5baee982565da334671700a4f0a0bf2c45818040b7b656452700ff36b1a07b
-  languageName: node
-  linkType: hard
-
 "@metamask/7715-permission-types@npm:^0.5.0":
   version: 0.5.0
   resolution: "@metamask/7715-permission-types@npm:0.5.0"
@@ -3688,7 +3679,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-hd-keyring@npm:13.1.0, @metamask/eth-hd-keyring@npm:^13.0.0, @metamask/eth-hd-keyring@npm:^13.1.0":
+"@metamask/eth-hd-keyring@npm:^13.0.0, @metamask/eth-hd-keyring@npm:^13.1.0":
   version: 13.1.0
   resolution: "@metamask/eth-hd-keyring@npm:13.1.0"
   dependencies:
@@ -4228,7 +4219,6 @@ __metadata:
     "@ethereumjs/util": "npm:^9.1.0"
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask-previews/eth-cash-keyring": "npm:0.0.0-25e4b24"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/browser-passworder": "npm:^6.0.0"
