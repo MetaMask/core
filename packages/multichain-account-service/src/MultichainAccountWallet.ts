@@ -12,7 +12,7 @@ import {
   toDefaultAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
-import { TraceCallback, TraceRequest } from '@metamask/controller-utils';
+import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import { AccountCreationType } from '@metamask/keyring-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { assert } from '@metamask/utils';
