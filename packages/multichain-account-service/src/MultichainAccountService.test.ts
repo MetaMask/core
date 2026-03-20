@@ -6,8 +6,10 @@ import type {
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
+  BtcAccountType,
   EthAccountType,
   SolAccountType,
+  TrxAccountType,
 } from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
@@ -15,7 +17,12 @@ import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
+import { TimeoutError } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
+import {
+  BTC_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProvider,
+} from './providers/BtcAccountProvider';
 import {
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
@@ -24,6 +31,10 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './providers/SolAccountProvider';
+import {
+  TRX_ACCOUNT_PROVIDER_NAME,
+  TrxAccountProvider,
+} from './providers/TrxAccountProvider';
 import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
 import type { RootMessenger, MockAccountProvider } from './tests';
 import {
@@ -60,6 +71,18 @@ jest.mock('./providers/SolAccountProvider', () => {
     SolAccountProvider: jest.fn(),
   };
 });
+jest.mock('./providers/BtcAccountProvider', () => {
+  return {
+    ...jest.requireActual('./providers/BtcAccountProvider'),
+    BtcAccountProvider: jest.fn(),
+  };
+});
+jest.mock('./providers/TrxAccountProvider', () => {
+  return {
+    ...jest.requireActual('./providers/TrxAccountProvider'),
+    TrxAccountProvider: jest.fn(),
+  };
+});
 
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -89,6 +112,10 @@ type Mocks = {
   EvmAccountProvider: MockAccountProvider;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SolAccountProvider: MockAccountProvider;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  BtcAccountProvider: MockAccountProvider;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  TrxAccountProvider: MockAccountProvider;
 };
 
 type Spies = {
@@ -126,6 +153,16 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
     mocks.getName.mockReturnValue(SOL_ACCOUNT_PROVIDER_NAME);
     mocks.isAccountCompatible?.mockImplementation(
       (account: KeyringAccount) => account.type === SolAccountType.DataAccount,
+    );
+  } else if (providerClass === (BtcAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(BTC_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === BtcAccountType.P2wpkh,
+    );
+  } else if (providerClass === (TrxAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(TRX_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === TrxAccountType.Eoa,
     );
   }
 }
@@ -169,6 +206,8 @@ async function setup({
     },
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
+    BtcAccountProvider: makeMockAccountProvider(),
+    TrxAccountProvider: makeMockAccountProvider(),
   };
 
   const spies: Spies = {
@@ -241,6 +280,8 @@ async function setup({
     // force it here.
     EvmAccountProvider.NAME = EVM_ACCOUNT_PROVIDER_NAME;
     SolAccountProvider.NAME = SOL_ACCOUNT_PROVIDER_NAME;
+    BtcAccountProvider.NAME = BTC_ACCOUNT_PROVIDER_NAME;
+    TrxAccountProvider.NAME = TRX_ACCOUNT_PROVIDER_NAME;
 
     mockAccountProvider<EvmAccountProvider>(
       EvmAccountProvider,
@@ -255,6 +296,20 @@ async function setup({
       accounts,
       1,
       SolAccountType.DataAccount,
+    );
+    mockAccountProvider<BtcAccountProvider>(
+      BtcAccountProvider,
+      mocks.BtcAccountProvider,
+      accounts,
+      2,
+      BtcAccountType.P2wpkh,
+    );
+    mockAccountProvider<TrxAccountProvider>(
+      TrxAccountProvider,
+      mocks.TrxAccountProvider,
+      accounts,
+      3,
+      TrxAccountType.Eoa,
     );
   }
 
@@ -1143,6 +1198,31 @@ describe('MultichainAccountService', () => {
         'cause',
         providerError,
       );
+    });
+
+    it('does not capture exception when provider throws a TimeoutError', async () => {
+      const rootMessenger = getRootMessenger();
+      const captureExceptionSpy = jest.spyOn(rootMessenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const { service, mocks } = await setup({
+        rootMessenger,
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      mocks.SolAccountProvider.resyncAccounts.mockRejectedValue(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+
+      await service.resyncAccounts(); // Should not throw.
+
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
   });
 

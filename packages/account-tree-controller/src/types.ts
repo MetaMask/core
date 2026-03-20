@@ -59,8 +59,8 @@ export type AccountTreeControllerState = {
       // Wallets:
       [walletId: AccountWalletId]: AccountWalletObject;
     };
-    selectedAccountGroup: AccountGroupId | '';
   };
+  selectedAccountGroup: AccountGroupId | '';
   isAccountTreeSyncingInProgress: boolean;
   hasAccountTreeSyncingSyncedAtLeastOnce: boolean;
   /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */

@@ -7,6 +7,16 @@ export class TimeoutError extends Error {
 }
 
 /**
+ * Check if an error is a `TimeoutError`.
+ *
+ * @param error - The error to check.
+ * @returns `true` if the error is a `TimeoutError`, otherwise `false`.
+ */
+export function isTimeoutError(error: unknown): error is TimeoutError {
+  return error instanceof TimeoutError;
+}
+
+/**
  * Execute a function with exponential backoff on transient failures.
  *
  * @param fnToExecute - The function to execute.
@@ -58,7 +68,7 @@ export async function withTimeout<T>(
       promise,
       new Promise<T>((_resolve, reject) => {
         timer = setTimeout(
-          () => reject(new TimeoutError('Timed out')),
+          () => reject(new TimeoutError(`Timed out after: ${timeoutMs}ms`)),
           timeoutMs,
         );
       }),

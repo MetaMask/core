@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Use `{Btc,Sol}AccountProvider` as default providers ([#8262](https://github.com/MetaMask/core/pull/8262))
+  - Those providers were initially provided by the clients.
 - Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801)), ([#8190](https://github.com/MetaMask/core/pull/8190))
 - Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
   - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
@@ -18,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 - Optimize `{Sol,Btc,Trx}AccountProvider.createAccounts` for range operations ([#8131](https://github.com/MetaMask/core/pull/8131))
   - Each Snaps have to implement the new `keyring_createAccounts` method accordingly and enable the batch option using the provider's configuration object.
   - Batch account creation with the new `SnapKeyring.createAccounts` method.
@@ -27,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Batch account creation with single `keyring.addAccounts` call.
   - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
   - Significantly reduces lock acquisitions and API calls for batch operations.
+- Do not report `TimeoutError` errors ([#8249](https://github.com/MetaMask/core/pull/8249))
+  - All other kind of errors are still reported as usual.
 
 ### Removed
 

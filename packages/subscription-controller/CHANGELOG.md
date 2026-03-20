@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose all public `SubscriptionController` methods through its messenger ([#8219](https://github.com/MetaMask/core/pull/8219))
+  - `SubscriptionController:getSubscriptionsEligibilities`
+  - `SubscriptionController:unCancelSubscription`
+  - `SubscriptionController:submitUserEvent`
+  - `SubscriptionController:assignUserToCohort`
+  - `SubscriptionController:getTokenApproveAmount`
+  - `SubscriptionController:getTokenMinimumBalanceAmount`
+  - `SubscriptionController:clearState`
+  - `SubscriptionController:triggerAccessTokenRefresh`
+  - Corresponding action types are now exported (e.g. `SubscriptionControllerGetPricingAction`)
+
 ## [6.0.2]
 
 ### Changed
