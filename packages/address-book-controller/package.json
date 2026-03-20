@@ -40,7 +40,7 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/address-book-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/address-book-controller",
-    "generate-method-action-types": "messenger-generate-action-types",
+    "generate-method-action-types": "tsx ../../packages/messenger-generate-action-types/src/cli.ts",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
