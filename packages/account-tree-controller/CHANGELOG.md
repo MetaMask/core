@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- gpg: Signature made Fri Mar 20 06:18:04 2026 CDT
+- gpg: Signature made Fri Mar 20 05:54:35 2026 CDT
+- gpg: Signature made Wed Mar 18 14:55:57 2026 CDT
+- gpg: Signature made Thu Mar 12 07:54:20 2026 CDT
+- gpg: Signature made Tue Mar 10 15:04:59 2026 CDT
+
 ### Changed
 
 - **BREAKING**: Move `selectedAccountGroup` to top-level persisted state to prevent selected account group from reverting after app restart ([#8245](https://github.com/MetaMask/core/pull/8245))

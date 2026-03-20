@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- gpg: Signature made Fri Mar 20 09:20:34 2026 CDT
+- gpg: Signature made Fri Mar 20 07:41:55 2026 CDT
+- gpg: Signature made Fri Mar 20 05:54:35 2026 CDT
+- gpg: Signature made Wed Mar 18 09:53:36 2026 CDT
+- gpg: Signature made Tue Mar 17 08:29:59 2026 CDT
+- gpg: Signature made Mon Mar 16 11:17:45 2026 CDT
+- gpg: Signature made Mon Mar 16 08:40:01 2026 CDT
+- gpg: Signature made Thu Mar 12 07:26:47 2026 CDT
+- gpg: Signature made Wed Mar 11 12:54:57 2026 CDT
+
 ### Added
 
 - Use `{Btc,Sol}AccountProvider` as default providers ([#8262](https://github.com/MetaMask/core/pull/8262))

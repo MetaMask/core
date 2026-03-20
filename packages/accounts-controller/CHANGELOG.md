@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- gpg: Signature made Fri Mar 20 05:54:35 2026 CDT
+- gpg: Signature made Wed Mar 18 09:06:29 2026 CDT
+- gpg: Signature made Tue Mar 10 05:13:40 2026 CDT
+
 ### Added
 
 - Add `:accounts{Added,Removed}` batch events ([#8151](https://github.com/MetaMask/core/pull/8151))
