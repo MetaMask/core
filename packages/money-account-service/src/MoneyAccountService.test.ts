@@ -199,4 +199,79 @@ describe('MoneyAccountService', () => {
       );
     });
   });
+
+  describe('getMoneyAccount', () => {
+    it('returns the money keyring metadata if one exists', async () => {
+      const { service, mocks } = setup();
+      const MOCK_MONEY_METADATA = { id: 'existing-money-keyring-id', name: '' };
+
+      mocks.withKeyring.mockImplementation(async (selector, operation) => {
+        if ('type' in selector && selector.type === KeyringTypes.money) {
+          return operation({
+            keyring: {},
+            metadata: MOCK_MONEY_METADATA,
+          });
+        }
+        return operation({
+          keyring: {
+            type: 'HD Key Tree',
+            mnemonic: MOCK_MNEMONIC,
+          } as unknown as HdKeyring,
+          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
+        });
+      });
+
+      const result = await service.getMoneyAccount();
+
+      expect(result).toStrictEqual(MOCK_MONEY_METADATA);
+    });
+
+    it('returns null if no money account exists', async () => {
+      const { service } = setup();
+
+      const result = await service.getMoneyAccount();
+
+      expect(result).toBeNull();
+    });
+
+    it('is callable via the messenger', async () => {
+      const { rootMessenger, mocks } = setup();
+      const MOCK_MONEY_METADATA = { id: 'existing-money-keyring-id', name: '' };
+
+      mocks.withKeyring.mockImplementation(async (selector, operation) => {
+        if ('type' in selector && selector.type === KeyringTypes.money) {
+          return operation({
+            keyring: {},
+            metadata: MOCK_MONEY_METADATA,
+          });
+        }
+        return operation({
+          keyring: {
+            type: 'HD Key Tree',
+            mnemonic: MOCK_MNEMONIC,
+          } as unknown as HdKeyring,
+          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
+        });
+      });
+
+      const result = await rootMessenger.call(
+        'MoneyAccountService:getMoneyAccount',
+      );
+
+      expect(result).toStrictEqual(MOCK_MONEY_METADATA);
+    });
+
+    it('re-throws errors other than KeyringNotFound', async () => {
+      const { service, mocks } = setup();
+      const unexpectedError = new KeyringControllerError('Unexpected error');
+
+      mocks.withKeyring.mockImplementation(async (selector) => {
+        if ('type' in selector && selector.type === KeyringTypes.money) {
+          throw unexpectedError;
+        }
+      });
+
+      await expect(service.getMoneyAccount()).rejects.toThrow(unexpectedError);
+    });
+  });
 });

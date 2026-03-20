@@ -5,5 +5,11 @@ export type MoneyAccountServiceCreateMoneyAccountAction = {
   handler: MoneyAccountService['createMoneyAccount'];
 };
 
+export type MoneyAccountServiceGetMoneyAccountAction = {
+  type: `MoneyAccountService:getMoneyAccount`;
+  handler: MoneyAccountService['getMoneyAccount'];
+};
+
 export type MoneyAccountServiceMethodActions =
-  MoneyAccountServiceCreateMoneyAccountAction;
+  | MoneyAccountServiceCreateMoneyAccountAction
+  | MoneyAccountServiceGetMoneyAccountAction;
