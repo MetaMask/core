@@ -890,6 +890,49 @@ describe('RpcDataSource', () => {
       detectTokensSpy.mockRestore();
     });
 
+    it('returns detected asset ids but omits assetsBalance when detected token has no decimals', async () => {
+      const assetId =
+        'eip155:1/erc20:0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Caip19AssetId;
+      const detectTokensSpy = jest
+        .spyOn(TokenDetector.prototype, 'detectTokens')
+        .mockResolvedValue({
+          chainId: MOCK_CHAIN_ID_HEX,
+          accountId: MOCK_ACCOUNT_ID,
+          accountAddress: MOCK_ADDRESS as Address,
+          detectedAssets: [
+            {
+              assetId,
+              symbol: 'ND',
+              name: 'No Decimals',
+            } as TokenDetectionResult['detectedAssets'][0],
+          ],
+          detectedBalances: [
+            {
+              assetId,
+              balance: '1000000000000000000',
+            } as TokenDetectionResult['detectedBalances'][0],
+          ],
+          zeroBalanceAddresses: [],
+          failedAddresses: [],
+          timestamp: Date.now(),
+        });
+
+      await withController(async ({ controller }) => {
+        const result = await controller.detectTokens(
+          MOCK_CHAIN_ID_CAIP,
+          createMockInternalAccount(),
+        );
+        expect(result.detectedAssets?.[MOCK_ACCOUNT_ID]).toStrictEqual([
+          assetId,
+        ]);
+        expect(
+          result.assetsBalance?.[MOCK_ACCOUNT_ID]?.[assetId],
+        ).toBeUndefined();
+        expect(result.assetsInfo?.[assetId]).toBeUndefined();
+      });
+      detectTokensSpy.mockRestore();
+    });
+
     it('returns empty when no new tokens detected', async () => {
       jest.spyOn(TokenDetector.prototype, 'detectTokens').mockResolvedValue({
         chainId: MOCK_CHAIN_ID_HEX,
@@ -1490,6 +1533,64 @@ describe('RpcDataSource', () => {
       });
     });
 
+    it('omits assetsBalance when ERC20 state metadata has no decimals and on-chain decimals resolve to falsy', async () => {
+      const tokenAddress = '0xAbc0000000000000000000000000000000000999';
+      const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
+      const normalizedId = normalizeAssetId(erc20AssetId);
+
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [normalizedId]: {
+                  type: 'erc20',
+                  symbol: 'PART',
+                  name: 'Partial Meta',
+                },
+              },
+            }),
+            'TokenListController:getState': () => ({ tokensChainsCache: {} }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: erc20AssetId,
+                  balance: '1000000',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalled();
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedId],
+      ).toBeUndefined();
+    });
+
     it('falls back to default metadata when token list has no chain cache (#getTokenMetadataFromTokenList)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000002' as Caip19AssetId;
@@ -1768,6 +1869,60 @@ describe('RpcDataSource', () => {
           timestamp: Date.now(),
         });
       });
+    });
+
+    it('omits assetsBalance when detected asset has no decimals', async () => {
+      let detectionUpdateCallback:
+        | ((result: TokenDetectionResult) => void)
+        | null = null;
+      jest
+        .spyOn(TokenDetector.prototype, 'setOnDetectionUpdate')
+        .mockImplementation(function (this: TokenDetector, callback) {
+          detectionUpdateCallback = callback;
+        });
+
+      const assetId =
+        'eip155:1/erc20:0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Caip19AssetId;
+      const onAssetsUpdate = jest.fn();
+
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate,
+        });
+
+        expect(detectionUpdateCallback).not.toBeNull();
+        detectionUpdateCallback?.({
+          chainId: MOCK_CHAIN_ID_HEX,
+          accountId: MOCK_ACCOUNT_ID,
+          accountAddress: MOCK_ADDRESS as Address,
+          detectedAssets: [
+            {
+              assetId,
+              symbol: 'ND',
+              name: 'No Decimals',
+            } as TokenDetectionResult['detectedAssets'][0],
+          ],
+          detectedBalances: [
+            {
+              assetId,
+              balance: '1000000000000000000',
+            } as TokenDetectionResult['detectedBalances'][0],
+          ],
+          zeroBalanceAddresses: [],
+          failedAddresses: [],
+          timestamp: Date.now(),
+        });
+      });
+
+      expect(onAssetsUpdate).toHaveBeenCalled();
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[assetId],
+      ).toBeUndefined();
+      expect(response.assetsInfo?.[assetId]).toBeUndefined();
     });
   });
 

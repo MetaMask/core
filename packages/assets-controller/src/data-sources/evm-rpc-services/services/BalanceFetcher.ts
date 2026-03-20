@@ -283,13 +283,26 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       }
 
       const balance = response.balance ?? '0';
-      const tokenInfo = tokenInfoMap.get(response.tokenAddress.toLowerCase());
-      const decimals = tokenInfo?.decimals ?? 18;
-      const formattedBalance = this.#formatBalance(balance, decimals);
-
       const chainIdDecimal = parseInt(chainId, 16);
       const isNative =
         response.tokenAddress.toLowerCase() === ZERO_ADDRESS.toLowerCase();
+      const tokenInfo = tokenInfoMap.get(response.tokenAddress.toLowerCase());
+
+      // ERC-20: use token info decimals when provided; if the caller omitted tokenInfos
+      // (empty map), fall back to 1 to avoid assuming 18. If token info exists but
+      // decimals are missing, skip — the caller should supply decimals or fetch via RPC upstream.
+      let decimals: number;
+      if (isNative) {
+        decimals = 18;
+      } else if (tokenInfo === undefined) {
+        decimals = 1;
+      } else if (tokenInfo.decimals) {
+        decimals = tokenInfo.decimals;
+      } else {
+        continue;
+      }
+
+      const formattedBalance = this.#formatBalance(balance, decimals);
       const assetId: CaipAssetType = isNative
         ? (`eip155:${chainIdDecimal}/slip44:60` as CaipAssetType)
         : (`eip155:${chainIdDecimal}/erc20:${response.tokenAddress.toLowerCase()}` as CaipAssetType);

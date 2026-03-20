@@ -400,7 +400,7 @@ export class RpcDataSource extends AbstractDataSource<
     );
 
     // Convert balances to human-readable format.
-    // Fallback chain: state → pipeline metadata → RPC call → 18.
+    // Resolution: state → pipeline metadata → RPC `decimals()`; omit balance if still falsy.
     const existingMetadata = this.#getExistingAssetsMetadata();
     for (const balance of normalizedBalances) {
       const stateMetadata = existingMetadata[balance.assetId];
@@ -418,7 +418,12 @@ export class RpcDataSource extends AbstractDataSource<
         }
       }
 
-      const resolvedDecimals = decimals ?? 18;
+      if (!decimals) {
+        continue;
+      }
+
+      const resolvedDecimals = decimals;
+
       const humanReadableAmount = this.#convertToHumanReadable(
         balance.balance,
         resolvedDecimals,
@@ -492,8 +497,10 @@ export class RpcDataSource extends AbstractDataSource<
         const detectedAsset = result.detectedAssets.find(
           (asset) => asset.assetId === balance.assetId,
         );
-        // Default to 18 decimals (ERC20 standard) for consistent human-readable format
-        const decimals = detectedAsset?.decimals ?? 18;
+        if (!detectedAsset?.decimals) {
+          continue;
+        }
+        const decimals = detectedAsset?.decimals;
         const humanReadableAmount = this.#convertToHumanReadable(
           balance.balance,
           decimals,
@@ -963,7 +970,7 @@ export class RpcDataSource extends AbstractDataSource<
 
           // Convert balances to human-readable format using decimals from
           // assetsInfo state (which includes pendingMetadata from addCustomAsset).
-          // Fallback chain: state → pipeline metadata → RPC call → 18.
+          // Resolution: state → pipeline metadata → RPC `decimals()`; omit balance if still falsy.
           const existingMetadata = this.#getExistingAssetsMetadata();
           for (const balance of normalizedBalances) {
             const stateMetadata = existingMetadata[balance.assetId];
@@ -981,7 +988,11 @@ export class RpcDataSource extends AbstractDataSource<
               }
             }
 
-            const resolvedDecimals = decimals ?? 18;
+            if (!decimals) {
+              continue;
+            }
+
+            const resolvedDecimals = decimals;
 
             const humanReadableAmount = this.#convertToHumanReadable(
               balance.balance,
@@ -1112,8 +1123,10 @@ export class RpcDataSource extends AbstractDataSource<
         const detectedAsset = result.detectedAssets.find(
           (asset) => asset.assetId === balance.assetId,
         );
-        // Default to 18 decimals (ERC20 standard) for consistent human-readable format
-        const decimals = detectedAsset?.decimals ?? 18;
+        if (!detectedAsset?.decimals) {
+          continue;
+        }
+        const decimals = detectedAsset?.decimals;
         const humanReadableAmount = this.#convertToHumanReadable(
           balance.balance,
           decimals,

@@ -10,6 +10,7 @@ import type {
   AssetsBalanceState,
   BalanceOfResponse,
   ChainId,
+  TokenFetchInfo,
 } from '../types';
 
 // =============================================================================
@@ -396,6 +397,35 @@ describe('BalanceFetcher', () => {
         expect(result.balances[0].assetId).toBe(
           'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
         );
+      });
+    });
+
+    it('omits ERC-20 balance when token info has no decimals', async () => {
+      await withController(async ({ controller, mockMulticallClient }) => {
+        mockMulticallClient.batchBalanceOf.mockResolvedValue([
+          createMockBalanceResponse(
+            TEST_TOKEN_1,
+            TEST_ACCOUNT,
+            true,
+            '1000000000',
+          ),
+        ]);
+
+        const tokenInfoMissingDecimals = {
+          address: TEST_TOKEN_1,
+        } as TokenFetchInfo;
+
+        const result = await controller.fetchBalancesForTokens(
+          MAINNET_CHAIN_ID,
+          TEST_ACCOUNT_ID,
+          TEST_ACCOUNT,
+          [TEST_TOKEN_1],
+          { includeNative: false },
+          [tokenInfoMissingDecimals],
+        );
+
+        expect(result.balances).toHaveLength(0);
+        expect(result.failedAddresses).toHaveLength(0);
       });
     });
 
