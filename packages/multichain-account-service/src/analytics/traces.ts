@@ -5,7 +5,8 @@ import type {
 } from '@metamask/controller-utils';
 import { CreateAccountOptions } from '@metamask/keyring-api';
 
-import { Bip44AccountProvider } from '../providers';
+// Explicit import to avoid circular dependency between `analytics` and `providers`.
+import type { Bip44AccountProvider } from '../providers/BaseBip44AccountProvider';
 
 /**
  * Fallback function for tracing.
