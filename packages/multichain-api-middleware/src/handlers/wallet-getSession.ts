@@ -2,13 +2,13 @@ import type {
   Caip25CaveatValue,
   NormalizedScopesObject,
 } from '@metamask/chain-agnostic-permission';
-import type { CaipAccountId } from '@metamask/utils';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
   getSessionScopes,
 } from '@metamask/chain-agnostic-permission';
 import type { Caveat } from '@metamask/permission-controller';
+import type { CaipAccountId } from '@metamask/utils';
 import type {
   CaipChainId,
   JsonRpcRequest,
