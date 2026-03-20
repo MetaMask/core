@@ -22,12 +22,6 @@ import {
   formatChainIdToCaip,
 } from '../caip-formatters';
 
-export const isHardwareWallet = (
-  selectedAccount?: AccountsControllerState['internalAccounts']['accounts'][string],
-) => {
-  return selectedAccount?.metadata?.keyring.type?.includes('Hardware') ?? false;
-};
-
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>
 > = {
@@ -110,6 +104,12 @@ export const getRequestParams = ({
         ) ?? null)
       : null,
   };
+};
+
+export const isHardwareWallet = (
+  selectedAccount?: AccountsControllerState['internalAccounts']['accounts'][string],
+) => {
+  return selectedAccount?.metadata?.keyring.type?.includes('Hardware') ?? false;
 };
 
 /**

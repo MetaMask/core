@@ -40,7 +40,6 @@ describe('IntentApiImpl', () => {
 
   it('submitIntent calls POST /submitOrder with JSON body and returns response', async () => {
     const fetchFn = makeFetchMock().mockResolvedValue(validIntentOrderResponse);
-    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     const params = makeParams();
     const result = await postSubmitOrder({
@@ -65,8 +64,6 @@ describe('IntentApiImpl', () => {
 
   it('submitIntent rethrows Errors with a prefixed message', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('boom'));
-    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
-
     await expect(
       postSubmitOrder({
         params: makeParams(),
@@ -80,8 +77,6 @@ describe('IntentApiImpl', () => {
 
   it('submitIntent throws generic error when rejection is not an Error', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue('boom');
-    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
-
     await expect(
       postSubmitOrder({
         params: makeParams(),
@@ -147,8 +142,6 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockResolvedValue({
       foo: 'bar', // invalid IntentOrder shape
     } as any);
-
-    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     await expect(
       postSubmitOrder({

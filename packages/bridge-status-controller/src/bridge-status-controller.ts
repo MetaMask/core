@@ -1269,7 +1269,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         quoteResponse.quote.destChainId,
       );
 
-      // TODO reuse addTransaction util
       const requireApproval =
         isHardwareAccount && this.#clientId === BridgeClientId.MOBILE;
       // Handle approval silently for better UX in intent flows
@@ -1344,7 +1343,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.messenger,
         intentTransactionParams,
         {
-          // TODO use requireApproval logic in submitTx
           requireApproval: false,
           networkClientId,
           type: transactionType,
@@ -1505,6 +1503,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (featureId) {
       return;
     }
+
     const selectedAccount = getAccountByAddress(
       this.messenger,
       historyItem.account,

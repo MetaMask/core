@@ -1,3 +1,4 @@
+/* eslint-disable consistent-return */
 import { v4 as uuid } from 'uuid';
 
 import { createClientTransactionRequest, handleNonEvmTx } from './snaps';

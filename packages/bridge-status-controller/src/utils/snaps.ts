@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
   QuoteMetadata,
@@ -98,24 +99,6 @@ export const getClientRequest = (
     accountId,
     options,
   );
-  // return {
-  //   // @ts-expect-error - TODO snaps-controller does not export SnapId type (a string)
-  //   snapId,
-  //   origin: 'metamask',
-  //   // @ts-expect-error - TODO snaps-controller does not export HandlerType.OnClientRequest
-  //   handler: 'onClientRequest',
-  //   request: {
-  //     id: uuid(),
-  //     jsonrpc: '2.0',
-  //     method: 'signAndSendTransaction',
-  //     params: {
-  //       transaction,
-  //       scope,
-  //       accountId,
-  //       ...(options && { options }),
-  //     },
-  //   },
-  // };
 };
 
 export const getTxMetaFields = (
