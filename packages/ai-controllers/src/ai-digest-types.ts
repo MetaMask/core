@@ -125,19 +125,36 @@ export type MarketOverviewEntry = {
 // Market Overview types (non-asset-specific)
 // ---------------------------------------------------------------------------
 
+/**
+ * A crypto asset related to a market overview trend.
+ * Returned by the `/market-overview` API as a rich object.
+ */
+export type RelatedAsset = {
+  /** Human-readable asset name (e.g. "Bitcoin") */
+  name: string;
+  /** Ticker symbol (e.g. "BTC") */
+  symbol: string;
+  /** CAIP-19 identifiers for this asset across chains */
+  caip19: string[];
+  /** Canonical source asset identifier (e.g. "bitcoin") */
+  sourceAssetId: string;
+  /** Optional Hyperliquid perps market symbol (e.g. "BTC") */
+  hlPerpsMarket?: string;
+};
+
 export type MarketOverviewTrend = {
   title: string;
   description: string;
-  category:
+  category?:
     | 'geopolitical'
     | 'macro'
     | 'regulatory'
     | 'technical'
     | 'social'
     | 'other';
-  impact: 'positive' | 'negative' | 'neutral';
+  impact?: 'positive' | 'negative' | 'neutral';
   articles: Article[];
-  relatedAssets: string[];
+  relatedAssets: RelatedAsset[];
 };
 
 /**
@@ -150,10 +167,7 @@ export type AIResponseMetadata = {
 export type MarketOverview = {
   version?: string;
   generatedAt: string;
-  headline: string;
-  summary: string;
   trends: MarketOverviewTrend[];
-  sources: Source[];
   metadata?: AIResponseMetadata[];
 };
 

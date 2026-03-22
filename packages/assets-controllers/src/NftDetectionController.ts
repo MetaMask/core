@@ -1,5 +1,5 @@
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { ApprovalControllerAddRequestAction } from '@metamask/approval-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -42,7 +42,7 @@ export type NFTDetectionControllerState = Record<never, never>;
 
 export type AllowedActions =
   | ControllerGetStateAction<typeof controllerName, NFTDetectionControllerState>
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | PreferencesControllerGetStateAction

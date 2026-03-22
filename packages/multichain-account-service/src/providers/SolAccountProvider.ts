@@ -2,14 +2,12 @@ import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
-  CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
   KeyringCapabilities,
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
-  assertCreateAccountOptionIsSupported,
   KeyringAccountEntropyTypeOption,
   SolAccountType,
   SolScope,
@@ -41,6 +39,7 @@ export const SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG: SnapAccountProviderConfig = {
     backOffMs: 1000,
   },
   createAccounts: {
+    batched: false, // For now, the Snap is not fully v2 compliant.
     timeoutMs: 3000,
   },
   resyncAccounts: {
@@ -80,88 +79,41 @@ export class SolAccountProvider extends SnapAccountProvider {
     );
   }
 
-  async #createAccount({
-    keyring,
-    entropySource,
-    groupIndex,
-    derivationPath,
-  }: {
-    keyring: RestrictedSnapKeyring;
-    entropySource: EntropySourceId;
-    groupIndex: number;
-    derivationPath: string;
-  }): Promise<Bip44Account<KeyringAccount>> {
-    const account = await withTimeout(
-      keyring.createAccount({ entropySource, derivationPath }),
-      this.config.createAccounts.timeoutMs,
-    );
+  #getDerivationPath(groupIndex: number): string {
+    return `m/44'/501'/${groupIndex}'/0'`;
+  }
 
+  protected override createAccountV1(
+    keyring: RestrictedSnapKeyring,
+    {
+      entropySource,
+      groupIndex,
+    }: { entropySource: EntropySourceId; groupIndex: number },
+  ): Promise<KeyringAccount> {
+    return keyring.createAccount({
+      entropySource,
+      derivationPath: this.#getDerivationPath(groupIndex),
+    });
+  }
+
+  protected override toBip44Account(
+    account: KeyringAccount,
+    {
+      entropySource,
+      groupIndex,
+    }: { entropySource: EntropySourceId; groupIndex: number },
+  ): Bip44Account<KeyringAccount> {
     // Ensure entropy is present before type assertion validation
     account.options.entropy = {
       type: KeyringAccountEntropyTypeOption.Mnemonic,
       id: entropySource,
       groupIndex,
-      derivationPath,
+      derivationPath: this.#getDerivationPath(groupIndex),
     };
 
     assertIsBip44Account(account);
-    this.accounts.add(account.id);
+
     return account;
-  }
-
-  async createAccounts(
-    options: CreateAccountOptions,
-  ): Promise<Bip44Account<KeyringAccount>[]> {
-    assertCreateAccountOptionIsSupported(options, [
-      `${AccountCreationType.Bip44DeriveIndex}`,
-      `${AccountCreationType.Bip44DeriveIndexRange}`,
-    ]);
-
-    const { entropySource } = options;
-
-    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
-      const { range } = options;
-      return this.withSnap(async ({ keyring }) => {
-        const accounts: Bip44Account<KeyringAccount>[] = [];
-
-        // TODO: Use `SnapKeyring.createAccounts` when that functionality is implemented on the Snap
-        // itself, instead of creating accounts one by one.
-        for (
-          let groupIndex = range.from;
-          groupIndex <= range.to;
-          groupIndex++
-        ) {
-          const account = await this.withMaxConcurrency(async () => {
-            const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
-            return this.#createAccount({
-              keyring,
-              entropySource,
-              groupIndex,
-              derivationPath,
-            });
-          });
-          accounts.push(account);
-        }
-
-        return accounts;
-      });
-    }
-
-    const { groupIndex } = options;
-
-    return this.withSnap(async ({ keyring }) => {
-      return this.withMaxConcurrency(async () => {
-        const derivationPath = `m/44'/501'/${groupIndex}'/0'`;
-        const account = await this.#createAccount({
-          keyring,
-          entropySource,
-          groupIndex,
-          derivationPath,
-        });
-
-        return [account];
-      });
-    });
   }
 
   async discoverAccounts({
@@ -204,22 +156,14 @@ export class SolAccountProvider extends SnapAccountProvider {
             return [];
           }
 
-          const createdAccounts = await Promise.all(
-            discoveredAccounts.map((d) =>
-              this.#createAccount({
-                keyring,
-                entropySource,
-                groupIndex,
-                derivationPath: d.derivationPath,
-              }),
-            ),
-          );
-
-          for (const account of createdAccounts) {
-            this.accounts.add(account.id);
-          }
-
-          return createdAccounts;
+          // NOTE: We know the Solana Snap only return 1 account per group index during discovery. Also,
+          // we do not use the returned `derivationPath` on purpose. Instead we just create the account
+          // for this group index and that's all.
+          return await this.createBip44Accounts(keyring, {
+            type: AccountCreationType.Bip44DeriveIndex,
+            entropySource,
+            groupIndex,
+          });
         },
       );
     });

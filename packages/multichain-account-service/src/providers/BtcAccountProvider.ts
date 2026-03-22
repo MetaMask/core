@@ -1,15 +1,12 @@
-import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
-  CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
   KeyringCapabilities,
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
-  assertCreateAccountOptionIsSupported,
   BtcAccountType,
   BtcScope,
 } from '@metamask/keyring-api';
@@ -33,6 +30,7 @@ export const BTC_ACCOUNT_PROVIDER_NAME = 'Bitcoin';
 export const BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG: BtcAccountProviderConfig = {
   maxConcurrency: 3,
   createAccounts: {
+    batched: false, // For now, the Snap is not fully v2 compliant.
     timeoutMs: 3000,
   },
   discovery: {
@@ -78,70 +76,18 @@ export class BtcAccountProvider extends SnapAccountProvider {
     );
   }
 
-  async #createAccounts({
-    keyring,
-    entropySource,
-    groupIndex: index,
-  }: {
-    keyring: RestrictedSnapKeyring;
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withMaxConcurrency(async () => {
-      const account = await withTimeout(
-        keyring.createAccount({
-          entropySource,
-          index,
-          addressType: BtcAccountType.P2wpkh,
-          scope: BtcScope.Mainnet,
-        }),
-        this.config.createAccounts.timeoutMs,
-      );
-
-      assertIsBip44Account(account);
-      this.accounts.add(account.id);
-      return [account];
-    });
-  }
-
-  async createAccounts(
-    options: CreateAccountOptions,
-  ): Promise<Bip44Account<KeyringAccount>[]> {
-    assertCreateAccountOptionIsSupported(options, [
-      `${AccountCreationType.Bip44DeriveIndex}`,
-      `${AccountCreationType.Bip44DeriveIndexRange}`,
-    ]);
-
-    const { entropySource } = options;
-
-    if (options.type === AccountCreationType.Bip44DeriveIndexRange) {
-      const { range } = options;
-      return this.withSnap(async ({ keyring }) => {
-        const accounts: Bip44Account<KeyringAccount>[] = [];
-
-        // TODO: Use `SnapKeyring.createAccounts` when that functionality is implemented on the Snap
-        // itself, instead of creating accounts one by one.
-        for (
-          let groupIndex = range.from;
-          groupIndex <= range.to;
-          groupIndex++
-        ) {
-          const createdAccounts = await this.#createAccounts({
-            keyring,
-            entropySource,
-            groupIndex,
-          });
-          accounts.push(...createdAccounts);
-        }
-
-        return accounts;
-      });
-    }
-
-    const { groupIndex } = options;
-
-    return this.withSnap(async ({ keyring }) => {
-      return this.#createAccounts({ keyring, entropySource, groupIndex });
+  protected override createAccountV1(
+    keyring: RestrictedSnapKeyring,
+    {
+      entropySource,
+      groupIndex,
+    }: { entropySource: EntropySourceId; groupIndex: number },
+  ): Promise<KeyringAccount> {
+    return keyring.createAccount({
+      entropySource,
+      index: groupIndex,
+      addressType: BtcAccountType.P2wpkh,
+      scope: BtcScope.Mainnet,
     });
   }
 
@@ -188,13 +134,11 @@ export class BtcAccountProvider extends SnapAccountProvider {
             return [];
           }
 
-          const createdAccounts = await this.#createAccounts({
-            keyring,
+          return await this.createBip44Accounts(keyring, {
+            type: AccountCreationType.Bip44DeriveIndex,
             entropySource,
             groupIndex,
           });
-
-          return createdAccounts;
         },
       );
     });

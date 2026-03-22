@@ -17,6 +17,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { WalletState } from './MultichainAccountWallet';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
+import { TimeoutError } from './providers';
 import type { MockAccountProvider, RootMessenger } from './tests';
 import {
   MOCK_HD_ACCOUNT_1,
@@ -305,6 +306,28 @@ describe('MultichainAccountWallet', () => {
         'cause',
         providerError,
       );
+    });
+
+    it('does not capture exception when a provider times out creating accounts', async () => {
+      const groupIndex = 1;
+      const { wallet, providers, messenger } = setup({
+        accounts: [[MOCK_HD_ACCOUNT_1]],
+      });
+      const [provider] = providers;
+      provider.createAccounts.mockRejectedValueOnce(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      await expect(
+        wallet.createMultichainAccountGroup(groupIndex),
+      ).rejects.toThrow('Timed out after: 500ms');
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it('defers non-EVM account creation to alignment after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
@@ -599,6 +622,31 @@ describe('MultichainAccountWallet', () => {
         'cause',
         providerError,
       );
+    });
+
+    it('does not capture exception when a provider times out creating accounts in batch', async () => {
+      const { wallet, providers, messenger } = setup({
+        accounts: [[]],
+      });
+
+      const [evmProvider] = providers;
+      evmProvider.createAccounts.mockRejectedValueOnce(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await expect(
+        wallet.createMultichainAccountGroups({ to: 2 }),
+      ).rejects.toThrow('Timed out after: 500ms');
+
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it('creates accounts for all providers synchronously when waitForAllProvidersToFinishCreatingAccounts is true', async () => {
@@ -1062,8 +1110,11 @@ describe('MultichainAccountWallet', () => {
 
       // Thrown provider should have been called once and not rescheduled
       expect(providers[0].discoverAccounts).toHaveBeenCalledTimes(1);
-      expect(consoleSpy).toHaveBeenCalledWith(expect.any(Error));
-      expect((consoleSpy.mock.calls[0][0] as Error).message).toBe(
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Error),
+      );
+      expect((consoleSpy.mock.calls[0][1] as Error).message).toBe(
         'Failed to discover accounts',
       );
 
@@ -1082,12 +1133,33 @@ describe('MultichainAccountWallet', () => {
       providers[1].discoverAccounts.mockResolvedValueOnce([]);
       await wallet.discoverAccounts();
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to discover accounts'),
+        new Error(
+          'Unable to discover accounts with provider "Mocked Provider 0"',
+        ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
         providerError,
       );
+    });
+
+    it('does not capture exception when a provider times out during account discovery', async () => {
+      const { wallet, providers, messenger } = setup({
+        accounts: [[], []],
+      });
+      providers[0].discoverAccounts.mockRejectedValueOnce(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      providers[1].discoverAccounts.mockResolvedValueOnce([]);
+      await wallet.discoverAccounts();
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
   });
 });

@@ -5,7 +5,7 @@
 
 import { TransactionFactory } from '@ethereumjs/tx';
 import type {
-  AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
@@ -848,8 +848,8 @@ describe('TransactionController', () => {
     approve: (approvalResult?: Partial<AddResult>) => void;
     reject: (rejectionError: unknown) => void;
     actionHandlerMock: jest.Mock<
-      ReturnType<AddApprovalRequest['handler']>,
-      Parameters<AddApprovalRequest['handler']>
+      ReturnType<ApprovalControllerAddRequestAction['handler']>,
+      Parameters<ApprovalControllerAddRequestAction['handler']>
     >;
   } {
     const { promise, resolve, reject } = createDeferredPromise<AddResult>();
@@ -877,8 +877,8 @@ describe('TransactionController', () => {
     };
 
     const actionHandlerMock: jest.Mock<
-      ReturnType<AddApprovalRequest['handler']>,
-      Parameters<AddApprovalRequest['handler']>
+      ReturnType<ApprovalControllerAddRequestAction['handler']>,
+      Parameters<ApprovalControllerAddRequestAction['handler']>
     > = jest.fn().mockReturnValue(promise);
     if (options.state === 'approved') {
       approveTransaction(options.result);

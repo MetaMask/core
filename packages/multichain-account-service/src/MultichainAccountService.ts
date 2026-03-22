@@ -13,6 +13,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
 import { traceFallback } from './analytics';
+import { reportError } from './errors';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -20,6 +21,12 @@ import {
   EvmAccountProviderConfig,
   Bip44AccountProvider,
   EVM_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProviderConfig,
+  TrxAccountProviderConfig,
+  BTC_ACCOUNT_PROVIDER_NAME,
+  TRX_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProvider,
+  TrxAccountProvider,
 } from './providers';
 import {
   AccountProviderWrapper,
@@ -36,7 +43,6 @@ import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
 } from './types';
-import { createSentryError } from './utils';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -49,6 +55,8 @@ export type MultichainAccountServiceOptions = {
   providerConfigs?: {
     [EVM_ACCOUNT_PROVIDER_NAME]?: EvmAccountProviderConfig;
     [SOL_ACCOUNT_PROVIDER_NAME]?: SolAccountProviderConfig;
+    [BTC_ACCOUNT_PROVIDER_NAME]?: BtcAccountProviderConfig;
+    [TRX_ACCOUNT_PROVIDER_NAME]?: TrxAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
   /**
@@ -172,12 +180,29 @@ export class MultichainAccountService {
           traceCallback,
         ),
       ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new BtcAccountProvider(
+          this.#messenger,
+          providerConfigs?.[BTC_ACCOUNT_PROVIDER_NAME],
+          traceCallback,
+        ),
+      ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new TrxAccountProvider(
+          this.#messenger,
+          providerConfigs?.[TRX_ACCOUNT_PROVIDER_NAME],
+          traceCallback,
+        ),
+      ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
     ];
 
     this.#watcher = new SnapPlatformWatcher(messenger, {
       ensureOnboardingComplete,
+      snapKeyringWaitTimeoutMs: config?.snapPlatformWatcher?.timeoutMs,
     });
 
     this.#messenger.registerMethodActionHandlers(
@@ -298,14 +323,14 @@ export class MultichainAccountService {
         try {
           await provider.resyncAccounts(accounts);
         } catch (error) {
-          const errorMessage = `Unable to re-sync provider "${provider.getName()}"`;
-          log(errorMessage);
-          console.error(errorMessage);
-
-          const sentryError = createSentryError(errorMessage, error as Error, {
-            provider: provider.getName(),
-          });
-          this.#messenger.captureException?.(sentryError);
+          reportError(
+            this.#messenger,
+            `Unable to re-sync provider "${provider.getName()}"`,
+            error,
+            {
+              provider: provider.getName(),
+            },
+          );
         }
       }),
     );

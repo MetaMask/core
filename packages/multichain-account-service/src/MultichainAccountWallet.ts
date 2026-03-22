@@ -17,6 +17,7 @@ import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
+import { reportError } from './errors';
 import type { Logger } from './logger';
 import {
   createModuleLogger,
@@ -33,7 +34,6 @@ import type { MultichainAccountServiceMessenger } from './types';
 import {
   assertGroupIndexIsValid,
   assertGroupIndexRangeIsValid,
-  createSentryError,
   GroupIndexRange,
   toErrorMessage,
 } from './utils';
@@ -243,29 +243,16 @@ export class MultichainAccountWallet<
         },
       });
     } catch (error) {
-      const modeDescription = isBatching
-        ? 'some accounts (batch)'
-        : 'some accounts';
-      const rangeDescription = isBatching
-        ? `from group index ${from} to ${to}`
-        : `for group index ${to}`;
-
-      const errorMessage = `Unable to create ${modeDescription} ${rangeDescription} with provider "${provider.getName()}". Error: ${(error as Error).message}`;
-      this.#log(`${ERROR_PREFIX} ${errorMessage}:`, error);
-
-      const sentryError = createSentryError(
-        `Unable to create ${modeDescription} with provider "${provider.getName()}"`,
-        error as Error,
+      reportError(
+        this.#messenger,
+        `Unable to create ${isBatching ? 'some accounts (batch)' : 'some accounts'} with provider "${provider.getName()}"`,
+        error,
         {
-          range: {
-            from,
-            to,
-          },
+          range: { from, to },
           provider: provider.getName(),
           isBatching,
         },
       );
-      this.#messenger.captureException?.(sentryError);
       throw error;
     }
   }
@@ -751,23 +738,23 @@ export class MultichainAccountWallet<
             });
           } catch (error) {
             context.stopped = true;
-            console.error(error);
+
             log(
               message(
-                `failed (with: "${(error as Error).message}")`,
+                `failed (with: "${toErrorMessage(error)}")`,
                 targetGroupIndex,
               ),
-              error,
             );
-            const sentryError = createSentryError(
-              'Unable to discover accounts',
-              error as Error,
+
+            reportError(
+              this.#messenger,
+              `Unable to discover accounts with provider "${providerName}"`,
+              error,
               {
                 provider: providerName,
                 groupIndex: targetGroupIndex,
               },
             );
-            this.#messenger.captureException?.(sentryError);
             break;
           }
 

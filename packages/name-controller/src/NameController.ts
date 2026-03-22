@@ -6,6 +6,7 @@ import { BaseController } from '@metamask/base-controller';
 import { isSafeDynamicKey } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
+import type { NameControllerMethodActions } from './NameController-method-action-types';
 import type {
   NameProvider,
   NameProviderRequest,
@@ -35,6 +36,8 @@ const DEFAULT_UPDATE_DELAY = 60 * 2; // 2 Minutes
 const DEFAULT_VARIATION = '';
 
 const controllerName = 'NameController';
+
+const MESSENGER_EXPOSED_METHODS = ['setName', 'updateProposedNames'] as const;
 
 const stateMetadata = {
   names: {
@@ -91,7 +94,7 @@ export type NameStateChange = ControllerStateChangeEvent<
   NameControllerState
 >;
 
-export type NameControllerActions = GetNameState;
+export type NameControllerActions = GetNameState | NameControllerMethodActions;
 
 export type NameControllerEvents = NameStateChange;
 
@@ -162,6 +165,11 @@ export class NameController extends BaseController<
       messenger,
       state: { ...getDefaultState(), ...state },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.#providers = providers;
     this.#updateDelay = updateDelay ?? DEFAULT_UPDATE_DELAY;

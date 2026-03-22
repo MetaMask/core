@@ -306,8 +306,8 @@ const mockAccountTreeControllerState = {
         },
       },
     } as unknown as AccountWalletObject,
-    selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0',
   },
+  selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0',
 } as unknown as AccountTreeControllerState;
 
 const mockAccountControllerState: AccountsControllerState = {
@@ -745,10 +745,7 @@ describe('token-selectors', () => {
     it('includes evm tokens with no fiat balance due to missing conversion rate to native token', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
-        },
+        selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
       });
 
       const tokenWithNoFiatBalance = result['0x1'].find(
@@ -777,10 +774,7 @@ describe('token-selectors', () => {
     it('includes evm tokens with no fiat balance due to missing conversion rate to fiat', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
-        },
+        selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
         currencyRates: {},
       });
 
@@ -823,10 +817,7 @@ describe('token-selectors', () => {
     it('includes multichain tokens with no fiat balance due to missing conversion rate to fiat', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
-        },
+        selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
       });
 
       const tokenWithNoFiatBalance = result[
@@ -858,10 +849,7 @@ describe('token-selectors', () => {
     it('extracts native currency names from network configuration', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
-        },
+        selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
       });
 
       const nativeToken = result['0x89'].find((asset) => asset.isNative);
@@ -892,10 +880,7 @@ describe('token-selectors', () => {
     it('returns no tokens if there is no selected account group', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: '',
-        },
+        selectedAccountGroup: '',
       });
 
       expect(result).toStrictEqual({});

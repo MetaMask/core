@@ -1,15 +1,18 @@
 export { default as GatorPermissionsController } from './GatorPermissionsController';
 export type {
+  GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
+  GatorPermissionsControllerAddPendingRevocationAction,
+  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
+  GatorPermissionsControllerInitializeAction,
+  GatorPermissionsControllerIsPendingRevocationAction,
+  GatorPermissionsControllerSubmitDirectRevocationAction,
+  GatorPermissionsControllerSubmitRevocationAction,
+} from './GatorPermissionsController-method-action-types';
+export type {
   GatorPermissionsControllerState,
   GatorPermissionsControllerConfig,
   GatorPermissionsControllerMessenger,
   GatorPermissionsControllerGetStateAction,
-  GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction,
-  GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
-  GatorPermissionsControllerSubmitRevocationAction,
-  GatorPermissionsControllerAddPendingRevocationAction,
-  GatorPermissionsControllerSubmitDirectRevocationAction,
-  GatorPermissionsControllerIsPendingRevocationAction,
   GatorPermissionsControllerActions,
   GatorPermissionsControllerEvents,
   GatorPermissionsControllerStateChangeEvent,

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.22.0` to `^63.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [3.1.0]
+
+### Changed
+
+- Reduce default initial delay duration from 10 minutes to 1 minute ([#8216](https://github.com/MetaMask/core/pull/8216))
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
+
 ## [3.0.4]
 
 ### Fixed
@@ -82,7 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.1...HEAD
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.0...@metamask/profile-metrics-controller@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.4...@metamask/profile-metrics-controller@3.1.0
 [3.0.4]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.3...@metamask/profile-metrics-controller@3.0.4
 [3.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.2...@metamask/profile-metrics-controller@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.0.1...@metamask/profile-metrics-controller@3.0.2

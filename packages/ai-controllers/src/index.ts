@@ -30,6 +30,7 @@ export type {
   MarketOverview,
   MarketOverviewEntry,
   MarketOverviewTrend,
+  RelatedAsset,
   Source,
   Tweet,
 } from './ai-digest-types';

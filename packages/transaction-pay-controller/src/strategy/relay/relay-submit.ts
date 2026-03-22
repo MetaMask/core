@@ -520,7 +520,8 @@ async function submitViaTransactionController(
         }))
       : undefined;
 
-  const { gasLimits } = quote.original.metamask;
+  const { metamask } = quote.original;
+  const { gasLimits } = metamask;
 
   if (allParams.length === 1) {
     const transactionParams = {
@@ -541,10 +542,9 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 =
-      gasLimits.length === 1 && allParams.length > 1
-        ? toHex(gasLimits[0])
-        : undefined;
+    const gasLimit7702 = metamask.is7702
+      ? toHex(metamask.gasLimits[0])
+      : undefined;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];
