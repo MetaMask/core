@@ -7,10 +7,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import {
-  MMPAY_FIAT_ASSET_ID_BY_TX_TYPE,
-  TransactionPayFiatAsset,
-} from '../constants';
+import { FIAT_ASSET_ID_BY_TX_TYPE, TransactionPayFiatAsset } from './constants';
 
 export function deriveFiatAssetForFiatPayment(
   transaction: TransactionMeta,
@@ -20,11 +17,11 @@ export function deriveFiatAssetForFiatPayment(
   if (transactionType === TransactionType.batch) {
     const firstMatchingType = transaction.nestedTransactions?.[0]?.type;
     if (firstMatchingType) {
-      return MMPAY_FIAT_ASSET_ID_BY_TX_TYPE[firstMatchingType];
+      return FIAT_ASSET_ID_BY_TX_TYPE[firstMatchingType];
     }
   }
 
-  return MMPAY_FIAT_ASSET_ID_BY_TX_TYPE[transactionType as TransactionType];
+  return FIAT_ASSET_ID_BY_TX_TYPE[transactionType as TransactionType];
 }
 
 export function pickBestFiatQuote(

@@ -1,9 +1,9 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 
-import { deriveFiatAssetForFiatPayment, pickBestFiatQuote } from './fiat';
-import { MMPAY_FIAT_ASSET_ID_BY_TX_TYPE } from '../constants';
-import type { FiatQuotesResponse } from '../strategy/fiat/types';
+import { FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
+import type { FiatQuotesResponse } from './types';
+import { deriveFiatAssetForFiatPayment, pickBestFiatQuote } from './utils';
 
 describe('Fiat Utils', () => {
   describe('deriveFiatAssetForFiatPayment', () => {
@@ -15,7 +15,7 @@ describe('Fiat Utils', () => {
       const result = deriveFiatAssetForFiatPayment(transaction);
 
       expect(result).toStrictEqual(
-        MMPAY_FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.predictDeposit],
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.predictDeposit],
       );
     });
 
@@ -28,7 +28,7 @@ describe('Fiat Utils', () => {
       const result = deriveFiatAssetForFiatPayment(transaction);
 
       expect(result).toStrictEqual(
-        MMPAY_FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.perpsDeposit],
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.perpsDeposit],
       );
     });
 

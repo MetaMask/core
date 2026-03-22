@@ -1,4 +1,4 @@
-import type { FiatOriginalQuote } from './types';
+import type { FiatQuote } from './types';
 import type { PayStrategy, PayStrategyExecuteRequest } from '../../types';
 
 /**
@@ -8,7 +8,7 @@ import type { PayStrategy, PayStrategyExecuteRequest } from '../../types';
  * @returns Empty transaction hash until fiat submit implementation is added.
  */
 export async function submitFiatQuotes(
-  _request: PayStrategyExecuteRequest<FiatOriginalQuote>,
-): ReturnType<PayStrategy<FiatOriginalQuote>['execute']> {
+  _request: PayStrategyExecuteRequest<FiatQuote>,
+): ReturnType<PayStrategy<FiatQuote>['execute']> {
   return { transactionHash: undefined };
 }

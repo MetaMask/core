@@ -3,7 +3,6 @@ import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import { getStrategiesByName, getStrategyByName } from './strategy';
 import {
@@ -108,6 +107,7 @@ export async function updateQuotes(
       requests,
       getStrategies,
       messenger,
+      transactionData.fiatPayment?.selectedPaymentMethodId,
     );
 
     const totals = calculateTotals({
@@ -184,11 +184,7 @@ function syncTransaction({
       tx.batchTransactionsOptions = {};
 
       tx.metamaskPay = {
-        bridgeFeeFiat: totals.fees.fiatProvider
-          ? new BigNumber(totals.fees.provider.usd)
-              .plus(totals.fees.fiatProvider.usd)
-              .toString(10)
-          : totals.fees.provider.usd,
+        bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,
         isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
@@ -469,6 +465,7 @@ async function refreshPaymentTokenBalance({
  * @param requests - Quote requests.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
+ * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
@@ -476,6 +473,7 @@ async function getQuotes(
   requests: QuoteRequest[],
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
+  fiatPaymentMethod?: string,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
@@ -499,6 +497,7 @@ async function getQuotes(
   }
 
   const request = {
+    fiatPaymentMethod,
     messenger,
     requests,
     transaction,

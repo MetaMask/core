@@ -1,6 +1,6 @@
 import { getFiatQuotes } from './fiat-quotes';
 import { submitFiatQuotes } from './fiat-submit';
-import type { FiatOriginalQuote } from './types';
+import type { FiatQuote } from './types';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
@@ -8,16 +8,16 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 
-export class FiatStrategy implements PayStrategy<FiatOriginalQuote> {
+export class FiatStrategy implements PayStrategy<FiatQuote> {
   async getQuotes(
     request: PayStrategyGetQuotesRequest,
-  ): Promise<TransactionPayQuote<FiatOriginalQuote>[]> {
+  ): Promise<TransactionPayQuote<FiatQuote>[]> {
     return getFiatQuotes(request);
   }
 
   async execute(
-    request: PayStrategyExecuteRequest<FiatOriginalQuote>,
-  ): ReturnType<PayStrategy<FiatOriginalQuote>['execute']> {
+    request: PayStrategyExecuteRequest<FiatQuote>,
+  ): ReturnType<PayStrategy<FiatQuote>['execute']> {
     return await submitFiatQuotes(request);
   }
 }

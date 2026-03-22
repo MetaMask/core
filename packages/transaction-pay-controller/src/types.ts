@@ -399,8 +399,8 @@ export type TransactionPayFees = {
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
-  /** Fee charged by fiat on-ramp provider. */
-  fiatProvider?: FiatValue;
+  /** Fee charged by fiat on-ramp provider (breakdown of the provider total). */
+  providerFiat?: FiatValue;
 
   /** Network fee for transactions on the source network. */
   sourceNetwork: {
@@ -441,6 +441,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
 /** Request to get quotes for a transaction. */
 export type PayStrategyGetQuotesRequest = {
+  /** Selected fiat payment method ID, if applicable. */
+  fiatPaymentMethod?: string;
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 

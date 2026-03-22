@@ -37,8 +37,8 @@ export function calculateTotals({
 }): TransactionPayTotals {
   const metaMaskFee = sumFiat(quotes.map((quote) => quote.fees.metaMask));
   const providerFee = sumFiat(quotes.map((quote) => quote.fees.provider));
-  const fiatProviderFee = sumFiat(
-    quotes.map((quote) => quote.fees.fiatProvider ?? { fiat: '0', usd: '0' }),
+  const providerFiatFee = sumFiat(
+    quotes.map((quote) => quote.fees.providerFiat ?? { fiat: '0', usd: '0' }),
   );
 
   const sourceNetworkFeeMax = sumAmounts(
@@ -73,7 +73,6 @@ export function calculateTotals({
   const hasQuotes = quotes.length > 0;
 
   const totalFiat = new BigNumber(providerFee.fiat)
-    .plus(fiatProviderFee.fiat)
     .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
@@ -81,7 +80,6 @@ export function calculateTotals({
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
-    .plus(fiatProviderFee.usd)
     .plus(metaMaskFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
@@ -105,7 +103,7 @@ export function calculateTotals({
     fees: {
       isSourceGasFeeToken,
       isTargetGasFeeToken,
-      fiatProvider: fiatProviderFee,
+      providerFiat: providerFiatFee,
       metaMask: metaMaskFee,
       provider: providerFee,
       sourceNetwork: {

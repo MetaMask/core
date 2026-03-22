@@ -578,12 +578,12 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('updates metrics in metadata with fiat provider fee', async () => {
+    it('uses provider fee directly as bridgeFeeFiat even when providerFiat breakdown exists', async () => {
       calculateTotalsMock.mockReturnValue({
         ...TOTALS_MOCK,
         fees: {
           ...TOTALS_MOCK.fees,
-          fiatProvider: {
+          providerFiat: {
             fiat: '0.11',
             usd: '0.22',
           },
@@ -597,7 +597,7 @@ describe('Quotes Utils', () => {
 
       expect(transactionMetaMock).toMatchObject({
         metamaskPay: {
-          bridgeFeeFiat: '9.12',
+          bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
           chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
           networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
           targetFiat: TOTALS_MOCK.targetAmount.usd,

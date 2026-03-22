@@ -251,6 +251,38 @@ export function computeTokenAmounts(
 }
 
 /**
+ * Compute a raw token amount from a fiat (USD) amount.
+ * This is the inverse of `computeTokenAmounts` — it goes from USD to raw.
+ *
+ * @param fiatAmount - Amount in fiat/USD.
+ * @param decimals - Token decimals.
+ * @param usdRate - USD rate for the token (price per one unit of the token).
+ * @returns Raw token amount string, or undefined if the conversion produces an invalid result.
+ */
+export function computeRawFromFiatAmount(
+  fiatAmount: BigNumber.Value,
+  decimals: number,
+  usdRate: BigNumber.Value,
+): string | undefined {
+  const rate = new BigNumber(usdRate);
+  if (!rate.isFinite() || !rate.gt(0)) {
+    return undefined;
+  }
+
+  const humanAmount = new BigNumber(fiatAmount).dividedBy(rate);
+  if (!humanAmount.isFinite() || !humanAmount.gt(0)) {
+    return undefined;
+  }
+
+  const raw = humanAmount
+    .shiftedBy(decimals)
+    .decimalPlaces(0, BigNumber.ROUND_DOWN)
+    .toFixed(0);
+
+  return new BigNumber(raw).gt(0) ? raw : undefined;
+}
+
+/**
  * Get the native token address for a given chain ID.
  *
  * @param chainId - Chain ID.
