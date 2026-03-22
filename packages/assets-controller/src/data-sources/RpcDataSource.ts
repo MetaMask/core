@@ -45,7 +45,8 @@ import type {
   TokenListState,
   BalanceFetchResult,
   TokenDetectionResult,
-} from './evm-rpc-services';
+  TokenFetchInfo,
+} from './evm-rpc-services/types';
 import type {
   AssetsControllerGetStateAction,
   AssetsControllerMessenger,
@@ -358,15 +359,12 @@ export class RpcDataSource extends AbstractDataSource<
           if (tokenListMeta) {
             assetsInfo[balance.assetId] = tokenListMeta;
           } else {
-            // Default metadata for unknown ERC20 tokens.
-            // Use 18 decimals (the standard for most ERC20 tokens)
-            // to ensure consistent human-readable balance format.
+            // Unknown ERC-20: no decimals guess — RpcDataSource resolves via RPC or omits balance.
             assetsInfo[balance.assetId] = {
               type: 'erc20',
               symbol: '',
               name: '',
-              decimals: 18,
-            };
+            } as AssetMetadata;
           }
         }
       }
@@ -400,7 +398,7 @@ export class RpcDataSource extends AbstractDataSource<
     );
 
     // Convert balances to human-readable format.
-    // Resolution: state → pipeline metadata → RPC `decimals()`; omit balance if still falsy.
+    // Resolution: state → pipeline metadata → RPC `decimals()`; omit balance if still unknown.
     const existingMetadata = this.#getExistingAssetsMetadata();
     for (const balance of normalizedBalances) {
       const stateMetadata = existingMetadata[balance.assetId];
@@ -418,15 +416,13 @@ export class RpcDataSource extends AbstractDataSource<
         }
       }
 
-      if (!decimals) {
+      if (decimals === undefined) {
         continue;
       }
 
-      const resolvedDecimals = decimals;
-
       const humanReadableAmount = this.#convertToHumanReadable(
         balance.balance,
-        resolvedDecimals,
+        decimals,
       );
 
       newBalances[balance.assetId] = {
@@ -497,13 +493,12 @@ export class RpcDataSource extends AbstractDataSource<
         const detectedAsset = result.detectedAssets.find(
           (asset) => asset.assetId === balance.assetId,
         );
-        if (!detectedAsset?.decimals) {
+        if (detectedAsset?.decimals === undefined) {
           continue;
         }
-        const decimals = detectedAsset?.decimals;
         const humanReadableAmount = this.#convertToHumanReadable(
           balance.balance,
-          decimals,
+          detectedAsset.decimals,
         );
 
         newBalances[balance.assetId] = {
@@ -941,6 +936,11 @@ export class RpcDataSource extends AbstractDataSource<
         }
 
         try {
+          const tokenInfos = this.#tokenFetchInfosForCustomErc20s(
+            chainId,
+            customTokenAddresses,
+          );
+
           // Use BalanceFetcher for batched balance fetching
           const result = await this.#balanceFetcher.fetchBalancesForTokens(
             hexChainId,
@@ -948,6 +948,7 @@ export class RpcDataSource extends AbstractDataSource<
             address as Address,
             customTokenAddresses,
             { includeNative: true },
+            tokenInfos,
           );
 
           if (!assetsBalance[accountId]) {
@@ -970,7 +971,7 @@ export class RpcDataSource extends AbstractDataSource<
 
           // Convert balances to human-readable format using decimals from
           // assetsInfo state (which includes pendingMetadata from addCustomAsset).
-          // Resolution: state → pipeline metadata → RPC `decimals()`; omit balance if still falsy.
+          // Resolution: state → pipeline metadata → RPC `decimals()`; omit balance if still unknown.
           const existingMetadata = this.#getExistingAssetsMetadata();
           for (const balance of normalizedBalances) {
             const stateMetadata = existingMetadata[balance.assetId];
@@ -988,15 +989,13 @@ export class RpcDataSource extends AbstractDataSource<
               }
             }
 
-            if (!decimals) {
+            if (decimals === undefined) {
               continue;
             }
 
-            const resolvedDecimals = decimals;
-
             const humanReadableAmount = this.#convertToHumanReadable(
               balance.balance,
-              resolvedDecimals,
+              decimals,
             );
 
             assetsBalance[accountId][balance.assetId] = {
@@ -1123,13 +1122,12 @@ export class RpcDataSource extends AbstractDataSource<
         const detectedAsset = result.detectedAssets.find(
           (asset) => asset.assetId === balance.assetId,
         );
-        if (!detectedAsset?.decimals) {
+        if (detectedAsset?.decimals === undefined) {
           continue;
         }
-        const decimals = detectedAsset?.decimals;
         const humanReadableAmount = this.#convertToHumanReadable(
           balance.balance,
-          decimals,
+          detectedAsset.decimals,
         );
 
         balances[balance.assetId] = {
@@ -1370,6 +1368,39 @@ export class RpcDataSource extends AbstractDataSource<
     );
 
     return nativeAssetIdentifiers[chainId] ?? `${chainId}/slip44:60`;
+  }
+
+  /**
+   * Build token infos for custom ERC-20s when decimals are already known from
+   * state or token list so BalanceFetcher can format balances; unknown decimals
+   * are left out and resolved in `fetch` / `#handleBalanceUpdate`.
+   *
+   * @param caipChainId - CAIP-2 chain id (e.g. `eip155:1`).
+   * @param tokenAddresses - ERC-20 contract addresses on that chain.
+   * @returns Token fetch infos that include only entries with known decimals.
+   */
+  #tokenFetchInfosForCustomErc20s(
+    caipChainId: ChainId,
+    tokenAddresses: Address[],
+  ): TokenFetchInfo[] {
+    const existingMetadata = this.#getExistingAssetsMetadata();
+    const infos: TokenFetchInfo[] = [];
+
+    for (const tokenAddress of tokenAddresses) {
+      const { reference } = parseCaipChainId(caipChainId);
+      const rawAssetId =
+        `eip155:${reference}/erc20:${tokenAddress.toLowerCase()}` as Caip19AssetId;
+      const assetId = normalizeAssetId(rawAssetId);
+      const decimals =
+        existingMetadata[assetId]?.decimals ??
+        this.#getTokenMetadataFromTokenList(assetId)?.decimals;
+
+      if (decimals !== undefined) {
+        infos.push({ address: tokenAddress, decimals });
+      }
+    }
+
+    return infos;
   }
 
   /**

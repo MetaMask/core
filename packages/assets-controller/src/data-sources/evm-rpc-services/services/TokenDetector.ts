@@ -292,11 +292,11 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
       );
       detectedAssets.push(asset);
 
-      if (!tokenMetadata?.decimals) {
+      if (tokenMetadata?.decimals === undefined) {
         continue;
       }
 
-      const decimals = tokenMetadata?.decimals;
+      const { decimals } = tokenMetadata;
       const formattedBalance = this.#formatBalance(balance, decimals);
 
       detectedBalances.push({

@@ -75,8 +75,8 @@ export type BalanceFetchOptions = {
 export type TokenFetchInfo = {
   /** Token contract address */
   address: Address;
-  /** Token decimals */
-  decimals: number;
+  /** Token decimals (omit when unknown — balance fetcher returns raw balance for RpcDataSource to resolve). */
+  decimals?: number;
   /** Token symbol (optional) */
   symbol?: string;
 };

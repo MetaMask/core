@@ -288,31 +288,35 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
         response.tokenAddress.toLowerCase() === ZERO_ADDRESS.toLowerCase();
       const tokenInfo = tokenInfoMap.get(response.tokenAddress.toLowerCase());
 
-      // Native uses 18. ERC-20 requires tokenInfos with decimals — skip if missing
-      // (callers must supply decimals from metadata or RPC upstream).
-      let decimals: number;
+      // Native uses 18. ERC-20: format when decimals are known; otherwise pass raw
+      // `balance` through so RpcDataSource can resolve decimals (state → list → RPC).
+      let decimals: number | undefined;
+      let formattedBalance: string;
       if (isNative) {
         decimals = 18;
-      } else if (tokenInfo?.decimals) {
-        decimals = tokenInfo.decimals;
+        formattedBalance = this.#formatBalance(balance, decimals);
+      } else if (tokenInfo?.decimals === undefined) {
+        formattedBalance = balance;
       } else {
-        continue;
+        decimals = tokenInfo.decimals;
+        formattedBalance = this.#formatBalance(balance, decimals);
       }
-
-      const formattedBalance = this.#formatBalance(balance, decimals);
       const assetId: CaipAssetType = isNative
         ? (`eip155:${chainIdDecimal}/slip44:60` as CaipAssetType)
         : (`eip155:${chainIdDecimal}/erc20:${response.tokenAddress.toLowerCase()}` as CaipAssetType);
 
-      balances.push({
+      const balanceEntry: AssetBalance = {
         assetId,
         accountId,
         chainId,
         balance,
         formattedBalance,
-        decimals,
         timestamp,
-      });
+      };
+      if (typeof decimals === 'number') {
+        balanceEntry.decimals = decimals;
+      }
+      balances.push(balanceEntry);
     }
 
     return { balances, failedAddresses };

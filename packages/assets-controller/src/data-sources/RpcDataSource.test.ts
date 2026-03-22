@@ -779,6 +779,7 @@ describe('RpcDataSource', () => {
           MOCK_ADDRESS,
           ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
           { includeNative: true },
+          [],
         );
       });
 
@@ -807,6 +808,7 @@ describe('RpcDataSource', () => {
           MOCK_ADDRESS,
           ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
           { includeNative: true },
+          [],
         );
       });
 
@@ -1464,7 +1466,7 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('falls back to default metadata when ERC20 not in token list (#getTokenMetadataFromTokenList no match)', async () => {
+    it('uses placeholder ERC-20 metadata without decimals when ERC20 not in token list (#getTokenMetadataFromTokenList no match)', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000001';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1529,7 +1531,6 @@ describe('RpcDataSource', () => {
         type: 'erc20',
         symbol: '',
         name: '',
-        decimals: 18,
       });
     });
 
@@ -1591,7 +1592,7 @@ describe('RpcDataSource', () => {
       ).toBeUndefined();
     });
 
-    it('falls back to default metadata when token list has no chain cache (#getTokenMetadataFromTokenList)', async () => {
+    it('uses placeholder ERC-20 metadata without decimals when token list has no chain cache (#getTokenMetadataFromTokenList)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000002' as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1640,11 +1641,10 @@ describe('RpcDataSource', () => {
         type: 'erc20',
         symbol: '',
         name: '',
-        decimals: 18,
       });
     });
 
-    it('falls back to default metadata when token list entry lacks symbol/decimals (#getTokenMetadataFromTokenList)', async () => {
+    it('uses placeholder ERC-20 metadata without decimals when token list entry lacks symbol/decimals (#getTokenMetadataFromTokenList)', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000003';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1709,11 +1709,10 @@ describe('RpcDataSource', () => {
         type: 'erc20',
         symbol: '',
         name: '',
-        decimals: 18,
       });
     });
 
-    it('falls back to default metadata when non-ERC20 assetId in balance (#getTokenMetadataFromTokenList)', async () => {
+    it('uses placeholder ERC-20 metadata without decimals when non-ERC20 assetId in balance (#getTokenMetadataFromTokenList)', async () => {
       const nonErc20AssetId =
         'eip155:1/erc721:0xAbc0000000000000000000000000000000000004' as Caip19AssetId;
       const normalizedId = normalizeAssetId(nonErc20AssetId);
@@ -1766,11 +1765,10 @@ describe('RpcDataSource', () => {
         type: 'erc20',
         symbol: '',
         name: '',
-        decimals: 18,
       });
     });
 
-    it('falls back to default metadata when TokenListController:getState throws (#getTokenMetadataFromTokenList catch)', async () => {
+    it('uses placeholder ERC-20 metadata without decimals when TokenListController:getState throws (#getTokenMetadataFromTokenList catch)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000005' as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1821,7 +1819,6 @@ describe('RpcDataSource', () => {
         type: 'erc20',
         symbol: '',
         name: '',
-        decimals: 18,
       });
     });
   });
