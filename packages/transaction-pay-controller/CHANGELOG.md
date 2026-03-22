@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/bridge-controller` from `^69.1.1` to `^69.2.0` ([#8265](https://github.com/MetaMask/core/pull/8265))
 
+### Added
+
+- Add `FiatStrategy` to retrieve quotes via `RampsController` ([#8121](https://github.com/MetaMask/core/pull/8121))
+
 ## [18.0.0]
 
 ### Changed
@@ -40,7 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add `AssetsControllerGetStateForTransactionPayAction` to the `AllowedActions` messenger type ([#8163](https://github.com/MetaMask/core/pull/8163))
-- Add `FiatStrategy` to retrieve quotes via `RampsController` ([#8121](https://github.com/MetaMask/core/pull/8121))
 
 ### Changed
 
