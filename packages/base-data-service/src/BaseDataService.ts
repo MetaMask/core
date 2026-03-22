@@ -50,7 +50,7 @@ export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   ) => Promise<void>;
 };
 
-type DataServiceActions<ServiceName extends string> =
+export type DataServiceActions<ServiceName extends string> =
   DataServiceInvalidateQueriesAction<ServiceName>;
 
 export type DataServiceCacheUpdatedEvent<ServiceName extends string> = {
@@ -63,7 +63,7 @@ export type DataServiceGranularCacheUpdatedEvent<ServiceName extends string> = {
   payload: [GranularCacheUpdatedPayload];
 };
 
-type DataServiceEvents<ServiceName extends string> =
+export type DataServiceEvents<ServiceName extends string> =
   | DataServiceCacheUpdatedEvent<ServiceName>
   | DataServiceGranularCacheUpdatedEvent<ServiceName>;
 
@@ -75,6 +75,38 @@ const queryClientDefaults: DefaultOptions = {
   },
 };
 
+/**
+ * Background-side data service base class.
+ *
+ * Uses `@tanstack/query-core` as internal infrastructure for caching,
+ * deduplication, and garbage collection. The UI does not consume background
+ * TQ artifacts directly:
+ *
+ * - `queryKey` is internal — the messenger event name (e.g.,
+ *   `ServiceName:cacheUpdated`) is the contract between background and UI.
+ * - `staleTime`, `gcTime`, `retry` are background-internal cache policy.
+ *   They govern how the background caches and refreshes data. They do not
+ *   leak to the UI.
+ * - `cacheUpdated` events are the only UI-visible output.
+ *
+ * ## When to use
+ *
+ * Use when data meets background ownership criteria:
+ * - Controller dependency (used in business logic: gas estimation, validation)
+ * - Process persistence (needed when UI is unmounted)
+ * - Externally driven cadence (controller state changes, WebSocket events)
+ *
+ * For display-only, on-demand data (spot prices, activity, swap quotes),
+ * the UI fetches directly via `useQuery` with `get*QueryOptions` from
+ * `@metamask/core-backend`. No data service needed.
+ *
+ * ## UI consumption
+ *
+ * UI subscribes to `cacheUpdated` events via `createControllerStore` +
+ * `useSyncExternalStore` (Option B), or via `createUIQueryClient` +
+ * `hydrate()` (Option A). The data service is agnostic to the UI
+ * consumption pattern.
+ */
 export class BaseDataService<
   ServiceName extends string,
   ServiceMessenger extends Messenger<
