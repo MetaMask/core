@@ -1477,7 +1477,7 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to cancel.
    * @param gasValues - The gas values to use for the cancellation transaction.
    * @param options - The options for the cancellation transaction.
-   * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.actionId - Unique ID persisted on transaction metadata.
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
    */
   async stopTransaction(
@@ -1521,7 +1521,7 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to speed up.
    * @param gasValues - The gas values to use for the speed up transaction.
    * @param options - The options for the speed up transaction.
-   * @param options.actionId - Unique ID to prevent duplicate requests
+   * @param options.actionId - Unique ID persisted on transaction metadata.
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
    */
   async speedUpTransaction(
@@ -3372,7 +3372,7 @@ export class TransactionController extends BaseController<
    * and emitting a `<tx.id>:finished` hub event.
    *
    * @param transactionId - The ID of the transaction to cancel.
-   * @param actionId - The actionId passed from UI
+   * @param actionId - Unique ID persisted on transaction metadata.
    * @param error - The error that caused the rejection.
    */
   #rejectTransaction(
