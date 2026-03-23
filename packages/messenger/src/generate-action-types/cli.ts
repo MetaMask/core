@@ -73,7 +73,11 @@ async function loadESLint(): Promise<ESLint | null> {
       fix: true,
       errorOnUnmatchedPattern: false,
     });
-    return { instance, static: ESLintClass };
+    return {
+      instance,
+      outputFixes: ESLintClass.outputFixes,
+      getErrorResults: ESLintClass.getErrorResults,
+    };
   } catch {
     return null;
   }

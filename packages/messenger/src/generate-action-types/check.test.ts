@@ -129,10 +129,8 @@ describe('checkActionTypesFiles', () => {
 
     const mockEslint = {
       instance: { lintFiles: jest.fn().mockResolvedValue([]) },
-      static: {
-        outputFixes: jest.fn().mockResolvedValue(undefined),
-        getErrorResults: jest.fn().mockReturnValue([]),
-      },
+      outputFixes: jest.fn().mockResolvedValue(undefined),
+      getErrorResults: jest.fn().mockReturnValue([]),
     };
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
@@ -140,7 +138,7 @@ describe('checkActionTypesFiles', () => {
     consoleSpy.mockRestore();
 
     expect(mockEslint.instance.lintFiles).toHaveBeenCalled();
-    expect(mockEslint.static.outputFixes).toHaveBeenCalled();
+    expect(mockEslint.outputFixes).toHaveBeenCalled();
     expect(globalThis.process.exitCode).toBeUndefined();
   });
 });

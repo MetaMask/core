@@ -82,10 +82,8 @@ describe('generateAllActionTypesFiles', () => {
 
     const mockEslint = {
       instance: { lintFiles: jest.fn().mockResolvedValue([]) },
-      static: {
-        outputFixes: jest.fn().mockResolvedValue(undefined),
-        getErrorResults: jest.fn().mockReturnValue([]),
-      },
+      outputFixes: jest.fn().mockResolvedValue(undefined),
+      getErrorResults: jest.fn().mockReturnValue([]),
     };
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
@@ -95,8 +93,8 @@ describe('generateAllActionTypesFiles', () => {
     expect(mockEslint.instance.lintFiles).toHaveBeenCalledWith([
       path.join(tmpDir, 'TestController-method-action-types.ts'),
     ]);
-    expect(mockEslint.static.outputFixes).toHaveBeenCalled();
-    expect(mockEslint.static.getErrorResults).toHaveBeenCalled();
+    expect(mockEslint.outputFixes).toHaveBeenCalled();
+    expect(mockEslint.getErrorResults).toHaveBeenCalled();
   });
 
   it('sets exitCode when ESLint reports errors', async () => {
@@ -110,12 +108,10 @@ describe('generateAllActionTypesFiles', () => {
       instance: {
         lintFiles: jest.fn().mockResolvedValue([{ filePath: 'test.ts' }]),
       },
-      static: {
-        outputFixes: jest.fn().mockResolvedValue(undefined),
-        getErrorResults: jest
-          .fn()
-          .mockReturnValue([{ filePath: 'test.ts', messages: ['err'] }]),
-      },
+      outputFixes: jest.fn().mockResolvedValue(undefined),
+      getErrorResults: jest
+        .fn()
+        .mockReturnValue([{ filePath: 'test.ts', messages: ['err'] }]),
     };
 
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();

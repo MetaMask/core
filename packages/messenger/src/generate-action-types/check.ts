@@ -68,7 +68,7 @@ export async function checkActionTypesFiles(
         const results = await eslint.instance.lintFiles(
           fileComparisonJobs.map((job) => job.expectedTempFile),
         );
-        await eslint.static.outputFixes(results);
+        await eslint.outputFixes(results);
       }
 
       for (const job of fileComparisonJobs) {

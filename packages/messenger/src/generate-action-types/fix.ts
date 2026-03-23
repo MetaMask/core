@@ -36,8 +36,8 @@ export async function generateAllActionTypesFiles(
     console.log('\n📝 Running ESLint on generated files...');
 
     const results = await eslint.instance.lintFiles(outputFiles);
-    await eslint.static.outputFixes(results);
-    const errors = eslint.static.getErrorResults(results);
+    await eslint.outputFixes(results);
+    const errors = eslint.getErrorResults(results);
     if (errors.length > 0) {
       console.error('❌ ESLint errors:', errors);
       globalThis.process.exitCode = 1;

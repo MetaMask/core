@@ -1,11 +1,7 @@
-type LintResult = { output?: string; filePath: string };
+import type { ESLint as ESLintClass } from 'eslint';
 
 export type ESLint = {
-  instance: {
-    lintFiles(files: string[]): Promise<LintResult[]>;
-  };
-  static: {
-    outputFixes(results: LintResult[]): Promise<void>;
-    getErrorResults(results: LintResult[]): LintResult[];
-  };
+  instance: ESLintClass;
+  outputFixes: typeof ESLintClass.outputFixes;
+  getErrorResults: typeof ESLintClass.getErrorResults;
 };
