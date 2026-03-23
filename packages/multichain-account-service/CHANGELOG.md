@@ -9,12 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Use `{Btc,Sol}AccountProvider` as default providers ([#8262](https://github.com/MetaMask/core/pull/8262))
+  - Those providers were initially provided by the clients.
 - Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801)), ([#8190](https://github.com/MetaMask/core/pull/8190))
 - Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
   - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
   - This behavior was enabled by default and can now be turned off by the clients.
 - Add new `snapPlatformWatcher.timeoutMs` configuration ([#8196](https://github.com/MetaMask/core/pull/8196))
   - Allows configuring how long to wait for the Snap keyring to appear in `KeyringController` before timing out (Default is 5000 ms).
+- Add more tracing (alignment, create account v1/v2) ([#8244](https://github.com/MetaMask/core/pull/8244))
+- Add local perf tracing ([#8244](https://github.com/MetaMask/core/pull/8244))
+  - Each trace is now automatically wrapped and will log performance timings using the internal logger.
+  - Only enabled if `metamask:multichain-account-service` is part of `DEBUG` (env var) filters.
 
 ### Changed
 
@@ -28,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Batch account creation with single `keyring.addAccounts` call.
   - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
   - Significantly reduces lock acquisitions and API calls for batch operations.
+- Do not report `TimeoutError` errors ([#8249](https://github.com/MetaMask/core/pull/8249))
+  - All other kind of errors are still reported as usual.
 
 ### Removed
 

@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Tempo Mainnet (`4217`/`0x1079`) and Tempo Moderato Testnet (`42431`/`0xa5bf`) support ([#8258](https://github.com/MetaMask/core/pull/8258))
+  - Add `0x1079` and `0xa5bf` to `SPOT_PRICES_SUPPORT_INFO` in `codefi-v2.ts`
+  - Add `0x1079` and `0xa5bf` to `chainIdToNativeTokenAddress` in `codefi-v2.ts`
+  - Add `0xa5bf` (only Tempo Testnet) to `MULTICALL_CONTRACT_BY_CHAINID` in `multicall.ts`
+
 ### Changed
 
 - **BREAKING:** `AssetListState` type now requires a top-level `selectedAccountGroup` property, matching the updated `AccountTreeControllerState` shape where `selectedAccountGroup` was moved out of `accountTree` ([#8245](https://github.com/MetaMask/core/pull/8245))
 - Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+- `fetchTokenPrices` to use `SPOT_PRICES_SUPPORT_INFO` as override - use if defined - instead of fallback for native token price ([#8258](https://github.com/MetaMask/core/pull/8258))
 
 ## [101.0.1]
 

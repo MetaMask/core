@@ -15,6 +15,7 @@ import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import type { RampsControllerGetQuotesAction } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   AuthorizationList,
@@ -47,6 +48,7 @@ export type AllowedActions =
   | GasFeeControllerActions
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | RampsControllerGetQuotesAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
@@ -365,6 +367,9 @@ export type TransactionPayFees = {
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
+  /** Fee charged by fiat on-ramp provider (breakdown of the provider total). */
+  providerFiat?: FiatValue;
+
   /** Network fee for transactions on the source network. */
   sourceNetwork: {
     estimate: Amount;
@@ -404,6 +409,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
 /** Request to get quotes for a transaction. */
 export type PayStrategyGetQuotesRequest = {
+  /** Selected fiat payment method ID, if applicable. */
+  fiatPaymentMethod?: string;
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
