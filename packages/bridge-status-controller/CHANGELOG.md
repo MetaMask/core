@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- For hardware wallets on MetaMask Mobile, wait for ERC-20 approval transactions to reach a confirmed status before submitting the swap transaction in non-batch EVM flows, so gas estimation runs after allowance is set on-chain ([#8268](https://github.com/MetaMask/core/pull/8268))
+- For hardware wallets on MetaMask Mobile, non-batch EVM flows with ERC-20 approval now run the hardware-wallet delay before waiting for approval confirmation, preserving Ledger second-prompt spacing while gas estimation still runs after allowance is set on-chain ([#8268](https://github.com/MetaMask/core/pull/8268))
 
 ## [70.0.0]
 

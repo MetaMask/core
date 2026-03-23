@@ -2996,6 +2996,11 @@ describe('BridgeStatusController', () => {
       controller.stopAllPolling();
 
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
+      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
+      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(true);
+      expect(handleMobileHardwareWalletDelaySpy.mock.invocationCallOrder[0]).toBeLessThan(
+        waitForTxConfirmationSpy.mock.invocationCallOrder[0],
+      );
       expect(waitForTxConfirmationSpy).toHaveBeenCalledWith(
         expect.any(Object),
         mockApprovalTxMeta.id,
@@ -3004,7 +3009,6 @@ describe('BridgeStatusController', () => {
           pollMs: 3_000,
         }),
       );
-      expect(handleMobileHardwareWalletDelaySpy).not.toHaveBeenCalled();
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       expect(controller.state.txHistory[result.id]).toMatchSnapshot();

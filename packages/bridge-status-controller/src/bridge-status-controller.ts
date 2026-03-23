@@ -1333,7 +1333,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
           approvalTxId = approvalTxMeta?.id;
 
+          // Hardware-wallet delay first (Ledger second-prompt spacing), then wait for
+          // on-chain approval confirmation so swap gas estimation runs after allowance is set.
           if (requireApproval && approvalTxMeta) {
+            await handleMobileHardwareWalletDelay(requireApproval);
             await this.#waitForTxConfirmation(approvalTxMeta.id);
           } else {
             await handleMobileHardwareWalletDelay(requireApproval);
