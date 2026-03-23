@@ -20,7 +20,7 @@ import type {
 } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../analytics/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 export type BtcAccountProviderConfig = SnapAccountProviderConfig;
@@ -114,11 +114,12 @@ export class BtcAccountProvider extends SnapAccountProvider {
           const discoveredAccounts = await withRetry(
             () =>
               withTimeout(
-                client.discoverAccounts(
-                  [BtcScope.Mainnet],
-                  entropySource,
-                  groupIndex,
-                ),
+                () =>
+                  client.discoverAccounts(
+                    [BtcScope.Mainnet],
+                    entropySource,
+                    groupIndex,
+                  ),
                 this.config.discovery.timeoutMs,
               ),
             {

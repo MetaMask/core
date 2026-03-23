@@ -6,6 +6,7 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -13,6 +14,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
 import { traceFallback } from './analytics';
+import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
 import { reportError } from './errors';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
@@ -129,6 +131,8 @@ export class MultichainAccountService {
 
   readonly #providers: Bip44AccountProvider[];
 
+  readonly #trace: TraceCallback;
+
   readonly #wallets: Map<
     MultichainAccountWalletId,
     MultichainAccountWallet<Bip44Account<KeyringAccount>>
@@ -161,23 +165,31 @@ export class MultichainAccountService {
     this.#messenger = messenger;
     this.#wallets = new Map();
 
-    // Pass trace callback directly to preserve original 'this' context
-    // This avoids binding the callback to the MultichainAccountService instance
-    const traceCallback = config?.trace ?? traceFallback;
+    // Pass trace callback directly to preserve original 'this' context.
+    // This avoids binding the callback to the MultichainAccountService instance.
+    let trace: TraceCallback = config?.trace ?? traceFallback;
+
+    // Wrap the trace callback with local performance tracing if performance logging is enabled.
+    if (isPerfEnabled()) {
+      trace = withLocalPerfTrace(trace);
+    }
+
+    // This trace is passed down to wallets and providers to be used for tracing operations within them.
+    this.#trace = trace;
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(
         this.#messenger,
         providerConfigs?.[EVM_ACCOUNT_PROVIDER_NAME],
-        traceCallback,
+        trace,
       ),
       new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(
           this.#messenger,
           providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
-          traceCallback,
+          trace,
         ),
       ),
       new AccountProviderWrapper(
@@ -185,7 +197,7 @@ export class MultichainAccountService {
         new BtcAccountProvider(
           this.#messenger,
           providerConfigs?.[BTC_ACCOUNT_PROVIDER_NAME],
-          traceCallback,
+          trace,
         ),
       ),
       new AccountProviderWrapper(
@@ -193,7 +205,7 @@ export class MultichainAccountService {
         new TrxAccountProvider(
           this.#messenger,
           providerConfigs?.[TRX_ACCOUNT_PROVIDER_NAME],
-          traceCallback,
+          trace,
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
@@ -288,6 +300,7 @@ export class MultichainAccountService {
         entropySource,
         providers: this.#providers,
         messenger: this.#messenger,
+        trace: this.#trace,
       });
       wallet.init(serviceState[entropySource]);
       this.#wallets.set(wallet.id, wallet);
@@ -434,6 +447,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: result.id,
       messenger: this.#messenger,
+      trace: this.#trace,
     });
   }
 
@@ -458,6 +472,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
+      trace: this.#trace,
     });
   }
 
@@ -485,6 +500,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
+      trace: this.#trace,
     });
   }
 

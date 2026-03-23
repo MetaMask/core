@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `SubscriptionController:triggerAccessTokenRefresh`
   - Corresponding action types are now exported (e.g. `SubscriptionControllerGetPricingAction`)
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
+
 ## [6.0.2]
 
 ### Changed

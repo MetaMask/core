@@ -612,9 +612,6 @@
     }
   },
   "packages/bridge-controller/tests/mock-sse.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
-    },
     "id-length": {
       "count": 2
     }

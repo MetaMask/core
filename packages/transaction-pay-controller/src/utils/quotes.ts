@@ -107,6 +107,7 @@ export async function updateQuotes(
       requests,
       getStrategies,
       messenger,
+      transactionData.fiatPayment?.selectedPaymentMethodId,
     );
 
     const totals = calculateTotals({
@@ -464,6 +465,7 @@ async function refreshPaymentTokenBalance({
  * @param requests - Quote requests.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
+ * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
@@ -471,6 +473,7 @@ async function getQuotes(
   requests: QuoteRequest[],
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
+  fiatPaymentMethod?: string,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
@@ -494,6 +497,7 @@ async function getQuotes(
   }
 
   const request = {
+    fiatPaymentMethod,
     messenger,
     requests,
     transaction,

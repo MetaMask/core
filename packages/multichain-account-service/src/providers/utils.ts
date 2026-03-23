@@ -54,18 +54,18 @@ export async function withRetry<T>(
 /**
  * Execute a promise with a timeout.
  *
- * @param promise - The promise to execute.
+ * @param fn - A callback that returns the promise to execute.
  * @param timeoutMs - The timeout in milliseconds.
  * @returns The result of the promise.
  */
 export async function withTimeout<T>(
-  promise: Promise<T>,
+  fn: () => Promise<T>,
   timeoutMs: number = 500,
 ): Promise<T> {
   let timer;
   try {
     return await Promise.race<T>([
-      promise,
+      fn(),
       new Promise<T>((_resolve, reject) => {
         timer = setTimeout(
           () => reject(new TimeoutError(`Timed out after: ${timeoutMs}ms`)),

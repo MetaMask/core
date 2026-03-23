@@ -23,7 +23,11 @@ import { Semaphore } from 'async-mutex';
 
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { withTimeout } from './utils';
-import { traceFallback } from '../analytics';
+import {
+  toCreateAccountsV2DataTraces,
+  traceFallback,
+  TraceName,
+} from '../analytics';
 import { reportError } from '../errors';
 import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
@@ -342,13 +346,48 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       const batched = this.config.createAccounts.batched ?? false;
       const { entropySource } = options;
 
+      const createAccountV1 = async (
+        groupIndex: number,
+      ): Promise<KeyringAccount> =>
+        await withTimeout(
+          () =>
+            this.trace(
+              {
+                name: TraceName.ProviderCreateAccountV1,
+                data: {
+                  provider: this.getName(),
+                  groupIndex,
+                },
+              },
+              () =>
+                this.createAccountV1(keyring, { entropySource, groupIndex }),
+            ),
+          this.config.createAccounts.timeoutMs,
+        );
+      const createAccountsV2 = async (
+        optionsV2:
+          | CreateAccountBip44DeriveIndexOptions
+          | CreateAccountBip44DeriveIndexRangeOptions,
+      ): Promise<KeyringAccount[]> =>
+        await withTimeout(
+          () =>
+            this.trace(
+              {
+                name: TraceName.ProviderCreateAccounts,
+                data: {
+                  provider: this.getName(),
+                  ...toCreateAccountsV2DataTraces(optionsV2),
+                },
+              },
+              () => keyring.createAccounts(optionsV2),
+            ),
+          this.config.createAccounts.timeoutMs,
+        );
+
       if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
         if (batched) {
           // Batch account creations.
-          snapAccounts = await withTimeout(
-            keyring.createAccounts(options),
-            this.config.createAccounts.timeoutMs,
-          );
+          snapAccounts = await createAccountsV2(options);
         } else {
           const { range } = options;
 
@@ -358,10 +397,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
             groupIndex <= range.to;
             groupIndex++
           ) {
-            const snapAccount = await withTimeout(
-              this.createAccountV1(keyring, { entropySource, groupIndex }),
-              this.config.createAccounts.timeoutMs,
-            );
+            const snapAccount = await createAccountV1(groupIndex);
 
             snapAccounts.push(snapAccount);
           }
@@ -372,18 +408,12 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       } else {
         if (batched) {
           // Create account using new v2-like flow (no async flow + no Snap keyring events).
-          snapAccounts = await withTimeout(
-            keyring.createAccounts(options),
-            this.config.createAccounts.timeoutMs,
-          );
+          snapAccounts = await createAccountsV2(options);
         } else {
           const { groupIndex } = options;
 
           // Create account using the existing v1 flow.
-          const snapAccount = await withTimeout(
-            this.createAccountV1(keyring, { entropySource, groupIndex }),
-            this.config.createAccounts.timeoutMs,
-          );
+          const snapAccount = await createAccountV1(groupIndex);
 
           snapAccounts = [snapAccount];
         }
