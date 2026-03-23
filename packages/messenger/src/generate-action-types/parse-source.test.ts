@@ -2,18 +2,13 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import {
-  findSourcesWithExposedMethods,
-  parseSourceFile,
-} from './parse-source';
+import { findSourcesWithExposedMethods, parseSourceFile } from './parse-source';
 
 describe('parseSourceFile', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
-    tmpDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'parse-source-'),
-    );
+    tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'parse-source-'));
   });
 
   afterEach(async () => {
