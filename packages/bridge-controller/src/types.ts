@@ -41,6 +41,7 @@ import type {
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
+  TokenFeatureSchema,
   TronTradeDataSchema,
   TxDataSchema,
 } from './utils/validators';
@@ -322,6 +323,8 @@ export enum ChainId {
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
 
+export type TokenFeature = Infer<typeof TokenFeatureSchema>;
+
 export enum RequestStatus {
   LOADING,
   FETCHED,
@@ -376,6 +379,11 @@ export type BridgeControllerState = {
    * the max amount that can be sent.
    */
   minimumBalanceForRentExemptionInLamports: string | null;
+  /**
+   * Security alerts for the destination token in the current quote request,
+   * populated from `token_warning` SSE events.
+   */
+  tokenWarnings: TokenFeature[];
 };
 
 export type BridgeControllerAction<

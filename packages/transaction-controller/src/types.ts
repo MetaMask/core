@@ -42,7 +42,7 @@ export type TransactionMeta = {
   assetsFiatValues?: AssetsFiatValues;
 
   /**
-   * Unique ID to prevent duplicate requests.
+   * @deprecated No longer used for deduplication. Persisted for state consistency only.
    */
   actionId?: string;
 
@@ -805,6 +805,11 @@ export enum TransactionType {
    * Deposit funds for a Relay quote when the parent transaction is a Perps deposit.
    */
   perpsRelayDeposit = 'perpsRelayDeposit',
+
+  /**
+   * Withdraw funds from Perps.
+   */
+  perpsWithdraw = 'perpsWithdraw',
 
   /**
    * A transaction for personal sign.
@@ -2160,7 +2165,9 @@ export type GetSimulationConfig = (
  * Options for adding a transaction.
  */
 export type AddTransactionOptions = {
-  /** Unique ID to prevent duplicate requests.  */
+  /**
+   * @deprecated No longer used for deduplication. Persisted for state consistency only.
+   */
   actionId?: string;
 
   /** Fiat values of the assets being sent and received. */

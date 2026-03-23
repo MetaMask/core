@@ -16,7 +16,7 @@ import {
   BtcAccountProvider,
 } from './BtcAccountProvider';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../analytics/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -173,6 +173,7 @@ function setup({
       createAccount: jest.Mock;
       createAccounts: jest.Mock;
     };
+    trace: jest.Mock;
   };
 } {
   const keyring = new MockBtcKeyring(accounts);
@@ -221,8 +222,16 @@ function setup({
       }),
   );
 
+  const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+    return await fn();
+  });
+
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const btcProvider = new MockBtcAccountProvider(multichainMessenger, config);
+  const btcProvider = new MockBtcAccountProvider(
+    multichainMessenger,
+    config,
+    mockTrace,
+  );
   const accountIds = accounts.map((account) => account.id);
   btcProvider.init(accountIds);
   const provider = new AccountProviderWrapper(multichainMessenger, btcProvider);
@@ -237,6 +246,7 @@ function setup({
         createAccount: keyring.createAccount as jest.Mock,
         createAccounts: keyring.createAccounts as jest.Mock,
       },
+      trace: mockTrace,
     },
   };
 }
@@ -653,28 +663,37 @@ describe('BtcAccountProvider', () => {
 
   describe('trace functionality', () => {
     it('calls trace callback during account discovery', async () => {
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
-        expect(request.data).toStrictEqual({
-          provider: BTC_ACCOUNT_PROVIDER_NAME,
-        });
-        return await fn();
-      });
-
-      const { messenger, mocks } = setup({
+      const { provider, mocks } = setup({
         accounts: [],
       });
 
       // Simulate one discovered account at the requested index.
       mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
 
+      const discovered = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+
+      expect(discovered).toHaveLength(1);
+      expect(mocks.trace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: TraceName.SnapDiscoverAccounts,
+          data: { provider: BTC_ACCOUNT_PROVIDER_NAME },
+        }),
+        expect.any(Function),
+      );
+    });
+
+    it('uses fallback trace when no trace callback is provided', async () => {
+      const { messenger, mocks } = setup({ accounts: [] });
+
+      mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
+
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new MockBtcAccountProvider(
-        multichainMessenger,
-        undefined,
-        mockTrace,
-      );
+      // No trace callback (defaults to `traceFallback`).
+      const btcProvider = new MockBtcAccountProvider(multichainMessenger);
       const provider = new AccountProviderWrapper(
         multichainMessenger,
         btcProvider,
@@ -686,51 +705,14 @@ describe('BtcAccountProvider', () => {
       });
 
       expect(discovered).toHaveLength(1);
-      expect(mockTrace).toHaveBeenCalledTimes(1);
     });
 
-    it('uses fallback trace when no trace callback is provided', async () => {
+    it('trace callback is called even when discovery returns empty results', async () => {
       const { provider, mocks } = setup({
         accounts: [],
       });
 
-      mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
-
-      const discovered = await provider.discoverAccounts({
-        entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
-      });
-
-      expect(discovered).toHaveLength(1);
-      // No trace errors, fallback trace should be used silently
-    });
-
-    it('trace callback is called even when discovery returns empty results', async () => {
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-        expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
-        expect(request.data).toStrictEqual({
-          provider: BTC_ACCOUNT_PROVIDER_NAME,
-        });
-        return await fn();
-      });
-
-      const { messenger, mocks } = setup({
-        accounts: [],
-      });
-
       mocks.handleRequest.mockReturnValue([]);
-
-      const multichainMessenger =
-        getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new MockBtcAccountProvider(
-        multichainMessenger,
-        undefined,
-        mockTrace,
-      );
-      const provider = new AccountProviderWrapper(
-        multichainMessenger,
-        btcProvider,
-      );
 
       const discovered = await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -738,32 +720,16 @@ describe('BtcAccountProvider', () => {
       });
 
       expect(discovered).toStrictEqual([]);
-      expect(mockTrace).toHaveBeenCalledTimes(1);
+      expect(mocks.trace).toHaveBeenCalledTimes(1);
     });
 
     it('trace callback receives error when discovery fails', async () => {
       const mockError = new Error('Discovery failed');
-      const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
-        return await fn();
-      });
-
-      const { messenger, mocks } = setup({
+      const { provider, mocks } = setup({
         accounts: [],
       });
 
       mocks.handleRequest.mockRejectedValue(mockError);
-
-      const multichainMessenger =
-        getMultichainAccountServiceMessenger(messenger);
-      const btcProvider = new MockBtcAccountProvider(
-        multichainMessenger,
-        undefined,
-        mockTrace,
-      );
-      const provider = new AccountProviderWrapper(
-        multichainMessenger,
-        btcProvider,
-      );
 
       await expect(
         provider.discoverAccounts({
@@ -772,7 +738,7 @@ describe('BtcAccountProvider', () => {
         }),
       ).rejects.toThrow(mockError);
 
-      expect(mockTrace).toHaveBeenCalledTimes(1);
+      expect(mocks.trace).toHaveBeenCalledTimes(1);
     });
   });
 

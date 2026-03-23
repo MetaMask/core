@@ -10,6 +10,7 @@ import type {
   AssetsBalanceState,
   BalanceOfResponse,
   ChainId,
+  TokenFetchInfo,
 } from '../types';
 
 // =============================================================================
@@ -28,6 +29,16 @@ const ZERO_ADDRESS: Address =
 
 const MAINNET_CHAIN_ID: ChainId = '0x1' as ChainId;
 const POLYGON_CHAIN_ID: ChainId = '0x89' as ChainId;
+
+/** Decimals for TEST_TOKEN_1 (USDC) / TEST_TOKEN_2 (USDT) in fetch tests */
+const TEST_TOKEN_1_WITH_DECIMALS: TokenFetchInfo = {
+  address: TEST_TOKEN_1,
+  decimals: 6,
+};
+const TEST_TOKEN_2_WITH_DECIMALS: TokenFetchInfo = {
+  address: TEST_TOKEN_2,
+  decimals: 6,
+};
 
 // =============================================================================
 // MOCK HELPERS
@@ -344,6 +355,8 @@ describe('BalanceFetcher', () => {
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [TEST_TOKEN_1],
+          undefined,
+          [TEST_TOKEN_1_WITH_DECIMALS],
         );
 
         expect(result.balances).toHaveLength(2);
@@ -391,11 +404,96 @@ describe('BalanceFetcher', () => {
           TEST_ACCOUNT,
           [TEST_TOKEN_1],
           { includeNative: false },
+          [TEST_TOKEN_1_WITH_DECIMALS],
         );
 
         expect(result.balances[0].assetId).toBe(
           'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
         );
+      });
+    });
+
+    it('includes ERC-20 raw balance when tokenInfos are omitted (decimals resolved downstream)', async () => {
+      await withController(async ({ controller, mockMulticallClient }) => {
+        mockMulticallClient.batchBalanceOf.mockResolvedValue([
+          createMockBalanceResponse(
+            TEST_TOKEN_1,
+            TEST_ACCOUNT,
+            true,
+            '1000000000',
+          ),
+        ]);
+
+        const result = await controller.fetchBalancesForTokens(
+          MAINNET_CHAIN_ID,
+          TEST_ACCOUNT_ID,
+          TEST_ACCOUNT,
+          [TEST_TOKEN_1],
+          { includeNative: false },
+        );
+
+        expect(result.balances).toHaveLength(1);
+        expect(result.balances[0].decimals).toBeUndefined();
+        expect(result.balances[0].balance).toBe('1000000000');
+        expect(result.balances[0].formattedBalance).toBe('1000000000');
+        expect(result.failedAddresses).toHaveLength(0);
+      });
+    });
+
+    it('includes ERC-20 raw balance when token info has no decimals', async () => {
+      await withController(async ({ controller, mockMulticallClient }) => {
+        mockMulticallClient.batchBalanceOf.mockResolvedValue([
+          createMockBalanceResponse(
+            TEST_TOKEN_1,
+            TEST_ACCOUNT,
+            true,
+            '1000000000',
+          ),
+        ]);
+
+        const tokenInfoMissingDecimals = {
+          address: TEST_TOKEN_1,
+        } as TokenFetchInfo;
+
+        const result = await controller.fetchBalancesForTokens(
+          MAINNET_CHAIN_ID,
+          TEST_ACCOUNT_ID,
+          TEST_ACCOUNT,
+          [TEST_TOKEN_1],
+          { includeNative: false },
+          [tokenInfoMissingDecimals],
+        );
+
+        expect(result.balances).toHaveLength(1);
+        expect(result.balances[0].decimals).toBeUndefined();
+        expect(result.balances[0].formattedBalance).toBe('1000000000');
+        expect(result.failedAddresses).toHaveLength(0);
+      });
+    });
+
+    it('includes ERC-20 balance when token info has zero decimals', async () => {
+      await withController(async ({ controller, mockMulticallClient }) => {
+        mockMulticallClient.batchBalanceOf.mockResolvedValue([
+          createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, true, '42'),
+        ]);
+
+        const tokenInfoZeroDecimals: TokenFetchInfo = {
+          address: TEST_TOKEN_1,
+          decimals: 0,
+        };
+
+        const result = await controller.fetchBalancesForTokens(
+          MAINNET_CHAIN_ID,
+          TEST_ACCOUNT_ID,
+          TEST_ACCOUNT,
+          [TEST_TOKEN_1],
+          { includeNative: false },
+          [tokenInfoZeroDecimals],
+        );
+
+        expect(result.balances).toHaveLength(1);
+        expect(result.balances[0].decimals).toBe(0);
+        expect(result.balances[0].formattedBalance).toBe('42');
       });
     });
 
@@ -482,6 +580,7 @@ describe('BalanceFetcher', () => {
           TEST_ACCOUNT,
           [TEST_TOKEN_1],
           { includeNative: false },
+          [TEST_TOKEN_1_WITH_DECIMALS],
         );
 
         expect(result.balances[0].formattedBalance).toBe('0');
@@ -505,6 +604,7 @@ describe('BalanceFetcher', () => {
           TEST_ACCOUNT,
           [TEST_TOKEN_1],
           { includeNative: false },
+          [TEST_TOKEN_1_WITH_DECIMALS],
         );
 
         expect(result.balances[0].balance).toBe('0');
@@ -529,6 +629,7 @@ describe('BalanceFetcher', () => {
           TEST_ACCOUNT,
           [TEST_TOKEN_1],
           { includeNative: false },
+          [TEST_TOKEN_1_WITH_DECIMALS],
         );
 
         expect(result.balances[0].formattedBalance).toBe('invalid-balance');
@@ -554,6 +655,7 @@ describe('BalanceFetcher', () => {
           TEST_ACCOUNT,
           [TEST_TOKEN_1, TEST_TOKEN_2],
           { includeNative: false, batchSize: 1 },
+          [TEST_TOKEN_1_WITH_DECIMALS, TEST_TOKEN_2_WITH_DECIMALS],
         );
 
         expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(2);
@@ -586,6 +688,7 @@ describe('BalanceFetcher', () => {
           TEST_ACCOUNT,
           [TEST_TOKEN_1, TEST_TOKEN_2],
           { includeNative: false, batchSize: 1 },
+          [TEST_TOKEN_1_WITH_DECIMALS, TEST_TOKEN_2_WITH_DECIMALS],
         );
 
         expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(2);

@@ -141,8 +141,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
           if (!tokenMap.has(lowerAddress)) {
             tokenMap.set(lowerAddress, {
               address: tokenAddress,
-              // Decimals will be fetched from metadata or defaulted
-              decimals: 18,
               symbol: '',
             });
           }
@@ -283,26 +281,40 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       }
 
       const balance = response.balance ?? '0';
-      const tokenInfo = tokenInfoMap.get(response.tokenAddress.toLowerCase());
-      const decimals = tokenInfo?.decimals ?? 18;
-      const formattedBalance = this.#formatBalance(balance, decimals);
-
       const chainIdDecimal = parseInt(chainId, 16);
       const isNative =
         response.tokenAddress.toLowerCase() === ZERO_ADDRESS.toLowerCase();
+      const tokenInfo = tokenInfoMap.get(response.tokenAddress.toLowerCase());
+
+      // Native uses 18. ERC-20: format when decimals are known; otherwise pass raw
+      // `balance` through so RpcDataSource can resolve decimals (state → list → RPC).
+      let decimals: number | undefined;
+      let formattedBalance: string;
+      if (isNative) {
+        decimals = 18;
+        formattedBalance = this.#formatBalance(balance, decimals);
+      } else if (tokenInfo?.decimals === undefined) {
+        formattedBalance = balance;
+      } else {
+        decimals = tokenInfo.decimals;
+        formattedBalance = this.#formatBalance(balance, decimals);
+      }
       const assetId: CaipAssetType = isNative
         ? (`eip155:${chainIdDecimal}/slip44:60` as CaipAssetType)
         : (`eip155:${chainIdDecimal}/erc20:${response.tokenAddress.toLowerCase()}` as CaipAssetType);
 
-      balances.push({
+      const balanceEntry: AssetBalance = {
         assetId,
         accountId,
         chainId,
         balance,
         formattedBalance,
-        decimals,
         timestamp,
-      });
+      };
+      if (typeof decimals === 'number') {
+        balanceEntry.decimals = decimals;
+      }
+      balances.push(balanceEntry);
     }
 
     return { balances, failedAddresses };

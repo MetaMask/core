@@ -6,10 +6,8 @@ import type {
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 
-import type {
-  controllerName,
-  DelegationController,
-} from './DelegationController';
+import type { controllerName } from './DelegationController';
+import type { DelegationControllerMethodActions } from './DelegationController-method-action-types';
 
 type Hex = `0x${string}`;
 type Address = `0x${string}`;
@@ -97,44 +95,9 @@ export type DelegationControllerGetStateAction = ControllerGetStateAction<
   DelegationControllerState
 >;
 
-export type DelegationControllerSignDelegationAction = {
-  type: `${typeof controllerName}:signDelegation`;
-  handler: DelegationController['signDelegation'];
-};
-
-export type DelegationControllerStoreAction = {
-  type: `${typeof controllerName}:store`;
-  handler: DelegationController['store'];
-};
-
-export type DelegationControllerListAction = {
-  type: `${typeof controllerName}:list`;
-  handler: DelegationController['list'];
-};
-
-export type DelegationControllerRetrieveAction = {
-  type: `${typeof controllerName}:retrieve`;
-  handler: DelegationController['retrieve'];
-};
-
-export type DelegationControllerChainAction = {
-  type: `${typeof controllerName}:chain`;
-  handler: DelegationController['chain'];
-};
-
-export type DelegationControllerDeleteAction = {
-  type: `${typeof controllerName}:delete`;
-  handler: DelegationController['delete'];
-};
-
 export type DelegationControllerActions =
   | DelegationControllerGetStateAction
-  | DelegationControllerSignDelegationAction
-  | DelegationControllerStoreAction
-  | DelegationControllerListAction
-  | DelegationControllerRetrieveAction
-  | DelegationControllerChainAction
-  | DelegationControllerDeleteAction;
+  | DelegationControllerMethodActions;
 
 export type DelegationControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
