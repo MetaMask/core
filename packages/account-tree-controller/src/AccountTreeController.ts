@@ -363,8 +363,9 @@ export class AccountTreeController extends BaseController<
       ) {
         // No group is selected yet OR group no longer exists, re-sync with the
         // AccountsController.
-        state.selectedAccountGroup =
-          this.#getDefaultSelectedAccountGroup(wallets);
+        state.selectedAccountGroup = this.#getDefaultSelectedAccountGroup(
+          state.accountTree.wallets, // Re-use updated wallets with metadata here.
+        );
       }
     });
 
