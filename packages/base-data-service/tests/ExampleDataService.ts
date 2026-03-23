@@ -4,8 +4,9 @@ import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
 
 import {
   BaseDataService,
-  DataServiceActions,
-  DataServiceEvents,
+  DataServiceInvalidateQueriesAction,
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
 } from '../src/BaseDataService';
 
 export const serviceName = 'ExampleDataService';
@@ -23,9 +24,11 @@ export type ExampleDataServiceGetActivityAction = {
 export type ExampleDataServiceActions =
   | ExampleDataServiceGetAssetsAction
   | ExampleDataServiceGetActivityAction
-  | DataServiceActions<typeof serviceName>;
+  | DataServiceInvalidateQueriesAction<typeof serviceName>;
 
-export type ExampleDataServiceEvents = DataServiceEvents<typeof serviceName>;
+export type ExampleDataServiceEvents =
+  | DataServiceCacheUpdatedEvent<typeof serviceName>
+  | DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
 
 export type ExampleMessenger = Messenger<
   typeof serviceName,
@@ -69,7 +72,7 @@ export class ExampleDataService extends BaseDataService<
     super({
       name: serviceName,
       messenger,
-      servicePolicyOptions: {
+      policyOptions: {
         maxRetries: 2,
         maxConsecutiveFailures: 3,
         backoff: new ConstantBackoff(0),
@@ -96,6 +99,10 @@ export class ExampleDataService extends BaseDataService<
         );
 
         const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Query failed with status code: ${response.status}.`);
+        }
 
         return response.json();
       },
@@ -124,6 +131,12 @@ export class ExampleDataService extends BaseDataService<
           }
 
           const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error(
+              `Query failed with status code: ${response.status}.`,
+            );
+          }
 
           return response.json();
         },

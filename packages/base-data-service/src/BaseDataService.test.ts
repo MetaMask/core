@@ -254,12 +254,12 @@ describe('BaseDataService', () => {
       const messenger = new Messenger({ namespace: serviceName });
       const service = new ExampleDataService(messenger);
 
-      mockAssets({ status: 500 });
-      mockAssets({ status: 500 });
-      mockAssets({ status: 500 });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
 
       await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
-        'invalid json response body',
+        'Query failed with status code: 500.',
       );
     });
 
@@ -267,12 +267,12 @@ describe('BaseDataService', () => {
       const messenger = new Messenger({ namespace: serviceName });
       const service = new ExampleDataService(messenger);
 
-      mockAssets({ status: 500 });
-      mockAssets({ status: 500 });
-      mockAssets({ status: 500 });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
 
       await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
-        'invalid json response body',
+        'Query failed with status code: 500.',
       );
 
       await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(

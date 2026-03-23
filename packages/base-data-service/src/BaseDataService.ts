@@ -29,18 +29,19 @@ import deepEqual from 'fast-deep-equal';
 // Data service queries use the following format: ['ServiceActionName', ...params]
 export type QueryKey = [string, ...Json[]];
 
-export type GranularCacheUpdatedPayload =
+export type DataServiceGranularCacheUpdatedPayload =
   | { type: 'added' | 'updated'; state: DehydratedState }
   | {
       type: 'removed';
       state: null;
     };
 
-export type CacheUpdatedPayload = GranularCacheUpdatedPayload & {
-  hash: string;
-};
+export type DataServiceCacheUpdatedPayload =
+  DataServiceGranularCacheUpdatedPayload & {
+    hash: string;
+  };
 
-type CacheUpdatedType = CacheUpdatedPayload['type'];
+type CacheUpdatedType = DataServiceCacheUpdatedPayload['type'];
 
 export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   type: `${ServiceName}:invalidateQueries`;
@@ -55,12 +56,12 @@ type DataServiceActions<ServiceName extends string> =
 
 export type DataServiceCacheUpdatedEvent<ServiceName extends string> = {
   type: `${ServiceName}:cacheUpdated`;
-  payload: [CacheUpdatedPayload];
+  payload: [DataServiceCacheUpdatedPayload];
 };
 
 export type DataServiceGranularCacheUpdatedEvent<ServiceName extends string> = {
   type: `${ServiceName}:cacheUpdated:${string}`;
-  payload: [GranularCacheUpdatedPayload];
+  payload: [DataServiceGranularCacheUpdatedPayload];
 };
 
 type DataServiceEvents<ServiceName extends string> =
@@ -68,7 +69,7 @@ type DataServiceEvents<ServiceName extends string> =
   | DataServiceGranularCacheUpdatedEvent<ServiceName>;
 
 // Defaults to apply to all data service queries if no default option specified
-const queryClientDefaults: DefaultOptions = {
+const QUERY_CLIENT_DEFAULTS: DefaultOptions = {
   queries: {
     retry: false,
     staleTime: inMilliseconds(1, Duration.Minute),
@@ -107,12 +108,12 @@ export class BaseDataService<
     name,
     messenger,
     queryClientConfig = {},
-    servicePolicyOptions,
+    policyOptions,
   }: {
     name: ServiceName;
     messenger: ServiceMessenger;
     queryClientConfig?: QueryClientConfig;
-    servicePolicyOptions?: CreateServicePolicyOptions;
+    policyOptions?: CreateServicePolicyOptions;
   }) {
     this.name = name;
 
@@ -129,14 +130,14 @@ export class BaseDataService<
       ...queryClientConfig,
       defaultOptions: {
         queries: {
-          ...queryClientDefaults.queries,
+          ...QUERY_CLIENT_DEFAULTS.queries,
           ...queryClientConfig.defaultOptions?.queries,
         },
         mutations: queryClientConfig.defaultOptions?.mutations,
       },
     });
 
-    this.#policy = createServicePolicy(servicePolicyOptions);
+    this.#policy = createServicePolicy(policyOptions);
 
     this.#queryCacheUnsubscribe = this.#queryClient
       .getQueryCache()
@@ -267,7 +268,7 @@ export class BaseDataService<
    * Prepares the service for garbage collection. This should be extended
    * by any subclasses to clean up any additional connections or events.
    */
-  protected destroy(): void {
+  destroy(): void {
     this.#queryCacheUnsubscribe();
     this.messenger.clearSubscriptions();
     this.messenger.clearActions();
@@ -293,7 +294,7 @@ export class BaseDataService<
         type,
         hash,
         state,
-      } as CacheUpdatedPayload,
+      } as DataServiceCacheUpdatedPayload,
     );
 
     this.#messenger.publish(
@@ -301,7 +302,7 @@ export class BaseDataService<
       {
         type,
         state,
-      } as GranularCacheUpdatedPayload,
+      } as DataServiceGranularCacheUpdatedPayload,
     );
   }
 }
