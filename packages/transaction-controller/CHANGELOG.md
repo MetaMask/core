@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/core-backend` from `^6.1.1` to `^6.2.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
+- Remove legacy `actionId` deduplication logic from transaction lifecycle methods ([#8256](https://github.com/MetaMask/core/pull/8256))
 
 ## [63.0.0]
 

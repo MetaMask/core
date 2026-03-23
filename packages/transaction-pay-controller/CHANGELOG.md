@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `FiatStrategy` to retrieve quotes via `RampsController` ([#8121](https://github.com/MetaMask/core/pull/8121))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^69.1.1` to `^69.2.0` ([#8265](https://github.com/MetaMask/core/pull/8265))
+
 ## [18.0.0]
 
 ### Changed

@@ -1284,40 +1284,34 @@ export class TransactionController extends BaseController<
     const transactionType =
       type ?? (await determineTransactionType(txParams, ethQuery)).type;
 
-    const existingTransactionMeta = this.#getTransactionWithActionId(actionId);
-
-    // If a request to add a transaction with the same actionId is submitted again, a new transaction will not be created for it.
-    let addedTransactionMeta: TransactionMeta = existingTransactionMeta
-      ? cloneDeep(existingTransactionMeta)
-      : {
-          // Add actionId to txMeta to check if same actionId is seen again
-          actionId,
-          assetsFiatValues,
-          batchId,
-          chainId,
-          dappSuggestedGasFees,
-          deviceConfirmedOn,
-          disableGasBuffer,
-          id: random(),
-          isGasFeeTokenIgnoredIfBalance: Boolean(gasFeeToken),
-          isGasFeeIncluded,
-          isGasFeeSponsored,
-          isFirstTimeInteraction: undefined,
-          isStateOnly,
-          nestedTransactions,
-          networkClientId,
-          origin,
-          requestId,
-          requiredAssets,
-          securityAlertResponse,
-          selectedGasFeeToken: gasFeeToken,
-          status: TransactionStatus.unapproved as const,
-          time: Date.now(),
-          txParams,
-          type: transactionType,
-          userEditedGasLimit: false,
-          verifiedOnBlockchain: false,
-        };
+    let addedTransactionMeta: TransactionMeta = {
+      actionId,
+      assetsFiatValues,
+      batchId,
+      chainId,
+      dappSuggestedGasFees,
+      deviceConfirmedOn,
+      disableGasBuffer,
+      id: random(),
+      isGasFeeTokenIgnoredIfBalance: Boolean(gasFeeToken),
+      isGasFeeIncluded,
+      isGasFeeSponsored,
+      isFirstTimeInteraction: undefined,
+      isStateOnly,
+      nestedTransactions,
+      networkClientId,
+      origin,
+      requestId,
+      requiredAssets,
+      securityAlertResponse,
+      selectedGasFeeToken: gasFeeToken,
+      status: TransactionStatus.unapproved as const,
+      time: Date.now(),
+      txParams,
+      type: transactionType,
+      userEditedGasLimit: false,
+      verifiedOnBlockchain: false,
+    };
 
     const { updateTransaction } = await this.#afterAdd({
       transactionMeta: addedTransactionMeta,
@@ -1368,85 +1362,80 @@ export class TransactionController extends BaseController<
         .catch(noop);
     }
 
-    // Checks if a transaction already exists with a given actionId
-    if (!existingTransactionMeta) {
-      // Set security provider response
-      if (method && this.#securityProviderRequest) {
-        const securityProviderResponse = await this.#securityProviderRequest(
-          addedTransactionMeta,
-          method,
-        );
-        // eslint-disable-next-line require-atomic-updates
-        addedTransactionMeta.securityProviderResponse =
-          securityProviderResponse;
-      }
-
-      addedTransactionMeta = updateSwapsTransaction(
+    // Set security provider response
+    if (method && this.#securityProviderRequest) {
+      const securityProviderResponse = await this.#securityProviderRequest(
         addedTransactionMeta,
-        transactionType,
-        swaps,
-        {
-          isSwapsDisabled: this.#isSwapsDisabled,
-          cancelTransaction: this.#rejectTransaction.bind(this),
-          messenger: this.messenger,
-        },
+        method,
       );
+      // eslint-disable-next-line require-atomic-updates
+      addedTransactionMeta.securityProviderResponse = securityProviderResponse;
+    }
 
-      this.#addMetadata(addedTransactionMeta);
+    addedTransactionMeta = updateSwapsTransaction(
+      addedTransactionMeta,
+      transactionType,
+      swaps,
+      {
+        isSwapsDisabled: this.#isSwapsDisabled,
+        cancelTransaction: this.#rejectTransaction.bind(this),
+        messenger: this.messenger,
+      },
+    );
 
-      delegationAddressPromise
-        .then((delegationAddress) => {
-          this.#updateTransactionInternal(
-            {
-              transactionId: addedTransactionMeta.id,
-              skipResimulateCheck: true,
-              skipValidation: true,
-            },
-            (tx) => {
-              tx.delegationAddress = delegationAddress;
-            },
-          );
+    this.#addMetadata(addedTransactionMeta);
 
-          return undefined;
-        })
-        .catch(noop);
-
-      if (requireApproval !== false && !isStateOnly) {
-        this.#updateSimulationData(addedTransactionMeta, {
-          traceContext,
-        }).catch((error) => {
-          log('Error while updating simulation data', error);
-          throw error;
-        });
-
-        updateFirstTimeInteraction({
-          existingTransactions: this.state.transactions,
-          getTransaction: (transactionId: string) =>
-            this.#getTransaction(transactionId),
-          isFirstTimeInteractionEnabled: this.#isFirstTimeInteractionEnabled,
-          trace: this.#trace,
-          traceContext,
-          transactionMeta: addedTransactionMeta,
-          updateTransaction: this.#updateTransactionInternal.bind(this),
-        }).catch((error) => {
-          log('Error while updating first interaction properties', error);
-        });
-      } else {
-        log(
-          'Skipping simulation & first interaction update as approval not required',
+    delegationAddressPromise
+      .then((delegationAddress) => {
+        this.#updateTransactionInternal(
+          {
+            transactionId: addedTransactionMeta.id,
+            skipResimulateCheck: true,
+            skipValidation: true,
+          },
+          (tx) => {
+            tx.delegationAddress = delegationAddress;
+          },
         );
-      }
 
-      this.messenger.publish(
-        `${controllerName}:unapprovedTransactionAdded`,
-        addedTransactionMeta,
+        return undefined;
+      })
+      .catch(noop);
+
+    if (requireApproval !== false && !isStateOnly) {
+      this.#updateSimulationData(addedTransactionMeta, {
+        traceContext,
+      }).catch((error) => {
+        log('Error while updating simulation data', error);
+        throw error;
+      });
+
+      updateFirstTimeInteraction({
+        existingTransactions: this.state.transactions,
+        getTransaction: (transactionId: string) =>
+          this.#getTransaction(transactionId),
+        isFirstTimeInteractionEnabled: this.#isFirstTimeInteractionEnabled,
+        trace: this.#trace,
+        traceContext,
+        transactionMeta: addedTransactionMeta,
+        updateTransaction: this.#updateTransactionInternal.bind(this),
+      }).catch((error) => {
+        log('Error while updating first interaction properties', error);
+      });
+    } else {
+      log(
+        'Skipping simulation & first interaction update as approval not required',
       );
     }
+
+    this.messenger.publish(
+      `${controllerName}:unapprovedTransactionAdded`,
+      addedTransactionMeta,
+    );
 
     return {
       result: this.#processApproval(addedTransactionMeta, {
         actionId,
-        isExisting: Boolean(existingTransactionMeta),
         publishHook,
         requireApproval,
         traceContext,
@@ -1488,7 +1477,7 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to cancel.
    * @param gasValues - The gas values to use for the cancellation transaction.
    * @param options - The options for the cancellation transaction.
-   * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.actionId - Unique ID persisted on transaction metadata.
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
    */
   async stopTransaction(
@@ -1532,7 +1521,7 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to speed up.
    * @param gasValues - The gas values to use for the speed up transaction.
    * @param options - The options for the speed up transaction.
-   * @param options.actionId - Unique ID to prevent duplicate requests
+   * @param options.actionId - Unique ID persisted on transaction metadata.
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
    */
   async speedUpTransaction(
@@ -1581,11 +1570,6 @@ export class TransactionController extends BaseController<
     transactionId: string;
     transactionType: TransactionType;
   }): Promise<void> {
-    // If transaction is found for same action id, do not create a new transaction.
-    if (this.#getTransactionWithActionId(actionId)) {
-      return;
-    }
-
     if (gasValues) {
       // Not good practice to reassign a parameter but temporarily avoiding a larger refactor.
       // eslint-disable-next-line no-param-reassign
@@ -3032,14 +3016,12 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     {
       actionId,
-      isExisting = false,
       publishHook,
       requireApproval,
       shouldShowRequest = true,
       traceContext,
     }: {
       actionId?: string;
-      isExisting?: boolean;
       publishHook?: PublishHook;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
@@ -3067,7 +3049,7 @@ export class TransactionController extends BaseController<
       ? Promise.resolve(meta)
       : this.#waitForTransactionFinished(transactionId);
 
-    if (meta && !isExisting && !isCompleted) {
+    if (meta && !isCompleted) {
       try {
         if (requireApproval !== false) {
           const acceptResult = await this.#trace(
@@ -3390,7 +3372,7 @@ export class TransactionController extends BaseController<
    * and emitting a `<tx.id>:finished` hub event.
    *
    * @param transactionId - The ID of the transaction to cancel.
-   * @param actionId - The actionId passed from UI
+   * @param actionId - Unique ID persisted on transaction metadata.
    * @param error - The error that caused the rejection.
    */
   #rejectTransaction(
@@ -3814,18 +3796,6 @@ export class TransactionController extends BaseController<
       'TransactionController#setTransactionStatusDropped - Transaction dropped',
     );
     this.#onTransactionStatusChange(updatedTransactionMeta);
-  }
-
-  /**
-   * Get transaction with provided actionId.
-   *
-   * @param actionId - Unique ID to prevent duplicate requests
-   * @returns the filtered transaction
-   */
-  #getTransactionWithActionId(actionId?: string): TransactionMeta | undefined {
-    return this.state.transactions.find(
-      (transaction) => actionId && transaction.actionId === actionId,
-    );
   }
 
   async #waitForTransactionFinished(

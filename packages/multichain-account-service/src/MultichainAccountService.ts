@@ -23,6 +23,12 @@ import {
   EvmAccountProviderConfig,
   Bip44AccountProvider,
   EVM_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProviderConfig,
+  TrxAccountProviderConfig,
+  BTC_ACCOUNT_PROVIDER_NAME,
+  TRX_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProvider,
+  TrxAccountProvider,
 } from './providers';
 import {
   AccountProviderWrapper,
@@ -51,6 +57,8 @@ export type MultichainAccountServiceOptions = {
   providerConfigs?: {
     [EVM_ACCOUNT_PROVIDER_NAME]?: EvmAccountProviderConfig;
     [SOL_ACCOUNT_PROVIDER_NAME]?: SolAccountProviderConfig;
+    [BTC_ACCOUNT_PROVIDER_NAME]?: BtcAccountProviderConfig;
+    [TRX_ACCOUNT_PROVIDER_NAME]?: TrxAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
   /**
@@ -182,6 +190,22 @@ export class MultichainAccountService {
           this.#messenger,
           providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
           trace,
+        ),
+      ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new BtcAccountProvider(
+          this.#messenger,
+          providerConfigs?.[BTC_ACCOUNT_PROVIDER_NAME],
+          traceCallback,
+        ),
+      ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new TrxAccountProvider(
+          this.#messenger,
+          providerConfigs?.[TRX_ACCOUNT_PROVIDER_NAME],
+          traceCallback,
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
