@@ -1466,7 +1466,7 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('uses placeholder ERC-20 metadata without decimals when ERC20 not in token list (#getTokenMetadataFromTokenList no match)', async () => {
+    it('omits unknown ERC-20 from assetsInfo when not in token list (#getTokenMetadataFromTokenList no match)', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000001';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1527,11 +1527,7 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
 
     it('omits assetsBalance when ERC20 state metadata has no decimals and on-chain decimals resolve to falsy', async () => {
@@ -1592,7 +1588,7 @@ describe('RpcDataSource', () => {
       ).toBeUndefined();
     });
 
-    it('uses placeholder ERC-20 metadata without decimals when token list has no chain cache (#getTokenMetadataFromTokenList)', async () => {
+    it('omits unknown ERC-20 from assetsInfo when token list has no chain cache (#getTokenMetadataFromTokenList)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000002' as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1637,14 +1633,10 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
 
-    it('uses placeholder ERC-20 metadata without decimals when token list entry lacks symbol/decimals (#getTokenMetadataFromTokenList)', async () => {
+    it('omits unknown ERC-20 from assetsInfo when token list entry lacks symbol/decimals (#getTokenMetadataFromTokenList)', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000003';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1705,14 +1697,10 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
 
-    it('uses placeholder ERC-20 metadata without decimals when non-ERC20 assetId in balance (#getTokenMetadataFromTokenList)', async () => {
+    it('omits non-ERC20 asset from assetsInfo when not found in token list (#getTokenMetadataFromTokenList)', async () => {
       const nonErc20AssetId =
         'eip155:1/erc721:0xAbc0000000000000000000000000000000000004' as Caip19AssetId;
       const normalizedId = normalizeAssetId(nonErc20AssetId);
@@ -1761,14 +1749,10 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
 
-    it('uses placeholder ERC-20 metadata without decimals when TokenListController:getState throws (#getTokenMetadataFromTokenList catch)', async () => {
+    it('omits unknown ERC-20 from assetsInfo when TokenListController:getState throws (#getTokenMetadataFromTokenList catch)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000005' as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1815,11 +1799,7 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
   });
 

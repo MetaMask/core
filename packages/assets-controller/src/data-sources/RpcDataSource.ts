@@ -313,7 +313,7 @@ export class RpcDataSource extends AbstractDataSource<
   #convertToHumanReadable(rawBalance: string, decimals: number): string {
     const rawAmount = new BigNumberJS(rawBalance);
     const divisor = new BigNumberJS(10).pow(decimals);
-    return rawAmount.dividedBy(divisor).toString();
+    return rawAmount.dividedBy(divisor).toFixed();
   }
 
   /**
@@ -358,14 +358,9 @@ export class RpcDataSource extends AbstractDataSource<
           );
           if (tokenListMeta) {
             assetsInfo[balance.assetId] = tokenListMeta;
-          } else {
-            // Unknown ERC-20: no decimals guess — RpcDataSource resolves via RPC or omits balance.
-            assetsInfo[balance.assetId] = {
-              type: 'erc20',
-              symbol: '',
-              name: '',
-            } as AssetMetadata;
           }
+          // Unknown ERC-20: omit from assetsInfo until decimals are known.
+          // #handleBalanceUpdate resolves decimals via RPC or omits the balance.
         }
       }
     }
@@ -398,23 +393,12 @@ export class RpcDataSource extends AbstractDataSource<
     );
 
     // Convert balances to human-readable format.
-    // Resolution: state → pipeline metadata → RPC `decimals()`; omit balance if still unknown.
+    // Resolution: state metadata → pipeline metadata; skip if decimals unknown.
     const existingMetadata = this.#getExistingAssetsMetadata();
     for (const balance of normalizedBalances) {
       const stateMetadata = existingMetadata[balance.assetId];
       const pipelineMetadata = assetsInfo[balance.assetId];
-      let decimals: number | undefined =
-        stateMetadata?.decimals ?? pipelineMetadata?.decimals;
-
-      if (decimals === undefined) {
-        const parsed = parseCaipAssetType(balance.assetId);
-        if (parsed.assetNamespace === 'erc20') {
-          decimals = await this.#fetchDecimalsViaRpc(
-            caipChainId,
-            parsed.assetReference,
-          );
-        }
-      }
+      const decimals = stateMetadata?.decimals ?? pipelineMetadata?.decimals;
 
       if (decimals === undefined) {
         continue;
