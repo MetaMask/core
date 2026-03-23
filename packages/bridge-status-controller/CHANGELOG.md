@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/bridge-controller` from `^69.1.1` to `^69.2.0` ([#8265](https://github.com/MetaMask/core/pull/8265))
 - Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
 
+### Fixed
+
+- Keep EIP-7702 batching disabled for gasless transactions that use smart transactions / `eth_sendBundle` when the quote is gas-included but not gas-included-7702 even when the account is a smart account ([#8275](https://github.com/MetaMask/core/pull/8275))
+
 ## [70.0.0]
 
 ### Changed
