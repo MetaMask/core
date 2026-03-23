@@ -363,8 +363,9 @@ export class AccountTreeController extends BaseController<
       ) {
         // No group is selected yet OR group no longer exists, re-sync with the
         // AccountsController.
-        state.selectedAccountGroup =
-          this.#getDefaultSelectedAccountGroup(wallets);
+        state.selectedAccountGroup = this.#getDefaultSelectedAccountGroup(
+          state.accountTree.wallets, // Re-use updated wallets with metadata here.
+        );
       }
     });
 
@@ -727,6 +728,19 @@ export class AccountTreeController extends BaseController<
       // If any accounts was previously hidden, then we consider the group to be hidden as well.
       group.metadata.hidden = isHidden;
     }
+
+    // Apply persisted lastSelected (plain number, not synced).
+    if (
+      persistedGroupMetadata?.lastSelected !== undefined &&
+      persistedGroupMetadata.lastSelected >= 0
+    ) {
+      group.metadata.lastSelected = persistedGroupMetadata.lastSelected;
+    } else {
+      // Automatiacally inject default value.
+      state.accountGroupsMetadata[groupId].lastSelected = 0;
+
+      group.metadata.lastSelected = 0;
+    }
   }
 
   /**
@@ -1033,7 +1047,7 @@ export class AccountTreeController extends BaseController<
         accounts: [id],
         metadata: {
           name: '',
-          ...{ pinned: false, hidden: false }, // Default UI states
+          ...{ pinned: false, hidden: false, lastSelected: 0 }, // Default UI states
           ...result.group.metadata, // Allow rules to override defaults
         },
         // We do need to type-cast since we're not narrowing `result` with
@@ -1144,8 +1158,12 @@ export class AccountTreeController extends BaseController<
    * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
    *
    * @param groupId - The account group ID to select.
+   * @param forwardSelectedAccount - Whether to forward the selected account to AccountsController. Defaults to true.
    */
-  setSelectedAccountGroup(groupId: AccountGroupId): void {
+  #setSelectedAccountGroup(
+    groupId: AccountGroupId,
+    forwardSelectedAccount: boolean = true,
+  ): void {
     const previousSelectedAccountGroup = this.state.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
@@ -1159,9 +1177,26 @@ export class AccountTreeController extends BaseController<
       throw new Error(`No accounts found in group: ${groupId}`);
     }
 
-    // Update our state first
     this.update((state) => {
+      // Update our selected account group first.
       state.selectedAccountGroup = groupId;
+
+      // Then update its associated metadata (lastSelected timestamp) to keep
+      // track of the most recently selected groups.
+      const now = Date.now();
+
+      /* istanbul ignore next */
+      if (!state.accountGroupsMetadata[groupId]) {
+        state.accountGroupsMetadata[groupId] = {};
+      }
+      state.accountGroupsMetadata[groupId].lastSelected = now;
+
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (walletId) {
+        state.accountTree.wallets[walletId].groups[
+          groupId
+        ].metadata.lastSelected = now;
+      }
     });
 
     log(`Selected group is now: [${this.state.selectedAccountGroup}]`);
@@ -1172,12 +1207,25 @@ export class AccountTreeController extends BaseController<
       previousSelectedAccountGroup,
     );
 
-    // Update AccountsController - this will trigger selectedAccountChange event,
-    // but our handler is idempotent so it won't cause infinite loop
-    this.messenger.call(
-      'AccountsController:setSelectedAccount',
-      accountToSelect,
-    );
+    if (forwardSelectedAccount) {
+      // Update AccountsController - this will trigger selectedAccountChange event,
+      // but our handler is idempotent so it won't cause infinite loop
+      this.messenger.call(
+        'AccountsController:setSelectedAccount',
+        accountToSelect,
+      );
+
+      log(`Selected account is now: ${accountToSelect}`);
+    }
+  }
+
+  /**
+   * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
+   *
+   * @param groupId - The account group ID to select.
+   */
+  setSelectedAccountGroup(groupId: AccountGroupId): void {
+    this.#setSelectedAccountGroup(groupId);
   }
 
   /**
@@ -1219,22 +1267,10 @@ export class AccountTreeController extends BaseController<
     }
 
     const { groupId } = accountMapping;
-    const previousSelectedAccountGroup = this.state.selectedAccountGroup;
 
-    // Idempotent check - if the same group is already selected, do nothing
-    if (previousSelectedAccountGroup === groupId) {
-      return;
-    }
-
-    // Update selectedAccountGroup to match the selected account
-    this.update((state) => {
-      state.selectedAccountGroup = groupId;
-    });
-    this.messenger.publish(
-      `${controllerName}:selectedAccountGroupChange`,
-      groupId,
-      previousSelectedAccountGroup,
-    );
+    // Avoid infinite loop since this method is triggered by selected account change.
+    const forwardSelectedAccount = false;
+    this.#setSelectedAccountGroup(groupId, forwardSelectedAccount);
   }
 
   /**
@@ -1307,41 +1343,56 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Gets the default group id, which is either, the first non-empty group that contains an EVM account or
-   * just the first non-empty group with any accounts.
+   * Gets the default group id by selecting the most recently selected non-empty group.
+   * Groups that have never been explicitly selected (lastSelected === 0) are still
+   * considered as fallbacks. When timestamps are equal, groups containing EVM accounts
+   * are preferred as a tiebreaker.
    *
    * @param wallets - The wallets object to search.
-   * @returns The ID of the first non-empty group, or an empty string if no groups are found.
+   * @returns The ID of the most recently selected non-empty group, or an empty string if none found.
    */
   #getDefaultAccountGroupId(wallets: {
     [walletId: AccountWalletId]: AccountWalletObject;
   }): AccountGroupId | '' {
-    let candidate: AccountGroupId | '' = '';
+    let candidate: AccountGroupObject | undefined;
 
     for (const wallet of Object.values(wallets)) {
       for (const group of Object.values(wallet.groups)) {
-        // We only update the candidate with the first non-empty group, but still
-        // try to find a group that contains an EVM account (the `candidate` is
-        // our fallback).
-        if (candidate === '' && group.accounts.length > 0) {
-          candidate = group.id;
+        if (group.accounts.length === 0) {
+          continue;
         }
-
-        for (const id of group.accounts) {
-          const account = this.messenger.call(
-            'AccountsController:getAccount',
-            id,
-          );
-
-          if (account && isEvmAccountType(account.type)) {
-            // EVM accounts have a higher priority, so if we find any, we just
-            // use that group!
-            return group.id;
-          }
+        if (!candidate) {
+          candidate = group;
+          continue;
+        }
+        if (group.metadata.lastSelected > candidate.metadata.lastSelected) {
+          candidate = group;
+        } else if (
+          group.metadata.lastSelected === candidate.metadata.lastSelected &&
+          this.#hasEvmAccount(group) &&
+          !this.#hasEvmAccount(candidate)
+        ) {
+          candidate = group;
         }
       }
     }
-    return candidate;
+    return candidate?.id ?? '';
+  }
+
+  /**
+   * Checks if a group contains at least one EVM account.
+   *
+   * @param group - The account group to check.
+   * @returns True if the group contains an EVM account, false otherwise.
+   */
+  #hasEvmAccount(group: AccountGroupObject): boolean {
+    for (const id of group.accounts) {
+      const account = this.messenger.call('AccountsController:getAccount', id);
+      if (account && isEvmAccountType(account.type)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
