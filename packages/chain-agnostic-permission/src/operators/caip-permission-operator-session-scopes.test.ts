@@ -1,3 +1,5 @@
+import type { CaipAccountId } from '@metamask/utils';
+
 import {
   getInternalScopesObject,
   getPermittedAccountsForScopes,
@@ -206,8 +208,8 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('sorts accounts using sortAccountIdsByLastSelected when provided', () => {
-      const unsortedAccounts = ['eip155:1:0xbeef', 'eip155:1:0xdead'];
-      const sortedAccounts = ['eip155:1:0xdead', 'eip155:1:0xbeef'];
+      const unsortedAccounts: CaipAccountId[] = ['eip155:1:0xbeef', 'eip155:1:0xdead'];
+      const sortedAccounts: CaipAccountId[] = ['eip155:1:0xdead', 'eip155:1:0xbeef'];
       
       mockSortAccountIdsByLastSelected.mockReturnValue(sortedAccounts);
 
@@ -237,7 +239,7 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('does not sort accounts when sortAccountIdsByLastSelected is not provided', () => {
-      const accounts = ['eip155:1:0xbeef', 'eip155:1:0xdead'];
+      const accounts: CaipAccountId[] = ['eip155:1:0xbeef', 'eip155:1:0xdead'];
 
       const result = getSessionScopes(
         {
@@ -264,10 +266,10 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('sorts accounts in both required and optional scopes', () => {
-      const unsortedAccounts1 = ['eip155:1:0xbeef', 'eip155:1:0xdead'];
-      const unsortedAccounts2 = ['eip155:137:0xcafe', 'eip155:137:0xbabe'];
-      const sortedAccounts1 = ['eip155:1:0xdead', 'eip155:1:0xbeef'];
-      const sortedAccounts2 = ['eip155:137:0xbabe', 'eip155:137:0xcafe'];
+      const unsortedAccounts1: CaipAccountId[] = ['eip155:1:0xbeef', 'eip155:1:0xdead'];
+      const unsortedAccounts2: CaipAccountId[] = ['eip155:137:0xcafe', 'eip155:137:0xbabe'];
+      const sortedAccounts1: CaipAccountId[] = ['eip155:1:0xdead', 'eip155:1:0xbeef'];
+      const sortedAccounts2: CaipAccountId[] = ['eip155:137:0xbabe', 'eip155:137:0xcafe'];
       
       mockSortAccountIdsByLastSelected
         .mockReturnValueOnce(sortedAccounts1)
