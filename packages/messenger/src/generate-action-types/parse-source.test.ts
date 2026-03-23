@@ -480,6 +480,27 @@ class FooController {
     expect(result).toHaveLength(0);
   });
 
+  it('finds sources in nested subdirectories', async () => {
+    const subDir = path.join(tmpDir, 'nested');
+    await fs.promises.mkdir(subDir);
+
+    await fs.promises.writeFile(
+      path.join(subDir, 'NestedController.ts'),
+      `
+const MESSENGER_EXPOSED_METHODS = ['doNested'] as const;
+class NestedController {
+  doNested() { return 'nested'; }
+}
+`,
+      'utf8',
+    );
+
+    const result = await findSourcesWithExposedMethods(tmpDir);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('NestedController');
+  });
+
   it('throws an error when the path is not a directory', async () => {
     await expect(
       findSourcesWithExposedMethods('/nonexistent/path'),

@@ -372,7 +372,26 @@ export async function parseSourceFile(
 }
 
 /**
+ * Recursively get all files in a directory and its subdirectories.
+ *
+ * @param directory - The directory to search.
+ * @returns An array of file paths.
+ */
+async function getFiles(directory: string): Promise<string[]> {
+  const entries = await fs.promises.readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const fullPath = path.join(directory, entry.name);
+      return entry.isDirectory() ? await getFiles(fullPath) : fullPath;
+    }),
+  );
+
+  return files.flat();
+}
+
+/**
  * Finds all source files that have MESSENGER_EXPOSED_METHODS constants.
+ * Searches recursively through subdirectories.
  *
  * @param sourcePath - Path to the folder where controllers/services are located.
  * @returns A list of source information objects.
@@ -387,18 +406,17 @@ export async function findSourcesWithExposedMethods(
     throw new Error(`The specified path is not a directory: ${srcPath}`);
   }
 
-  const srcFiles = await fs.promises.readdir(srcPath);
+  const srcFiles = await getFiles(srcPath);
 
   for (const file of srcFiles) {
     if (!file.endsWith('.ts') || file.endsWith('.test.ts')) {
       continue;
     }
 
-    const filePath = path.join(srcPath, file);
-    const content = await fs.promises.readFile(filePath, 'utf8');
+    const content = await fs.promises.readFile(file, 'utf8');
 
     if (content.includes('MESSENGER_EXPOSED_METHODS')) {
-      const sourceInfo = await parseSourceFile(filePath);
+      const sourceInfo = await parseSourceFile(file);
       if (sourceInfo) {
         sources.push(sourceInfo);
       }
