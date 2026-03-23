@@ -1,5 +1,3 @@
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import { Json } from '@metamask/utils';
 import { freeze } from 'immer';
@@ -9,14 +7,13 @@ import { TransactionPoller } from './TransactionPoller';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
+import { rpcRequest } from '../utils/provider';
 
 const ID_MOCK = 'testId';
 const CHAIN_ID_MOCK = '0x1';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const NONCE_MOCK = '0x2';
 const BLOCK_NUMBER_MOCK = '0x123';
-
-const ETH_QUERY_MOCK = {} as unknown as EthQuery;
 
 const TRANSACTION_SUBMITTED_MOCK = {
   id: ID_MOCK,
@@ -44,8 +41,9 @@ const BLOCK_MOCK = {
 
 jest.mock('./TransactionPoller');
 
-jest.mock('@metamask/controller-utils', () => ({
-  query: jest.fn(),
+jest.mock('../utils/provider', () => ({
+  ...jest.requireActual('../utils/provider'),
+  rpcRequest: jest.fn(),
 }));
 
 /**
@@ -96,7 +94,7 @@ function mockFeatureFlags(
   messenger: jest.Mocked<TransactionControllerMessenger>,
   featureFlags: Json,
 ): void {
-  messenger.call.mockReturnValue({
+  (messenger.call as jest.Mock).mockReturnValue({
     remoteFeatureFlags: featureFlags,
   } as never);
 }
@@ -148,29 +146,28 @@ describe('PendingTransactionTracker', () => {
 
     jest.mocked(TransactionPoller).mockImplementation(() => transactionPoller);
 
-    jest.mocked(query).mockImplementation(
-      // Query arguments are not typed
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async (_ethQuery, method, args: any[] = []) => {
+    jest
+      .mocked(rpcRequest)
+      .mockImplementation(async (_messenger, _metadata, method, params) => {
+        const args = Array.isArray(params) ? params : [];
+
         switch (method) {
-          case 'getTransactionReceipt':
+          case 'eth_getTransactionReceipt':
             return getTransactionReceiptMock(...args);
-          case 'getTransactionByHash':
+          case 'eth_getTransactionByHash':
             return getTransactionByHashMock(...args);
-          case 'getTransactionCount':
+          case 'eth_getTransactionCount':
             return getTransactionCountMock(...args);
-          case 'getBlockByHash':
+          case 'eth_getBlockByHash':
             return getBlockByHashMock(...args);
           default:
             return undefined;
         }
-      },
-    );
+      });
 
     options = {
       blockTracker,
       getChainId: jest.fn(() => CHAIN_ID_MOCK),
-      getEthQuery: jest.fn(() => ETH_QUERY_MOCK),
       getNetworkClientId: jest.fn(() => NETWORK_CLIENT_ID_MOCK),
       getTransactions: jest.fn(),
       getGlobalLock: jest.fn(() => Promise.resolve(jest.fn())),
@@ -1082,13 +1079,10 @@ describe('PendingTransactionTracker', () => {
           await onPoll('0x124');
 
           expect(options.publishTransaction).toHaveBeenCalledTimes(1);
-          expect(options.publishTransaction).toHaveBeenCalledWith(
-            ETH_QUERY_MOCK,
-            {
-              ...TRANSACTION_SUBMITTED_MOCK,
-              firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
-            },
-          );
+          expect(options.publishTransaction).toHaveBeenCalledWith({
+            ...TRANSACTION_SUBMITTED_MOCK,
+            firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
+          });
         });
 
         it('if latest block number matches retry count exponential delay', async () => {

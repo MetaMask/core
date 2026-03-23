@@ -19,7 +19,7 @@ export type UpdateLayer1GasFeeRequest = {
  * Updates the given transactionMeta with the layer 1 gas fee.
  *
  * @param request - The request to use when getting the layer 1 gas fee.
- * @param request.provider - Provider used to create a new underlying EthQuery instance
+ * @param request.provider - Provider used for layer 1 gas fee estimation.
  * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
  * @param request.layer1GasFeeFlows - The layer 1 gas fee flows to search.
  */

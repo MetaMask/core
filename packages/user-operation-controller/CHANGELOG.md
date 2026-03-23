@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/polling-controller` from `^16.0.3` to `^16.0.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
 - Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+- Adapt to `determineTransactionType` signature change in `@metamask/transaction-controller` ([#8273](https://github.com/MetaMask/core/pull/8273))
+  - The function now accepts `{ messenger, networkClientId }` instead of an `EthQuery` instance.
+  - Removed `@metamask/eth-query` usage from `UserOperationController#getTransactionType`.
 
 ## [41.1.0]
 

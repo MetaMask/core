@@ -1,5 +1,3 @@
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import type {
   BlockTracker,
   NetworkClientId,
@@ -19,6 +17,7 @@ import {
   getAcceleratedPollingParams,
   getTimeoutAttempts,
 } from '../utils/feature-flags';
+import { rpcRequest } from '../utils/provider';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event
@@ -81,8 +80,6 @@ export class PendingTransactionTracker {
 
   readonly #getChainId: () => string;
 
-  readonly #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
-
   readonly #getGlobalLock: () => Promise<() => void>;
 
   readonly #getNetworkClientId: () => NetworkClientId;
@@ -102,7 +99,6 @@ export class PendingTransactionTracker {
   readonly #messenger: TransactionControllerMessenger;
 
   readonly #publishTransaction: (
-    ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<string>;
 
@@ -115,7 +111,6 @@ export class PendingTransactionTracker {
   constructor({
     blockTracker,
     getChainId,
-    getEthQuery,
     getGlobalLock,
     getNetworkClientId,
     getTransactions,
@@ -127,7 +122,6 @@ export class PendingTransactionTracker {
   }: {
     blockTracker: BlockTracker;
     getChainId: () => Hex;
-    getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
     getGlobalLock: () => Promise<() => void>;
     getNetworkClientId: () => string;
     getTransactions: () => TransactionMeta[];
@@ -139,16 +133,12 @@ export class PendingTransactionTracker {
     isResubmitEnabled?: () => boolean;
     isTimeoutEnabled: (transactionMeta: TransactionMeta) => boolean;
     messenger: TransactionControllerMessenger;
-    publishTransaction: (
-      ethQuery: EthQuery,
-      transactionMeta: TransactionMeta,
-    ) => Promise<string>;
+    publishTransaction: (transactionMeta: TransactionMeta) => Promise<string>;
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
     this.#droppedBlockCountByHash = new Map();
     this.#getChainId = getChainId;
-    this.#getEthQuery = getEthQuery;
     this.#getGlobalLock = getGlobalLock;
     this.#getNetworkClientId = getNetworkClientId;
     this.#getTransactions = getTransactions;
@@ -353,8 +343,7 @@ export class PendingTransactionTracker {
       return;
     }
 
-    const ethQuery = this.#getEthQuery(txMeta.networkClientId);
-    await this.#publishTransaction(ethQuery, txMeta);
+    await this.#publishTransaction(txMeta);
 
     const retryCount = (txMeta.retryCount ?? 0) + 1;
 
@@ -733,11 +722,23 @@ export class PendingTransactionTracker {
   async #getTransactionReceipt(
     txHash?: string,
   ): Promise<TransactionReceipt | undefined> {
-    return await query(this.#getEthQuery(), 'getTransactionReceipt', [txHash]);
+    const networkClientId = this.#getNetworkClientId();
+    return (await rpcRequest(
+      this.#messenger,
+      { networkClientId },
+      'eth_getTransactionReceipt',
+      [txHash as string],
+    )) as TransactionReceipt | undefined;
   }
 
   async #getTransactionByHash(txHash?: string): Promise<Json> {
-    return await query(this.#getEthQuery(), 'getTransactionByHash', [txHash]);
+    const networkClientId = this.#getNetworkClientId();
+    return (await rpcRequest(
+      this.#messenger,
+      { networkClientId },
+      'eth_getTransactionByHash',
+      [txHash as string],
+    )) as Json;
   }
 
   async #getBlockByHash(
@@ -746,14 +747,23 @@ export class PendingTransactionTracker {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    return await query(this.#getEthQuery(), 'getBlockByHash', [
-      blockHash,
-      includeTransactionDetails,
-    ]);
+    const networkClientId = this.#getNetworkClientId();
+    return await rpcRequest(
+      this.#messenger,
+      { networkClientId },
+      'eth_getBlockByHash',
+      [blockHash, includeTransactionDetails],
+    );
   }
 
   async #getNetworkTransactionCount(address: string): Promise<string> {
-    return await query(this.#getEthQuery(), 'getTransactionCount', [address]);
+    const networkClientId = this.#getNetworkClientId();
+    return (await rpcRequest(
+      this.#messenger,
+      { networkClientId },
+      'eth_getTransactionCount',
+      [address, 'latest'],
+    )) as string;
   }
 
   #getChainTransactions(): TransactionMeta[] {

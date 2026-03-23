@@ -75,7 +75,6 @@ const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const PUBLIC_KEY_MOCK = '0x112233';
 const BATCH_ID_MOCK = '0x654321';
 const BATCH_ID_CUSTOM_MOCK = '0x123456';
-const GET_ETH_QUERY_MOCK = jest.fn();
 const GET_INTERNAL_ACCOUNTS_MOCK = jest.fn().mockReturnValue([]);
 const TRANSACTION_ID_MOCK = 'testTransactionId';
 const TRANSACTION_ID_2_MOCK = 'testTransactionId2';
@@ -358,7 +357,6 @@ describe('Batch Utils', () => {
         addTransaction: addTransactionMock,
         estimateGas: estimateGasMock,
         getChainId: getChainIdMock,
-        getEthQuery: GET_ETH_QUERY_MOCK,
         getGasFeeEstimates: getGasFeeEstimatesMock,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         getPendingTransactionTracker: getPendingTransactionTrackerMock,
@@ -2273,6 +2271,11 @@ describe('Batch Utils', () => {
   describe('isAtomicBatchSupported', () => {
     beforeEach(() => {
       jest.resetAllMocks();
+
+      jest
+        .spyOn(MESSENGER_MOCK, 'call')
+        .mockImplementation()
+        .mockReturnValue(NETWORK_CLIENT_ID_MOCK);
     });
 
     it('includes all feature flag chains if chain IDs not specified', async () => {
@@ -2297,7 +2300,6 @@ describe('Batch Utils', () => {
 
       const result = await isAtomicBatchSupported({
         address: FROM_MOCK,
-        getEthQuery: GET_ETH_QUERY_MOCK,
         messenger: MESSENGER_MOCK,
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
       });
@@ -2336,7 +2338,6 @@ describe('Batch Utils', () => {
       const result = await isAtomicBatchSupported({
         address: FROM_MOCK,
         chainIds: [CHAIN_ID_2_MOCK, '0xabcdef'],
-        getEthQuery: GET_ETH_QUERY_MOCK,
         messenger: MESSENGER_MOCK,
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
       });
@@ -2355,7 +2356,6 @@ describe('Batch Utils', () => {
       await expect(
         isAtomicBatchSupported({
           address: FROM_MOCK,
-          getEthQuery: GET_ETH_QUERY_MOCK,
           messenger: MESSENGER_MOCK,
           publicKeyEIP7702: undefined,
         }),
@@ -2375,14 +2375,18 @@ describe('Batch Utils', () => {
         delegationAddress: undefined,
       });
 
+      jest
+        .spyOn(MESSENGER_MOCK, 'call')
+        .mockImplementation((_action, chainId) => {
+          if (chainId === CHAIN_ID_MOCK) {
+            throw new Error(ERROR_MESSAGE_MOCK);
+          }
+
+          return NETWORK_CLIENT_ID_MOCK;
+        });
+
       const results = await isAtomicBatchSupported({
         address: FROM_MOCK,
-        getEthQuery: jest
-          .fn()
-          .mockImplementationOnce(() => {
-            throw new Error(ERROR_MESSAGE_MOCK);
-          })
-          .mockReturnValueOnce({}),
         messenger: MESSENGER_MOCK,
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
       });

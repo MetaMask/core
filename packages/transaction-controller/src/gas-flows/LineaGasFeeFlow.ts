@@ -1,5 +1,5 @@
-import { ChainId, hexToBN, query, toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import { ChainId, hexToBN, toHex } from '@metamask/controller-utils';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
@@ -15,6 +15,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
+import { rpcRequest } from '../utils/provider';
 
 type LineaEstimateGasResponse = {
   baseFeePerGas: Hex;
@@ -72,11 +73,12 @@ export class LineaGasFeeFlow implements GasFeeFlow {
   async #getLineaGasFees(
     request: GasFeeFlowRequest,
   ): Promise<GasFeeFlowResponse> {
-    const { ethQuery, transactionMeta } = request;
+    const { messenger, networkClientId, transactionMeta } = request;
 
     const lineaResponse = await this.#getLineaResponse(
       transactionMeta,
-      ethQuery,
+      messenger,
+      networkClientId,
     );
 
     log('Received Linea response', lineaResponse);
@@ -115,16 +117,17 @@ export class LineaGasFeeFlow implements GasFeeFlow {
 
   #getLineaResponse(
     transactionMeta: TransactionMeta,
-    ethQuery: EthQuery,
+    messenger: TransactionControllerMessenger,
+    networkClientId: NetworkClientId,
   ): Promise<LineaEstimateGasResponse> {
-    return query(ethQuery, 'linea_estimateGas', [
+    return rpcRequest(messenger, { networkClientId }, 'linea_estimateGas', [
       {
         from: transactionMeta.txParams.from,
-        to: transactionMeta.txParams.to,
-        value: transactionMeta.txParams.value,
-        input: transactionMeta.txParams.data,
+        to: transactionMeta.txParams.to ?? null,
+        value: transactionMeta.txParams.value ?? null,
+        input: transactionMeta.txParams.data ?? null,
       },
-    ]);
+    ]) as Promise<LineaEstimateGasResponse>;
   }
 
   #getValuesFromMultipliers(

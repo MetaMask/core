@@ -1,9 +1,8 @@
-import EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -30,6 +29,7 @@ import {
 } from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
+import { getProvider } from '../utils/provider';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-poller');
 
@@ -51,8 +51,6 @@ export class GasFeePoller {
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  readonly #getProvider: (networkClientId: NetworkClientId) => Provider;
-
   readonly #getTransactions: () => TransactionMeta[];
 
   readonly #getTransactionBatches: () => TransactionBatchMeta[];
@@ -72,7 +70,6 @@ export class GasFeePoller {
    * @param options.findNetworkClientIdByChainId - Callback to find the network client ID by chain ID.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
-   * @param options.getProvider - Callback to obtain a provider instance.
    * @param options.getTransactions - Callback to obtain the transaction data.
    * @param options.getTransactionBatches - Callback to obtain the transaction batch data.
    * @param options.layer1GasFeeFlows - The layer 1 gas fee flows to use to obtain suitable layer 1 gas fees.
@@ -83,7 +80,6 @@ export class GasFeePoller {
     findNetworkClientIdByChainId,
     gasFeeFlows,
     getGasFeeControllerEstimates,
-    getProvider,
     getTransactions,
     getTransactionBatches,
     layer1GasFeeFlows,
@@ -95,7 +91,6 @@ export class GasFeePoller {
     getGasFeeControllerEstimates: (
       options: FetchGasFeeEstimateOptions,
     ) => Promise<GasFeeState>;
-    getProvider: (networkClientId: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
     getTransactionBatches: () => TransactionBatchMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
@@ -106,7 +101,6 @@ export class GasFeePoller {
     this.#gasFeeFlows = gasFeeFlows;
     this.#layer1GasFeeFlows = layer1GasFeeFlows;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
-    this.#getProvider = getProvider;
     this.#getTransactions = getTransactions;
     this.#getTransactionBatches = getTransactionBatches;
     this.#messenger = messenger;
@@ -257,12 +251,9 @@ export class GasFeePoller {
   ): Promise<void> {
     const { id } = txBatchMeta;
 
-    const ethQuery = new EthQuery(
-      this.#getProvider(txBatchMeta.networkClientId),
-    );
     const defaultGasFeeFlow = new DefaultGasFeeFlow();
     const request: GasFeeFlowRequest = {
-      ethQuery,
+      networkClientId: txBatchMeta.networkClientId,
       gasFeeControllerData,
       messenger: this.#messenger,
       transactionMeta: {
@@ -306,7 +297,6 @@ export class GasFeePoller {
   > {
     const { networkClientId } = transactionMeta;
 
-    const ethQuery = new EthQuery(this.#getProvider(networkClientId));
     const gasFeeFlow = getGasFeeFlow(
       transactionMeta,
       this.#gasFeeFlows,
@@ -322,7 +312,7 @@ export class GasFeePoller {
     }
 
     const request: GasFeeFlowRequest = {
-      ethQuery,
+      networkClientId,
       gasFeeControllerData,
       messenger: this.#messenger,
       transactionMeta,
@@ -355,7 +345,7 @@ export class GasFeePoller {
     transactionMeta: TransactionMeta,
   ): Promise<Hex | undefined> {
     const { networkClientId } = transactionMeta;
-    const provider = this.#getProvider(networkClientId);
+    const provider = getProvider(this.#messenger, { networkClientId });
 
     const layer1GasFee = await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,

@@ -9,7 +9,6 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerPrepareUserOperationAction,
@@ -24,6 +23,7 @@ import type {
 import { errorCodes } from '@metamask/rpc-errors';
 import { determineTransactionType } from '@metamask/transaction-controller';
 import type {
+  TransactionControllerMessenger,
   TransactionMeta,
   TransactionParams,
   TransactionType,
@@ -509,7 +509,6 @@ export class UserOperationController extends BaseController<
 
     const transactionType = await this.#getTransactionType(
       transaction,
-      provider,
       options,
     );
 
@@ -764,7 +763,6 @@ export class UserOperationController extends BaseController<
 
   async #getTransactionType(
     transaction: TransactionParams | undefined,
-    provider: Provider,
     options: AddUserOperationOptions,
   ): Promise<TransactionType | undefined> {
     if (!transaction) {
@@ -775,10 +773,13 @@ export class UserOperationController extends BaseController<
       return options.type;
     }
 
-    const ethQuery = new EthQuery(provider);
-    const result = determineTransactionType(transaction, ethQuery);
+    const result = await determineTransactionType(transaction, {
+      messenger:
+        this.messenger as unknown as TransactionControllerMessenger,
+      networkClientId: options.networkClientId,
+    });
 
-    return (await result).type;
+    return result.type;
   }
 
   async #getProvider(
