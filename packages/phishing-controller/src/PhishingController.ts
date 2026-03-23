@@ -23,7 +23,7 @@ import type { PathTrie } from './PathTrie';
 import type {
   PhishingControllerMaybeUpdateStateAction,
   PhishingControllerMethodActions,
-  PhishingControllerTestAction,
+  PhishingControllerTestOriginAction,
 } from './PhishingController-method-action-types';
 import { PhishingDetector } from './PhishingDetector';
 import {
@@ -381,7 +381,7 @@ export type PhishingControllerOptions = {
 
 const MESSENGER_EXPOSED_METHODS = [
   'maybeUpdateState',
-  'test',
+  'testOrigin',
   'isBlockedRequest',
   'bypass',
   'scanUrl',
@@ -391,9 +391,9 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
- *  @deprecated Use `PhishingControllerTestAction` instead.
+ *  @deprecated Use `PhishingControllerTestOriginAction` instead.
  */
-export type TestOrigin = PhishingControllerTestAction;
+export type TestOrigin = PhishingControllerTestOriginAction;
 
 /**
  *  @deprecated Use `PhishingControllerMaybeUpdateStateAction` instead.
@@ -767,7 +767,7 @@ export class PhishingController extends BaseController<
    * @param origin - Domain origin of a website.
    * @returns Whether the origin is an unapproved origin.
    */
-  test(origin: string): PhishingDetectorResult {
+  testOrigin(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     const hostname = getHostnameFromUrl(punycodeOrigin);
     const hostnameWithPaths = hostname + getPathnameFromUrl(origin);
@@ -781,6 +781,19 @@ export class PhishingController extends BaseController<
     }
     return this.#detector.check(punycodeOrigin);
   }
+
+  /**
+   * Determines if a given origin is unapproved.
+   *
+   * It is strongly recommended that you call {@link maybeUpdateState} before calling this,
+   * to check whether the phishing configuration is up-to-date. It will be updated if necessary
+   * by calling {@link updateStalelist} or {@link updateHotlist}.
+   *
+   * @param origin - Domain origin of a website.
+   * @returns Whether the origin is an unapproved origin.
+   * @deprecated Use {@link testOrigin} instead. This method is exposed for backward compatibility and will be removed in a future release.
+   */
+  test = this.testOrigin.bind(this);
 
   /**
    * Checks if a request URL's domain is blocked against the request blocklist.

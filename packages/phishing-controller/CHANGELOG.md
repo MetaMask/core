@@ -18,9 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Deprecate `test` method in favor of `testOrigin` ([#8269](https://github.com/MetaMask/core/pull/8269))
+  - The `test` method is now renamed to `testOrigin` to better reflect its purpose of testing a domain origin for phishing.
+  - The old `test` method is still present but is now marked as deprecated and will be removed in a future release.
 - Deprecate action types in favor of `PhishingController...Action` types ([#8269](https://github.com/MetaMask/core/pull/8269))
   - The following action types have been renamed:
-    - `TestOrigin` is now `PhishingControllerTestAction`.
+    - `TestOrigin` is now `PhishingControllerTestOriginAction`.
     - `MaybeUpdateState` is now `PhishingControllerMaybeUpdateStateAction`.
   - The old types are still exported but are now marked as deprecated and will
     be removed in a future release.

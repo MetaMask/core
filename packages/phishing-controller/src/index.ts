@@ -23,7 +23,7 @@ export type { CacheEntry } from './CacheManager';
 
 export type {
   PhishingControllerMaybeUpdateStateAction,
-  PhishingControllerTestAction,
+  PhishingControllerTestOriginAction,
   PhishingControllerIsBlockedRequestAction,
   PhishingControllerBypassAction,
   PhishingControllerScanUrlAction,

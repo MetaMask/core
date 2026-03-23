@@ -28,9 +28,9 @@ export type PhishingControllerMaybeUpdateStateAction = {
  * @param origin - Domain origin of a website.
  * @returns Whether the origin is an unapproved origin.
  */
-export type PhishingControllerTestAction = {
-  type: `PhishingController:test`;
-  handler: PhishingController['test'];
+export type PhishingControllerTestOriginAction = {
+  type: `PhishingController:testOrigin`;
+  handler: PhishingController['testOrigin'];
 };
 
 /**
@@ -116,7 +116,7 @@ export type PhishingControllerBulkScanTokensAction = {
  */
 export type PhishingControllerMethodActions =
   | PhishingControllerMaybeUpdateStateAction
-  | PhishingControllerTestAction
+  | PhishingControllerTestOriginAction
   | PhishingControllerIsBlockedRequestAction
   | PhishingControllerBypassAction
   | PhishingControllerScanUrlAction

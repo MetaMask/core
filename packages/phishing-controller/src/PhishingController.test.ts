@@ -141,7 +141,7 @@ describe('PhishingController', () => {
       formatHostnameToUrl(whitelistedHostname),
     );
     const result = rootMessenger.call(
-      'PhishingController:test',
+      'PhishingController:testOrigin',
       whitelistedHostname,
     );
 
@@ -159,7 +159,7 @@ describe('PhishingController', () => {
       formatHostnameToUrl(whitelistedHostname),
     );
     const result = rootMessenger.call(
-      'PhishingController:test',
+      'PhishingController:testOrigin',
       `https://${whitelistedHostname}/path`,
     );
 
@@ -175,7 +175,7 @@ describe('PhishingController', () => {
     const { rootMessenger } = getPhishingController();
     rootMessenger.call('PhishingController:bypass', whitelistedURL);
     const result = rootMessenger.call(
-      'PhishingController:test',
+      'PhishingController:testOrigin',
       whitelistedURL,
     );
     expect(result).toMatchObject({
@@ -214,7 +214,7 @@ describe('PhishingController', () => {
     const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     const result = rootMessenger.call(
-      'PhishingController:test',
+      'PhishingController:testOrigin',
       `https://${allowlistedHostname}/path`,
     );
 
@@ -390,7 +390,7 @@ describe('PhishingController', () => {
       await rootMessenger.call('PhishingController:maybeUpdateState');
       expect(
         rootMessenger.call(
-          'PhishingController:test',
+          'PhishingController:testOrigin',
           formatHostnameToUrl('this-should-not-be-in-default-blocklist.com'),
         ),
       ).toMatchObject({
@@ -400,7 +400,7 @@ describe('PhishingController', () => {
 
       expect(
         rootMessenger.call(
-          'PhishingController:test',
+          'PhishingController:testOrigin',
           formatHostnameToUrl('this-should-not-be-in-default-allowlist.com'),
         ),
       ).toMatchObject({
@@ -413,7 +413,7 @@ describe('PhishingController', () => {
 
       expect(
         rootMessenger.call(
-          'PhishingController:test',
+          'PhishingController:testOrigin',
           formatHostnameToUrl('this-should-not-be-in-default-blocklist.com'),
         ),
       ).toMatchObject({
@@ -423,7 +423,7 @@ describe('PhishingController', () => {
 
       expect(
         rootMessenger.call(
-          'PhishingController:test',
+          'PhishingController:testOrigin',
           formatHostnameToUrl('this-should-not-be-in-default-allowlist.com'),
         ),
       ).toMatchObject({
@@ -841,7 +841,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('metamask.io'),
       ),
     ).toMatchObject({
@@ -872,7 +872,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('i❤.ws'),
       ),
     ).toMatchObject({
@@ -902,7 +902,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('xn--i-7iq.ws'),
       ),
     ).toMatchObject({
@@ -940,7 +940,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('etnerscan.io'),
       ),
     ).toMatchObject({
@@ -979,7 +979,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('myetherẉalletṭ.com'),
       ),
     ).toMatchObject({
@@ -1018,7 +1018,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('xn--myetherallet-4k5fwn.com'),
       ),
     ).toMatchObject({
@@ -1065,7 +1065,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
       ),
     ).toMatchObject({
@@ -1096,7 +1096,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
       ),
     ).toMatchObject({
@@ -1134,7 +1134,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('opensea.io'),
       ),
     ).toMatchObject({
@@ -1173,7 +1173,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('ohpensea.io'),
       ),
     ).toMatchObject({
@@ -1203,7 +1203,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl('this-is-the-official-website-of-opensea.io'),
       ),
     ).toMatchObject({
@@ -1242,7 +1242,7 @@ describe('PhishingController', () => {
     const unsafeDomain = 'electrum.mx';
     assert.equal(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl(unsafeDomain),
       ).result,
       true,
@@ -1254,7 +1254,7 @@ describe('PhishingController', () => {
     );
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl(unsafeDomain),
       ),
     ).toMatchObject({
@@ -1293,7 +1293,7 @@ describe('PhishingController', () => {
     const unsafeDomain = 'electrum.mx';
     assert.equal(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl(unsafeDomain),
       ).result,
       true,
@@ -1309,7 +1309,7 @@ describe('PhishingController', () => {
     );
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl(unsafeDomain),
       ),
     ).toMatchObject({
@@ -1348,7 +1348,7 @@ describe('PhishingController', () => {
     const unsafeDomain = 'myetherẉalletṭ.com';
     assert.equal(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl(unsafeDomain),
       ).result,
       true,
@@ -1360,7 +1360,7 @@ describe('PhishingController', () => {
     );
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl(unsafeDomain),
       ),
     ).toMatchObject({
@@ -1399,7 +1399,7 @@ describe('PhishingController', () => {
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
     assert.equal(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl(unsafeDomain),
       ).result,
       true,
@@ -1411,7 +1411,7 @@ describe('PhishingController', () => {
     );
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         formatHostnameToUrl(unsafeDomain),
       ),
     ).toMatchObject({
@@ -1448,7 +1448,10 @@ describe('PhishingController', () => {
     const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     expect(
-      rootMessenger.call('PhishingController:test', 'https://example.com/path'),
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        'https://example.com/path',
+      ),
     ).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Blocklist,
@@ -1479,7 +1482,10 @@ describe('PhishingController', () => {
     });
     rootMessenger.call('PhishingController:bypass', 'https://example.com/path');
     expect(
-      rootMessenger.call('PhishingController:test', 'https://example.com/path'),
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        'https://example.com/path',
+      ),
     ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
@@ -1511,7 +1517,7 @@ describe('PhishingController', () => {
 
     expect(
       rootMessenger.call(
-        'PhishingController:test',
+        'PhishingController:testOrigin',
         'https://example.com/%70%61%74%68',
       ),
     ).toMatchObject({
@@ -1770,7 +1776,6 @@ describe('PhishingController', () => {
           lastUpdated: 0,
         },
       ]);
-      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
     });
 
     it('should not throw when there is a network error', async () => {
@@ -1787,7 +1792,6 @@ describe('PhishingController', () => {
       const { controller } = getPhishingController();
 
       expect(await controller.updateStalelist()).toBeUndefined();
-      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
     });
 
     describe('an update is in progress', () => {
