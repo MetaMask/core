@@ -10,7 +10,7 @@ import type { ESLint } from './types';
 type CommandLineArguments = {
   check: boolean;
   fix: boolean;
-  controllerPath: string;
+  sourcePath: string;
 };
 
 /**
@@ -22,15 +22,16 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
   const {
     check,
     fix,
-    path: controllerPath,
+    path: sourcePath,
   } = await yargs(globalThis.process.argv.slice(2))
     .command(
       '$0 [path]',
-      'Generate method action types for a controller messenger',
+      'Generate method action types for controller and service messengers',
       (yargsInstance) => {
         yargsInstance.positional('path', {
           type: 'string',
-          description: 'Path to the folder where controllers are located',
+          description:
+            'Path to the folder where controllers/services are located',
           default: 'src',
         });
       },
@@ -56,7 +57,7 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
   return {
     check,
     fix,
-    controllerPath: controllerPath as string,
+    sourcePath: sourcePath as string,
   };
 }
 
@@ -82,28 +83,32 @@ async function loadESLint(): Promise<ESLint | null> {
  * Main entry point for the CLI.
  */
 async function main(): Promise<void> {
-  const { fix, controllerPath } = await parseCommandLineArguments();
+  const { fix, sourcePath } = await parseCommandLineArguments();
 
-  console.log('🔍 Searching for controllers with MESSENGER_EXPOSED_METHODS...');
+  console.log(
+    '🔍 Searching for controllers/services with MESSENGER_EXPOSED_METHODS...',
+  );
 
-  const controllers = await findControllersWithExposedMethods(controllerPath);
+  const sources = await findControllersWithExposedMethods(sourcePath);
 
-  if (controllers.length === 0) {
-    console.log('⚠️  No controllers found with MESSENGER_EXPOSED_METHODS');
+  if (sources.length === 0) {
+    console.log(
+      '⚠️  No controllers/services found with MESSENGER_EXPOSED_METHODS',
+    );
     return;
   }
 
   console.log(
-    `📦 Found ${controllers.length} controller(s) with exposed methods`,
+    `📦 Found ${sources.length} controller(s)/service(s) with exposed methods`,
   );
 
   const eslint = await loadESLint();
 
   if (fix) {
-    await generateAllActionTypesFiles(controllers, eslint);
+    await generateAllActionTypesFiles(sources, eslint);
     console.log('\n🎉 All action types generated successfully!');
   } else {
-    await checkActionTypesFiles(controllers, eslint);
+    await checkActionTypesFiles(sources, eslint);
   }
 }
 
