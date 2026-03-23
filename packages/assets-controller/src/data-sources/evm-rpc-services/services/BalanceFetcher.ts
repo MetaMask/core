@@ -141,8 +141,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
           if (!tokenMap.has(lowerAddress)) {
             tokenMap.set(lowerAddress, {
               address: tokenAddress,
-              // Decimals will be fetched from metadata or defaulted
-              decimals: 18,
               symbol: '',
             });
           }
