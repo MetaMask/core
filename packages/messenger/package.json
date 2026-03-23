@@ -59,11 +59,9 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
-  "dependencies": {
-    "@metamask/utils": "^11.9.0"
-  },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/utils": "^11.9.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/yargs": "^17.0.32",
@@ -78,11 +76,15 @@
     "yargs": "^17.7.2"
   },
   "peerDependencies": {
+    "@metamask/utils": "^11.9.0",
     "eslint": ">=8",
     "typescript": "~5.3.3",
     "yargs": "^17.7.2"
   },
   "peerDependenciesMeta": {
+    "@metamask/utils": {
+      "optional": true
+    },
     "eslint": {
       "optional": true
     },
