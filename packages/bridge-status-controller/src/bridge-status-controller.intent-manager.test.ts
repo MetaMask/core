@@ -593,7 +593,7 @@ describe('IntentManager', () => {
         [
           "TransactionController:updateTransaction",
           {
-            "hash": "",
+            "hash": undefined,
             "id": "tx-2",
             "status": "submitted",
           },

@@ -135,6 +135,13 @@ export const addTransaction = async (
 
 export const generateActionId = () => (Date.now() + Math.random()).toString();
 
+/**
+ * Adds a synthetic transaction to the TransactionController to display pending intent orders in the UI
+ *
+ * @param messenger - The messenger to use for the transaction
+ * @param args - The arguments for the transaction
+ * @returns The transaction meta
+ */
 export const addSyntheticTransaction = async (
   messenger: BridgeStatusControllerMessenger,
   ...args: Parameters<TransactionController['addTransaction']>
@@ -240,9 +247,9 @@ export const toBatchTxParams = (
 ): BatchTransactionParams => {
   const params = {
     ...trade,
-    data: trade.data as `0x`,
-    to: trade.to as `0x`,
-    value: trade.value as `0x`,
+    data: trade.data as Hex,
+    to: trade.to as Hex,
+    value: trade.value as Hex,
   };
   if (skipGasFields) {
     return params;
@@ -360,7 +367,7 @@ export const getAddTransactionBatchParams = async ({
     networkClientId,
     requireApproval,
     origin: 'metamask',
-    from: trade.from as `0x`,
+    from: trade.from as Hex,
     transactions,
   };
 

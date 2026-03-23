@@ -99,7 +99,7 @@ describe('History Utils', () => {
 
     it('throws error when neither actionId nor bridgeTxMetaId is provided', () => {
       expect(() => getHistoryKey(undefined, undefined)).toThrow(
-        'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+        'Cannot add tx to history: either actionId, bridgeTxMeta.id, or syntheticTransactionId must be provided',
       );
     });
   });

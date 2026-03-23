@@ -174,7 +174,7 @@ export class IntentManager {
         existingTxMeta,
         {
           status: bridgeStatus?.transactionStatus,
-          hash: txHash,
+          ...(txHash ? { hash: txHash } : {}),
           ...txReceiptUpdate,
         },
         `BridgeStatusController - Intent order status updated: ${orderStatus}`,

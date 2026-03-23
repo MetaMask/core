@@ -54,7 +54,7 @@ export function getHistoryKey(
   const historyKey = actionId ?? bridgeTxMetaId ?? syntheticTransactionId;
   if (!historyKey) {
     throw new Error(
-      'Cannot add tx to history: either actionId or bridgeTxMeta.id must be provided',
+      'Cannot add tx to history: either actionId, bridgeTxMeta.id, or syntheticTransactionId must be provided',
     );
   }
   return historyKey;
