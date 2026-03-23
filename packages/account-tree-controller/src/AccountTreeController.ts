@@ -729,9 +729,16 @@ export class AccountTreeController extends BaseController<
     }
 
     // Apply persisted lastSelected (plain number, not synced).
-    group.metadata.lastSelected = persistedGroupMetadata?.lastSelected ?? 0;
-    if (persistedGroupMetadata?.lastSelected === undefined) {
+    if (
+      persistedGroupMetadata?.lastSelected !== undefined &&
+      persistedGroupMetadata.lastSelected >= 0
+    ) {
+      group.metadata.lastSelected = persistedGroupMetadata.lastSelected;
+    } else {
+      // Automatiacally inject default value.
       state.accountGroupsMetadata[groupId].lastSelected = 0;
+
+      group.metadata.lastSelected = 0;
     }
   }
 
@@ -1150,8 +1157,12 @@ export class AccountTreeController extends BaseController<
    * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
    *
    * @param groupId - The account group ID to select.
+   * @param forwardSelectedAccount - Whether to forward the selected account to AccountsController. Defaults to true.
    */
-  setSelectedAccountGroup(groupId: AccountGroupId): void {
+  #setSelectedAccountGroup(
+    groupId: AccountGroupId,
+    forwardSelectedAccount: boolean = true,
+  ): void {
     const previousSelectedAccountGroup = this.state.selectedAccountGroup;
 
     // Idempotent check - if the same group is already selected, do nothing
@@ -1165,11 +1176,14 @@ export class AccountTreeController extends BaseController<
       throw new Error(`No accounts found in group: ${groupId}`);
     }
 
-    // Update our state first
     this.update((state) => {
+      // Update our selected account group first.
+      state.selectedAccountGroup = groupId;
+
+      // Then update its associated metadata (lastSelected timestamp) to keep
+      // track of the most recently selected groups.
       const now = Date.now();
 
-      state.selectedAccountGroup = groupId;
       /* istanbul ignore next */
       if (!state.accountGroupsMetadata[groupId]) {
         state.accountGroupsMetadata[groupId] = {};
@@ -1192,12 +1206,25 @@ export class AccountTreeController extends BaseController<
       previousSelectedAccountGroup,
     );
 
-    // Update AccountsController - this will trigger selectedAccountChange event,
-    // but our handler is idempotent so it won't cause infinite loop
-    this.messenger.call(
-      'AccountsController:setSelectedAccount',
-      accountToSelect,
-    );
+    if (forwardSelectedAccount) {
+      // Update AccountsController - this will trigger selectedAccountChange event,
+      // but our handler is idempotent so it won't cause infinite loop
+      this.messenger.call(
+        'AccountsController:setSelectedAccount',
+        accountToSelect,
+      );
+
+      log(`Selected account is now: ${accountToSelect}`);
+    }
+  }
+
+  /**
+   * Sets the selected account group and updates the AccountsController selectedAccount accordingly.
+   *
+   * @param groupId - The account group ID to select.
+   */
+  setSelectedAccountGroup(groupId: AccountGroupId): void {
+    this.#setSelectedAccountGroup(groupId);
   }
 
   /**
@@ -1239,36 +1266,10 @@ export class AccountTreeController extends BaseController<
     }
 
     const { groupId } = accountMapping;
-    const previousSelectedAccountGroup = this.state.selectedAccountGroup;
 
-    // Idempotent check - if the same group is already selected, do nothing
-    if (previousSelectedAccountGroup === groupId) {
-      return;
-    }
-
-    // Update selectedAccountGroup to match the selected account
-    this.update((state) => {
-      const now = Date.now();
-
-      state.selectedAccountGroup = groupId;
-      /* istanbul ignore next */
-      if (!state.accountGroupsMetadata[groupId]) {
-        state.accountGroupsMetadata[groupId] = {};
-      }
-      state.accountGroupsMetadata[groupId].lastSelected = now;
-
-      const walletId = this.#groupIdToWalletId.get(groupId);
-      if (walletId) {
-        state.accountTree.wallets[walletId].groups[
-          groupId
-        ].metadata.lastSelected = now;
-      }
-    });
-    this.messenger.publish(
-      `${controllerName}:selectedAccountGroupChange`,
-      groupId,
-      previousSelectedAccountGroup,
-    );
+    // Avoid infinite loop since this method is triggered by selected account change.
+    const forwardSelectedAccount = false;
+    this.#setSelectedAccountGroup(groupId, forwardSelectedAccount);
   }
 
   /**
