@@ -78,8 +78,8 @@ const MarketInsightsReportStruct = structType({
   metadata: optional(array(AIResponseMetadataStruct)),
 });
 
-const MarketInsightsSummaryEnvelopeStruct = structType({
-  summary: MarketInsightsReportStruct,
+const MarketInsightsDigestEnvelopeStruct = structType({
+  digest: MarketInsightsReportStruct,
 });
 
 // Market Overview structs
@@ -131,8 +131,8 @@ const getNormalizedMarketInsightsReport = (
     return value;
   }
 
-  if (is(value, MarketInsightsSummaryEnvelopeStruct)) {
-    return value.summary;
+  if (is(value, MarketInsightsDigestEnvelopeStruct)) {
+    return value.digest;
   }
 
   return null;

@@ -108,13 +108,13 @@ describe('AiDigestService', () => {
       );
     });
 
-    it('accepts summary envelope responses', async () => {
+    it('accepts digest envelope responses', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         json: () =>
           Promise.resolve({
-            summary: mockMarketInsightsReport,
+            digest: mockMarketInsightsReport,
           }),
       });
 
