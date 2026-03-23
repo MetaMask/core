@@ -60,14 +60,6 @@ import type {
 
 const DEFAULT_INTERVAL = 180000;
 
-/**
- * Maximum number of blocks that can be scanned in a single `eth_getLogs` call
- * when activity-based detection is enabled. If the gap between the last scanned
- * block and the current block exceeds this value, detection falls back to the
- * balance-of batch approach.
- */
-const MAX_ACTIVITY_BLOCK_RANGE = 128;
-
 type LegacyToken = {
   name: string;
   logo: `${string}.svg`;
@@ -120,15 +112,7 @@ export function mapChainIdWithTokenListMap(
 
 export const controllerName = 'TokenDetectionController';
 
-export type TokenDetectionState = {
-  /**
-   * The last block number scanned per chain per address during activity-based
-   * token detection. Used to compute the `fromBlock` for `eth_getLogs` on the
-   * next run, and to decide whether to fall back to balance-of batches when the
-   * gap exceeds {@link MAX_ACTIVITY_BLOCK_RANGE}.
-   */
-  lastScannedBlocks: Record<Hex, Record<string, number>>;
-};
+export type TokenDetectionState = Record<never, never>;
 
 export type TokenDetectionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -228,8 +212,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   readonly #useExternalServices: () => boolean;
 
-  readonly #useActivity: () => boolean;
-
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
   readonly #trackMetaMetricsEvent: (options: {
@@ -255,9 +237,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useTokenDetection - Feature Switch for using token detection (default: true)
    * @param options.useExternalServices - Feature Switch for using external services (default: false)
-   * @param options.useActivity - When true and RPC is used (not Accounts API), skip balance-of
-   * batches and instead detect tokens via a single `eth_getLogs` call that finds all inbound
-   * ERC-20 Transfer events for the selected address.
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -267,7 +246,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     messenger,
     useTokenDetection = (): boolean => true,
     useExternalServices = (): boolean => true,
-    useActivity = (): boolean => false,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -286,21 +264,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     messenger: TokenDetectionControllerMessenger;
     useTokenDetection?: () => boolean;
     useExternalServices?: () => boolean;
-    /** When it returns true, use `eth_getLogs` activity-based detection instead of balance-of batches (RPC only). */
-    useActivity?: () => boolean;
   }) {
     super({
       name: controllerName,
       messenger,
-      state: { lastScannedBlocks: {} },
-      metadata: {
-        lastScannedBlocks: {
-          persist: true,
-          includeInDebugSnapshot: false,
-          includeInStateLogs: false,
-          usedInUi: false,
-        },
-      },
+      state: {},
+      metadata: {},
     });
 
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
@@ -330,7 +299,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.#useTokenDetection = useTokenDetection;
     this.#useExternalServices = useExternalServices;
-    this.#useActivity = useActivity;
 
     this.#registerEventListeners();
   }
@@ -599,16 +567,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainsToDetectUsingRpc: NetworkClient[],
     addressToDetect: string,
   ): Promise<void> {
-    for (const networkClient of chainsToDetectUsingRpc) {
-      if (this.#useActivity()) {
-        await this.#detectTokensUsingActivityLogs(
-          networkClient,
-          addressToDetect,
-        );
-        continue;
-      }
-
-      const { chainId, networkClientId } = networkClient;
+    for (const { chainId, networkClientId } of chainsToDetectUsingRpc) {
       if (!this.#shouldDetectTokens(chainId)) {
         continue;
       }
@@ -627,212 +586,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       );
 
       await Promise.all(tokenDetectionPromises);
-    }
-  }
-
-  /**
-   * ERC-20 Transfer event topic: keccak256("Transfer(address,address,uint256)")
-   */
-  // eslint-disable-next-line @typescript-eslint/naming-convention -- matches on-chain event topic constant style
-  static readonly #ERC20_TRANSFER_TOPIC =
-    '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-
-  /**
-   * Activity-based token detection.
-   *
-   * Uses `eth_getLogs` to find inbound ERC-20 Transfer events for the selected
-   * address when the block gap since the last scan is within
-   * {@link MAX_ACTIVITY_BLOCK_RANGE}. When the gap exceeds that threshold (or on
-   * the very first run for a chain+address), falls back to balance-of batch
-   * detection so no transfers are missed. After either path completes, the latest
-   * block is persisted in state so the next run can use the cheaper log-based
-   * path.
-   *
-   * This only runs when `useActivity` returns true; it is never invoked for
-   * chains handled by the Accounts API (filtered out in `detectTokens`).
-   *
-   * @param networkClient - The chain ID and network client ID to use.
-   * @param networkClient.chainId - The chain ID to use.
-   * @param networkClient.networkClientId - The network client ID to use.
-   * @param addressToDetect - The account address to detect tokens for.
-   */
-  async #detectTokensUsingActivityLogs(
-    networkClient: NetworkClient,
-    addressToDetect: string,
-  ): Promise<void> {
-    const { chainId, networkClientId } = networkClient;
-    if (!this.#shouldDetectTokens(chainId)) {
-      return;
-    }
-
-    await safelyExecute(async () => {
-      const { provider } = this.messenger.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
-
-      // Fetch the current chain head.
-      const latestBlockHex = await provider.request({
-        method: 'eth_blockNumber',
-        params: [],
-      });
-      const latestBlock = parseInt(latestBlockHex as string, 16);
-
-      const lastScannedBlock =
-        this.state.lastScannedBlocks[chainId]?.[addressToDetect];
-      const blockGap =
-        lastScannedBlock === undefined
-          ? Infinity
-          : latestBlock - lastScannedBlock;
-
-      if (blockGap > MAX_ACTIVITY_BLOCK_RANGE) {
-        // Gap too large (or first run): full balance-of scan to catch up.
-        const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
-          chainId,
-          selectedAddress: addressToDetect,
-        });
-        await Promise.all(
-          tokenCandidateSlices.map((tokensSlice) =>
-            this.#addDetectedTokens({
-              tokensSlice,
-              selectedAddress: addressToDetect,
-              networkClientId,
-              chainId,
-            }),
-          ),
-        );
-      } else {
-        // Within range: single eth_getLogs call covering only the new blocks.
-        const fromBlock = `0x${lastScannedBlock.toString(16)}`;
-        const toBlock = latestBlockHex as string;
-
-        // Pad the address to a 32-byte log topic.
-        const paddedAddress = `0x000000000000000000000000${addressToDetect
-          .toLowerCase()
-          .replace(/^0x/u, '')}`;
-
-        const logs = await provider.request({
-          method: 'eth_getLogs',
-          params: [
-            {
-              fromBlock,
-              toBlock,
-              topics: [
-                TokenDetectionController.#ERC20_TRANSFER_TOPIC,
-                null, // any sender
-                paddedAddress, // recipient = selectedAddress
-              ],
-            },
-          ],
-        });
-
-        if (Array.isArray(logs) && logs.length > 0) {
-          // Collect unique contract addresses from the logs.
-          const seenAddresses = new Set<string>();
-          for (const log of logs as { address: string }[]) {
-            seenAddresses.add(log.address.toLowerCase());
-          }
-
-          await this.#addDetectedTokensFromAddresses(
-            seenAddresses,
-            chainId,
-            networkClientId,
-            addressToDetect,
-          );
-        }
-      }
-
-      // Persist the latest block so the next run only needs to scan the delta.
-      this.update((state) => {
-        if (!state.lastScannedBlocks[chainId]) {
-          state.lastScannedBlocks[chainId] = {};
-        }
-        state.lastScannedBlocks[chainId][addressToDetect] = latestBlock;
-      });
-    });
-  }
-
-  /**
-   * Given a set of contract addresses discovered via `eth_getLogs`, cross-
-   * references them against the token list cache, filters already-tracked /
-   * ignored tokens, and calls `TokensController:addTokens` for new matches.
-   *
-   * @param contractAddresses - Lowercase contract addresses found in logs.
-   * @param chainId - The chain ID being scanned.
-   * @param networkClientId - The network client ID for the chain.
-   * @param addressToDetect - The account address tokens are being detected for.
-   */
-  async #addDetectedTokensFromAddresses(
-    contractAddresses: Set<string>,
-    chainId: Hex,
-    networkClientId: string,
-    addressToDetect: string,
-  ): Promise<void> {
-    const tokenListData = this.#tokensChainsCache?.[chainId]?.data ?? {};
-    const { allTokens, allDetectedTokens, allIgnoredTokens } =
-      this.messenger.call('TokensController:getState');
-
-    const [existingAddresses, detectedAddresses, ignoredAddresses] = [
-      allTokens,
-      allDetectedTokens,
-      allIgnoredTokens,
-    ].map((tokens) =>
-      (tokens[chainId]?.[addressToDetect] ?? []).map((value) =>
-        typeof value === 'string'
-          ? value.toLowerCase()
-          : value.address.toLowerCase(),
-      ),
-    );
-
-    const tokensWithBalance: Token[] = [];
-    const eventTokensDetails: string[] = [];
-
-    for (const tokenAddress of contractAddresses) {
-      if (
-        existingAddresses.includes(tokenAddress) ||
-        detectedAddresses.includes(tokenAddress) ||
-        ignoredAddresses.includes(tokenAddress)
-      ) {
-        continue;
-      }
-
-      const tokenData = tokenListData[tokenAddress];
-      if (!tokenData) {
-        continue;
-      }
-
-      const { decimals, symbol, aggregators, iconUrl, name, rwaData } =
-        tokenData;
-      const checksummedAddress = toChecksumHexAddress(tokenAddress);
-      eventTokensDetails.push(`${symbol} - ${checksummedAddress}`);
-      tokensWithBalance.push({
-        address: checksummedAddress,
-        decimals,
-        symbol,
-        aggregators,
-        image: iconUrl,
-        isERC721: false,
-        name,
-        ...(rwaData && { rwaData }),
-      });
-    }
-
-    if (tokensWithBalance.length) {
-      this.#trackMetaMetricsEvent({
-        event: 'Token Detected',
-        category: 'Wallet',
-        properties: {
-          tokens: eventTokensDetails,
-          token_standard: ERC20,
-          asset_type: ASSET_TYPES.TOKEN,
-        },
-      });
-
-      await this.messenger.call(
-        'TokensController:addTokens',
-        tokensWithBalance,
-        networkClientId,
-      );
     }
   }
 
