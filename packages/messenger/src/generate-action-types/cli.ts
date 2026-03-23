@@ -4,7 +4,7 @@ import yargs from 'yargs';
 
 import { checkActionTypesFiles } from './check';
 import { generateAllActionTypesFiles } from './fix';
-import { findControllersWithExposedMethods } from './parse-source';
+import { findSourcesWithExposedMethods } from './parse-source';
 import type { ESLint } from './types';
 
 type CommandLineArguments = {
@@ -89,7 +89,7 @@ async function main(): Promise<void> {
     '🔍 Searching for controllers/services with MESSENGER_EXPOSED_METHODS...',
   );
 
-  const sources = await findControllersWithExposedMethods(sourcePath);
+  const sources = await findSourcesWithExposedMethods(sourcePath);
 
   if (sources.length === 0) {
     console.log(

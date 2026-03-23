@@ -2,17 +2,17 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { generateActionTypesContent } from './generate-content';
-import type { ControllerInfo } from './parse-source';
+import type { SourceInfo } from './parse-source';
 import type { ESLint } from './types';
 
 /**
  * Checks if generated action types files are up to date.
  *
- * @param controllers - Array of controller information objects.
+ * @param sources - Array of source information objects.
  * @param eslint - Optional ESLint instance and static methods for formatting.
  */
 export async function checkActionTypesFiles(
-  controllers: ControllerInfo[],
+  sources: SourceInfo[],
   eslint: ESLint | null,
 ): Promise<void> {
   let hasErrors = false;
@@ -24,16 +24,16 @@ export async function checkActionTypesFiles(
   }[] = [];
 
   try {
-    for (const controller of controllers) {
-      console.log(`\n🔧 Checking ${controller.name}...`);
-      const outputDir = path.dirname(controller.filePath);
-      const baseFileName = path.basename(controller.filePath, '.ts');
+    for (const source of sources) {
+      console.log(`\n🔧 Checking ${source.name}...`);
+      const outputDir = path.dirname(source.filePath);
+      const baseFileName = path.basename(source.filePath, '.ts');
       const actualFile = path.join(
         outputDir,
         `${baseFileName}-method-action-types.ts`,
       );
 
-      const expectedContent = generateActionTypesContent(controller);
+      const expectedContent = generateActionTypesContent(source);
       const expectedTempFile = actualFile.replace('.ts', '.tmp.ts');
 
       try {

@@ -4,7 +4,7 @@ import * as path from 'node:path';
 
 import { generateAllActionTypesFiles } from './fix';
 import { generateActionTypesContent } from './generate-content';
-import type { ControllerInfo } from './parse-source';
+import type { SourceInfo } from './parse-source';
 
 describe('generateAllActionTypesFiles', () => {
   let tmpDir: string;
@@ -23,7 +23,7 @@ describe('generateAllActionTypesFiles', () => {
   });
 
   it('generates files for controllers (no ESLint)', async () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
 
@@ -45,7 +45,7 @@ describe('generateAllActionTypesFiles', () => {
   });
 
   it('generates files for multiple controllers', async () => {
-    const controllers: ControllerInfo[] = [
+    const controllers: SourceInfo[] = [
       {
         name: 'FooController',
         filePath: path.join(tmpDir, 'FooController.ts'),
@@ -73,7 +73,7 @@ describe('generateAllActionTypesFiles', () => {
   });
 
   it('invokes ESLint when provided', async () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
 
@@ -100,7 +100,7 @@ describe('generateAllActionTypesFiles', () => {
   });
 
   it('sets exitCode when ESLint reports errors', async () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
       methods: [{ name: 'doStuff', jsDoc: '' }],

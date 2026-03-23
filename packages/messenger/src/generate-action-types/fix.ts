@@ -2,34 +2,34 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { generateActionTypesContent } from './generate-content';
-import type { ControllerInfo } from './parse-source';
+import type { SourceInfo } from './parse-source';
 import type { ESLint } from './types';
 
 /**
- * Generates action types files for all controllers.
+ * Generates action types files for all controllers/services.
  *
- * @param controllers - Array of controller information objects.
+ * @param sources - Array of source information objects.
  * @param eslint - Optional ESLint instance and static methods for formatting.
  */
 export async function generateAllActionTypesFiles(
-  controllers: ControllerInfo[],
+  sources: SourceInfo[],
   eslint: ESLint | null,
 ): Promise<void> {
   const outputFiles: string[] = [];
 
-  for (const controller of controllers) {
-    console.log(`\n🔧 Processing ${controller.name}...`);
-    const outputDir = path.dirname(controller.filePath);
-    const baseFileName = path.basename(controller.filePath, '.ts');
+  for (const source of sources) {
+    console.log(`\n🔧 Processing ${source.name}...`);
+    const outputDir = path.dirname(source.filePath);
+    const baseFileName = path.basename(source.filePath, '.ts');
     const outputFile = path.join(
       outputDir,
       `${baseFileName}-method-action-types.ts`,
     );
 
-    const generatedContent = generateActionTypesContent(controller);
+    const generatedContent = generateActionTypesContent(source);
     await fs.promises.writeFile(outputFile, generatedContent, 'utf8');
     outputFiles.push(outputFile);
-    console.log(`✅ Generated action types for ${controller.name}`);
+    console.log(`✅ Generated action types for ${source.name}`);
   }
 
   if (outputFiles.length > 0 && eslint) {

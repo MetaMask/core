@@ -1,9 +1,9 @@
 import { generateActionTypesContent } from './generate-content';
-import type { ControllerInfo } from './parse-source';
+import type { SourceInfo } from './parse-source';
 
 describe('generateActionTypesContent', () => {
   it('generates action types for a controller with one method', () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'FooController',
       filePath: '/some/path/FooController.ts',
 
@@ -33,7 +33,7 @@ describe('generateActionTypesContent', () => {
   });
 
   it('generates action types for a controller with multiple methods', () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'BarController',
       filePath: '/some/path/BarController.ts',
 
@@ -53,7 +53,7 @@ describe('generateActionTypesContent', () => {
   });
 
   it('includes JSDoc comments when present', () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'FooController',
       filePath: '/some/path/FooController.ts',
 
@@ -72,7 +72,7 @@ describe('generateActionTypesContent', () => {
   });
 
   it('generates no union type for controllers with no methods', () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'EmptyController',
       filePath: '/some/path/EmptyController.ts',
 

@@ -4,7 +4,7 @@ import * as path from 'node:path';
 
 import { checkActionTypesFiles } from './check';
 import { generateActionTypesContent } from './generate-content';
-import type { ControllerInfo } from './parse-source';
+import type { SourceInfo } from './parse-source';
 
 describe('checkActionTypesFiles', () => {
   let tmpDir: string;
@@ -23,7 +23,7 @@ describe('checkActionTypesFiles', () => {
   });
 
   it('reports up to date when files match (no ESLint)', async () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
 
@@ -45,7 +45,7 @@ describe('checkActionTypesFiles', () => {
   });
 
   it('reports out of date when files differ', async () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
 
@@ -68,7 +68,7 @@ describe('checkActionTypesFiles', () => {
   });
 
   it('reports missing files', async () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
 
@@ -85,7 +85,7 @@ describe('checkActionTypesFiles', () => {
   });
 
   it('reports non-ENOENT errors when accessing files', async () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
 
@@ -113,7 +113,7 @@ describe('checkActionTypesFiles', () => {
   });
 
   it('uses ESLint when provided', async () => {
-    const controller: ControllerInfo = {
+    const controller: SourceInfo = {
       name: 'TestController',
       filePath: path.join(tmpDir, 'TestController.ts'),
 

@@ -3,11 +3,11 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import {
-  findControllersWithExposedMethods,
-  parseControllerFile,
+  findSourcesWithExposedMethods,
+  parseSourceFile,
 } from './parse-source';
 
-describe('parseControllerFile', () => {
+describe('parseSourceFile', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
@@ -39,7 +39,7 @@ class TestController {
       'utf8',
     );
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).toStrictEqual({
       name: 'TestController',
@@ -67,7 +67,7 @@ class NoExposedController {
       'utf8',
     );
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).toBeNull();
   });
@@ -88,7 +88,7 @@ class EmptyController {
       'utf8',
     );
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).toBeNull();
   });
@@ -109,7 +109,7 @@ class PlainArrayController {
       'utf8',
     );
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).not.toBeNull();
     expect(result?.methods.map((method) => method.name)).toStrictEqual([
@@ -133,7 +133,7 @@ class TestService {
       'utf8',
     );
 
-    const result = await parseControllerFile(serviceFile);
+    const result = await parseSourceFile(serviceFile);
 
     expect(result).not.toBeNull();
     expect(result?.name).toBe('TestService');
@@ -155,7 +155,7 @@ class NoDocController {
       'utf8',
     );
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).not.toBeNull();
     expect(result?.methods[0].jsDoc).toBe('');
@@ -208,7 +208,7 @@ class ChildController extends BaseController {
       'utf8',
     );
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).not.toBeNull();
     expect(result?.methods).toHaveLength(2);
@@ -256,7 +256,7 @@ class ChildNoDocController extends BaseNoDoc {
       'utf8',
     );
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).not.toBeNull();
     expect(result?.methods).toHaveLength(2);
@@ -290,7 +290,7 @@ class MissingMethodController {
       'utf8',
     );
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).not.toBeNull();
     expect(result?.methods).toHaveLength(2);
@@ -319,7 +319,7 @@ class EmptyLineDocController {
       'utf8',
     );
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).not.toBeNull();
     expect(result?.methods[0].jsDoc).toContain(' *\n');
@@ -347,7 +347,7 @@ class EmptyLineDocController {
     ].join('\n');
     await fs.promises.writeFile(controllerFile, source, 'utf8');
 
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).not.toBeNull();
     expect(result?.methods[0].jsDoc).toContain(
@@ -381,7 +381,7 @@ class BadTsconfigController {
     );
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     expect(result).toBeNull();
     expect(consoleErrorSpy).toHaveBeenCalled();
@@ -407,7 +407,7 @@ class NoTsconfigController {
     );
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    const result = await parseControllerFile(controllerFile);
+    const result = await parseSourceFile(controllerFile);
 
     // Should return null because assert fails when type checker can't be created
     expect(result).toBeNull();
@@ -419,7 +419,7 @@ class NoTsconfigController {
   it('returns null and logs error for invalid file', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
-    const result = await parseControllerFile('/nonexistent/file.ts');
+    const result = await parseSourceFile('/nonexistent/file.ts');
 
     expect(result).toBeNull();
     expect(consoleErrorSpy).toHaveBeenCalled();
@@ -427,7 +427,7 @@ class NoTsconfigController {
   });
 });
 
-describe('findControllersWithExposedMethods', () => {
+describe('findSourcesWithExposedMethods', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
@@ -462,7 +462,7 @@ class BarController {
       'utf8',
     );
 
-    const result = await findControllersWithExposedMethods(tmpDir);
+    const result = await findSourcesWithExposedMethods(tmpDir);
 
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe('FooController');
@@ -480,14 +480,14 @@ class FooController {
       'utf8',
     );
 
-    const result = await findControllersWithExposedMethods(tmpDir);
+    const result = await findSourcesWithExposedMethods(tmpDir);
 
     expect(result).toHaveLength(0);
   });
 
   it('throws an error when the path is not a directory', async () => {
     await expect(
-      findControllersWithExposedMethods('/nonexistent/path'),
+      findSourcesWithExposedMethods('/nonexistent/path'),
     ).rejects.toThrow('The specified path is not a directory');
   });
 
@@ -498,7 +498,7 @@ class FooController {
         Object.assign(new Error('EACCES'), { code: 'EACCES' }),
       );
 
-    await expect(findControllersWithExposedMethods(tmpDir)).rejects.toThrow(
+    await expect(findSourcesWithExposedMethods(tmpDir)).rejects.toThrow(
       'EACCES',
     );
 

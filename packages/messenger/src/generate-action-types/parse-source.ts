@@ -35,7 +35,7 @@ export type MethodInfo = {
   jsDoc: string;
 };
 
-export type ControllerInfo = {
+export type SourceInfo = {
   name: string;
   filePath: string;
   methods: MethodInfo[];
@@ -105,7 +105,7 @@ function formatJSDoc(rawJsDoc: string): string {
 }
 
 /**
- * Visits AST nodes to find exposed methods and controller class.
+ * Visits AST nodes to find exposed methods and controller/service class.
  *
  * @param context - The visitor context.
  * @returns A function to visit nodes.
@@ -224,7 +224,7 @@ function findClassInSourceFile(
     source.statements.find(
       (node): node is ClassDeclaration =>
         isClassDeclaration(node) && node.name?.text === className,
-    ) ?? // istanbul ignore next: class is always found when called from parseControllerFile
+    ) ?? // istanbul ignore next: class is always found when called from parseSourceFile
     null
   );
 }
@@ -286,14 +286,14 @@ async function isDirectory(pathValue: string): Promise<boolean> {
 }
 
 /**
- * Parses a controller file to extract exposed methods and their metadata.
+ * Parses a source file to extract exposed methods and their metadata.
  *
- * @param filePath - Path to the controller file to parse.
- * @returns Controller information or null if parsing fails.
+ * @param filePath - Path to the controller/service file to parse.
+ * @returns Source information or null if parsing fails.
  */
-export async function parseControllerFile(
+export async function parseSourceFile(
   filePath: string,
-): Promise<ControllerInfo | null> {
+): Promise<SourceInfo | null> {
   try {
     const content = await fs.promises.readFile(filePath, 'utf8');
     const source = createSourceFile(
@@ -372,16 +372,16 @@ export async function parseControllerFile(
 }
 
 /**
- * Finds all controller files that have MESSENGER_EXPOSED_METHODS constants.
+ * Finds all source files that have MESSENGER_EXPOSED_METHODS constants.
  *
- * @param controllerPath - Path to the folder where controllers are located.
- * @returns A list of controller information objects.
+ * @param sourcePath - Path to the folder where controllers/services are located.
+ * @returns A list of source information objects.
  */
-export async function findControllersWithExposedMethods(
-  controllerPath: string,
-): Promise<ControllerInfo[]> {
-  const srcPath = path.resolve(globalThis.process.cwd(), controllerPath);
-  const controllers: ControllerInfo[] = [];
+export async function findSourcesWithExposedMethods(
+  sourcePath: string,
+): Promise<SourceInfo[]> {
+  const srcPath = path.resolve(globalThis.process.cwd(), sourcePath);
+  const sources: SourceInfo[] = [];
 
   if (!(await isDirectory(srcPath))) {
     throw new Error(`The specified path is not a directory: ${srcPath}`);
@@ -398,12 +398,12 @@ export async function findControllersWithExposedMethods(
     const content = await fs.promises.readFile(filePath, 'utf8');
 
     if (content.includes('MESSENGER_EXPOSED_METHODS')) {
-      const controllerInfo = await parseControllerFile(filePath);
-      if (controllerInfo) {
-        controllers.push(controllerInfo);
+      const sourceInfo = await parseSourceFile(filePath);
+      if (sourceInfo) {
+        sources.push(sourceInfo);
       }
     }
   }
 
-  return controllers;
+  return sources;
 }
