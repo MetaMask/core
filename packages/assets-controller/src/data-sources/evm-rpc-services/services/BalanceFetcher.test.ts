@@ -474,12 +474,7 @@ describe('BalanceFetcher', () => {
     it('includes ERC-20 balance when token info has zero decimals', async () => {
       await withController(async ({ controller, mockMulticallClient }) => {
         mockMulticallClient.batchBalanceOf.mockResolvedValue([
-          createMockBalanceResponse(
-            TEST_TOKEN_1,
-            TEST_ACCOUNT,
-            true,
-            '42',
-          ),
+          createMockBalanceResponse(TEST_TOKEN_1, TEST_ACCOUNT, true, '42'),
         ]);
 
         const tokenInfoZeroDecimals: TokenFetchInfo = {
