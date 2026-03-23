@@ -197,7 +197,7 @@ export class MultichainAccountService {
         new BtcAccountProvider(
           this.#messenger,
           providerConfigs?.[BTC_ACCOUNT_PROVIDER_NAME],
-          traceCallback,
+          trace,
         ),
       ),
       new AccountProviderWrapper(
@@ -205,7 +205,7 @@ export class MultichainAccountService {
         new TrxAccountProvider(
           this.#messenger,
           providerConfigs?.[TRX_ACCOUNT_PROVIDER_NAME],
-          traceCallback,
+          trace,
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
