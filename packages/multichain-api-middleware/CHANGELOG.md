@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add required `sortAccountIdsByLastSelected` hook to `wallet_getSession` and `wallet_createSession` handlers to enable custom account ordering in session scopes ([#8255](https://github.com/MetaMask/core/pull/8255))
+- Add required `sortAccountIdsByLastSelected` hook to `wallet_getSession`, `wallet_createSession`, and `wallet_invokeMethod` handlers to enable custom account ordering in session scopes ([#8255](https://github.com/MetaMask/core/pull/8255))
 
 ### Changed
 
