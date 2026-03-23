@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Allows configuring how long to wait for the Snap keyring to appear in `KeyringController` before timing out (Default is 5000 ms).
 - Add more tracing (alignment, create account v1/v2) ([#8244](https://github.com/MetaMask/core/pull/8244))
 - Add local perf tracing ([#8244](https://github.com/MetaMask/core/pull/8244))
-  - Each traces are now automatically wrapped and will log performance timings using the internal logger.
+  - Each trace is now automatically wrapped and will log performance timings using the internal logger.
   - Only enabled if `metamask:multichain-account-service` is part of `DEBUG` (env var) filters.
 
 ### Changed
