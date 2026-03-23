@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
 - Bump `@metamask/json-rpc-engine` from `^10.2.2` to `^10.2.3` ([#8078](https://github.com/MetaMask/core/pull/8078))
 
 ## [1.2.7]

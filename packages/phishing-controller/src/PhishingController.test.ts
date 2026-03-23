@@ -440,7 +440,7 @@ describe('PhishingController', () => {
 
     it('should not have c2DomainBlocklist be out of date immediately after maybeUpdateState is called', async () => {
       nockScope = nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [],
           recentlyRemoved: [],
@@ -1647,6 +1647,7 @@ describe('PhishingController', () => {
           lastUpdated: 0,
         },
       ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
     });
 
     it('should not throw when there is a network error', async () => {
@@ -1663,6 +1664,7 @@ describe('PhishingController', () => {
       const controller = getPhishingController();
 
       expect(await controller.updateStalelist()).toBeUndefined();
+      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
     });
 
     describe('an update is in progress', () => {
@@ -2084,7 +2086,7 @@ describe('PhishingController', () => {
           lastUpdated: 0,
         },
       ]);
-      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
     });
 
     it('should update request blocklist with additions and removals', async () => {
@@ -2276,7 +2278,7 @@ describe('PhishingController', () => {
           lastUpdated: 0,
         },
       ]);
-      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
     });
   });
 

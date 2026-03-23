@@ -23,7 +23,7 @@ import type {
 } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../analytics/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 
 export type SolAccountProviderConfig = SnapAccountProviderConfig;
@@ -83,7 +83,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     return `m/44'/501'/${groupIndex}'/0'`;
   }
 
-  protected override createAccountV1(
+  protected override async createAccountV1(
     keyring: RestrictedSnapKeyring,
     {
       entropySource,
@@ -139,11 +139,12 @@ export class SolAccountProvider extends SnapAccountProvider {
           const discoveredAccounts = await withRetry(
             () =>
               withTimeout(
-                client.discoverAccounts(
-                  [SolScope.Mainnet],
-                  entropySource,
-                  groupIndex,
-                ),
+                () =>
+                  client.discoverAccounts(
+                    [SolScope.Mainnet],
+                    entropySource,
+                    groupIndex,
+                  ),
                 this.config.discovery.timeoutMs,
               ),
             {

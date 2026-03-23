@@ -9,6 +9,7 @@ import type { KeyringControllerSignPersonalMessageAction } from '@metamask/keyri
 import type { Messenger } from '@metamask/messenger';
 import { bytesToHex, stringToBytes } from '@metamask/utils';
 
+import type { ClaimsControllerMethodActions } from './ClaimsController-method-action-types';
 import type {
   ClaimsServiceFetchClaimsConfigurationsAction,
   ClaimsServiceGenerateMessageForClaimSignatureAction,
@@ -37,7 +38,9 @@ export type ClaimsControllerGetStateAction = ControllerGetStateAction<
   ClaimsControllerState
 >;
 
-export type ClaimsControllerActions = ClaimsControllerGetStateAction;
+export type ClaimsControllerActions =
+  | ClaimsControllerGetStateAction
+  | ClaimsControllerMethodActions;
 
 export type AllowedActions =
   | ClaimsServiceFetchClaimsConfigurationsAction
@@ -99,6 +102,18 @@ export function getDefaultClaimsControllerState(): ClaimsControllerState {
   };
 }
 
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchClaimsConfigurations',
+  'getSubmitClaimConfig',
+  'generateClaimSignature',
+  'getClaims',
+  'saveOrUpdateClaimDraft',
+  'getClaimDrafts',
+  'deleteClaimDraft',
+  'deleteAllClaimDrafts',
+  'clearState',
+] as const;
+
 export class ClaimsController extends BaseController<
   typeof CONTROLLER_NAME,
   ClaimsControllerState,
@@ -111,6 +126,11 @@ export class ClaimsController extends BaseController<
       name: CONTROLLER_NAME,
       state: { ...getDefaultClaimsControllerState(), ...state },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**

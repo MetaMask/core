@@ -19,6 +19,8 @@ import type {
 
 const CONTROLLER_NAME = 'TokenDataSource';
 
+const MIN_TOKEN_OCCURRENCES = 3;
+
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
 // ============================================================================
@@ -38,6 +40,8 @@ export type TokenDataSourceAllowedActions = never;
 export type TokenDataSourceOptions = {
   /** ApiPlatformClient for API calls with caching */
   queryApiClient: ApiPlatformClient;
+  /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
+  getNativeAssetIds: () => string[];
 };
 
 // ============================================================================
@@ -117,8 +121,12 @@ export class TokenDataSource {
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
+  /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
+  readonly #getNativeAssetIds: () => string[];
+
   constructor(options: TokenDataSourceOptions) {
     this.#apiClient = options.queryApiClient;
+    this.#getNativeAssetIds = options.getNativeAssetIds;
   }
 
   /**
@@ -185,34 +193,37 @@ export class TokenDataSource {
       // Extract response from context
       const { response } = ctx;
 
-      // Only fetch metadata for detected assets (assets without metadata)
-      if (!response.detectedAssets) {
-        return next(ctx);
-      }
-
       const { assetsInfo: stateMetadata } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
 
-      for (const detectedIds of Object.values(response.detectedAssets)) {
-        for (const assetId of detectedIds) {
-          // Skip if response already has metadata with image
-          const responseMetadata = response.assetsInfo?.[assetId];
-          if (responseMetadata?.image) {
-            continue;
-          }
+      // Always include native asset IDs from NetworkEnablementController
+      for (const nativeAssetId of this.#getNativeAssetIds()) {
+        assetIdsNeedingMetadata.add(nativeAssetId);
+      }
 
-          // Skip if state already has metadata with image
-          const existingMetadata = stateMetadata[assetId];
-          if (existingMetadata?.image) {
-            continue;
-          }
+      // Also fetch metadata for detected assets that are missing it
+      if (response.detectedAssets) {
+        for (const detectedIds of Object.values(response.detectedAssets)) {
+          for (const assetId of detectedIds) {
+            // Skip if response already has metadata with image
+            const responseMetadata = response.assetsInfo?.[assetId];
+            if (responseMetadata?.image) {
+              continue;
+            }
 
-          // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
-          if (isStakingContractAssetId(assetId)) {
-            continue;
-          }
+            // Skip if state already has metadata with image
+            const existingMetadata = stateMetadata[assetId];
+            if (existingMetadata?.image) {
+              continue;
+            }
 
-          assetIdsNeedingMetadata.add(assetId);
+            // Skip staking contracts; we use built-in metadata and do not fetch from the tokens API
+            if (isStakingContractAssetId(assetId)) {
+              continue;
+            }
+
+            assetIdsNeedingMetadata.add(assetId);
+          }
         }
       }
 
@@ -243,17 +254,53 @@ export class TokenDataSource {
             includeLabels: true,
             includeRwaData: true,
             includeAggregators: true,
+            includeOccurrences: true,
           },
         );
 
         response.assetsInfo ??= {};
 
+        const filteredOutAssets = new Set<string>();
+
         for (const assetData of metadataResponse) {
+          const parsed = parseCaipAssetType(assetData.assetId as CaipAssetType);
+          const isNative = parsed.assetNamespace === 'slip44';
+
+          if (
+            !isNative &&
+            (assetData.occurrences ?? 0) < MIN_TOKEN_OCCURRENCES
+          ) {
+            filteredOutAssets.add(assetData.assetId);
+            continue;
+          }
+
           const caipAssetId = assetData.assetId as Caip19AssetId;
           response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
             assetData.assetId,
             assetData,
           );
+        }
+
+        if (filteredOutAssets.size > 0) {
+          if (response.assetsBalance) {
+            for (const accountBalances of Object.values(
+              response.assetsBalance,
+            )) {
+              for (const assetId of filteredOutAssets) {
+                delete (accountBalances as Record<string, unknown>)[assetId];
+              }
+            }
+          }
+
+          if (response.detectedAssets) {
+            for (const [accountId, assetIds] of Object.entries(
+              response.detectedAssets,
+            )) {
+              response.detectedAssets[accountId] = assetIds.filter(
+                (id) => !filteredOutAssets.has(id),
+              );
+            }
+          }
         }
       } catch (error) {
         log('Failed to fetch metadata', { error });

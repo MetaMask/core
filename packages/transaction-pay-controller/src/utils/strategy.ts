@@ -1,6 +1,7 @@
 import { TransactionPayStrategy } from '../constants';
 import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
+import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 import type { PayStrategy } from '../types';
@@ -28,6 +29,9 @@ export function getStrategyByName(
 
     case TransactionPayStrategy.Relay:
       return new RelayStrategy() as never;
+
+    case TransactionPayStrategy.Fiat:
+      return new FiatStrategy() as never;
 
     case TransactionPayStrategy.Test:
       return new TestStrategy() as never;

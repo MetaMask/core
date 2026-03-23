@@ -47,7 +47,7 @@ export type AcrossFees = {
 };
 
 export type AcrossApprovalTransaction = {
-  chainId: number;
+  chainId?: number;
   to: Hex;
   data: Hex;
   value?: Hex;
@@ -76,20 +76,17 @@ export type AcrossSwapApprovalResponse = {
   swapTx: AcrossSwapTransaction;
 };
 
-export type AcrossGasLimits = {
-  approval: {
-    estimate: number;
-    max: number;
-  }[];
-  swap: {
-    estimate: number;
-    max: number;
-  };
+export type AcrossGasLimit = {
+  estimate: number;
+  max: number;
 };
+
+export type AcrossGasLimits = AcrossGasLimit[];
 
 export type AcrossQuote = {
   metamask: {
     gasLimits: AcrossGasLimits;
+    is7702?: boolean;
   };
   quote: AcrossSwapApprovalResponse;
   request: {

@@ -19,6 +19,15 @@ import { createTypedMessageParams, isHexEqual } from './utils';
 
 export const controllerName = 'DelegationController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'signDelegation',
+  'store',
+  'list',
+  'retrieve',
+  'chain',
+  'delete',
+] as const;
+
 const delegationControllerMetadata = {
   delegations: {
     includeInStateLogs: false,
@@ -86,6 +95,11 @@ export class DelegationController extends BaseController<
     });
     this.#hashDelegation = hashDelegation;
     this.#getDelegationEnvironment = getDelegationEnvironment;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**

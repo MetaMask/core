@@ -9,11 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- EVM RPC balance pipeline (`RpcDataSource`, `BalanceFetcher`, `TokenDetector`) no longer falls back to 18 decimals for ERC-20 when decimals are unknown; human-readable balances and `detectedBalances` entries are omitted until decimals are available from state, token list metadata, or on-chain `decimals()` (native token handling unchanged) ([#8267](https://github.com/MetaMask/core/pull/8267))
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+
+## [3.0.0]
+
+### Added
+
+- Per-data-source latency inside parallel middlewares: `durationByDataSource` now includes entries such as `ParallelMiddleware.TokenDataSource`, `ParallelMiddleware.PriceDataSource`, and `ParallelBalanceMiddleware.<SourceName>` (ms), so traces can see which internal sources contributed to `ParallelMiddleware` and `ParallelBalanceMiddleware` timings. ([#8147](https://github.com/MetaMask/core/pull/8147))
+
+### Changed
+
+- **BREAKING:** First-init-fetch measurement moved from MetaMetrics to Sentry. Option `trackMetaMetricsEvent` is replaced by `trace: TraceCallback`. Type `AssetsControllerFirstInitFetchMetaMetricsPayload` is removed; trace request data is not typed in this package. ([#8147](https://github.com/MetaMask/core/pull/8147))
+- `TokenDataSource` now always includes native token asset IDs (from `NetworkEnablementController.nativeAssetIdentifiers`) in metadata fetch calls, ensuring native tokens always have up-to-date metadata ([#8227](https://github.com/MetaMask/core/pull/8227))
+- `TokenDataSource` now filters out non-native tokens with fewer than 3 occurrences from metadata responses, and also removes their balances and detected asset entries, to prevent spam tokens from being stored in state ([#8227](https://github.com/MetaMask/core/pull/8227))
+- `TokenDataSource` now requests `includeOccurrences` when fetching v3 asset metadata ([#8227](https://github.com/MetaMask/core/pull/8227))
+- Bump `@metamask/assets-controllers` from `^101.0.0` to `^101.0.1` ([#8232](https://github.com/MetaMask/core/pull/8232))
+- Bump `@metamask/core-backend` from `^6.1.1` to `^6.2.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
+
+## [2.4.0]
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^4.2.0` to `^5.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
 - `BridgeExchangeRatesFormat` type now uses canonical `@metamask/assets-controllers` state types instead of locally-defined bridge rate entry types ([#8175](https://github.com/MetaMask/core/pull/8175))
 - Bump `@metamask/account-tree-controller` from `^5.0.0` to `^5.0.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
-- Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
+- Bump `@metamask/assets-controllers` from `^100.2.0` to `^101.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8225](https://github.com/MetaMask/core/pull/8225))
 - Bump `@metamask/core-backend` from `^6.1.0` to `^6.1.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
-- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^63.0.0` ([#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
 
 ### Fixed
 
@@ -171,7 +195,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@2.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@2.4.0...@metamask/assets-controller@3.0.0
+[2.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@2.3.0...@metamask/assets-controller@2.4.0
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@2.2.0...@metamask/assets-controller@2.3.0
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@2.1.0...@metamask/assets-controller@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@2.0.2...@metamask/assets-controller@2.1.0

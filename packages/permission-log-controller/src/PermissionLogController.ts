@@ -20,6 +20,7 @@ import {
   WALLET_PREFIX,
   CAVEAT_TYPES,
 } from './enums';
+import type { PermissionLogControllerMethodActions } from './PermissionLogController-method-action-types';
 
 export type JsonRpcRequestWithOrigin<
   Params extends JsonRpcParams = JsonRpcParams,
@@ -79,7 +80,8 @@ export type PermissionLogControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type PermissionLogControllerActions =
-  PermissionLogControllerGetStateAction;
+  | PermissionLogControllerGetStateAction
+  | PermissionLogControllerMethodActions;
 
 export type PermissionLogControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof name, PermissionLogControllerState>;
@@ -99,6 +101,11 @@ const defaultState: PermissionLogControllerState = {
 };
 
 const name = 'PermissionLogController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'updateAccountsHistory',
+  'createMiddleware',
+] as const;
 
 /**
  * Controller with middleware for logging requests and responses to restricted
@@ -136,6 +143,10 @@ export class PermissionLogController extends BaseController<
       state: { ...defaultState, ...state },
     });
     this.#restrictedMethods = restrictedMethods;
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
