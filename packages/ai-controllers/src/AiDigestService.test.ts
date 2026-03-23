@@ -53,7 +53,7 @@ describe('AiDigestService', () => {
       ],
     };
 
-    it('fetches market insights from API using caipAssetType for CAIP-19 identifiers', async () => {
+    it('fetches market insights using universal asset= param for CAIP-19 identifiers', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -69,11 +69,11 @@ describe('AiDigestService', () => {
 
       expect(result).toStrictEqual(mockMarketInsightsReport);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://test.com/api/v1/asset-summary?caipAssetType=eip155%3A1%2Ferc20%3A0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+        'http://test.com/api/v1/asset-summary?asset=eip155%3A1%2Ferc20%3A0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
     });
 
-    it('fetches market insights from API using hlPerpsMarket for perps symbols', async () => {
+    it('fetches market insights using universal asset= param for ticker symbols', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -87,7 +87,7 @@ describe('AiDigestService', () => {
 
       expect(result).toStrictEqual(mockMarketInsightsReport);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://test.com/api/v1/asset-summary?hlPerpsMarket=ETH',
+        'http://test.com/api/v1/asset-summary?asset=ETH',
       );
     });
 
@@ -104,7 +104,7 @@ describe('AiDigestService', () => {
       await service.searchDigest('xyz:TSLA');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://test.com/api/v1/asset-summary?hlPerpsMarket=xyz%3ATSLA',
+        'http://test.com/api/v1/asset-summary?asset=xyz%3ATSLA',
       );
     });
 

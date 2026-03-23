@@ -5,6 +5,32 @@ import typescript from '@metamask/eslint-config-typescript';
 
 const NODE_LTS_VERSION = 22;
 
+/**
+ * Collects all options for a given array-valued rule across one or more flat
+ * config arrays, excluding the leading severity element.
+ *
+ * ESLint flat config does not merge array-valued rules across config objects —
+ * a later config silently replaces earlier ones. This helper makes it possible
+ * to extend an upstream rule configuration rather than copy-pasting its options.
+ *
+ * @param {string} ruleName - The rule to collect options for.
+ * @param {import('eslint').Linter.Config[][]} configs - Flat config arrays to
+ * collect options from.
+ * @returns {unknown[]} The options from all matching rule entries, with the
+ * leading severity element omitted.
+ */
+function collectExistingRuleOptions(ruleName, configs) {
+  return configs.flat().flatMap((config) => {
+    const rule = config.rules?.[ruleName];
+    if (!Array.isArray(rule)) {
+      return [];
+    }
+    // Rule entries are ['error' | 'warn' | number, ...options].
+    // Skip the first element (severity) and collect the rest.
+    return rule.slice(1);
+  });
+}
+
 const config = createConfig([
   ...base,
   {
@@ -81,6 +107,39 @@ const config = createConfig([
       // do not work very well.
       'jsdoc/check-tag-names': 'off',
       'jsdoc/require-jsdoc': 'off',
+    },
+  },
+  {
+    // Prohibit exporting certain types from package index files.
+    // Extends the upstream no-restricted-syntax selectors from base and
+    // typescript configs with additional selectors specific to this monorepo.
+    files: ['packages/*/src/index.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...collectExistingRuleOptions('no-restricted-syntax', [
+          base,
+          typescript,
+        ]),
+        {
+          selector:
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedActions$/]',
+          message:
+            'Do not export AllowedActions types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-action-types',
+        },
+        {
+          selector:
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/AllowedEvents$/]',
+          message:
+            'Do not export AllowedEvents types from package index files. These types describe external messenger dependencies and are obtainable from the packages that define them directly. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#define-but-do-not-export-a-type-union-for-external-event-types',
+        },
+        {
+          selector:
+            'ExportNamedDeclaration > ExportSpecifier[local.name=/MethodActions$/]',
+          message:
+            'Do not export *MethodActions types from package index files. Internal messenger actions are already available via the *Actions type. Export the individual action types (along with *Actions) instead. Read the controller guidelines for more: https://github.com/MetaMask/core/blob/main/docs/code-guidelines/controller-guidelines.md#expose-controller-methods-through-messenger-in-bulk',
+        },
+      ],
     },
   },
   {

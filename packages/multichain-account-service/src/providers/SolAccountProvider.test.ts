@@ -16,7 +16,7 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './SolAccountProvider';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../analytics/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -191,11 +191,7 @@ function setup({
       keyring.accounts.find((account) => account.address === address),
     );
 
-  const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
-    expect(request.name).toBe(TraceName.SnapDiscoverAccounts);
-    expect(request.data).toStrictEqual({
-      provider: SOL_ACCOUNT_PROVIDER_NAME,
-    });
+  const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
     return await fn();
   });
 
@@ -673,15 +669,28 @@ describe('SolAccountProvider', () => {
       });
 
       expect(discovered).toHaveLength(1);
-      expect(mocks.trace).toHaveBeenCalledTimes(1);
+      expect(mocks.trace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: TraceName.SnapDiscoverAccounts,
+          data: { provider: SOL_ACCOUNT_PROVIDER_NAME },
+        }),
+        expect.any(Function),
+      );
     });
 
     it('uses fallback trace when no trace callback is provided', async () => {
-      const { provider, mocks } = setup({
-        accounts: [],
-      });
+      const { messenger, mocks } = setup({ accounts: [] });
 
       mocks.handleRequest.mockReturnValue([MOCK_SOL_DISCOVERED_ACCOUNT_1]);
+
+      const multichainMessenger =
+        getMultichainAccountServiceMessenger(messenger);
+      // No trace callback (defaults to `traceFallback`).
+      const solProvider = new MockSolAccountProvider(multichainMessenger);
+      const provider = new AccountProviderWrapper(
+        multichainMessenger,
+        solProvider,
+      );
 
       const discovered = await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
