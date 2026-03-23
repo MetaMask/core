@@ -1538,7 +1538,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
           approvalTxId = approvalTxMeta?.id;
 
-          await handleMobileHardwareWalletDelay(requireApproval);
+          if (requireApproval && approvalTxMeta) {
+            await this.#waitForTxConfirmation(approvalTxMeta.id);
+          } else {
+            await handleMobileHardwareWalletDelay(requireApproval);
+          }
 
           // Generate actionId for pre-submission history (non-batch EVM only)
           const actionId = generateActionId().toString();

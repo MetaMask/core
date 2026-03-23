@@ -3003,7 +3003,13 @@ describe('BridgeStatusController', () => {
       expect(mockTraceFn.mock.calls).toMatchSnapshot();
     });
 
-    it('should call handleMobileHardwareWalletDelay for hardware wallet on mobile', async () => {
+    it('waits for approval tx confirmation before swap for hardware wallet on mobile', async () => {
+      const waitForTxConfirmationSpy = jest
+        .spyOn(transactionUtils, 'waitForTxConfirmation')
+        .mockResolvedValueOnce({
+          ...mockApprovalTxMeta,
+          status: TransactionStatus.confirmed,
+        } as never);
       const handleMobileHardwareWalletDelaySpy = jest
         .spyOn(transactionUtils, 'handleMobileHardwareWalletDelay')
         .mockResolvedValueOnce();
@@ -3041,8 +3047,15 @@ describe('BridgeStatusController', () => {
       controller.stopAllPolling();
 
       expect(mockTraceFn).toHaveBeenCalledTimes(2);
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledTimes(1);
-      expect(handleMobileHardwareWalletDelaySpy).toHaveBeenCalledWith(true);
+      expect(waitForTxConfirmationSpy).toHaveBeenCalledWith(
+        expect.any(Object),
+        mockApprovalTxMeta.id,
+        expect.objectContaining({
+          timeoutMs: 5 * 60_000,
+          pollMs: 3_000,
+        }),
+      );
+      expect(handleMobileHardwareWalletDelaySpy).not.toHaveBeenCalled();
       expect(result).toMatchSnapshot();
       expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
       expect(controller.state.txHistory[result.id]).toMatchSnapshot();

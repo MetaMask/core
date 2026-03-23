@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- For hardware wallets on MetaMask Mobile, wait for ERC-20 approval transactions to reach a confirmed status before submitting the swap transaction in non-batch EVM flows, so gas estimation runs after allowance is set on-chain ([#8268](https://github.com/MetaMask/core/pull/8268))
 - Delegated accounts (EIP-7702) now use batched transactions to avoid in-flight transaction limit ([#8125](https://github.com/MetaMask/core/pull/8125))
 - Bridge transaction types now properly matched in 7702 batch path ([#8125](https://github.com/MetaMask/core/pull/8125))
 - Delegated account batch transactions now recorded in bridge status history ([#8125](https://github.com/MetaMask/core/pull/8125))
