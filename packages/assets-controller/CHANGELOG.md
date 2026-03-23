@@ -9,15 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.1.0]
 
-### Uncategorized
-
-- fix: move `selectedAccountGroup` to top-level persisted state ([#8245](https://github.com/MetaMask/core/pull/8245))
-
 ### Changed
 
 - EVM RPC balance pipeline (`RpcDataSource`, `BalanceFetcher`, `TokenDetector`) no longer falls back to 18 decimals for ERC-20 when decimals are unknown; human-readable balances and `detectedBalances` entries are omitted until decimals are available from state, token list metadata, or on-chain `decimals()` (native token handling unchanged) ([#8267](https://github.com/MetaMask/core/pull/8267))
 - Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 - Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
+
+### Fixed
+
+- fix: move `selectedAccountGroup` to top-level persisted state ([#8245](https://github.com/MetaMask/core/pull/8245))
 
 ## [3.0.0]
 
