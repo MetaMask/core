@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 
-import type { ControllerInfo } from './parse-controller';
+import type { ControllerInfo } from './parse-source';
 
 /**
  * Generates the content for the action types file.

@@ -4,7 +4,7 @@ import yargs from 'yargs';
 
 import { checkActionTypesFiles } from './check';
 import { generateAllActionTypesFiles } from './fix';
-import { findControllersWithExposedMethods } from './parse-controller';
+import { findControllersWithExposedMethods } from './parse-source';
 import type { ESLint } from './types';
 
 type CommandLineArguments = {

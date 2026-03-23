@@ -5,14 +5,14 @@ import * as path from 'node:path';
 import {
   findControllersWithExposedMethods,
   parseControllerFile,
-} from './parse-controller';
+} from './parse-source';
 
 describe('parseControllerFile', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
     tmpDir = await fs.promises.mkdtemp(
-      path.join(os.tmpdir(), 'parse-controller-'),
+      path.join(os.tmpdir(), 'parse-source-'),
     );
   });
 

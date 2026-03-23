@@ -1,5 +1,5 @@
 import { generateActionTypesContent } from './generate-content';
-import type { ControllerInfo } from './parse-controller';
+import type { ControllerInfo } from './parse-source';
 
 describe('generateActionTypesContent', () => {
   it('generates action types for a controller with one method', () => {

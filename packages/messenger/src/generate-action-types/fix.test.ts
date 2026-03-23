@@ -4,7 +4,7 @@ import * as path from 'node:path';
 
 import { generateAllActionTypesFiles } from './fix';
 import { generateActionTypesContent } from './generate-content';
-import type { ControllerInfo } from './parse-controller';
+import type { ControllerInfo } from './parse-source';
 
 describe('generateAllActionTypesFiles', () => {
   let tmpDir: string;
