@@ -264,7 +264,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
-  location?: BridgeHistoryItem['location'];
+  location: MetaMetricsSwapsEventSource;
   // Legacy field for `ab_tests` metrics payload.
   abTests?: BridgeHistoryItem['abTests'];
   // New field for `active_ab_tests` metrics payload.

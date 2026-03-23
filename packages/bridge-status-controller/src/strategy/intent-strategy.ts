@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { formatChainIdToHex, isEvmTxData } from '@metamask/bridge-controller';
+import {
+  formatChainIdToHex,
+  isEvmTxData,
+  TxData,
+} from '@metamask/bridge-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 
-import { handleEvmApprovals } from './evm-strategy';
-import { SubmitStrategyParams, SubmitStepResult } from './types';
 import { getJwt } from '../utils/authentication';
 import {
   getIntentFromQuote,
@@ -16,6 +18,8 @@ import {
   addSyntheticTransaction,
   waitForTxConfirmation,
 } from '../utils/transaction';
+import { handleEvmApprovals } from './evm-strategy';
+import { SubmitStrategyParams, SubmitStepResult, SubmitStep } from './types';
 
 /**
  * Submits a synthetic EVM transaction to the TransactionController in order to display the intent order's
@@ -89,7 +93,7 @@ const handleSyntheticTx = async (
  * @param args.isBridgeTx - Whether the transaction is a bridge transaction
  * @returns The approvalTxId and tradeMeta for the non-EVM transaction
  */
-const handleSubmitIntent = async (args: SubmitStrategyParams) => {
+const handleSubmitIntent = async (args: SubmitStrategyParams<TxData>) => {
   const {
     quoteResponse,
     messenger,
@@ -128,8 +132,21 @@ const handleSubmitIntent = async (args: SubmitStrategyParams) => {
   };
 };
 
+/**
+ * Submits an approval tx to the TransactionController,
+ * posts an intent order to the bridge-api,
+ * and creates a synthetic transaction in the TransactionController
+ *
+ * @param args - The parameters for the transaction
+ * @param args.quoteResponse - The quote response
+ * @param args.messenger - The messenger
+ * @param args.selectedAccount - The selected account
+ * @param args.traceFn - The trace function
+ * @param args.isBridgeTx - Whether the transaction is a bridge transaction
+ * @yields The approvalTxId and tradeMeta for the intent transaction
+ */
 export async function* submitIntentHandler(
-  args: SubmitStrategyParams,
+  args: SubmitStrategyParams<TxData>,
 ): AsyncGenerator<SubmitStepResult, void, void> {
   // TODO handle STX/batch approvals
   const approvalTxId = await handleEvmApprovals(args);
@@ -148,34 +165,33 @@ export async function* submitIntentHandler(
   });
 
   // Use synthetic transaction metadata + translated intent order status as the tradeMeta
-  if (syntheticTxMeta && orderStatus) {
-    yield {
-      type: 'setTradeMeta',
-      payload: {
-        ...syntheticTxMeta,
-        // Map intent order status to TransactionController status
-        status: mapIntentOrderStatusToTransactionStatus(orderStatus),
-      },
-    };
+  yield {
+    type: SubmitStep.SetTradeMeta,
+    payload: {
+      ...syntheticTxMeta,
+      // Map intent order status to TransactionController status
+      status: mapIntentOrderStatusToTransactionStatus(orderStatus),
+    },
+  };
 
-    // Update txHistory with synthetic txMeta and order id
-    yield {
-      type: 'addHistoryItem',
-      payload: {
-        // Use orderId as the history key for intent transactions
-        bridgeTxMeta: {
-          id: orderUid,
-        },
-        approvalTxId,
-        // Keep original txId for TransactionController updates
-        originalTransactionId: syntheticTxMeta?.id,
+  // Update txHistory with synthetic txMeta and order id
+  yield {
+    type: SubmitStep.AddHistoryItem,
+    payload: {
+      // Use orderId as the history key for intent transactions
+      historyKey: orderUid,
+      bridgeTxMeta: {
+        id: syntheticTxMeta?.id,
       },
-    };
-  }
+      approvalTxId,
+      // Keep original txId for TransactionController updates
+      originalTransactionId: syntheticTxMeta?.id,
+    },
+  };
 
   // Start polling using the orderId as the history key
   yield {
-    type: 'startPolling',
+    type: SubmitStep.StartPolling,
     payload: orderUid,
   };
 }

@@ -37,13 +37,13 @@ import {
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
 } from './constants';
-import executeSubmitFlow from './strategy';
+import executeSubmitStrategy from './strategy';
+import { SubmitStep } from './strategy/types';
 import type { SubmitStrategyParams } from './strategy/types';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
   FetchFunction,
-  SolanaTransactionMeta,
   BridgeHistoryItem,
 } from './types';
 import type { BridgeStatusControllerMessenger } from './types';
@@ -519,10 +519,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #addTxToHistory = (
+    historyKey: string,
     ...args: Parameters<typeof getInitialHistoryItem>
   ): string => {
-    // Use actionId as key for pre-submission, or txMeta.id for post-submission
-    const { historyKey, txHistoryItem } = getInitialHistoryItem(...args);
+    const txHistoryItem = getInitialHistoryItem(...args);
     this.update((state) => {
       state.txHistory[historyKey] = txHistoryItem;
     });
@@ -533,17 +533,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * Rekeys a history item from actionId to txMeta.id after successful submission.
    * Also updates txMetaId and srcTxHash which weren't available pre-submission.
    *
-   * @param actionId - The actionId used as the temporary key for the history item
+   * @param oldKey - The temporary key to use for the history item, usually the actionId
+   * @param newKey - The new key to use, typcally the txmeta.id
    * @param txMeta - The transaction meta from the successful submission
    * @param txMeta.id - The transaction meta id to use as the new key
    * @param txMeta.hash - The transaction hash to set on the history item
    */
   readonly #rekeyHistoryItem = (
-    actionId: string,
+    oldKey: string,
+    newKey: string,
     txMeta: { id: string; hash?: string },
   ): void => {
     this.update((state) => {
-      rekeyHistoryItemInState(state, actionId, txMeta);
+      rekeyHistoryItemInState(state, oldKey, newKey, txMeta);
     });
   };
 
@@ -583,7 +585,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     }
 
-    const historyKey = this.#addTxToHistory(txHistoryMeta);
+    const historyKey = this.#addTxToHistory(bridgeTxMeta.id, txHistoryMeta);
     this.#startPollingForTxId(historyKey);
   };
 
@@ -1062,7 +1064,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    *
    * @param accountAddress - The address of the account to submit the transaction for
    * @param quoteResponse - The quote response
-   * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
+   * @param isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param quotesReceivedContext - The context for the QuotesReceived event
    * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
    * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
@@ -1074,13 +1076,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   submitTx = async (
     accountAddress: string,
     quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
-    isStxEnabledOnClient: boolean,
+    isStxEnabled: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
     abTests?: Record<string, string>,
     activeAbTests?: { key: string; value: string }[],
     tokenSecurityTypeDestination?: string | null,
-  ): Promise<TransactionMeta & Partial<SolanaTransactionMeta>> => {
+  ): Promise<TransactionMeta> => {
     stopPollingForQuotes(
       this.messenger,
       quoteResponse.featureId,
@@ -1110,15 +1112,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
-      isStxEnabledOnClient,
+      isStxEnabled,
       accountHardwareType,
       location,
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
     );
-
-    let tradeTxMeta: TransactionMeta;
 
     try {
       // Emit Submitted event after submit button is clicked
@@ -1128,83 +1128,45 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           undefined,
           preConfirmationProperties,
         );
+
+      /**
+       * Check if the account is an EIP-7702 delegated account.
+       * Delegated accounts only allow 1 in-flight tx, so approve + swap
+       * must be batched into a single transaction
+       */
+      const isDelegatedAccount = isNonEvmChainId(quoteResponse.quote.srcChainId)
+        ? false
+        : await checkIsDelegatedAccount(
+            this.messenger,
+            selectedAccount.address as Hex,
+            [formatChainIdToHex(quoteResponse.quote.srcChainId)],
+          );
+
+      const params: SubmitStrategyParams<Trade> = {
+        messenger: this.messenger,
+        quoteResponse,
+        isStxEnabledOnClient: isStxEnabled,
+        isBridgeTx,
+        isDelegatedAccount,
+        selectedAccount,
+        requireApproval,
+        clientId: this.#clientId,
+        bridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
+        addTransactionBatchFn: this.#addTransactionBatchFn,
+        fetchFn: this.#fetchFn,
+        traceFn: this.#trace,
+      };
+
       return await this.#trace(
-        getTraceParams(quoteResponse, isStxEnabledOnClient),
-        async () => {
-          /**
-           * Check if the account is an EIP-7702 delegated account.
-           * Delegated accounts only allow 1 in-flight tx, so approve + swap
-           * must be batched into a single transaction
-           */
-          const isDelegatedAccount = isNonEvmChainId(
-            quoteResponse.quote.srcChainId,
-          )
-            ? false
-            : await checkIsDelegatedAccount(
-                this.messenger,
-                selectedAccount.address as Hex,
-                [formatChainIdToHex(quoteResponse.quote.srcChainId)],
-              );
-
-          const params: SubmitStrategyParams = {
-            quoteResponse,
-            isStxEnabledOnClient,
-            isDelegatedAccount,
-            messenger: this.messenger,
-            selectedAccount,
-            traceFn: this.#trace,
-            requireApproval,
-            isBridgeTx,
-            clientId: this.#clientId,
-            fetchFn: this.#fetchFn,
-            bridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
-            addTransactionBatchFn: this.#addTransactionBatchFn,
-          };
-          const steps = executeSubmitFlow(params);
-
-          // Each submission strategy determines when to return values, which means these values can be returned in any order
-          for await (const { type, payload } of steps) {
-            if (type === 'rekeyHistoryItem') {
-              this.#rekeyHistoryItem(payload.actionId, payload.tradeMeta);
-            }
-            if (type === 'setTradeMeta') {
-              tradeTxMeta = payload;
-            }
-
-            // Non-blocking steps
-            try {
-              if (type === 'addHistoryItem') {
-                this.#addTxToHistory({
-                  ...payload,
-                  quoteResponse,
-                  accountAddress: selectedAccount.address,
-                  isStxEnabled: isStxEnabledOnClient,
-                  startTime,
-                  location,
-                  abTests,
-                  activeAbTests,
-                  slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
-                });
-              }
-              if (type === 'startPolling') {
-                this.#startPollingForTxId(payload);
-              }
-              if (type === 'publishCompletedEvent') {
-                this.#trackUnifiedSwapBridgeEvent(
-                  UnifiedSwapBridgeEventName.Completed,
-                  payload,
-                );
-              }
-            } catch (error) {
-              console.error(
-                'Failed to add to bridge history and start polling',
-                error,
-              );
-            }
-          }
-
-          return tradeTxMeta;
-        },
+        getTraceParams(quoteResponse, isStxEnabled),
+        async () =>
+          await this.#executeSubmitStrategy(params, {
+            startTime,
+            location,
+            abTests,
+            activeAbTests,
+            tokenSecurityTypeDestination,
+          }),
       );
     } catch (error) {
       if (!quoteResponse.featureId) {
@@ -1233,6 +1195,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param params.tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
    * @param params.isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
+   * @param params.isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param params.quotesReceivedContext - The context for the QuotesReceived event
    * @returns A lightweight TransactionMeta-like object for history linking
    * @throws An error if intent or transaction submission fails before they get published
@@ -1244,7 +1207,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     abTests?: Record<string, string>;
     activeAbTests?: { key: string; value: string }[];
     tokenSecurityTypeDestination?: string | null;
-    isStxEnabledOnClient?: boolean;
+    isStxEnabled?: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
     const {
@@ -1254,7 +1217,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
-      isStxEnabledOnClient,
+      isStxEnabled = false,
       quotesReceivedContext,
     } = params;
 
@@ -1262,13 +1225,72 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return await this.submitTx(
       accountAddress,
       quoteResponse,
-      Boolean(isStxEnabledOnClient),
+      isStxEnabled,
       quotesReceivedContext,
       location,
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
     );
+  };
+
+  readonly #executeSubmitStrategy = async (
+    params: SubmitStrategyParams<Trade>,
+    sharedHistoryItemProperties: {
+      startTime: number;
+      location: MetaMetricsSwapsEventSource;
+      abTests?: Record<string, string>;
+      activeAbTests?: { key: string; value: string }[];
+      tokenSecurityTypeDestination?: string | null;
+    },
+  ): Promise<TransactionMeta> => {
+    let tradeTxMeta!: TransactionMeta;
+
+    const steps = executeSubmitStrategy(params);
+
+    // Each submission strategy determines when to return values, which means these values can be returned in any order
+    for await (const { type, payload } of steps) {
+      if (type === SubmitStep.RekeyHistoryItem) {
+        this.#rekeyHistoryItem(
+          payload.oldKey,
+          payload.newKey,
+          payload.tradeMeta,
+        );
+      }
+      if (type === SubmitStep.SetTradeMeta) {
+        tradeTxMeta = payload;
+      }
+
+      // If any of these steps fail, we should not block or fail the submission flow
+      try {
+        if (type === SubmitStep.AddHistoryItem) {
+          this.#addTxToHistory(payload.historyKey, {
+            ...payload,
+            ...sharedHistoryItemProperties,
+            quoteResponse: params.quoteResponse,
+            accountAddress: params.selectedAccount.address,
+            isStxEnabled: params.isStxEnabledOnClient,
+            slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+          });
+        }
+        if (type === SubmitStep.StartPolling) {
+          this.#startPollingForTxId(payload);
+        }
+        if (type === SubmitStep.PublishCompletedEvent) {
+          this.#trackUnifiedSwapBridgeEvent(
+            UnifiedSwapBridgeEventName.Completed,
+            payload,
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Failed to add to bridge history and start polling',
+          error,
+        );
+      }
+    }
+
+    return tradeTxMeta;
   };
 
   readonly #trackPollingStatusUpdatedEvent = (
@@ -1323,13 +1345,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const resolvedActiveAbTests =
       eventProperties?.active_ab_tests ?? historyActiveAbTests;
 
+    const location =
+      (txMetaId ? this.state.txHistory?.[txMetaId]?.location : undefined) ??
+      MetaMetricsSwapsEventSource.MainView;
+
     const baseProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,
-      location:
-        eventProperties?.location ??
-        (txMetaId ? this.state.txHistory?.[txMetaId]?.location : undefined) ??
-        MetaMetricsSwapsEventSource.MainView,
       ...(eventProperties ?? {}),
+      location,
       ...(resolvedAbTests &&
         Object.keys(resolvedAbTests).length > 0 && {
           ab_tests: resolvedAbTests,

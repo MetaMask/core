@@ -381,6 +381,7 @@ export const getAddTransactionBatchParams = async ({
       'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
     );
   }
+
   const hexChainId = formatChainIdToHex(trade.chainId);
   const networkClientId = getNetworkClientIdByChainId(messenger, hexChainId);
 
