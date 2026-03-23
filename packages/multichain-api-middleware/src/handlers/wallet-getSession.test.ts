@@ -99,7 +99,8 @@ describe('wallet_getSession', () => {
   });
 
   it('gets the session scopes from the CAIP-25 caveat value', async () => {
-    const { handler, getNonEvmSupportedMethods, sortAccountIdsByLastSelected } = createMockedHandler();
+    const { handler, getNonEvmSupportedMethods, sortAccountIdsByLastSelected } =
+      createMockedHandler();
 
     await handler(baseRequest);
     expect(chainAgnosticPermissionModule.getSessionScopes).toHaveBeenCalledWith(
