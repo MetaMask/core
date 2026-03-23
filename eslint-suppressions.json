@@ -1261,9 +1261,6 @@
     }
   },
   "packages/phishing-controller/src/PhishingController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
     "jest/unbound-method": {
       "count": 7
     }
