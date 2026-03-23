@@ -28,7 +28,7 @@ import type {
  * @param hooks - The hooks object.
  * @param hooks.getCaveatForOrigin - Function to retrieve a caveat for the origin.
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
- * @param hooks.sortAccountIdsByLastSelected - A function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by last selected.
+ * @param hooks.sortAccountIdsByLastSelected - A function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by corresponding last selected account in the wallet.
  * @returns Nothing.
  */
 async function walletGetSessionHandler(
