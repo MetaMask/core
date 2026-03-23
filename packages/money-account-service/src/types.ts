@@ -1,3 +1,5 @@
+import type { AccountTreeControllerGetAccountWalletObjectAction } from '@metamask/account-tree-controller';
+import type { AccountsControllerGetAccountAction } from '@metamask/accounts-controller';
 import type {
   KeyringControllerAddNewKeyringAction,
   KeyringControllerWithKeyringAction,
@@ -11,6 +13,8 @@ import type { MoneyAccountServiceMethodActions } from './MoneyAccountService-met
 export type MoneyAccountServiceActions = MoneyAccountServiceMethodActions;
 
 type AllowedActions =
+  | AccountTreeControllerGetAccountWalletObjectAction
+  | AccountsControllerGetAccountAction
   | KeyringControllerWithKeyringAction
   | KeyringControllerAddNewKeyringAction
   | KeyringControllerGetStateAction;

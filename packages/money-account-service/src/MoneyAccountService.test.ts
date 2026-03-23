@@ -4,11 +4,7 @@ import {
   MONEY_DERIVATION_PATH,
 } from '@metamask/eth-money-keyring';
 import type { MoneyKeyringSerializedState } from '@metamask/eth-money-keyring';
-import {
-  KeyringControllerError,
-  KeyringControllerErrorMessage,
-  KeyringTypes,
-} from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -32,6 +28,29 @@ const MOCK_MNEMONIC = new Uint8Array([
 ]);
 
 const MOCK_ENTROPY_SOURCE = 'mock-entropy-source-id';
+const MOCK_ACCOUNT_ID = 'mock-money-account-id';
+
+const MOCK_PRIMARY_HD_KEYRING = {
+  type: KeyringTypes.hd,
+  accounts: [],
+  metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
+};
+
+const MOCK_MONEY_GROUP = {
+  id: 'mock-group-id',
+  accounts: [MOCK_ACCOUNT_ID],
+  metadata: { name: 'Money Account', pinned: false, hidden: false },
+};
+
+const MOCK_MONEY_WALLET = {
+  metadata: { name: '', keyring: { type: KeyringTypes.money } },
+  groups: { 'mock-group-id': MOCK_MONEY_GROUP },
+};
+
+const MOCK_MONEY_ACCOUNT = {
+  id: MOCK_ACCOUNT_ID,
+  address: '0xmockmoneyaddress',
+};
 
 function setup(): {
   service: MoneyAccountService;
@@ -40,6 +59,8 @@ function setup(): {
     withKeyring: jest.Mock;
     addNewKeyring: jest.Mock;
     getState: jest.Mock;
+    getAccountWalletObject: jest.Mock;
+    getAccount: jest.Mock;
   };
 } {
   const rootMessenger: RootMessenger = new Messenger({
@@ -58,17 +79,14 @@ function setup(): {
       'KeyringController:withKeyring',
       'KeyringController:addNewKeyring',
       'KeyringController:getState',
+      'AccountTreeController:getAccountWalletObject',
+      'AccountsController:getAccount',
     ],
     events: [],
   });
 
   const mocks = {
-    withKeyring: jest.fn().mockImplementation(async (selector, operation) => {
-      if ('type' in selector) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.KeyringNotFound,
-        );
-      }
+    withKeyring: jest.fn().mockImplementation(async (_selector, operation) => {
       return operation({
         keyring: {
           type: 'HD Key Tree',
@@ -78,11 +96,12 @@ function setup(): {
         metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
       });
     }),
-    addNewKeyring: jest.fn().mockResolvedValue({
-      id: 'new-money-keyring-id',
-      name: '',
-    }),
-    getState: jest.fn().mockReturnValue({ keyrings: [] }),
+    addNewKeyring: jest.fn().mockResolvedValue(undefined),
+    getState: jest
+      .fn()
+      .mockReturnValue({ keyrings: [MOCK_PRIMARY_HD_KEYRING] }),
+    getAccountWalletObject: jest.fn().mockReturnValue(MOCK_MONEY_WALLET),
+    getAccount: jest.fn().mockReturnValue(MOCK_MONEY_ACCOUNT),
   };
 
   rootMessenger.registerActionHandler(
@@ -97,6 +116,14 @@ function setup(): {
     'KeyringController:getState',
     mocks.getState,
   );
+  rootMessenger.registerActionHandler(
+    'AccountTreeController:getAccountWalletObject',
+    mocks.getAccountWalletObject,
+  );
+  rootMessenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mocks.getAccount,
+  );
 
   const service = new MoneyAccountService({ messenger });
 
@@ -105,10 +132,10 @@ function setup(): {
 
 describe('MoneyAccountService', () => {
   describe('createMoneyAccount', () => {
-    it('creates a Money keyring from the HD keyring mnemonic', async () => {
+    it('creates a Money keyring from the primary HD keyring and returns the account', async () => {
       const { service, mocks } = setup();
 
-      const result = await service.createMoneyAccount(MOCK_ENTROPY_SOURCE);
+      const result = await service.createMoneyAccount();
 
       expect(mocks.withKeyring).toHaveBeenCalledWith(
         { id: MOCK_ENTROPY_SOURCE },
@@ -119,7 +146,7 @@ describe('MoneyAccountService', () => {
         numberOfAccounts: 1,
         hdPath: MONEY_DERIVATION_PATH,
       });
-      expect(result).toStrictEqual({ id: 'new-money-keyring-id', name: '' });
+      expect(result).toStrictEqual(MOCK_MONEY_ACCOUNT);
     });
 
     it('is callable via the messenger', async () => {
@@ -127,23 +154,39 @@ describe('MoneyAccountService', () => {
 
       const result = await rootMessenger.call(
         'MoneyAccountService:createMoneyAccount',
-        MOCK_ENTROPY_SOURCE,
       );
 
-      expect(result).toStrictEqual({ id: 'new-money-keyring-id', name: '' });
+      expect(result).toStrictEqual(MOCK_MONEY_ACCOUNT);
     });
 
-    it('returns null if a money account already exists', async () => {
+    it('returns the existing account without creating a new keyring if a money keyring already exists', async () => {
       const { service, mocks } = setup();
 
       mocks.getState.mockReturnValue({
-        keyrings: [{ type: KeyringTypes.money }],
+        keyrings: [
+          MOCK_PRIMARY_HD_KEYRING,
+          {
+            type: KeyringTypes.money,
+            accounts: [],
+            metadata: { id: 'money-keyring-id', name: '' },
+          },
+        ],
       });
 
-      const result = await service.createMoneyAccount(MOCK_ENTROPY_SOURCE);
+      const result = await service.createMoneyAccount();
 
-      expect(result).toBeNull();
+      expect(result).toStrictEqual(MOCK_MONEY_ACCOUNT);
       expect(mocks.addNewKeyring).not.toHaveBeenCalled();
+    });
+
+    it('throws if no primary HD keyring exists', async () => {
+      const { service, mocks } = setup();
+
+      mocks.getState.mockReturnValue({ keyrings: [] });
+
+      await expect(service.createMoneyAccount()).rejects.toThrow(
+        'No primary HD keyring found.',
+      );
     });
 
     it('throws if the keyring is not an HD keyring', async () => {
@@ -158,9 +201,9 @@ describe('MoneyAccountService', () => {
         });
       });
 
-      await expect(
-        service.createMoneyAccount(MOCK_ENTROPY_SOURCE),
-      ).rejects.toThrow('Got keyring without HD Keyring type');
+      await expect(service.createMoneyAccount()).rejects.toThrow(
+        'Expected HD keyring, got Simple Key Pair',
+      );
     });
 
     it('passes params to addNewKeyring that produce a correctly initialized MoneyKeyring', async () => {
@@ -168,12 +211,7 @@ describe('MoneyAccountService', () => {
 
       // The real HdKeyring.serialize() returns mnemonic as number[] (via Array.from),
       // not Uint8Array, so we match that format here for MoneyKeyring.deserialize to accept it.
-      mocks.withKeyring.mockImplementation(async (selector, operation) => {
-        if ('type' in selector) {
-          throw new KeyringControllerError(
-            KeyringControllerErrorMessage.KeyringNotFound,
-          );
-        }
+      mocks.withKeyring.mockImplementation(async (_selector, operation) => {
         return operation({
           keyring: {
             type: 'HD Key Tree',
@@ -189,10 +227,9 @@ describe('MoneyAccountService', () => {
       let capturedOpts: unknown;
       mocks.addNewKeyring.mockImplementation(async (_type, opts) => {
         capturedOpts = opts;
-        return { id: 'new-money-keyring-id', name: '' };
       });
 
-      await service.createMoneyAccount(MOCK_ENTROPY_SOURCE);
+      await service.createMoneyAccount();
 
       const moneyKeyring = new MoneyKeyring();
       await moneyKeyring.deserialize(
@@ -201,6 +238,20 @@ describe('MoneyAccountService', () => {
 
       expect(moneyKeyring.hdPath).toBe(MONEY_DERIVATION_PATH);
       expect(await moneyKeyring.getAccounts()).toHaveLength(1);
+    });
+
+    it('throws if the Money account could not be retrieved after keyring creation', async () => {
+      const { service, mocks } = setup();
+
+      // Wallet exists but group has no accounts, so getMoneyAccount returns undefined.
+      mocks.getAccountWalletObject.mockReturnValue({
+        ...MOCK_MONEY_WALLET,
+        groups: { 'mock-group-id': { ...MOCK_MONEY_GROUP, accounts: [] } },
+      });
+
+      await expect(service.createMoneyAccount()).rejects.toThrow(
+        'Failed to create Money account.',
+      );
     });
 
     it('throws if the HD keyring has no mnemonic', async () => {
@@ -216,86 +267,115 @@ describe('MoneyAccountService', () => {
         });
       });
 
-      await expect(
-        service.createMoneyAccount(MOCK_ENTROPY_SOURCE),
-      ).rejects.toThrow(
+      await expect(service.createMoneyAccount()).rejects.toThrow(
         'HD keyring does not have a mnemonic for the given entropy source.',
       );
     });
   });
 
-  describe('getMoneyAccount', () => {
-    it('returns the money keyring metadata if one exists', async () => {
-      const { service, mocks } = setup();
-      const MOCK_MONEY_METADATA = { id: 'existing-money-keyring-id', name: '' };
+  describe('getMoneyAccountWallet', () => {
+    it('returns the Money wallet if it exists', () => {
+      const { service } = setup();
 
-      mocks.withKeyring.mockImplementation(async (selector, operation) => {
-        if ('type' in selector && selector.type === KeyringTypes.money) {
-          return operation({
-            keyring: {},
-            metadata: MOCK_MONEY_METADATA,
-          });
-        }
-        return operation({
-          keyring: {
-            type: 'HD Key Tree',
-            mnemonic: MOCK_MNEMONIC,
-          } as unknown as HdKeyring,
-          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
-        });
+      const result = service.getMoneyAccountWallet();
+
+      expect(result).toStrictEqual(MOCK_MONEY_WALLET);
+    });
+
+    it('returns undefined if no Money wallet exists', () => {
+      const { service, mocks } = setup();
+
+      mocks.getAccountWalletObject.mockReturnValue(undefined);
+
+      const result = service.getMoneyAccountWallet();
+
+      expect(result).toBeUndefined();
+    });
+
+    it('is callable via the messenger', () => {
+      const { rootMessenger } = setup();
+
+      const result = rootMessenger.call(
+        'MoneyAccountService:getMoneyAccountWallet',
+      );
+
+      expect(result).toStrictEqual(MOCK_MONEY_WALLET);
+    });
+  });
+
+  describe('getMoneyAccountGroup', () => {
+    it('returns the group if a Money wallet exists', () => {
+      const { service } = setup();
+
+      const result = service.getMoneyAccountGroup();
+
+      expect(result).toStrictEqual(MOCK_MONEY_GROUP);
+    });
+
+    it('returns undefined if no Money wallet exists', () => {
+      const { service, mocks } = setup();
+
+      mocks.getAccountWalletObject.mockReturnValue(undefined);
+
+      const result = service.getMoneyAccountGroup();
+
+      expect(result).toBeUndefined();
+    });
+
+    it('is callable via the messenger', () => {
+      const { rootMessenger } = setup();
+
+      const result = rootMessenger.call(
+        'MoneyAccountService:getMoneyAccountGroup',
+      );
+
+      expect(result).toStrictEqual(MOCK_MONEY_GROUP);
+    });
+  });
+
+  describe('getMoneyAccount', () => {
+    it('returns the account if a Money wallet group exists', async () => {
+      const { service, mocks } = setup();
+
+      const result = await service.getMoneyAccount();
+
+      expect(mocks.getAccount).toHaveBeenCalledWith(MOCK_ACCOUNT_ID);
+      expect(result).toStrictEqual(MOCK_MONEY_ACCOUNT);
+    });
+
+    it('returns undefined if no Money wallet exists', async () => {
+      const { service, mocks } = setup();
+
+      mocks.getAccountWalletObject.mockReturnValue(undefined);
+
+      const result = await service.getMoneyAccount();
+
+      expect(result).toBeUndefined();
+      expect(mocks.getAccount).not.toHaveBeenCalled();
+    });
+
+    it('returns undefined if the Money wallet group has no accounts', async () => {
+      const { service, mocks } = setup();
+
+      mocks.getAccountWalletObject.mockReturnValue({
+        ...MOCK_MONEY_WALLET,
+        groups: { 'mock-group-id': { ...MOCK_MONEY_GROUP, accounts: [] } },
       });
 
       const result = await service.getMoneyAccount();
 
-      expect(result).toStrictEqual(MOCK_MONEY_METADATA);
-    });
-
-    it('returns null if no money account exists', async () => {
-      const { service } = setup();
-
-      const result = await service.getMoneyAccount();
-
-      expect(result).toBeNull();
+      expect(result).toBeUndefined();
+      expect(mocks.getAccount).not.toHaveBeenCalled();
     });
 
     it('is callable via the messenger', async () => {
-      const { rootMessenger, mocks } = setup();
-      const MOCK_MONEY_METADATA = { id: 'existing-money-keyring-id', name: '' };
-
-      mocks.withKeyring.mockImplementation(async (selector, operation) => {
-        if ('type' in selector && selector.type === KeyringTypes.money) {
-          return operation({
-            keyring: {},
-            metadata: MOCK_MONEY_METADATA,
-          });
-        }
-        return operation({
-          keyring: {
-            type: 'HD Key Tree',
-            mnemonic: MOCK_MNEMONIC,
-          } as unknown as HdKeyring,
-          metadata: { id: MOCK_ENTROPY_SOURCE, name: '' },
-        });
-      });
+      const { rootMessenger } = setup();
 
       const result = await rootMessenger.call(
         'MoneyAccountService:getMoneyAccount',
       );
 
-      expect(result).toStrictEqual(MOCK_MONEY_METADATA);
-    });
-
-    it('re-throws errors other than KeyringNotFound', async () => {
-      const { service, mocks } = setup();
-      const unexpectedError = new KeyringControllerError('Unexpected error');
-
-      mocks.withKeyring.mockImplementation(async (selector) => {
-        if ('type' in selector && selector.type === KeyringTypes.money) {
-          throw unexpectedError;
-        }
-      });
-
-      await expect(service.getMoneyAccount()).rejects.toThrow(unexpectedError);
+      expect(result).toStrictEqual(MOCK_MONEY_ACCOUNT);
     });
   });
 });
