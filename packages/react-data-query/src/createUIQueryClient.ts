@@ -1,4 +1,4 @@
-import { GranularCacheUpdatedPayload } from '@metamask/base-data-service';
+import { DataServiceGranularCacheUpdatedPayload } from '@metamask/base-data-service';
 import { assert, Json } from '@metamask/utils';
 import {
   hydrate,
@@ -10,7 +10,9 @@ import {
   QueryKey,
 } from '@tanstack/query-core';
 
-type SubscriptionCallback = (payload: GranularCacheUpdatedPayload) => void;
+type SubscriptionCallback = (
+  payload: DataServiceGranularCacheUpdatedPayload,
+) => void;
 type JsonSubscriptionCallback = (data: Json) => void;
 
 // TODO: Figure out if we can replace with a better Messenger type
@@ -96,7 +98,9 @@ export function createUIQueryClient(
       event.type === 'observerAdded' &&
       observerCount === 1
     ) {
-      const cacheListener = (payload: GranularCacheUpdatedPayload): void => {
+      const cacheListener = (
+        payload: DataServiceGranularCacheUpdatedPayload,
+      ): void => {
         if (payload.type === 'removed') {
           cache.remove(query);
         } else {
