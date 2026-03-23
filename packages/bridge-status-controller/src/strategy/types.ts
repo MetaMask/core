@@ -3,6 +3,8 @@ import type {
   BridgeClientId,
   QuoteMetadata,
   QuoteResponse,
+  Trade,
+  TxData,
 } from '@metamask/bridge-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
@@ -16,38 +18,50 @@ import type {
   StartPollingForBridgeTxStatusArgs,
 } from '../types';
 
+export enum SubmitStep {
+  AddHistoryItem = 'addHistoryItem',
+  RekeyHistoryItem = 'rekeyHistoryItem',
+  StartPolling = 'startPolling',
+  PublishCompletedEvent = 'publishCompletedEvent',
+  SetTradeMeta = 'setTradeMeta',
+}
+
 /**
  * Any possible result returned by steps in a submission strategy. These can be returned in any order.
  */
 export type SubmitStepResult =
   | {
-      type: 'addHistoryItem';
+      type: SubmitStep.AddHistoryItem;
       payload: Pick<
         StartPollingForBridgeTxStatusArgs,
         'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId' | 'actionId'
-      >;
+      > & {
+        historyKey: string;
+      };
     }
   | {
-      type: 'rekeyHistoryItem';
+      type: SubmitStep.RekeyHistoryItem;
       payload: {
-        /** The actionId of the preceeding `approval` transaction */
-        actionId: string;
+        /** Usually the actionId of the preceeding `approval` transaction */
+        oldKey: string;
+        /** Usually the txMeta.id of the `trade` transaction */
+        newKey: string;
         /** The {@link TransactionMeta} for the `trade` transaction after it has been submitted successfully */
         tradeMeta: TransactionMeta;
       };
     }
   | {
-      type: 'startPolling';
+      type: SubmitStep.StartPolling;
       /** The `txHistory` key of the transaction to start polling for */
       payload: string;
     }
   | {
-      type: 'publishCompletedEvent';
+      type: SubmitStep.PublishCompletedEvent;
       /** The `txHistory` key of the transaction that has been submitted successfully */
       payload: string;
     }
   | {
-      type: 'setTradeMeta';
+      type: SubmitStep.SetTradeMeta;
       /** The {@link TransactionMeta} for the transaction that has been submitted successfully */
       payload: TransactionMeta;
     };
@@ -55,13 +69,13 @@ export type SubmitStepResult =
 /**
  * The parameters for the submission flow
  */
-export type SubmitStrategyParams = {
+export type SubmitStrategyParams<TradeType extends Trade = TxData> = {
   addTransactionBatchFn: TransactionController['addTransactionBatch'];
   isBridgeTx: boolean;
   isDelegatedAccount: boolean;
   isStxEnabledOnClient: boolean;
   messenger: BridgeStatusControllerMessenger;
-  quoteResponse: QuoteResponse & QuoteMetadata;
+  quoteResponse: QuoteResponse<TradeType, TradeType> & QuoteMetadata;
   requireApproval: boolean;
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
   traceFn: TraceCallback;
@@ -69,14 +83,4 @@ export type SubmitStrategyParams = {
   fetchFn: FetchFunction;
   clientId: BridgeClientId;
   bridgeApiBaseUrl: string;
-};
-
-/**
- * A strategy for submitting a transaction and/or intent
- */
-export type SubmitStrategy = {
-  matchesFlow: (params: SubmitStrategyParams) => boolean;
-  execute: (
-    params: SubmitStrategyParams,
-  ) => AsyncGenerator<SubmitStepResult, void, void>;
 };

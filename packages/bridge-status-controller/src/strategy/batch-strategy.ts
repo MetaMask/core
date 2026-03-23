@@ -1,10 +1,12 @@
-import { isEvmTxData } from '@metamask/bridge-controller';
+import { TxData } from '@metamask/bridge-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 
-import type { SubmitStrategyParams, SubmitStepResult } from './types';
 import {
   addTransactionBatch,
   getAddTransactionBatchParams,
 } from '../utils/transaction';
+import { SubmitStep } from './types';
+import type { SubmitStrategyParams, SubmitStepResult } from './types';
 
 /**
  * Submits batched EVM transactions to the TransactionController
@@ -13,7 +15,7 @@ import {
  * @yields The approvalMeta and tradeMeta for the batched transaction
  */
 export async function* submitBatchHandler(
-  args: SubmitStrategyParams,
+  args: SubmitStrategyParams<TxData>,
 ): AsyncGenerator<SubmitStepResult, void, void> {
   const {
     requireApproval,
@@ -21,23 +23,46 @@ export async function* submitBatchHandler(
     messenger,
     isBridgeTx,
     addTransactionBatchFn,
+    isDelegatedAccount,
   } = args;
-  if (!isEvmTxData(quoteResponse.trade)) {
-    throw new Error(
-      'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
-    );
+
+  const tradeData: Parameters<
+    typeof getAddTransactionBatchParams
+  >[0]['tradeData'] = [];
+
+  const approvalTxType = isBridgeTx
+    ? TransactionType.bridgeApproval
+    : TransactionType.swapApproval;
+
+  if (quoteResponse.resetApproval) {
+    tradeData.push({
+      tx: quoteResponse.resetApproval,
+      type: approvalTxType,
+    });
   }
+  if (quoteResponse.approval) {
+    tradeData.push({
+      tx: quoteResponse.approval,
+      type: approvalTxType,
+    });
+  }
+  if (quoteResponse.trade) {
+    tradeData.push({
+      tx: quoteResponse.trade,
+      type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
+      assetsFiatValues: {
+        sending: quoteResponse.sentAmount?.valueInCurrency?.toString(),
+        receiving: quoteResponse.toTokenAmount?.valueInCurrency?.toString(),
+      },
+    });
+  }
+
   const transactionParams = await getAddTransactionBatchParams({
     messenger,
-    isBridgeTx,
-    resetApproval: quoteResponse.resetApproval,
-    approval:
-      quoteResponse.approval && isEvmTxData(quoteResponse.approval)
-        ? quoteResponse.approval
-        : undefined,
-    trade: quoteResponse.trade,
-    quoteResponse,
+    tradeData,
+    quote: quoteResponse.quote,
     requireApproval,
+    isDelegatedAccount,
   });
 
   const { approvalMeta, tradeMeta } = await addTransactionBatch(
@@ -47,13 +72,14 @@ export async function* submitBatchHandler(
   );
 
   yield {
-    type: 'setTradeMeta',
+    type: SubmitStep.SetTradeMeta,
     payload: tradeMeta,
   };
 
   yield {
-    type: 'addHistoryItem',
+    type: SubmitStep.AddHistoryItem,
     payload: {
+      historyKey: tradeMeta.id,
       approvalTxId: approvalMeta?.id,
       bridgeTxMeta: {
         id: tradeMeta.id,

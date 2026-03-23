@@ -1,14 +1,16 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import {
-  isBitcoinTrade,
-  isTronChainId,
-  isTronTrade,
+import { isTronChainId } from '@metamask/bridge-controller';
+import type {
+  BitcoinTradeData,
+  TronTradeData,
+  TxData,
 } from '@metamask/bridge-controller';
 
-import type { SubmitStrategyParams, SubmitStepResult } from './types';
 import { handleNonEvmTx } from '../utils/snaps';
 import { getApprovalTraceParams } from '../utils/trace';
 import { handleApprovalDelay } from '../utils/transaction';
+import { SubmitStep } from './types';
+import type { SubmitStrategyParams, SubmitStepResult } from './types';
 
 /**
  * Submits the approval transaction for a non-EVM transaction if present
@@ -16,13 +18,17 @@ import { handleApprovalDelay } from '../utils/transaction';
  * @param args - The parameters for the transaction
  * @returns The tx id of the approval transaction
  */
-const handleTronApproval = async (args: SubmitStrategyParams) => {
+const handleTronApproval = async (
+  args: SubmitStrategyParams<
+    TronTradeData | BitcoinTradeData | string | TxData
+  >,
+) => {
   const { quoteResponse, traceFn } = args;
 
   const approvalTxId = await traceFn(
     getApprovalTraceParams(quoteResponse, false),
     async () => {
-      if (quoteResponse.approval && isTronTrade(quoteResponse.approval)) {
+      if (quoteResponse.approval) {
         const txMeta = await handleNonEvmTx(
           args.messenger,
           quoteResponse.approval,
@@ -44,7 +50,7 @@ const handleTronApproval = async (args: SubmitStrategyParams) => {
 };
 
 /**
- * Submits batched EVM transactions to the TransactionController
+ * Submits Solana, Bitcoin, or Tron transactions to the snap controller
  *
  * @param args - The parameters for the transaction
  * @param args.quoteResponse - The quote response
@@ -55,20 +61,11 @@ const handleTronApproval = async (args: SubmitStrategyParams) => {
  * @yields The approvalTxId and tradeMeta for the non-EVM transaction
  */
 export async function* submitNonEvmHandler(
-  args: SubmitStrategyParams,
+  args: SubmitStrategyParams<
+    BitcoinTradeData | TronTradeData | string | TxData
+  >,
 ): AsyncGenerator<SubmitStepResult, void, void> {
   const { quoteResponse, isBridgeTx } = args;
-  if (
-    !(
-      isTronTrade(quoteResponse.trade) ||
-      isBitcoinTrade(quoteResponse.trade) ||
-      typeof quoteResponse.trade === 'string'
-    )
-  ) {
-    throw new Error(
-      'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
-    );
-  }
 
   const approvalTxId = await handleTronApproval(args);
 
@@ -82,13 +79,14 @@ export async function* submitNonEvmHandler(
   );
 
   yield {
-    type: 'setTradeMeta',
+    type: SubmitStep.SetTradeMeta,
     payload: tradeMeta,
   };
 
   yield {
-    type: 'addHistoryItem',
+    type: SubmitStep.AddHistoryItem,
     payload: {
+      historyKey: tradeMeta.id,
       approvalTxId,
       bridgeTxMeta: {
         id: tradeMeta.id,
@@ -98,13 +96,13 @@ export async function* submitNonEvmHandler(
   };
 
   yield {
-    type: 'startPolling',
+    type: SubmitStep.StartPolling,
     payload: tradeMeta.id,
   };
 
   if (!isTronChainId(quoteResponse.quote.srcChainId) && !isBridgeTx) {
     yield {
-      type: 'publishCompletedEvent',
+      type: SubmitStep.PublishCompletedEvent,
       payload: tradeMeta.id,
     };
   }

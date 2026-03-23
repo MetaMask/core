@@ -4,7 +4,6 @@ import { isEvmTxData } from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 
-import type { SubmitStrategyParams, SubmitStepResult } from './types';
 import { getApprovalTraceParams } from '../utils/trace';
 import {
   generateActionId,
@@ -13,6 +12,8 @@ import {
   submitEvmTransaction,
   waitForTxConfirmation,
 } from '../utils/transaction';
+import { SubmitStep } from './types';
+import type { SubmitStrategyParams, SubmitStepResult } from './types';
 
 /**
  * Submits a single trade and returns the txMetaId
@@ -51,7 +52,7 @@ const handleSingleTx = async (
  *
  * @returns The approvalTxId of the approval transaction
  */
-export const handleEvmApprovals = async (args: SubmitStrategyParams) => {
+const approve = async (args: SubmitStrategyParams) => {
   const { quoteResponse, isBridgeTx } = args;
   const { approval, resetApproval } = quoteResponse;
   if (!approval || !isEvmTxData(approval)) {
@@ -76,6 +77,12 @@ export const handleEvmApprovals = async (args: SubmitStrategyParams) => {
   }
 };
 
+export const handleEvmApprovals = async (args: SubmitStrategyParams) =>
+  await args.traceFn(
+    getApprovalTraceParams(args.quoteResponse, args.isStxEnabledOnClient),
+    async () => await approve(args),
+  );
+
 /**
  * Sequentially submits EVM resetApproval, approval and trade transactions through the TransactionController.
  *
@@ -83,32 +90,21 @@ export const handleEvmApprovals = async (args: SubmitStrategyParams) => {
  * @yields Data for updating the BridgeStatusController
  */
 export async function* submitEvmHandler(
-  args: SubmitStrategyParams,
+  args: SubmitStrategyParams<TxData>,
 ): AsyncGenerator<SubmitStepResult, void, void> {
-  const {
-    quoteResponse,
-    traceFn,
-    requireApproval,
-    isStxEnabledOnClient,
-    isBridgeTx,
-  } = args;
-  if (!isEvmTxData(quoteResponse.trade)) {
-    throw new Error(
-      'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
-    );
-  }
+  const { quoteResponse, requireApproval, isBridgeTx } = args;
 
   // Submit resetApproval and approval transactions if present
-  const approvalTxId = await traceFn(
-    getApprovalTraceParams(quoteResponse, isStxEnabledOnClient),
-    async () => {
-      return await handleEvmApprovals(args);
-    },
-  );
+  const approvalTxId = await handleEvmApprovals(args);
+
   // Delay after approval
-  await handleMobileHardwareWalletDelay(requireApproval);
   if (approvalTxId) {
     await handleApprovalDelay(quoteResponse.quote.srcChainId);
+  }
+  // Hardware-wallet delay first (Ledger second-prompt spacing), then wait for
+  // on-chain approval confirmation so swap gas estimation runs after allowance is set.
+  await handleMobileHardwareWalletDelay(requireApproval);
+  if (requireApproval && approvalTxId) {
     await waitForTxConfirmation(args.messenger, approvalTxId);
   }
 
@@ -118,8 +114,9 @@ export async function* submitEvmHandler(
   // Add pre-submission history keyed by actionId
   // This ensures we have quote data available if transaction fails during submission
   yield {
-    type: 'addHistoryItem',
+    type: SubmitStep.AddHistoryItem,
     payload: {
+      historyKey: actionId,
       approvalTxId,
       actionId,
     },
@@ -145,15 +142,16 @@ export async function* submitEvmHandler(
 
   // Use the tradeMeta's id as history key
   yield {
-    type: 'rekeyHistoryItem',
+    type: SubmitStep.RekeyHistoryItem,
     payload: {
-      actionId,
+      oldKey: actionId,
+      newKey: tradeMeta.id,
       tradeMeta,
     },
   };
 
   yield {
-    type: 'setTradeMeta',
+    type: SubmitStep.SetTradeMeta,
     payload: tradeMeta,
   };
 }
