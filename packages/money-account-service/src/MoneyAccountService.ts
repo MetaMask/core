@@ -2,7 +2,6 @@ import { HdKeyring } from '@metamask/eth-hd-keyring';
 import { MONEY_DERIVATION_PATH } from '@metamask/eth-money-keyring';
 import {
   KeyringControllerError,
-  KeyringControllerErrorMessage,
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
@@ -91,10 +90,8 @@ export class MoneyAccountService {
         async ({ metadata }) => metadata,
       )
       .catch((error: unknown) => {
-        if (
-          error instanceof KeyringControllerError &&
-          error.message === KeyringControllerErrorMessage.KeyringNotFound
-        ) {
+        if (error instanceof KeyringControllerError) {
+          // TODO: how should we determine whether this is a 'real' error, or something we potentially expect, like not finding a keyring?
           return null;
         }
         throw error;
