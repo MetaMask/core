@@ -26,6 +26,8 @@ import {
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
+  HYPERCORE_USDC_ADDRESS,
+  HYPERCORE_USDC_DECIMAL_SHIFT,
   NATIVE_TOKEN_ADDRESS,
   STABLECOINS,
 } from '../../constants';
@@ -258,9 +260,7 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    const normalized = await normalizeQuote(quote, request, fullRequest);
-
-    return normalized;
+    return await normalizeQuote(quote, request, fullRequest);
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -386,9 +386,9 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
 
   if (isHyperliquidDeposit) {
     newRequest.targetChainId = CHAIN_ID_HYPERCORE;
-    newRequest.targetTokenAddress = '0x00000000000000000000000000000000';
+    newRequest.targetTokenAddress = HYPERCORE_USDC_ADDRESS;
     newRequest.targetAmountMinimum = new BigNumber(request.targetAmountMinimum)
-      .shiftedBy(2)
+      .shiftedBy(HYPERCORE_USDC_DECIMAL_SHIFT)
       .toString(10);
 
     log('Converting Arbitrum Hyperliquid deposit to direct deposit', {
@@ -399,14 +399,13 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
 
   // HyperLiquid withdrawal: source is HyperCore Perps USDC, not Arbitrum.
   // Override source chain/token and set protocolVersion=v2 (required by Relay).
-  // Decimal shift: Perps USDC is 8 decimals, standard USDC is 6.
   if (request.isHyperliquidSource) {
     newRequest.sourceChainId = CHAIN_ID_HYPERCORE;
-    newRequest.sourceTokenAddress = '0x00000000000000000000000000000000';
+    newRequest.sourceTokenAddress = HYPERCORE_USDC_ADDRESS;
 
     if (newRequest.sourceTokenAmount) {
       newRequest.sourceTokenAmount = new BigNumber(newRequest.sourceTokenAmount)
-        .shiftedBy(2)
+        .shiftedBy(HYPERCORE_USDC_DECIMAL_SHIFT)
         .toString(10);
     }
   }
