@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Migrate `awaitDeleteDelegationEntry` into `DelegationController` ([#8268](https://github.com/MetaMask/core/pull/8268))
+- Migrate `awaitDeleteDelegationEntry` into `DelegationController` ([#8286](https://github.com/MetaMask/core/pull/8286))
   - This method was previously implemented in clients.
 - Export `DelegationControllerGetStateAction` type ([#8205](https://github.com/MetaMask/core/pull/8205))
 
