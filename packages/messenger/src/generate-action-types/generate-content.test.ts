@@ -18,7 +18,7 @@ describe('generateActionTypesContent', () => {
 
     const result = generateActionTypesContent(controller);
 
-    expect(result).toContain('This file is auto-generated.');
+    expect(result).toContain('This file is auto generated.');
     expect(result).toContain(
       "import type { FooController } from './FooController';",
     );

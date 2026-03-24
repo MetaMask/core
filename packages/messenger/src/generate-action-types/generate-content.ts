@@ -13,7 +13,7 @@ export function generateActionTypesContent(source: SourceInfo): string {
   const sourceImportPath = `./${baseFileName}`;
 
   let content = `/**
- * This file is auto-generated.
+ * This file is auto generated.
  * Do not edit manually.
  */
 
