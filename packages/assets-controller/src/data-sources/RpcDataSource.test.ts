@@ -809,16 +809,21 @@ describe('RpcDataSource', () => {
         });
         await controller.fetch(request);
 
-        expect(fetchSpy).toHaveBeenCalledWith(MOCK_ACCOUNT_ID, MOCK_ADDRESS, [
-          {
-            assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
-            address: '0x0000000000000000000000000000000000000000',
-          },
-          expect.objectContaining({
-            assetId: matchingAsset,
-            address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-          }),
-        ]);
+        expect(fetchSpy).toHaveBeenCalledWith(
+          MOCK_CHAIN_ID_HEX,
+          MOCK_ACCOUNT_ID,
+          MOCK_ADDRESS,
+          [
+            {
+              assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+              address: '0x0000000000000000000000000000000000000000',
+            },
+            expect.objectContaining({
+              assetId: matchingAsset,
+              address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            }),
+          ],
+        );
       });
 
       fetchSpy.mockRestore();
