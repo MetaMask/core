@@ -37,19 +37,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `perpsWithdraw` to `TransactionType` ([#8271](https://github.com/MetaMask/core/pull/8271))
-- Add `rpcRequest` and `getProvider` utility functions in `utils/provider.ts` for simplified RPC access using messenger + chainId/networkClientId ([#8273](https://github.com/MetaMask/core/pull/8273))
+- Add `rpcRequest`, `getProvider`, `getChainId`, and `getNetworkClientId` utility functions in `utils/provider.ts` for simplified RPC access using messenger + chainId/networkClientId ([#8273](https://github.com/MetaMask/core/pull/8273))
 
 ### Changed
 
-- **BREAKING:** `GasFeeFlowRequest` type now uses `networkClientId` instead of `ethQuery` ([#8273](https://github.com/MetaMask/core/pull/8273))
-- **BREAKING:** `determineTransactionType` second parameter changed from `ethQuery` to an options object with `messenger` and `networkClientId` ([#8273](https://github.com/MetaMask/core/pull/8273))
-- **BREAKING:** Removed `ethQuery`/`EthQuery` from all internal types and utility function signatures, replaced with `rpcRequest` from `utils/provider` ([#8273](https://github.com/MetaMask/core/pull/8273))
+- Replaced all internal `ethQuery`/`EthQuery` usage with `rpcRequest` from `utils/provider` ([#8273](https://github.com/MetaMask/core/pull/8273))
 - Bump `@metamask/core-backend` from `^6.1.1` to `^6.2.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
 - Remove legacy `actionId` deduplication logic from transaction lifecycle methods ([#8256](https://github.com/MetaMask/core/pull/8256))
 
 ### Removed
 
-- **BREAKING:** Removed `@metamask/eth-query` as a dependency ([#8273](https://github.com/MetaMask/core/pull/8273))
+- Removed `determineTransactionType` from public API exports ([#8273](https://github.com/MetaMask/core/pull/8273))
+- Removed `@metamask/eth-query` as a dependency ([#8273](https://github.com/MetaMask/core/pull/8273))
 
 ## [63.0.0]
 
