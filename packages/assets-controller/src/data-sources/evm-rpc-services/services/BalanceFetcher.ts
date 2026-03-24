@@ -103,7 +103,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param input - The polling input.
    */
   async _executePoll(input: BalancePollingInput): Promise<void> {
-    const result = await this.fetchBalances(
+    const result = await this.#fetchBalances(
       input.chainId,
       input.accountId,
       input.accountAddress,
@@ -122,7 +122,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param accountId - Account UUID.
    * @returns Array of asset fetch entries from state for the requested chain.
    */
-  getAssetsToFetch(chainId: ChainId, accountId: AccountId): AssetFetchEntry[] {
+  #getAssetsToFetch(chainId: ChainId, accountId: AccountId): AssetFetchEntry[] {
     const state = this.#messenger.call('AssetsController:getState');
 
     if (!state?.assetsBalance) {
@@ -176,12 +176,12 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param accountAddress - On-chain address of the account.
    * @returns Balance fetch result.
    */
-  async fetchBalances(
+  async #fetchBalances(
     chainId: ChainId,
     accountId: AccountId,
     accountAddress: Address,
   ): Promise<BalanceFetchResult> {
-    const assets = this.getAssetsToFetch(chainId, accountId);
+    const assets = this.#getAssetsToFetch(chainId, accountId);
 
     return this.fetchBalancesForAssets(
       chainId,
