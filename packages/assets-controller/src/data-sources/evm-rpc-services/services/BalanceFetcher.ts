@@ -171,6 +171,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     const assets = this.getAssetsToFetch(chainId, accountId);
 
     return this.fetchBalancesForAssets(
+      chainId,
       accountId,
       accountAddress,
       assets,
@@ -185,6 +186,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * optional metadata (decimals, symbol), so callers never need to maintain
    * separate parallel arrays.
    *
+   * @param chainId - Hex chain ID.
    * @param accountId - Account UUID.
    * @param accountAddress - On-chain address of the account.
    * @param assets - Asset fetch entries to fetch balances for.
@@ -192,6 +194,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @returns Balance fetch result.
    */
   async fetchBalancesForAssets(
+    chainId: ChainId,
     accountId: AccountId,
     accountAddress: Address,
     assets: AssetFetchEntry[],
@@ -217,7 +220,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
     if (balanceRequests.length === 0) {
       return {
-        chainId: '0x0' as ChainId,
+        chainId,
         accountId,
         accountAddress,
         balances: [],
@@ -225,10 +228,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
         timestamp,
       };
     }
-
-    // Derive hex chainId from the first entry's asset ID
-    const chainRef = assets[0].assetId.split('/')[0].split(':')[1];
-    const chainId: ChainId = `0x${parseInt(chainRef, 10).toString(16)}`;
 
     type FetchAccumulator = {
       balances: AssetBalance[];

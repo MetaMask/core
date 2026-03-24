@@ -899,6 +899,8 @@ export class RpcDataSource extends AbstractDataSource<
       const { address, id: accountId } = account;
 
       for (const chainId of chainsForAccount) {
+        const hexChainId = caipChainIdToHex(chainId);
+
         // Build a single AssetFetchEntry[] for native + custom ERC-20s
         const nativeAssetId = this.#buildNativeAssetId(chainId);
         const assetsToFetch: AssetFetchEntry[] = [
@@ -936,6 +938,7 @@ export class RpcDataSource extends AbstractDataSource<
 
         try {
           const result = await this.#balanceFetcher.fetchBalancesForAssets(
+            hexChainId,
             accountId,
             address as Address,
             assetsToFetch,
