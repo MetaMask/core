@@ -530,6 +530,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                 },
               },
@@ -556,6 +557,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                 },
                 [expectedWalletId2Group2]: {
@@ -570,6 +572,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                 },
               },
@@ -593,6 +596,7 @@ describe('AccountTreeController', () => {
                     name: 'Snap Account 1', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                 },
               },
@@ -616,6 +620,7 @@ describe('AccountTreeController', () => {
                     name: 'Ledger Account 1', // Updated: per-wallet numbering (different wallet)
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                 },
               },
@@ -648,6 +653,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
           [expectedWalletId2Group1]: {
             name: {
@@ -662,6 +668,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
           [expectedWalletId2Group2]: {
             name: {
@@ -676,6 +683,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
           [expectedKeyringWalletIdGroup]: {
             name: {
@@ -690,6 +698,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
           [expectedSnapWalletIdGroup]: {
             name: {
@@ -704,6 +713,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
         },
         accountWalletsMetadata: {},
@@ -1199,6 +1209,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                   accounts: [mockHdAccount2.id], // HD account 1 got removed.
                 },
@@ -1230,6 +1241,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
         },
         accountWalletsMetadata: {},
@@ -1288,6 +1300,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                   accounts: [mockHdAccount2.id],
                 },
@@ -1319,6 +1332,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
         },
         accountWalletsMetadata: {},
@@ -1521,6 +1535,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                   accounts: [mockHdAccount1.id, mockHdAccount2.id], // HD account 2 got added.
                 },
@@ -1550,6 +1565,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
         },
         accountWalletsMetadata: {},
@@ -1627,6 +1643,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                   accounts: [mockHdAccount1.id],
                 },
@@ -1654,6 +1671,7 @@ describe('AccountTreeController', () => {
                     },
                     pinned: false,
                     hidden: false,
+                    lastSelected: 0,
                   },
                   accounts: [mockHdAccount2.id],
                 },
@@ -1683,6 +1701,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
           [walletId2Group]: {
             name: {
@@ -1697,6 +1716,7 @@ describe('AccountTreeController', () => {
               value: false,
               lastUpdatedAt: 0,
             },
+            lastSelected: 0,
           },
         },
         accountWalletsMetadata: {},
@@ -2084,6 +2104,428 @@ describe('AccountTreeController', () => {
       // Should return empty string when no wallets exist
       expect(controller.getSelectedAccountGroup()).toBe('');
     });
+
+    it('sets lastSelected timestamp on group when setSelectedAccountGroup is called', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const walletId2 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId2 = toMultichainAccountGroupId(
+        walletId2,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+
+      const beforeTimestamp = Date.now();
+      controller.setSelectedAccountGroup(groupId2);
+      const afterTimestamp = Date.now();
+
+      const group =
+        controller.state.accountTree.wallets[walletId2].groups[groupId2];
+      expect(group.metadata.lastSelected).toBeGreaterThanOrEqual(
+        beforeTimestamp,
+      );
+      expect(group.metadata.lastSelected).toBeLessThanOrEqual(afterTimestamp);
+
+      expect(
+        controller.state.accountGroupsMetadata[groupId2].lastSelected,
+      ).toBeGreaterThanOrEqual(beforeTimestamp);
+      expect(
+        controller.state.accountGroupsMetadata[groupId2].lastSelected,
+      ).toBeLessThanOrEqual(afterTimestamp);
+    });
+
+    it('sets lastSelected timestamp on group when selectedAccountChange event fires', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const walletId2 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId2 = toMultichainAccountGroupId(
+        walletId2,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+
+      const beforeTimestamp = Date.now();
+      messenger.publish(
+        'AccountsController:selectedAccountChange',
+        MOCK_HD_ACCOUNT_2,
+      );
+      const afterTimestamp = Date.now();
+
+      const group =
+        controller.state.accountTree.wallets[walletId2].groups[groupId2];
+      expect(group.metadata.lastSelected).toBeGreaterThanOrEqual(
+        beforeTimestamp,
+      );
+      expect(group.metadata.lastSelected).toBeLessThanOrEqual(afterTimestamp);
+
+      expect(
+        controller.state.accountGroupsMetadata[groupId2].lastSelected,
+      ).toBeGreaterThanOrEqual(beforeTimestamp);
+      expect(
+        controller.state.accountGroupsMetadata[groupId2].lastSelected,
+      ).toBeLessThanOrEqual(afterTimestamp);
+    });
+
+    it('restores lastSelected from persisted state on init', () => {
+      const walletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId1 = toMultichainAccountGroupId(
+        walletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      const persistedTimestamp = 1234567890;
+
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: {
+          accountGroupsMetadata: {
+            [groupId1]: {
+              lastSelected: persistedTimestamp,
+            },
+          },
+        },
+      });
+
+      controller.init();
+
+      const group =
+        controller.state.accountTree.wallets[walletId1].groups[groupId1];
+      expect(group.metadata.lastSelected).toBe(persistedTimestamp);
+      expect(
+        controller.state.accountGroupsMetadata[groupId1].lastSelected,
+      ).toBe(persistedTimestamp);
+    });
+
+    it('defaults lastSelected to 0 when no persisted value exists on init', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      const walletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId1 = toMultichainAccountGroupId(
+        walletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      const group =
+        controller.state.accountTree.wallets[walletId1].groups[groupId1];
+      expect(group.metadata.lastSelected).toBe(0);
+      expect(
+        controller.state.accountGroupsMetadata[groupId1].lastSelected,
+      ).toBe(0);
+    });
+
+    it('getDefaultAccountGroupId returns group with highest lastSelected when selected group is removed', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      const walletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId1 = toMultichainAccountGroupId(
+        walletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+      const walletId2 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId2 = toMultichainAccountGroupId(
+        walletId2,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+
+      // Select group2 last so it has the highest lastSelected timestamp
+      controller.setSelectedAccountGroup(groupId1);
+      controller.setSelectedAccountGroup(groupId2);
+
+      // Remove the account from group2 (currently selected)
+      messenger.publish('AccountsController:accountsRemoved', [
+        MOCK_HD_ACCOUNT_2.id,
+      ]);
+
+      // Should fall back to group1 (the next most recently selected)
+      expect(controller.getSelectedAccountGroup()).toBe(groupId1);
+    });
+
+    it('getDefaultAccountGroupId skips groups with lower lastSelected than the current candidate', () => {
+      // This test covers the false branch of: !candidate || lastSelected > candidate.lastSelected
+      // We need 3 groups where: group3 (currently selected) is removed,
+      // group1 (first in iteration) has HIGHER lastSelected than group2 (second in iteration).
+      const thirdKeyringId = 'mock-keyring-id-3';
+      const account3: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'mock-id-3',
+        address: '0xDEF',
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            id: thirdKeyringId,
+            groupIndex: 0,
+          },
+        },
+        metadata: { ...MOCK_HD_ACCOUNT_1.metadata, importTime: 2 },
+      };
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2, account3],
+        keyrings: [
+          MOCK_HD_KEYRING_1,
+          MOCK_HD_KEYRING_2,
+          {
+            type: KeyringTypes.hd,
+            metadata: { id: thirdKeyringId, name: 'HD Keyring 3' },
+            accounts: ['0xDEF'],
+          },
+        ],
+      });
+
+      controller.init();
+
+      const walletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId1 = toMultichainAccountGroupId(
+        walletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+      const walletId2 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId2 = toMultichainAccountGroupId(
+        walletId2,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+      const walletId3 = toMultichainAccountWalletId(thirdKeyringId);
+      const groupId3 = toMultichainAccountGroupId(
+        walletId3,
+        account3.options.entropy.groupIndex,
+      );
+
+      // Select G2 first (lower timestamp), then G1 (higher timestamp), then G3 (currently selected)
+      // Iteration order for getDefaultAccountGroupId: G1, G2, G3(empty)
+      // After removing G3's account:
+      //   G1: !candidate=true → branch A (first non-empty), candidate=G1
+      //   G2: !candidate=false, T2<T1 → branch B (false branch), G2 not selected
+      //   G3: accounts.length=0 → skip
+      controller.setSelectedAccountGroup(groupId2); // T2 (lower)
+      controller.setSelectedAccountGroup(groupId1); // T1 > T2 (higher)
+      controller.setSelectedAccountGroup(groupId3); // T3 (currently selected)
+
+      messenger.publish('AccountsController:accountsRemoved', [account3.id]);
+
+      // G1 has higher lastSelected than G2, so G1 wins
+      expect(controller.getSelectedAccountGroup()).toBe(groupId1);
+    });
+
+    it('getDefaultAccountGroupId selects group with strictly higher lastSelected over first group', () => {
+      // This test covers the true branch of: lastSelected > candidate.lastSelected
+      // We need 3 groups where: G3 (selected) is removed,
+      // G1 (first in iteration) has LOWER lastSelected than G2 (second in iteration).
+      const keyringId3 = 'mock-keyring-id-3-higher';
+      const account3: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'mock-id-3-higher',
+        address: '0xGHI',
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            id: keyringId3,
+            groupIndex: 0,
+          },
+        },
+        metadata: { ...MOCK_HD_ACCOUNT_1.metadata, importTime: 2 },
+      };
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2, account3],
+        keyrings: [
+          MOCK_HD_KEYRING_1,
+          MOCK_HD_KEYRING_2,
+          {
+            type: KeyringTypes.hd,
+            metadata: { id: keyringId3, name: 'HD Keyring 3 Higher' },
+            accounts: ['0xGHI'],
+          },
+        ],
+      });
+
+      controller.init();
+
+      const walletId1 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId1 = toMultichainAccountGroupId(
+        walletId1,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+      const walletId2 = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const groupId2 = toMultichainAccountGroupId(
+        walletId2,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+      const walletId3 = toMultichainAccountWalletId(keyringId3);
+      const groupId3 = toMultichainAccountGroupId(
+        walletId3,
+        account3.options.entropy.groupIndex,
+      );
+
+      // Select G1 first (low ts), G2 second (higher ts), G3 last (currently selected)
+      // Iteration order after G3 removal: G1, G2, G3(empty)
+      //   G1: !candidate=true → candidate=G1
+      //   G2: T2 > T1 → branch true (line 1365) → candidate=G2
+      //   G3: accounts.length=0 → skip
+      controller.setSelectedAccountGroup(groupId1); // T1 (lowest)
+      controller.setSelectedAccountGroup(groupId2); // T2 > T1
+      controller.setSelectedAccountGroup(groupId3); // T3 (currently selected)
+
+      messenger.publish('AccountsController:accountsRemoved', [account3.id]);
+
+      // G2 has strictly higher lastSelected than G1, so G2 wins
+      expect(controller.getSelectedAccountGroup()).toBe(groupId2);
+    });
+
+    it('getDefaultAccountGroupId prefers EVM group over non-EVM group when lastSelected timestamps are equal', () => {
+      // This test covers:
+      //   - The EVM tiebreaker branch (else if with equal timestamps)
+      //   - #groupHasEvmAccount returning false for non-EVM group
+      const trxKeyringId = 'mock-trx-keyring-tiebreaker';
+      const evmKeyringId = 'mock-evm-keyring-tiebreaker';
+      const selectedKeyringId = 'mock-selected-keyring-tiebreaker';
+
+      const trxAccount: InternalAccount = {
+        id: 'mock-trx-tiebreaker-id',
+        address: 'TRXtiebreaker',
+        options: {
+          entropy: {
+            type: KeyringAccountEntropyTypeOption.Mnemonic,
+            id: trxKeyringId,
+            groupIndex: 0,
+            derivationPath: '',
+          },
+        },
+        methods: [TrxMethod.SignMessageV2],
+        type: TrxAccountType.Eoa,
+        scopes: [TrxScope.Mainnet],
+        metadata: {
+          name: '',
+          keyring: { type: KeyringTypes.hd },
+          importTime: 0,
+          lastSelected: 0,
+        },
+      };
+
+      const evmAccount: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'mock-evm-tiebreaker-id',
+        address: '0xEVMtiebreaker',
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            id: evmKeyringId,
+            groupIndex: 0,
+          },
+        },
+        metadata: { ...MOCK_HD_ACCOUNT_1.metadata, importTime: 1 },
+      };
+
+      const selectedAccount: Bip44Account<InternalAccount> = {
+        ...MOCK_HD_ACCOUNT_1,
+        id: 'mock-selected-tiebreaker-id',
+        address: '0xSELtiebreaker',
+        options: {
+          ...MOCK_HD_ACCOUNT_1.options,
+          entropy: {
+            ...MOCK_HD_ACCOUNT_1.options.entropy,
+            id: selectedKeyringId,
+            groupIndex: 0,
+          },
+        },
+        metadata: { ...MOCK_HD_ACCOUNT_1.metadata, importTime: 2 },
+      };
+
+      const { controller, messenger } = setup({
+        accounts: [trxAccount, evmAccount, selectedAccount],
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            metadata: { id: trxKeyringId, name: 'TRX Keyring' },
+            accounts: ['TRXtiebreaker'],
+          },
+          {
+            type: KeyringTypes.hd,
+            metadata: { id: evmKeyringId, name: 'EVM Keyring' },
+            accounts: ['0xEVMtiebreaker'],
+          },
+          {
+            type: KeyringTypes.hd,
+            metadata: { id: selectedKeyringId, name: 'Selected Keyring' },
+            accounts: ['0xSELtiebreaker'],
+          },
+        ],
+      });
+
+      controller.init();
+
+      const trxWalletId = toMultichainAccountWalletId(trxKeyringId);
+      const trxGroupId = toMultichainAccountGroupId(trxWalletId, 0);
+      const evmWalletId = toMultichainAccountWalletId(evmKeyringId);
+      const evmGroupId = toMultichainAccountGroupId(evmWalletId, 0);
+      const selectedWalletId = toMultichainAccountWalletId(selectedKeyringId);
+      const selectedGroupId = toMultichainAccountGroupId(selectedWalletId, 0);
+
+      // Only select the third group so TRX and EVM groups keep lastSelected=0
+      controller.setSelectedAccountGroup(selectedGroupId);
+
+      // Remove the selected account — triggers #getDefaultAccountGroupId
+      // Iteration order: TRX group (importTime=0), EVM group (importTime=1), selected (empty)
+      //   TRX: !candidate=true → candidate=TRX
+      //   EVM: T equal (0===0), #groupHasEvmAccount(EVM)=true, !#groupHasEvmAccount(TRX)=true
+      //        → EVM tiebreaker (line 1371) → candidate=EVM
+      //        → #groupHasEvmAccount(TRX) returns false (line 1391)
+      //   selected: accounts.length=0 → skip
+      messenger.publish('AccountsController:accountsRemoved', [
+        selectedAccount.id,
+      ]);
+
+      // EVM group wins via tiebreaker even though both have lastSelected=0
+      expect(controller.getSelectedAccountGroup()).toBe(evmGroupId);
+
+      // Also verify TRX group is still present (only selected group was removed)
+      const { state } = controller;
+      expect(state.accountTree.wallets[trxWalletId]).toBeDefined();
+      expect(
+        state.accountTree.wallets[trxWalletId].groups[trxGroupId],
+      ).toBeDefined();
+    });
   });
 
   describe('account removal and memory management', () => {
@@ -2267,6 +2709,7 @@ describe('AccountTreeController', () => {
           value: false,
           lastUpdatedAt: 0,
         },
+        lastSelected: 0,
       });
     });
 
@@ -2420,6 +2863,7 @@ describe('AccountTreeController', () => {
           value: false,
           lastUpdatedAt: 0,
         },
+        lastSelected: 0,
       });
     });
 
@@ -2461,6 +2905,7 @@ describe('AccountTreeController', () => {
           value: true,
           lastUpdatedAt: expect.any(Number),
         },
+        lastSelected: 0,
       });
     });
 
@@ -5002,6 +5447,7 @@ describe('AccountTreeController', () => {
             value: false,
             lastUpdatedAt: 0,
           },
+          lastSelected: 0,
         });
       });
 
@@ -5051,6 +5497,7 @@ describe('AccountTreeController', () => {
             value: false,
             lastUpdatedAt: 0,
           },
+          lastSelected: 0,
         });
       });
 
@@ -5100,6 +5547,7 @@ describe('AccountTreeController', () => {
             value: true,
             lastUpdatedAt: 0,
           },
+          lastSelected: 0,
         });
       });
 

@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { StatusTypes } from '@metamask/bridge-controller';
+import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import {
+  getIntentFromQuote,
   IntentApiImpl,
   mapIntentOrderStatusToTransactionStatus,
+  postSubmitOrder,
   translateIntentOrderToBridgeStatus,
 } from './intent-api';
 import type { IntentSubmissionParams } from './intent-api';
@@ -13,10 +15,10 @@ import type { FetchFunction } from '../types';
 
 describe('IntentApiImpl', () => {
   const baseUrl = 'https://example.com/api';
-  const clientId = 'client-id';
+  const clientId = BridgeClientId.MOBILE;
 
   const makeParams = (): IntentSubmissionParams => ({
-    srcChainId: '1',
+    srcChainId: 1,
     quoteId: 'quote-123',
     signature: '0xsig',
     order: { some: 'payload' },
@@ -38,10 +40,15 @@ describe('IntentApiImpl', () => {
 
   it('submitIntent calls POST /submitOrder with JSON body and returns response', async () => {
     const fetchFn = makeFetchMock().mockResolvedValue(validIntentOrderResponse);
-    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     const params = makeParams();
-    const result = await api.submitIntent(params, clientId);
+    const result = await postSubmitOrder({
+      params,
+      clientId,
+      jwt: undefined,
+      fetchFn,
+      bridgeApiBaseUrl: baseUrl,
+    });
 
     expect(result).toStrictEqual(validIntentOrderResponse);
     expect(fetchFn).toHaveBeenCalledTimes(1);
@@ -57,20 +64,28 @@ describe('IntentApiImpl', () => {
 
   it('submitIntent rethrows Errors with a prefixed message', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('boom'));
-    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
-
-    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
-      'Failed to submit intent: boom',
-    );
+    await expect(
+      postSubmitOrder({
+        params: makeParams(),
+        clientId,
+        jwt: undefined,
+        fetchFn,
+        bridgeApiBaseUrl: baseUrl,
+      }),
+    ).rejects.toThrow('Failed to submit intent: boom');
   });
 
   it('submitIntent throws generic error when rejection is not an Error', async () => {
     const fetchFn = makeFetchMock().mockRejectedValue('boom');
-    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
-
-    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
-      'Failed to submit intent',
-    );
+    await expect(
+      postSubmitOrder({
+        params: makeParams(),
+        clientId,
+        jwt: undefined,
+        fetchFn,
+        bridgeApiBaseUrl: baseUrl,
+      }),
+    ).rejects.toThrow('Failed to submit intent');
   });
 
   it('getOrderStatus calls GET /getOrderStatus with encoded query params and returns response', async () => {
@@ -79,7 +94,7 @@ describe('IntentApiImpl', () => {
 
     const orderId = 'order-1';
     const aggregatorId = 'My Agg/With Spaces';
-    const srcChainId = '10';
+    const srcChainId = 10;
 
     const result = await api.getOrderStatus(
       orderId,
@@ -109,7 +124,7 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockRejectedValue(new Error('nope'));
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
-    await expect(api.getOrderStatus('o', 'a', '1', clientId)).rejects.toThrow(
+    await expect(api.getOrderStatus('o', 'a', 1, clientId)).rejects.toThrow(
       'Failed to get order status: nope',
     );
   });
@@ -118,7 +133,7 @@ describe('IntentApiImpl', () => {
     const fetchFn = makeFetchMock().mockRejectedValue({ message: 'nope' });
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
-    await expect(api.getOrderStatus('o', 'a', '1', clientId)).rejects.toThrow(
+    await expect(api.getOrderStatus('o', 'a', 1, clientId)).rejects.toThrow(
       'Failed to get order status',
     );
   });
@@ -128,11 +143,15 @@ describe('IntentApiImpl', () => {
       foo: 'bar', // invalid IntentOrder shape
     } as any);
 
-    const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
-
-    await expect(api.submitIntent(makeParams(), clientId)).rejects.toThrow(
-      'Failed to submit intent: Invalid submitOrder response',
-    );
+    await expect(
+      postSubmitOrder({
+        params: makeParams(),
+        clientId,
+        jwt: undefined,
+        fetchFn,
+        bridgeApiBaseUrl: baseUrl,
+      }),
+    ).rejects.toThrow('Failed to submit intent: Invalid submitOrder response');
   });
 
   it('getOrderStatus throws when response fails validation', async () => {
@@ -143,7 +162,7 @@ describe('IntentApiImpl', () => {
     const api = new IntentApiImpl(baseUrl, fetchFn, makeGetJwtMock());
 
     await expect(
-      api.getOrderStatus('order-1', 'agg', '1', clientId),
+      api.getOrderStatus('order-1', 'agg', 1, clientId),
     ).rejects.toThrow(
       'Failed to get order status: Invalid getOrderStatus response',
     );
@@ -243,7 +262,7 @@ describe('IntentApiImpl', () => {
       expect(translation.status.srcChain.txHash).toBe('0xfallback');
     });
 
-    it('returns empty txHash when neither intentOrder.txHash nor fallback exist', () => {
+    it('returns undefined txHash when neither intentOrder.txHash nor fallback exist', () => {
       const translation = translateIntentOrderToBridgeStatus(
         {
           id: 'order-nohash',
@@ -253,8 +272,8 @@ describe('IntentApiImpl', () => {
         1,
       );
 
-      expect(translation.txHash).toBe('');
-      expect(translation.status.srcChain.txHash).toBe('');
+      expect(translation.txHash).toBeUndefined();
+      expect(translation.status.srcChain.txHash).toBeUndefined();
     });
 
     it('maps confirmed intent to COMPLETE status', () => {
@@ -314,6 +333,48 @@ describe('IntentApiImpl', () => {
       expect(
         mapIntentOrderStatusToTransactionStatus(IntentOrderStatus.CANCELLED),
       ).toBe(TransactionStatus.failed);
+    });
+  });
+
+  describe('getIntentFromQuote', () => {
+    it('returns intent when present in quote response', () => {
+      const mockIntent = { protocol: 'cowswap', order: { some: 'data' } };
+      const quoteResponse = {
+        quote: {
+          intent: mockIntent,
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(getIntentFromQuote(quoteResponse)).toBe(mockIntent);
+    });
+
+    it('throws error when intent is missing from quote', () => {
+      const quoteResponse = {
+        quote: {
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(() => getIntentFromQuote(quoteResponse)).toThrow(
+        'submitIntent: missing intent data',
+      );
+    });
+
+    it('throws error when intent is undefined', () => {
+      const quoteResponse = {
+        quote: {
+          intent: undefined,
+          srcChainId: 1,
+          destChainId: 1,
+        },
+      } as never;
+
+      expect(() => getIntentFromQuote(quoteResponse)).toThrow(
+        'submitIntent: missing intent data',
+      );
     });
   });
 });

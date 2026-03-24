@@ -52,7 +52,7 @@
     "@metamask/controller-utils": "^11.19.0",
     "@metamask/messenger": "^0.3.0",
     "@metamask/signature-controller": "^39.1.0",
-    "@metamask/transaction-controller": "^63.0.0",
+    "@metamask/transaction-controller": "^63.1.0",
     "@metamask/utils": "^11.9.0",
     "cockatiel": "^3.1.2"
   },

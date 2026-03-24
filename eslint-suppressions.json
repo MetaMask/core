@@ -621,11 +621,6 @@
       "count": 3
     }
   },
-  "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
-    }
-  },
   "packages/chain-agnostic-permission/src/caip25Permission.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 11
