@@ -979,13 +979,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
     );
-    // Emit Submitted event after submit button is clicked
-    !quoteResponse.featureId &&
-      this.#trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.Submitted,
-        undefined,
-        preConfirmationProperties,
-      );
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
     let approvalTxId: string | undefined;
@@ -999,6 +992,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const isTronTx = isTronChainId(quoteResponse.quote.srcChainId);
 
     try {
+      // Emit Submitted event after submit button is clicked
+      !quoteResponse.featureId &&
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.Submitted,
+          undefined,
+          preConfirmationProperties,
+        );
       // Submit non-EVM tx (Solana, BTC, Tron)
       if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
         // Handle non-EVM approval if present (e.g., Tron token approvals)
