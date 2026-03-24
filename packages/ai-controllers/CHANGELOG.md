@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `MarketInsightsReport` now includes an optional `digestId` field containing the unique UUID returned in the `/asset-summary` API response envelope ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
-- `MarketOverview` now includes an optional `digestId` field containing the unique UUID returned in the `/market-overview` API response envelope ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
-- `AiDigestService` now extracts the `id` field from `{ id, digest }` and `{ id, report }` envelope responses and exposes it as `digestId` on the returned report objects ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+- `MarketInsightsReport` now includes a required `digestId` field containing the unique UUID returned in the `/asset-summary` API response envelope ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+- `MarketOverview` now includes a required `digestId` field containing the unique UUID returned in the `/market-overview` API response envelope ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+- `AiDigestService` now requires the `{ id, digest }` / `{ id, report }` envelope shape and exposes `id` as `digestId` on the returned report objects; bare (non-enveloped) responses are no longer accepted ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
 
 ## [0.5.0]
 
