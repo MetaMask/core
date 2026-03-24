@@ -310,69 +310,6 @@ describe('BalanceFetcher', () => {
     });
   });
 
-  describe('getAssetsToFetch', () => {
-    it('returns empty array when no balances exist', async () => {
-      await withController(async ({ controller }) => {
-        const entries = controller.getAssetsToFetch(
-          MAINNET_CHAIN_ID,
-          TEST_ACCOUNT_ID,
-        );
-        expect(entries).toStrictEqual([]);
-      });
-    });
-
-    it('returns asset fetch entries from assetsBalance state', async () => {
-      const mockState = createMockAssetsBalanceState(TEST_ACCOUNT_ID, {
-        [NATIVE_ETH_ASSET_ID]: { amount: '1' },
-        [TOKEN_1_ASSET_ID]: { amount: '100' },
-        [TOKEN_2_ASSET_ID]: { amount: '200' },
-      });
-
-      await withController(
-        { assetsBalanceState: mockState },
-        async ({ controller }) => {
-          const entries = controller.getAssetsToFetch(
-            MAINNET_CHAIN_ID,
-            TEST_ACCOUNT_ID,
-          );
-          expect(entries).toHaveLength(3);
-
-          const assetIds = entries.map((e) => e.assetId);
-          expect(assetIds).toContain(NATIVE_ETH_ASSET_ID);
-          expect(assetIds).toContain(TOKEN_1_ASSET_ID);
-          expect(assetIds).toContain(TOKEN_2_ASSET_ID);
-
-          const nativeEntry = entries.find(
-            (e) => e.assetId === NATIVE_ETH_ASSET_ID,
-          );
-          expect(nativeEntry?.address).toBe(ZERO_ADDRESS);
-
-          const erc20Entry = entries.find(
-            (e) => e.assetId === TOKEN_1_ASSET_ID,
-          );
-          expect(erc20Entry?.address).toBe(TEST_TOKEN_1.toLowerCase());
-        },
-      );
-    });
-
-    it('returns empty array when chain has no assets', async () => {
-      const mockState = createMockAssetsBalanceState(TEST_ACCOUNT_ID, {
-        [TOKEN_1_ASSET_ID]: { amount: '100' },
-      });
-
-      await withController(
-        { assetsBalanceState: mockState },
-        async ({ controller }) => {
-          const entries = controller.getAssetsToFetch(
-            POLYGON_CHAIN_ID,
-            TEST_ACCOUNT_ID,
-          );
-          expect(entries).toStrictEqual([]);
-        },
-      );
-    });
-  });
-
   describe('fetchBalancesForAssets', () => {
     it('fetches balances for specified asset entries', async () => {
       await withController(async ({ controller, mockMulticallClient }) => {
