@@ -7,7 +7,6 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
@@ -33,7 +32,6 @@ export type UpdateGasFeesRequest = {
   ) => Promise<GasFeeState>;
   getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
   messenger: TransactionControllerMessenger;
-  networkClientId: NetworkClientId;
   txMeta: TransactionMeta;
 };
 
@@ -347,14 +345,9 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta): void {
 async function getSuggestedGasFees(
   request: UpdateGasFeesRequest,
 ): Promise<SuggestedGasFees> {
-  const {
-    eip1559,
-    gasFeeFlows,
-    getGasFeeEstimates,
-    messenger,
-    networkClientId,
-    txMeta,
-  } = request;
+  const { eip1559, gasFeeFlows, getGasFeeEstimates, messenger, txMeta } =
+    request;
+  const { networkClientId } = txMeta;
 
   if (
     (!eip1559 && txMeta.txParams.gasPrice) ||
@@ -375,7 +368,6 @@ async function getSuggestedGasFees(
     const gasFeeControllerData = await getGasFeeEstimates({ networkClientId });
 
     const response = await gasFeeFlow.getGasFees({
-      networkClientId,
       gasFeeControllerData,
       messenger,
       transactionMeta: txMeta,
@@ -403,11 +395,11 @@ async function getSuggestedGasFees(
     log('Failed to get suggested gas fees', error);
   }
 
-  const gasPriceHex = (await rpcRequest(
+  const gasPriceHex = (await rpcRequest({
     messenger,
-    { networkClientId },
-    'eth_gasPrice',
-  )) as Hex | undefined;
+    networkClientId,
+    method: 'eth_gasPrice',
+  })) as Hex | undefined;
 
   const gasPrice = gasPriceHex ? add0x(gasPriceHex) : undefined;
 

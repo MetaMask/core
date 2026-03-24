@@ -78,8 +78,20 @@ function createTransactionPollerMock(): jest.Mocked<TransactionPoller> {
  */
 function createMessengerMock(): jest.Mocked<TransactionControllerMessenger> {
   return {
-    call: jest.fn().mockReturnValue({
-      remoteFeatureFlags: {},
+    call: jest.fn().mockImplementation((method: string) => {
+      if (method === 'NetworkController:getNetworkClientById') {
+        return {
+          configuration: { chainId: CHAIN_ID_MOCK },
+        };
+      }
+
+      if (method === 'RemoteFeatureFlagController:getState') {
+        return {
+          remoteFeatureFlags: {},
+        };
+      }
+
+      return undefined;
     }),
   } as unknown as jest.Mocked<TransactionControllerMessenger>;
 }
@@ -94,9 +106,21 @@ function mockFeatureFlags(
   messenger: jest.Mocked<TransactionControllerMessenger>,
   featureFlags: Json,
 ): void {
-  (messenger.call as jest.Mock).mockReturnValue({
-    remoteFeatureFlags: featureFlags,
-  } as never);
+  (messenger.call as jest.Mock).mockImplementation((method: string) => {
+    if (method === 'NetworkController:getNetworkClientById') {
+      return {
+        configuration: { chainId: CHAIN_ID_MOCK },
+      };
+    }
+
+    if (method === 'RemoteFeatureFlagController:getState') {
+      return {
+        remoteFeatureFlags: featureFlags,
+      };
+    }
+
+    return undefined;
+  });
 }
 
 describe('PendingTransactionTracker', () => {
@@ -146,32 +170,29 @@ describe('PendingTransactionTracker', () => {
 
     jest.mocked(TransactionPoller).mockImplementation(() => transactionPoller);
 
-    jest
-      .mocked(rpcRequest)
-      .mockImplementation(async (_messenger, _metadata, method, params) => {
-        const args = Array.isArray(params) ? params : [];
+    jest.mocked(rpcRequest).mockImplementation(async ({ method, params }) => {
+      const args = Array.isArray(params) ? params : [];
 
-        switch (method) {
-          case 'eth_getTransactionReceipt':
-            return getTransactionReceiptMock(...args);
-          case 'eth_getTransactionByHash':
-            return getTransactionByHashMock(...args);
-          case 'eth_getTransactionCount':
-            return getTransactionCountMock(...args);
-          case 'eth_getBlockByHash':
-            return getBlockByHashMock(...args);
-          default:
-            return undefined;
-        }
-      });
+      switch (method) {
+        case 'eth_getTransactionReceipt':
+          return getTransactionReceiptMock(...args);
+        case 'eth_getTransactionByHash':
+          return getTransactionByHashMock(...args);
+        case 'eth_getTransactionCount':
+          return getTransactionCountMock(...args);
+        case 'eth_getBlockByHash':
+          return getBlockByHashMock(...args);
+        default:
+          return undefined;
+      }
+    });
 
     options = {
       blockTracker,
-      getChainId: jest.fn(() => CHAIN_ID_MOCK),
-      getNetworkClientId: jest.fn(() => NETWORK_CLIENT_ID_MOCK),
       getTransactions: jest.fn(),
       getGlobalLock: jest.fn(() => Promise.resolve(jest.fn())),
       isTimeoutEnabled: jest.fn((_transactionMeta: TransactionMeta) => true),
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
       publishTransaction: jest.fn(),
       messenger,
     };

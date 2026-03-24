@@ -73,7 +73,8 @@ export class LineaGasFeeFlow implements GasFeeFlow {
   async #getLineaGasFees(
     request: GasFeeFlowRequest,
   ): Promise<GasFeeFlowResponse> {
-    const { messenger, networkClientId, transactionMeta } = request;
+    const { messenger, transactionMeta } = request;
+    const { networkClientId } = transactionMeta;
 
     const lineaResponse = await this.#getLineaResponse(
       transactionMeta,
@@ -120,14 +121,19 @@ export class LineaGasFeeFlow implements GasFeeFlow {
     messenger: TransactionControllerMessenger,
     networkClientId: NetworkClientId,
   ): Promise<LineaEstimateGasResponse> {
-    return rpcRequest(messenger, { networkClientId }, 'linea_estimateGas', [
-      {
-        from: transactionMeta.txParams.from,
-        to: transactionMeta.txParams.to ?? null,
-        value: transactionMeta.txParams.value ?? null,
-        input: transactionMeta.txParams.data ?? null,
-      },
-    ]) as Promise<LineaEstimateGasResponse>;
+    return rpcRequest({
+      messenger,
+      networkClientId,
+      method: 'linea_estimateGas',
+      params: [
+        {
+          from: transactionMeta.txParams.from,
+          to: transactionMeta.txParams.to ?? null,
+          value: transactionMeta.txParams.value ?? null,
+          input: transactionMeta.txParams.data ?? null,
+        },
+      ],
+    }) as Promise<LineaEstimateGasResponse>;
   }
 
   #getValuesFromMultipliers(

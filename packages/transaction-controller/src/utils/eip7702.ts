@@ -59,12 +59,12 @@ export async function getDelegationAddress(
   messenger: TransactionControllerMessenger,
   networkClientId: NetworkClientId,
 ): Promise<Hex | undefined> {
-  const code = (await rpcRequest(
+  const code = (await rpcRequest({
     messenger,
-    { networkClientId },
-    'eth_getCode',
-    [address, 'latest'],
-  )) as string;
+    networkClientId,
+    method: 'eth_getCode',
+    params: [address, 'latest'],
+  })) as string;
   const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
 
   const hasDelegation =

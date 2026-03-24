@@ -169,7 +169,7 @@ import {
   getNextNonce,
 } from './utils/nonce';
 import { prepareTransaction, serializeTransaction } from './utils/prepare';
-import { getProvider, rpcRequest } from './utils/provider';
+import { getChainId, getNetworkClientId, rpcRequest } from './utils/provider';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import {
   updatePostTransactionBalance,
@@ -1009,7 +1009,6 @@ export class TransactionController extends BaseController<
     this.#layer1GasFeeFlows = this.#getLayer1GasFeeFlows();
 
     const gasFeePoller = new GasFeePoller({
-      findNetworkClientIdByChainId,
       gasFeeFlows: this.#gasFeeFlows,
       getGasFeeControllerEstimates: this.#getGasFeeEstimates,
       getTransactions: (): TransactionMeta[] => this.state.transactions,
@@ -1033,8 +1032,7 @@ export class TransactionController extends BaseController<
     );
 
     this.#methodDataHelper = new MethodDataHelper({
-      getProvider: (networkClientId): Provider =>
-        this.#getProvider({ networkClientId }),
+      messenger: this.messenger,
       getState: (): Record<string, MethodData> => this.state.methodData,
     });
 
@@ -1129,15 +1127,12 @@ export class TransactionController extends BaseController<
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
       estimateGas: this.estimateGas.bind(this),
-      getChainId: this.#getChainId.bind(this),
       getGasFeeEstimates: this.#getGasFeeEstimates,
       getInternalAccounts: this.#getInternalAccounts.bind(this),
       getSimulationConfig: this.#getSimulationConfig.bind(this),
       getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
         this.#createPendingTransactionTracker({
-          provider: this.#getProvider({ networkClientId }),
           blockTracker,
-          chainId: this.#getChainId(networkClientId),
           networkClientId,
         }),
       getTransaction: (transactionId) =>
@@ -1218,7 +1213,7 @@ export class TransactionController extends BaseController<
       throw new Error(`Network client not found - ${networkClientId}`);
     }
 
-    const chainId = this.#getChainId(networkClientId);
+    const chainId = getChainId({ messenger: this.messenger, networkClientId });
 
     const permittedAddresses =
       origin === undefined
@@ -1681,7 +1676,6 @@ export class TransactionController extends BaseController<
     simulationFails: TransactionMeta['simulationFails'];
   }> {
     const { estimatedGas, simulationFails } = await estimateGas({
-      chainId: this.#getChainId(networkClientId),
       ignoreDelegationSignatures,
       isSimulationEnabled: this.#isSimulationEnabled(),
       getSimulationConfig: this.#getSimulationConfig,
@@ -1712,12 +1706,14 @@ export class TransactionController extends BaseController<
     transactions: BatchTransactionParams[];
   }): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
     return estimateGasBatch({
-      chainId,
       from,
       getSimulationConfig: this.#getSimulationConfig,
       isAtomicBatchSupported: this.isAtomicBatchSupported.bind(this),
       messenger: this.messenger,
-      networkClientId: this.#getNetworkClientId({ chainId }),
+      networkClientId: getNetworkClientId({
+        messenger: this.messenger,
+        chainId,
+      }),
       transactions,
     });
   }
@@ -1739,7 +1735,6 @@ export class TransactionController extends BaseController<
     simulationFails: TransactionMeta['simulationFails'];
   }> {
     const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas({
-      chainId: this.#getChainId(networkClientId),
       isSimulationEnabled: this.#isSimulationEnabled(),
       getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
@@ -2197,7 +2192,6 @@ export class TransactionController extends BaseController<
     const updatedTransaction = merge({}, transactionMeta, editableParams);
 
     const { networkClientId } = transactionMeta;
-    const provider = this.#getProvider({ networkClientId });
 
     if (updateType !== false) {
       const { type } = await determineTransactionType(
@@ -2218,7 +2212,6 @@ export class TransactionController extends BaseController<
     await updateTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.messenger,
-      provider,
       transactionMeta: updatedTransaction,
     });
 
@@ -2277,7 +2270,10 @@ export class TransactionController extends BaseController<
 
     const initialTx = listOfTxParams[0];
     const { chainId } = initialTx;
-    const networkClientId = this.#getNetworkClientId({ chainId });
+    const networkClientId = getNetworkClientId({
+      messenger: this.messenger,
+      chainId,
+    });
     const initialTxAsEthTx = prepareTransaction(chainId, initialTx);
     const initialTxAsSerializedHex = serializeTransaction(initialTxAsEthTx);
 
@@ -2562,7 +2558,6 @@ export class TransactionController extends BaseController<
     return gasFeeFlow.getGasFees({
       gasFeeControllerData,
       messenger: this.messenger,
-      networkClientId,
       transactionMeta,
     });
   }
@@ -2585,7 +2580,8 @@ export class TransactionController extends BaseController<
     chainId?: Hex;
     networkClientId?: NetworkClientId;
   }): Promise<Hex | undefined> {
-    const provider = this.#getProvider({
+    const resolvedNetworkClientId = getNetworkClientId({
+      messenger: this.messenger,
       chainId,
       networkClientId,
     });
@@ -2593,10 +2589,10 @@ export class TransactionController extends BaseController<
     return await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.messenger,
-      provider,
       transactionMeta: {
         txParams: transactionParams,
         chainId,
+        networkClientId: resolvedNetworkClientId,
       } as TransactionMeta,
     });
   }
@@ -2906,9 +2902,6 @@ export class TransactionController extends BaseController<
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy &&
       (await this.#getEIP1559Compatibility(transactionMeta.networkClientId));
 
-    const { networkClientId } = transactionMeta;
-    const provider = this.#getProvider({ networkClientId });
-
     await this.#trace(
       { name: 'Update Gas', parentContext: traceContext },
       async () => {
@@ -2925,7 +2918,6 @@ export class TransactionController extends BaseController<
           getGasFeeEstimates: this.#getGasFeeEstimates,
           getSavedGasFees: this.#getSavedGasFees.bind(this),
           messenger: this.messenger,
-          networkClientId,
           txMeta: transactionMeta,
         }),
     );
@@ -2936,7 +2928,6 @@ export class TransactionController extends BaseController<
         await updateTransactionLayer1GasFee({
           layer1GasFeeFlows: this.#layer1GasFeeFlows,
           messenger: this.messenger,
-          provider,
           transactionMeta,
         }),
     );
@@ -3244,12 +3235,12 @@ export class TransactionController extends BaseController<
       if (shouldUpdatePreTxBalance) {
         log('Determining pre-transaction balance');
 
-        preTxBalance = (await rpcRequest(
-          this.messenger,
-          { networkClientId },
-          'eth_getBalance',
-          [transactionMeta.txParams.from, 'latest'],
-        )) as string;
+        preTxBalance = (await rpcRequest({
+          messenger: this.messenger,
+          networkClientId,
+          method: 'eth_getBalance',
+          params: [transactionMeta.txParams.from, 'latest'],
+        })) as string;
       }
 
       log('Publishing transaction', transactionMeta.txParams);
@@ -3330,12 +3321,12 @@ export class TransactionController extends BaseController<
         throw new Error('Missing raw transaction');
       }
 
-      const transactionHash = (await rpcRequest(
-        this.messenger,
-        { networkClientId },
-        'eth_sendRawTransaction',
-        [rawTx],
-      )) as string;
+      const transactionHash = (await rpcRequest({
+        messenger: this.messenger,
+        networkClientId,
+        method: 'eth_sendRawTransaction',
+        params: [rawTx],
+      })) as string;
 
       if (skipSubmitHistory !== true) {
         this.#updateSubmitHistory(transactionMeta, transactionHash);
@@ -3550,37 +3541,6 @@ export class TransactionController extends BaseController<
     return { meta: transaction, isCompleted };
   }
 
-  #getChainId(networkClientId: NetworkClientId): Hex {
-    return this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
-      .configuration.chainId;
-  }
-
-  #getNetworkClientId({
-    chainId,
-    networkClientId,
-  }: {
-    chainId?: Hex;
-    networkClientId?: NetworkClientId;
-  }): NetworkClientId {
-    if (networkClientId) {
-      return networkClientId;
-    }
-
-    return this.#multichainTrackingHelper.getNetworkClient({
-      chainId,
-    }).id;
-  }
-
-  #getProvider({
-    chainId,
-    networkClientId,
-  }: {
-    chainId?: Hex;
-    networkClientId?: NetworkClientId;
-  }): Provider {
-    return getProvider(this.messenger, { chainId, networkClientId });
-  }
-
   #onIncomingTransactions(transactions: TransactionMeta[]): void {
     if (!transactions.length) {
       return;
@@ -3592,7 +3552,10 @@ export class TransactionController extends BaseController<
       const { chainId } = tx;
 
       try {
-        const networkClientId = this.#getNetworkClientId({ chainId });
+        const networkClientId = getNetworkClientId({
+          messenger: this.messenger,
+          chainId,
+        });
 
         finalTransactions.push({
           ...tx,
@@ -4046,24 +4009,20 @@ export class TransactionController extends BaseController<
   }
 
   #createPendingTransactionTracker({
-    provider: _provider,
     blockTracker,
-    chainId,
     networkClientId,
   }: {
-    provider: Provider;
     blockTracker: BlockTracker;
-    chainId: Hex;
     networkClientId: NetworkClientId;
   }): PendingTransactionTracker {
+    const chainId = getChainId({ messenger: this.messenger, networkClientId });
+
     const pendingTransactionTracker = new PendingTransactionTracker({
       blockTracker,
-      getChainId: (): Hex => chainId,
       getGlobalLock: (): Promise<() => void> =>
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId,
         }),
-      getNetworkClientId: (): NetworkClientId => networkClientId,
       getTransactions: (): TransactionMeta[] => this.state.transactions,
       hooks: {
         beforeCheckPendingTransaction:
@@ -4072,6 +4031,7 @@ export class TransactionController extends BaseController<
       isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
       isTimeoutEnabled: this.#isTimeoutEnabled,
       messenger: this.messenger,
+      networkClientId,
       publishTransaction: (transactionMeta): Promise<string> =>
         this.#publishTransaction(transactionMeta, {
           skipSubmitHistory: true,
@@ -4475,19 +4435,17 @@ export class TransactionController extends BaseController<
   }
 
   async #updateGasEstimate(transactionMeta: TransactionMeta): Promise<void> {
-    const { chainId, networkClientId } = transactionMeta;
+    const { networkClientId } = transactionMeta;
 
     const isCustomNetwork =
       this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
         .configuration.type === NetworkClientType.Custom;
 
     await updateGas({
-      chainId,
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
       getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
-      networkClientId,
       txMeta: transactionMeta,
     });
   }
@@ -4682,7 +4640,10 @@ export class TransactionController extends BaseController<
     request: GetGasFeeTokensRequest,
   ): Promise<GasFeeToken[]> {
     const { chainId, data, from, to, value } = request;
-    const networkClientId = this.#getNetworkClientId({ chainId });
+    const networkClientId = getNetworkClientId({
+      messenger: this.messenger,
+      chainId,
+    });
     const delegationAddress = await getDelegationAddress(
       from,
       this.messenger,

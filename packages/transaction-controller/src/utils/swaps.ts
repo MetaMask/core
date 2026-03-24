@@ -261,12 +261,12 @@ export async function updatePostTransactionBalance(
   for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
     log('Querying balance', { attempt: i });
 
-    const postTransactionBalance = (await rpcRequest(
+    const postTransactionBalance = (await rpcRequest({
       messenger,
-      { networkClientId },
-      'eth_getBalance',
-      [transactionMeta.txParams.from, 'latest'],
-    )) as string;
+      networkClientId,
+      method: 'eth_getBalance',
+      params: [transactionMeta.txParams.from, 'latest'],
+    })) as string;
 
     latestTransactionMeta = {
       ...(getTransaction(transactionId) ?? ({} as TransactionMeta)),

@@ -168,12 +168,12 @@ async function readAddressAsContract(
 }> {
   let contractCode;
   try {
-    contractCode = (await rpcRequest(
+    contractCode = (await rpcRequest({
       messenger,
-      { networkClientId },
-      'eth_getCode',
-      [address as string, 'latest'],
-    )) as string;
+      networkClientId,
+      method: 'eth_getCode',
+      params: [address as string, 'latest'],
+    })) as string;
     // Not used
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {

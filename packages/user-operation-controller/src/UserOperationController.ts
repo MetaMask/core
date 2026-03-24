@@ -774,8 +774,7 @@ export class UserOperationController extends BaseController<
     }
 
     const result = await determineTransactionType(transaction, {
-      messenger:
-        this.messenger as unknown as TransactionControllerMessenger,
+      messenger: this.messenger as unknown as TransactionControllerMessenger,
       networkClientId: options.networkClientId,
     });
 

@@ -30,6 +30,7 @@ import {
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
+import { getChainId } from './provider';
 import { validateBatchRequest } from './validation';
 import {
   determineTransactionType,
@@ -76,7 +77,6 @@ type UpdateStateCallback = (
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   estimateGas: TransactionController['estimateGas'];
-  getChainId: (networkClientId: string) => Hex;
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
@@ -281,7 +281,6 @@ async function addTransactionBatchWith7702(
 ): Promise<TransactionBatchResult> {
   const {
     addTransaction,
-    getChainId,
     messenger,
     publicKeyEIP7702,
     request: userRequest,
@@ -305,7 +304,7 @@ async function addTransactionBatchWith7702(
     validateSecurity,
   } = userRequest;
 
-  const chainId = getChainId(networkClientId);
+  const chainId = getChainId({ messenger, networkClientId });
   const isChainSupported = doesChainSupportEIP7702(chainId, messenger);
 
   if (!isChainSupported) {
@@ -842,7 +841,6 @@ async function prepareApprovalData({
     messenger,
     request: userRequest,
     isSimulationEnabled,
-    getChainId,
     getGasFeeEstimates,
     getSimulationConfig,
     update,
@@ -861,7 +859,7 @@ async function prepareApprovalData({
     );
   }
   log('Preparing approval data for batch');
-  const chainId = getChainId(networkClientId);
+  const chainId = getChainId({ messenger, networkClientId });
 
   const { totalGasLimit: gasLimit } = await simulateGasBatch({
     chainId,
@@ -888,7 +886,6 @@ async function prepareApprovalData({
   const gasFeeResponse = await defaultGasFeeFlow.getGasFees({
     gasFeeControllerData,
     messenger,
-    networkClientId,
     transactionMeta: {
       ...txBatchMeta,
       txParams: {

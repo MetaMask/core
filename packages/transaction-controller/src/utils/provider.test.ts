@@ -44,12 +44,12 @@ describe('provider utils', () => {
       const networkClientId = 'networkClientIdA' as NetworkClientId;
       const params = ['0x123', 'latest'];
 
-      const result = await rpcRequest(
-        messengerMock,
-        { networkClientId },
-        'eth_getBalance',
+      const result = await rpcRequest({
+        messenger: messengerMock,
+        networkClientId,
+        method: 'eth_getBalance',
         params,
-      );
+      });
 
       expect(result).toBe('result');
       expect(messengerCallMock).toHaveBeenCalledTimes(1);
@@ -69,12 +69,12 @@ describe('provider utils', () => {
 
       const chainId = '0x1' as Hex;
 
-      const result = await rpcRequest(
-        messengerMock,
-        { chainId },
-        'eth_chainId',
-        [],
-      );
+      const result = await rpcRequest({
+        messenger: messengerMock,
+        chainId,
+        method: 'eth_chainId',
+        params: [],
+      });
 
       expect(result).toBe('0x1');
       expect(messengerCallMock).toHaveBeenCalledTimes(2);
@@ -99,23 +99,23 @@ describe('provider utils', () => {
       requestMock.mockRejectedValue(error);
 
       await expect(
-        rpcRequest(
-          messengerMock,
-          { networkClientId: 'networkClientIdA' as NetworkClientId },
-          'eth_getBalance',
-          ['0x123', 'latest'],
-        ),
+        rpcRequest({
+          messenger: messengerMock,
+          networkClientId: 'networkClientIdA' as NetworkClientId,
+          method: 'eth_getBalance',
+          params: ['0x123', 'latest'],
+        }),
       ).rejects.toBe(error);
     });
 
     it('works when params are undefined', async () => {
       requestMock.mockResolvedValue('0x10');
 
-      const result = await rpcRequest(
-        messengerMock,
-        { networkClientId: 'networkClientIdA' as NetworkClientId },
-        'eth_blockNumber',
-      );
+      const result = await rpcRequest({
+        messenger: messengerMock,
+        networkClientId: 'networkClientIdA' as NetworkClientId,
+        method: 'eth_blockNumber',
+      });
 
       expect(result).toBe('0x10');
       expect(requestMock).toHaveBeenCalledWith({
@@ -129,7 +129,10 @@ describe('provider utils', () => {
     it('returns provider using networkClientId directly', () => {
       const networkClientId = 'networkClientIdA' as NetworkClientId;
 
-      const provider = getProvider(messengerMock, { networkClientId });
+      const provider = getProvider({
+        messenger: messengerMock,
+        networkClientId,
+      });
 
       expect(provider).toBe(mockProvider);
       expect(messengerCallMock).toHaveBeenCalledTimes(1);
@@ -142,7 +145,7 @@ describe('provider utils', () => {
     it('resolves chainId to networkClientId before returning provider', () => {
       const chainId = '0x89' as Hex;
 
-      const provider = getProvider(messengerMock, { chainId });
+      const provider = getProvider({ messenger: messengerMock, chainId });
 
       expect(provider).toBe(mockProvider);
       expect(messengerCallMock).toHaveBeenCalledTimes(2);
@@ -159,7 +162,7 @@ describe('provider utils', () => {
     });
 
     it('throws when neither chainId nor networkClientId is provided', () => {
-      expect(() => getProvider(messengerMock, {})).toThrow(
+      expect(() => getProvider({ messenger: messengerMock })).toThrow(
         'Either chainId or networkClientId must be provided',
       );
     });

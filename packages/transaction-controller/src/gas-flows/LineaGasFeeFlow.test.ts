@@ -70,7 +70,6 @@ describe('LineaGasFeeFlow', () => {
     request = {
       gasFeeControllerData: GAS_FEE_CONTROLLER_DATA_MOCK,
       messenger: {} as TransactionControllerMessenger,
-      networkClientId: TRANSACTION_META_MOCK.networkClientId,
       transactionMeta: TRANSACTION_META_MOCK,
     } as GasFeeFlowRequest;
 
@@ -116,11 +115,11 @@ describe('LineaGasFeeFlow', () => {
       ]);
 
       expect(rpcRequestMock).toHaveBeenCalledTimes(1);
-      expect(rpcRequestMock).toHaveBeenCalledWith(
-        request.messenger,
-        { networkClientId: request.networkClientId },
-        'linea_estimateGas',
-        [
+      expect(rpcRequestMock).toHaveBeenCalledWith({
+        messenger: request.messenger,
+        networkClientId: request.transactionMeta.networkClientId,
+        method: 'linea_estimateGas',
+        params: [
           {
             from: request.transactionMeta.txParams.from,
             input: null,
@@ -128,7 +127,7 @@ describe('LineaGasFeeFlow', () => {
             value: null,
           },
         ],
-      );
+      });
     });
 
     it('returns max fees using custom RPC method and static base fee multipliers', async () => {

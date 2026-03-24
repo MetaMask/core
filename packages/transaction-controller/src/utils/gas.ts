@@ -11,7 +11,7 @@ import { BigNumber } from 'bignumber.js';
 
 import { DELEGATION_PREFIX, generateEIP7702BatchTransaction } from './eip7702';
 import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
-import { rpcRequest } from './provider';
+import { getChainId, rpcRequest } from './provider';
 import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -28,12 +28,10 @@ import type {
 } from '../types';
 
 export type UpdateGasRequest = {
-  chainId: Hex;
   isCustomNetwork: boolean;
   isSimulationEnabled: boolean;
   getSimulationConfig: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
-  networkClientId: NetworkClientId;
   txMeta: TransactionMeta;
 };
 
@@ -75,7 +73,6 @@ export async function updateGas(request: UpdateGasRequest): Promise<void> {
  * If the gas estimate fails, the fallback value is returned.
  *
  * @param options - The options object.
- * @param options.chainId - The chain ID of the transaction.
  * @param options.ignoreDelegationSignatures - Ignore signature errors if submitting delegations to the DelegationManager.
  * @param options.isSimulationEnabled - Whether the simulation is enabled.
  * @param options.getSimulationConfig - The function to get the simulation configuration.
@@ -85,7 +82,6 @@ export async function updateGas(request: UpdateGasRequest): Promise<void> {
  * @returns The estimated gas and related info.
  */
 export async function estimateGas({
-  chainId,
   ignoreDelegationSignatures,
   isSimulationEnabled,
   getSimulationConfig,
@@ -93,7 +89,6 @@ export async function estimateGas({
   networkClientId,
   txParams,
 }: {
-  chainId: Hex;
   ignoreDelegationSignatures?: boolean;
   isSimulationEnabled: boolean;
   getSimulationConfig: GetSimulationConfig;
@@ -108,6 +103,7 @@ export async function estimateGas({
 }> {
   const request = { ...txParams };
   const { authorizationList, data, from, value, to } = request;
+  const chainId = getChainId({ messenger, networkClientId });
 
   if (ignoreDelegationSignatures && !isSimulationEnabled) {
     throw new Error(
@@ -192,7 +188,6 @@ export async function estimateGas({
 }
 
 export async function estimateGasBatch({
-  chainId,
   from,
   getSimulationConfig,
   isAtomicBatchSupported,
@@ -200,7 +195,6 @@ export async function estimateGasBatch({
   networkClientId,
   transactions,
 }: {
-  chainId: Hex;
   from: Hex;
   getSimulationConfig: GetSimulationConfig;
   isAtomicBatchSupported: (
@@ -210,6 +204,8 @@ export async function estimateGasBatch({
   networkClientId: NetworkClientId;
   transactions: BatchTransactionParams[];
 }): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
+  const chainId = getChainId({ messenger, networkClientId });
+
   const is7702Result = await isAtomicBatchSupported({
     address: from,
     chainIds: [chainId],
@@ -239,7 +235,6 @@ export async function estimateGasBatch({
     };
 
     const { estimatedGas: gasLimitHex } = await estimateGas({
-      chainId,
       isSimulationEnabled: true,
       getSimulationConfig,
       messenger,
@@ -411,13 +406,14 @@ async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?, string?]> {
   const {
-    chainId,
     isCustomNetwork,
     isSimulationEnabled,
     getSimulationConfig,
     messenger,
     txMeta,
   } = request;
+  const { networkClientId } = txMeta;
+  const chainId = getChainId({ messenger, networkClientId });
   const { disableGasBuffer } = txMeta;
 
   if (txMeta.txParams.gas) {
@@ -436,11 +432,10 @@ async function getGas(
     isUpgradeWithDataToSelf,
     simulationFails,
   } = await estimateGas({
-    chainId,
     isSimulationEnabled,
     getSimulationConfig,
     messenger,
-    networkClientId: request.networkClientId,
+    networkClientId,
     txParams: txMeta.txParams,
   });
 
@@ -483,18 +478,17 @@ async function getGas(
  *
  * @param options - The options object.
  * @param options.messenger - The messenger instance for communication.
- * @param options.networkClientId - The network client ID.
  * @param options.txMeta - The transaction meta object.
  * @param options.isCustomNetwork - Whether the network is a custom network.
  * @returns Whether the gas should be fixed.
  */
 async function requiresFixedGas({
   messenger,
-  networkClientId,
   txMeta,
   isCustomNetwork,
 }: UpdateGasRequest): Promise<boolean> {
   const {
+    networkClientId,
     txParams: { to, data, type },
   } = txMeta;
 
@@ -525,10 +519,12 @@ async function getCode(
   networkClientId: NetworkClientId,
   address: string,
 ): Promise<string | undefined> {
-  return (await rpcRequest(messenger, { networkClientId }, 'eth_getCode', [
-    address,
-    'latest',
-  ])) as string | undefined;
+  return (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_getCode',
+    params: [address, 'latest'],
+  })) as string | undefined;
 }
 
 /**
@@ -542,12 +538,12 @@ async function getLatestBlock(
   messenger: TransactionControllerMessenger,
   networkClientId: NetworkClientId,
 ): Promise<{ gasLimit: string; number: string }> {
-  return (await rpcRequest(
+  return (await rpcRequest({
     messenger,
-    { networkClientId },
-    'eth_getBlockByNumber',
-    ['latest', false],
-  )) as { gasLimit: string; number: string };
+    networkClientId,
+    method: 'eth_getBlockByNumber',
+    params: ['latest', false],
+  })) as { gasLimit: string; number: string };
 }
 
 /**
@@ -567,17 +563,17 @@ async function estimateGasUpgradeWithDataToSelf(
   chainId: Hex,
   getSimulationConfig: GetSimulationConfig,
 ): Promise<Hex> {
-  const upgradeGas = (await rpcRequest(
+  const upgradeGas = (await rpcRequest({
     messenger,
-    { networkClientId },
-    'eth_estimateGas',
-    [
+    networkClientId,
+    method: 'eth_estimateGas',
+    params: [
       {
         ...txParams,
         data: '0x',
       },
     ],
-  )) as Hex;
+  })) as Hex;
 
   log('Upgrade only gas', upgradeGas);
 
@@ -721,10 +717,10 @@ async function estimateGasNode(
     });
   }
 
-  return (await rpcRequest(
+  return (await rpcRequest({
     messenger,
-    { networkClientId },
-    'eth_estimateGas',
+    networkClientId,
+    method: 'eth_estimateGas',
     params,
-  )) as Hex;
+  })) as Hex;
 }

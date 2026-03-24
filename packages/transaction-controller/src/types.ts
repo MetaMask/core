@@ -1460,9 +1460,6 @@ export type GasFeeEstimates =
 
 /** Request to a gas fee flow to obtain gas fee estimates. */
 export type GasFeeFlowRequest = {
-  /** The network client ID associated with this request. */
-  networkClientId: NetworkClientId;
-
   /** Gas fee controller data matching the chain ID of the transaction. */
   gasFeeControllerData: GasFeeState;
 

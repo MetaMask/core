@@ -22,12 +22,12 @@ export async function getNativeBalance(
   balanceHuman: string;
   balanceRaw: string;
 }> {
-  const balanceRawHex = (await rpcRequest(
+  const balanceRawHex = (await rpcRequest({
     messenger,
-    { networkClientId },
-    'eth_getBalance',
-    [address, 'latest'],
-  )) as Hex;
+    networkClientId,
+    method: 'eth_getBalance',
+    params: [address, 'latest'],
+  })) as Hex;
 
   const balanceRaw = new BigNumber(balanceRawHex).toString(10);
   const balanceHuman = new BigNumber(balanceRaw).shiftedBy(-18).toString(10);

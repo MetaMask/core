@@ -1,5 +1,4 @@
 /* eslint-disable no-new */
-import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -24,15 +23,10 @@ import type {
 } from '../types';
 import type { GasFeeFlow, GasFeeEstimates, TransactionMeta } from '../types';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
-import { getProvider } from '../utils/provider';
 
 jest.mock('../utils/feature-flags');
 jest.mock('../utils/layer1-gas-fee-flow', () => ({
   getTransactionLayer1GasFee: jest.fn(),
-}));
-jest.mock('../utils/provider', () => ({
-  ...jest.requireActual('../utils/provider'),
-  getProvider: jest.fn(),
 }));
 
 jest.useFakeTimers();
@@ -125,13 +119,10 @@ describe('GasFeePoller', () => {
   const getTransactionLayer1GasFeeMock = jest.mocked(
     getTransactionLayer1GasFee,
   );
-  const getProviderMock = jest.mocked(getProvider);
   // As we mock implementation of updateTransactionLayer1GasFee, it does not matter if we pass matching flow here
   const layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]> = [];
   const getGasFeeControllerEstimatesMock = jest.fn();
-  const findNetworkClientIdByChainIdMock = jest.fn();
   let messengerMock: TransactionControllerMessenger;
-  let providerMock: Provider;
 
   beforeEach(() => {
     jest.clearAllTimers();
@@ -150,8 +141,6 @@ describe('GasFeePoller', () => {
     ]);
 
     getTransactionLayer1GasFeeMock.mockResolvedValue(LAYER1_GAS_FEE_MOCK);
-    providerMock = {} as Provider;
-    getProviderMock.mockReturnValue(providerMock);
 
     messengerMock = {
       publish: jest.fn(),
@@ -163,7 +152,6 @@ describe('GasFeePoller', () => {
     } as unknown as TransactionControllerMessenger;
 
     constructorOptions = {
-      findNetworkClientIdByChainId: findNetworkClientIdByChainIdMock,
       gasFeeFlows: [gasFeeFlowMock],
       getGasFeeControllerEstimates: getGasFeeControllerEstimatesMock,
       getTransactions: getTransactionsMock,
@@ -208,7 +196,6 @@ describe('GasFeePoller', () => {
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
           gasFeeControllerData: {},
           messenger: messengerMock,
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });
@@ -220,12 +207,7 @@ describe('GasFeePoller', () => {
         await flushPromises();
 
         expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledTimes(1);
-        expect(getProviderMock).toHaveBeenCalledTimes(1);
-        expect(getProviderMock).toHaveBeenCalledWith(messengerMock, {
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-        });
         expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledWith({
-          provider: providerMock,
           layer1GasFeeFlows: layer1GasFeeFlowsMock,
           messenger: messengerMock,
           transactionMeta: TRANSACTION_META_MOCK,
@@ -361,15 +343,14 @@ describe('GasFeePoller', () => {
 
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
-          gasFeeControllerData: expect.any(Object),
+          gasFeeControllerData: {},
           messenger: messengerMock,
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
           transactionMeta: {
             id: '1',
             chainId: TRANSACTION_BATCH_META_MOCK.chainId,
             networkClientId: TRANSACTION_BATCH_META_MOCK.networkClientId,
             status: TRANSACTION_BATCH_META_MOCK.status,
-            time: expect.any(Number),
+            time: 0,
             txParams: {
               from: TRANSACTION_BATCH_META_MOCK.from,
               type: TransactionEnvelopeType.feeMarket,

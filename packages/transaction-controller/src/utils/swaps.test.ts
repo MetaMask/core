@@ -449,12 +449,12 @@ describe('updatePostTransactionBalance', () => {
       approvalTransactionMeta: undefined,
     });
 
-    expect(rpcRequestMock).toHaveBeenCalledWith(
-      messengerMock,
-      { networkClientId: networkClientIdMock },
-      'eth_getBalance',
-      [transactionMeta.txParams.from, 'latest'],
-    );
+    expect(rpcRequestMock).toHaveBeenCalledWith({
+      messenger: messengerMock,
+      networkClientId: networkClientIdMock,
+      method: 'eth_getBalance',
+      params: [transactionMeta.txParams.from, 'latest'],
+    });
     expect(request.updateTransaction).toHaveBeenCalledWith(
       expectedTransactionMeta,
       'TransactionController#updatePostTransactionBalance - Add post transaction balance',

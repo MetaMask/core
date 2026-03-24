@@ -29,7 +29,7 @@ import {
 } from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
-import { getProvider } from '../utils/provider';
+import { getNetworkClientId } from '../utils/provider';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-poller');
 
@@ -40,10 +40,6 @@ const INTERVAL_MILLISECONDS = 10000;
  */
 export class GasFeePoller {
   hub: EventEmitter = new EventEmitter();
-
-  readonly #findNetworkClientIdByChainId: (
-    chainId: Hex,
-  ) => NetworkClientId | undefined;
 
   readonly #gasFeeFlows: GasFeeFlow[];
 
@@ -67,7 +63,6 @@ export class GasFeePoller {
    * Constructs a new instance of the GasFeePoller.
    *
    * @param options - The options for this instance.
-   * @param options.findNetworkClientIdByChainId - Callback to find the network client ID by chain ID.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
    * @param options.getTransactions - Callback to obtain the transaction data.
@@ -77,7 +72,6 @@ export class GasFeePoller {
    * @param options.onStateChange - Callback to register a listener for controller state changes.
    */
   constructor({
-    findNetworkClientIdByChainId,
     gasFeeFlows,
     getGasFeeControllerEstimates,
     getTransactions,
@@ -86,7 +80,6 @@ export class GasFeePoller {
     messenger,
     onStateChange,
   }: {
-    findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
     gasFeeFlows: GasFeeFlow[];
     getGasFeeControllerEstimates: (
       options: FetchGasFeeEstimateOptions,
@@ -97,7 +90,6 @@ export class GasFeePoller {
     messenger: TransactionControllerMessenger;
     onStateChange: (listener: () => void) => void;
   }) {
-    this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.#gasFeeFlows = gasFeeFlows;
     this.#layer1GasFeeFlows = layer1GasFeeFlows;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
@@ -253,7 +245,6 @@ export class GasFeePoller {
 
     const defaultGasFeeFlow = new DefaultGasFeeFlow();
     const request: GasFeeFlowRequest = {
-      networkClientId: txBatchMeta.networkClientId,
       gasFeeControllerData,
       messenger: this.#messenger,
       transactionMeta: {
@@ -295,8 +286,6 @@ export class GasFeePoller {
     | { gasFeeEstimates?: GasFeeEstimates; gasFeeEstimatesLoaded: boolean }
     | undefined
   > {
-    const { networkClientId } = transactionMeta;
-
     const gasFeeFlow = getGasFeeFlow(
       transactionMeta,
       this.#gasFeeFlows,
@@ -312,7 +301,6 @@ export class GasFeePoller {
     }
 
     const request: GasFeeFlowRequest = {
-      networkClientId,
       gasFeeControllerData,
       messenger: this.#messenger,
       transactionMeta,
@@ -344,13 +332,9 @@ export class GasFeePoller {
   async #updateTransactionLayer1GasFee(
     transactionMeta: TransactionMeta,
   ): Promise<Hex | undefined> {
-    const { networkClientId } = transactionMeta;
-    const provider = getProvider(this.#messenger, { networkClientId });
-
     const layer1GasFee = await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.#messenger,
-      provider,
       transactionMeta,
     });
 
@@ -388,7 +372,7 @@ export class GasFeePoller {
 
       const networkClientId =
         transactionNetworkClientId ??
-        (this.#findNetworkClientIdByChainId(chainId) as string);
+        getNetworkClientId({ messenger: this.#messenger, chainId });
 
       networkClientIdsByChainId.set(chainId, networkClientId);
     }
