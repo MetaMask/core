@@ -57,10 +57,10 @@ export type SeedlessOnboardingControllerCreateToprfKeyAndBackupSeedPhraseAction 
   };
 
 /**
- * encrypt and add a new secret data to the metadata store.
+ * Encrypt and add a new secret data to the metadata store.
  *
  * @param data - The data to add.
- * @param type - The type of the secret data.
+ * @param dataType - The data type classification for the secret data.
  * @param options - Optional options object, which includes optional data to be added to the metadata store.
  * @param options.keyringId - The keyring id of the backup keyring (SRP).
  * @returns A promise that resolves to the success of the operation.
@@ -71,12 +71,12 @@ export type SeedlessOnboardingControllerAddNewSecretDataAction = {
 };
 
 /**
- * Fetches all encrypted secret data and metadata for user's account from the metadata store.
+ * Fetches all secret data items from the metadata store.
  *
  * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
  *
  * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
- * @returns A promise that resolves to the secret data.
+ * @returns A promise that resolves to the secret metadata items.
  */
 export type SeedlessOnboardingControllerFetchAllSecretDataAction = {
   type: `SeedlessOnboardingController:fetchAllSecretData`;
