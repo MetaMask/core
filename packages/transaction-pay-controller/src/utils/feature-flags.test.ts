@@ -26,6 +26,10 @@ import {
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
+import {
+  getStrategyOrderForRoute,
+  getStrategyOrderForRouteFromFeatureFlags,
+} from './strategy-routing';
 
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
 const GAS_FALLBACK_MAX_MOCK = 456;
@@ -773,6 +777,306 @@ describe('Feature Flags Utils', () => {
       const strategyOrder = getStrategyOrder(messenger);
 
       expect(strategyOrder).toStrictEqual(DEFAULT_STRATEGY_ORDER);
+    });
+
+    it('prefers local overrides over remote flags', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        localOverrides: {
+          confirmations_pay: {
+            strategyOrder: [TransactionPayStrategy.Across],
+          },
+        },
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            strategyOrder: [TransactionPayStrategy.Relay],
+          },
+        },
+      });
+
+      expect(getStrategyOrder(messenger)).toStrictEqual([
+        TransactionPayStrategy.Across,
+      ]);
+    });
+  });
+
+  describe('getStrategyOrderForRouteFromFeatureFlags', () => {
+    it('uses default routing config when raw feature flags are undefined', () => {
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(undefined, {}),
+      ).toStrictEqual([TransactionPayStrategy.Relay]);
+    });
+
+    it('filters invalid routing config and dedupes strategies', () => {
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(
+          {
+            strategyOrder: [123, 'relay', 'relay'],
+            payStrategies: {
+              across: { enabled: true },
+              relay: { enabled: false },
+            },
+            routingOverrides: {
+              overrides: {
+                perpsDeposit: {
+                  default: [123, 'invalid'],
+                  chains: {
+                    '0xa4b1': [123],
+                    '0xa4b2': ['relay'],
+                  },
+                  tokens: {
+                    '0xa4b1': undefined,
+                    '0xa4b2': {
+                      '0xabc': [123],
+                      '0xdef': ['across'],
+                    },
+                  },
+                },
+              },
+            },
+          },
+          {
+            chainId: '0xa4b2',
+            tokenAddress: '0xdef',
+            transactionType: 'perpsDeposit',
+          },
+        ),
+      ).toStrictEqual([TransactionPayStrategy.Across]);
+    });
+
+    it('resolves routing overrides in token, chain, default, global order precedence', () => {
+      const featureFlags = {
+        payStrategies: {
+          across: { enabled: true },
+          relay: { enabled: true },
+        },
+        routingOverrides: {
+          overrides: {
+            perpsDeposit: {
+              default: ['relay'],
+              chains: {
+                '0xa4b1': ['across'],
+              },
+              tokens: {
+                '0xa4b1': {
+                  '0xabc': ['relay', 'across'],
+                },
+              },
+            },
+          },
+        },
+        strategyOrder: ['relay', 'across'],
+      };
+
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(featureFlags, {
+          chainId: '0xa4b1',
+          tokenAddress: '0xabc',
+          transactionType: 'perpsDeposit',
+        }),
+      ).toStrictEqual([
+        TransactionPayStrategy.Relay,
+        TransactionPayStrategy.Across,
+      ]);
+
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(featureFlags, {
+          chainId: '0xa4b1',
+          tokenAddress: '0xdef',
+          transactionType: 'perpsDeposit',
+        }),
+      ).toStrictEqual([TransactionPayStrategy.Across]);
+
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(featureFlags, {
+          chainId: '0x1',
+          tokenAddress: '0xdef',
+          transactionType: 'perpsDeposit',
+        }),
+      ).toStrictEqual([TransactionPayStrategy.Relay]);
+
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(featureFlags, {
+          chainId: '0x1',
+          tokenAddress: '0xdef',
+        }),
+      ).toStrictEqual([
+        TransactionPayStrategy.Relay,
+        TransactionPayStrategy.Across,
+      ]);
+    });
+
+    it('matches mixed-case route context hex values against normalized overrides', () => {
+      const featureFlags = {
+        payStrategies: {
+          across: { enabled: true },
+          relay: { enabled: true },
+        },
+        routingOverrides: {
+          overrides: {
+            perpsDeposit: {
+              default: ['relay'],
+              chains: {
+                '0xa4b1': ['across'],
+              },
+              tokens: {
+                '0xa4b1': {
+                  '0xabc': ['relay'],
+                },
+              },
+            },
+          },
+        },
+        strategyOrder: ['relay', 'across'],
+      };
+
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(featureFlags, {
+          chainId: '0xA4B1',
+          tokenAddress: '0xAbC',
+          transactionType: 'perpsDeposit',
+        }),
+      ).toStrictEqual([TransactionPayStrategy.Relay]);
+
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(featureFlags, {
+          chainId: '0xA4B1',
+          tokenAddress: '0xDef',
+          transactionType: 'perpsDeposit',
+        }),
+      ).toStrictEqual([TransactionPayStrategy.Across]);
+    });
+
+    it('falls back when overridden strategies are disabled', () => {
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(
+          {
+            payStrategies: {
+              across: { enabled: false },
+              relay: { enabled: true },
+            },
+            routingOverrides: {
+              overrides: {
+                perpsDeposit: {
+                  chains: {
+                    '0xa4b1': ['across'],
+                  },
+                  default: ['relay'],
+                },
+              },
+            },
+            strategyOrder: ['across', 'relay'],
+          },
+          {
+            chainId: '0xa4b1',
+            tokenAddress: '0xabc',
+            transactionType: 'perpsDeposit',
+          },
+        ),
+      ).toStrictEqual([TransactionPayStrategy.Relay]);
+    });
+
+    it('ignores empty override entries and falls back to the global order', () => {
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(
+          {
+            payStrategies: {
+              across: { enabled: true },
+              relay: { enabled: true },
+            },
+            routingOverrides: {
+              overrides: {
+                perpsDeposit: undefined,
+              },
+            },
+            strategyOrder: ['relay'],
+          },
+          {
+            chainId: '0xa4b1',
+            tokenAddress: '0xabc',
+            transactionType: 'perpsDeposit',
+          },
+        ),
+      ).toStrictEqual([TransactionPayStrategy.Relay]);
+    });
+
+    it('returns an empty strategy list when no enabled strategies remain', () => {
+      expect(
+        getStrategyOrderForRouteFromFeatureFlags(
+          {
+            payStrategies: {
+              across: { enabled: false },
+              relay: { enabled: false },
+            },
+            strategyOrder: ['relay', 'across'],
+          },
+          {},
+        ),
+      ).toStrictEqual([]);
+    });
+  });
+
+  describe('getStrategyOrderForRoute', () => {
+    it('falls back to defaults when remote feature flag maps are undefined', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        localOverrides: undefined as never,
+        remoteFeatureFlags: undefined as never,
+      });
+
+      expect(getStrategyOrderForRoute(messenger, {})).toStrictEqual([
+        TransactionPayStrategy.Relay,
+      ]);
+    });
+
+    it('applies local overrides from the remote feature flag controller state', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        localOverrides: {
+          confirmations_pay: {
+            payStrategies: {
+              across: { enabled: true },
+              relay: { enabled: true },
+            },
+            routingOverrides: {
+              overrides: {
+                perpsDeposit: {
+                  chains: {
+                    '0xa4b1': ['across'],
+                  },
+                },
+              },
+            },
+            strategyOrder: ['across'],
+          },
+        },
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: { enabled: false },
+              relay: { enabled: true },
+            },
+            routingOverrides: {
+              overrides: {
+                perpsDeposit: {
+                  chains: {
+                    '0xa4b1': ['relay'],
+                  },
+                },
+              },
+            },
+            strategyOrder: ['relay'],
+          },
+        },
+      });
+
+      expect(
+        getStrategyOrderForRoute(messenger, {
+          chainId: '0xa4b1',
+          tokenAddress: '0xabc',
+          transactionType: 'perpsDeposit',
+        }),
+      ).toStrictEqual([TransactionPayStrategy.Across]);
     });
   });
 });

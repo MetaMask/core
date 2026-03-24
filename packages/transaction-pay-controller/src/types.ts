@@ -39,6 +39,7 @@ import type { Draft } from 'immer';
 
 import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
+import type { TransactionPayRouteContext } from './utils/strategy-routing';
 
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
@@ -139,6 +140,14 @@ export type TransactionPayControllerOptions = {
 
   /** Callback to select ordered PayStrategies for a transaction. */
   getStrategies?: (transaction: TransactionMeta) => TransactionPayStrategy[];
+
+  /**
+   * Callback to derive route context for generic feature-flag based strategy selection.
+   * Used when no custom strategy callback returns a valid ordered strategy list.
+   */
+  getStrategyRouteContext?: (
+    transaction: TransactionMeta,
+  ) => TransactionPayRouteContext;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;

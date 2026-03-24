@@ -2,7 +2,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { uniq } from 'lodash';
 
-import type { TransactionPayControllerMessenger } from '..';
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import {
@@ -10,6 +9,7 @@ import {
   RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
 } from '../strategy/relay/constants';
+import type { TransactionPayControllerMessenger } from '../types';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
@@ -46,10 +46,19 @@ type FeatureFlagsRaw = {
     max?: number;
   };
   relayQuoteUrl?: string;
+  routingOverrides?: {
+    overrides?: Record<string, RoutingOverrideRaw>;
+  };
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
   strategyOrder?: string[];
   payStrategies?: PayStrategiesConfigRaw;
+};
+
+type RoutingOverrideRaw = {
+  default?: unknown;
+  chains?: Record<string, unknown>;
+  tokens?: Record<string, Record<string, unknown>>;
 };
 
 export type FeatureFlags = {
@@ -108,7 +117,8 @@ export type PayStrategiesConfig = {
 export function getStrategyOrder(
   messenger: TransactionPayControllerMessenger,
 ): StrategyOrder {
-  const { strategyOrder: strategyPriority } = getFeatureFlagsRaw(messenger);
+  const { strategyOrder: strategyPriority } =
+    getConfirmationsPayFeatureFlags(messenger) as FeatureFlagsRaw;
 
   if (!Array.isArray(strategyPriority)) {
     return [...DEFAULT_STRATEGY_ORDER];
@@ -136,7 +146,9 @@ export function getStrategyOrder(
 export function getFeatureFlags(
   messenger: TransactionPayControllerMessenger,
 ): FeatureFlags {
-  const featureFlags = getFeatureFlagsRaw(messenger);
+  const featureFlags = getConfirmationsPayFeatureFlags(
+    messenger,
+  ) as FeatureFlagsRaw;
 
   const estimate =
     featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
@@ -178,7 +190,9 @@ export function getFeatureFlags(
 export function getPayStrategiesConfig(
   messenger: TransactionPayControllerMessenger,
 ): PayStrategiesConfig {
-  const featureFlags = getFeatureFlagsRaw(messenger);
+  const featureFlags = getConfirmationsPayFeatureFlags(
+    messenger,
+  ) as FeatureFlagsRaw;
   const payStrategies = featureFlags.payStrategies ?? {};
 
   const acrossRaw = payStrategies.across ?? {};
@@ -213,7 +227,9 @@ export function getPayStrategiesConfig(
 export function isRelayExecuteEnabled(
   messenger: TransactionPayControllerMessenger,
 ): boolean {
-  const featureFlags = getFeatureFlagsRaw(messenger);
+  const featureFlags = getConfirmationsPayFeatureFlags(
+    messenger,
+  ) as FeatureFlagsRaw;
   return featureFlags.payStrategies?.relay?.executeEnabled ?? false;
 }
 
@@ -227,7 +243,9 @@ export function isRelayExecuteEnabled(
 export function getRelayOriginGasOverhead(
   messenger: TransactionPayControllerMessenger,
 ): string {
-  const featureFlags = getFeatureFlagsRaw(messenger);
+  const featureFlags = getConfirmationsPayFeatureFlags(
+    messenger,
+  ) as FeatureFlagsRaw;
   return (
     featureFlags.payStrategies?.relay?.originGasOverhead ??
     DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD
@@ -244,7 +262,9 @@ export function getRelayOriginGasOverhead(
 export function getRelayPollingInterval(
   messenger: TransactionPayControllerMessenger,
 ): number {
-  const featureFlags = getFeatureFlagsRaw(messenger);
+  const featureFlags = getConfirmationsPayFeatureFlags(
+    messenger,
+  ) as FeatureFlagsRaw;
   return (
     featureFlags.payStrategies?.relay?.pollingInterval ?? RELAY_POLLING_INTERVAL
   );
@@ -260,7 +280,9 @@ export function getRelayPollingInterval(
 export function getRelayPollingTimeout(
   messenger: TransactionPayControllerMessenger,
 ): number | undefined {
-  const featureFlags = getFeatureFlagsRaw(messenger);
+  const featureFlags = getConfirmationsPayFeatureFlags(
+    messenger,
+  ) as FeatureFlagsRaw;
   return featureFlags.payStrategies?.relay?.pollingTimeout;
 }
 
@@ -287,7 +309,9 @@ export function getGasBuffer(
   messenger: TransactionPayControllerMessenger,
   chainId: Hex,
 ): number {
-  const featureFlags = getFeatureFlagsRaw(messenger);
+  const featureFlags = getConfirmationsPayFeatureFlags(
+    messenger,
+  ) as FeatureFlagsRaw;
 
   return (
     featureFlags.gasBuffer?.perChainConfig?.[chainId]?.buffer ??
@@ -310,7 +334,9 @@ export function getSlippage(
   chainId: Hex,
   tokenAddress: Hex,
 ): number {
-  const featureFlags = getFeatureFlagsRaw(messenger);
+  const featureFlags = getConfirmationsPayFeatureFlags(
+    messenger,
+  ) as FeatureFlagsRaw;
   const { slippageTokens } = featureFlags;
 
   const tokenMap = getCaseInsensitive(slippageTokens, chainId);
@@ -402,14 +428,20 @@ export function isEIP7702Chain(
 }
 
 /**
- * Get the raw feature flags from the remote feature flag controller.
+ * Get the raw confirmations_pay feature flags from the remote feature flag
+ * controller.
  *
  * @param messenger - Controller messenger.
- * @returns Raw feature flags.
+ * @returns Raw confirmations_pay feature flags.
  */
-function getFeatureFlagsRaw(
+export function getConfirmationsPayFeatureFlags(
   messenger: TransactionPayControllerMessenger,
-): FeatureFlagsRaw {
+): unknown {
   const state = messenger.call('RemoteFeatureFlagController:getState');
-  return (state.remoteFeatureFlags.confirmations_pay as FeatureFlagsRaw) ?? {};
+  const featureFlags = {
+    ...(state.remoteFeatureFlags ?? {}),
+    ...(state.localOverrides ?? {}),
+  };
+
+  return (featureFlags.confirmations_pay as FeatureFlagsRaw) ?? {};
 }

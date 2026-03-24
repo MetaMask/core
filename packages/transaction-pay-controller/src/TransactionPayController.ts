@@ -23,6 +23,8 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
+import { getStrategyOrderForRoute } from './utils/strategy-routing';
+import type { TransactionPayRouteContext } from './utils/strategy-routing';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
@@ -63,10 +65,15 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #getStrategyRouteContext?: (
+    transaction: TransactionMeta,
+  ) => TransactionPayRouteContext;
+
   constructor({
     getDelegationTransaction,
     getStrategy,
     getStrategies,
+    getStrategyRouteContext,
     messenger,
     state,
   }: TransactionPayControllerOptions) {
@@ -80,6 +87,7 @@ export class TransactionPayController extends BaseController<
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
+    this.#getStrategyRouteContext = getStrategyRouteContext;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -272,8 +280,21 @@ export class TransactionPayController extends BaseController<
         isTransactionPayStrategy(strategy),
     );
 
-    return validStrategies.length
-      ? validStrategies
-      : getStrategyOrder(this.messenger);
+    if (validStrategies.length) {
+      return validStrategies;
+    }
+
+    if (this.#getStrategyRouteContext) {
+      const routeStrategies = getStrategyOrderForRoute(
+        this.messenger,
+        this.#getStrategyRouteContext(transaction),
+      );
+
+      if (routeStrategies.length) {
+        return routeStrategies;
+      }
+    }
+
+    return getStrategyOrder(this.messenger);
   }
 }

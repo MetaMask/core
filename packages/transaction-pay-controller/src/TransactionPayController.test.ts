@@ -13,6 +13,8 @@ import type {
   TransactionPaySourceAmount,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
+import type { TransactionPayRouteContext } from './utils/strategy-routing';
+import { getStrategyOrderForRoute } from './utils/strategy-routing';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import { pollTransactionChanges } from './utils/transaction';
@@ -23,6 +25,7 @@ jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
 jest.mock('./utils/feature-flags');
+jest.mock('./utils/strategy-routing');
 
 const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
@@ -36,6 +39,7 @@ describe('TransactionPayController', () => {
   const updateQuotesMock = jest.mocked(updateQuotes);
   const pollTransactionChangesMock = jest.mocked(pollTransactionChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
+  const getStrategyOrderForRouteMock = jest.mocked(getStrategyOrderForRoute);
   let messenger: TransactionPayControllerMessenger;
 
   /**
@@ -55,6 +59,9 @@ describe('TransactionPayController', () => {
 
     messenger = getMessengerMock({ skipRegister: true }).messenger;
     getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
+    getStrategyOrderForRouteMock.mockReturnValue([
+      TransactionPayStrategy.Relay,
+    ]);
     updateQuotesMock.mockResolvedValue(true);
   });
 
@@ -335,6 +342,115 @@ describe('TransactionPayController', () => {
           TRANSACTION_META_MOCK,
         ),
       ).toBe(TransactionPayStrategy.Bridge);
+    });
+
+    it('uses route-based feature flag resolution when getStrategyRouteContext is provided', async () => {
+      const getStrategyRouteContext = jest.fn(() => ({
+        chainId: '0xa4b1' as Hex,
+        tokenAddress: '0xabc' as Hex,
+        transactionType: 'perpsDeposit',
+      }));
+
+      getStrategyOrderForRouteMock.mockReturnValue([
+        TransactionPayStrategy.Across,
+      ]);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategyRouteContext,
+        messenger,
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Across);
+      expect(getStrategyRouteContext).toHaveBeenCalledWith(
+        TRANSACTION_META_MOCK,
+      );
+      expect(getStrategyOrderForRouteMock).toHaveBeenCalledWith(messenger, {
+        chainId: '0xa4b1',
+        tokenAddress: '0xabc',
+        transactionType: 'perpsDeposit',
+      });
+    });
+
+    it('falls back to default strategy order when route-based resolution returns no strategies', async () => {
+      getStrategyOrderForRouteMock.mockReturnValue([]);
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategyRouteContext: (): TransactionPayRouteContext => ({
+          chainId: '0xa4b1' as Hex,
+          tokenAddress: '0xabc' as Hex,
+          transactionType: 'perpsDeposit',
+        }),
+        messenger,
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Relay);
+      expect(getStrategyOrderForRouteMock).toHaveBeenCalledWith(messenger, {
+        chainId: '0xa4b1',
+        tokenAddress: '0xabc',
+        transactionType: 'perpsDeposit',
+      });
+      expect(getStrategyOrderMock).toHaveBeenCalledWith(messenger);
+    });
+
+    it('falls back to default strategy order for quote refresh when route-based resolution returns no strategies', async () => {
+      getStrategyOrderForRouteMock.mockReturnValue([]);
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
+
+      const controller = new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategyRouteContext: (): TransactionPayRouteContext => ({
+          chainId: '0xa4b1' as Hex,
+          tokenAddress: '0xabc' as Hex,
+          transactionType: 'perpsDeposit',
+        }),
+        messenger,
+      });
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isPostQuote = true;
+      });
+
+      const { getStrategies } = updateQuotesMock.mock.calls[0][0];
+
+      expect(getStrategies(TRANSACTION_META_MOCK)).toStrictEqual([
+        TransactionPayStrategy.Relay,
+      ]);
+    });
+
+    it('prefers explicit getStrategies values over route-based feature flag resolution', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getStrategies: (): TransactionPayStrategy[] => [
+          TransactionPayStrategy.Test,
+        ],
+        getStrategyRouteContext: (): TransactionPayRouteContext => ({
+          chainId: '0xa4b1' as Hex,
+          tokenAddress: '0xabc' as Hex,
+          transactionType: 'perpsDeposit',
+        }),
+        messenger,
+      });
+
+      expect(
+        messenger.call(
+          'TransactionPayController:getStrategy',
+          TRANSACTION_META_MOCK,
+        ),
+      ).toBe(TransactionPayStrategy.Test);
+      expect(getStrategyOrderForRouteMock).not.toHaveBeenCalled();
     });
 
     it('returns default strategy order when no callbacks and no strategy order feature flag', async () => {
