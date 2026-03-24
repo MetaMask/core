@@ -36,7 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `@metamask/eth-query` dependency, all `EthQuery` usage, and `determineTransactionType` export in favour of messenger-based provider utilities ([#8273](https://github.com/MetaMask/core/pull/8273))
+- **BREAKING:** Remove `@metamask/eth-query` dependency and all `EthQuery` usage in favour of messenger-based provider utilities ([#8273](https://github.com/MetaMask/core/pull/8273))
+  - Remove `determineTransactionType` from package exports
 
 ## [63.1.0]
 
