@@ -1,4 +1,5 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
+import { parseCaipAssetType } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
 import type { MulticallClient } from '../clients';
@@ -11,6 +12,7 @@ import type {
   BalanceFetchResult,
   BalanceOfRequest,
   BalanceOfResponse,
+  CaipAssetType,
   ChainId,
 } from '../types';
 import { reduceInBatchesSerially } from '../utils';
@@ -132,18 +134,35 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       return [];
     }
 
-    const chainIdDecimal = parseInt(chainId, 16);
-    const caipChainPrefix = `eip155:${chainIdDecimal}/`;
+    const chainIdDecimal = parseInt(chainId, 16).toString();
 
     const seen = new Set<string>();
     const entries: AssetFetchEntry[] = [];
 
-    for (const rawAssetId of Object.keys(accountBalances)) {
-      if (rawAssetId.startsWith(caipChainPrefix)) {
-        const lower = rawAssetId.toLowerCase();
+    for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
+      const {
+        chain: { reference: chainReference },
+        assetNamespace,
+        assetReference,
+      } = parseCaipAssetType(assetId);
+      if (chainReference === chainIdDecimal) {
+        const lower = assetId.toLowerCase();
         if (!seen.has(lower)) {
           seen.add(lower);
-          entries.push(BalanceFetcher.#assetIdToEntry(rawAssetId));
+
+          const isNative = assetNamespace === 'slip44';
+
+          if (isNative) {
+            entries.push({
+              assetId,
+              address: ZERO_ADDRESS,
+            });
+          } else {
+            entries.push({
+              assetId,
+              address: assetReference.toLowerCase() as Address,
+            });
+          }
         }
       }
     }
@@ -259,29 +278,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       accountAddress,
       ...result,
       timestamp,
-    };
-  }
-
-  /**
-   * Convert a raw CAIP-19 asset ID string into an {@link AssetFetchEntry}.
-   *
-   * @param rawAssetId - CAIP-19 asset ID string.
-   * @returns An entry with the address extracted (zero address for native).
-   */
-  static #assetIdToEntry(rawAssetId: string): AssetFetchEntry {
-    const isNative = rawAssetId.includes('/slip44:');
-    let address: Address;
-
-    if (isNative) {
-      address = ZERO_ADDRESS;
-    } else {
-      const erc20Part = rawAssetId.split('/erc20:')[1];
-      address = erc20Part ? (erc20Part.toLowerCase() as Address) : ZERO_ADDRESS;
-    }
-
-    return {
-      assetId: rawAssetId as AssetFetchEntry['assetId'],
-      address,
     };
   }
 
