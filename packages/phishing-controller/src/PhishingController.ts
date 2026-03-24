@@ -47,6 +47,7 @@ import {
   splitCacheHits,
   resolveChainName,
   getPathnameFromUrl,
+  isApprovalSupportedChain,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -1341,7 +1342,7 @@ export class PhishingController extends BaseController<
     const normalizedAddress = address.toLowerCase();
     const chain = resolveChainName(normalizedChainId);
 
-    if (!chain) {
+    if (!chain || !isApprovalSupportedChain(chain)) {
       return { approvals: [] };
     }
 

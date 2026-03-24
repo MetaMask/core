@@ -3498,6 +3498,11 @@ describe('PhishingController', () => {
       expect(response).toStrictEqual({ approvals: [] });
     });
 
+    it('will return empty approvals for chains not supported by the approvals API', async () => {
+      const response = await controller.getApprovals('0x82750', testAddress);
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
     it.each([
       [400, 'Bad Request'],
       [500, 'Internal Server Error'],

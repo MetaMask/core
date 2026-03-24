@@ -264,6 +264,19 @@ export type AddressScanCacheData = {
   label: string;
 };
 
+export const APPROVAL_SUPPORTED_CHAINS = [
+  'ethereum',
+  'polygon',
+  'bsc',
+  'avalanche',
+  'arbitrum',
+  'base',
+  'linea',
+  'optimism',
+] as const;
+
+export type ApprovalSupportedChain = (typeof APPROVAL_SUPPORTED_CHAINS)[number];
+
 export enum ApprovalResultType {
   Malicious = 'Malicious',
   Warning = 'Warning',
@@ -285,8 +298,8 @@ export type ApprovalFeature = {
 };
 
 export type Allowance = {
-  value: string;
-  usd_price: string;
+  value?: string;
+  usd_price?: string;
 };
 
 export type ApprovalAsset = {
@@ -299,7 +312,7 @@ export type ApprovalAsset = {
 };
 
 export type Exposure = {
-  usd_price: string;
+  usd_price?: string;
   value: string;
   raw_value: string;
 };
