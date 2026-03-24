@@ -79,7 +79,7 @@ const MarketInsightsReportStruct = structType({
 });
 
 const MarketInsightsDigestEnvelopeStruct = structType({
-  id: optional(string()),
+  id: string(),
   digest: MarketInsightsReportStruct,
 });
 
@@ -110,17 +110,13 @@ const MarketOverviewStruct = structType({
 });
 
 const MarketOverviewReportEnvelopeStruct = structType({
-  id: optional(string()),
+  id: string(),
   report: MarketOverviewStruct,
 });
 
 const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
-  if (is(value, MarketOverviewStruct)) {
-    return value;
-  }
-
   if (is(value, MarketOverviewReportEnvelopeStruct)) {
-    return value.id ? { ...value.report, digestId: value.id } : value.report;
+    return { ...value.report, digestId: value.id };
   }
 
   return null;
@@ -129,14 +125,8 @@ const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
 const getNormalizedMarketInsightsReport = (
   value: unknown,
 ): MarketInsightsReport | null => {
-  if (is(value, MarketInsightsReportStruct)) {
-    return value;
-  }
-
   if (is(value, MarketInsightsDigestEnvelopeStruct)) {
-    return value.id
-      ? { ...value.digest, digestId: value.id }
-      : value.digest;
+    return { ...value.digest, digestId: value.id };
   }
 
   return null;

@@ -53,11 +53,16 @@ describe('AiDigestService', () => {
       ],
     };
 
+    const mockEnvelope = {
+      id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+      digest: mockMarketInsightsReport,
+    };
+
     it('fetches market insights using universal asset= param for CAIP-19 identifiers', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockMarketInsightsReport),
+        json: () => Promise.resolve(mockEnvelope),
       });
 
       const service = new AiDigestService({
@@ -67,7 +72,10 @@ describe('AiDigestService', () => {
         'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
 
-      expect(result).toStrictEqual(mockMarketInsightsReport);
+      expect(result).toStrictEqual({
+        ...mockMarketInsightsReport,
+        digestId: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+      });
       expect(mockFetch).toHaveBeenCalledWith(
         'http://test.com/api/v1/asset-summary?asset=eip155%3A1%2Ferc20%3A0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
@@ -77,7 +85,7 @@ describe('AiDigestService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockMarketInsightsReport),
+        json: () => Promise.resolve(mockEnvelope),
       });
 
       const service = new AiDigestService({
@@ -85,7 +93,10 @@ describe('AiDigestService', () => {
       });
       const result = await service.searchDigest('ETH');
 
-      expect(result).toStrictEqual(mockMarketInsightsReport);
+      expect(result).toStrictEqual({
+        ...mockMarketInsightsReport,
+        digestId: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+      });
       expect(mockFetch).toHaveBeenCalledWith(
         'http://test.com/api/v1/asset-summary?asset=ETH',
       );
@@ -95,7 +106,7 @@ describe('AiDigestService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockMarketInsightsReport),
+        json: () => Promise.resolve(mockEnvelope),
       });
 
       const service = new AiDigestService({
@@ -108,35 +119,11 @@ describe('AiDigestService', () => {
       );
     });
 
-    it('accepts digest envelope responses without id', async () => {
+    it('extracts digestId from the envelope id field', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({
-            digest: mockMarketInsightsReport,
-          }),
-      });
-
-      const service = new AiDigestService({
-        baseUrl: 'http://test.com/api/v1',
-      });
-      const result = await service.searchDigest(
-        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
-      );
-
-      expect(result).toStrictEqual(mockMarketInsightsReport);
-    });
-
-    it('attaches digestId from envelope id field', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
-            digest: mockMarketInsightsReport,
-          }),
+        json: () => Promise.resolve(mockEnvelope),
       });
 
       const service = new AiDigestService({
@@ -152,21 +139,45 @@ describe('AiDigestService', () => {
       });
     });
 
+    it('throws when envelope id is missing', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            digest: mockMarketInsightsReport,
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(
+        service.searchDigest(
+          'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+        ),
+      ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
+    });
+
     it('accepts report responses with top-level social items', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
         json: () =>
           Promise.resolve({
-            ...mockMarketInsightsReport,
-            social: [
-              {
-                contentSummary: 'BTC remains under macro pressure.',
-                url: 'https://x.com/example/status/456',
-                author: 'example',
-                date: '2026-02-17',
-              },
-            ],
+            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+            digest: {
+              ...mockMarketInsightsReport,
+              social: [
+                {
+                  contentSummary: 'BTC remains under macro pressure.',
+                  url: 'https://x.com/example/status/456',
+                  author: 'example',
+                  date: '2026-02-17',
+                },
+              ],
+            },
           }),
       });
 
@@ -179,6 +190,7 @@ describe('AiDigestService', () => {
 
       expect(result).toStrictEqual({
         ...mockMarketInsightsReport,
+        digestId: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
         social: [
           {
             contentSummary: 'BTC remains under macro pressure.',
@@ -196,26 +208,29 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            ...mockMarketInsightsReport,
-            extraTopLevelField: true,
-            trends: [
-              {
-                ...mockMarketInsightsReport.trends[0],
-                extraTrendField: 'ignored',
-                articles: [
-                  {
-                    ...mockMarketInsightsReport.trends[0].articles[0],
-                    extraArticleField: 'ignored',
-                  },
-                ],
-              },
-            ],
-            sources: [
-              {
-                ...mockMarketInsightsReport.sources[0],
-                extraSourceField: 'ignored',
-              },
-            ],
+            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+            digest: {
+              ...mockMarketInsightsReport,
+              extraTopLevelField: true,
+              trends: [
+                {
+                  ...mockMarketInsightsReport.trends[0],
+                  extraTrendField: 'ignored',
+                  articles: [
+                    {
+                      ...mockMarketInsightsReport.trends[0].articles[0],
+                      extraArticleField: 'ignored',
+                    },
+                  ],
+                },
+              ],
+              sources: [
+                {
+                  ...mockMarketInsightsReport.sources[0],
+                  extraSourceField: 'ignored',
+                },
+              ],
+            },
           }),
       });
 
@@ -228,6 +243,7 @@ describe('AiDigestService', () => {
 
       expect(result).toStrictEqual({
         ...mockMarketInsightsReport,
+        digestId: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
         extraTopLevelField: true,
         trends: [
           {
@@ -279,12 +295,15 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            asset: 'btc',
-            generatedAt: '2026-02-16T10:00:00.000Z',
-            headline: 'BTC market update',
-            summary: 'Momentum is positive across major venues.',
-            trends: 'invalid-trends',
-            sources: [],
+            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+            digest: {
+              asset: 'btc',
+              generatedAt: '2026-02-16T10:00:00.000Z',
+              headline: 'BTC market update',
+              summary: 'Momentum is positive across major venues.',
+              trends: 'invalid-trends',
+              sources: [],
+            },
           }),
       });
 
@@ -303,29 +322,32 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            asset: 'btc',
-            generatedAt: '2026-02-16T10:00:00.000Z',
-            headline: 'BTC market update',
-            summary: 'Momentum is positive across major venues.',
-            trends: [
-              {
-                title: 'Institutions continue buying',
-                description:
-                  'Large holders have increased accumulation activity.',
-                category: 'macro',
-                impact: 'positive',
-                articles: [
-                  {
-                    title: 'Institutional demand grows',
-                    url: 'https://example.com/news/institutional-demand-grows',
-                    source: 'example.com',
-                    date: 1234,
-                  },
-                ],
-                tweets: [],
-              },
-            ],
-            sources: [],
+            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+            digest: {
+              asset: 'btc',
+              generatedAt: '2026-02-16T10:00:00.000Z',
+              headline: 'BTC market update',
+              summary: 'Momentum is positive across major venues.',
+              trends: [
+                {
+                  title: 'Institutions continue buying',
+                  description:
+                    'Large holders have increased accumulation activity.',
+                  category: 'macro',
+                  impact: 'positive',
+                  articles: [
+                    {
+                      title: 'Institutional demand grows',
+                      url: 'https://example.com/news/institutional-demand-grows',
+                      source: 'example.com',
+                      date: 1234,
+                    },
+                  ],
+                  tweets: [],
+                },
+              ],
+              sources: [],
+            },
           }),
       });
 
@@ -344,18 +366,21 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            asset: 'btc',
-            generatedAt: '2026-02-16T10:00:00.000Z',
-            headline: 'BTC market update',
-            summary: 'Momentum is positive across major venues.',
-            trends: [],
-            sources: [
-              {
-                name: 'Example News',
-                url: 'https://example.com',
-                type: null,
-              },
-            ],
+            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+            digest: {
+              asset: 'btc',
+              generatedAt: '2026-02-16T10:00:00.000Z',
+              headline: 'BTC market update',
+              summary: 'Momentum is positive across major venues.',
+              trends: [],
+              sources: [
+                {
+                  name: 'Example News',
+                  url: 'https://example.com',
+                  type: null,
+                },
+              ],
+            },
           }),
       });
 
@@ -374,13 +399,16 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            version: 1,
-            asset: 'btc',
-            generatedAt: '2026-02-16T10:00:00.000Z',
-            headline: 'BTC market update',
-            summary: 'Momentum is positive across major venues.',
-            trends: [],
-            sources: [],
+            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+            digest: {
+              version: 1,
+              asset: 'btc',
+              generatedAt: '2026-02-16T10:00:00.000Z',
+              headline: 'BTC market update',
+              summary: 'Momentum is positive across major venues.',
+              trends: [],
+              sources: [],
+            },
           }),
       });
 
@@ -415,13 +443,16 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            ...mockMarketInsightsReport,
-            trends: [
-              {
-                ...mockMarketInsightsReport.trends[0],
-                category: 'unknown-category',
-              },
-            ],
+            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+            digest: {
+              ...mockMarketInsightsReport,
+              trends: [
+                {
+                  ...mockMarketInsightsReport.trends[0],
+                  category: 'unknown-category',
+                },
+              ],
+            },
           }),
       });
 
@@ -440,13 +471,16 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            ...mockMarketInsightsReport,
-            trends: [
-              {
-                ...mockMarketInsightsReport.trends[0],
-                impact: 'unknown-impact',
-              },
-            ],
+            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+            digest: {
+              ...mockMarketInsightsReport,
+              trends: [
+                {
+                  ...mockMarketInsightsReport.trends[0],
+                  impact: 'unknown-impact',
+                },
+              ],
+            },
           }),
       });
 
@@ -491,61 +525,20 @@ describe('AiDigestService', () => {
       ],
     };
 
+    const mockEnvelope = {
+      id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+      report: mockMarketOverview,
+      generatedAt: '2026-02-16T10:00:00.000Z',
+      processingTime: 12345,
+      success: true,
+      error: null,
+    };
+
     it('fetches market overview from correct endpoint', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(mockMarketOverview),
-      });
-
-      const service = new AiDigestService({
-        baseUrl: 'http://test.com/api/v1',
-      });
-      const result = await service.fetchMarketOverview();
-
-      expect(result).toStrictEqual(mockMarketOverview);
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://test.com/api/v1/market-overview',
-      );
-    });
-
-    it('accepts report envelope responses without id', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            report: mockMarketOverview,
-            generatedAt: '2026-02-16T10:00:00.000Z',
-            processingTime: 12345,
-            success: true,
-            error: null,
-            createdAt: '2026-02-16T10:00:00.000Z',
-            updatedAt: '2026-02-16T10:00:00.000Z',
-          }),
-      });
-
-      const service = new AiDigestService({
-        baseUrl: 'http://test.com/api/v1',
-      });
-      const result = await service.fetchMarketOverview();
-
-      expect(result).toStrictEqual(mockMarketOverview);
-    });
-
-    it('attaches digestId from envelope id field', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({
-            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
-            report: mockMarketOverview,
-            generatedAt: '2026-02-16T10:00:00.000Z',
-            processingTime: 12345,
-            success: true,
-            error: null,
-          }),
+        json: () => Promise.resolve(mockEnvelope),
       });
 
       const service = new AiDigestService({
@@ -557,6 +550,50 @@ describe('AiDigestService', () => {
         ...mockMarketOverview,
         digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
       });
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://test.com/api/v1/market-overview',
+      );
+    });
+
+    it('extracts digestId from the envelope id field', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockEnvelope),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchMarketOverview();
+
+      expect(result).toStrictEqual({
+        ...mockMarketOverview,
+        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+      });
+    });
+
+    it('throws when envelope id is missing', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            report: mockMarketOverview,
+            generatedAt: '2026-02-16T10:00:00.000Z',
+            processingTime: 12345,
+            success: true,
+            error: null,
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(service.fetchMarketOverview()).rejects.toThrow(
+        AiDigestControllerErrorMessage.API_INVALID_RESPONSE,
+      );
     });
 
     it('returns null when API returns 404', async () => {
@@ -588,8 +625,11 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            generatedAt: '2026-02-16T10:00:00.000Z',
-            trends: 'invalid-trends',
+            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+            report: {
+              generatedAt: '2026-02-16T10:00:00.000Z',
+              trends: 'invalid-trends',
+            },
           }),
       });
 
@@ -608,13 +648,16 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            ...mockMarketOverview,
-            trends: [
-              {
-                ...mockMarketOverview.trends[0],
-                category: 'unknown-category',
-              },
-            ],
+            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+            report: {
+              ...mockMarketOverview,
+              trends: [
+                {
+                  ...mockMarketOverview.trends[0],
+                  category: 'unknown-category',
+                },
+              ],
+            },
           }),
       });
 
@@ -633,13 +676,16 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            ...mockMarketOverview,
-            trends: [
-              {
-                ...mockMarketOverview.trends[0],
-                impact: 'unknown-impact',
-              },
-            ],
+            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+            report: {
+              ...mockMarketOverview,
+              trends: [
+                {
+                  ...mockMarketOverview.trends[0],
+                  impact: 'unknown-impact',
+                },
+              ],
+            },
           }),
       });
 
@@ -674,7 +720,8 @@ describe('AiDigestService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(withoutVersion),
+        json: () =>
+          Promise.resolve({ id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033', report: withoutVersion }),
       });
 
       const service = new AiDigestService({
@@ -682,7 +729,10 @@ describe('AiDigestService', () => {
       });
       const result = await service.fetchMarketOverview();
 
-      expect(result).toStrictEqual(withoutVersion);
+      expect(result).toStrictEqual({
+        ...withoutVersion,
+        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+      });
     });
 
     it('accepts response with optional metadata field', async () => {
@@ -694,7 +744,8 @@ describe('AiDigestService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(withMetadata),
+        json: () =>
+          Promise.resolve({ id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033', report: withMetadata }),
       });
 
       const service = new AiDigestService({
@@ -702,7 +753,10 @@ describe('AiDigestService', () => {
       });
       const result = await service.fetchMarketOverview();
 
-      expect(result).toStrictEqual(withMetadata);
+      expect(result).toStrictEqual({
+        ...withMetadata,
+        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+      });
     });
 
     it('throws when a trend has an invalid relatedAssets entry', async () => {
@@ -711,13 +765,16 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            ...mockMarketOverview,
-            trends: [
-              {
-                ...mockMarketOverview.trends[0],
-                relatedAssets: [{ name: 'Bitcoin' }], // missing required fields
-              },
-            ],
+            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+            report: {
+              ...mockMarketOverview,
+              trends: [
+                {
+                  ...mockMarketOverview.trends[0],
+                  relatedAssets: [{ name: 'Bitcoin' }], // missing required fields
+                },
+              ],
+            },
           }),
       });
 
@@ -745,7 +802,8 @@ describe('AiDigestService', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve(withExtras),
+        json: () =>
+          Promise.resolve({ id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033', report: withExtras }),
       });
 
       const service = new AiDigestService({
@@ -753,7 +811,10 @@ describe('AiDigestService', () => {
       });
       const result = await service.fetchMarketOverview();
 
-      expect(result).toStrictEqual(withExtras);
+      expect(result).toStrictEqual({
+        ...withExtras,
+        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+      });
     });
   });
 });

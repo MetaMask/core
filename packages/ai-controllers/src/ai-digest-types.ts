@@ -80,7 +80,7 @@ export type MarketInsightsTrend = {
  */
 export type MarketInsightsReport = {
   /** Unique identifier for this digest, sourced from the API response envelope. */
-  digestId?: string;
+  digestId: string;
   /** API version */
   version?: string;
   /** Asset symbol (lowercase, e.g. "btc") */
@@ -173,7 +173,7 @@ export type AIResponseMetadata = {
 
 export type MarketOverview = {
   /** Unique identifier for this digest, sourced from the API response envelope. */
-  digestId?: string;
+  digestId: string;
   version?: string;
   generatedAt: string;
   trends: MarketOverviewTrend[];
