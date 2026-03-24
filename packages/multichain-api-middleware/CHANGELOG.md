@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 
-### Uncategorized
-
-- Release/855.0.0 ([#8140](https://github.com/MetaMask/core/pull/8140))
-- chore: secure PUBLISH_PREVIEW_NPM_TOKEN with GitHub environment ([#8011](https://github.com/MetaMask/core/pull/8011))
-
 ### Added
 
 - **BREAKING:** Add required `sortAccountIdsByLastSelected` hook to `wallet_getSession`, `wallet_createSession`, and `wallet_invokeMethod` handlers to enable custom account ordering in session scopes ([#8255](https://github.com/MetaMask/core/pull/8255))
