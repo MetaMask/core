@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: simplify auto-generated file header comment ([#8279](https://github.com/MetaMask/core/pull/8279))
+- chore(multichain-account-service): fix changelog ([#8203](https://github.com/MetaMask/core/pull/8203))
+
 ### Added
 
 - Use `{Btc,Sol}AccountProvider` as default providers ([#8262](https://github.com/MetaMask/core/pull/8262))
