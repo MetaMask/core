@@ -1876,6 +1876,7 @@ describe('Relay Quotes Utils', () => {
               },
             },
           ],
+          kind: 'transaction',
         } as never);
 
         successfulFetchMock.mockResolvedValue({
@@ -2280,6 +2281,111 @@ describe('Relay Quotes Utils', () => {
         });
 
         expect(result[0].original.metamask.gasLimits).toStrictEqual([]);
+      });
+    });
+
+    describe('HyperLiquid source (isHyperliquidSource)', () => {
+      const HL_REQUEST: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        isHyperliquidSource: true,
+        isPostQuote: true,
+        sourceChainId: CHAIN_ID_ARBITRUM,
+        sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+        sourceTokenAmount: '100000000',
+      };
+
+      it('overrides source chain and token to HyperCore', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [HL_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.originChainId).toBe(parseInt(CHAIN_ID_HYPERCORE, 16));
+        expect(body.originCurrency).toBe(
+          '0x00000000000000000000000000000000',
+        );
+      });
+
+      it('shifts source amount by 2 decimals (8→6)', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [HL_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.amount).toBe('10000000000');
+      });
+
+      it('adds protocolVersion v2 to request body', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [HL_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.protocolVersion).toBe('v2');
+      });
+
+      it('zeroes source network fees (gasless)', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        const result = await getRelayQuotes({
+          messenger,
+          requests: [HL_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+        expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(
+          zeroAmount,
+        );
+        expect(result[0].fees.sourceNetwork.max).toStrictEqual(zeroAmount);
+      });
+
+      it('uses Arbitrum USDC fiat rate for source', async () => {
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          messenger,
+          requests: [HL_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(getTokenFiatRateMock).toHaveBeenCalledWith(
+          expect.anything(),
+          ARBITRUM_USDC_ADDRESS,
+          CHAIN_ID_ARBITRUM,
+        );
       });
     });
 

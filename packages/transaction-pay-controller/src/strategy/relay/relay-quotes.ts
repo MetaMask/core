@@ -2,6 +2,7 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -17,9 +18,9 @@ import type {
   RelayQuote,
   RelayQuoteMetamask,
   RelayQuoteRequest,
+  RelayTransactionStep,
 } from './types';
 import { TransactionPayStrategy } from '../..';
-import type { TransactionMeta } from '../../../../transaction-controller/src';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -247,13 +248,19 @@ async function getSingleQuote(
       body.refundTo = request.refundTo;
     }
 
+    if (request.isHyperliquidSource) {
+      body.protocolVersion = 'v2';
+    }
+
     log('Request body', body);
 
     const quote = await fetchRelayQuote(messenger, body);
 
     log('Fetched relay quote', quote);
 
-    return await normalizeQuote(quote, request, fullRequest);
+    const normalized = await normalizeQuote(quote, request, fullRequest);
+
+    return normalized;
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -323,8 +330,9 @@ async function processTransactions(
   requestBody.authorizationList = normalizedAuthorizationList;
   requestBody.tradeType = 'EXACT_OUTPUT';
 
-  const tokenTransferData = nestedTransactions?.find((nestedTx) =>
-    nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
+  const tokenTransferData = nestedTransactions?.find(
+    (nestedTx: { data?: Hex }) =>
+      nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
   )?.data;
 
   // If the transactions include a token transfer, change the recipient
@@ -387,6 +395,20 @@ function normalizeRequest(request: QuoteRequest): QuoteRequest {
       originalRequest: request,
       normalizedRequest: newRequest,
     });
+  }
+
+  // HyperLiquid withdrawal: source is HyperCore Perps USDC, not Arbitrum.
+  // Override source chain/token and set protocolVersion=v2 (required by Relay).
+  // Decimal shift: Perps USDC is 8 decimals, standard USDC is 6.
+  if (request.isHyperliquidSource) {
+    newRequest.sourceChainId = CHAIN_ID_HYPERCORE;
+    newRequest.sourceTokenAddress = '0x00000000000000000000000000000000';
+
+    if (newRequest.sourceTokenAmount) {
+      newRequest.sourceTokenAmount = new BigNumber(newRequest.sourceTokenAmount)
+        .shiftedBy(2)
+        .toString(10);
+    }
   }
 
   return newRequest;
@@ -537,7 +559,15 @@ function getFiatRates(
   sourceFiatRate: FiatRates;
   usdToFiatRate: BigNumber;
 } {
-  const { sourceChainId, sourceTokenAddress } = request;
+  // For HyperLiquid source, the normalized chain/token (HyperCore + Perps USDC)
+  // won't have a fiat rate entry. Use Arbitrum USDC instead since Perps USDC
+  // is pegged 1:1.
+  const sourceChainId = request.isHyperliquidSource
+    ? CHAIN_ID_ARBITRUM
+    : request.sourceChainId;
+  const sourceTokenAddress = request.isHyperliquidSource
+    ? ARBITRUM_USDC_ADDRESS
+    : request.sourceTokenAddress;
 
   const finalSourceTokenAddress =
     sourceChainId === CHAIN_ID_POLYGON &&
@@ -607,7 +637,25 @@ async function calculateSourceNetworkCost(
     };
   }
 
-  const relayParams = quote.steps
+  // HyperLiquid withdrawals are gasless -- the "deposit" step is an HL
+  // sendAsset (off-chain signature), not an on-chain transaction.
+  if (request.isHyperliquidSource) {
+    log('Zeroing network fees for HyperLiquid withdrawal (gasless)');
+
+    const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+    return {
+      estimate: zeroAmount,
+      max: zeroAmount,
+      gasLimits: [],
+      is7702: false,
+    };
+  }
+
+  const txSteps = quote.steps.filter(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const relayParams = txSteps
     .flatMap((step) => step.items)
     .map((item) => item.data);
 
@@ -777,7 +825,7 @@ async function calculateSourceNetworkCost(
  * @returns Total gas estimates and per-transaction gas limits.
  */
 async function calculateSourceNetworkGasLimit(
-  params: RelayQuote['steps'][0]['items'][0]['data'][],
+  params: RelayTransactionStep['items'][0]['data'][],
   messenger: TransactionPayControllerMessenger,
   fromOverride?: Hex,
 ): Promise<{
@@ -806,7 +854,7 @@ async function calculateSourceNetworkGasLimit(
 }
 
 function toRelayQuoteGasTransaction(
-  singleParams: RelayQuote['steps'][0]['items'][0]['data'],
+  singleParams: RelayTransactionStep['items'][0]['data'],
   fromOverride?: Hex,
 ): QuoteGasTransaction {
   return {
@@ -848,7 +896,9 @@ function combinePostQuoteGas(
   gasLimits: number[];
   is7702: boolean;
 } {
-  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
+  const nestedGas = transaction.nestedTransactions?.find(
+    (tx: { gas?: string }) => tx.gas,
+  )?.gas;
   const rawGas = nestedGas ?? transaction.txParams.gas;
   const originalTxGas = rawGas ? new BigNumber(rawGas).toNumber() : undefined;
 
@@ -920,7 +970,6 @@ function getTransferRecipient(data: Hex): Hex {
     .decodeFunctionData('transfer', data)
     .to.toLowerCase();
 }
-
 function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
   const subsidizedFee = quote.fees?.subsidized;
   const amountUsd = new BigNumber(subsidizedFee?.amountUsd ?? '0');

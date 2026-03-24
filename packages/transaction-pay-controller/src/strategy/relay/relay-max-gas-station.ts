@@ -1,3 +1,4 @@
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -307,7 +308,12 @@ async function getGasCostFromQuoteOrGasStation(
     };
   }
 
-  const firstStepData = quote.original.steps[0]?.items[0]?.data;
+  const firstTxStep = quote.original.steps.find(
+    (step) => step.kind === 'transaction',
+  );
+  const firstStepData = firstTxStep?.items[0]?.data as
+    | { data: Hex; to: Hex; value?: string }
+    | undefined;
 
   if (!firstStepData) {
     return undefined;

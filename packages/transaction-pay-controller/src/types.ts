@@ -84,6 +84,13 @@ export type TransactionConfig = {
   isPostQuote?: boolean;
 
   /**
+   * Whether the source of funds is HyperLiquid (HyperCore).
+   * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
+   * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
+   */
+  isHyperliquidSource?: boolean;
+
+  /**
    * Optional address to receive refunds if the Relay transaction fails.
    * When set, overrides the default refund recipient (EOA) in the Relay quote
    * request. Use this for post-quote flows where the user's funds originate
@@ -163,6 +170,9 @@ export type TransactionData = {
    * (e.g., bridging output to a different token/chain).
    */
   isPostQuote?: boolean;
+
+  /** Whether the source of funds is HyperLiquid (HyperCore). */
+  isHyperliquidSource?: boolean;
 
   /**
    * Optional address to receive refunds if the Relay transaction fails.
@@ -323,6 +333,9 @@ export type QuoteRequest = {
 
   /** Whether this is a post-quote flow. */
   isPostQuote?: boolean;
+
+  /** Whether the source of funds is HyperLiquid (HyperCore). */
+  isHyperliquidSource?: boolean;
 
   /**
    * Optional address to receive refunds if the Relay transaction fails.
