@@ -1,9 +1,6 @@
 import { isBip44Account } from '@metamask/account-api';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
-import type {
-  CreateAccountOptions,
-  KeyringAccount,
-} from '@metamask/keyring-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
 import {
   AccountCreationType,
   BtcAccountType,
@@ -20,20 +17,23 @@ import type { MultichainAccountServiceOptions } from './MultichainAccountService
 import { MultichainAccountService } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
 import { TimeoutError } from './providers';
-import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
 import {
+  BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   BTC_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
 } from './providers/BtcAccountProvider';
 import {
+  EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
 } from './providers/EvmAccountProvider';
 import {
+  SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './providers/SolAccountProvider';
 import {
+  TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
 } from './providers/TrxAccountProvider';
@@ -381,7 +381,10 @@ describe('MultichainAccountService', () => {
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
+        expect.objectContaining({
+          ...providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
+          isEnabled: expect.any(Function),
+        }),
         expect.any(Function), // TraceCallback
       );
     });
@@ -396,12 +399,12 @@ describe('MultichainAccountService', () => {
       expect(withLocalPerfTrace).not.toHaveBeenCalled();
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        undefined,
+        EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
         traceFallback,
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        undefined,
+        expect.objectContaining({ isEnabled: expect.any(Function) }),
         traceFallback,
       );
     });
@@ -418,12 +421,12 @@ describe('MultichainAccountService', () => {
       expect(withLocalPerfTrace).not.toHaveBeenCalled();
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        undefined,
+        EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
         customTrace,
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        undefined,
+        expect.objectContaining({ isEnabled: expect.any(Function) }),
         customTrace,
       );
     });
@@ -441,12 +444,12 @@ describe('MultichainAccountService', () => {
       expect(withLocalPerfTrace).toHaveBeenCalledWith(traceFallback);
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        undefined,
+        EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
         wrappedTrace,
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        undefined,
+        expect.objectContaining({ isEnabled: expect.any(Function) }),
         wrappedTrace,
       );
     });
@@ -465,7 +468,7 @@ describe('MultichainAccountService', () => {
       expect(withLocalPerfTrace).toHaveBeenCalledWith(customTrace);
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         expect.anything(),
-        undefined,
+        EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
         wrappedTrace,
       );
     });
@@ -496,12 +499,15 @@ describe('MultichainAccountService', () => {
 
       expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        undefined,
+        EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
         expect.any(Function), // TraceCallback
       );
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
-        providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
+        expect.objectContaining({
+          ...providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
+          isEnabled: expect.any(Function),
+        }),
         expect.any(Function), // TraceCallback
       );
     });
@@ -1335,132 +1341,70 @@ describe('MultichainAccountService', () => {
       // This tests the simplified parameter signature
       expect(await service.setBasicFunctionality(false)).toBeUndefined();
     });
-  });
 
-  describe('AccountProviderWrapper', () => {
-    let wrapper: AccountProviderWrapper;
-    let solProvider: SolAccountProvider;
+    it('snap provider isEnabled callbacks return true by default', async () => {
+      const { mocks } = await setup({ accounts: [MOCK_HD_ACCOUNT_1] });
 
-    beforeEach(async () => {
-      const { rootMessenger } = await setup({
+      const solIsEnabled =
+        mocks.SolAccountProvider.constructor.mock.calls[0][1].isEnabled;
+      const btcIsEnabled =
+        mocks.BtcAccountProvider.constructor.mock.calls[0][1].isEnabled;
+      const trxIsEnabled =
+        mocks.TrxAccountProvider.constructor.mock.calls[0][1].isEnabled;
+
+      expect(solIsEnabled()).toBe(true);
+      expect(btcIsEnabled()).toBe(true);
+      expect(trxIsEnabled()).toBe(true);
+    });
+
+    it('snap provider isEnabled callbacks return false after setBasicFunctionality(false)', async () => {
+      const { mocks, service } = await setup({ accounts: [MOCK_HD_ACCOUNT_1] });
+
+      await service.setBasicFunctionality(false);
+
+      const solIsEnabled =
+        mocks.SolAccountProvider.constructor.mock.calls[0][1].isEnabled;
+      const btcIsEnabled =
+        mocks.BtcAccountProvider.constructor.mock.calls[0][1].isEnabled;
+      const trxIsEnabled =
+        mocks.TrxAccountProvider.constructor.mock.calls[0][1].isEnabled;
+
+      expect(solIsEnabled()).toBe(false);
+      expect(btcIsEnabled()).toBe(false);
+      expect(trxIsEnabled()).toBe(false);
+    });
+
+    it('snap provider isEnabled callbacks compose with consumer-provided isEnabled', async () => {
+      const consumerIsEnabled = jest.fn().mockReturnValue(false);
+
+      const { mocks } = await setup({
         accounts: [MOCK_HD_ACCOUNT_1],
+        providerConfigs: {
+          [SOL_ACCOUNT_PROVIDER_NAME]: {
+            ...SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+            isEnabled: consumerIsEnabled,
+          },
+          [BTC_ACCOUNT_PROVIDER_NAME]: {
+            ...BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+            isEnabled: consumerIsEnabled,
+          },
+          [TRX_ACCOUNT_PROVIDER_NAME]: {
+            ...TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
+            isEnabled: consumerIsEnabled,
+          },
+        },
       });
 
-      // Create actual SolAccountProvider instance for wrapping
-      solProvider = new SolAccountProvider(
-        getMultichainAccountServiceMessenger(rootMessenger),
-      );
+      const solIsEnabled =
+        mocks.SolAccountProvider.constructor.mock.calls[0][1].isEnabled;
+      const btcIsEnabled =
+        mocks.BtcAccountProvider.constructor.mock.calls[0][1].isEnabled;
+      const trxIsEnabled =
+        mocks.TrxAccountProvider.constructor.mock.calls[0][1].isEnabled;
 
-      // Spy on the provider methods
-      jest.spyOn(solProvider, 'resyncAccounts');
-      jest.spyOn(solProvider, 'getAccounts');
-      jest.spyOn(solProvider, 'getAccount');
-      jest.spyOn(solProvider, 'createAccounts');
-      jest.spyOn(solProvider, 'discoverAccounts');
-      jest.spyOn(solProvider, 'isAccountCompatible');
-
-      wrapper = new AccountProviderWrapper(
-        getMultichainAccountServiceMessenger(rootMessenger),
-        solProvider,
-      );
-    });
-
-    it('forwards capabilities from adapted provider', async () => {
-      expect(wrapper.capabilities).toStrictEqual(solProvider.capabilities);
-    });
-
-    it('forwards resyncAccounts() if provider is enabled', async () => {
-      const spy = jest.spyOn(solProvider, 'resyncAccounts');
-
-      // Enable first - should work normally
-      spy.mockResolvedValue(undefined);
-      await wrapper.resyncAccounts([]);
-      expect(spy).toHaveBeenCalledTimes(1);
-
-      // Disable - should return empty array
-      wrapper.setEnabled(false);
-      await wrapper.resyncAccounts([]);
-      expect(spy).toHaveBeenCalledTimes(1); // No new call, still 1 call
-    });
-
-    it('returns empty array when getAccounts() is disabled', () => {
-      // Enable first - should work normally
-      (solProvider.getAccounts as jest.Mock).mockReturnValue([
-        MOCK_HD_ACCOUNT_1,
-      ]);
-      expect(wrapper.getAccounts()).toStrictEqual([MOCK_HD_ACCOUNT_1]);
-
-      // Disable - should return empty array
-      wrapper.setEnabled(false);
-      expect(wrapper.getAccounts()).toStrictEqual([]);
-    });
-
-    it('throws error when getAccount() is disabled', () => {
-      // Enable first - should work normally
-      (solProvider.getAccount as jest.Mock).mockReturnValue(MOCK_HD_ACCOUNT_1);
-      expect(wrapper.getAccount('test-id')).toStrictEqual(MOCK_HD_ACCOUNT_1);
-
-      // Disable - should throw error
-      wrapper.setEnabled(false);
-      expect(() => wrapper.getAccount('test-id')).toThrow(
-        'Provider is disabled',
-      );
-    });
-
-    it('returns empty array when createAccounts() is disabled', async () => {
-      const options: CreateAccountOptions = {
-        type: AccountCreationType.Bip44DeriveIndex,
-        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
-        groupIndex: 0,
-      };
-
-      // Enable first - should work normally
-      (solProvider.createAccounts as jest.Mock).mockResolvedValue([
-        MOCK_HD_ACCOUNT_1,
-      ]);
-      expect(await wrapper.createAccounts(options)).toStrictEqual([
-        MOCK_HD_ACCOUNT_1,
-      ]);
-
-      // Disable - should return empty array and not call underlying provider
-      wrapper.setEnabled(false);
-
-      const result = await wrapper.createAccounts(options);
-      expect(result).toStrictEqual([]);
-    });
-
-    it('returns empty array when discoverAccounts() is disabled', async () => {
-      const options = {
-        entropySource: MOCK_HD_ACCOUNT_1.options.entropy.id,
-        groupIndex: 0,
-      };
-
-      // Enable first - should work normally
-      (solProvider.discoverAccounts as jest.Mock).mockResolvedValue([
-        MOCK_HD_ACCOUNT_1,
-      ]);
-      expect(await wrapper.discoverAccounts(options)).toStrictEqual([
-        MOCK_HD_ACCOUNT_1,
-      ]);
-
-      // Disable - should return empty array
-      wrapper.setEnabled(false);
-
-      const result = await wrapper.discoverAccounts(options);
-      expect(result).toStrictEqual([]);
-    });
-
-    it('delegates isAccountCompatible() to wrapped provider', () => {
-      // Mock the provider's compatibility check
-      (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(true);
-      expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(true);
-      expect(solProvider.isAccountCompatible).toHaveBeenCalledWith(
-        MOCK_HD_ACCOUNT_1,
-      );
-
-      // Test with false return
-      (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(false);
-      expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
+      expect(solIsEnabled()).toBe(false);
+      expect(btcIsEnabled()).toBe(false);
+      expect(trxIsEnabled()).toBe(false);
     });
   });
 

@@ -5,7 +5,7 @@ import type {
   KeyringCapabilities,
 } from '@metamask/keyring-api';
 
-import { AccountProviderWrapper, EvmAccountProvider } from '../providers';
+import { EvmAccountProvider, SnapAccountProvider } from '../providers';
 import { GroupIndexRange } from '../utils';
 
 export type MockAccountProvider = {
@@ -22,9 +22,6 @@ export type MockAccountProvider = {
   discoverAccounts: jest.Mock;
   isAccountCompatible: jest.Mock;
   getName: jest.Mock;
-  isEnabled: boolean;
-  isDisabled: jest.Mock;
-  setEnabled: jest.Mock;
 };
 
 export function makeMockAccountProvider(
@@ -53,9 +50,6 @@ export function makeMockAccountProvider(
     discoverAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
     getName: jest.fn(),
-    isDisabled: jest.fn(),
-    setEnabled: jest.fn(),
-    isEnabled: true,
   };
 }
 
@@ -75,11 +69,6 @@ export function setupBip44AccountProvider({
   // of accounts.
   mocks.mockAccounts = accounts;
   mocks.accounts = new Set(accounts.map((account) => account.id));
-  // Toggle enabled state only
-  mocks.setEnabled.mockImplementation((enabled: boolean) => {
-    mocks.isEnabled = enabled;
-  });
-  mocks.isDisabled.mockImplementation(() => !mocks.isEnabled);
 
   const getAccounts = (): KeyringAccount[] =>
     mocks.mockAccounts.filter((account) =>
@@ -108,7 +97,7 @@ export function setupBip44AccountProvider({
   }
 
   if (index !== 0) {
-    Object.setPrototypeOf(mocks, AccountProviderWrapper.prototype);
+    Object.setPrototypeOf(mocks, SnapAccountProvider.prototype);
   }
 
   return mocks;

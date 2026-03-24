@@ -9,7 +9,6 @@ import type {
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
 
-import { AccountProviderWrapper } from './AccountProviderWrapper';
 import {
   BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   BTC_ACCOUNT_PROVIDER_NAME,
@@ -164,7 +163,7 @@ function setup({
   accounts?: InternalAccount[];
   config?: SnapAccountProviderConfig;
 } = {}): {
-  provider: AccountProviderWrapper;
+  provider: MockBtcAccountProvider;
   messenger: RootMessenger;
   keyring: MockBtcKeyring;
   mocks: {
@@ -227,14 +226,13 @@ function setup({
   });
 
   const multichainMessenger = getMultichainAccountServiceMessenger(messenger);
-  const btcProvider = new MockBtcAccountProvider(
+  const provider = new MockBtcAccountProvider(
     multichainMessenger,
     config,
     mockTrace,
   );
   const accountIds = accounts.map((account) => account.id);
-  btcProvider.init(accountIds);
-  const provider = new AccountProviderWrapper(multichainMessenger, btcProvider);
+  provider.init(accountIds);
 
   return {
     provider,
@@ -693,11 +691,7 @@ describe('BtcAccountProvider', () => {
       const multichainMessenger =
         getMultichainAccountServiceMessenger(messenger);
       // No trace callback (defaults to `traceFallback`).
-      const btcProvider = new MockBtcAccountProvider(multichainMessenger);
-      const provider = new AccountProviderWrapper(
-        multichainMessenger,
-        btcProvider,
-      );
+      const provider = new MockBtcAccountProvider(multichainMessenger);
 
       const discovered = await provider.discoverAccounts({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -742,23 +736,68 @@ describe('BtcAccountProvider', () => {
     });
   });
 
-  describe('isDisabled', () => {
-    it('returns false when the provider is enabled (default)', () => {
-      const { provider } = setup();
-      expect(provider.isDisabled()).toBe(false);
+  describe('isEnabled config callback', () => {
+    it('provider is enabled by default when no isEnabled callback is provided', () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider } = setup({ accounts });
+      expect(provider.getAccounts()).toStrictEqual(accounts);
     });
 
-    it('returns true after setEnabled(false)', () => {
-      const { provider } = setup();
-      provider.setEnabled(false);
-      expect(provider.isDisabled()).toBe(true);
+    it('blocks getAccounts when isEnabled returns false', () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider } = setup({
+        accounts,
+        config: asConfig({ isEnabled: () => false }),
+      });
+      expect(provider.getAccounts()).toStrictEqual([]);
     });
 
-    it('returns false after re-enabling', () => {
-      const { provider } = setup();
-      provider.setEnabled(false);
-      provider.setEnabled(true);
-      expect(provider.isDisabled()).toBe(false);
+    it('throws on getAccount when isEnabled returns false', () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      const { provider } = setup({
+        accounts,
+        config: asConfig({ isEnabled: () => false }),
+      });
+      expect(() => provider.getAccount(MOCK_BTC_P2WPKH_ACCOUNT_1.id)).toThrow(
+        'Provider is disabled',
+      );
+    });
+
+    it('blocks createAccounts when isEnabled returns false', async () => {
+      const { provider } = setup({
+        config: asConfig({ isEnabled: () => false }),
+      });
+      const result = await provider.createAccounts({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+      expect(result).toStrictEqual([]);
+    });
+
+    it('blocks discoverAccounts when isEnabled returns false', async () => {
+      const { provider } = setup({
+        config: asConfig({ isEnabled: () => false }),
+      });
+      const result = await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: 0,
+      });
+      expect(result).toStrictEqual([]);
+    });
+
+    it('re-enables operations when isEnabled returns true again', () => {
+      const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
+      let enabled = false;
+      const { provider } = setup({
+        accounts,
+        config: asConfig({ isEnabled: () => enabled }),
+      });
+
+      expect(provider.getAccounts()).toStrictEqual([]);
+
+      enabled = true;
+      expect(provider.getAccounts()).toStrictEqual(accounts);
     });
   });
 });

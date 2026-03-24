@@ -39,6 +39,13 @@ export type RestrictedSnapKeyring = {
 };
 
 export type SnapAccountProviderConfig = {
+  /**
+   * Optional callback to determine if the provider is enabled. When provided,
+   * all provider operations check this callback before proceeding. If the callback
+   * returns `false`, operations return empty results or throw as appropriate.
+   * Defaults to always enabled when not provided.
+   */
+  isEnabled?: () => boolean;
   maxConcurrency?: number;
   discovery: {
     enabled?: boolean;
@@ -111,6 +118,31 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     }
 
     this.#trace = trace;
+  }
+
+  /**
+   * Returns whether the provider is currently enabled.
+   *
+   * @returns `true` if enabled (default when no callback is provided), `false` otherwise.
+   */
+  #isEnabled(): boolean {
+    return this.config.isEnabled?.() ?? true;
+  }
+
+  override getAccounts(): Bip44Account<KeyringAccount>[] {
+    if (!this.#isEnabled()) {
+      return [];
+    }
+    return super.getAccounts();
+  }
+
+  override getAccount(
+    id: Bip44Account<KeyringAccount>['id'],
+  ): Bip44Account<KeyringAccount> {
+    if (!this.#isEnabled()) {
+      throw new Error('Provider is disabled');
+    }
+    return super.getAccount(id);
   }
 
   /**
@@ -202,6 +234,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   async resyncAccounts(
     accounts: Bip44Account<InternalAccount>[],
   ): Promise<void> {
+    if (!this.#isEnabled()) {
+      return;
+    }
+
     await this.withSnap(async ({ keyring }) => {
       const localSnapAccounts = accounts.filter(
         (account) => account.metadata.snap?.id === this.snapId,
@@ -439,6 +475,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
+    if (!this.#isEnabled()) {
+      return [];
+    }
+
     assertCreateAccountOptionIsSupported(options, [
       `${AccountCreationType.Bip44DeriveIndex}`,
       `${AccountCreationType.Bip44DeriveIndexRange}`,
@@ -449,7 +489,18 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     );
   }
 
-  abstract discoverAccounts(options: {
+  async discoverAccounts(options: {
+    entropySource: EntropySourceId;
+    groupIndex: number;
+  }): Promise<Bip44Account<KeyringAccount>[]> {
+    if (!this.#isEnabled()) {
+      return [];
+    }
+
+    return this.discoverBip44Accounts(options);
+  }
+
+  protected abstract discoverBip44Accounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;
