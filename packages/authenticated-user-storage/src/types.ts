@@ -87,13 +87,24 @@ export type MarketingPreference = {
   enabled: boolean;
 };
 
+export type PerpsWatchlistExchange = {
+  testnet: string[];
+  mainnet: string[];
+};
+
+export type PerpsWatchlistMarkets = {
+  hyperliquid: PerpsWatchlistExchange;
+  myx: PerpsWatchlistExchange;
+};
+
 export type PerpsPreference = {
   enabled: boolean;
+  watchlistMarkets?: PerpsWatchlistMarkets;
 };
 
 export type SocialAIPreference = {
   enabled: boolean;
-  txAmountLimit: number;
+  txAmountLimit?: number;
   tokens: string[];
 };
 

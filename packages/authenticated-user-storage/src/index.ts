@@ -14,6 +14,8 @@ export type {
   WalletActivityAccount,
   WalletActivityPreference,
   MarketingPreference,
+  PerpsWatchlistExchange,
+  PerpsWatchlistMarkets,
   PerpsPreference,
   SocialAIPreference,
   NotificationPreferences,
