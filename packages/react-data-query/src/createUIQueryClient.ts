@@ -98,7 +98,11 @@ export function createUIQueryClient(
         payload: DataServiceGranularCacheUpdatedPayload,
       ): void => {
         if (payload.type === 'removed') {
-          cache.remove(query);
+          const currentQuery = cache.get(hash);
+
+          if (currentQuery) {
+            cache.remove(currentQuery);
+          }
         } else {
           hydrate(client, payload.state);
         }
