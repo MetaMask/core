@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `isEnabled` callback to `SnapAccountProviderConfig` ([#8287](https://github.com/MetaMask/core/pull/8287))
+  - Snap-based providers now accept an optional `isEnabled?: () => boolean` in their config.
+  - When provided, all provider operations (`getAccounts`, `getAccount`, `createAccounts`, `discoverAccounts`, `resyncAccounts`) are gated on this callback.
+  - Defaults to always enabled when not provided.
 - Use `{Btc,Sol}AccountProvider` as default providers ([#8262](https://github.com/MetaMask/core/pull/8262))
   - Those providers were initially provided by the clients.
 - Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801)), ([#8190](https://github.com/MetaMask/core/pull/8190))
@@ -39,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **BREAKING:** Remove `AccountProviderWrapper` class ([#8287](https://github.com/MetaMask/core/pull/8287))
+  - This class is no longer exported. Use the `isEnabled` callback in `SnapAccountProviderConfig` instead to control provider availability.
 - **BREAKING:** Remove `MultichainAccountGroup.alignAccounts` method ([#7801](https://github.com/MetaMask/core/pull/7801))
   - Use `MultichainAccountWallet.alignAccountsOf` instead, since this method properly lock the wallet (parent of this group) state.
 
