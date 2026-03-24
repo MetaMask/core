@@ -34,18 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [63.1.0]
 
-### Added
-
-- Add `rpcRequest`, `getProvider`, `getChainId`, and `getNetworkClientId` utility functions in `utils/provider.ts` for simplified RPC access using messenger + chainId/networkClientId ([#8273](https://github.com/MetaMask/core/pull/8273))
-
 ### Changed
 
-- Replaced all internal `ethQuery`/`EthQuery` usage with `rpcRequest` from `utils/provider` ([#8273](https://github.com/MetaMask/core/pull/8273))
+- **BREAKING:** Remove `@metamask/eth-query` dependency and all `EthQuery` usage in favour of messenger-based provider utilities ([#8273](https://github.com/MetaMask/core/pull/8273))
 
 ### Removed
 
-- Removed `determineTransactionType` from public API exports ([#8273](https://github.com/MetaMask/core/pull/8273))
-- Removed `@metamask/eth-query` as a dependency ([#8273](https://github.com/MetaMask/core/pull/8273))
+- **BREAKING:** Remove `determineTransactionType` from package exports ([#8273](https://github.com/MetaMask/core/pull/8273))
 
 ## [63.1.0]
 
