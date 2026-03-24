@@ -1,6 +1,6 @@
 import type {
   AcceptResultCallbacks,
-  AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -46,6 +46,7 @@ import type {
   UserOperationMetadata,
 } from './types';
 import { UserOperationStatus } from './types';
+import type { UserOperationControllerMethodActions } from './UserOperationController-method-action-types';
 import { updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getTransactionMetadata } from './utils/transaction';
@@ -58,6 +59,12 @@ import {
 } from './utils/validation';
 
 const controllerName = 'UserOperationController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'addUserOperation',
+  'addUserOperationFromTransaction',
+  'startPollingByNetworkClientId',
+] as const;
 
 const stateMetadata = {
   userOperations: {
@@ -111,8 +118,9 @@ export type UserOperationStateChange = ControllerStateChangeEvent<
 
 export type UserOperationControllerActions =
   | GetUserOperationState
+  | UserOperationControllerMethodActions
   | NetworkControllerGetNetworkClientByIdAction
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | KeyringControllerPrepareUserOperationAction
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction;
@@ -229,6 +237,11 @@ export class UserOperationController extends BaseController<
 
     this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
 
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     this.#entrypoint = entrypoint;
     this.#getGasFeeEstimates = getGasFeeEstimates;
 
@@ -303,6 +316,12 @@ export class UserOperationController extends BaseController<
     return await this.#addUserOperation(request, { ...options, transaction });
   }
 
+  /**
+   * Starts polling for pending user operations on the given network.
+   *
+   * @param networkClientId - The ID of the network client to poll.
+   * @returns The polling token that can be used to stop polling.
+   */
   startPollingByNetworkClientId(networkClientId: string): string {
     return this.#pendingUserOperationTracker.startPolling({
       networkClientId,

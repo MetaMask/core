@@ -189,6 +189,9 @@
       "path": "./packages/rate-limit-controller"
     },
     {
+      "path": "./packages/react-data-query"
+    },
+    {
       "path": "./packages/remote-feature-flag-controller"
     },
     {

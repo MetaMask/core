@@ -53,7 +53,7 @@ describe('AiDigestService', () => {
       ],
     };
 
-    it('fetches market insights from API using caipAssetType for CAIP-19 identifiers', async () => {
+    it('fetches market insights using universal asset= param for CAIP-19 identifiers', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -69,11 +69,11 @@ describe('AiDigestService', () => {
 
       expect(result).toStrictEqual(mockMarketInsightsReport);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://test.com/api/v1/asset-summary?caipAssetType=eip155%3A1%2Ferc20%3A0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+        'http://test.com/api/v1/asset-summary?asset=eip155%3A1%2Ferc20%3A0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       );
     });
 
-    it('fetches market insights from API using hlPerpsMarket for perps symbols', async () => {
+    it('fetches market insights using universal asset= param for ticker symbols', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -87,7 +87,7 @@ describe('AiDigestService', () => {
 
       expect(result).toStrictEqual(mockMarketInsightsReport);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://test.com/api/v1/asset-summary?hlPerpsMarket=ETH',
+        'http://test.com/api/v1/asset-summary?asset=ETH',
       );
     });
 
@@ -104,7 +104,7 @@ describe('AiDigestService', () => {
       await service.searchDigest('xyz:TSLA');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://test.com/api/v1/asset-summary?hlPerpsMarket=xyz%3ATSLA',
+        'http://test.com/api/v1/asset-summary?asset=xyz%3ATSLA',
       );
     });
 
@@ -437,11 +437,17 @@ describe('AiDigestService', () => {
   });
 
   describe('fetchMarketOverview', () => {
+    const mockRelatedAsset = {
+      name: 'Bitcoin',
+      symbol: 'BTC',
+      caip19: ['bip122:000000000019d6689c085ae165831e93/slip44:0'],
+      sourceAssetId: 'bitcoin',
+      hlPerpsMarket: 'BTC',
+    };
+
     const mockMarketOverview = {
       version: '1.0',
       generatedAt: '2026-02-16T10:00:00.000Z',
-      headline: 'Global crypto market update',
-      summary: 'Markets show mixed signals amid macro uncertainty.',
       trends: [
         {
           title: 'Institutional adoption',
@@ -456,14 +462,7 @@ describe('AiDigestService', () => {
               date: '2026-02-16',
             },
           ],
-          relatedAssets: ['BTC', 'ETH'],
-        },
-      ],
-      sources: [
-        {
-          name: 'Example News',
-          url: 'https://example.com',
-          type: 'news',
+          relatedAssets: [mockRelatedAsset],
         },
       ],
     };
@@ -484,6 +483,30 @@ describe('AiDigestService', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'http://test.com/api/v1/market-overview',
       );
+    });
+
+    it('accepts report envelope responses', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            report: mockMarketOverview,
+            generatedAt: '2026-02-16T10:00:00.000Z',
+            processingTime: 12345,
+            success: true,
+            error: null,
+            createdAt: '2026-02-16T10:00:00.000Z',
+            updatedAt: '2026-02-16T10:00:00.000Z',
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchMarketOverview();
+
+      expect(result).toStrictEqual(mockMarketOverview);
     });
 
     it('returns null when API returns 404', async () => {
@@ -515,10 +538,8 @@ describe('AiDigestService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            headline: 'Market overview',
-            summary: 'Summary.',
+            generatedAt: '2026-02-16T10:00:00.000Z',
             trends: 'invalid-trends',
-            sources: [],
           }),
       });
 
@@ -632,6 +653,31 @@ describe('AiDigestService', () => {
       const result = await service.fetchMarketOverview();
 
       expect(result).toStrictEqual(withMetadata);
+    });
+
+    it('throws when a trend has an invalid relatedAssets entry', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                relatedAssets: [{ name: 'Bitcoin' }], // missing required fields
+              },
+            ],
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(service.fetchMarketOverview()).rejects.toThrow(
+        AiDigestControllerErrorMessage.API_INVALID_RESPONSE,
+      );
     });
 
     it('accepts additional unknown fields in payload', async () => {

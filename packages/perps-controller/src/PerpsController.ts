@@ -26,7 +26,6 @@ import type { SortOptionId } from './constants/perpsConfig';
 import { PERPS_ERROR_CODES } from './perpsErrorCodes';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider';
 import { HyperLiquidProvider } from './providers/HyperLiquidProvider';
-import { MYXProvider } from './providers/MYXProvider';
 import { AccountService } from './services/AccountService';
 import { DataLakeService } from './services/DataLakeService';
 import { DepositService } from './services/DepositService';
@@ -723,6 +722,14 @@ export type PerpsControllerActions =
   | {
       type: 'PerpsController:resetSelectedPaymentToken';
       handler: PerpsController['resetSelectedPaymentToken'];
+    }
+  | {
+      type: 'PerpsController:startEligibilityMonitoring';
+      handler: PerpsController['startEligibilityMonitoring'];
+    }
+  | {
+      type: 'PerpsController:stopEligibilityMonitoring';
+      handler: PerpsController['stopEligibilityMonitoring'];
     };
 
 /**
@@ -750,6 +757,13 @@ export type PerpsControllerOptions = {
    * Must be provided by the platform (mobile/extension) at instantiation time.
    */
   infrastructure: PerpsPlatformDependencies;
+  /**
+   * When true, defers geo-blocking eligibility checks until
+   * {@link PerpsController.startEligibilityMonitoring} is called.
+   * Use this during wallet onboarding to prevent the geolocation fetch
+   * from firing before onboarding is complete.
+   */
+  deferEligibilityCheck?: boolean;
 };
 
 type BlockedRegionList = {
@@ -792,6 +806,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'saveOrderBookGrouping',
   'setSelectedPaymentToken',
   'resetSelectedPaymentToken',
+  'startEligibilityMonitoring',
+  'stopEligibilityMonitoring',
 ] as const;
 
 /**
@@ -889,6 +905,8 @@ export class PerpsController extends BaseController<
 
   #standaloneProviderHip3Version: number | null = null;
 
+  #eligibilityCheckDeferred: boolean;
+
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
 
@@ -914,6 +932,7 @@ export class PerpsController extends BaseController<
     state = {},
     clientConfig = {},
     infrastructure,
+    deferEligibilityCheck = false,
   }: PerpsControllerOptions) {
     super({
       name: 'PerpsController',
@@ -921,6 +940,8 @@ export class PerpsController extends BaseController<
       messenger,
       state: { ...getDefaultPerpsControllerState(), ...state },
     });
+
+    this.#eligibilityCheckDeferred = deferEligibilityCheck;
 
     // Store options for dependency injection
     this.#options = {
@@ -1418,17 +1439,30 @@ export class PerpsController extends BaseController<
         });
         this.providers.set('hyperliquid', hyperLiquidProvider);
 
-        // Register MYX provider if enabled via feature flag
+        // Register MYX provider if enabled via feature flag.
+        // Uses dynamic import so @myx-trade/sdk is excluded from the bundle
+        // unless MM_PERPS_MYX_PROVIDER_ENABLED=true is set at build time.
+        // Wrapped in try/catch so a missing module (stripped at build time)
+        // only skips MYX registration instead of aborting initialization.
         const isMYXEnabled = this.#isMYXProviderEnabled();
         if (isMYXEnabled) {
-          const myxProvider = new MYXProvider({
-            isTestnet: PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet,
-            platformDependencies: this.#options.infrastructure,
-          });
-          this.providers.set('myx', myxProvider);
-          this.#debugLog('PerpsController: MYX provider registered', {
-            isTestnet: PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet,
-          });
+          try {
+            const { MYXProvider } = await import('./providers/MYXProvider.js');
+            const myxProvider = new MYXProvider({
+              isTestnet:
+                PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet,
+              platformDependencies: this.#options.infrastructure,
+            });
+            this.providers.set('myx', myxProvider);
+            this.#debugLog('PerpsController: MYX provider registered', {
+              isTestnet:
+                PROVIDER_CONFIG.MYX_TESTNET_ONLY || this.state.isTestnet,
+            });
+          } catch {
+            this.#debugLog(
+              'PerpsController: MYX provider module not available (stripped from build), skipping registration',
+            );
+          }
         }
 
         // Set up active provider based on activeProvider value in state
@@ -3698,15 +3732,51 @@ export class PerpsController extends BaseController<
    */
 
   /**
-   * Fetch geo location
+   * Activates geo-blocking eligibility monitoring.
+   * Call this after onboarding is complete when the controller was constructed
+   * with `deferEligibilityCheck: true`.
    *
-   * Returned in Country or Country-Region format
-   * Example: FR, DE, US-MI, CA-ON
+   * Reads the current RemoteFeatureFlagController state, performs the initial
+   * eligibility check, and unblocks the existing stateChange subscription so
+   * future feature-flag updates flow through normally.
+   * Safe to call multiple times; subsequent calls simply re-check eligibility.
    */
+  startEligibilityMonitoring(): void {
+    this.#eligibilityCheckDeferred = false;
+
+    try {
+      const currentState = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      this.refreshEligibilityOnFeatureFlagChange(currentState);
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.startEligibilityMonitoring'),
+        this.#getErrorContext('startEligibilityMonitoring', {
+          operation: 'readRemoteFeatureFlags',
+        }),
+      );
+    }
+  }
+
+  /**
+   * Stops geo-blocking eligibility monitoring.
+   * Call this when the user disables basic functionality (e.g. useExternalServices becomes false).
+   * Prevents geolocation calls until startEligibilityMonitoring() is called again.
+   * Safe to call multiple times.
+   */
+  stopEligibilityMonitoring(): void {
+    this.#eligibilityCheckDeferred = true;
+  }
+
   /**
    * Refresh eligibility status
    */
   async refreshEligibility(): Promise<void> {
+    if (this.#eligibilityCheckDeferred) {
+      return;
+    }
+
     // Capture the current version before starting the async operation.
     // This prevents race conditions where stale eligibility checks
     // (started with fallback config) overwrite results from newer checks

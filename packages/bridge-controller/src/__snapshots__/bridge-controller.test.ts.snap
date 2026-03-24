@@ -23,6 +23,7 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
   "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
+  "tokenWarnings": [],
 }
 `;
 
@@ -49,6 +50,7 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 2`] = `
   "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
+  "tokenWarnings": [],
 }
 `;
 
@@ -812,6 +814,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   "quotesLastFetched": null,
   "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
+  "tokenWarnings": [],
 }
 `;
 
@@ -840,6 +843,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
+  "tokenWarnings": [],
 }
 `;
 

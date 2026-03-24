@@ -10,13 +10,18 @@ import {
 import { fetchServerEvents } from './fetch-server-events';
 import { isEvmTxData } from './trade-utils';
 import type { FeatureId } from './validators';
-import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
+import {
+  validateQuoteResponse,
+  validateSwapsTokenObject,
+  validateTokenFeature,
+} from './validators';
 import type {
   QuoteResponse,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
+  TokenFeature,
 } from '../types';
 
 export const getClientHeaders = ({
@@ -292,8 +297,9 @@ export const fetchAssetPrices = async (
  * @param jwt - The JWT token for authentication
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param serverEventHandlers - The server event handlers
- * @param serverEventHandlers.onValidationFailure - The function to handle validation failures
+ * @param serverEventHandlers.onQuoteValidationFailure - The function to handle quote validation failures
  * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
+ * @param serverEventHandlers.onTokenWarning - The function to handle token warning events
  * @param serverEventHandlers.onClose - The function to run when the stream is closed and there are no thrown errors
  * @param clientVersion - The client version for metrics (optional)
  * @returns A list of bridge tx quote promises
@@ -307,14 +313,15 @@ export async function fetchBridgeQuoteStream(
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
     onClose: () => void | Promise<void>;
-    onValidationFailure: (validationFailures: string[]) => void;
+    onQuoteValidationFailure: (validationFailures: string[]) => void;
     onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
+    onTokenWarning: (warning: TokenFeature) => void;
   },
   clientVersion?: string,
 ): Promise<void> {
   const queryParams = formatQueryParams(request);
 
-  const onMessage = async (quoteResponse: unknown): Promise<void> => {
+  const onQuoteReceived = async (quoteResponse: unknown): Promise<void> => {
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
 
     try {
@@ -349,12 +356,36 @@ export async function fetchBridgeQuoteStream(
       const validationFailures = Array.from(uniqueValidationFailures);
       if (uniqueValidationFailures.size > 0) {
         console.warn('Quote validation failed', validationFailures);
-        return serverEventHandlers.onValidationFailure(validationFailures);
+        return serverEventHandlers.onQuoteValidationFailure(validationFailures);
       }
       // Rethrow any unexpected errors
       throw error;
     }
     return undefined;
+  };
+
+  const onTokenWarningReceived = (data: unknown): void => {
+    try {
+      if (validateTokenFeature(data)) {
+        serverEventHandlers.onTokenWarning(data);
+      }
+    } catch (error) {
+      console.warn('Token warning validation failed', error);
+    }
+  };
+
+  const onMessage = async (
+    data: Record<string, unknown>,
+    eventName?: string,
+  ): Promise<void> => {
+    switch (eventName) {
+      case 'quote':
+        return await onQuoteReceived(data);
+      case 'token_warning':
+        return onTokenWarningReceived(data);
+      default:
+        return undefined;
+    }
   };
 
   const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;

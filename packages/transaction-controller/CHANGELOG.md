@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [63.1.0]
+
+### Added
+
+- Add `perpsWithdraw` to `TransactionType` ([#8271](https://github.com/MetaMask/core/pull/8271))
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^6.1.1` to `^6.2.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
+- Remove legacy `actionId` deduplication logic from transaction lifecycle methods ([#8256](https://github.com/MetaMask/core/pull/8256))
+
+## [63.0.0]
+
+### Added
+
+- New public `getGasFeeTokens()` controller method ([#8183](https://github.com/MetaMask/core/pull/8183))
+- Expose missing public `TransactionController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `TransactionController:handleMethodData`
+    - `TransactionController:isAtomicBatchSupported`
+    - `TransactionController:startIncomingTransactionPolling`
+    - `TransactionController:stopIncomingTransactionPolling`
+    - `TransactionController:updateIncomingTransactions`
+    - `TransactionController:stopTransaction`
+    - `TransactionController:speedUpTransaction`
+    - `TransactionController:estimateGasBuffered`
+    - `TransactionController:updateEditableParams`
+    - `TransactionController:setTransactionActive`
+    - `TransactionController:approveTransactionsWithSameNonce`
+    - `TransactionController:estimateGasFee`
+    - `TransactionController:getLayer1GasFee`
+    - `TransactionController:clearUnapprovedTransactions`
+    - `TransactionController:abortTransactionSigning`
+    - `TransactionController:updateAtomicBatchData`
+  - Corresponding action types (e.g. `TransactionControllerHandleMethodDataAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/approval-controller` from `^8.0.0` to `^9.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/gas-fee-controller` from `^26.0.3` to `^26.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- **BREAKING:** Standardize names of `TransactionController` messenger action types ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `TransactionControllerEmulateNewTransaction` -> `TransactionControllerEmulateNewTransactionAction`). You will need to update imports appropriately.
+  - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `TransactionController` messenger.
+
+## [62.22.0]
+
 ### Added
 
 - Add optional `sourceHash` field to `MetamaskPayMetadata` for tracking source chain transaction hashes when no local transaction exists ([#8133](https://github.com/MetaMask/core/pull/8133))
@@ -14,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use distinct error message when failing incomplete transactions at startup whose required transactions are all confirmed ([#8189](https://github.com/MetaMask/core/pull/8189))
 - Bump `@metamask/core-backend` from `^6.1.0` to `^6.1.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
 
 ### Fixed
@@ -2218,7 +2265,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.21.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.1.0...HEAD
+[63.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@63.0.0...@metamask/transaction-controller@63.1.0
+[63.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.22.0...@metamask/transaction-controller@63.0.0
+[62.22.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.21.0...@metamask/transaction-controller@62.22.0
 [62.21.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.20.0...@metamask/transaction-controller@62.21.0
 [62.20.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.19.0...@metamask/transaction-controller@62.20.0
 [62.19.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@62.18.0...@metamask/transaction-controller@62.19.0

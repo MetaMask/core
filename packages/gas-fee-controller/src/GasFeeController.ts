@@ -30,6 +30,7 @@ import {
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
 } from './gas-util';
+import type { GasFeeControllerMethodActions } from './GasFeeController-method-action-types';
 
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
@@ -250,6 +251,15 @@ export type GasFeeState = GasFeeEstimatesByChainId &
 
 const name = 'GasFeeController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'disconnectPoller',
+  'fetchGasFeeEstimates',
+  'getGasFeeEstimatesAndStartPolling',
+  'getTimeEstimate',
+  'resetPolling',
+  'stopPolling',
+] as const;
+
 export type GasFeeStateChange = ControllerStateChangeEvent<
   typeof name,
   GasFeeState
@@ -257,7 +267,9 @@ export type GasFeeStateChange = ControllerStateChangeEvent<
 
 export type GetGasFeeState = ControllerGetStateAction<typeof name, GasFeeState>;
 
-export type GasFeeControllerActions = GetGasFeeState;
+export type GasFeeControllerActions =
+  | GetGasFeeState
+  | GasFeeControllerMethodActions;
 
 export type GasFeeControllerEvents = GasFeeStateChange;
 
@@ -389,6 +401,11 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
 
     this.ethQuery = new EthQuery(this.#getProvider());
 
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     if (onNetworkDidChange && getChainId) {
       this.currentChainId = getChainId();
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -415,6 +432,10 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     }
   }
 
+  /**
+   * Resets the polling interval by stopping and restarting polling
+   * with the existing poll tokens.
+   */
   async resetPolling() {
     if (this.pollTokens.size !== 0) {
       const tokens = Array.from(this.pollTokens);
@@ -426,10 +447,23 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     }
   }
 
+  /**
+   * Fetches gas fee estimates.
+   *
+   * @param options - The gas fee estimate options.
+   * @returns The gas fee estimates.
+   */
   async fetchGasFeeEstimates(options?: FetchGasFeeEstimateOptions) {
     return await this._fetchGasFeeEstimateData(options);
   }
 
+  /**
+   * Gets gas fee estimates and starts polling for updates.
+   *
+   * @param pollToken - An existing poll token to reuse, or undefined to
+   * generate a new one.
+   * @returns The poll token that can be used to stop polling.
+   */
   async getGasFeeEstimatesAndStartPolling(
     pollToken: string | undefined,
   ): Promise<string> {
@@ -552,6 +586,9 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     }
   }
 
+  /**
+   * Stops polling for gas fee estimates and clears all poll tokens.
+   */
   stopPolling() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -610,6 +647,14 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     );
   }
 
+  /**
+   * Gets the estimated time for a transaction based on the given gas parameters.
+   *
+   * @param maxPriorityFeePerGas - The maximum priority fee per gas in GWEI.
+   * @param maxFeePerGas - The maximum fee per gas in GWEI.
+   * @returns The estimated time bounds, or an empty object if fee market
+   * estimates are not available.
+   */
   getTimeEstimate(
     maxPriorityFeePerGas: string,
     maxFeePerGas: string,

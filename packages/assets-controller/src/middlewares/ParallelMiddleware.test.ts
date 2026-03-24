@@ -1,5 +1,5 @@
 import { createParallelMiddleware } from './ParallelMiddleware';
-import type { TokenPriceSource } from './ParallelMiddleware';
+import type { AssetsDataSource } from '../types';
 import type { Context, DataResponse } from '../types';
 
 const MOCK_ASSET = 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
@@ -24,7 +24,7 @@ function createMockContext(overrides?: Partial<Context>): Context {
 function createMockSource(
   name: string,
   response: DataResponse,
-): TokenPriceSource {
+): AssetsDataSource {
   return {
     getName: () => name,
     assetsMiddleware: async (ctx, next): Promise<Context> => {
@@ -121,6 +121,42 @@ describe('createParallelMiddleware', () => {
         context.response.assetsBalance,
       );
       expect(result.response.assetsInfo).toHaveProperty(MOCK_ASSET);
+    });
+
+    it('attaches durationByDataSource with latency per source', async () => {
+      const tokenSource = createMockSource('TokenDataSource', {
+        assetsInfo: {
+          [MOCK_ASSET]: {
+            type: 'erc20',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      });
+      const priceSource = createMockSource('PriceDataSource', {
+        assetsPrice: {
+          [MOCK_ASSET]: {
+            price: 1.0,
+            lastUpdated: Date.now(),
+          },
+        },
+      });
+      const middleware = createParallelMiddleware([tokenSource, priceSource]);
+      const context = createMockContext();
+      const next = jest
+        .fn()
+        .mockImplementation((ctx: Context) => Promise.resolve(ctx));
+
+      const result = await middleware.assetsMiddleware(context, next);
+
+      expect(result.durationByDataSource).toBeDefined();
+      expect(result.durationByDataSource).toStrictEqual(
+        expect.objectContaining({
+          'ParallelMiddleware.TokenDataSource': expect.any(Number),
+          'ParallelMiddleware.PriceDataSource': expect.any(Number),
+        }),
+      );
     });
   });
 });
