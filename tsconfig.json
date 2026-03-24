@@ -42,6 +42,9 @@
       "path": "./packages/assets-controllers"
     },
     {
+      "path": "./packages/authenticated-user-storage"
+    },
+    {
       "path": "./packages/base-controller"
     },
     {

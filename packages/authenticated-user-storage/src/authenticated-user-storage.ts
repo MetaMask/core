@@ -1,13 +1,13 @@
+import type { Env } from './env';
+import { getEnvUrls } from './env';
+import { AuthenticatedUserStorageError } from './errors';
 import type {
   AuthenticatedUserStorageConfig,
   ClientType,
   DelegationResponse,
   DelegationSubmission,
   NotificationPreferences,
-} from './authenticated-user-storage-types';
-import { UserStorageError } from './errors';
-import type { Env } from '../shared/env';
-import { getEnvUrls } from '../shared/env';
+} from './types';
 
 export function authenticatedStorageUrl(env: Env): string {
   return `${getEnvUrls(env).userStorageApiUrl}/api/v1`;
@@ -34,7 +34,7 @@ export class AuthenticatedUserStorage {
      * Returns all delegation records belonging to the authenticated user.
      *
      * @returns An array of delegation records, or an empty array if none exist.
-     * @throws {UserStorageError} If the request fails.
+     * @throws {AuthenticatedUserStorageError} If the request fails.
      */
     list: () => Promise<DelegationResponse[]>;
     /**
@@ -45,7 +45,7 @@ export class AuthenticatedUserStorage {
      * @param submission.signedDelegation - The EIP-712 signed delegation object.
      * @param submission.metadata - Metadata including the delegation hash, chain, token, and type.
      * @param clientType - Optional client type header (`'extension'`, `'mobile'`, or `'portfolio'`).
-     * @throws {UserStorageError} If the request fails. A 409 status indicates the delegation already exists.
+     * @throws {AuthenticatedUserStorageError} If the request fails. A 409 status indicates the delegation already exists.
      */
     create: (
       submission: DelegationSubmission,
@@ -55,7 +55,7 @@ export class AuthenticatedUserStorage {
      * Revokes (deletes) a delegation record. The caller must own the delegation.
      *
      * @param delegationHash - The unique hash identifying the delegation (hex string, 0x-prefixed).
-     * @throws {UserStorageError} If the request fails or the delegation is not found (404).
+     * @throws {AuthenticatedUserStorageError} If the request fails or the delegation is not found (404).
      */
     revoke: (delegationHash: string) => Promise<void>;
   };
@@ -70,7 +70,7 @@ export class AuthenticatedUserStorage {
      * Returns the notification preferences for the authenticated user.
      *
      * @returns The notification preferences object, or `null` if none have been set.
-     * @throws {UserStorageError} If the request fails.
+     * @throws {AuthenticatedUserStorageError} If the request fails.
      */
     getNotifications: () => Promise<NotificationPreferences | null>;
     /**
@@ -79,7 +79,7 @@ export class AuthenticatedUserStorage {
      *
      * @param prefs - The full notification preferences object.
      * @param clientType - Optional client type header (`'extension'`, `'mobile'`, or `'portfolio'`).
-     * @throws {UserStorageError} If the request fails.
+     * @throws {AuthenticatedUserStorageError} If the request fails.
      */
     putNotifications: (
       prefs: NotificationPreferences,
@@ -241,12 +241,17 @@ export class AuthenticatedUserStorage {
     );
   }
 
-  #wrapError(operation: string, thrown: unknown): UserStorageError {
-    if (thrown instanceof UserStorageError) {
+  #wrapError(
+    operation: string,
+    thrown: unknown,
+  ): AuthenticatedUserStorageError {
+    if (thrown instanceof AuthenticatedUserStorageError) {
       return thrown;
     }
     const message =
       thrown instanceof Error ? thrown.message : JSON.stringify(thrown ?? '');
-    return new UserStorageError(`failed to ${operation}. ${message}`);
+    return new AuthenticatedUserStorageError(
+      `failed to ${operation}. ${message}`,
+    );
   }
 }

@@ -1,4 +1,4 @@
-import type { Env } from '../shared/env';
+import type { Env } from './env';
 
 // ---------------------------------------------------------------------------
 // Config

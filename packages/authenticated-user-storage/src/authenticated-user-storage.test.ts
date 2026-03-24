@@ -9,13 +9,13 @@ import {
   authenticatedStorageUrl,
   AuthenticatedUserStorage,
 } from './authenticated-user-storage';
-import { UserStorageError } from './errors';
+import { Env } from './env';
+import { AuthenticatedUserStorageError } from './errors';
 import {
   MOCK_DELEGATION_RESPONSE,
   MOCK_DELEGATION_SUBMISSION,
   MOCK_NOTIFICATION_PREFERENCES,
 } from './mocks/authenticated-userstorage';
-import { Env } from '../shared/env';
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 
@@ -49,14 +49,16 @@ describe('AuthenticatedUserStorage - delegations', () => {
     expect(result).toStrictEqual([MOCK_DELEGATION_RESPONSE]);
   });
 
-  it('throws UserStorageError when list fails', async () => {
+  it('throws AuthenticatedUserStorageError when list fails', async () => {
     const { storage } = arrangeAuthenticatedUserStorage();
     handleMockListDelegations({
       status: 500,
       body: { message: 'server error', error: 'internal' },
     });
 
-    await expect(storage.delegations.list()).rejects.toThrow(UserStorageError);
+    await expect(storage.delegations.list()).rejects.toThrow(
+      AuthenticatedUserStorageError,
+    );
   });
 
   it('creates a delegation', async () => {
@@ -77,7 +79,7 @@ describe('AuthenticatedUserStorage - delegations', () => {
     expect(mock.isDone()).toBe(true);
   });
 
-  it('throws UserStorageError on 409 conflict when creating duplicate delegation', async () => {
+  it('throws AuthenticatedUserStorageError on 409 conflict when creating duplicate delegation', async () => {
     const { storage } = arrangeAuthenticatedUserStorage();
     handleMockCreateDelegation({
       status: 409,
@@ -86,10 +88,10 @@ describe('AuthenticatedUserStorage - delegations', () => {
 
     await expect(
       storage.delegations.create(MOCK_DELEGATION_SUBMISSION),
-    ).rejects.toThrow(UserStorageError);
+    ).rejects.toThrow(AuthenticatedUserStorageError);
   });
 
-  it('throws UserStorageError when create fails', async () => {
+  it('throws AuthenticatedUserStorageError when create fails', async () => {
     const { storage } = arrangeAuthenticatedUserStorage();
     handleMockCreateDelegation({
       status: 400,
@@ -98,7 +100,7 @@ describe('AuthenticatedUserStorage - delegations', () => {
 
     await expect(
       storage.delegations.create(MOCK_DELEGATION_SUBMISSION),
-    ).rejects.toThrow(UserStorageError);
+    ).rejects.toThrow(AuthenticatedUserStorageError);
   });
 
   it('revokes a delegation', async () => {
@@ -112,7 +114,7 @@ describe('AuthenticatedUserStorage - delegations', () => {
     expect(mock.isDone()).toBe(true);
   });
 
-  it('throws UserStorageError when revoke returns 404', async () => {
+  it('throws AuthenticatedUserStorageError when revoke returns 404', async () => {
     const { storage } = arrangeAuthenticatedUserStorage();
     handleMockRevokeDelegation({
       status: 404,
@@ -120,11 +122,11 @@ describe('AuthenticatedUserStorage - delegations', () => {
     });
 
     await expect(storage.delegations.revoke('0xdeadbeef')).rejects.toThrow(
-      UserStorageError,
+      AuthenticatedUserStorageError,
     );
   });
 
-  it('throws UserStorageError when revoke fails', async () => {
+  it('throws AuthenticatedUserStorageError when revoke fails', async () => {
     const { storage } = arrangeAuthenticatedUserStorage();
     handleMockRevokeDelegation({
       status: 500,
@@ -132,7 +134,7 @@ describe('AuthenticatedUserStorage - delegations', () => {
     });
 
     await expect(storage.delegations.revoke('0xdeadbeef')).rejects.toThrow(
-      UserStorageError,
+      AuthenticatedUserStorageError,
     );
   });
 });
@@ -157,7 +159,7 @@ describe('AuthenticatedUserStorage - preferences', () => {
     expect(result).toBeNull();
   });
 
-  it('throws UserStorageError when get preferences fails', async () => {
+  it('throws AuthenticatedUserStorageError when get preferences fails', async () => {
     const { storage } = arrangeAuthenticatedUserStorage();
     handleMockGetNotificationPreferences({
       status: 500,
@@ -165,7 +167,7 @@ describe('AuthenticatedUserStorage - preferences', () => {
     });
 
     await expect(storage.preferences.getNotifications()).rejects.toThrow(
-      UserStorageError,
+      AuthenticatedUserStorageError,
     );
   });
 
@@ -199,7 +201,7 @@ describe('AuthenticatedUserStorage - preferences', () => {
     await storage.preferences.putNotifications(MOCK_NOTIFICATION_PREFERENCES);
   });
 
-  it('throws UserStorageError when put preferences fails', async () => {
+  it('throws AuthenticatedUserStorageError when put preferences fails', async () => {
     const { storage } = arrangeAuthenticatedUserStorage();
     handleMockPutNotificationPreferences({
       status: 400,
@@ -208,7 +210,7 @@ describe('AuthenticatedUserStorage - preferences', () => {
 
     await expect(
       storage.preferences.putNotifications(MOCK_NOTIFICATION_PREFERENCES),
-    ).rejects.toThrow(UserStorageError);
+    ).rejects.toThrow(AuthenticatedUserStorageError);
   });
 });
 

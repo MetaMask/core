@@ -1,10 +1,10 @@
-import { Env } from '../../shared/env';
 import { authenticatedStorageUrl } from '../authenticated-user-storage';
+import { Env } from '../env';
 import type {
   DelegationResponse,
   DelegationSubmission,
   NotificationPreferences,
-} from '../authenticated-user-storage-types';
+} from '../types';
 
 export const MOCK_DELEGATIONS_URL = `${authenticatedStorageUrl(Env.PRD)}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${authenticatedStorageUrl(Env.PRD)}/preferences/notifications`;
