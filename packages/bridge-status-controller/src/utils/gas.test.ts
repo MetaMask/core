@@ -7,7 +7,7 @@ import type { FeeMarketGasFeeEstimates } from '@metamask/transaction-controller'
 import { GasFeeEstimateLevel } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import { calculateGasFees, getTxGasEstimates } from './gas';
+import { calculateGasFees, getTxGasEstimates } from './transaction';
 
 // Mock data
 const mockTxGasFeeEstimates = {
