@@ -7,13 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Fix `BalanceFetcher` producing incorrect native asset IDs for non-Ethereum EVM chains (e.g. Avalanche). Previously all native balances were hardcoded to `slip44:60` (ETH); now `BalanceFetcher` accepts CAIP-19 asset IDs from callers and preserves them in results, so `RpcDataSource` passes the correct chain-specific native identifier from `NetworkEnablementController.nativeAssetIdentifiers`.
-
 ### Changed
 
-- **BREAKING:** `BalanceFetcher.fetchBalancesForTokens` is renamed to `fetchBalancesForAssets` and now accepts `CaipAssetType[]` (CAIP-19 asset IDs) instead of `Address[]` token addresses. `BalanceFetcher.getTokensToFetch` is renamed to `getAssetIdsToFetch` and returns `CaipAssetType[]`. `BalanceFetchOptions.includeNative` and `BalanceFetcherConfig.includeNativeByDefault` are removed; include the native asset ID in the asset IDs array instead.
 - EVM RPC balance pipeline (`RpcDataSource`, `BalanceFetcher`, `TokenDetector`) no longer falls back to 18 decimals for ERC-20 when decimals are unknown; human-readable balances and `detectedBalances` entries are omitted until decimals are available from state, token list metadata, or on-chain `decimals()` (native token handling unchanged) ([#8267](https://github.com/MetaMask/core/pull/8267))
 - Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 
