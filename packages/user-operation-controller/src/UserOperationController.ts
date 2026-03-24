@@ -21,12 +21,10 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { errorCodes } from '@metamask/rpc-errors';
-import { determineTransactionType } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import type {
-  TransactionControllerMessenger,
   TransactionMeta,
   TransactionParams,
-  TransactionType,
 } from '@metamask/transaction-controller';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -773,12 +771,7 @@ export class UserOperationController extends BaseController<
       return options.type;
     }
 
-    const result = await determineTransactionType(transaction, {
-      messenger: this.messenger as unknown as TransactionControllerMessenger,
-      networkClientId: options.networkClientId,
-    });
-
-    return result.type;
+    return TransactionType.contractInteraction;
   }
 
   async #getProvider(

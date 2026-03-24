@@ -20,10 +20,10 @@ import {
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
+import { determineTransactionType } from './transaction-type';
 import { validateBatchRequest } from './validation';
 import {
   TransactionEnvelopeType,
-  determineTransactionType,
   TransactionType,
   GasFeeEstimateLevel,
   GasFeeEstimateType,

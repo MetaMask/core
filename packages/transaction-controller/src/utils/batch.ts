@@ -31,12 +31,9 @@ import {
 } from './feature-flags';
 import { simulateGasBatch } from './gas';
 import { getChainId } from './provider';
+import { determineTransactionType } from './transaction-type';
 import { validateBatchRequest } from './validation';
-import {
-  determineTransactionType,
-  GasFeeEstimateLevel,
-  TransactionStatus,
-} from '..';
+import { GasFeeEstimateLevel, TransactionStatus } from '..';
 import type {
   BatchTransactionParams,
   GetSimulationConfig,
