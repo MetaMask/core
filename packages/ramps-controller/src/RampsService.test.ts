@@ -2493,6 +2493,31 @@ describe('RampsService', () => {
 
       expect(order).toStrictEqual(mockOrder);
     });
+
+    it('normalizes a /providers/ prefixed provider code in the URL', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, mockOrder);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrder',
+        '/providers/transak-staging',
+        'abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const order = await orderPromise;
+
+      expect(order).toStrictEqual(mockOrder);
+    });
   });
 
   describe('RampsService:getOrderFromCallback', () => {
@@ -2580,6 +2605,40 @@ describe('RampsService', () => {
       const orderPromise = rootMessenger.call(
         'RampsService:getOrderFromCallback',
         'transak-staging',
+        'https://metamask.app.link/on-ramp?orderId=abc-123',
+        '0xabc',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const order = await orderPromise;
+
+      expect(order).toStrictEqual(mockOrder);
+    });
+
+    it('normalizes a /providers/ prefixed provider code in the callback URL', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/callback')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          url: 'https://metamask.app.link/on-ramp?orderId=abc-123',
+        })
+        .reply(200, { id: 'abc-123' });
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/providers/transak-staging/orders/abc-123')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          wallet: '0xabc',
+        })
+        .reply(200, mockOrder);
+      const { rootMessenger } = getService();
+
+      const orderPromise = rootMessenger.call(
+        'RampsService:getOrderFromCallback',
+        '/providers/transak-staging',
         'https://metamask.app.link/on-ramp?orderId=abc-123',
         '0xabc',
       );
