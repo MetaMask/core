@@ -76,6 +76,7 @@ export class SnapRule
         metadata: {
           pinned: false,
           hidden: false,
+          lastSelected: 0,
         },
       },
     };

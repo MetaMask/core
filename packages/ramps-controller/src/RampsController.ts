@@ -1766,12 +1766,11 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const providerCodeSegment = normalizeProviderCode(providerCode);
     const previousStatus = order.status;
 
     try {
       const updatedOrder = await this.getOrder(
-        providerCodeSegment,
+        providerCode,
         order.providerOrderId,
         order.walletAddress,
       );
@@ -1942,12 +1941,10 @@ export class RampsController extends BaseController<
     if (!orderCode?.trim()) {
       return;
     }
-    const normalizedProviderCode = normalizeProviderCode(providerCode);
-
     const stubOrder: RampsOrder = {
       providerOrderId: orderCode,
       provider: {
-        id: `/providers/${normalizedProviderCode}`,
+        id: providerCode,
         name: '',
         environmentType: '',
         description: '',
