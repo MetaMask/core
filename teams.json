@@ -4,6 +4,7 @@
   "metamask/multichain-transactions-controller": "team-confirmations",
   "metamask/multichain-account-service": "team-accounts-framework",
   "metamask/account-tree-controller": "team-accounts-framework",
+  "metamask/authenticated-user-storage": "team-accounts-framework",
   "metamask/profile-sync-controller": "team-accounts-framework",
   "metamask/ramps-controller": "team-ramp",
   "metamask/assets-controller": "team-assets",
