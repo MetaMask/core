@@ -1314,11 +1314,23 @@ export class RampsService {
   }
 
   /**
+   * Strips the `/providers/` prefix so the URL path uses the short form.
+   * Accepts both `/providers/transak` and `transak`.
+   *
+   * @param providerId - Provider ID in either path or short format.
+   * @returns The short provider code.
+   */
+  #toProviderSegment(providerId: string): string {
+    return providerId.replace(/^\/providers\//u, '');
+  }
+
+  /**
    * Fetches an order from the unified V2 API endpoint.
    * This endpoint returns a normalized `RampsOrder` (DepositOrder shape)
    * for all provider types, including both aggregator and native providers.
    *
-   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay"),
+   *   with or without the `/providers/` prefix.
    * @param orderCode - The order identifier.
    * @param wallet - The wallet address associated with the order.
    * @returns The unified order data.
@@ -1328,8 +1340,9 @@ export class RampsService {
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    const segment = this.#toProviderSegment(providerCode);
     const url = new URL(
-      getApiPath(`providers/${providerCode}/orders/${orderCode}`),
+      getApiPath(`providers/${segment}/orders/${orderCode}`),
       this.#getBaseUrl(RampsApiService.Orders),
     );
     this.#addCommonParams(url);
@@ -1363,7 +1376,8 @@ export class RampsService {
    *
    * This is the V2 equivalent of the aggregator SDK's `getOrderFromCallback`.
    *
-   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param providerCode - The provider code (e.g., "transak", "moonpay"),
+   *   with or without the `/providers/` prefix.
    * @param callbackUrl - The full callback URL the provider redirected to.
    * @param wallet - The wallet address associated with the order.
    * @returns The unified order data.
@@ -1373,10 +1387,11 @@ export class RampsService {
     callbackUrl: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    const segment = this.#toProviderSegment(providerCode);
     // Step 1: Send the callback URL to the backend to extract the order ID.
     // The backend parses it using provider-specific logic.
     const callbackApiUrl = new URL(
-      getApiPath(`providers/${providerCode}/callback`),
+      getApiPath(`providers/${segment}/callback`),
       this.#getBaseUrl(RampsApiService.Orders),
     );
     this.#addCommonParams(callbackApiUrl);
