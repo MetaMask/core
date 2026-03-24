@@ -27,16 +27,6 @@
         "default": "./dist/index.cjs"
       }
     },
-    "./generate-action-types": {
-      "import": {
-        "types": "./dist/generate-action-types/index.d.mts",
-        "default": "./dist/generate-action-types/index.mjs"
-      },
-      "require": {
-        "types": "./dist/generate-action-types/index.d.cts",
-        "default": "./dist/generate-action-types/index.cjs"
-      }
-    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",

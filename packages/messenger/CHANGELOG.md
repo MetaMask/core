@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `generate-action-types` CLI tool and subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+- Add `generate-action-types` CLI tool ([#8264](https://github.com/MetaMask/core/pull/8264))
   - Generates TypeScript action type files for controllers and services that define `MESSENGER_EXPOSED_METHODS`.
-  - Available as a CLI binary (`messenger-generate-action-types`) and as a programmatic API via `@metamask/messenger/generate-action-types`.
-  - `typescript`, `yargs`, and `eslint` are optional peer dependencies, only required when using the codegen tool.
+  - Available as a CLI binary (`messenger-generate-action-types`).
+  - `@metamask/utils`, `typescript`, `yargs`, and `eslint` are optional peer dependencies, only required when using the codegen tool.
 
 ## [0.3.0]
 
