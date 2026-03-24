@@ -6,6 +6,9 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import { hexToNumber } from '@metamask/utils';
 
 import { ROOT_AUTHORITY } from './constants';
@@ -111,6 +114,7 @@ function createMessengerMock() {
       'AccountsController:getSelectedAccount',
       'KeyringController:signTypedMessage',
     ],
+    events: ['TransactionController:transactionStatusUpdated'],
   });
 
   return {
@@ -148,6 +152,26 @@ function getDelegationEnvironmentMock(_chainId: Hex): DeleGatorEnvironment {
   };
 }
 
+function createMockTransactionMeta(
+  overrides: Partial<TransactionMeta>,
+): TransactionMeta {
+  return {
+    id: '123',
+    chainId: '0x1',
+    networkClientId: '1',
+    time: Date.now(),
+    txParams: {
+      from: '0x123',
+      to: '0x456',
+      value: '0x0',
+      data: '0x',
+    },
+    status: TransactionStatus.unapproved,
+    type: TransactionType.contractInteraction,
+    ...overrides,
+  };
+}
+
 /**
  * Create a controller instance for testing.
  *
@@ -166,6 +190,7 @@ function createController(state?: DelegationControllerState) {
   return {
     controller,
     rootMessenger,
+    messenger,
     ...mocks,
   };
 }
@@ -764,6 +789,207 @@ describe(`${controllerName}`, () => {
           entry: invalidEntry,
         }),
       ).toThrow('Invalid authority');
+    });
+  });
+
+  describe('awaitDeleteDelegationEntry', () => {
+    it('subscribes to transaction status updates', () => {
+      const { messenger, rootMessenger } = createController();
+      const txMeta = createMockTransactionMeta({});
+      const subscribeSpy = jest.spyOn(messenger, 'subscribe');
+
+      rootMessenger.call('DelegationController:awaitDeleteDelegationEntry', {
+        hash: SIGNATURE_HASH_MOCK,
+        txMeta,
+      });
+
+      expect(subscribeSpy).toHaveBeenCalledWith(
+        'TransactionController:transactionStatusUpdated',
+        expect.any(Function),
+      );
+    });
+
+    it('deletes delegation when transaction is confirmed', () => {
+      const { controller, rootMessenger, messenger } = createController();
+      const txMeta = createMockTransactionMeta({});
+
+      const deleteSpy = jest.spyOn(controller, 'delete');
+      const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
+
+      rootMessenger.call('DelegationController:awaitDeleteDelegationEntry', {
+        hash: SIGNATURE_HASH_MOCK,
+        txMeta,
+      });
+
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: createMockTransactionMeta({
+          status: TransactionStatus.confirmed,
+        }),
+      });
+
+      expect(deleteSpy).toHaveBeenCalledWith(SIGNATURE_HASH_MOCK);
+      expect(unsubscribeSpy).toHaveBeenCalled();
+    });
+
+    it('stores delegation when transaction is confirmed with delegation data', () => {
+      const { controller, rootMessenger, messenger } = createController();
+      const txMeta = createMockTransactionMeta({});
+
+      const storeSpy = jest.spyOn(controller, 'store');
+      const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
+
+      rootMessenger.call('DelegationController:awaitDeleteDelegationEntry', {
+        hash: SIGNATURE_HASH_MOCK,
+        txMeta,
+        entryToStore: DELEGATION_ENTRY_MOCK,
+      });
+
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: createMockTransactionMeta({
+          status: TransactionStatus.confirmed,
+        }),
+      });
+
+      expect(storeSpy).toHaveBeenCalledWith({ entry: DELEGATION_ENTRY_MOCK });
+      expect(unsubscribeSpy).toHaveBeenCalled();
+    });
+
+    it('unsubscribes when transaction is dropped', () => {
+      const { controller, rootMessenger, messenger } = createController();
+      const txMeta = createMockTransactionMeta({});
+      const deleteSpy = jest.spyOn(controller, 'delete');
+      const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
+
+      rootMessenger.call('DelegationController:awaitDeleteDelegationEntry', {
+        hash: SIGNATURE_HASH_MOCK,
+        txMeta,
+      });
+
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: createMockTransactionMeta({
+          status: TransactionStatus.dropped,
+        }),
+      });
+
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(unsubscribeSpy).toHaveBeenCalled();
+    });
+
+    it('follows transaction chain when replaced', () => {
+      const { controller, rootMessenger, messenger } = createController();
+      const txMeta = createMockTransactionMeta({});
+      const deleteSpy = jest.spyOn(controller, 'delete');
+      const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
+
+      rootMessenger.call('DelegationController:awaitDeleteDelegationEntry', {
+        hash: SIGNATURE_HASH_MOCK,
+        txMeta,
+      });
+
+      // Transaction gets replaced
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: createMockTransactionMeta({
+          status: TransactionStatus.dropped,
+          replacedById: '456',
+        }),
+      });
+
+      // New transaction confirms
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: createMockTransactionMeta({
+          id: '456',
+          status: TransactionStatus.confirmed,
+        }),
+      });
+
+      expect(deleteSpy).toHaveBeenCalledWith(SIGNATURE_HASH_MOCK);
+      expect(unsubscribeSpy).toHaveBeenCalled();
+    });
+
+    it('unsubscribes when transaction is cancelled', () => {
+      const { controller, rootMessenger, messenger } = createController();
+      const txMeta = createMockTransactionMeta({});
+      const deleteSpy = jest.spyOn(controller, 'delete');
+      const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
+
+      rootMessenger.call('DelegationController:awaitDeleteDelegationEntry', {
+        hash: SIGNATURE_HASH_MOCK,
+        txMeta,
+      });
+
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: createMockTransactionMeta({
+          type: TransactionType.cancel,
+        }),
+      });
+
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(unsubscribeSpy).toHaveBeenCalled();
+    });
+
+    it('does nothing when transaction update is for a different transaction', () => {
+      const { controller, rootMessenger, messenger } = createController();
+      const txMeta = createMockTransactionMeta({ id: '123' });
+      const deleteSpy = jest.spyOn(controller, 'delete');
+      const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
+
+      rootMessenger.call('DelegationController:awaitDeleteDelegationEntry', {
+        hash: SIGNATURE_HASH_MOCK,
+        txMeta,
+      });
+
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: createMockTransactionMeta({
+          id: '456', // different transaction ID
+          status: TransactionStatus.confirmed,
+        }),
+      });
+
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(unsubscribeSpy).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the updated status is not relevant', () => {
+      const { controller, rootMessenger, messenger } = createController();
+      const txMeta = createMockTransactionMeta({ id: '123' });
+      const deleteSpy = jest.spyOn(controller, 'delete');
+      const unsubscribeSpy = jest.spyOn(messenger, 'unsubscribe');
+
+      rootMessenger.call('DelegationController:awaitDeleteDelegationEntry', {
+        hash: SIGNATURE_HASH_MOCK,
+        txMeta,
+      });
+
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: createMockTransactionMeta({
+          id: '123',
+          status: TransactionStatus.unapproved, // not a final status
+        }),
+      });
+
+      expect(deleteSpy).not.toHaveBeenCalled();
+      expect(unsubscribeSpy).not.toHaveBeenCalled();
+    });
+
+    it('warns if the transaction type is not supported', () => {
+      const { rootMessenger } = createController();
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      rootMessenger.call('DelegationController:awaitDeleteDelegationEntry', {
+        hash: SIGNATURE_HASH_MOCK,
+        txMeta: createMockTransactionMeta({}),
+      });
+
+      rootMessenger.publish('TransactionController:transactionStatusUpdated', {
+        transactionMeta: createMockTransactionMeta({
+          type: TransactionType.bridge,
+        }),
+      });
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'awaitDeleteDelegationEntry: Unexpected tx type',
+        TransactionType.bridge,
+      );
     });
   });
 

@@ -75,6 +75,20 @@ export type DelegationControllerDeleteAction = {
 };
 
 /**
+ * Awaits for the transaction with txMeta to be confirmed, then
+ * deletes the delegation entry with `hash`.
+ *
+ * @param options - The options for awaiting the transaction.
+ * @param options.hash - The hash of the delegation entry to delete.
+ * @param options.txMeta - The transaction meta of the transaction that confirmed the delegation entry.
+ * @param options.entryToStore - The delegation entry to store.
+ */
+export type DelegationControllerAwaitDeleteDelegationEntryAction = {
+  type: `DelegationController:awaitDeleteDelegationEntry`;
+  handler: DelegationController['awaitDeleteDelegationEntry'];
+};
+
+/**
  * Union of all DelegationController action types.
  */
 export type DelegationControllerMethodActions =
@@ -83,4 +97,5 @@ export type DelegationControllerMethodActions =
   | DelegationControllerListAction
   | DelegationControllerRetrieveAction
   | DelegationControllerChainAction
-  | DelegationControllerDeleteAction;
+  | DelegationControllerDeleteAction
+  | DelegationControllerAwaitDeleteDelegationEntryAction;

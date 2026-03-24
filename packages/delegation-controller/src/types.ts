@@ -5,6 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import { TransactionControllerTransactionStatusUpdatedEvent } from '@metamask/transaction-controller';
 
 import type { controllerName } from './DelegationController';
 import type { DelegationControllerMethodActions } from './DelegationController-method-action-types';
@@ -110,7 +111,7 @@ type AllowedActions =
   | KeyringControllerSignTypedMessageAction
   | AccountsControllerGetSelectedAccountAction;
 
-type AllowedEvents = never;
+type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent;
 
 export type DelegationControllerMessenger = Messenger<
   typeof controllerName,

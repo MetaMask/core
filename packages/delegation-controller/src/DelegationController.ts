@@ -1,6 +1,11 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import {
+  TransactionMeta,
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import { hexToNumber } from '@metamask/utils';
 
 import { ROOT_AUTHORITY } from './constants';
@@ -26,6 +31,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'retrieve',
   'chain',
   'delete',
+  'awaitDeleteDelegationEntry',
 ] as const;
 
 const delegationControllerMetadata = {
@@ -284,5 +290,94 @@ export class DelegationController extends BaseController<
     });
 
     return deletedHashes.length;
+  }
+
+  /**
+   * Awaits for the transaction with txMeta to be confirmed, then
+   * deletes the delegation entry with `hash`.
+   *
+   * @param options - The options for awaiting the transaction.
+   * @param options.hash - The hash of the delegation entry to delete.
+   * @param options.txMeta - The transaction meta of the transaction that confirmed the delegation entry.
+   * @param options.entryToStore - The delegation entry to store.
+   */
+  awaitDeleteDelegationEntry({
+    hash,
+    txMeta,
+    entryToStore,
+  }: {
+    hash: Hex;
+    txMeta: TransactionMeta;
+    entryToStore?: DelegationEntry;
+  }): void {
+    let { id } = txMeta;
+    let action: 'continue' | 'unsubscribe' | 'delete' = 'continue';
+
+    const handleTransactionStatusUpdated = ({
+      transactionMeta,
+    }: {
+      transactionMeta: TransactionMeta;
+    }): void => {
+      // If not our transaction, ignore
+      if (transactionMeta.id !== id) {
+        return;
+      }
+
+      // Check if transaction was replaced
+      if (
+        transactionMeta.status === TransactionStatus.dropped &&
+        transactionMeta.replacedById
+      ) {
+        id = transactionMeta.replacedById;
+        return;
+      }
+
+      switch (transactionMeta.type) {
+        case TransactionType.contractInteraction:
+        case TransactionType.retry:
+          switch (transactionMeta.status) {
+            case TransactionStatus.confirmed:
+              action = 'delete';
+              break;
+            case TransactionStatus.dropped:
+            case TransactionStatus.failed:
+            case TransactionStatus.rejected:
+              action = 'unsubscribe';
+              break;
+            default:
+              // Ignore other statuses
+              return;
+          }
+          break;
+        case TransactionType.cancel:
+          action = 'unsubscribe';
+          break;
+        default:
+          console.warn(
+            'awaitDeleteDelegationEntry: Unexpected tx type',
+            transactionMeta.type,
+          );
+          return;
+      }
+
+      if (action === 'delete') {
+        this.delete(hash);
+        if (entryToStore) {
+          this.store({ entry: entryToStore });
+        }
+      }
+
+      if (action === 'unsubscribe' || action === 'delete') {
+        this.messenger.unsubscribe(
+          'TransactionController:transactionStatusUpdated',
+          handleTransactionStatusUpdated,
+        );
+      }
+    };
+
+    this.messenger.subscribe(
+      'TransactionController:transactionStatusUpdated',
+      handleTransactionStatusUpdated,
+    );
   }
 }

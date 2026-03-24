@@ -7,6 +7,7 @@
     { "path": "../base-controller" },
     { "path": "../keyring-controller" },
     { "path": "../accounts-controller" },
+    { "path": "../transaction-controller" },
     { "path": "../messenger" }
   ],
   "include": ["../../types", "./src"]
