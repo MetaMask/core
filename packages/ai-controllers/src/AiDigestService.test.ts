@@ -721,7 +721,10 @@ describe('AiDigestService', () => {
         ok: true,
         status: 200,
         json: () =>
-          Promise.resolve({ id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033', report: withoutVersion }),
+          Promise.resolve({
+            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+            report: withoutVersion,
+          }),
       });
 
       const service = new AiDigestService({
@@ -745,7 +748,10 @@ describe('AiDigestService', () => {
         ok: true,
         status: 200,
         json: () =>
-          Promise.resolve({ id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033', report: withMetadata }),
+          Promise.resolve({
+            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+            report: withMetadata,
+          }),
       });
 
       const service = new AiDigestService({
@@ -803,7 +809,10 @@ describe('AiDigestService', () => {
         ok: true,
         status: 200,
         json: () =>
-          Promise.resolve({ id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033', report: withExtras }),
+          Promise.resolve({
+            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+            report: withExtras,
+          }),
       });
 
       const service = new AiDigestService({
