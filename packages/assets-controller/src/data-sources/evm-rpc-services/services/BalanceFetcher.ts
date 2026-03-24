@@ -136,8 +136,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
     const chainIdDecimal = parseInt(chainId, 16).toString();
 
-    const seen = new Set<string>();
-    const entries: AssetFetchEntry[] = [];
+    const assetsToFetch = new Map<string, AssetFetchEntry>();
 
     for (const assetId of Object.keys(accountBalances) as CaipAssetType[]) {
       const {
@@ -145,26 +144,26 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
         assetNamespace,
         assetReference,
       } = parseCaipAssetType(assetId);
+
       if (chainReference === chainIdDecimal) {
-        const lower = assetId.toLowerCase();
-        if (!seen.has(lower)) {
-          seen.add(lower);
-
-          const isNative = assetNamespace === 'slip44';
-
-          const tokenAddress = isNative
-            ? ZERO_ADDRESS
-            : (assetReference.toLowerCase() as Address);
-
-          entries.push({
-            assetId,
-            address: tokenAddress,
-          });
+        const assetIdLowerCase = assetId.toLowerCase();
+        if (assetsToFetch.has(assetIdLowerCase)) {
+          continue;
         }
+
+        const isNative = assetNamespace === 'slip44';
+        const tokenAddress = isNative
+          ? ZERO_ADDRESS
+          : (assetReference.toLowerCase() as Address);
+
+        assetsToFetch.set(assetIdLowerCase, {
+          assetId,
+          address: tokenAddress,
+        });
       }
     }
 
-    return entries;
+    return Array.from(assetsToFetch.values());
   }
 
   /**
