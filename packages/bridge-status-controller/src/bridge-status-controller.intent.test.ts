@@ -254,7 +254,6 @@ const setup = (options?: {
     state: {
       txHistory: options?.mockTxHistory ?? {},
     },
-    addTransactionBatchFn: jest.fn(),
     clientId: options?.clientId ?? BridgeClientId.EXTENSION,
     fetchFn: (...args: any[]) => mockFetchFn(...args),
     addTransactionBatchFn: jest.fn(),

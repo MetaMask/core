@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Publish UnifiedSwapBridge Failed event for any exception thrown during `submitTx`. Previously the Failed event was only getting published for EVM txs after tx submission ([#8277](https://github.com/MetaMask/core/pull/8277))
+- Keep EIP-7702 batching disabled for gasless transactions that use smart transactions / `eth_sendBundle` when the quote is gas-included but not gas-included-7702 even when the account is a smart account ([#8275](https://github.com/MetaMask/core/pull/8275))
+- For hardware wallets on MetaMask Mobile, non-batch EVM flows with ERC-20 approval now run the hardware-wallet delay before waiting for approval confirmation, preserving Ledger second-prompt spacing while gas estimation still runs after allowance is set on-chain ([#8268](https://github.com/MetaMask/core/pull/8268))
 
 ## [70.0.0]
 
