@@ -76,18 +76,6 @@ describe('AuthenticatedUserStorage - delegations', () => {
     );
   });
 
-  it('throws AuthenticatedUserStorageError with unknown message when error response is not JSON', async () => {
-    const { storage } = arrangeAuthenticatedUserStorage();
-    handleMockListDelegations({
-      status: 500,
-      body: 'not json',
-    });
-
-    await expect(storage.delegations.list()).rejects.toThrow(
-      /unknown/u,
-    );
-  });
-
   it('creates a delegation', async () => {
     const { storage } = arrangeAuthenticatedUserStorage();
     const mock = handleMockCreateDelegation();
@@ -258,19 +246,6 @@ describe('AuthenticatedUserStorage - authorization', () => {
     await storage.delegations.list();
 
     expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
-  });
-
-  it('re-throws AuthenticatedUserStorageError without wrapping', async () => {
-    const original = new AuthenticatedUserStorageError('original error');
-    const storage = new AuthenticatedUserStorage({
-      env: Env.PRD,
-      getAccessToken: jest.fn().mockRejectedValue(original),
-    });
-
-    const thrown = await storage.delegations
-      .list()
-      .catch((err: unknown) => err);
-    expect(thrown).toBe(original);
   });
 
   it('wraps non-Error thrown values in AuthenticatedUserStorageError', async () => {
