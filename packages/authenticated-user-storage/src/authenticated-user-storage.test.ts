@@ -9,7 +9,7 @@ import {
   authenticatedStorageUrl,
   AuthenticatedUserStorage,
 } from './authenticated-user-storage';
-import { Env } from './env';
+import { Env, getEnvUrls } from './env';
 import { AuthenticatedUserStorageError } from './errors';
 import {
   MOCK_DELEGATION_RESPONSE,
@@ -30,6 +30,21 @@ function arrangeAuthenticatedUserStorage(): {
   });
   return { storage, mockGetAccessToken };
 }
+
+describe('getEnvUrls()', () => {
+  it('returns URLs for a valid environment', () => {
+    const result = getEnvUrls(Env.PRD);
+    expect(result.userStorageApiUrl).toBe(
+      'https://user-storage.api.cx.metamask.io',
+    );
+  });
+
+  it('throws for an invalid environment', () => {
+    expect(() => getEnvUrls('invalid' as Env)).toThrow(
+      'invalid environment configuration',
+    );
+  });
+});
 
 describe('AuthenticatedUserStorage - authenticatedStorageUrl()', () => {
   it('generates the base URL for a given environment', () => {
@@ -58,6 +73,18 @@ describe('AuthenticatedUserStorage - delegations', () => {
 
     await expect(storage.delegations.list()).rejects.toThrow(
       AuthenticatedUserStorageError,
+    );
+  });
+
+  it('throws AuthenticatedUserStorageError with unknown message when error response is not JSON', async () => {
+    const { storage } = arrangeAuthenticatedUserStorage();
+    handleMockListDelegations({
+      status: 500,
+      body: 'not json',
+    });
+
+    await expect(storage.delegations.list()).rejects.toThrow(
+      /unknown/u,
     );
   });
 
@@ -101,6 +128,15 @@ describe('AuthenticatedUserStorage - delegations', () => {
     await expect(
       storage.delegations.create(MOCK_DELEGATION_SUBMISSION),
     ).rejects.toThrow(AuthenticatedUserStorageError);
+  });
+
+  it('sends the correct request body when creating a delegation', async () => {
+    const { storage } = arrangeAuthenticatedUserStorage();
+    handleMockCreateDelegation(undefined, async (_, requestBody) => {
+      expect(requestBody).toStrictEqual(MOCK_DELEGATION_SUBMISSION);
+    });
+
+    await storage.delegations.create(MOCK_DELEGATION_SUBMISSION);
   });
 
   it('revokes a delegation', async () => {
@@ -222,5 +258,43 @@ describe('AuthenticatedUserStorage - authorization', () => {
     await storage.delegations.list();
 
     expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-throws AuthenticatedUserStorageError without wrapping', async () => {
+    const original = new AuthenticatedUserStorageError('original error');
+    const storage = new AuthenticatedUserStorage({
+      env: Env.PRD,
+      getAccessToken: jest.fn().mockRejectedValue(original),
+    });
+
+    const thrown = await storage.delegations
+      .list()
+      .catch((err: unknown) => err);
+    expect(thrown).toBe(original);
+  });
+
+  it('wraps non-Error thrown values in AuthenticatedUserStorageError', async () => {
+    const storage = new AuthenticatedUserStorage({
+      env: Env.PRD,
+      getAccessToken: jest.fn().mockRejectedValue('string rejection'),
+    });
+
+    await expect(storage.delegations.list()).rejects.toThrow(
+      AuthenticatedUserStorageError,
+    );
+    await expect(storage.delegations.list()).rejects.toThrow(
+      'string rejection',
+    );
+  });
+
+  it('wraps null thrown values in AuthenticatedUserStorageError', async () => {
+    const storage = new AuthenticatedUserStorage({
+      env: Env.PRD,
+      getAccessToken: jest.fn().mockRejectedValue(null),
+    });
+
+    await expect(storage.delegations.list()).rejects.toThrow(
+      AuthenticatedUserStorageError,
+    );
   });
 });
