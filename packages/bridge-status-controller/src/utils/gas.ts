@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { BRIDGE_PREFERRED_GAS_ESTIMATE } from '@metamask/bridge-controller';
 import type { TokenAmountValues, TxData } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
@@ -65,7 +66,6 @@ export const getTxGasEstimates = ({
 export const calculateGasFees = async (
   skipGasFields: boolean,
   messenger: BridgeStatusControllerMessenger,
-  estimateGasFeeFn: typeof TransactionController.prototype.estimateGasFee,
   { chainId: _, gasLimit, ...trade }: TxData,
   networkClientId: string,
   chainId: Hex,
@@ -85,11 +85,10 @@ export const calculateGasFees = async (
     value: trade.value as `0x${string}`,
   };
   const { gasFeeEstimates } = messenger.call('GasFeeController:getState');
-  const { estimates: txGasFeeEstimates } = await estimateGasFeeFn({
-    transactionParams,
-    chainId,
-    networkClientId,
-  });
+  const { estimates: txGasFeeEstimates } = await messenger.call(
+    'TransactionController:estimateGasFee',
+    { transactionParams, chainId, networkClientId },
+  );
   const { maxFeePerGas, maxPriorityFeePerGas } = getTxGasEstimates({
     networkGasFeeEstimates: gasFeeEstimates,
     txGasFeeEstimates,

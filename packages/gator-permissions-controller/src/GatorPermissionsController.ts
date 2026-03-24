@@ -32,6 +32,7 @@ import {
   OriginNotAllowedError,
   PermissionDecodingError,
 } from './errors';
+import type { GatorPermissionsControllerMethodActions } from './GatorPermissionsController-method-action-types';
 import { controllerLog } from './logger';
 import { GatorPermissionsSnapRpcMethod } from './types';
 import type {
@@ -48,6 +49,16 @@ import { executeSnapRpc } from './utils';
 
 // Unique name for the controller
 const controllerName = 'GatorPermissionsController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchAndUpdateGatorPermissions',
+  'initialize',
+  'decodePermissionFromPermissionContextForOrigin',
+  'submitRevocation',
+  'addPendingRevocation',
+  'submitDirectRevocation',
+  'isPendingRevocation',
+] as const;
 
 // Default value for the gator permissions provider snap id
 const defaultGatorPermissionsProviderSnapId =
@@ -176,64 +187,12 @@ export type GatorPermissionsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * The action which can be used to fetch and update gator permissions.
- */
-export type GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction = {
-  type: `${typeof controllerName}:fetchAndUpdateGatorPermissions`;
-  handler: GatorPermissionsController['fetchAndUpdateGatorPermissions'];
-};
-
-export type GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction =
-  {
-    type: `${typeof controllerName}:decodePermissionFromPermissionContextForOrigin`;
-    handler: GatorPermissionsController['decodePermissionFromPermissionContextForOrigin'];
-  };
-
-/**
- * The action which can be used to submit a revocation.
- */
-export type GatorPermissionsControllerSubmitRevocationAction = {
-  type: `${typeof controllerName}:submitRevocation`;
-  handler: GatorPermissionsController['submitRevocation'];
-};
-
-/**
- * The action which can be used to add a pending revocation.
- */
-export type GatorPermissionsControllerAddPendingRevocationAction = {
-  type: `${typeof controllerName}:addPendingRevocation`;
-  handler: GatorPermissionsController['addPendingRevocation'];
-};
-
-/**
- * The action which can be used to submit a revocation directly without requiring
- * an on-chain transaction (for already-disabled delegations).
- */
-export type GatorPermissionsControllerSubmitDirectRevocationAction = {
-  type: `${typeof controllerName}:submitDirectRevocation`;
-  handler: GatorPermissionsController['submitDirectRevocation'];
-};
-
-/**
- * The action which can be used to check if a permission context is pending revocation.
- */
-export type GatorPermissionsControllerIsPendingRevocationAction = {
-  type: `${typeof controllerName}:isPendingRevocation`;
-  handler: GatorPermissionsController['isPendingRevocation'];
-};
-
-/**
  * All actions that {@link GatorPermissionsController} registers, to be called
  * externally.
  */
 export type GatorPermissionsControllerActions =
   | GatorPermissionsControllerGetStateAction
-  | GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction
-  | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
-  | GatorPermissionsControllerSubmitRevocationAction
-  | GatorPermissionsControllerAddPendingRevocationAction
-  | GatorPermissionsControllerSubmitDirectRevocationAction
-  | GatorPermissionsControllerIsPendingRevocationAction;
+  | GatorPermissionsControllerMethodActions;
 
 /**
  * All actions that {@link GatorPermissionsController} calls internally.
@@ -282,7 +241,7 @@ export type GatorPermissionsControllerMessenger = Messenger<
 /**
  * Controller that manages gator permissions by reading from the gator permissions provider Snap.
  */
-export default class GatorPermissionsController extends BaseController<
+export class GatorPermissionsController extends BaseController<
   typeof controllerName,
   GatorPermissionsControllerState,
   GatorPermissionsControllerMessenger
@@ -340,7 +299,11 @@ export default class GatorPermissionsController extends BaseController<
       defaultGatorPermissionsProviderSnapId;
     this.#maxSyncIntervalMs =
       config.maxSyncIntervalMs ?? DEFAULT_MAX_SYNC_INTERVAL_MS;
-    this.#registerMessageHandlers();
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -385,40 +348,6 @@ export default class GatorPermissionsController extends BaseController<
           permissionContext.toLowerCase(),
       );
     });
-  }
-
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:fetchAndUpdateGatorPermissions`,
-      this.fetchAndUpdateGatorPermissions.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:decodePermissionFromPermissionContextForOrigin`,
-      this.decodePermissionFromPermissionContextForOrigin.bind(this),
-    );
-
-    const submitRevocationAction = `${controllerName}:submitRevocation`;
-
-    this.messenger.registerActionHandler(
-      submitRevocationAction,
-      this.submitRevocation.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:addPendingRevocation`,
-      this.addPendingRevocation.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:submitDirectRevocation`,
-      this.submitDirectRevocation.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:isPendingRevocation`,
-      this.isPendingRevocation.bind(this),
-    );
   }
 
   /**
@@ -1008,3 +937,5 @@ export default class GatorPermissionsController extends BaseController<
     );
   }
 }
+
+export default GatorPermissionsController;

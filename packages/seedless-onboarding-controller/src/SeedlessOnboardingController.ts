@@ -51,6 +51,7 @@ import {
 } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { SecretMetadata } from './SecretMetadata';
+import type { SeedlessOnboardingControllerMethodActions } from './SeedlessOnboardingController-method-action-types';
 import type {
   MutuallyExclusiveCallback,
   SeedlessOnboardingControllerState,
@@ -74,6 +75,35 @@ import {
 
 const log = createModuleLogger(projectLogger, controllerName);
 
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchMetadataAccessCreds',
+  'preloadToprfNodeDetails',
+  'authenticate',
+  'createToprfKeyAndBackupSeedPhrase',
+  'addNewSecretData',
+  'fetchAllSecretData',
+  'changePassword',
+  'updateBackupMetadataState',
+  'verifyVaultPassword',
+  'getSecretDataBackupState',
+  'submitPassword',
+  'setLocked',
+  'syncLatestGlobalPassword',
+  'submitGlobalPassword',
+  'checkIsPasswordOutdated',
+  'getIsUserAuthenticated',
+  'clearState',
+  'storeKeyringEncryptionKey',
+  'loadKeyringEncryptionKey',
+  'refreshAuthTokens',
+  'revokePendingRefreshTokens',
+  'rotateRefreshToken',
+  'getAccessToken',
+  'checkNodeAuthTokenExpired',
+  'checkMetadataAccessTokenExpired',
+  'checkAccessTokenExpired',
+] as const;
+
 // Actions
 export type SeedlessOnboardingControllerGetStateAction =
   ControllerGetStateAction<
@@ -81,22 +111,9 @@ export type SeedlessOnboardingControllerGetStateAction =
     SeedlessOnboardingControllerState
   >;
 
-/**
- * Get the access token from the controller.
- * If the tokens are expired, the method will refresh them and return the new access token.
- *
- * @returns The access token.
- */
-export type SeedlessOnboardingControllerGetAccessTokenAction = {
-  type: `${typeof controllerName}:getAccessToken`;
-  handler: SeedlessOnboardingController<
-    encryptionUtils.EncryptionKey,
-    encryptionUtils.KeyDerivationOptions
-  >['getAccessToken'];
-};
 export type SeedlessOnboardingControllerActions =
   | SeedlessOnboardingControllerGetStateAction
-  | SeedlessOnboardingControllerGetAccessTokenAction;
+  | SeedlessOnboardingControllerMethodActions;
 
 type AllowedActions = never;
 
@@ -126,8 +143,8 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
  * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
  */
 export type SeedlessOnboardingControllerOptions<
-  EncryptionKey,
-  SupportedKeyDerivationParams,
+  EncryptionKey = encryptionUtils.EncryptionKey,
+  SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
 > = {
   messenger: SeedlessOnboardingControllerMessenger;
 
@@ -348,7 +365,7 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
   };
 
 export class SeedlessOnboardingController<
-  EncryptionKey,
+  EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
 > extends BaseController<
   typeof controllerName,
@@ -447,9 +464,9 @@ export class SeedlessOnboardingController<
     this.#revokeRefreshToken = revokeRefreshToken;
     this.#renewRefreshToken = renewRefreshToken;
 
-    this.messenger.registerActionHandler(
-      `${controllerName}:getAccessToken`,
-      this.getAccessToken.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

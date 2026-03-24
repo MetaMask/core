@@ -186,6 +186,7 @@ exports[`BridgeController SSE should rethrow error from server 1`] = `
   "quotesInitialLoadTime": null,
   "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
+  "tokenWarnings": [],
 }
 `;
 
@@ -301,6 +302,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 1
   "quotesInitialLoadTime": null,
   "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
+  "tokenWarnings": [],
 }
 `;
 
