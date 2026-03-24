@@ -5,16 +5,11 @@ export type {
   TransactionFiatPaymentCallback,
   TransactionPayControllerActions,
   TransactionPayControllerEvents,
-  TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStateAction,
-  TransactionPayControllerGetStrategyAction,
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
-  TransactionPayControllerSetTransactionConfigAction,
-  TransactionPayControllerUpdateFiatPaymentAction,
   TransactionPayControllerState,
   TransactionPayControllerStateChangeEvent,
-  TransactionPayControllerUpdatePaymentTokenAction,
   TransactionPaymentToken,
   TransactionPayQuote,
   TransactionPayRequiredToken,
@@ -23,6 +18,13 @@ export type {
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types';
+export type {
+  TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetStrategyAction,
+  TransactionPayControllerSetTransactionConfigAction,
+  TransactionPayControllerUpdatePaymentTokenAction,
+  TransactionPayControllerUpdateFiatPaymentAction,
+} from './TransactionPayController-method-action-types';
 export { TransactionPayStrategy } from './constants';
 export { TransactionPayController } from './TransactionPayController';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook';

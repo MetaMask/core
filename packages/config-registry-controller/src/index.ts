@@ -3,12 +3,15 @@ export type {
   ConfigRegistryControllerOptions,
   ConfigRegistryControllerActions,
   ConfigRegistryControllerGetStateAction,
-  ConfigRegistryControllerStartPollingAction,
-  ConfigRegistryControllerStopPollingAction,
   ConfigRegistryControllerEvents,
   ConfigRegistryControllerStateChangeEvent,
   ConfigRegistryControllerMessenger,
 } from './ConfigRegistryController';
+export type {
+  ConfigRegistryControllerStartPollingAction,
+  ConfigRegistryControllerStopPollingAction,
+  ConfigRegistryControllerMethodActions,
+} from './ConfigRegistryController-method-action-types';
 export {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
@@ -33,4 +36,3 @@ export type {
 export type { NetworkFilterOptions } from './config-registry-api-service/filters';
 export { ConfigRegistryApiService } from './config-registry-api-service/config-registry-api-service';
 export { filterNetworks } from './config-registry-api-service/filters';
-export { isConfigRegistryApiEnabled } from './utils/feature-flags';

@@ -34,7 +34,7 @@ export const controllerName = 'ProfileMetricsController';
  * The default delay duration before data is sent for the first time.
  */
 export const DEFAULT_INITIAL_DELAY_DURATION = inMilliseconds(
-  10,
+  1,
   Duration.Minute,
 );
 

@@ -197,6 +197,9 @@
       "path": "./packages/rate-limit-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/react-data-query/tsconfig.build.json"
+    },
+    {
       "path": "./packages/remote-feature-flag-controller/tsconfig.build.json"
     },
     {

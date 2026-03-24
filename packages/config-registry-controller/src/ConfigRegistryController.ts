@@ -4,22 +4,25 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import type {
+  KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
-import { Duration, inMilliseconds } from '@metamask/utils';
+import { Duration, inMilliseconds, Json } from '@metamask/utils';
 
 import type { ConfigRegistryApiServiceFetchConfigAction } from './config-registry-api-service/config-registry-api-service-method-action-types';
 import type { RegistryNetworkConfig } from './config-registry-api-service/types';
-import { isConfigRegistryApiEnabled } from './utils/feature-flags';
+import type { ConfigRegistryControllerMethodActions } from './ConfigRegistryController-method-action-types';
 
 const controllerName = 'ConfigRegistryController';
 
 export const DEFAULT_POLLING_INTERVAL = inMilliseconds(1, Duration.Day);
+
+const FEATURE_FLAG_KEY = 'configRegistryApiEnabled';
 
 /**
  * State for the ConfigRegistryController.
@@ -91,6 +94,8 @@ const stateMetadata = {
  */
 const DEFAULT_FALLBACK_CONFIG: Record<string, RegistryNetworkConfig> = {};
 
+const MESSENGER_EXPOSED_METHODS = ['startPolling', 'stopPolling'] as const;
+
 /**
  * Published when the state of {@link ConfigRegistryController} changes.
  */
@@ -109,35 +114,18 @@ export type ConfigRegistryControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Starts polling the config registry API. Returns a polling token that can be
- * used to stop this polling session.
- */
-export type ConfigRegistryControllerStartPollingAction = {
-  type: `${typeof controllerName}:startPolling`;
-  handler: (input: null) => string;
-};
-
-/**
- * Stops all config registry polling.
- */
-export type ConfigRegistryControllerStopPollingAction = {
-  type: `${typeof controllerName}:stopPolling`;
-  handler: () => void;
-};
-
-/**
  * Actions that {@link ConfigRegistryControllerMessenger} exposes to other consumers.
  */
 export type ConfigRegistryControllerActions =
   | ConfigRegistryControllerGetStateAction
-  | ConfigRegistryControllerStartPollingAction
-  | ConfigRegistryControllerStopPollingAction;
+  | ConfigRegistryControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link ConfigRegistryControllerMessenger}
  * calls.
  */
 type AllowedActions =
+  | KeyringControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
   | ConfigRegistryApiServiceFetchConfigAction;
 
@@ -178,8 +166,6 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
   ConfigRegistryControllerState,
   ConfigRegistryControllerMessenger
 > {
-  #keyringLocked = true;
-
   /**
    * @param options - The controller options.
    * @param options.messenger - The controller messenger. Must have
@@ -212,71 +198,14 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
     this.setIntervalLength(pollingInterval);
 
-    this.messenger.registerActionHandler(
-      `${controllerName}:startPolling`,
-      this.startPolling.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:stopPolling`,
-      this.stopAllPolling.bind(this),
-    );
-
-    this.messenger.subscribe('KeyringController:unlock', () => {
-      this.#keyringLocked = false;
-      try {
-        if (
-          isConfigRegistryApiEnabled(
-            this.messenger.call('RemoteFeatureFlagController:getState'),
-          )
-        ) {
-          this.startPolling(null);
-        }
-      } catch {
-        // RemoteFeatureFlagController unavailable; do not start polling.
-      }
-    });
-
-    this.messenger.subscribe('KeyringController:lock', () => {
-      this.#keyringLocked = true;
-      this.stopAllPolling();
-    });
-
-    this.messenger.subscribe('RemoteFeatureFlagController:stateChange', () => {
-      let enabled = false;
-      try {
-        enabled = isConfigRegistryApiEnabled(
-          this.messenger.call('RemoteFeatureFlagController:getState'),
-        );
-      } catch {
-        // RemoteFeatureFlagController unavailable; treat as disabled.
-      }
-      if (enabled) {
-        if (!this.#keyringLocked) {
-          this.stopAllPolling();
-          this.startPolling(null);
-        }
-      } else {
-        this.stopAllPolling();
-      }
-    });
+    this.#setupEventListeners();
   }
 
   async _executePoll(_input: null): Promise<void> {
-    let isApiEnabled = false;
-    try {
-      isApiEnabled = isConfigRegistryApiEnabled(
-        this.messenger.call('RemoteFeatureFlagController:getState'),
-      );
-    } catch {
-      // RemoteFeatureFlagController unavailable; skip fetch.
-    }
-
-    // Skip fetch when API is disabled; client uses static config.
-    if (!isApiEnabled) {
-      return;
-    }
-
     try {
       const result = await this.messenger.call(
         'ConfigRegistryApiService:fetchConfig',
@@ -315,5 +244,86 @@ export class ConfigRegistryController extends StaticIntervalPollingController<nu
 
       this.messenger.captureException?.(errorInstance);
     }
+  }
+
+  /**
+   * Stop all polling.
+   */
+  stopPolling(): void {
+    // This is a wrapper around `super.stopAllPolling()` for backwards
+    // compatibility, while allowing this method to be exposed via the messenger
+    // using the `MESSENGER_EXPOSED_METHODS` array.
+    super.stopAllPolling();
+  }
+
+  /**
+   * Setup messenger event listeners necessary for the controller lifecycle
+   */
+  #setupEventListeners(): void {
+    this.messenger.subscribe(
+      'KeyringController:unlock',
+      this.#onUnlock.bind(this),
+    );
+
+    this.messenger.subscribe('KeyringController:lock', this.#onLock.bind(this));
+
+    this.messenger.subscribe(
+      'RemoteFeatureFlagController:stateChange',
+      this.#onFeatureFlagChange.bind(this),
+      (stateSelector) => stateSelector.remoteFeatureFlags[FEATURE_FLAG_KEY],
+    );
+  }
+
+  /**
+   * Handle wallet unlock event by starting polling if the config registry API is enabled.
+   */
+  #onUnlock(): void {
+    if (this.#isFeatureFlagEnabled()) {
+      this.startPolling(null);
+    }
+  }
+
+  /**
+   * Handle wallet lock event by stopping all polling to prevent unnecessary API calls.
+   */
+  #onLock(): void {
+    this.stopAllPolling();
+  }
+
+  /**
+   * Handle changes to the config registry API feature flag by
+   * starting or stopping polling accordingly.
+   *
+   * @param featureFlagValue - The new value of the feature flag.
+   */
+  #onFeatureFlagChange(featureFlagValue: Json): void {
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+
+    if (
+      typeof featureFlagValue === 'boolean' &&
+      featureFlagValue &&
+      isUnlocked
+    ) {
+      this.startPolling(null);
+    } else {
+      this.stopAllPolling();
+    }
+  }
+
+  /**
+   * Get the current status of the config registry feature flag.
+   *
+   * @returns Whether the config registry API is enabled.
+   */
+  #isFeatureFlagEnabled(): boolean {
+    const featureFlagValue = this.messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags[FEATURE_FLAG_KEY];
+
+    if (typeof featureFlagValue !== 'boolean') {
+      return false;
+    }
+
+    return featureFlagValue;
   }
 }

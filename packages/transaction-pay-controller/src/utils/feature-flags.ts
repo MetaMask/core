@@ -7,6 +7,7 @@ import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import {
   RELAY_EXECUTE_URL,
+  RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
 } from '../strategy/relay/constants';
 
@@ -86,6 +87,8 @@ export type PayStrategiesConfigRaw = {
     enabled?: boolean;
     executeEnabled?: boolean;
     originGasOverhead?: string;
+    pollingInterval?: number;
+    pollingTimeout?: number;
   };
 };
 
@@ -232,6 +235,36 @@ export function getRelayOriginGasOverhead(
 }
 
 /**
+ * Get the relay status polling interval in milliseconds.
+ * Falls back to the constant default when not configured.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling interval in milliseconds.
+ */
+export function getRelayPollingInterval(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  return (
+    featureFlags.payStrategies?.relay?.pollingInterval ?? RELAY_POLLING_INTERVAL
+  );
+}
+
+/**
+ * Get the relay status polling timeout in milliseconds.
+ * Returns 0 or undefined to indicate no timeout.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling timeout in milliseconds, or undefined when not configured.
+ */
+export function getRelayPollingTimeout(
+  messenger: TransactionPayControllerMessenger,
+): number | undefined {
+  const featureFlags = getFeatureFlagsRaw(messenger);
+  return featureFlags.payStrategies?.relay?.pollingTimeout;
+}
+
+/**
  * Get fallback gas limits for quote/submit flows.
  *
  * @param messenger - Controller messenger.
@@ -295,6 +328,31 @@ export function getSlippage(
   const slippage = featureFlags.slippage ?? DEFAULT_SLIPPAGE;
   log('Using default slippage', { chainId, tokenAddress, slippage });
   return slippage;
+}
+
+/**
+ * Get the AssetsUnifyState feature flag state.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if the assets unify state feature is enabled, false otherwise.
+ */
+export function getAssetsUnifyStateFeature(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const assetsUnifyState = state.remoteFeatureFlags.assetsUnifyState as
+    | {
+        enabled: boolean;
+        featureVersion: string | null;
+      }
+    | undefined;
+
+  const AssetsUnifyStateFeatureVersion = '1';
+
+  return (
+    Boolean(assetsUnifyState?.enabled) &&
+    assetsUnifyState?.featureVersion === AssetsUnifyStateFeatureVersion
+  );
 }
 
 /**

@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0]
+
+### Changed
+
+- `AiDigestService.searchDigest` now uses the universal `asset` query parameter instead of the previous `caipAssetType` / `hlPerpsMarket` branching logic. The public TypeScript API is unchanged; any identifier (CAIP-19, ticker, name, perps market id) can be passed as before ([#8263](https://github.com/MetaMask/core/pull/8263)).
+- `RelatedAsset.hlPerpsMarket` now covers all HyperLiquid market identifiers — both regular crypto tokens (`BTC`, `ETH`) and purely synthetic perps assets (`xyz:TSLA`). No separate field is needed; clients use `caip19` presence to decide the icon resolution strategy ([#8263](https://github.com/MetaMask/core/pull/8263)).
+
+## [0.4.0]
+
+### Added
+
+- Export new `RelatedAsset` type representing a rich asset object returned in `MarketOverviewTrend.relatedAssets` ([#8218](https://github.com/MetaMask/core/pull/8218)).
+
+### Changed
+
+- `MarketOverviewTrend.relatedAssets` is now `RelatedAsset[]` instead of `string[]`. Each entry includes `name`, `symbol`, `caip19`, `sourceAssetId`, and optional `hlPerpsMarket` fields ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- `MarketOverview.headline`, `summary`, and `sources` have been removed; they are not part of the `/market-overview` API response ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- `MarketOverviewTrend.category` and `impact` are now optional to match the live API response shape ([#8218](https://github.com/MetaMask/core/pull/8218)).
+- `AiDigestService.fetchMarketOverview` now accepts both flat `MarketOverview` and `{ report: MarketOverview }` enveloped responses, matching the live API shape ([#8218](https://github.com/MetaMask/core/pull/8218)).
+
+## [0.3.0]
+
+### Changed
+
+- `AiDigestService.searchDigest` and `AiDigestController.fetchMarketInsights` now accept any string identifier rather than only CAIP-19 asset types. CAIP-19 identifiers continue to use the `caipAssetType` query parameter; all other strings (e.g. perps market symbols like `ETH`) use the new `hlPerpsMarket` query parameter ([#8182](https://github.com/MetaMask/core/pull/8182)).
+- Rename `caip19Id` parameter to `assetIdentifier` in `DigestService.searchDigest`, `MarketInsightsEntry`, and `AiDigestController.fetchMarketInsights` ([#8182](https://github.com/MetaMask/core/pull/8182)).
+- Replace `INVALID_CAIP_ASSET_TYPE` error message constant with `INVALID_ASSET_IDENTIFIER` in `AiDigestControllerErrorMessage` ([#8182](https://github.com/MetaMask/core/pull/8182)).
+
 ## [0.2.0]
 
 ### Added
@@ -42,6 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removes `fetchDigest`, `clearDigest`, and `clearAllDigests` actions from the controller action surface.
   - Removes `DigestData`/`DigestEntry` types and the `digests` state branch.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.5.0...HEAD
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.4.0...@metamask/ai-controllers@0.5.0
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.3.0...@metamask/ai-controllers@0.4.0
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.2.0...@metamask/ai-controllers@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.1.0...@metamask/ai-controllers@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/ai-controllers@0.1.0

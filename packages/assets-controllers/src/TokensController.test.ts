@@ -2803,8 +2803,8 @@ describe('TokensController', () => {
 
           await promiseForApprovals;
 
-          await approvalController.accept(requestId);
-          await approvalController.accept('67890');
+          await approvalController.acceptRequest(requestId);
+          await approvalController.acceptRequest('67890');
           await acceptedRequest;
 
           expect(

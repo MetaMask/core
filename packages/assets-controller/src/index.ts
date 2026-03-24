@@ -10,7 +10,6 @@ export type {
   AssetsControllerState,
   AssetsControllerMessenger,
   AssetsControllerOptions,
-  AssetsControllerFirstInitFetchMetaMetricsPayload,
   AssetsControllerGetStateAction,
   AssetsControllerActions,
   AssetsControllerStateChangeEvent,
@@ -74,6 +73,7 @@ export type {
   Context,
   NextFunction,
   Middleware,
+  AssetsDataSource,
   FetchContext,
   FetchNextFunction,
   FetchMiddleware,
@@ -167,10 +167,7 @@ export {
 } from './utils';
 export type {
   AccountForLegacyFormat,
-  BridgeConversionRateEntry,
-  BridgeCurrencyRateEntry,
   BridgeExchangeRatesFormat,
-  BridgeMarketDataEntry,
   LegacyToken,
   TransactionPayLegacyFormat,
 } from './utils';

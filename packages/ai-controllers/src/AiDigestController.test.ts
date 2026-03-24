@@ -27,10 +27,7 @@ const mockReport: MarketInsightsReport = {
 const mockOverview: MarketOverview = {
   version: '1.0',
   generatedAt: '2026-02-11T10:32:52.403Z',
-  headline: 'Global crypto market update',
-  summary: 'Markets show mixed signals amid macro uncertainty.',
   trends: [],
-  sources: [],
 };
 
 const createMessenger = (): AiDigestControllerMessenger =>
@@ -100,17 +97,49 @@ describe('AiDigestController (market insights)', () => {
     jest.useRealTimers();
   });
 
-  it('throws for invalid CAIP asset type', async () => {
+  it('throws for empty asset identifier', async () => {
     const digestService = createService();
     const controller = new AiDigestController({
       messenger: createMessenger(),
       digestService,
     });
 
-    await expect(
-      controller.fetchMarketInsights('invalid-caip'),
-    ).rejects.toThrow(AiDigestControllerErrorMessage.INVALID_CAIP_ASSET_TYPE);
+    await expect(controller.fetchMarketInsights('')).rejects.toThrow(
+      AiDigestControllerErrorMessage.INVALID_ASSET_IDENTIFIER,
+    );
     expect(digestService.searchDigest).not.toHaveBeenCalled();
+  });
+
+  it('accepts a perps market symbol as asset identifier', async () => {
+    const digestService = createService();
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService,
+    });
+    const perpsSymbol = 'ETH';
+
+    const result = await controller.fetchMarketInsights(perpsSymbol);
+
+    expect(result).toStrictEqual(mockReport);
+    expect(digestService.searchDigest).toHaveBeenCalledWith(perpsSymbol);
+    expect(controller.state.marketInsights[perpsSymbol]).toBeDefined();
+  });
+
+  it('caches perps and CAIP-19 identifiers independently', async () => {
+    const digestService = createService();
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService,
+    });
+    const perpsSymbol = 'ETH';
+    const caip19Id = 'eip155:1/slip44:60';
+
+    await controller.fetchMarketInsights(perpsSymbol);
+    await controller.fetchMarketInsights(caip19Id);
+
+    expect(digestService.searchDigest).toHaveBeenCalledTimes(2);
+    expect(controller.state.marketInsights[perpsSymbol]).toBeDefined();
+    expect(controller.state.marketInsights[caip19Id]).toBeDefined();
   });
 
   it('removes stale entry when service returns null', async () => {

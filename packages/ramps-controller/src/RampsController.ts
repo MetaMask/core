@@ -8,6 +8,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type {
   BuyWidget,
   Country,
@@ -436,37 +437,11 @@ export type RampsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
- * Sets selected token in the {@link RampsController}.
- */
-export type RampsControllerSetSelectedTokenAction = {
-  type: 'RampsController:setSelectedToken';
-  handler: RampsController['setSelectedToken'];
-};
-
-/**
- * Fetches quotes via the {@link RampsController}.
- */
-export type RampsControllerGetQuotesAction = {
-  type: 'RampsController:getQuotes';
-  handler: RampsController['getQuotes'];
-};
-
-/**
- * Fetches an order via the {@link RampsController}.
- */
-export type RampsControllerGetOrderAction = {
-  type: 'RampsController:getOrder';
-  handler: RampsController['getOrder'];
-};
-
-/**
  * Actions that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerActions =
   | RampsControllerGetStateAction
-  | RampsControllerGetOrderAction
-  | RampsControllerGetQuotesAction
-  | RampsControllerSetSelectedTokenAction;
+  | RampsControllerMethodActions;
 
 /**
  * Actions from other messengers that {@link RampsController} calls.
@@ -653,6 +628,56 @@ type OrderPollingMetadata = {
 
 // === CONTROLLER DEFINITION ===
 
+const MESSENGER_EXPOSED_METHODS = [
+  'executeRequest',
+  'abortRequest',
+  'getRequestState',
+  'setUserRegion',
+  'setSelectedProvider',
+  'init',
+  'getCountries',
+  'getTokens',
+  'setSelectedToken',
+  'getProviders',
+  'getPaymentMethods',
+  'setSelectedPaymentMethod',
+  'getQuotes',
+  'addOrder',
+  'removeOrder',
+  'startOrderPolling',
+  'stopOrderPolling',
+  'getBuyWidgetData',
+  'addPrecreatedOrder',
+  'getOrder',
+  'getOrderFromCallback',
+  'transakSetApiKey',
+  'transakSetAccessToken',
+  'transakClearAccessToken',
+  'transakSetAuthenticated',
+  'transakResetState',
+  'transakSendUserOtp',
+  'transakVerifyUserOtp',
+  'transakLogout',
+  'transakGetUserDetails',
+  'transakGetBuyQuote',
+  'transakGetKycRequirement',
+  'transakGetAdditionalRequirements',
+  'transakCreateOrder',
+  'transakGetOrder',
+  'transakGetUserLimits',
+  'transakRequestOtt',
+  'transakGeneratePaymentWidgetUrl',
+  'transakSubmitPurposeOfUsageForm',
+  'transakPatchUser',
+  'transakSubmitSsnDetails',
+  'transakConfirmPayment',
+  'transakGetTranslation',
+  'transakGetIdProofStatus',
+  'transakCancelOrder',
+  'transakCancelAllActiveOrders',
+  'transakGetActiveOrders',
+] as const;
+
 /**
  * Manages cryptocurrency on/off ramps functionality.
  */
@@ -688,6 +713,8 @@ export class RampsController extends BaseController<
   #orderPollingTimer: ReturnType<typeof setInterval> | null = null;
 
   #isPolling = false;
+
+  #initPromise: Promise<void> | null = null;
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -749,21 +776,9 @@ export class RampsController extends BaseController<
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
 
-    this.#registerActionHandlers();
-  }
-
-  #registerActionHandlers(): void {
-    this.messenger.registerActionHandler(
-      'RampsController:getOrder',
-      this.getOrder.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'RampsController:getQuotes',
-      this.getQuotes.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      'RampsController:setSelectedToken',
-      this.setSelectedToken.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -1215,17 +1230,50 @@ export class RampsController extends BaseController<
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
    *
-   * If a userRegion already exists (from persistence or manual selection),
-   * this method will skip geolocation fetch and use the existing region.
+   * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
+   * Skips getCountries when countries are already loaded; skips geolocation when
+   * userRegion already exists.
    *
-   * @param options - Options for cache behavior.
+   * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
    */
   async init(options?: ExecuteRequestOptions): Promise<void> {
-    await this.getCountries(options);
+    if (!options?.forceRefresh && this.#initPromise !== null) {
+      return this.#initPromise;
+    }
 
-    let regionCode = this.state.userRegion?.regionCode;
-    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    if (options?.forceRefresh) {
+      this.#initPromise = null;
+    }
+
+    const initPromise = this.#runInit(options).then(
+      () => undefined,
+      (error) => {
+        if (this.#initPromise === initPromise) {
+          this.#initPromise = null;
+        }
+        throw error;
+      },
+    );
+    this.#initPromise = initPromise;
+    return initPromise;
+  }
+
+  async #runInit(options?: ExecuteRequestOptions): Promise<void> {
+    const forceRefresh = options?.forceRefresh === true;
+    const hasCountries = this.state.countries.data.length > 0;
+
+    if (forceRefresh || !hasCountries) {
+      await this.getCountries(options);
+    }
+
+    let regionCode: string | undefined;
+    if (forceRefresh) {
+      regionCode = await this.messenger.call('RampsService:getGeolocation');
+    } else {
+      regionCode = this.state.userRegion?.regionCode;
+      regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    }
 
     if (!regionCode) {
       throw new Error(
@@ -1234,13 +1282,6 @@ export class RampsController extends BaseController<
     }
 
     await this.setUserRegion(regionCode, options);
-  }
-
-  hydrateState(options?: ExecuteRequestOptions): void {
-    const regionCode = this.#requireRegion();
-
-    this.#fireAndForget(this.getTokens(regionCode, 'buy', options));
-    this.#fireAndForget(this.getProviders(regionCode, options));
   }
 
   /**
@@ -1956,25 +1997,28 @@ export class RampsController extends BaseController<
       wallet,
     );
 
+    const healedWalletAddress = order.walletAddress || wallet;
+    const healedOrder = {
+      ...order,
+      walletAddress: healedWalletAddress,
+      providerOrderId: orderCode,
+    };
+
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing) => existing.providerOrderId === orderCode,
+        (existing: RampsOrder) => existing.providerOrderId === orderCode,
       );
       if (idx === -1) {
-        state.orders.push({
-          ...order,
-          providerOrderId: orderCode,
-        } as Draft<RampsOrder>);
+        state.orders.push(healedOrder as Draft<RampsOrder>);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
-          ...order,
-          providerOrderId: orderCode,
+          ...healedOrder,
         } as Draft<RampsOrder>;
       }
     });
 
-    return order;
+    return healedOrder;
   }
 
   /**

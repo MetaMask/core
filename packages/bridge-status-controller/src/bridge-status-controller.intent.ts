@@ -1,18 +1,17 @@
-import { StatusTypes } from '@metamask/bridge-controller';
-import type { TransactionController } from '@metamask/transaction-controller';
-import { TransactionMeta } from '@metamask/transaction-controller';
+import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import type { BridgeStatusControllerMessenger, FetchFunction } from './types';
 import type { BridgeHistoryItem } from './types';
+import { getJwt } from './utils/authentication';
 import {
-  GetJwtFn,
   IntentApi,
   IntentApiImpl,
   IntentBridgeStatus,
   IntentSubmissionParams,
   translateIntentOrderToBridgeStatus,
 } from './utils/intent-api';
-import { IntentOrder, IntentOrderStatus } from './utils/validators';
+import { IntentStatusResponse, IntentOrderStatus } from './utils/validators';
 
 type IntentStatuses = {
   orderStatus: IntentOrderStatus;
@@ -22,8 +21,6 @@ type IntentStatuses = {
 export class IntentManager {
   readonly #messenger: BridgeStatusControllerMessenger;
 
-  readonly #updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
-
   readonly intentApi: IntentApi;
 
   readonly #intentStatusesByBridgeTxMetaId: Map<string, IntentStatuses> =
@@ -31,20 +28,19 @@ export class IntentManager {
 
   constructor({
     messenger,
-    updateTransactionFn,
     customBridgeApiBaseUrl,
     fetchFn,
-    getJwt,
   }: {
     messenger: BridgeStatusControllerMessenger;
-    updateTransactionFn: typeof TransactionController.prototype.updateTransaction;
     customBridgeApiBaseUrl: string;
     fetchFn: FetchFunction;
-    getJwt: GetJwtFn;
   }) {
     this.#messenger = messenger;
-    this.#updateTransactionFn = updateTransactionFn;
-    this.intentApi = new IntentApiImpl(customBridgeApiBaseUrl, fetchFn, getJwt);
+    this.intentApi = new IntentApiImpl(
+      customBridgeApiBaseUrl,
+      fetchFn,
+      async () => await getJwt(messenger),
+    );
   }
 
   /**
@@ -59,14 +55,14 @@ export class IntentManager {
 
   #setIntentStatuses(
     bridgeTxMetaId: string,
-    order: IntentOrder,
+    order: IntentStatusResponse,
     srcChainId: number,
     txHash: string,
   ): IntentStatuses {
     const bridgeStatus = translateIntentOrderToBridgeStatus(
       order,
       srcChainId,
-      txHash.toString(),
+      txHash,
     );
     const intentStatuses: IntentStatuses = {
       orderStatus: order.status,
@@ -87,21 +83,16 @@ export class IntentManager {
 
   getIntentTransactionStatus = async (
     bridgeTxMetaId: string,
-    historyItem: BridgeHistoryItem,
-    clientId: string,
+    srcChainId: number,
+    protocol: string,
+    clientId: BridgeClientId,
+    txHash: string = '',
   ): Promise<IntentStatuses | undefined> => {
-    const {
-      status: statusObj,
-      quote: { srcChainId, intent },
-    } = historyItem;
-    const txHash = statusObj?.srcChain?.txHash ?? '';
-    const protocol = intent?.protocol ?? '';
-
     try {
       const orderStatus = await this.intentApi.getOrderStatus(
         bridgeTxMetaId,
         protocol,
-        srcChainId.toString(),
+        srcChainId,
         clientId,
       );
 
@@ -187,7 +178,8 @@ export class IntentManager {
         ...txReceiptUpdate,
       } as TransactionMeta;
 
-      this.#updateTransactionFn(
+      this.#messenger.call(
+        'TransactionController:updateTransaction',
         updatedTxMeta,
         `BridgeStatusController - Intent order status updated: ${orderStatus}`,
       );
@@ -213,8 +205,8 @@ export class IntentManager {
    */
   submitIntent = async (
     submissionParams: IntentSubmissionParams,
-    clientId: string,
-  ): Promise<IntentOrder> => {
+    clientId: BridgeClientId,
+  ): Promise<IntentStatusResponse> => {
     return this.intentApi.submitIntent(submissionParams, clientId);
   };
 }

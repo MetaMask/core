@@ -42,7 +42,7 @@ export type TransactionMeta = {
   assetsFiatValues?: AssetsFiatValues;
 
   /**
-   * Unique ID to prevent duplicate requests.
+   * @deprecated No longer used for deduplication. Persisted for state consistency only.
    */
   actionId?: string;
 
@@ -807,6 +807,11 @@ export enum TransactionType {
   perpsRelayDeposit = 'perpsRelayDeposit',
 
   /**
+   * Withdraw funds from Perps.
+   */
+  perpsWithdraw = 'perpsWithdraw',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
@@ -832,6 +837,11 @@ export enum TransactionType {
    * Deposit funds to be available for use via Predict.
    */
   predictDeposit = 'predictDeposit',
+
+  /**
+   * Deposit funds and place an order via Predict.
+   */
+  predictDepositAndOrder = 'predictDepositAndOrder',
 
   /**
    * Sell a position via Predict.
@@ -2155,7 +2165,9 @@ export type GetSimulationConfig = (
  * Options for adding a transaction.
  */
 export type AddTransactionOptions = {
-  /** Unique ID to prevent duplicate requests.  */
+  /**
+   * @deprecated No longer used for deduplication. Persisted for state consistency only.
+   */
   actionId?: string;
 
   /** Fiat values of the assets being sent and received. */

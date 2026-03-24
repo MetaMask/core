@@ -6,6 +6,7 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';
+import type { PreferencesControllerMethodActions } from './PreferencesController-method-action-types';
 
 /**
  * A type union of the name for each chain that is supported by Etherscan or
@@ -230,6 +231,28 @@ const metadata = {
 
 const name = 'PreferencesController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'setFeatureFlag',
+  'setIpfsGateway',
+  'setUseTokenDetection',
+  'setUseNftDetection',
+  'setDisplayNftMedia',
+  'setSecurityAlertsEnabled',
+  'setIsMultiAccountBalancesEnabled',
+  'setShowTestNetworks',
+  'setIsIpfsGatewayEnabled',
+  'setEnableNetworkIncomingTransactions',
+  'setShowMultiRpcModal',
+  'setSmartTransactionsOptInStatus',
+  'setUseTransactionSimulations',
+  'setTokenSortConfig',
+  'setUseSafeChainsListValidation',
+  'setPrivacyMode',
+  'setDismissSmartAccountSuggestionEnabled',
+  'setSmartAccountOptIn',
+  'setTokenNetworkFilter',
+] as const;
+
 export type PreferencesControllerGetStateAction = ControllerGetStateAction<
   typeof name,
   PreferencesState
@@ -240,7 +263,9 @@ export type PreferencesControllerStateChangeEvent = ControllerStateChangeEvent<
   PreferencesState
 >;
 
-export type PreferencesControllerActions = PreferencesControllerGetStateAction;
+export type PreferencesControllerActions =
+  | PreferencesControllerGetStateAction
+  | PreferencesControllerMethodActions;
 
 export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
 
@@ -338,6 +363,11 @@ export class PreferencesController extends BaseController<
         ...state,
       },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**

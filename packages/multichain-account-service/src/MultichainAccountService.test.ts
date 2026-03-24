@@ -6,16 +6,25 @@ import type {
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
+  BtcAccountType,
   EthAccountType,
   SolAccountType,
+  TrxAccountType,
 } from '@metamask/keyring-api';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
+import { traceFallback } from './analytics';
+import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
+import { TimeoutError } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
+import {
+  BTC_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProvider,
+} from './providers/BtcAccountProvider';
 import {
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
@@ -24,6 +33,10 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './providers/SolAccountProvider';
+import {
+  TRX_ACCOUNT_PROVIDER_NAME,
+  TrxAccountProvider,
+} from './providers/TrxAccountProvider';
 import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
 import type { RootMessenger, MockAccountProvider } from './tests';
 import {
@@ -39,12 +52,19 @@ import {
 import {
   MOCK_HD_KEYRING_1,
   MOCK_HD_KEYRING_2,
+  MOCK_SNAP_KEYRING,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   makeMockAccountProvider,
   setupBip44AccountProvider,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
+
+// Mock perf helpers so tests can control isPerfEnabled() without setting DEBUG env var.
+jest.mock('./analytics/perf', () => ({
+  isPerfEnabled: jest.fn().mockReturnValue(false),
+  withLocalPerfTrace: jest.fn((trace) => trace),
+}));
 
 // Mock providers.
 jest.mock('./providers/EvmAccountProvider', () => {
@@ -57,6 +77,18 @@ jest.mock('./providers/SolAccountProvider', () => {
   return {
     ...jest.requireActual('./providers/SolAccountProvider'),
     SolAccountProvider: jest.fn(),
+  };
+});
+jest.mock('./providers/BtcAccountProvider', () => {
+  return {
+    ...jest.requireActual('./providers/BtcAccountProvider'),
+    BtcAccountProvider: jest.fn(),
+  };
+});
+jest.mock('./providers/TrxAccountProvider', () => {
+  return {
+    ...jest.requireActual('./providers/TrxAccountProvider'),
+    TrxAccountProvider: jest.fn(),
   };
 });
 
@@ -88,6 +120,10 @@ type Mocks = {
   EvmAccountProvider: MockAccountProvider;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SolAccountProvider: MockAccountProvider;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  BtcAccountProvider: MockAccountProvider;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  TrxAccountProvider: MockAccountProvider;
 };
 
 type Spies = {
@@ -126,6 +162,16 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
     mocks.isAccountCompatible?.mockImplementation(
       (account: KeyringAccount) => account.type === SolAccountType.DataAccount,
     );
+  } else if (providerClass === (BtcAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(BTC_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === BtcAccountType.P2wpkh,
+    );
+  } else if (providerClass === (TrxAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(TRX_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === TrxAccountType.Eoa,
+    );
   }
 }
 
@@ -134,11 +180,13 @@ async function setup({
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
   providerConfigs,
+  config,
 }: {
   rootMessenger?: RootMessenger;
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
   providerConfigs?: MultichainAccountServiceOptions['providerConfigs'];
+  config?: MultichainAccountServiceOptions['config'];
 } = {}): Promise<{
   service: MultichainAccountService;
   rootMessenger: RootMessenger;
@@ -168,6 +216,8 @@ async function setup({
     },
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
+    BtcAccountProvider: makeMockAccountProvider(),
+    TrxAccountProvider: makeMockAccountProvider(),
   };
 
   const spies: Spies = {
@@ -240,6 +290,8 @@ async function setup({
     // force it here.
     EvmAccountProvider.NAME = EVM_ACCOUNT_PROVIDER_NAME;
     SolAccountProvider.NAME = SOL_ACCOUNT_PROVIDER_NAME;
+    BtcAccountProvider.NAME = BTC_ACCOUNT_PROVIDER_NAME;
+    TrxAccountProvider.NAME = TRX_ACCOUNT_PROVIDER_NAME;
 
     mockAccountProvider<EvmAccountProvider>(
       EvmAccountProvider,
@@ -255,6 +307,20 @@ async function setup({
       1,
       SolAccountType.DataAccount,
     );
+    mockAccountProvider<BtcAccountProvider>(
+      BtcAccountProvider,
+      mocks.BtcAccountProvider,
+      accounts,
+      2,
+      BtcAccountType.P2wpkh,
+    );
+    mockAccountProvider<TrxAccountProvider>(
+      TrxAccountProvider,
+      mocks.TrxAccountProvider,
+      accounts,
+      3,
+      TrxAccountType.Eoa,
+    );
   }
 
   const messenger = getMultichainAccountServiceMessenger(rootMessenger);
@@ -262,6 +328,7 @@ async function setup({
   const service = new MultichainAccountService({
     messenger,
     providerConfigs,
+    config,
   });
 
   await service.init();
@@ -316,6 +383,90 @@ describe('MultichainAccountService', () => {
         messenger,
         providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
+      );
+    });
+
+    it('passes traceFallback to providers when no config.trace is provided and perf is disabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(false);
+
+      const { mocks, messenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+      });
+
+      expect(withLocalPerfTrace).not.toHaveBeenCalled();
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        traceFallback,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        traceFallback,
+      );
+    });
+
+    it('passes config.trace to providers when provided and perf is disabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(false);
+      const customTrace = jest.fn();
+
+      const { mocks, messenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        config: { trace: customTrace },
+      });
+
+      expect(withLocalPerfTrace).not.toHaveBeenCalled();
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        customTrace,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        customTrace,
+      );
+    });
+
+    it('wraps trace with local perf trace and passes it to providers when perf is enabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(true);
+      const wrappedTrace = jest.fn();
+      jest.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
+
+      const { mocks, messenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+      });
+
+      expect(withLocalPerfTrace).toHaveBeenCalledTimes(1);
+      expect(withLocalPerfTrace).toHaveBeenCalledWith(traceFallback);
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        wrappedTrace,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        wrappedTrace,
+      );
+    });
+
+    it('wraps config.trace with local perf trace when perf is enabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(true);
+      const customTrace = jest.fn();
+      const wrappedTrace = jest.fn();
+      jest.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
+
+      const { mocks } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        config: { trace: customTrace },
+      });
+
+      expect(withLocalPerfTrace).toHaveBeenCalledWith(customTrace);
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        expect.anything(),
+        undefined,
+        wrappedTrace,
       );
     });
 
@@ -500,14 +651,34 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service } = await setup({ accounts: [mockEvmAccount] });
+      const { service, mocks } = await setup({ accounts: [mockEvmAccount] });
+
+      // Groups cannot be empty, we need mock the next account creation too.
+      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withUuid()
+        .withGroupIndex(1)
+        .get();
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockNextEvmAccount,
+      ]);
 
       const nextGroup = await service.createNextMultichainAccountGroup({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
       });
       expect(nextGroup.groupIndex).toBe(1);
-      // NOTE: There won't be any account for this group, since we're not
-      // mocking the providers.
+
+      // We always fetch account objects from the provider, so we also have
+      // to mock this.
+      mocks.EvmAccountProvider.getAccount.mockReturnValueOnce(
+        mockNextEvmAccount,
+      );
+      const accounts = nextGroup.getAccounts();
+      expect(mocks.EvmAccountProvider.getAccount).toHaveBeenCalledWith(
+        mockNextEvmAccount.id,
+      );
+      expect(accounts).toHaveLength(1);
+      expect(accounts[0]).toStrictEqual(mockNextEvmAccount);
     });
 
     it('emits multichainAccountGroupCreated event when creating next group', async () => {
@@ -516,10 +687,20 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service, messenger } = await setup({
+      const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount],
       });
       const publishSpy = jest.spyOn(messenger, 'publish');
+
+      // Groups cannot be empty, we need mock the next account creation too.
+      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withUuid()
+        .withGroupIndex(1)
+        .get();
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockNextEvmAccount,
+      ]);
 
       const nextGroup = await service.createNextMultichainAccountGroup({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -572,10 +753,20 @@ describe('MultichainAccountService', () => {
         .withGroupIndex(0)
         .get();
 
-      const { service, messenger } = await setup({
+      const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount],
       });
       const publishSpy = jest.spyOn(messenger, 'publish');
+
+      // Groups cannot be empty, we need mock the next account creation too.
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withUuid()
+        .withGroupIndex(1)
+        .get();
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockEvmAccount1,
+      ]);
 
       const group = await service.createMultichainAccountGroup({
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -585,6 +776,153 @@ describe('MultichainAccountService', () => {
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainAccountService:multichainAccountGroupCreated',
         group,
+      );
+    });
+  });
+
+  describe('createMultichainAccountGroups', () => {
+    it('creates multiple multichain account groups up to toGroupIndex', async () => {
+      // Start with group 0 existing to initialize the wallet.
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount0 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service, mocks } = await setup({
+        accounts: [mockEvmAccount0, mockSolAccount0],
+      });
+
+      // Mock accounts that will be returned when creating groups 1, 2.
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockEvmAccount2 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .get();
+
+      const mockSolAccount1 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockSolAccount2 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(2)
+        .get();
+
+      // Mock EVM provider to return new accounts for range 1-2.
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockEvmAccount1,
+        mockEvmAccount2,
+      ]);
+
+      // Mock SOL provider for new groups.
+      mocks.SolAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockSolAccount1,
+      ]);
+      mocks.SolAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockSolAccount2,
+      ]);
+
+      const groups = await service.createMultichainAccountGroups({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        toGroupIndex: 2,
+      });
+
+      expect(groups).toHaveLength(3);
+      expect(groups[0].groupIndex).toBe(0); // Existing group.
+      expect(groups[1].groupIndex).toBe(1); // New group.
+      expect(groups[2].groupIndex).toBe(2); // New group.
+
+      // Verify EVM provider was called with range for new groups.
+      expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndexRange,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        range: {
+          from: 1,
+          to: 2,
+        },
+      });
+    });
+
+    it('creates multiple groups via messenger action handler', async () => {
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+
+      const { messenger } = await setup({
+        accounts: [mockEvmAccount0, mockEvmAccount1],
+      });
+
+      const groups = await messenger.call(
+        'MultichainAccountService:createMultichainAccountGroups',
+        {
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          toGroupIndex: 1,
+        },
+      );
+
+      expect(groups).toHaveLength(2);
+      expect(groups[0].groupIndex).toBe(0);
+      expect(groups[1].groupIndex).toBe(1);
+    });
+
+    it('publishes multichainAccountGroupCreated events for each new group', async () => {
+      // Start with group 0 existing to initialize the wallet.
+      const mockEvmAccount0 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount0 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service, messenger, mocks } = await setup({
+        accounts: [mockEvmAccount0, mockSolAccount0],
+      });
+
+      const mockEvmAccount1 = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+      const mockSolAccount1 = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(1)
+        .get();
+
+      // Mock EVM provider to return account for group 1.
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockEvmAccount1,
+      ]);
+
+      // Mock SOL provider for group 1.
+      mocks.SolAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockSolAccount1,
+      ]);
+
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      await service.createMultichainAccountGroups({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        toGroupIndex: 1,
+      });
+
+      // Should publish event for the new group (group 1).
+      // Group 0 already existed, so it shouldn't publish an event for it.
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:multichainAccountGroupCreated',
+        expect.objectContaining({ groupIndex: 1 }),
       );
     });
   });
@@ -606,14 +944,14 @@ describe('MultichainAccountService', () => {
       await service.alignWallets();
 
       expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_2.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
     });
   });
@@ -635,9 +973,9 @@ describe('MultichainAccountService', () => {
       await service.alignWallet(MOCK_HD_KEYRING_1.metadata.id);
 
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
     });
   });
@@ -723,15 +1061,23 @@ describe('MultichainAccountService', () => {
 
     it('create the next multichain account group with MultichainAccountService:createNextMultichainAccountGroup', async () => {
       const accounts = [MOCK_HD_ACCOUNT_1];
-      const { messenger } = await setup({ accounts });
+      const { messenger, mocks } = await setup({ accounts });
+
+      // Groups cannot be empty, we need mock the next account creation too.
+      const mockNextEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withUuid()
+        .withGroupIndex(1)
+        .get();
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        mockNextEvmAccount,
+      ]);
 
       const nextGroup = await messenger.call(
         'MultichainAccountService:createNextMultichainAccountGroup',
         { entropySource: MOCK_HD_KEYRING_1.metadata.id },
       );
       expect(nextGroup.groupIndex).toBe(1);
-      // NOTE: There won't be any account for this group, since we're not
-      // mocking the providers.
     });
 
     it('creates a multichain account group with MultichainAccountService:createMultichainAccountGroup', async () => {
@@ -770,9 +1116,9 @@ describe('MultichainAccountService', () => {
       );
 
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
     });
 
@@ -792,14 +1138,14 @@ describe('MultichainAccountService', () => {
       await messenger.call('MultichainAccountService:alignWallets');
 
       expect(mocks.EvmAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_2.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
       expect(mocks.SolAccountProvider.createAccounts).toHaveBeenCalledWith({
-        type: AccountCreationType.Bip44DeriveIndex,
+        type: AccountCreationType.Bip44DeriveIndexRange,
         entropySource: MOCK_HD_KEYRING_1.metadata.id,
-        groupIndex: 0,
+        range: { from: 0, to: 0 },
       });
     });
 
@@ -836,6 +1182,10 @@ describe('MultichainAccountService', () => {
         id: 'abc',
         name: '',
       }));
+
+      mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+        MOCK_HD_ACCOUNT_1,
+      ]);
 
       const wallet = await messenger.call(
         'MultichainAccountService:createMultichainAccountWallet',
@@ -876,6 +1226,7 @@ describe('MultichainAccountService', () => {
     it('checks for Snap platform readiness with MultichainAccountService:ensureCanUseSnapPlatform', async () => {
       const { rootMessenger, spies } = await setup({
         accounts: [],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2, MOCK_SNAP_KEYRING],
       });
 
       await rootMessenger.call(
@@ -942,6 +1293,31 @@ describe('MultichainAccountService', () => {
         'cause',
         providerError,
       );
+    });
+
+    it('does not capture exception when provider throws a TimeoutError', async () => {
+      const rootMessenger = getRootMessenger();
+      const captureExceptionSpy = jest.spyOn(rootMessenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const { service, mocks } = await setup({
+        rootMessenger,
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      mocks.SolAccountProvider.resyncAccounts.mockRejectedValue(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+
+      await service.resyncAccounts(); // Should not throw.
+
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -1107,6 +1483,10 @@ describe('MultichainAccountService', () => {
           name: '',
         }));
 
+        mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+          MOCK_HD_ACCOUNT_1,
+        ]);
+
         const wallet = await service.createMultichainAccountWallet({
           mnemonic,
           type: 'import',
@@ -1169,6 +1549,10 @@ describe('MultichainAccountService', () => {
           },
         );
 
+        mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+          MOCK_HD_ACCOUNT_1,
+        ]);
+
         const newWallet = await service.createMultichainAccountWallet({
           password,
           type: 'create',
@@ -1208,6 +1592,10 @@ describe('MultichainAccountService', () => {
           },
         );
 
+        mocks.EvmAccountProvider.createAccounts.mockResolvedValueOnce([
+          MOCK_HD_ACCOUNT_1,
+        ]);
+
         const newWallet = await service.createMultichainAccountWallet({
           password,
           mnemonic,
@@ -1224,6 +1612,7 @@ describe('MultichainAccountService', () => {
     it('delegates Snap platform readiness check to SnapPlatformWatcher (method)', async () => {
       const { service, spies } = await setup({
         accounts: [],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2, MOCK_SNAP_KEYRING],
       });
 
       await service.ensureCanUseSnapPlatform();

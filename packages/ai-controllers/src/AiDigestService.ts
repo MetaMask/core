@@ -6,7 +6,6 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
-import type { CaipAssetType } from '@metamask/utils';
 
 import { AiDigestControllerErrorMessage } from './ai-digest-constants';
 import type {
@@ -85,24 +84,45 @@ const MarketInsightsDigestEnvelopeStruct = structType({
 
 // Market Overview structs
 
+const RelatedAssetStruct = structType({
+  name: string(),
+  symbol: string(),
+  caip19: array(string()),
+  sourceAssetId: string(),
+  hlPerpsMarket: optional(string()),
+});
+
 const MarketOverviewTrendStruct = structType({
   title: string(),
   description: string(),
-  category: enums(trendCategoryValues),
-  impact: enums(trendImpactValues),
+  category: optional(enums(trendCategoryValues)),
+  impact: optional(enums(trendImpactValues)),
   articles: array(ArticleStruct),
-  relatedAssets: array(string()),
+  relatedAssets: array(RelatedAssetStruct),
 });
 
 const MarketOverviewStruct = structType({
   version: optional(string()),
   generatedAt: string(),
-  headline: string(),
-  summary: string(),
   trends: array(MarketOverviewTrendStruct),
-  sources: array(SourceStruct),
   metadata: optional(array(AIResponseMetadataStruct)),
 });
+
+const MarketOverviewReportEnvelopeStruct = structType({
+  report: MarketOverviewStruct,
+});
+
+const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
+  if (is(value, MarketOverviewStruct)) {
+    return value;
+  }
+
+  if (is(value, MarketOverviewReportEnvelopeStruct)) {
+    return value.report;
+  }
+
+  return null;
+};
 
 const getNormalizedMarketInsightsReport = (
   value: unknown,
@@ -145,28 +165,33 @@ export class AiDigestService implements DigestService {
       );
     }
 
-    const body: unknown = await response.json();
+    const overview = getNormalizedMarketOverview(await response.json());
 
-    if (!is(body, MarketOverviewStruct)) {
+    if (!overview) {
       throw new Error(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
     }
 
-    return body;
+    return overview;
   }
 
   /**
-   * Search for market insights by CAIP-19 asset identifier.
+   * Search for market insights by asset identifier.
    *
-   * Calls `GET ${this.#baseUrl}/asset-summary?caipAssetType=${encodeURIComponent(caip19Id)}`.
+   * Accepts any identifier the API understands (CAIP-19 asset type, ticker
+   * symbol, asset name, HyperLiquid perps market id, etc.) and forwards it
+   * unchanged via the universal `asset` query parameter.
    *
-   * @param caip19Id - The CAIP-19 identifier of the asset.
+   * Calls `GET ${baseUrl}/asset-summary?asset=<assetIdentifier>`.
+   *
+   * @param assetIdentifier - The asset identifier (e.g. `eip155:1/slip44:60`,
+   *   `ETH`, `Bitcoin`, `xyz:TSLA`).
    * @returns The market insights report, or `null` if none exists (404).
    */
   async searchDigest(
-    caip19Id: CaipAssetType,
+    assetIdentifier: string,
   ): Promise<MarketInsightsReport | null> {
     const response = await fetch(
-      `${this.#baseUrl}/asset-summary?caipAssetType=${encodeURIComponent(caip19Id)}`,
+      `${this.#baseUrl}/asset-summary?asset=${encodeURIComponent(assetIdentifier)}`,
     );
 
     if (response.status === 404) {

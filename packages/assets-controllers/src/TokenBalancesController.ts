@@ -56,11 +56,11 @@ import {
 import { produce } from 'immer';
 import { isEqual } from 'lodash';
 
+import type { AccountTrackerControllerGetStateAction } from './AccountTrackerController';
 import type {
-  AccountTrackerControllerGetStateAction,
-  AccountTrackerUpdateNativeBalancesAction,
-  AccountTrackerUpdateStakedBalancesAction,
-} from './AccountTrackerController';
+  AccountTrackerControllerUpdateNativeBalancesAction,
+  AccountTrackerControllerUpdateStakedBalancesAction,
+} from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
@@ -69,11 +69,12 @@ import type {
   UnprocessedTokens,
 } from './multi-chain-accounts-service/api-balance-fetcher';
 import { RpcBalanceFetcher } from './rpc-service/rpc-balance-fetcher';
+import type { TokenBalancesControllerMethodActions } from './TokenBalancesController-method-action-types';
 import type {
   TokenDetectionControllerAddDetectedTokensViaPollingAction,
   TokenDetectionControllerAddDetectedTokensViaWsAction,
   TokenDetectionControllerDetectTokensAction,
-} from './TokenDetectionController';
+} from './TokenDetectionController-method-action-types';
 import type {
   TokensControllerGetStateAction,
   TokensControllerState,
@@ -111,20 +112,9 @@ export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
   TokenBalancesControllerState
 >;
 
-export type TokenBalancesControllerUpdateChainPollingConfigsAction = {
-  type: `TokenBalancesController:updateChainPollingConfigs`;
-  handler: TokenBalancesController['updateChainPollingConfigs'];
-};
-
-export type TokenBalancesControllerGetChainPollingConfigAction = {
-  type: `TokenBalancesController:getChainPollingConfig`;
-  handler: TokenBalancesController['getChainPollingConfig'];
-};
-
 export type TokenBalancesControllerActions =
   | TokenBalancesControllerGetStateAction
-  | TokenBalancesControllerUpdateChainPollingConfigsAction
-  | TokenBalancesControllerGetChainPollingConfigAction;
+  | TokenBalancesControllerMethodActions;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof CONTROLLER, TokenBalancesControllerState>;
@@ -149,8 +139,8 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListAccountsAction
   | AccountTrackerControllerGetStateAction
-  | AccountTrackerUpdateNativeBalancesAction
-  | AccountTrackerUpdateStakedBalancesAction
+  | AccountTrackerControllerUpdateNativeBalancesAction
+  | AccountTrackerControllerUpdateStakedBalancesAction
   | KeyringControllerGetStateAction
   | AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
@@ -262,6 +252,11 @@ type StakedBalanceUpdate = {
   chainId: Hex;
   stakedBalance: Hex;
 };
+const MESSENGER_EXPOSED_METHODS = [
+  'updateChainPollingConfigs',
+  'getChainPollingConfig',
+] as const;
+
 export class TokenBalancesController extends StaticIntervalPollingController<{
   chainIds: ChainIdHex[];
 }>()<
@@ -378,7 +373,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#isUnlocked = isUnlocked;
 
     this.#subscribeToControllers();
-    this.#registerActions();
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
   #subscribeToControllers(): void {
@@ -448,18 +443,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
           // Silently handle balance update errors
         });
       },
-    );
-  }
-
-  #registerActions(): void {
-    this.messenger.registerActionHandler(
-      `TokenBalancesController:updateChainPollingConfigs`,
-      this.updateChainPollingConfigs.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `TokenBalancesController:getChainPollingConfig`,
-      this.getChainPollingConfig.bind(this),
     );
   }
 
@@ -1484,22 +1467,36 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       return;
     }
 
-    const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
+    try {
+      const chainConfigs: Record<ChainIdHex, { interval: number }> = {};
 
-    for (const [chainId, status] of changes) {
-      const hexChainId = caipChainIdToHex(chainId);
+      for (const [chainId, status] of changes) {
+        if (
+          isCaipChainId(chainId) &&
+          parseCaipChainId(chainId).namespace !== 'eip155'
+        ) {
+          continue;
+        }
 
-      chainConfigs[hexChainId] =
-        status === 'down'
-          ? { interval: this.#defaultInterval }
-          : { interval: this.#websocketActivePollingInterval };
+        const hexChainId = caipChainIdToHex(chainId);
+
+        chainConfigs[hexChainId] =
+          status === 'down'
+            ? { interval: this.#defaultInterval }
+            : { interval: this.#websocketActivePollingInterval };
+      }
+
+      if (Object.keys(chainConfigs).length === 0) {
+        return;
+      }
+
+      const jitterDelay = Math.random() * this.#defaultInterval;
+      setTimeout(() => {
+        this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
+      }, jitterDelay);
+    } catch (error) {
+      console.warn('Error processing accumulated status changes:', error);
     }
-
-    const jitterDelay = Math.random() * this.#defaultInterval;
-
-    setTimeout(() => {
-      this.updateChainPollingConfigs(chainConfigs, { immediateUpdate: true });
-    }, jitterDelay);
   }
 
   override destroy(): void {
@@ -1511,13 +1508,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       clearTimeout(this.#statusChangeDebouncer.timer);
       this.#statusChangeDebouncer.timer = null;
     }
-
-    this.messenger.unregisterActionHandler(
-      `TokenBalancesController:updateChainPollingConfigs`,
-    );
-    this.messenger.unregisterActionHandler(
-      `TokenBalancesController:getChainPollingConfig`,
-    );
 
     super.destroy();
   }

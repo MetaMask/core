@@ -31,6 +31,9 @@ export const TRON_RESOURCE = {
   MAX_BANDWIDTH: 'max-bandwidth',
   STRX_ENERGY: 'strx-energy',
   STRX_BANDWIDTH: 'strx-bandwidth',
+  TRX_READY_FOR_WITHDRAWAL: 'trx-ready-for-withdrawal',
+  TRX_STAKING_REWARDS: 'trx-staking-rewards',
+  TRX_IN_LOCK_PERIOD: 'trx-in-lock-period',
 } as const;
 
 export type TronResourceSymbol =
@@ -90,6 +93,7 @@ export type Asset = (
 
 export type AssetListState = {
   accountTree: AccountTreeControllerState['accountTree'];
+  selectedAccountGroup: AccountTreeControllerState['selectedAccountGroup'];
   internalAccounts: AccountsControllerState['internalAccounts'];
   allTokens: TokensControllerState['allTokens'];
   allIgnoredTokens: TokensControllerState['allIgnoredTokens'];
@@ -501,14 +505,13 @@ const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
 export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
   [
     selectAllAssets,
-    (state) => state.accountTree,
+    (state) => state.selectedAccountGroup,
     (
       _state,
       opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
     ) => opts,
   ],
-  (groupAssets, accountTree, opts) => {
-    const { selectedAccountGroup } = accountTree;
+  (groupAssets, selectedAccountGroup, opts) => {
     if (!selectedAccountGroup) {
       return {};
     }

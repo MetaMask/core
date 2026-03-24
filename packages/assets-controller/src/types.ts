@@ -465,6 +465,12 @@ export type Context = {
   response: DataResponse;
   /** Get current assets state */
   getAssetsState: () => AssetsControllerStateInternal;
+  /**
+   * Optional breakdown of latency (ms) per data source, e.g. from parallel
+   * middlewares. Keys are source names (often "MiddlewareName.SourceName").
+   * Merged into the controller's durationByDataSource for tracing.
+   */
+  durationByDataSource?: Record<string, number>;
 };
 
 /**
@@ -479,6 +485,16 @@ export type Middleware = (
   context: Context,
   next: NextFunction,
 ) => Promise<Context>;
+
+/**
+ * An assets data source: any object that can participate in the assets
+ * middleware chain with a display name (e.g. for tracing). Used by
+ * createParallelMiddleware and by the controller when executing the chain.
+ */
+export type AssetsDataSource = {
+  getName(): string;
+  assetsMiddleware: Middleware;
+};
 
 /**
  * Wraps a middleware to only execute if specific dataTypes are requested.

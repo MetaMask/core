@@ -9,13 +9,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `FiatStrategy` to retrieve quotes via `RampsController` ([#8121](https://github.com/MetaMask/core/pull/8121))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^69.1.1` to `^69.2.0` ([#8265](https://github.com/MetaMask/core/pull/8265))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
+- Bump `@metamask/assets-controller` from `^3.0.0` to `^3.1.0` ([#8276](https://github.com/MetaMask/core/pull/8276))
+
+## [18.0.0]
+
+### Changed
+
+- **BREAKING** Bump `@metamask/bridge-status-controller` from `^69.0.0` to `^70.0.0` ([#8252](https://github.com/MetaMask/core/pull/8252))
+- Bump `@metamask/assets-controller` from `^2.4.0` to `^3.0.0` ([#8232](https://github.com/MetaMask/core/pull/8232))
+- Bump `@metamask/assets-controllers` from `^101.0.0` to `^101.0.1` ([#8232](https://github.com/MetaMask/core/pull/8232))
+- Remove duplication in gas estimation for Relay and Across strategies ([#8145](https://github.com/MetaMask/core/pull/8145))
+- Improve Across quote handling to decode supported destination calls into post-swap actions while sending transfer-only destinations directly to the destination recipient ([#8208](https://github.com/MetaMask/core/pull/8208))
+
+## [17.1.0]
+
+### Added
+
+- New public wrapper methods: `getDelegationTransaction()`, `getStrategy()` ([#8183](https://github.com/MetaMask/core/pull/8183))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^2.3.0` to `^2.4.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/assets-controllers` from `^100.2.1` to `^101.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/bridge-controller` from `^69.1.0` to `^69.1.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/bridge-status-controller` from `^68.1.0` to `^69.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/gas-fee-controller` from `^26.0.3` to `^26.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/transaction-controller` from `^62.22.0` to `^63.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [17.0.0]
+
+### Added
+
+- **BREAKING:** Add `AssetsControllerGetStateForTransactionPayAction` to the `AllowedActions` messenger type ([#8163](https://github.com/MetaMask/core/pull/8163))
+
+### Changed
+
+- `getTokenBalance`, `getTokenInfo`, and `getTokenFiatRate` now source token metadata, balances, and pricing from `AssetsControllerGetStateForTransactionPayAction` when the `assetsUnifyState` remote feature flag is enabled, falling back to individual controller state calls otherwise ([#8163](https://github.com/MetaMask/core/pull/8163))
+- Zero out source network fees in Relay strategy when quote indicates execute flow ([#8181](https://github.com/MetaMask/core/pull/8181))
+- Harden relay status polling ([#8189](https://github.com/MetaMask/core/pull/8189))
+  - Throw if status not recognised.
+  - Support feature flags for polling interval and timeout.
+  - Ignore transient network errors.
+- Bump `@metamask/transaction-controller` from `^62.21.0` to `^62.22.0` ([#8217](https://github.com/MetaMask/core/pull/8217))
+
+## [16.5.0]
+
+### Added
+
 - Support gasless Relay deposits via `execute` endpoint ([#8133](https://github.com/MetaMask/core/pull/8133))
+- Build Across post-swap transfer actions for `predictDeposit` quotes so Predict deposits can bridge swapped output into the destination proxy wallet ([#8159](https://github.com/MetaMask/core/pull/8159))
 
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^100.2.0` to `^100.2.1` ([#8162](https://github.com/MetaMask/core/pull/8162))
 - Bump `@metamask/bridge-controller` from `^69.0.0` to `^69.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
 - Bump `@metamask/bridge-status-controller` from `^68.0.1` to `^68.1.0` ([#8162](https://github.com/MetaMask/core/pull/8162), [#8168](https://github.com/MetaMask/core/pull/8168))
+
+### Fixed
+
+- Support gasless withdraw for post-quote flows (e.g. Predict Withdraw) when transaction would provide sufficient token balance for gas fee token ([#8146](https://github.com/MetaMask/core/pull/8146))
 
 ## [16.4.1]
 
@@ -503,7 +561,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.1.0...@metamask/transaction-pay-controller@18.0.0
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@17.0.0...@metamask/transaction-pay-controller@17.1.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.5.0...@metamask/transaction-pay-controller@17.0.0
+[16.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.1...@metamask/transaction-pay-controller@16.5.0
 [16.4.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.4.0...@metamask/transaction-pay-controller@16.4.1
 [16.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.3.0...@metamask/transaction-pay-controller@16.4.0
 [16.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@16.2.0...@metamask/transaction-pay-controller@16.3.0

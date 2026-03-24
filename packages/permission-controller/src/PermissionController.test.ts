@@ -5635,8 +5635,10 @@ describe('PermissionController', () => {
   });
 
   describe('controller actions', () => {
-    it('action: PermissionController:clearPermissions', () => {
+    it('action: PermissionController:clearState', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5644,7 +5646,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const clearStateSpy = jest.spyOn(controller, 'clearState');
 
       controller.grantPermissions({
         subject: { origin: 'foo' },
@@ -5655,13 +5656,19 @@ describe('PermissionController', () => {
 
       expect(hasProperty(controller.state.subjects, 'foo')).toBe(true);
 
-      messenger.call('PermissionController:clearPermissions');
-      expect(clearStateSpy).toHaveBeenCalledTimes(1);
+      messenger.call('PermissionController:clearState');
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:clearState',
+      );
       expect(controller.state).toStrictEqual({ subjects: {} });
     });
 
     it('action: PermissionController:getEndowments', async () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5669,7 +5676,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const getEndowmentsSpy = jest.spyOn(controller, 'getEndowments');
 
       await expect(
         messenger.call(
@@ -5710,23 +5716,24 @@ describe('PermissionController', () => {
         ),
       ).toStrictEqual(['endowment1']);
 
-      expect(getEndowmentsSpy).toHaveBeenCalledTimes(3);
-      expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenCalledTimes(3);
+      expect(messenger.call).toHaveBeenNthCalledWith(
         1,
+        'PermissionController:getEndowments',
         'foo',
         PermissionNames.endowmentAnySubject,
-        undefined,
       );
 
-      expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         2,
+        'PermissionController:getEndowments',
         'foo',
         PermissionNames.endowmentAnySubject,
-        undefined,
       );
 
-      expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         3,
+        'PermissionController:getEndowments',
         'foo',
         PermissionNames.endowmentAnySubject,
         { arbitrary: 'requestData' },
@@ -5735,6 +5742,8 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:getSubjectNames', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5742,7 +5751,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const getSubjectNamesSpy = jest.spyOn(controller, 'getSubjectNames');
 
       expect(
         messenger.call('PermissionController:getSubjectNames'),
@@ -5758,11 +5766,21 @@ describe('PermissionController', () => {
       expect(
         messenger.call('PermissionController:getSubjectNames'),
       ).toStrictEqual(['foo']);
-      expect(getSubjectNamesSpy).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:getSubjectNames',
+      );
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        2,
+        'PermissionController:getSubjectNames',
+      );
     });
 
     it('action: PermissionController:hasPermission', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5770,7 +5788,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const hasPermissionSpy = jest.spyOn(controller, 'hasPermission');
 
       expect(
         messenger.call(
@@ -5803,21 +5820,24 @@ describe('PermissionController', () => {
         ),
       ).toBe(false);
 
-      expect(hasPermissionSpy).toHaveBeenCalledTimes(3);
-      expect(hasPermissionSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenCalledTimes(3);
+      expect(messenger.call).toHaveBeenNthCalledWith(
         1,
+        'PermissionController:hasPermission',
         'foo',
         PermissionNames.wallet_getSecretArray,
       );
 
-      expect(hasPermissionSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         2,
+        'PermissionController:hasPermission',
         'foo',
         PermissionNames.wallet_getSecretArray,
       );
 
-      expect(hasPermissionSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         3,
+        'PermissionController:hasPermission',
         'foo',
         PermissionNames.wallet_getSecretObject,
       );
@@ -5825,6 +5845,8 @@ describe('PermissionController', () => {
 
     it('action: PermissionController:hasPermissions', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5832,7 +5854,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const hasPermissionsSpy = jest.spyOn(controller, 'hasPermissions');
 
       expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
         false,
@@ -5848,13 +5869,23 @@ describe('PermissionController', () => {
       expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
         true,
       );
-      expect(hasPermissionsSpy).toHaveBeenCalledTimes(2);
-      expect(hasPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
-      expect(hasPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:hasPermissions',
+        'foo',
+      );
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        2,
+        'PermissionController:hasPermissions',
+        'foo',
+      );
     });
 
     it('action: PermissionController:getPermissions', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5862,7 +5893,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const getPermissionsSpy = jest.spyOn(controller, 'getPermissions');
 
       expect(
         messenger.call('PermissionController:getPermissions', 'foo'),
@@ -5882,13 +5912,23 @@ describe('PermissionController', () => {
         ),
       ).toStrictEqual(['wallet_getSecretArray']);
 
-      expect(getPermissionsSpy).toHaveBeenCalledTimes(3);
-      expect(getPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
-      expect(getPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:getPermissions',
+        'foo',
+      );
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        2,
+        'PermissionController:getPermissions',
+        'foo',
+      );
     });
 
     it('action: PermissionController:revokeAllPermissions', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5903,10 +5943,6 @@ describe('PermissionController', () => {
           wallet_getSecretArray: {},
         },
       });
-      const revokeAllPermissionsSpy = jest.spyOn(
-        controller,
-        'revokeAllPermissions',
-      );
 
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         true,
@@ -5917,12 +5953,18 @@ describe('PermissionController', () => {
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         false,
       );
-      expect(revokeAllPermissionsSpy).toHaveBeenCalledTimes(1);
-      expect(revokeAllPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:revokeAllPermissions',
+        'foo',
+      );
     });
 
     it('action: PermissionController:revokePermissionForAllSubjects', () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5937,10 +5979,6 @@ describe('PermissionController', () => {
           wallet_getSecretArray: {},
         },
       });
-      const revokePermissionForAllSubjectsSpy = jest.spyOn(
-        controller,
-        'revokePermissionForAllSubjects',
-      );
 
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         true,
@@ -5954,9 +5992,10 @@ describe('PermissionController', () => {
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         false,
       );
-      expect(revokePermissionForAllSubjectsSpy).toHaveBeenCalledTimes(1);
-      expect(revokePermissionForAllSubjectsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
         1,
+        'PermissionController:revokePermissionForAllSubjects',
         'wallet_getSecretArray',
       );
     });
@@ -6011,18 +6050,19 @@ describe('PermissionController', () => {
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
-      const controller = new PermissionController<
+
+      // eslint-disable-next-line no-new
+      new PermissionController<
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
 
-      // requestPermissions calls unregistered action ApprovalController:addRequest that
-      // can't be easily mocked, thus we mock the whole implementation
-      const requestPermissionsSpy = jest
-        .spyOn(controller, 'requestPermissions')
-        .mockImplementation();
+      messenger.registerActionHandler(
+        'ApprovalController:addRequest',
+        async ({ requestData }) => requestData,
+      );
 
-      await messenger.call(
+      const [result] = await messenger.call(
         'PermissionController:requestPermissions',
         { origin: 'foo' },
         {
@@ -6030,26 +6070,29 @@ describe('PermissionController', () => {
         },
       );
 
-      expect(requestPermissionsSpy).toHaveBeenCalledTimes(1);
+      expect(result).toHaveProperty('wallet_getSecretArray');
     });
 
     it('action: PermissionController:requestPermissionsIncremental', async () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
-      const controller = new PermissionController<
+
+      // eslint-disable-next-line no-new
+      new PermissionController<
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
 
-      // requestPermissionsIncremental calls unregistered action ApprovalController:addRequest
-      // that can't be easily mocked, thus we mock the whole implementation.
-      const requestPermissionsIncrementalSpy = jest
-        .spyOn(controller, 'requestPermissionsIncremental')
-        .mockImplementation();
+      messenger.registerActionHandler(
+        'ApprovalController:addRequest',
+        async ({ requestData }) => requestData,
+      );
 
-      await messenger.call(
+      const [result] = await messenger.call(
         'PermissionController:requestPermissionsIncremental',
         { origin: 'foo' },
         {
@@ -6057,11 +6100,18 @@ describe('PermissionController', () => {
         },
       );
 
-      expect(requestPermissionsIncrementalSpy).toHaveBeenCalledTimes(1);
+      expect(result).toHaveProperty('wallet_getSecretArray');
+      expect(messenger.call).toHaveBeenCalledWith(
+        'PermissionController:requestPermissionsIncremental',
+        { origin: 'foo' },
+        { wallet_getSecretArray: {} },
+      );
     });
 
     it('action: PermissionController:updateCaveat', async () => {
       const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const state = {
         subjects: {
           'metamask.io': {
@@ -6090,8 +6140,6 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
-
       messenger.call(
         'PermissionController:updateCaveat',
         'metamask.io',
@@ -6100,7 +6148,15 @@ describe('PermissionController', () => {
         ['baz'],
       );
 
-      expect(updateCaveatSpy).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:updateCaveat',
+        'metamask.io',
+        'wallet_getSecretArray',
+        CaveatTypes.filterArrayResponse,
+        ['baz'],
+      );
       expect(controller.state).toStrictEqual({
         subjects: {
           'metamask.io': {

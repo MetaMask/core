@@ -78,11 +78,11 @@ export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 export const ADDRESS_SCAN_ENDPOINT = '/address/evm/scan';
 
 // Cache configuration defaults
-export const DEFAULT_URL_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_URL_SCAN_CACHE_TTL = 1 * 60; // 1 minute in seconds
 export const DEFAULT_URL_SCAN_CACHE_MAX_SIZE = 250;
-export const DEFAULT_TOKEN_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_TOKEN_SCAN_CACHE_TTL = 1 * 60; // 1 minute in seconds
 export const DEFAULT_TOKEN_SCAN_CACHE_MAX_SIZE = 1000;
-export const DEFAULT_ADDRESS_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_ADDRESS_SCAN_CACHE_TTL = 1 * 60; // 1 minute in seconds
 export const DEFAULT_ADDRESS_SCAN_CACHE_MAX_SIZE = 1000;
 
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
@@ -480,11 +480,11 @@ export class PhishingController extends BaseController<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #detector: any;
 
-  #stalelistRefreshInterval: number;
+  readonly #stalelistRefreshInterval: number;
 
-  #hotlistRefreshInterval: number;
+  readonly #hotlistRefreshInterval: number;
 
-  #c2DomainBlocklistRefreshInterval: number;
+  readonly #c2DomainBlocklistRefreshInterval: number;
 
   readonly #urlScanCache: CacheManager<PhishingDetectionScanResult>;
 
@@ -910,64 +910,6 @@ export class PhishingController extends BaseController<
    */
   checkAddressPoisoning(candidate: string): SimilarAddressMatch[] {
     return findSimilarAddresses(candidate, Array.from(this.#knownRecipients));
-  }
-
-  /**
-   * Set the interval at which the stale phishing list will be refetched.
-   * Fetching will only occur on the next call to test/bypass.
-   * For immediate update to the phishing list, call {@link updateStalelist} directly.
-   *
-   * @param interval - the new interval, in ms.
-   */
-  setStalelistRefreshInterval(interval: number) {
-    this.#stalelistRefreshInterval = interval;
-  }
-
-  /**
-   * Set the interval at which the hot list will be refetched.
-   * Fetching will only occur on the next call to test/bypass.
-   * For immediate update to the phishing list, call {@link updateHotlist} directly.
-   *
-   * @param interval - the new interval, in ms.
-   */
-  setHotlistRefreshInterval(interval: number) {
-    this.#hotlistRefreshInterval = interval;
-  }
-
-  /**
-   * Set the interval at which the C2 domain blocklist will be refetched.
-   * Fetching will only occur on the next call to test/bypass.
-   * For immediate update to the phishing list, call {@link updateHotlist} directly.
-   *
-   * @param interval - the new interval, in ms.
-   */
-  setC2DomainBlocklistRefreshInterval(interval: number) {
-    this.#c2DomainBlocklistRefreshInterval = interval;
-  }
-
-  /**
-   * Set the time-to-live for URL scan cache entries.
-   *
-   * @param ttl - The TTL in seconds.
-   */
-  setUrlScanCacheTTL(ttl: number) {
-    this.#urlScanCache.setTTL(ttl);
-  }
-
-  /**
-   * Set the maximum number of entries in the URL scan cache.
-   *
-   * @param maxSize - The maximum cache size.
-   */
-  setUrlScanCacheMaxSize(maxSize: number) {
-    this.#urlScanCache.setMaxSize(maxSize);
-  }
-
-  /**
-   * Clear the URL scan cache.
-   */
-  clearUrlScanCache() {
-    this.#urlScanCache.clear();
   }
 
   /**
@@ -1685,7 +1627,9 @@ export class PhishingController extends BaseController<
       this.update((draftState) => {
         draftState.stalelistLastFetched = timeNow;
         draftState.hotlistLastFetched = timeNow;
-        draftState.c2DomainBlocklistLastFetched = timeNow;
+        if (c2DomainBlocklistResponse) {
+          draftState.c2DomainBlocklistLastFetched = timeNow;
+        }
       });
     }
 
@@ -1777,26 +1721,20 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateC2DomainBlocklist() {
-    let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
-
-    try {
-      c2DomainBlocklistResponse =
-        await this.#queryConfig<C2DomainBlocklistResponse>(
-          `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
-            this.state.c2DomainBlocklistLastFetched,
-          )}`,
-        );
-    } finally {
-      // Set `c2DomainBlocklistLastFetched` even for failed requests to prevent server from being overwhelmed with
-      // traffic after a network disruption.
-      this.update((draftState) => {
-        draftState.c2DomainBlocklistLastFetched = fetchTimeNow();
-      });
-    }
+    const c2DomainBlocklistResponse =
+      await this.#queryConfig<C2DomainBlocklistResponse>(
+        `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
+          this.state.c2DomainBlocklistLastFetched,
+        )}`,
+      );
 
     if (!c2DomainBlocklistResponse) {
       return;
     }
+
+    this.update((draftState) => {
+      draftState.c2DomainBlocklistLastFetched = fetchTimeNow();
+    });
 
     const recentlyAddedC2Domains = c2DomainBlocklistResponse.recentlyAdded;
     const recentlyRemovedC2Domains = c2DomainBlocklistResponse.recentlyRemoved;

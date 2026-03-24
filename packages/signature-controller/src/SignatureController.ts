@@ -1,6 +1,6 @@
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
-  AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AcceptResultCallbacks,
   AddResult,
 } from '@metamask/approval-controller';
@@ -30,7 +30,7 @@ import {
   LogType,
   SigningStage,
 } from '@metamask/logging-controller';
-import type { AddLog } from '@metamask/logging-controller';
+import type { LoggingControllerAddAction } from '@metamask/logging-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
@@ -40,6 +40,7 @@ import EventEmitter from 'events';
 import { v1 as random } from 'uuid';
 
 import { projectLogger as log } from './logger';
+import type { SignatureControllerMethodActions } from './SignatureController-method-action-types';
 import { SignatureRequestStatus, SignatureRequestType } from './types';
 import type {
   MessageParamsPersonal,
@@ -68,6 +69,19 @@ import {
 } from './utils/validation';
 
 const controllerName = 'SignatureController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'clearUnapproved',
+  'newUnsignedPersonalMessage',
+  'newUnsignedTypedMessage',
+  'rejectUnapproved',
+  'resetState',
+  'setDeferredSignError',
+  'setDeferredSignSuccess',
+  'setMessageMetadata',
+  'setPersonalMessageInProgress',
+  'setTypedMessageInProgress',
+] as const;
 
 const stateMetadata = {
   signatureRequests: {
@@ -154,8 +168,8 @@ export type SignatureControllerState = {
 
 type AllowedActions =
   | AccountsControllerGetStateAction
-  | AddApprovalRequest
-  | AddLog
+  | ApprovalControllerAddRequestAction
+  | LoggingControllerAddAction
   | GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction
   | NetworkControllerGetNetworkClientByIdAction
   | KeyringControllerSignMessageAction
@@ -172,7 +186,9 @@ export type SignatureStateChange = ControllerStateChangeEvent<
   SignatureControllerState
 >;
 
-export type SignatureControllerActions = GetSignatureState;
+export type SignatureControllerActions =
+  | GetSignatureState
+  | SignatureControllerMethodActions;
 
 export type SignatureControllerEvents = SignatureStateChange;
 
@@ -263,6 +279,12 @@ export class SignatureController extends BaseController<
     });
 
     this.hub = new EventEmitter();
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
     this.#decodingApiUrl = decodingApiUrl;
     this.#isDecodeSignatureRequestEnabled = isDecodeSignatureRequestEnabled;

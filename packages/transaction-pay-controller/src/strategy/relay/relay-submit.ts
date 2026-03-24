@@ -9,7 +9,11 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { RELAY_DEPOSIT_TYPES, RELAY_POLLING_INTERVAL } from './constants';
+import {
+  RELAY_DEPOSIT_TYPES,
+  RELAY_FAILURE_STATUSES,
+  RELAY_PENDING_STATUSES,
+} from './constants';
 import { getRelayStatus, submitRelayExecute } from './relay-api';
 import type {
   RelayExecuteRequest,
@@ -24,8 +28,8 @@ import type {
 } from '../../types';
 import {
   getFeatureFlags,
-  isEIP7702Chain,
-  isRelayExecuteEnabled,
+  getRelayPollingInterval,
+  getRelayPollingTimeout,
 } from '../../utils/feature-flags';
 import {
   getLiveTokenBalance,
@@ -99,6 +103,7 @@ async function executeSingleQuote(
 
   const targetHash = await waitForRelayCompletion(
     quote.original,
+    messenger,
     (sourceHash) => {
       log('Source hash received', sourceHash);
 
@@ -132,15 +137,9 @@ async function executeSingleQuote(
   return { transactionHash: targetHash };
 }
 
-/**
- * Wait for a Relay request to complete.
- *
- * @param quote - Relay quote associated with the request.
- * @param onSourceHash - Called with the source tx hash as soon as it appears.
- * @returns A promise that resolves when the Relay request is complete.
- */
 async function waitForRelayCompletion(
   quote: RelayQuote,
+  messenger: TransactionPayControllerMessenger,
   onSourceHash?: (hash: Hex) => void,
 ): Promise<Hex> {
   const isSameChain =
@@ -156,29 +155,56 @@ async function waitForRelayCompletion(
   }
 
   const { requestId } = quote.steps[0];
+
+  const pollingInterval = getRelayPollingInterval(messenger);
+  const pollingTimeout = getRelayPollingTimeout(messenger);
+  const hasTimeout = pollingTimeout !== undefined && pollingTimeout > 0;
+
+  log('Polling config', { pollingInterval, pollingTimeout });
+  const startTime = Date.now();
+
   let sourceHashEmitted = false;
+  let lastStatus: string | undefined;
 
   while (true) {
-    const status: RelayStatusResponse = await getRelayStatus(requestId);
+    let status: RelayStatusResponse | undefined;
 
-    log('Polled status', status.status, status);
-
-    if (!sourceHashEmitted && status.inTxHashes?.length) {
-      sourceHashEmitted = true;
-      onSourceHash?.(status.inTxHashes[0] as Hex);
+    try {
+      status = await getRelayStatus(requestId);
+    } catch (error) {
+      log('Polling network error', error);
     }
 
-    if (status.status === 'success') {
-      const targetHash =
-        (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
-      return targetHash;
+    if (status) {
+      log('Polled status', status.status, status);
+      lastStatus = status.status;
+
+      if (!sourceHashEmitted && status.inTxHashes?.length) {
+        sourceHashEmitted = true;
+        onSourceHash?.(status.inTxHashes[0] as Hex);
+      }
+
+      if (status.status === 'success') {
+        const targetHash =
+          (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
+        return targetHash;
+      }
+
+      if (RELAY_FAILURE_STATUSES.includes(status.status)) {
+        throw new Error(`Relay request failed with status: ${status.status}`);
+      }
+
+      if (!RELAY_PENDING_STATUSES.includes(status.status)) {
+        throw new Error(`Relay returned unrecognized status: ${status.status}`);
+      }
     }
 
-    if (['failure', 'refund', 'refunded'].includes(status.status)) {
-      throw new Error(`Relay request failed with status: ${status.status}`);
+    if (hasTimeout && Date.now() - startTime >= pollingTimeout) {
+      const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
+      throw new Error(`Relay polling timed out${statusDetail}`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, RELAY_POLLING_INTERVAL));
+    await new Promise((resolve) => setTimeout(resolve, pollingInterval));
   }
 }
 
@@ -291,7 +317,12 @@ async function submitTransactions(
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
 
-  await validateSourceBalance(quote, messenger);
+  // In post-quote flows (e.g. Predict withdraw), the source tokens are held in
+  // the Safe — not the EOA — and only become available after the original tx
+  // executes as part of the batch. Skip the EOA balance check here.
+  if (!quote.request.isPostQuote) {
+    await validateSourceBalance(quote, messenger);
+  }
 
   const normalizedParams = params.map((singleParams) =>
     normalizeParams(singleParams, messenger),
@@ -315,12 +346,7 @@ async function submitTransactions(
         ]
       : normalizedParams;
 
-  const { sourceChainId } = quote.request;
-
-  if (
-    isRelayExecuteEnabled(messenger) &&
-    isEIP7702Chain(messenger, sourceChainId)
-  ) {
+  if (quote.original.metamask.isExecute) {
     return await submitViaRelayExecute(
       quote,
       transaction,
@@ -476,6 +502,12 @@ async function submitViaTransactionController(
     ? sourceTokenAddress
     : undefined;
 
+  log('Submitting transactions', {
+    isPostQuote,
+    gasFeeToken,
+    allParamsCount: allParams.length,
+  });
+
   const isSameChain =
     quote.original.details.currencyIn.currency.chainId ===
     quote.original.details.currencyOut.currency.chainId;
@@ -488,7 +520,8 @@ async function submitViaTransactionController(
         }))
       : undefined;
 
-  const { gasLimits } = quote.original.metamask;
+  const { metamask } = quote.original;
+  const { gasLimits } = metamask;
 
   if (allParams.length === 1) {
     const transactionParams = {
@@ -509,10 +542,9 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 =
-      gasLimits.length === 1 && allParams.length > 1
-        ? toHex(gasLimits[0])
-        : undefined;
+    const gasLimit7702 = metamask.is7702
+      ? toHex(metamask.gasLimits[0])
+      : undefined;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];

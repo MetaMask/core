@@ -6,13 +6,23 @@ export type {
   NetworkEnablementControllerActions,
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerMessenger,
-  NetworkEnablementControllerListPopularNetworksAction,
-  NetworkEnablementControllerListPopularEvmNetworksAction,
-  NetworkEnablementControllerListPopularMultichainNetworksAction,
   NativeAssetIdentifier,
   NativeAssetIdentifiersMap,
   NetworkConfig,
 } from './NetworkEnablementController';
+
+export type {
+  NetworkEnablementControllerEnableNetworkAction,
+  NetworkEnablementControllerEnableNetworkInNamespaceAction,
+  NetworkEnablementControllerEnableAllPopularNetworksAction,
+  NetworkEnablementControllerInitAction,
+  NetworkEnablementControllerInitNativeAssetIdentifiersAction,
+  NetworkEnablementControllerDisableNetworkAction,
+  NetworkEnablementControllerIsNetworkEnabledAction,
+  NetworkEnablementControllerListPopularEvmNetworksAction,
+  NetworkEnablementControllerListPopularMultichainNetworksAction,
+  NetworkEnablementControllerListPopularNetworksAction,
+} from './NetworkEnablementController-method-action-types';
 
 export {
   selectEnabledNetworkMap,

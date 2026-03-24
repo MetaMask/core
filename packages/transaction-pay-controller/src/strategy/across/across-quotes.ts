@@ -1,11 +1,12 @@
-import { Interface } from '@ethersproject/abi';
 import { successfulFetch, toHex } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { getAcrossDestination } from './across-actions';
+import { getAcrossOrderedTransactions } from './transactions';
 import type {
+  AcrossAction,
   AcrossActionRequestBody,
   AcrossGasLimits,
   AcrossQuote,
@@ -23,20 +24,14 @@ import type {
 } from '../../types';
 import { getFiatValueFromUsd, sumAmounts } from '../../utils/amounts';
 import { getPayStrategiesConfig, getSlippage } from '../../utils/feature-flags';
-import { calculateGasCost, estimateGasLimit } from '../../utils/gas';
+import { calculateGasCost } from '../../utils/gas';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
-import { TOKEN_TRANSFER_FOUR_BYTE } from '../relay/constants';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 
-const TOKEN_TRANSFER_INTERFACE = new Interface([
-  'function transfer(address to, uint256 amount)',
-]);
-
 const UNSUPPORTED_AUTHORIZATION_LIST_ERROR =
   'Across does not support type-4/EIP-7702 authorization lists yet';
-const UNSUPPORTED_DESTINATION_ERROR =
-  'Across only supports transfer-style destination flows at the moment';
 
 type AcrossQuoteWithoutMetaMask = Omit<AcrossQuote, 'metamask'>;
 
@@ -105,8 +100,9 @@ async function getSingleQuote(
 
   const amount = isMaxAmount ? sourceTokenAmount : targetAmountMinimum;
   const tradeType = isMaxAmount ? 'exactInput' : 'exactOutput';
-  const recipient = getAcrossRecipient(transaction, request);
+  const destination = getAcrossDestination(transaction, request);
   const quote = await requestAcrossApproval({
+    actions: destination.actions,
     amount,
     apiBase: config.across.apiBase,
     depositor: from,
@@ -114,7 +110,7 @@ async function getSingleQuote(
     inputToken: sourceTokenAddress,
     originChainId: sourceChainId,
     outputToken: targetTokenAddress,
-    recipient,
+    recipient: destination.recipient,
     slippage: slippageDecimal,
     tradeType,
   });
@@ -131,6 +127,7 @@ async function getSingleQuote(
 }
 
 type AcrossApprovalRequest = {
+  actions: AcrossAction[];
   amount: string;
   apiBase: string;
   depositor: Hex;
@@ -147,6 +144,7 @@ async function requestAcrossApproval(
   request: AcrossApprovalRequest,
 ): Promise<AcrossSwapApprovalResponse> {
   const {
+    actions,
     amount,
     apiBase,
     depositor,
@@ -173,7 +171,7 @@ async function requestAcrossApproval(
     params.set('slippage', String(slippage));
   }
 
-  const body: AcrossActionRequestBody = { actions: [] };
+  const body: AcrossActionRequestBody = { actions };
   const url = `${apiBase}/swap/approval?${params.toString()}`;
   const options: RequestInit = {
     body: JSON.stringify(body),
@@ -186,61 +184,6 @@ async function requestAcrossApproval(
   const response = await successfulFetch(url, options);
 
   return (await response.json()) as AcrossSwapApprovalResponse;
-}
-
-function getAcrossRecipient(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-): Hex {
-  const { txParams } = transaction;
-  const { from } = request;
-  const transferData = getTransferData(transaction);
-
-  if (transferData) {
-    return getTransferRecipient(transferData);
-  }
-
-  const data = txParams?.data as Hex | undefined;
-  const hasNoData = data === undefined || data === '0x';
-  const nestedCalldata = getNestedCalldata(transaction);
-
-  if (hasNoData && nestedCalldata.length === 0) {
-    return from;
-  }
-
-  throw new Error(UNSUPPORTED_DESTINATION_ERROR);
-}
-
-function getTransferData(transaction: TransactionMeta): Hex | undefined {
-  const { nestedTransactions, txParams } = transaction;
-
-  const nestedTransferData = nestedTransactions?.find(
-    (nestedTx: { data?: Hex }) =>
-      nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
-  )?.data;
-
-  const data = txParams?.data as Hex | undefined;
-  const tokenTransferData = data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE)
-    ? data
-    : undefined;
-
-  return nestedTransferData ?? tokenTransferData;
-}
-
-function getNestedCalldata(transaction: TransactionMeta): Hex[] {
-  return (transaction.nestedTransactions ?? [])
-    .map((nestedTx: { data?: Hex }) => nestedTx.data)
-    .filter(
-      (data: Hex | undefined): data is Hex =>
-        data !== undefined && data !== '0x',
-    );
-}
-
-function getTransferRecipient(data: Hex): Hex {
-  return TOKEN_TRANSFER_INTERFACE.decodeFunctionData(
-    'transfer',
-    data,
-  ).to.toLowerCase() as Hex;
 }
 
 async function normalizeQuote(
@@ -259,7 +202,7 @@ async function normalizeQuote(
   const dustUsd = calculateDustUsd(quote, request, targetFiatRate);
   const dust = getFiatValueFromUsd(dustUsd, usdToFiatRate);
 
-  const { sourceNetwork, gasLimits } = await calculateSourceNetworkCost(
+  const { gasLimits, is7702, sourceNetwork } = await calculateSourceNetworkCost(
     quote,
     messenger,
     request,
@@ -302,6 +245,7 @@ async function normalizeQuote(
 
   const metamask = {
     gasLimits,
+    is7702,
   };
 
   return {
@@ -447,139 +391,105 @@ async function calculateSourceNetworkCost(
 ): Promise<{
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
+  is7702: boolean;
 }> {
   const acrossFallbackGas =
     getPayStrategiesConfig(messenger).across.fallbackGas;
   const { from } = request;
-  const approvalTxns = quote.approvalTxns ?? [];
+  const orderedTransactions = getAcrossOrderedTransactions({ quote });
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
+  const gasEstimates = await estimateQuoteGasLimits({
+    fallbackGas: acrossFallbackGas,
+    messenger,
+    transactions: orderedTransactions.map((transaction) => ({
+      chainId: toHex(transaction.chainId),
+      data: transaction.data,
+      from,
+      gas: transaction.gas,
+      to: transaction.to,
+      value: transaction.value ?? '0x0',
+    })),
+  });
+  const { batchGasLimit, is7702 } = gasEstimates;
 
-  const approvalGasResults = await Promise.all(
-    approvalTxns.map(async (approval) => {
-      const chainId = toHex(approval.chainId);
-      const gas = await estimateGasLimit({
-        chainId,
-        data: approval.data,
-        fallbackGas: acrossFallbackGas,
-        from,
-        messenger,
-        to: approval.to,
-        value: approval.value ?? '0x0',
-      });
+  if (is7702) {
+    if (!batchGasLimit) {
+      throw new Error('Across combined batch gas estimate missing');
+    }
 
-      if (gas.usedFallback) {
-        log('Gas estimate failed, using fallback', {
-          error: gas.error,
-          transactionType: 'approval',
-        });
-      }
-
-      return { chainId, gas };
-    }),
-  );
-
-  const swapGasFromQuote = parseAcrossSwapGasLimit(swapTx.gas);
-  const swapGas =
-    swapGasFromQuote === undefined
-      ? await estimateGasLimit({
-          chainId: swapChainId,
-          data: swapTx.data,
-          fallbackGas: acrossFallbackGas,
-          from,
-          messenger,
-          to: swapTx.to,
-          value: swapTx.value ?? '0x0',
-        })
-      : {
-          estimate: swapGasFromQuote,
-          max: swapGasFromQuote,
-          usedFallback: false,
-        };
-
-  if (swapGasFromQuote !== undefined) {
-    log('Using Across-provided swap gas limit', {
-      gas: swapGasFromQuote,
-      transactionType: 'swap',
-    });
-  } else if (swapGas.usedFallback) {
-    log('Gas estimate failed, using fallback', {
-      error: swapGas.error,
-      transactionType: 'swap',
-    });
-  }
-
-  const estimate = sumAmounts([
-    ...approvalGasResults.map(({ chainId, gas }) =>
-      calculateGasCost({
-        chainId,
-        gas: gas.estimate,
-        messenger,
-      }),
-    ),
-    calculateGasCost({
+    const estimate = calculateGasCost({
       chainId: swapChainId,
-      gas: swapGas.estimate,
+      gas: batchGasLimit.estimate,
       maxFeePerGas: swapTx.maxFeePerGas,
       maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
       messenger,
-    }),
-  ]);
-
-  const max = sumAmounts([
-    ...approvalGasResults.map(({ chainId, gas }) =>
-      calculateGasCost({
-        chainId,
-        gas: gas.max,
-        isMax: true,
-        messenger,
-      }),
-    ),
-    calculateGasCost({
+    });
+    const max = calculateGasCost({
       chainId: swapChainId,
-      gas: swapGas.max,
+      gas: batchGasLimit.max,
       isMax: true,
       maxFeePerGas: swapTx.maxFeePerGas,
       maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
       messenger,
+    });
+
+    return {
+      sourceNetwork: {
+        estimate,
+        max,
+      },
+      is7702: true,
+      gasLimits: [
+        {
+          estimate: batchGasLimit.estimate,
+          max: batchGasLimit.max,
+        },
+      ],
+    };
+  }
+
+  const transactionGasLimits = orderedTransactions.map(
+    (transaction, index) => ({
+      gasEstimate: gasEstimates.gasLimits[index],
+      transaction,
     }),
-  ]);
+  );
+
+  const estimate = sumAmounts(
+    transactionGasLimits.map(({ gasEstimate, transaction }) =>
+      calculateGasCost({
+        chainId: toHex(transaction.chainId),
+        gas: gasEstimate.estimate,
+        maxFeePerGas: transaction.maxFeePerGas,
+        maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
+        messenger,
+      }),
+    ),
+  );
+
+  const max = sumAmounts(
+    transactionGasLimits.map(({ gasEstimate, transaction }) =>
+      calculateGasCost({
+        chainId: toHex(transaction.chainId),
+        gas: gasEstimate.max,
+        isMax: true,
+        maxFeePerGas: transaction.maxFeePerGas,
+        maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
+        messenger,
+      }),
+    ),
+  );
 
   return {
     sourceNetwork: {
       estimate,
       max,
     },
-    gasLimits: {
-      approval: approvalGasResults.map(({ gas }) => ({
-        estimate: gas.estimate,
-        max: gas.max,
-      })),
-      swap: {
-        estimate: swapGas.estimate,
-        max: swapGas.max,
-      },
-    },
+    is7702: false,
+    gasLimits: transactionGasLimits.map(({ gasEstimate }) => ({
+      estimate: gasEstimate.estimate,
+      max: gasEstimate.max,
+    })),
   };
-}
-
-function parseAcrossSwapGasLimit(gas?: string): number | undefined {
-  if (!gas) {
-    return undefined;
-  }
-
-  const parsedGas = gas.startsWith('0x')
-    ? new BigNumber(gas.slice(2), 16)
-    : new BigNumber(gas);
-
-  if (
-    !parsedGas.isFinite() ||
-    parsedGas.isNaN() ||
-    !parsedGas.isInteger() ||
-    parsedGas.lte(0)
-  ) {
-    return undefined;
-  }
-
-  return parsedGas.toNumber();
 }

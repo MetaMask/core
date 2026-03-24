@@ -6,6 +6,7 @@ import type {
   MultichainAccountWalletId,
   Bip44Account,
 } from '@metamask/account-api';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { HdKeyring } from '@metamask/eth-hd-keyring';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -13,6 +14,8 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { areUint8ArraysEqual, assert } from '@metamask/utils';
 
 import { traceFallback } from './analytics';
+import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
+import { reportError } from './errors';
 import { projectLogger as log } from './logger';
 import type { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
@@ -20,6 +23,12 @@ import {
   EvmAccountProviderConfig,
   Bip44AccountProvider,
   EVM_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProviderConfig,
+  TrxAccountProviderConfig,
+  BTC_ACCOUNT_PROVIDER_NAME,
+  TRX_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProvider,
+  TrxAccountProvider,
 } from './providers';
 import {
   AccountProviderWrapper,
@@ -36,7 +45,6 @@ import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
 } from './types';
-import { createSentryError } from './utils';
 
 export const serviceName = 'MultichainAccountService';
 
@@ -49,6 +57,8 @@ export type MultichainAccountServiceOptions = {
   providerConfigs?: {
     [EVM_ACCOUNT_PROVIDER_NAME]?: EvmAccountProviderConfig;
     [SOL_ACCOUNT_PROVIDER_NAME]?: SolAccountProviderConfig;
+    [BTC_ACCOUNT_PROVIDER_NAME]?: BtcAccountProviderConfig;
+    [TRX_ACCOUNT_PROVIDER_NAME]?: TrxAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
   /**
@@ -101,6 +111,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMultichainAccountWallets',
   'createNextMultichainAccountGroup',
   'createMultichainAccountGroup',
+  'createMultichainAccountGroups',
   'setBasicFunctionality',
   'alignWallets',
   'alignWallet',
@@ -119,6 +130,8 @@ export class MultichainAccountService {
   readonly #watcher: SnapPlatformWatcher;
 
   readonly #providers: Bip44AccountProvider[];
+
+  readonly #trace: TraceCallback;
 
   readonly #wallets: Map<
     MultichainAccountWalletId,
@@ -152,23 +165,47 @@ export class MultichainAccountService {
     this.#messenger = messenger;
     this.#wallets = new Map();
 
-    // Pass trace callback directly to preserve original 'this' context
-    // This avoids binding the callback to the MultichainAccountService instance
-    const traceCallback = config?.trace ?? traceFallback;
+    // Pass trace callback directly to preserve original 'this' context.
+    // This avoids binding the callback to the MultichainAccountService instance.
+    let trace: TraceCallback = config?.trace ?? traceFallback;
+
+    // Wrap the trace callback with local performance tracing if performance logging is enabled.
+    if (isPerfEnabled()) {
+      trace = withLocalPerfTrace(trace);
+    }
+
+    // This trace is passed down to wallets and providers to be used for tracing operations within them.
+    this.#trace = trace;
 
     // TODO: Rely on keyring capabilities once the keyring API is used by all keyrings.
     this.#providers = [
       new EvmAccountProvider(
         this.#messenger,
         providerConfigs?.[EVM_ACCOUNT_PROVIDER_NAME],
-        traceCallback,
+        trace,
       ),
       new AccountProviderWrapper(
         this.#messenger,
         new SolAccountProvider(
           this.#messenger,
           providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
-          traceCallback,
+          trace,
+        ),
+      ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new BtcAccountProvider(
+          this.#messenger,
+          providerConfigs?.[BTC_ACCOUNT_PROVIDER_NAME],
+          trace,
+        ),
+      ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new TrxAccountProvider(
+          this.#messenger,
+          providerConfigs?.[TRX_ACCOUNT_PROVIDER_NAME],
+          trace,
         ),
       ),
       // Custom account providers that can be provided by the MetaMask client.
@@ -177,6 +214,7 @@ export class MultichainAccountService {
 
     this.#watcher = new SnapPlatformWatcher(messenger, {
       ensureOnboardingComplete,
+      snapKeyringWaitTimeoutMs: config?.snapPlatformWatcher?.timeoutMs,
     });
 
     this.#messenger.registerMethodActionHandlers(
@@ -262,6 +300,7 @@ export class MultichainAccountService {
         entropySource,
         providers: this.#providers,
         messenger: this.#messenger,
+        trace: this.#trace,
       });
       wallet.init(serviceState[entropySource]);
       this.#wallets.set(wallet.id, wallet);
@@ -297,14 +336,14 @@ export class MultichainAccountService {
         try {
           await provider.resyncAccounts(accounts);
         } catch (error) {
-          const errorMessage = `Unable to re-sync provider "${provider.getName()}"`;
-          log(errorMessage);
-          console.error(errorMessage);
-
-          const sentryError = createSentryError(errorMessage, error as Error, {
-            provider: provider.getName(),
-          });
-          this.#messenger.captureException?.(sentryError);
+          reportError(
+            this.#messenger,
+            `Unable to re-sync provider "${provider.getName()}"`,
+            error,
+            {
+              provider: provider.getName(),
+            },
+          );
         }
       }),
     );
@@ -408,6 +447,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: result.id,
       messenger: this.#messenger,
+      trace: this.#trace,
     });
   }
 
@@ -432,6 +472,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
+      trace: this.#trace,
     });
   }
 
@@ -459,6 +500,7 @@ export class MultichainAccountService {
       providers: this.#providers,
       entropySource: entropySourceId,
       messenger: this.#messenger,
+      trace: this.#trace,
     });
   }
 
@@ -614,6 +656,30 @@ export class MultichainAccountService {
   }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>> {
     return await this.#getWallet(entropySource).createMultichainAccountGroup(
       groupIndex,
+    );
+  }
+
+  /**
+   * Creates multiple multichain account groups up to maxGroupIndex.
+   *
+   * @param params - Parameters for creating account groups.
+   * @param params.fromGroupIndex - Starting group index to create (inclusive) (defaults to 0).
+   * @param params.toGroupIndex - Maximum group index to create (inclusive).
+   * @param params.entropySource - The entropy source ID.
+   * @returns Array of created multichain account groups.
+   */
+  async createMultichainAccountGroups({
+    fromGroupIndex = 0,
+    toGroupIndex,
+    entropySource,
+  }: {
+    fromGroupIndex?: number;
+    toGroupIndex: number;
+    entropySource: EntropySourceId;
+  }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>[]> {
+    return await this.#getWallet(entropySource).createMultichainAccountGroups(
+      { from: fromGroupIndex, to: toGroupIndex },
+      { waitForAllProvidersToFinishCreatingAccounts: false },
     );
   }
 

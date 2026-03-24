@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Use `{Btc,Sol}AccountProvider` as default providers ([#8262](https://github.com/MetaMask/core/pull/8262))
+  - Those providers were initially provided by the clients.
+- Add new `createMultichainAccountGroups` support to create multiple groups in batch ([#7801](https://github.com/MetaMask/core/pull/7801)), ([#8190](https://github.com/MetaMask/core/pull/8190))
+- Add new `resyncAccounts.autoRemoveExtraSnapAccounts` configuration on Snap-based providers ([#8200](https://github.com/MetaMask/core/pull/8200))
+  - When enabled, this will make the `resyncAccounts` method automatically remove any extra accounts that exist on the Snap side but not on MetaMask side.
+  - This behavior was enabled by default and can now be turned off by the clients.
+- Add new `snapPlatformWatcher.timeoutMs` configuration ([#8196](https://github.com/MetaMask/core/pull/8196))
+  - Allows configuring how long to wait for the Snap keyring to appear in `KeyringController` before timing out (Default is 5000 ms).
+- Add more tracing (alignment, create account v1/v2) ([#8244](https://github.com/MetaMask/core/pull/8244))
+- Add local perf tracing ([#8244](https://github.com/MetaMask/core/pull/8244))
+  - Each trace is now automatically wrapped and will log performance timings using the internal logger.
+  - Only enabled if `metamask:multichain-account-service` is part of `DEBUG` (env var) filters.
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+- Optimize `{Sol,Btc,Trx}AccountProvider.createAccounts` for range operations ([#8131](https://github.com/MetaMask/core/pull/8131))
+  - Each Snaps have to implement the new `keyring_createAccounts` method accordingly and enable the batch option using the provider's configuration object.
+  - Batch account creation with the new `SnapKeyring.createAccounts` method.
+  - Significantly reduces lock acquisitions and API calls for batch operations.
+- Optimize `EvmAccountProvider.createAccounts` for range operations ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Batch account creation with single a `withKeyring` call for entire range instead of one call per account.
+  - Batch account creation with single `keyring.addAccounts` call.
+  - Fetch all accounts in single `AccountsController:getAccounts` call instead of multiple `getAccount` calls.
+  - Significantly reduces lock acquisitions and API calls for batch operations.
+- Do not report `TimeoutError` errors ([#8249](https://github.com/MetaMask/core/pull/8249))
+  - All other kind of errors are still reported as usual.
+
+### Removed
+
+- **BREAKING:** Remove `MultichainAccountGroup.alignAccounts` method ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - Use `MultichainAccountWallet.alignAccountsOf` instead, since this method properly lock the wallet (parent of this group) state.
+
+### Fixed
+
+- Prevent wallet's lock by-pass when creating non-EVM account asynchronously ([#7801](https://github.com/MetaMask/core/pull/7801))
+  - The `waitForAllProvidersToFinishCreatingAccounts` option (when set to `false`) was causing account creation to be asynchronous for non-EVM providers, which was potentially creating accounts after the wallet's internal lock was released.
+  - We now run an internal account alignment operation which locks the wallet properly and runs in the background.
+- Wait for Snap keyring in KeyringController before non-EVM account creation ([#8196](https://github.com/MetaMask/core/pull/8196))
+  - After wallet reset or restore, the Snap keyring is created lazily (e.g. when `getSnapKeyring()` runs). We now wait for it to appear (via `KeyringController:getState` and `KeyringController:stateChange`) with a timeout, avoiding "Keyring not found" error.
+
 ## [7.1.0]
 
 ### Added

@@ -1,3 +1,4 @@
+import type { AssetsControllerGetStateForTransactionPayAction } from '@metamask/assets-controller';
 import type {
   CurrencyRateControllerActions,
   TokenBalancesControllerGetStateAction,
@@ -14,6 +15,7 @@ import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import type { RampsControllerGetQuotesAction } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   AuthorizationList,
@@ -35,15 +37,18 @@ import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
+import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
 
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
+  | AssetsControllerGetStateForTransactionPayAction
   | BridgeControllerActions
   | BridgeStatusControllerActions
   | CurrencyRateControllerActions
   | GasFeeControllerActions
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | RampsControllerGetQuotesAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
@@ -65,35 +70,6 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
   typeof CONTROLLER_NAME,
   TransactionPayControllerState
 >;
-
-export type TransactionPayControllerGetDelegationTransactionAction = {
-  type: `${typeof CONTROLLER_NAME}:getDelegationTransaction`;
-  handler: GetDelegationTransactionCallback;
-};
-
-/** Action to get the pay strategy type used for a transaction. */
-export type TransactionPayControllerGetStrategyAction = {
-  type: `${typeof CONTROLLER_NAME}:getStrategy`;
-  handler: (transaction: TransactionMeta) => TransactionPayStrategy;
-};
-
-/** Action to update fiat payment state for a transaction. */
-export type TransactionPayControllerUpdateFiatPaymentAction = {
-  type: `${typeof CONTROLLER_NAME}:updateFiatPayment`;
-  handler: (request: UpdateFiatPaymentRequest) => void;
-};
-
-/** Action to update the payment token for a transaction. */
-export type TransactionPayControllerUpdatePaymentTokenAction = {
-  type: `${typeof CONTROLLER_NAME}:updatePaymentToken`;
-  handler: (request: UpdatePaymentTokenRequest) => void;
-};
-
-/** Action to update transaction configuration using a callback. */
-export type TransactionPayControllerSetTransactionConfigAction = {
-  type: `${typeof CONTROLLER_NAME}:setTransactionConfig`;
-  handler: (transactionId: string, callback: TransactionConfigCallback) => void;
-};
 
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
@@ -132,12 +108,8 @@ export type TransactionPayControllerStateChangeEvent =
   >;
 
 export type TransactionPayControllerActions =
-  | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetStateAction
-  | TransactionPayControllerGetStrategyAction
-  | TransactionPayControllerSetTransactionConfigAction
-  | TransactionPayControllerUpdateFiatPaymentAction
-  | TransactionPayControllerUpdatePaymentTokenAction;
+  | TransactionPayControllerMethodActions;
 
 export type TransactionPayControllerEvents =
   TransactionPayControllerStateChangeEvent;
@@ -395,6 +367,9 @@ export type TransactionPayFees = {
   /** Fee charged by the quote provider. */
   provider: FiatValue;
 
+  /** Fee charged by fiat on-ramp provider (breakdown of the provider total). */
+  providerFiat?: FiatValue;
+
   /** Network fee for transactions on the source network. */
   sourceNetwork: {
     estimate: Amount;
@@ -434,6 +409,9 @@ export type TransactionPayQuote<OriginalQuote> = {
 
 /** Request to get quotes for a transaction. */
 export type PayStrategyGetQuotesRequest = {
+  /** Selected fiat payment method ID, if applicable. */
+  fiatPaymentMethod?: string;
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 

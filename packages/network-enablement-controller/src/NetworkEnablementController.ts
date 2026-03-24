@@ -19,6 +19,7 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import { POPULAR_NETWORKS } from './constants';
+import type { NetworkEnablementControllerMethodActions } from './NetworkEnablementController-method-action-types';
 import { Slip44Service } from './services';
 import {
   deriveKeys,
@@ -27,6 +28,19 @@ import {
 } from './utils';
 
 const controllerName = 'NetworkEnablementController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'init',
+  'initNativeAssetIdentifiers',
+  'enableNetwork',
+  'disableNetwork',
+  'enableNetworkInNamespace',
+  'enableAllPopularNetworks',
+  'isNetworkEnabled',
+  'listPopularNetworks',
+  'listPopularEvmNetworks',
+  'listPopularMultichainNetworks',
+] as const;
 
 /**
  * Information about an ordered network.
@@ -78,32 +92,6 @@ export type NetworkEnablementControllerGetStateAction =
     typeof controllerName,
     NetworkEnablementControllerState
   >;
-
-export type NetworkEnablementControllerSetEnabledNetworksAction = {
-  type: `${typeof controllerName}:enableNetwork`;
-  handler: NetworkEnablementController['enableNetwork'];
-};
-
-export type NetworkEnablementControllerDisableNetworkAction = {
-  type: `${typeof controllerName}:disableNetwork`;
-  handler: NetworkEnablementController['disableNetwork'];
-};
-
-export type NetworkEnablementControllerListPopularNetworksAction = {
-  type: `${typeof controllerName}:listPopularNetworks`;
-  handler: NetworkEnablementController['listPopularNetworks'];
-};
-
-export type NetworkEnablementControllerListPopularEvmNetworksAction = {
-  type: `${typeof controllerName}:listPopularEvmNetworks`;
-  handler: NetworkEnablementController['listPopularEvmNetworks'];
-};
-
-export type NetworkEnablementControllerListPopularMultichainNetworksAction = {
-  type: `${typeof controllerName}:listPopularMultichainNetworks`;
-  handler: NetworkEnablementController['listPopularMultichainNetworks'];
-};
-
 /**
  * All actions that {@link NetworkEnablementController} calls internally.
  */
@@ -113,11 +101,7 @@ export type AllowedActions =
 
 export type NetworkEnablementControllerActions =
   | NetworkEnablementControllerGetStateAction
-  | NetworkEnablementControllerSetEnabledNetworksAction
-  | NetworkEnablementControllerDisableNetworkAction
-  | NetworkEnablementControllerListPopularNetworksAction
-  | NetworkEnablementControllerListPopularEvmNetworksAction
-  | NetworkEnablementControllerListPopularMultichainNetworksAction;
+  | NetworkEnablementControllerMethodActions;
 
 export type NetworkEnablementControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -258,6 +242,8 @@ export class NetworkEnablementController extends BaseController<
         ...state,
       },
     });
+
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
     messenger.subscribe('NetworkController:networkAdded', ({ chainId }) => {
       // eslint-disable-next-line no-void

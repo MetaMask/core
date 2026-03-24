@@ -535,7 +535,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -580,7 +580,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -657,8 +657,10 @@ describe('TransactionController Integration', () => {
         );
 
         await Promise.all([
-          approvalController.accept(firstTransaction.transactionMeta.id),
-          approvalController.accept(secondTransaction.transactionMeta.id),
+          approvalController.acceptRequest(firstTransaction.transactionMeta.id),
+          approvalController.acceptRequest(
+            secondTransaction.transactionMeta.id,
+          ),
         ]);
         await jestAdvanceTime({ duration: 1 });
         await jestAdvanceTime({ duration: 1 });
@@ -725,7 +727,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -790,7 +792,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -867,7 +869,7 @@ describe('TransactionController Integration', () => {
             { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
+        await approvalController.acceptRequest(transactionMeta.id);
         await jestAdvanceTime({ duration: 1 });
 
         await result;
@@ -1010,8 +1012,8 @@ describe('TransactionController Integration', () => {
         );
 
         await Promise.all([
-          approvalController.accept(addTx1.transactionMeta.id),
-          approvalController.accept(addTx2.transactionMeta.id),
+          approvalController.acceptRequest(addTx1.transactionMeta.id),
+          approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
         await jestAdvanceTime({ duration: 1 });
         await jestAdvanceTime({ duration: 1 });
@@ -1087,8 +1089,8 @@ describe('TransactionController Integration', () => {
         await jestAdvanceTime({ duration: 1 });
 
         await Promise.all([
-          approvalController.accept(addTx1.transactionMeta.id),
-          approvalController.accept(addTx2.transactionMeta.id),
+          approvalController.acceptRequest(addTx1.transactionMeta.id),
+          approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
 
         await jestAdvanceTime({ duration: 1 });

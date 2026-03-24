@@ -12,6 +12,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
+import { getAcrossOrderedTransactions } from './transactions';
 import type { AcrossQuote } from './types';
 import { projectLogger } from '../../logger';
 import type {
@@ -115,57 +116,59 @@ async function submitTransactions(
   acrossDepositType: TransactionType,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex | undefined> {
-  const { approvalTxns, swapTx } = quote.original.quote;
-  const { gasLimits: quoteGasLimits } = quote.original.metamask;
+  const { swapTx } = quote.original.quote;
+  const { gasLimits: quoteGasLimits, is7702 } = quote.original.metamask;
   const { from } = quote.request;
   const chainId = toHex(swapTx.chainId);
+  const orderedTransactions = getAcrossOrderedTransactions({
+    quote: quote.original.quote,
+    swapType: acrossDepositType,
+  });
 
   const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
     chainId,
   );
 
-  const transactions: PreparedAcrossTransaction[] = [];
+  const batchGasLimit =
+    is7702 && orderedTransactions.length > 1
+      ? quoteGasLimits[0]?.max
+      : undefined;
 
-  if (approvalTxns?.length) {
-    for (const [index, approval] of approvalTxns.entries()) {
-      const approvalGasLimit = quoteGasLimits?.approval[index]?.max;
-      if (approvalGasLimit === undefined) {
-        throw new Error(
-          `Missing quote gas limit for Across approval transaction at index ${index}`,
-        );
+  if (is7702 && orderedTransactions.length > 1 && batchGasLimit === undefined) {
+    throw new Error('Missing quote gas limit for Across 7702 batch');
+  }
+
+  const gasLimit7702 =
+    batchGasLimit === undefined ? undefined : toHex(batchGasLimit);
+
+  const transactions: PreparedAcrossTransaction[] = orderedTransactions.map(
+    (transaction, index) => {
+      const gasLimit = gasLimit7702 ? undefined : quoteGasLimits[index]?.max;
+
+      if (gasLimit === undefined && !gasLimit7702) {
+        const errorMessage =
+          transaction.kind === 'approval'
+            ? `Missing quote gas limit for Across approval transaction at index ${index}`
+            : 'Missing quote gas limit for Across swap transaction';
+
+        throw new Error(errorMessage);
       }
 
-      transactions.push({
+      return {
         params: buildTransactionParams(from, {
-          chainId: approval.chainId,
-          data: approval.data,
-          gasLimit: approvalGasLimit,
-          to: approval.to,
-          value: approval.value,
+          chainId: transaction.chainId,
+          data: transaction.data,
+          gasLimit,
+          maxFeePerGas: transaction.maxFeePerGas,
+          maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
+          to: transaction.to,
+          value: transaction.value,
         }),
-        type: TransactionType.tokenMethodApprove,
-      });
-    }
-  }
-
-  const swapGasLimit = quoteGasLimits?.swap?.max;
-  if (swapGasLimit === undefined) {
-    throw new Error('Missing quote gas limit for Across swap transaction');
-  }
-
-  transactions.push({
-    params: buildTransactionParams(from, {
-      chainId: swapTx.chainId,
-      data: swapTx.data,
-      gasLimit: swapGasLimit,
-      to: swapTx.to,
-      value: swapTx.value,
-      maxFeePerGas: swapTx.maxFeePerGas,
-      maxPriorityFeePerGas: swapTx.maxPriorityFeePerGas,
-    }),
-    type: acrossDepositType,
-  });
+        type: transaction.type ?? acrossDepositType,
+      };
+    },
+  );
 
   const transactionIds: string[] = [];
 
@@ -211,7 +214,11 @@ async function submitTransactions(
       }));
 
       await messenger.call('TransactionController:addTransactionBatch', {
+        disable7702: !gasLimit7702,
+        disableHook: Boolean(gasLimit7702),
+        disableSequential: Boolean(gasLimit7702),
         from,
+        gasLimit7702,
         networkClientId,
         origin: ORIGIN_METAMASK,
         requireApproval: false,
@@ -346,7 +353,7 @@ function buildTransactionParams(
   params: {
     chainId: number;
     data: Hex;
-    gasLimit: number;
+    gasLimit?: number;
     to: Hex;
     value?: Hex;
     maxFeePerGas?: string;
@@ -354,12 +361,11 @@ function buildTransactionParams(
   },
 ): TransactionParams {
   const value = toHex(params.value ?? '0x0');
-  const gas = params.gasLimit;
 
   return {
     data: params.data,
     from,
-    gas: toHex(gas),
+    gas: params.gasLimit === undefined ? undefined : toHex(params.gasLimit),
     maxFeePerGas: normalizeOptionalHex(params.maxFeePerGas),
     maxPriorityFeePerGas: normalizeOptionalHex(params.maxPriorityFeePerGas),
     to: params.to,

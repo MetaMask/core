@@ -60,10 +60,8 @@ export const fetchBridgeTxStatus = async (
   } catch (error) {
     // Build validation failure event properties
     if (error instanceof StructError) {
-      error.failures().forEach(({ branch, path }) => {
+      error.failures().forEach(({ path }) => {
         const aggregatorId =
-          branch?.[0]?.quote?.bridgeId ??
-          branch?.[0]?.quote?.bridges?.[0] ??
           (rawTxStatus as StatusResponse)?.bridge ??
           (statusRequest.bridge || statusRequest.bridgeId) ??
           ('unknown' as string);

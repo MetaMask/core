@@ -72,10 +72,7 @@ export type RelayQuote = {
       minimumAmount: string;
     };
   };
-  metamask: {
-    gasLimits: number[];
-    isMaxGasStation?: boolean;
-  };
+  metamask: RelayQuoteMetamask;
   request: RelayQuoteRequest;
   steps: {
     id: string;
@@ -99,6 +96,16 @@ export type RelayQuote = {
     kind: 'transaction';
     requestId: string;
   }[];
+};
+
+type RelayQuoteMetamaskBase = {
+  isExecute?: boolean;
+  isMaxGasStation?: boolean;
+};
+
+export type RelayQuoteMetamask = RelayQuoteMetamaskBase & {
+  gasLimits: number[];
+  is7702: boolean;
 };
 
 export type RelayExecuteRequest = {
@@ -130,14 +137,15 @@ export type RelayExecuteResponse = {
 };
 
 export type RelayStatus =
-  | 'waiting'
+  | 'delayed'
+  | 'depositing'
+  | 'failure'
   | 'pending'
+  | 'refund'
+  | 'refunded'
   | 'submitted'
   | 'success'
-  | 'delayed'
-  | 'refunded'
-  | 'refund'
-  | 'failure';
+  | 'waiting';
 
 export type RelayStatusResponse = {
   status: RelayStatus;
