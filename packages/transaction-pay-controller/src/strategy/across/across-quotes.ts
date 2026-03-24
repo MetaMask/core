@@ -1,11 +1,9 @@
-import { Interface } from '@ethersproject/abi';
 import { successfulFetch, toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { getAcrossDestination } from './across-actions';
 import { getAcrossOrderedTransactions } from './transactions';
 import type {
   AcrossAction,
@@ -29,25 +27,13 @@ import { getPayStrategiesConfig, getSlippage } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import { getTokenFiatRate } from '../../utils/token';
-import { TOKEN_TRANSFER_FOUR_BYTE } from '../relay/constants';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 
-const TOKEN_TRANSFER_INTERFACE = new Interface([
-  'function transfer(address to, uint256 value)',
-]);
-
 const UNSUPPORTED_AUTHORIZATION_LIST_ERROR =
   'Across does not support type-4/EIP-7702 authorization lists yet';
-const UNSUPPORTED_DESTINATION_ERROR =
-  'Across only supports transfer-style destination flows at the moment';
 
 type AcrossQuoteWithoutMetaMask = Omit<AcrossQuote, 'metamask'>;
-
-type AcrossDestination = {
-  actions: AcrossAction[];
-  recipient: Hex;
-};
 
 /**
  * Fetch Across quotes.
@@ -198,99 +184,6 @@ async function requestAcrossApproval(
   const response = await successfulFetch(url, options);
 
   return (await response.json()) as AcrossSwapApprovalResponse;
-}
-
-function getAcrossDestination(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-): AcrossDestination {
-  const { txParams } = transaction;
-  const { from } = request;
-  const transferData = getTransferData(transaction);
-
-  if (transferData) {
-    const transferRecipient = getTransferRecipient(transferData);
-
-    if (transaction.type === TransactionType.predictDeposit) {
-      return {
-        actions: [buildAcrossTransferAction(transferRecipient, request)],
-        recipient: from,
-      };
-    }
-
-    return {
-      actions: [],
-      recipient: transferRecipient,
-    };
-  }
-
-  const data = txParams?.data as Hex | undefined;
-  const hasNoData = data === undefined || data === '0x';
-  const nestedCalldata = getNestedCalldata(transaction);
-
-  if (hasNoData && nestedCalldata.length === 0) {
-    return {
-      actions: [],
-      recipient: from,
-    };
-  }
-
-  throw new Error(UNSUPPORTED_DESTINATION_ERROR);
-}
-
-function buildAcrossTransferAction(
-  transferRecipient: Hex,
-  request: QuoteRequest,
-): AcrossAction {
-  return {
-    args: [
-      {
-        populateDynamically: false,
-        value: transferRecipient,
-      },
-      {
-        balanceSourceToken: request.targetTokenAddress,
-        populateDynamically: true,
-        value: '0',
-      },
-    ],
-    functionSignature: 'function transfer(address to, uint256 value)',
-    isNativeTransfer: false,
-    target: request.targetTokenAddress,
-    value: '0',
-  };
-}
-
-function getTransferData(transaction: TransactionMeta): Hex | undefined {
-  const { nestedTransactions, txParams } = transaction;
-
-  const nestedTransferData = nestedTransactions?.find(
-    (nestedTx: { data?: Hex }) =>
-      nestedTx.data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE),
-  )?.data;
-
-  const data = txParams?.data as Hex | undefined;
-  const tokenTransferData = data?.startsWith(TOKEN_TRANSFER_FOUR_BYTE)
-    ? data
-    : undefined;
-
-  return nestedTransferData ?? tokenTransferData;
-}
-
-function getNestedCalldata(transaction: TransactionMeta): Hex[] {
-  return (transaction.nestedTransactions ?? [])
-    .map((nestedTx: { data?: Hex }) => nestedTx.data)
-    .filter(
-      (data: Hex | undefined): data is Hex =>
-        data !== undefined && data !== '0x',
-    );
-}
-
-function getTransferRecipient(data: Hex): Hex {
-  return TOKEN_TRANSFER_INTERFACE.decodeFunctionData(
-    'transfer',
-    data,
-  ).to.toLowerCase() as Hex;
 }
 
 async function normalizeQuote(

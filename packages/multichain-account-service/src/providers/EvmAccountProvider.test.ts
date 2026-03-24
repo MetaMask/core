@@ -21,7 +21,7 @@ import {
   EvmAccountProviderConfig,
 } from './EvmAccountProvider';
 import { TimeoutError } from './utils';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../analytics/traces';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,

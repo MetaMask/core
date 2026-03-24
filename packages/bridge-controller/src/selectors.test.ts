@@ -14,6 +14,7 @@ import {
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,
   selectDefaultSlippagePercentage,
+  selectTokenWarnings,
 } from './selectors';
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
@@ -1732,6 +1733,32 @@ describe('Bridge Selectors', () => {
       );
 
       expect(result).toBe(2);
+    });
+  });
+
+  describe('selectTokenWarnings', () => {
+    it('should return the tokenWarnings array from state', () => {
+      const warnings = [
+        {
+          feature_id: 'HONEYPOT',
+          type: 'Malicious',
+          description: 'Token is a honeypot',
+        },
+        {
+          feature_id: 'FAKE_TOKEN',
+          type: 'Warning',
+          description: 'Possible fake token',
+        },
+      ];
+      const state = { tokenWarnings: warnings } as BridgeAppState;
+
+      expect(selectTokenWarnings(state)).toBe(warnings);
+    });
+
+    it('should return an empty array when there are no warnings', () => {
+      const state = { tokenWarnings: [] } as BridgeAppState;
+
+      expect(selectTokenWarnings(state)).toStrictEqual([]);
     });
   });
 });

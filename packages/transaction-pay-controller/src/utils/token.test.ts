@@ -6,6 +6,7 @@ import type { TokenRatesControllerState } from '@metamask/assets-controllers';
 import type { Hex } from '@metamask/utils';
 
 import {
+  computeRawFromFiatAmount,
   computeTokenAmounts,
   getTokenBalance,
   getTokenInfo,
@@ -746,6 +747,52 @@ describe('Token Utils', () => {
         usd: '1.234567',
         fiat: '1.04938195',
       });
+    });
+  });
+
+  describe('computeRawFromFiatAmount', () => {
+    it('converts fiat amount to raw token amount', () => {
+      // fiat=10, decimals=6, usdRate=2 => human=5, raw=5000000
+      const result = computeRawFromFiatAmount('10', 6, '2');
+      expect(result).toBe('5000000');
+    });
+
+    it('handles 18-decimal tokens', () => {
+      // fiat=10, decimals=18, usdRate=2 => human=5, raw=5e18
+      const result = computeRawFromFiatAmount('10', 18, '2');
+      expect(result).toBe('5000000000000000000');
+    });
+
+    it('rounds down to nearest integer', () => {
+      // fiat=1, decimals=6, usdRate=3 => human=0.333..., raw=333333
+      const result = computeRawFromFiatAmount('1', 6, '3');
+      expect(result).toBe('333333');
+    });
+
+    it('returns undefined for zero usdRate', () => {
+      const result = computeRawFromFiatAmount('10', 6, '0');
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for negative usdRate', () => {
+      const result = computeRawFromFiatAmount('10', 6, '-1');
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for zero fiat amount', () => {
+      const result = computeRawFromFiatAmount('0', 6, '2');
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for negative fiat amount', () => {
+      const result = computeRawFromFiatAmount('-5', 6, '2');
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when raw rounds down to zero', () => {
+      // Very small fiat amount with low decimals
+      const result = computeRawFromFiatAmount('0.0000001', 0, '1');
+      expect(result).toBeUndefined();
     });
   });
 

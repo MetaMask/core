@@ -87,7 +87,7 @@ export type TransactionControllerUpdateIncomingTransactionsAction = {
  * @param transactionId - The ID of the transaction to cancel.
  * @param gasValues - The gas values to use for the cancellation transaction.
  * @param options - The options for the cancellation transaction.
- * @param options.actionId - Unique ID to prevent duplicate requests.
+ * @param options.actionId - Unique ID persisted on transaction metadata.
  * @param options.estimatedBaseFee - The estimated base fee of the transaction.
  */
 export type TransactionControllerStopTransactionAction = {
@@ -101,7 +101,7 @@ export type TransactionControllerStopTransactionAction = {
  * @param transactionId - The ID of the transaction to speed up.
  * @param gasValues - The gas values to use for the speed up transaction.
  * @param options - The options for the speed up transaction.
- * @param options.actionId - Unique ID to prevent duplicate requests
+ * @param options.actionId - Unique ID persisted on transaction metadata.
  * @param options.estimatedBaseFee - The estimated base fee of the transaction.
  */
 export type TransactionControllerSpeedUpTransactionAction = {

@@ -68,11 +68,11 @@ export const TOKEN_BULK_SCANNING_ENDPOINT = '/token/scan-bulk';
 export const ADDRESS_SCAN_ENDPOINT = '/address/evm/scan';
 
 // Cache configuration defaults
-export const DEFAULT_URL_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_URL_SCAN_CACHE_TTL = 1 * 60; // 1 minute in seconds
 export const DEFAULT_URL_SCAN_CACHE_MAX_SIZE = 250;
-export const DEFAULT_TOKEN_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_TOKEN_SCAN_CACHE_TTL = 1 * 60; // 1 minute in seconds
 export const DEFAULT_TOKEN_SCAN_CACHE_MAX_SIZE = 1000;
-export const DEFAULT_ADDRESS_SCAN_CACHE_TTL = 15 * 60; // 15 minutes in seconds
+export const DEFAULT_ADDRESS_SCAN_CACHE_TTL = 1 * 60; // 1 minute in seconds
 export const DEFAULT_ADDRESS_SCAN_CACHE_MAX_SIZE = 1000;
 
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
@@ -1443,7 +1443,9 @@ export class PhishingController extends BaseController<
       this.update((draftState) => {
         draftState.stalelistLastFetched = timeNow;
         draftState.hotlistLastFetched = timeNow;
-        draftState.c2DomainBlocklistLastFetched = timeNow;
+        if (c2DomainBlocklistResponse) {
+          draftState.c2DomainBlocklistLastFetched = timeNow;
+        }
       });
     }
 
@@ -1535,26 +1537,20 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateC2DomainBlocklist() {
-    let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
-
-    try {
-      c2DomainBlocklistResponse =
-        await this.#queryConfig<C2DomainBlocklistResponse>(
-          `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
-            this.state.c2DomainBlocklistLastFetched,
-          )}`,
-        );
-    } finally {
-      // Set `c2DomainBlocklistLastFetched` even for failed requests to prevent server from being overwhelmed with
-      // traffic after a network disruption.
-      this.update((draftState) => {
-        draftState.c2DomainBlocklistLastFetched = fetchTimeNow();
-      });
-    }
+    const c2DomainBlocklistResponse =
+      await this.#queryConfig<C2DomainBlocklistResponse>(
+        `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
+          this.state.c2DomainBlocklistLastFetched,
+        )}`,
+      );
 
     if (!c2DomainBlocklistResponse) {
       return;
     }
+
+    this.update((draftState) => {
+      draftState.c2DomainBlocklistLastFetched = fetchTimeNow();
+    });
 
     const recentlyAddedC2Domains = c2DomainBlocklistResponse.recentlyAdded;
     const recentlyRemovedC2Domains = c2DomainBlocklistResponse.recentlyRemoved;

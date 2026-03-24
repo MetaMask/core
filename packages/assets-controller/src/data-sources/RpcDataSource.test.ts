@@ -779,6 +779,7 @@ describe('RpcDataSource', () => {
           MOCK_ADDRESS,
           ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
           { includeNative: true },
+          [],
         );
       });
 
@@ -807,6 +808,7 @@ describe('RpcDataSource', () => {
           MOCK_ADDRESS,
           ['0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'],
           { includeNative: true },
+          [],
         );
       });
 
@@ -886,6 +888,49 @@ describe('RpcDataSource', () => {
         expect(result.detectedAssets).toBeDefined();
         expect(result.assetsBalance).toBeDefined();
         expect(Object.keys(result.assetsInfo ?? {})).toHaveLength(1);
+      });
+      detectTokensSpy.mockRestore();
+    });
+
+    it('returns detected asset ids but omits assetsBalance when detected token has no decimals', async () => {
+      const assetId =
+        'eip155:1/erc20:0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Caip19AssetId;
+      const detectTokensSpy = jest
+        .spyOn(TokenDetector.prototype, 'detectTokens')
+        .mockResolvedValue({
+          chainId: MOCK_CHAIN_ID_HEX,
+          accountId: MOCK_ACCOUNT_ID,
+          accountAddress: MOCK_ADDRESS as Address,
+          detectedAssets: [
+            {
+              assetId,
+              symbol: 'ND',
+              name: 'No Decimals',
+            } as TokenDetectionResult['detectedAssets'][0],
+          ],
+          detectedBalances: [
+            {
+              assetId,
+              balance: '1000000000000000000',
+            } as TokenDetectionResult['detectedBalances'][0],
+          ],
+          zeroBalanceAddresses: [],
+          failedAddresses: [],
+          timestamp: Date.now(),
+        });
+
+      await withController(async ({ controller }) => {
+        const result = await controller.detectTokens(
+          MOCK_CHAIN_ID_CAIP,
+          createMockInternalAccount(),
+        );
+        expect(result.detectedAssets?.[MOCK_ACCOUNT_ID]).toStrictEqual([
+          assetId,
+        ]);
+        expect(
+          result.assetsBalance?.[MOCK_ACCOUNT_ID]?.[assetId],
+        ).toBeUndefined();
+        expect(result.assetsInfo?.[assetId]).toBeUndefined();
       });
       detectTokensSpy.mockRestore();
     });
@@ -1421,7 +1466,7 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('falls back to default metadata when ERC20 not in token list (#getTokenMetadataFromTokenList no match)', async () => {
+    it('omits unknown ERC-20 from assetsInfo when not in token list (#getTokenMetadataFromTokenList no match)', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000001';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1482,15 +1527,68 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-        decimals: 18,
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
 
-    it('falls back to default metadata when token list has no chain cache (#getTokenMetadataFromTokenList)', async () => {
+    it('omits assetsBalance when ERC20 state metadata has no decimals and on-chain decimals resolve to falsy', async () => {
+      const tokenAddress = '0xAbc0000000000000000000000000000000000999';
+      const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
+      const normalizedId = normalizeAssetId(erc20AssetId);
+
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: {
+                [normalizedId]: {
+                  type: 'erc20',
+                  symbol: 'PART',
+                  name: 'Partial Meta',
+                },
+              },
+            }),
+            'TokenListController:getState': () => ({ tokensChainsCache: {} }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: erc20AssetId,
+                  balance: '1000000',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalled();
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedId],
+      ).toBeUndefined();
+    });
+
+    it('omits unknown ERC-20 from assetsInfo when token list has no chain cache (#getTokenMetadataFromTokenList)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000002' as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1535,15 +1633,10 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-        decimals: 18,
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
 
-    it('falls back to default metadata when token list entry lacks symbol/decimals (#getTokenMetadataFromTokenList)', async () => {
+    it('omits unknown ERC-20 from assetsInfo when token list entry lacks symbol/decimals (#getTokenMetadataFromTokenList)', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000003';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1604,15 +1697,10 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-        decimals: 18,
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
 
-    it('falls back to default metadata when non-ERC20 assetId in balance (#getTokenMetadataFromTokenList)', async () => {
+    it('omits non-ERC20 asset from assetsInfo when not found in token list (#getTokenMetadataFromTokenList)', async () => {
       const nonErc20AssetId =
         'eip155:1/erc721:0xAbc0000000000000000000000000000000000004' as Caip19AssetId;
       const normalizedId = normalizeAssetId(nonErc20AssetId);
@@ -1661,15 +1749,10 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-        decimals: 18,
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
 
-    it('falls back to default metadata when TokenListController:getState throws (#getTokenMetadataFromTokenList catch)', async () => {
+    it('omits unknown ERC-20 from assetsInfo when TokenListController:getState throws (#getTokenMetadataFromTokenList catch)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000005' as Caip19AssetId;
       const normalizedId = normalizeAssetId(erc20AssetId);
@@ -1716,12 +1799,7 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual({
-        type: 'erc20',
-        symbol: '',
-        name: '',
-        decimals: 18,
-      });
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
     });
   });
 
@@ -1768,6 +1846,60 @@ describe('RpcDataSource', () => {
           timestamp: Date.now(),
         });
       });
+    });
+
+    it('omits assetsBalance when detected asset has no decimals', async () => {
+      let detectionUpdateCallback:
+        | ((result: TokenDetectionResult) => void)
+        | null = null;
+      jest
+        .spyOn(TokenDetector.prototype, 'setOnDetectionUpdate')
+        .mockImplementation(function (this: TokenDetector, callback) {
+          detectionUpdateCallback = callback;
+        });
+
+      const assetId =
+        'eip155:1/erc20:0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Caip19AssetId;
+      const onAssetsUpdate = jest.fn();
+
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate,
+        });
+
+        expect(detectionUpdateCallback).not.toBeNull();
+        detectionUpdateCallback?.({
+          chainId: MOCK_CHAIN_ID_HEX,
+          accountId: MOCK_ACCOUNT_ID,
+          accountAddress: MOCK_ADDRESS as Address,
+          detectedAssets: [
+            {
+              assetId,
+              symbol: 'ND',
+              name: 'No Decimals',
+            } as TokenDetectionResult['detectedAssets'][0],
+          ],
+          detectedBalances: [
+            {
+              assetId,
+              balance: '1000000000000000000',
+            } as TokenDetectionResult['detectedBalances'][0],
+          ],
+          zeroBalanceAddresses: [],
+          failedAddresses: [],
+          timestamp: Date.now(),
+        });
+      });
+
+      expect(onAssetsUpdate).toHaveBeenCalled();
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[assetId],
+      ).toBeUndefined();
+      expect(response.assetsInfo?.[assetId]).toBeUndefined();
     });
   });
 

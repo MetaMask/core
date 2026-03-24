@@ -32,7 +32,7 @@ import {
 } from './BaseBip44AccountProvider';
 import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
-import { TraceName } from '../constants/traces';
+import { TraceName } from '../analytics/traces';
 import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
 
@@ -302,10 +302,11 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     const response = await withRetry(
       () =>
         withTimeout(
-          provider.request({
-            method,
-            params: [address, 'latest'],
-          }),
+          () =>
+            provider.request({
+              method,
+              params: [address, 'latest'],
+            }),
           this.#config.discovery.timeoutMs,
         ),
       {
