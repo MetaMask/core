@@ -918,7 +918,8 @@ export class RpcDataSource extends AbstractDataSource<
                 assetChainId === chainId &&
                 parsed.assetNamespace === 'erc20'
               ) {
-                const tokenAddress = parsed.assetReference as Address;
+                const tokenAddress =
+                  parsed.assetReference.toLowerCase() as Address;
                 const normalizedId = normalizeAssetId(assetId);
                 const decimals =
                   existingMetadata[normalizedId]?.decimals ??
@@ -926,7 +927,7 @@ export class RpcDataSource extends AbstractDataSource<
 
                 assetsToFetch.push({
                   assetId,
-                  address: tokenAddress.toLowerCase() as Address,
+                  address: tokenAddress,
                   decimals,
                 });
               }

@@ -27,7 +27,6 @@ export type { BalanceOfRequest, BalanceOfResponse } from './multicall';
 // Service types
 export type {
   AssetFetchEntry,
-  BalanceFetchOptions,
   BalanceFetchResult,
   TokenDetectionOptions,
   TokenDetectionResult,

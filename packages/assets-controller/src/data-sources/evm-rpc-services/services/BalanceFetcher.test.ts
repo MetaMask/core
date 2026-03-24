@@ -392,6 +392,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [NATIVE_ETH_ENTRY, TOKEN_1_ENTRY_WITH_DECIMALS],
@@ -414,6 +415,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [NATIVE_ETH_ENTRY],
@@ -424,8 +426,7 @@ describe('BalanceFetcher', () => {
     });
 
     it('preserves a non-ETH native asset ID (e.g. Avalanche)', async () => {
-      const avaxNativeAssetId =
-        'eip155:43114/slip44:9005' as CaipAssetType;
+      const avaxNativeAssetId = 'eip155:43114/slip44:9005' as CaipAssetType;
 
       await withController(async ({ controller, mockMulticallClient }) => {
         mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -438,6 +439,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [{ assetId: avaxNativeAssetId, address: ZERO_ADDRESS }],
@@ -460,6 +462,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [TOKEN_1_ENTRY_WITH_DECIMALS],
@@ -481,6 +484,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [TOKEN_1_ENTRY],
@@ -501,6 +505,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [{ ...TOKEN_1_ENTRY, decimals: 0 }],
@@ -519,6 +524,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [TOKEN_1_ENTRY],
@@ -532,6 +538,7 @@ describe('BalanceFetcher', () => {
     it('returns empty result when no entries provided', async () => {
       await withController(async ({ controller, mockMulticallClient }) => {
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [],
@@ -562,6 +569,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [NATIVE_ETH_ENTRY],
@@ -583,6 +591,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [NATIVE_ETH_ENTRY, NATIVE_ETH_ENTRY],
@@ -609,6 +618,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [{ ...TOKEN_1_ENTRY, decimals: 6, symbol: 'USDC' }],
@@ -625,6 +635,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [TOKEN_1_ENTRY_WITH_DECIMALS],
@@ -646,6 +657,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [TOKEN_1_ENTRY_WITH_DECIMALS],
@@ -668,6 +680,7 @@ describe('BalanceFetcher', () => {
         ]);
 
         const result = await controller.fetchBalancesForAssets(
+          MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
           [TOKEN_1_ENTRY_WITH_DECIMALS],
@@ -680,57 +693,63 @@ describe('BalanceFetcher', () => {
 
   describe('batching behavior', () => {
     it('uses custom batch size from options', async () => {
-      await withController(async ({ controller, mockMulticallClient }) => {
-        mockMulticallClient.batchBalanceOf.mockResolvedValue([
-          createMockBalanceResponse(
-            TEST_TOKEN_1,
-            TEST_ACCOUNT,
-            true,
-            '1000000000',
-          ),
-        ]);
-
-        await controller.fetchBalancesForAssets(
-          TEST_ACCOUNT_ID,
-          TEST_ACCOUNT,
-          [TOKEN_1_ENTRY_WITH_DECIMALS, TOKEN_2_ENTRY_WITH_DECIMALS],
-          { batchSize: 1 },
-        );
-
-        expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(2);
-      });
-    });
-
-    it('accumulates results across multiple batches', async () => {
-      await withController(async ({ controller, mockMulticallClient }) => {
-        mockMulticallClient.batchBalanceOf
-          .mockResolvedValueOnce([
+      await withController(
+        { config: { defaultBatchSize: 1 } },
+        async ({ controller, mockMulticallClient }) => {
+          mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
               TEST_TOKEN_1,
               TEST_ACCOUNT,
               true,
-              '1000000',
-            ),
-          ])
-          .mockResolvedValueOnce([
-            createMockBalanceResponse(
-              TEST_TOKEN_2,
-              TEST_ACCOUNT,
-              true,
-              '2000000',
+              '1000000000',
             ),
           ]);
 
-        const result = await controller.fetchBalancesForAssets(
-          TEST_ACCOUNT_ID,
-          TEST_ACCOUNT,
-          [TOKEN_1_ENTRY_WITH_DECIMALS, TOKEN_2_ENTRY_WITH_DECIMALS],
-          { batchSize: 1 },
-        );
+          await controller.fetchBalancesForAssets(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+            [TOKEN_1_ENTRY_WITH_DECIMALS, TOKEN_2_ENTRY_WITH_DECIMALS],
+          );
 
-        expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(2);
-        expect(result.balances).toHaveLength(2);
-      });
+          expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it('accumulates results across multiple batches', async () => {
+      await withController(
+        { config: { defaultBatchSize: 1 } },
+        async ({ controller, mockMulticallClient }) => {
+          mockMulticallClient.batchBalanceOf
+            .mockResolvedValueOnce([
+              createMockBalanceResponse(
+                TEST_TOKEN_1,
+                TEST_ACCOUNT,
+                true,
+                '1000000',
+              ),
+            ])
+            .mockResolvedValueOnce([
+              createMockBalanceResponse(
+                TEST_TOKEN_2,
+                TEST_ACCOUNT,
+                true,
+                '2000000',
+              ),
+            ]);
+
+          const result = await controller.fetchBalancesForAssets(
+            MAINNET_CHAIN_ID,
+            TEST_ACCOUNT_ID,
+            TEST_ACCOUNT,
+            [TOKEN_1_ENTRY_WITH_DECIMALS, TOKEN_2_ENTRY_WITH_DECIMALS],
+          );
+
+          expect(mockMulticallClient.batchBalanceOf).toHaveBeenCalledTimes(2);
+          expect(result.balances).toHaveLength(2);
+        },
+      );
     });
   });
 });

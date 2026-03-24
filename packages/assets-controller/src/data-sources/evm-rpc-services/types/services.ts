@@ -58,16 +58,6 @@ export type BalanceFetchResult = {
 };
 
 /**
- * Balance fetch options.
- */
-export type BalanceFetchOptions = {
-  /** Maximum number of tokens to fetch per batch */
-  batchSize?: number;
-  /** Timeout for fetch in milliseconds */
-  timeout?: number;
-};
-
-/**
  * Entry describing a single asset to fetch a balance for.
  * Bundles the CAIP-19 asset ID with the on-chain address (zero address for
  * native assets) and optional metadata so that callers never need to maintain

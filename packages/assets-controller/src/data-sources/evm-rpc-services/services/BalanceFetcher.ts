@@ -8,7 +8,6 @@ import type {
   AssetBalance,
   AssetFetchEntry,
   AssetsBalanceState,
-  BalanceFetchOptions,
   BalanceFetchResult,
   BalanceOfRequest,
   BalanceOfResponse,
@@ -159,14 +158,12 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param chainId - Hex chain ID.
    * @param accountId - Account UUID.
    * @param accountAddress - On-chain address of the account.
-   * @param options - Optional fetch options (batch size, timeout).
    * @returns Balance fetch result.
    */
   async fetchBalances(
     chainId: ChainId,
     accountId: AccountId,
     accountAddress: Address,
-    options?: BalanceFetchOptions,
   ): Promise<BalanceFetchResult> {
     const assets = this.getAssetsToFetch(chainId, accountId);
 
@@ -175,7 +172,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       accountId,
       accountAddress,
       assets,
-      options,
     );
   }
 
@@ -190,7 +186,6 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * @param accountId - Account UUID.
    * @param accountAddress - On-chain address of the account.
    * @param assets - Asset fetch entries to fetch balances for.
-   * @param options - Optional fetch options (batch size, timeout).
    * @returns Balance fetch result.
    */
   async fetchBalancesForAssets(
@@ -198,9 +193,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     accountId: AccountId,
     accountAddress: Address,
     assets: AssetFetchEntry[],
-    options?: BalanceFetchOptions,
   ): Promise<BalanceFetchResult> {
-    const batchSize = options?.batchSize ?? this.#config.defaultBatchSize;
     const timestamp = Date.now();
 
     // Build a single map keyed by lowercase address that holds all info
@@ -239,7 +232,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       FetchAccumulator
     >({
       values: balanceRequests,
-      batchSize,
+      batchSize: this.#config.defaultBatchSize,
       initialResult: {
         balances: [],
         failedAddresses: [],
