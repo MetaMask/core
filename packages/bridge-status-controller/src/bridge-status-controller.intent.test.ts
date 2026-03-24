@@ -254,9 +254,9 @@ const setup = (options?: {
     state: {
       txHistory: options?.mockTxHistory ?? {},
     },
+    addTransactionBatchFn: jest.fn(),
     clientId: options?.clientId ?? BridgeClientId.EXTENSION,
     fetchFn: (...args: any[]) => mockFetchFn(...args),
-    addTransactionBatchFn: jest.fn(),
     config: { customBridgeApiBaseUrl: 'http://localhost' },
     traceFn: (_req: any, fn?: any): any => fn?.(),
   });
