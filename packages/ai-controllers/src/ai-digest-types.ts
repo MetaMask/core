@@ -79,6 +79,8 @@ export type MarketInsightsTrend = {
  * Returned by `GET /asset-summary?asset=<identifier>`.
  */
 export type MarketInsightsReport = {
+  /** Unique identifier for this digest, sourced from the API response envelope. */
+  digestId?: string;
   /** API version */
   version?: string;
   /** Asset symbol (lowercase, e.g. "btc") */
@@ -170,6 +172,8 @@ export type AIResponseMetadata = {
 };
 
 export type MarketOverview = {
+  /** Unique identifier for this digest, sourced from the API response envelope. */
+  digestId?: string;
   version?: string;
   generatedAt: string;
   trends: MarketOverviewTrend[];

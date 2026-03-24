@@ -108,7 +108,7 @@ describe('AiDigestService', () => {
       );
     });
 
-    it('accepts digest envelope responses', async () => {
+    it('accepts digest envelope responses without id', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -126,6 +126,30 @@ describe('AiDigestService', () => {
       );
 
       expect(result).toStrictEqual(mockMarketInsightsReport);
+    });
+
+    it('attaches digestId from envelope id field', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+            digest: mockMarketInsightsReport,
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.searchDigest(
+        'eip155:1/erc20:0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+      );
+
+      expect(result).toStrictEqual({
+        ...mockMarketInsightsReport,
+        digestId: 'a8154c57-c665-449c-8bb5-fcaae96ef922',
+      });
     });
 
     it('accepts report responses with top-level social items', async () => {
@@ -485,7 +509,7 @@ describe('AiDigestService', () => {
       );
     });
 
-    it('accepts report envelope responses', async () => {
+    it('accepts report envelope responses without id', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -507,6 +531,32 @@ describe('AiDigestService', () => {
       const result = await service.fetchMarketOverview();
 
       expect(result).toStrictEqual(mockMarketOverview);
+    });
+
+    it('attaches digestId from envelope id field', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+            report: mockMarketOverview,
+            generatedAt: '2026-02-16T10:00:00.000Z',
+            processingTime: 12345,
+            success: true,
+            error: null,
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchMarketOverview();
+
+      expect(result).toStrictEqual({
+        ...mockMarketOverview,
+        digestId: 'b9265d68-d776-55ad-9cc6-gdbbbf07fg033',
+      });
     });
 
     it('returns null when API returns 404', async () => {
