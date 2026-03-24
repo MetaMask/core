@@ -134,6 +134,44 @@ describe('createUIQueryClient', () => {
     observerB.destroy();
   });
 
+  it('fetches using observers in the same client', async () => {
+    const { clientA } = createClients();
+
+    const observerA = new QueryObserver(clientA, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    const observerB = new QueryObserver(clientA, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    const promiseA = new Promise((resolve) => {
+      observerA.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve(event.data);
+        }
+      });
+    });
+
+    const resultA = await promiseA;
+
+    expect(resultA).toHaveLength(3);
+
+    const promiseB = new Promise((resolve) => {
+      observerB.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve(event.data);
+        }
+      });
+    });
+
+    const resultB = await promiseB;
+    expect(resultA).toStrictEqual(resultB);
+
+    observerA.destroy();
+    observerB.destroy();
+  });
+
   it('synchronizes caches after invalidation', async () => {
     const { clientA, clientB } = createClients();
 
@@ -329,5 +367,29 @@ describe('createUIQueryClient', () => {
     await clientA.invalidateQueries({ queryKey: ['query'] });
 
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('ignores non data service queries', async () => {
+    const { clientA, messenger } = createClients();
+
+    const callSpy = jest.spyOn(messenger, 'call');
+    const subscribeSpy = jest.spyOn(messenger, 'subscribe');
+
+    const observer = new QueryObserver(clientA, {
+      queryKey: [1, 2, 3],
+      queryFn: (): string => 'foo',
+      retry: false,
+    });
+
+    await new Promise<void>((resolve) => {
+      observer.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve();
+        }
+      });
+    });
+
+    expect(callSpy).not.toHaveBeenCalled();
+    expect(subscribeSpy).not.toHaveBeenCalled();
   });
 });

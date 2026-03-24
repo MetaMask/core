@@ -13,6 +13,7 @@ import {
 type SubscriptionCallback = (
   payload: DataServiceGranularCacheUpdatedPayload,
 ) => void;
+
 type JsonSubscriptionCallback = (data: Json) => void;
 
 // TODO: Figure out if we can replace with a better Messenger type
@@ -35,27 +36,35 @@ export function createUIQueryClient(
 ): QueryClient {
   const subscriptions = new Map<string, SubscriptionCallback>();
 
-  const getServiceFromQueryKey = (queryKey: QueryKey): string | null => {
-    try {
-      const action = queryKey[0];
-      assert(typeof action === 'string');
+  /**
+   * Parse a query key to detect a service name.
+   *
+   * @param queryKey - The query key.
+   * @returns The service name if it parsing succeeded, otherwise null.
+   */
+  function parseQueryKey(queryKey: QueryKey): string | null {
+    const action = queryKey[0];
 
-      const service = action.split(':')[0];
-      assert(dataServices.includes(service));
-
-      return service;
-    } catch {
+    if (typeof action !== 'string') {
       return null;
     }
-  };
+
+    const service = action.split(':')[0];
+
+    if (!dataServices.includes(service)) {
+      return null;
+    }
+
+    return service;
+  }
 
   const client: QueryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        queryFn: async (options): Promise<Json> => {
+        queryFn: async (options): Promise<unknown> => {
           const { queryKey } = options;
 
-          const action = queryKey?.[0];
+          const action = queryKey[0];
 
           assert(
             typeof action === 'string' &&
@@ -63,11 +72,11 @@ export function createUIQueryClient(
             "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
           );
 
-          return (await messenger.call(
+          return await messenger.call(
             action,
             ...(options.queryKey.slice(1) as Json[]),
             options.pageParam,
-          )) as Json;
+          );
         },
         staleTime: 0,
       },
@@ -83,7 +92,7 @@ export function createUIQueryClient(
     const hasSubscription = subscriptions.has(hash);
     const observerCount = query.getObserversCount();
 
-    const service = getServiceFromQueryKey(query.queryKey);
+    const service = parseQueryKey(query.queryKey);
 
     if (!service) {
       return;
@@ -111,20 +120,18 @@ export function createUIQueryClient(
       subscriptions.set(hash, cacheListener);
       messenger.subscribe(
         `${service}:cacheUpdated:${hash}`,
-        cacheListener as unknown as JsonSubscriptionCallback,
+        cacheListener as JsonSubscriptionCallback,
       );
     } else if (
       event.type === 'observerRemoved' &&
       observerCount === 0 &&
       hasSubscription
     ) {
-      const subscriptionListener = subscriptions.get(
-        hash,
-      ) as unknown as JsonSubscriptionCallback;
+      const subscriptionListener = subscriptions.get(hash);
 
       messenger.unsubscribe(
         `${service}:cacheUpdated:${hash}`,
-        subscriptionListener,
+        subscriptionListener as JsonSubscriptionCallback,
       );
       subscriptions.delete(hash);
     }
@@ -144,9 +151,7 @@ export function createUIQueryClient(
     const queries = client.getQueryCache().findAll(filters);
 
     const services = [
-      ...new Set(
-        queries.map((query) => getServiceFromQueryKey(query.queryKey)),
-      ),
+      ...new Set(queries.map((query) => parseQueryKey(query.queryKey))),
     ];
 
     await Promise.all(
