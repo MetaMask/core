@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `lastSelected` (timestamp) to account group tree node metadata ([#8261](https://github.com/MetaMask/core/pull/8261))
+  - `group.metadata.lastSelected` is set to `Date.now()` whenever a group becomes the selected group, either via `setSelectedAccountGroup` or `AccountsController:selectedAccountChange`.
+  - The value is persisted in `accountGroupsMetadata` and restored on `init`/`reinit`.
+  - The value is not synchronize through backup and sync.
+  - Now consider `lastSelected` too when the controller needs to use the "default account group ID".
+
 ### Changed
 
 - **BREAKING**: Move `selectedAccountGroup` to top-level persisted state to prevent selected account group from reverting after app restart ([#8245](https://github.com/MetaMask/core/pull/8245))

@@ -175,7 +175,13 @@ export const getAddTransactionBatchParams = async ({
   // Enable 7702 batching when the quote includes gasless 7702 support,
   // or when the account is already delegated (to avoid the in-flight
   // transaction limit for delegated accounts)
-  const disable7702 = !skipGasFields && !isDelegatedAccount;
+  let disable7702 = !skipGasFields && !isDelegatedAccount;
+
+  // For gasless transactions with STX/sendBundle we keep disabling 7702.
+  if (gasIncluded && !gasIncluded7702) {
+    disable7702 = true;
+  }
+
   const transactions: TransactionBatchSingleRequest[] = [];
   if (resetApproval) {
     const gasFees = await calculateGasFees(

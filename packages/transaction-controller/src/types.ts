@@ -807,6 +807,11 @@ export enum TransactionType {
   perpsRelayDeposit = 'perpsRelayDeposit',
 
   /**
+   * Withdraw funds from Perps.
+   */
+  perpsWithdraw = 'perpsWithdraw',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
