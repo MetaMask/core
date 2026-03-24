@@ -1965,10 +1965,12 @@ export class RampsController extends BaseController<
     if (!orderCode?.trim()) {
       return;
     }
+    const normalizedProviderCode = normalizeProviderCode(providerCode);
+
     const stubOrder: RampsOrder = {
       providerOrderId: orderCode,
       provider: {
-        id: providerCode,
+        id: `/providers/${normalizedProviderCode}`,
         name: '',
         environmentType: '',
         description: '',
