@@ -41,11 +41,11 @@ import type {
 } from './evm-rpc-services';
 import type {
   Address,
+  AssetFetchEntry,
   Provider as RpcProvider,
   TokenListState,
   BalanceFetchResult,
   TokenDetectionResult,
-  TokenFetchInfo,
 } from './evm-rpc-services/types';
 import type {
   AssetsControllerGetStateAction,
@@ -66,6 +66,8 @@ import { normalizeAssetId } from '../utils';
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
+const ZERO_ADDRESS: Address =
+  '0x0000000000000000000000000000000000000000' as Address;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -898,11 +900,15 @@ export class RpcDataSource extends AbstractDataSource<
       const { address, id: accountId } = account;
 
       for (const chainId of chainsForAccount) {
-        const hexChainId = caipChainIdToHex(chainId);
+        // Build a single AssetFetchEntry[] for native + custom ERC-20s
+        const nativeAssetId = this.#buildNativeAssetId(chainId);
+        const assetsToFetch: AssetFetchEntry[] = [
+          { assetId: nativeAssetId, address: ZERO_ADDRESS },
+        ];
 
-        // Extract ERC20 token addresses from customAssets for this chain
-        const customTokenAddresses: Address[] = [];
         if (request.customAssets) {
+          const existingMetadata = this.#getExistingAssetsMetadata();
+
           for (const assetId of request.customAssets) {
             try {
               const parsed = parseCaipAssetType(assetId);
@@ -911,7 +917,17 @@ export class RpcDataSource extends AbstractDataSource<
                 assetChainId === chainId &&
                 parsed.assetNamespace === 'erc20'
               ) {
-                customTokenAddresses.push(parsed.assetReference as Address);
+                const tokenAddress = parsed.assetReference as Address;
+                const normalizedId = normalizeAssetId(assetId);
+                const decimals =
+                  existingMetadata[normalizedId]?.decimals ??
+                  this.#getTokenMetadataFromTokenList(normalizedId)?.decimals;
+
+                assetsToFetch.push({
+                  assetId,
+                  address: tokenAddress.toLowerCase() as Address,
+                  decimals,
+                });
               }
             } catch {
               // Skip unparseable asset IDs
@@ -920,19 +936,10 @@ export class RpcDataSource extends AbstractDataSource<
         }
 
         try {
-          const tokenInfos = this.#tokenFetchInfosForCustomErc20s(
-            chainId,
-            customTokenAddresses,
-          );
-
-          // Use BalanceFetcher for batched balance fetching
-          const result = await this.#balanceFetcher.fetchBalancesForTokens(
-            hexChainId,
+          const result = await this.#balanceFetcher.fetchBalancesForAssets(
             accountId,
             address as Address,
-            customTokenAddresses,
-            { includeNative: true },
-            tokenInfos,
+            assetsToFetch,
           );
 
           if (!assetsBalance[accountId]) {
@@ -992,7 +999,6 @@ export class RpcDataSource extends AbstractDataSource<
           if (!assetsBalance[accountId]) {
             assetsBalance[accountId] = {};
           }
-          const nativeAssetId = this.#buildNativeAssetId(chainId);
           assetsBalance[accountId][nativeAssetId] = { amount: '0' };
 
           // Even on error, include native token metadata
@@ -1352,39 +1358,6 @@ export class RpcDataSource extends AbstractDataSource<
     );
 
     return nativeAssetIdentifiers[chainId] ?? `${chainId}/slip44:60`;
-  }
-
-  /**
-   * Build token infos for custom ERC-20s when decimals are already known from
-   * state or token list so BalanceFetcher can format balances; unknown decimals
-   * are left out and resolved in `fetch` / `#handleBalanceUpdate`.
-   *
-   * @param caipChainId - CAIP-2 chain id (e.g. `eip155:1`).
-   * @param tokenAddresses - ERC-20 contract addresses on that chain.
-   * @returns Token fetch infos that include only entries with known decimals.
-   */
-  #tokenFetchInfosForCustomErc20s(
-    caipChainId: ChainId,
-    tokenAddresses: Address[],
-  ): TokenFetchInfo[] {
-    const existingMetadata = this.#getExistingAssetsMetadata();
-    const infos: TokenFetchInfo[] = [];
-
-    for (const tokenAddress of tokenAddresses) {
-      const { reference } = parseCaipChainId(caipChainId);
-      const rawAssetId =
-        `eip155:${reference}/erc20:${tokenAddress.toLowerCase()}` as Caip19AssetId;
-      const assetId = normalizeAssetId(rawAssetId);
-      const decimals =
-        existingMetadata[assetId]?.decimals ??
-        this.#getTokenMetadataFromTokenList(assetId)?.decimals;
-
-      if (decimals !== undefined) {
-        infos.push({ address: tokenAddress, decimals });
-      }
-    }
-
-    return infos;
   }
 
   /**
