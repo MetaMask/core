@@ -62,12 +62,11 @@ import type {
   Middleware,
 } from '../types';
 import { normalizeAssetId } from '../utils';
+import { ZERO_ADDRESS } from '../utils/constants';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
 const DEFAULT_DETECTION_INTERVAL = 180_000; // 3 minutes
-const ZERO_ADDRESS: Address =
-  '0x0000000000000000000000000000000000000000' as Address;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 

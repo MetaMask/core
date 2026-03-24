@@ -1,5 +1,6 @@
 import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 
+import { ZERO_ADDRESS } from '../../../utils/constants';
 import type { MulticallClient } from '../clients';
 import type {
   AccountId,
@@ -16,9 +17,6 @@ import type {
 import { reduceInBatchesSerially } from '../utils';
 
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
-
-const ZERO_ADDRESS: Address =
-  '0x0000000000000000000000000000000000000000' as Address;
 
 /**
  * Minimal messenger interface for BalanceFetcher.
