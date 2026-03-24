@@ -3417,7 +3417,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.0.0"
     "@metamask/keyring-controller": "npm:^25.1.0"
     "@metamask/messenger": "npm:^0.3.0"
-    "@metamask/transaction-controller": "workspace:^"
+    "@metamask/transaction-controller": "npm:^63.1.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -5461,7 +5461,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^63.1.0, @metamask/transaction-controller@workspace:^, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^63.1.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
