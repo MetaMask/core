@@ -545,7 +545,7 @@ describe('BalanceFetcher', () => {
         );
 
         expect(result).toStrictEqual({
-          chainId: '0x0',
+          chainId: MAINNET_CHAIN_ID,
           accountId: TEST_ACCOUNT_ID,
           accountAddress: TEST_ACCOUNT,
           balances: [],
