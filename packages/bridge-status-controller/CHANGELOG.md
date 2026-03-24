@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/bridge-controller` from `^69.1.1` to `^69.2.0` ([#8265](https://github.com/MetaMask/core/pull/8265))
 - Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.1.0` ([#8272](https://github.com/MetaMask/core/pull/8272))
 
+### Fixed
+
+- Publish UnifiedSwapBridge Failed event for any exception thrown during `submitTx`. Previously the Failed event was only getting published for EVM txs after tx submission
+
 ## [70.0.0]
 
 ### Changed
