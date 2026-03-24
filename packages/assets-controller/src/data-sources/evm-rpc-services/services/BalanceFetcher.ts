@@ -152,17 +152,14 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
 
           const isNative = assetNamespace === 'slip44';
 
-          if (isNative) {
-            entries.push({
-              assetId,
-              address: ZERO_ADDRESS,
-            });
-          } else {
-            entries.push({
-              assetId,
-              address: assetReference.toLowerCase() as Address,
-            });
-          }
+          const tokenAddress = isNative
+            ? ZERO_ADDRESS
+            : (assetReference.toLowerCase() as Address);
+
+          entries.push({
+            assetId,
+            address: tokenAddress,
+          });
         }
       }
     }
