@@ -58,13 +58,9 @@ export function createUIQueryClient(
           const action = queryKey?.[0];
 
           assert(
-            typeof action === 'string',
-            'The first element of a query key must be a string.',
-          );
-
-          assert(
-            dataServices.includes(action.split(':')?.[0]),
-            'Queries must use data service actions.',
+            typeof action === 'string' &&
+              dataServices.includes(action.split(':')?.[0]),
+            "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
           );
 
           return (await messenger.call(

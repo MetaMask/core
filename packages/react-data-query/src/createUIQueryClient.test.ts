@@ -304,7 +304,7 @@ describe('createUIQueryClient', () => {
     });
 
     await expect(promise).rejects.toThrow(
-      'Queries must use data service actions.',
+      "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
     );
   });
 
