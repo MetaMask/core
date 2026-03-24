@@ -114,7 +114,8 @@ export type RampsServiceGetBuyWidgetUrlAction = {
  * This endpoint returns a normalized `RampsOrder` (DepositOrder shape)
  * for all provider types, including both aggregator and native providers.
  *
- * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+ * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay"),
+ * with or without the `/providers/` prefix.
  * @param orderCode - The order identifier.
  * @param wallet - The wallet address associated with the order.
  * @returns The unified order data.
@@ -132,7 +133,8 @@ export type RampsServiceGetOrderAction = {
  *
  * This is the V2 equivalent of the aggregator SDK's `getOrderFromCallback`.
  *
- * @param providerCode - The provider code (e.g., "transak", "moonpay").
+ * @param providerCode - The provider code (e.g., "transak", "moonpay"),
+ * with or without the `/providers/` prefix.
  * @param callbackUrl - The full callback URL the provider redirected to.
  * @param wallet - The wallet address associated with the order.
  * @returns The unified order data.
