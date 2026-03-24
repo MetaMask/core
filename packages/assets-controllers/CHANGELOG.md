@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `NftController` no longer uses the `AssetsContractController:getERC721OwnerOf` and `AssetsContractController:getERC1155BalanceOf` messenger actions for ownership checks; these have been removed from `AllowedActions` ([#8281](https://github.com/MetaMask/core/pull/8281))
+  - Consumers that construct the `NftController` messenger and register handlers for these two actions must remove them from their allowed actions list.
+- **BREAKING:** Removed the `checkAndUpdateSingleNftOwnershipStatus` method from `NftController` ([#8281](https://github.com/MetaMask/core/pull/8281))
+  - Use `checkAndUpdateAllNftsOwnershipStatus` instead, which now batches all ownership checks via Multicall3 in a single RPC request.
+- `NftController` NFT ownership checks (`isNftOwner`, `checkAndUpdateAllNftsOwnershipStatus`) now use Multicall3 to batch ERC-721 `ownerOf` and ERC-1155 `balanceOf` calls into fewer RPC requests, falling back to individual calls on unsupported chains ([#8281](https://github.com/MetaMask/core/pull/8281))
+
 ## [101.0.1]
 
 ### Changed
