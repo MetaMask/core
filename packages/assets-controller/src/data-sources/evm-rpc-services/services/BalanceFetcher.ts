@@ -125,11 +125,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
   #getAssetsToFetch(chainId: ChainId, accountId: AccountId): AssetFetchEntry[] {
     const state = this.#messenger.call('AssetsController:getState');
 
-    if (!state?.assetsBalance) {
-      return [];
-    }
-
-    const accountBalances = state.assetsBalance[accountId];
+    const accountBalances = state?.assetsBalance?.[accountId];
     if (!accountBalances) {
       return [];
     }
