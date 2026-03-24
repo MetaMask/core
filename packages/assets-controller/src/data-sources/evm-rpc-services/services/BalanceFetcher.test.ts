@@ -621,7 +621,7 @@ describe('BalanceFetcher', () => {
           MAINNET_CHAIN_ID,
           TEST_ACCOUNT_ID,
           TEST_ACCOUNT,
-          [{ ...TOKEN_1_ENTRY, decimals: 6, symbol: 'USDC' }],
+          [{ ...TOKEN_1_ENTRY, decimals: 6 }],
         );
 
         expect(result.balances[0].formattedBalance).toBe('1234.56789');

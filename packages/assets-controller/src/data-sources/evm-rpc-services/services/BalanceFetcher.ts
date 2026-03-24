@@ -179,8 +179,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
    * Fetch balances for the given assets via multicall.
    *
    * Each entry bundles a CAIP-19 asset ID with its on-chain address and
-   * optional metadata (decimals, symbol), so callers never need to maintain
-   * separate parallel arrays.
+   * optional decimals.
    *
    * @param chainId - Hex chain ID.
    * @param accountId - Account UUID.

@@ -60,16 +60,14 @@ export type BalanceFetchResult = {
 /**
  * Entry describing a single asset to fetch a balance for.
  * Bundles the CAIP-19 asset ID with the on-chain address (zero address for
- * native assets) and optional metadata so that callers never need to maintain
- * separate parallel arrays.
+ * native assets even when the chain has a native asset with a non-zero address)
+ * and optional metadata
  */
 export type AssetFetchEntry = {
   /** CAIP-19 asset type identifier */
   assetId: CaipAssetType;
-  /** On-chain contract address (zero address for native assets) */
+  /** On-chain contract address (zero address for native assets regardless of the chain's native asset address) */
   address: Address;
   /** Token decimals (omit when unknown — balance fetcher returns raw balance for RpcDataSource to resolve). */
   decimals?: number;
-  /** Token symbol (optional) */
-  symbol?: string;
 };
