@@ -11,6 +11,7 @@ import {
   parseCaipAssetType,
 } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
+import pLimit from 'p-limit';
 
 import { isStakingContractAssetId } from './evm-rpc-services';
 import type { AssetsControllerMessenger } from '../AssetsController';
@@ -28,6 +29,14 @@ import type {
 // ============================================================================
 
 const CONTROLLER_NAME = 'TokenDataSource';
+
+/** Tokens API `/v3/assets` accepts at most this many `assetIds` per request. */
+const V3_ASSETS_MAX_IDS_PER_REQUEST = 120;
+
+/** Max concurrent `/v3/assets` chunk requests (same default scale as balance middleware). */
+const V3_ASSETS_FETCH_CONCURRENCY = 3;
+
+const MIN_TOKEN_OCCURRENCES = 3;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -369,20 +378,38 @@ export class TokenDataSource {
       }
 
       try {
-        // Use ApiPlatformClient for fetching asset metadata
-        // API returns an array with assetId as a property on each item
-        const metadataResponse = await this.#apiClient.tokens.fetchV3Assets(
-          supportedAssetIds,
-          {
-            includeIconUrl: true,
-            includeMarketData: true,
-            includeMetadata: true,
-            includeLabels: true,
-            includeRwaData: true,
-            includeAggregators: true,
-            includeOccurrences: true,
-          },
+        const metadataQueryOptions = {
+          includeIconUrl: true,
+          includeMarketData: true,
+          includeMetadata: true,
+          includeLabels: true,
+          includeRwaData: true,
+          includeAggregators: true,
+          includeOccurrences: true,
+        };
+
+        // API returns an array with assetId as a property on each item.
+        // Request in chunks to stay within the per-request asset ID limit.
+        const chunks: string[][] = [];
+        for (
+          let i = 0;
+          i < supportedAssetIds.length;
+          i += V3_ASSETS_MAX_IDS_PER_REQUEST
+        ) {
+          chunks.push(
+            supportedAssetIds.slice(i, i + V3_ASSETS_MAX_IDS_PER_REQUEST),
+          );
+        }
+
+        const limit = pLimit(V3_ASSETS_FETCH_CONCURRENCY);
+        const chunkResponses = await Promise.all(
+          chunks.map((chunk) =>
+            limit(() =>
+              this.#apiClient.tokens.fetchV3Assets(chunk, metadataQueryOptions),
+            ),
+          ),
         );
+        const metadataResponse = chunkResponses.flat();
 
         const assetIdsFromApi = metadataResponse.map((a) => a.assetId);
         const allowedAssetIds = new Set(

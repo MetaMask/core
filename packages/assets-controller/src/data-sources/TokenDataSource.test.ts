@@ -460,6 +460,39 @@ describe('TokenDataSource', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
+  it('middleware chunks fetchV3Assets when more than 120 asset IDs are requested', async () => {
+    const assetIds = Array.from({ length: 121 }, (_, i) => {
+      const hexString = (i + 1).toString(16).padStart(40, '0');
+      return `eip155:1/erc20:0x${hexString}` as Caip19AssetId;
+    });
+
+    const { controller, apiClient } = setupController({
+      supportedNetworks: ['eip155:1'],
+    });
+
+    apiClient.tokens.fetchV3Assets.mockImplementation((ids: string[]) =>
+      Promise.resolve(ids.map((id) => createMockAssetResponse(id))),
+    );
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        detectedAssets: {
+          'mock-account-id': assetIds,
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledTimes(2);
+    expect(apiClient.tokens.fetchV3Assets.mock.calls[0][0]).toHaveLength(120);
+    expect(apiClient.tokens.fetchV3Assets.mock.calls[1][0]).toHaveLength(1);
+    expect(context.response.assetsInfo?.[assetIds[0]]?.symbol).toBe('TEST');
+    expect(context.response.assetsInfo?.[assetIds[120]]?.symbol).toBe('TEST');
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
   it('middleware transforms native asset type correctly', async () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),

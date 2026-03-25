@@ -8,12 +8,12 @@ import {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { NetworkStatus } from '@metamask/network-controller';
-
 import {
   NetworkState,
   RpcEndpoint,
   RpcEndpointType,
-} from '../../../network-controller/src/NetworkController';
+} from '@metamask/network-controller/src/NetworkController';
+
 import {
   AssetsControllerMessenger,
   getDefaultAssetsControllerState,

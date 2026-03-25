@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `TokenDataSource` removes tokens flagged malicious by Blockaid (via `PhishingController:bulkScanTokens`) before merging metadata, instead of filtering non-native tokens by a minimum occurrence count ([#8329](https://github.com/MetaMask/core/pull/8329))
 
+### Fixed
+
+- `TokenDataSource` splits v3 asset metadata fetches into batches of at most 120 asset IDs per request, matching the Tokens API limit, and runs chunk requests in parallel with bounded concurrency via `p-limit` ([#8294](https://github.com/MetaMask/core/pull/8294))
+- `PriceDataSource` splits v3 spot-price fetches into batches of at most 120 asset IDs per request, matching the same scale as token metadata requests, with bounded concurrency via `p-limit` ([#8294](https://github.com/MetaMask/core/pull/8294))
+
 ## [3.3.0]
 
 ### Changed

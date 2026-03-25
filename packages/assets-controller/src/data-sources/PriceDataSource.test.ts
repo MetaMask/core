@@ -410,6 +410,75 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
+  it('fetch batches spot price requests in chunks of 120 asset IDs', async () => {
+    const assetIds = Array.from({ length: 121 }, (_, i) => {
+      const hexString = i.toString(16).padStart(40, '0');
+      return `eip155:1/erc20:0x${hexString}` as Caip19AssetId;
+    });
+    const balanceState: Record<string, Record<string, unknown>> = {
+      'mock-account-id': Object.fromEntries(
+        assetIds.map((id) => [id, { amount: '1' }]),
+      ),
+    };
+    const priceResponse = Object.fromEntries(
+      assetIds.map((id) => [id, createMockPriceData(1)]),
+    );
+
+    const { controller, apiClient, getAssetsState } = setupController({
+      balanceState,
+      priceResponse,
+    });
+
+    await controller.fetch(createDataRequest({ chainIds: [] }), getAssetsState);
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+    const chunkSizes = apiClient.prices.fetchV3SpotPrices.mock.calls
+      .map((call) => (call[0] as string[]).length)
+      .sort((a, b) => b - a);
+    expect(chunkSizes).toStrictEqual([120, 1]);
+
+    controller.destroy();
+  });
+
+  it('fetch batches spot price requests per chunk for non-USD currency', async () => {
+    const assetIds = Array.from({ length: 121 }, (_, i) => {
+      const hexString = i.toString(16).padStart(40, '0');
+      return `eip155:1/erc20:0x${hexString}` as Caip19AssetId;
+    });
+    const balanceState: Record<string, Record<string, unknown>> = {
+      'mock-account-id': Object.fromEntries(
+        assetIds.map((id) => [id, { amount: '1' }]),
+      ),
+    };
+    const priceResponse = Object.fromEntries(
+      assetIds.map((id) => [id, createMockPriceData(1)]),
+    );
+
+    const { controller, apiClient, getAssetsState } = setupController({
+      getSelectedCurrency: () => 'eur',
+      balanceState,
+      priceResponse,
+    });
+
+    await controller.fetch(createDataRequest({ chainIds: [] }), getAssetsState);
+
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(4);
+    const eurChunks = apiClient.prices.fetchV3SpotPrices.mock.calls.filter(
+      (call) => (call[1] as { currency?: string }).currency === 'eur',
+    );
+    const usdChunks = apiClient.prices.fetchV3SpotPrices.mock.calls.filter(
+      (call) => (call[1] as { currency?: string }).currency === 'usd',
+    );
+    expect(eurChunks).toHaveLength(2);
+    expect(usdChunks).toHaveLength(2);
+    const eurSizes = eurChunks
+      .map((call) => (call[0] as string[]).length)
+      .sort((a, b) => b - a);
+    expect(eurSizes).toStrictEqual([120, 1]);
+
+    controller.destroy();
+  });
+
   it('fetch handles getState error gracefully', async () => {
     const { controller } = setupController();
 

@@ -4,6 +4,7 @@ import type {
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
 import { parseCaipAssetType } from '@metamask/utils';
+import pLimit from 'p-limit';
 
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { projectLogger, createModuleLogger } from '../logger';
@@ -23,6 +24,12 @@ import type {
 
 const CONTROLLER_NAME = 'PriceDataSource';
 const DEFAULT_POLL_INTERVAL = 60_000; // 1 minute for price updates
+
+/** Price API v3 spot-prices accepts at most this many `assetIds` per request (same cap as tokens `/v3/assets`). */
+const V3_SPOT_PRICES_MAX_IDS_PER_REQUEST = 120;
+
+/** Max concurrent spot-price chunk requests (aligned with TokenDataSource metadata fetches). */
+const V3_SPOT_PRICES_FETCH_CONCURRENCY = 3;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -219,30 +226,50 @@ export class PriceDataSource {
   async #fetchSpotPrices(
     assetIds: string[],
   ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
-    const selectedCurrency = this.#getSelectedCurrency();
+    if (assetIds.length === 0) {
+      return {};
+    }
 
-    let selectedCurrencyPrices: V3SpotPricesResponse;
+    const selectedCurrency = this.#getSelectedCurrency();
+    const chunks: string[][] = [];
+    for (
+      let i = 0;
+      i < assetIds.length;
+      i += V3_SPOT_PRICES_MAX_IDS_PER_REQUEST
+    ) {
+      chunks.push(assetIds.slice(i, i + V3_SPOT_PRICES_MAX_IDS_PER_REQUEST));
+    }
+
+    const limit = pLimit(V3_SPOT_PRICES_FETCH_CONCURRENCY);
+    const queryOpts = { includeMarketData: true as const };
+
+    const selectedChunkResults = await Promise.all(
+      chunks.map((chunk) =>
+        limit(() =>
+          this.#apiClient.prices.fetchV3SpotPrices(chunk, {
+            currency: selectedCurrency,
+            ...queryOpts,
+          }),
+        ),
+      ),
+    );
+    const selectedCurrencyPrices = Object.assign({}, ...selectedChunkResults);
+
     let usdPrices: V3SpotPricesResponse;
     if (selectedCurrency === 'usd') {
-      selectedCurrencyPrices = await this.#apiClient.prices.fetchV3SpotPrices(
-        assetIds,
-        {
-          currency: selectedCurrency,
-          includeMarketData: true,
-        },
-      );
       usdPrices = selectedCurrencyPrices;
     } else {
-      [selectedCurrencyPrices, usdPrices] = await Promise.all([
-        this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-          currency: selectedCurrency,
-          includeMarketData: true,
-        }),
-        this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-          currency: 'usd',
-          includeMarketData: true,
-        }),
-      ]);
+      const usdChunkResults = await Promise.all(
+        chunks.map((chunk) =>
+          limit(() =>
+            this.#apiClient.prices.fetchV3SpotPrices(chunk, {
+              currency: 'usd',
+              ...queryOpts,
+            }),
+          ),
+        ),
+      );
+      usdPrices = Object.assign({}, ...usdChunkResults);
     }
 
     const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};

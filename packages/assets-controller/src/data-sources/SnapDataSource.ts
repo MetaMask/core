@@ -268,10 +268,10 @@ export class SnapDataSource extends AbstractDataSource<
     // Transform the snap keyring payload to DataResponse format
     let assetsBalance: NonNullable<DataResponse['assetsBalance']> | undefined;
 
-    for (const [accountId, assets] of Object.entries(payload.balances)) {
+    for (const [accountId, assets] of Object.entries(payload?.balances ?? {})) {
       let accountAssets: Record<Caip19AssetId, AssetBalance> | undefined;
 
-      for (const [assetId, balance] of Object.entries(assets)) {
+      for (const [assetId, balance] of Object.entries(assets ?? {})) {
         let chainId: ChainId;
         try {
           chainId = extractChainFromAssetId(assetId);
