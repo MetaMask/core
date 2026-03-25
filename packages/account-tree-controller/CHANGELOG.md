@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `lastSelected` (timestamp) to account group tree node metadata ([#8261](https://github.com/MetaMask/core/pull/8261))
+- Add `lastSelected` (timestamp) to account group tree node metadata ([#8261](https://github.com/MetaMask/core/pull/8261)), ([#8300](https://github.com/MetaMask/core/pull/8300))
   - `group.metadata.lastSelected` is set to `Date.now()` whenever a group becomes the selected group, either via `setSelectedAccountGroup` or `AccountsController:selectedAccountChange`.
   - The value is persisted in `accountGroupsMetadata` and restored on `init`/`reinit`.
   - The value is not synchronize through backup and sync.
@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Filter out extra properties from groups before sending to user storage ([#8300](https://github.com/MetaMask/core/pull/8300))
+  - The `lastSelected` metadata should not be persisted, to we automatically remove it from the payload.
+  - This uses the user storage schema to only keep what needs to be persisted.
 - Fix `AccountTreeControllerMessenger` type so that the union type for events is not `any` ([#8240](https://github.com/MetaMask/core/pull/8240))
 
 ## [5.0.1]
