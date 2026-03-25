@@ -1,12 +1,35 @@
+import execa from 'execa';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { loadESLint, main, parseCommandLineArguments } from './cli';
+const ROOT_DIR = path.resolve(__dirname, '..', '..', '..', '..');
+const TSX_PATH = path.join(ROOT_DIR, 'node_modules', '.bin', 'tsx');
+const CLI_PATH = path.join(
+  ROOT_DIR,
+  'packages',
+  'messenger',
+  'src',
+  'generate-action-types',
+  'cli.ts',
+);
 
 /**
- * Helper to list generated `-method-action-types.ts` files in a directory
- * (recursively).
+ * Runs the CLI with the given arguments.
+ *
+ * @param args - The CLI arguments.
+ * @returns The execa result.
+ */
+async function runCLI(args: string[]): Promise<execa.ExecaReturnValue> {
+  return await execa(TSX_PATH, [CLI_PATH, ...args], {
+    cwd: ROOT_DIR,
+    reject: false,
+    all: true,
+  });
+}
+
+/**
+ * Recursively lists generated `-method-action-types.ts` files in a directory.
  *
  * @param dir - The directory to search.
  * @returns Sorted list of relative paths to generated files.
@@ -30,57 +53,23 @@ async function listGeneratedFiles(dir: string): Promise<string[]> {
   return results.sort();
 }
 
-describe('parseCommandLineArguments', () => {
-  it('parses --fix with default path', async () => {
-    const result = await parseCommandLineArguments(['--fix']);
-    expect(result).toStrictEqual({
-      check: false,
-      fix: true,
-      sourcePath: 'src',
-    });
-  });
+jest.setTimeout(30_000);
 
-  it('parses --check with custom path', async () => {
-    const result = await parseCommandLineArguments(['--check', 'custom/path']);
-    expect(result).toStrictEqual({
-      check: true,
-      fix: false,
-      sourcePath: 'custom/path',
-    });
-  });
-
-  it('rejects when neither --check nor --fix is provided', async () => {
-    await expect(parseCommandLineArguments([])).rejects.toThrow(
-      'Either --check or --fix must be provided.',
-    );
-  });
-});
-
-describe('loadESLint', () => {
-  it('returns null or a valid ESLint object', async () => {
-    const eslint = await loadESLint();
-    expect([null, expect.objectContaining({})]).toContainEqual(eslint);
-  });
-});
-
-describe('main', () => {
+describe('generate-action-types CLI (functional)', () => {
   let tmpDir: string;
-  const originalExitCode = globalThis.process.exitCode;
 
   beforeEach(async () => {
     tmpDir = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), 'cli-functional-'),
     );
-    globalThis.process.exitCode = undefined;
   });
 
   afterEach(async () => {
     await fs.promises.rm(tmpDir, { recursive: true, force: true });
-    globalThis.process.exitCode = originalExitCode;
   });
 
   describe('--fix', () => {
-    it('generates FooController-method-action-types.ts with correct types for a controller with multiple documented methods', async () => {
+    it('generates FooController-method-action-types.ts for a controller with multiple documented methods', async () => {
       await fs.promises.writeFile(
         path.join(tmpDir, 'FooController.ts'),
         `
@@ -105,9 +94,8 @@ class FooController {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      await main(['--fix', tmpDir]);
-      consoleSpy.mockRestore();
+      const result = await runCLI(['--fix', tmpDir]);
+      expect(result.exitCode).toBe(0);
 
       const generatedFiles = await listGeneratedFiles(tmpDir);
       expect(generatedFiles).toStrictEqual([
@@ -148,7 +136,7 @@ export type FooControllerMethodActions = FooControllerGetStateAction | FooContro
 `);
     });
 
-    it('generates DataService-method-action-types.ts with correct types for a service with JSDoc containing @returns', async () => {
+    it('generates DataService-method-action-types.ts for a service with JSDoc containing @param and @returns', async () => {
       await fs.promises.writeFile(
         path.join(tmpDir, 'DataService.ts'),
         `
@@ -168,9 +156,8 @@ class DataService {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      await main(['--fix', tmpDir]);
-      consoleSpy.mockRestore();
+      const result = await runCLI(['--fix', tmpDir]);
+      expect(result.exitCode).toBe(0);
 
       const generatedFiles = await listGeneratedFiles(tmpDir);
       expect(generatedFiles).toStrictEqual([
@@ -205,7 +192,7 @@ export type DataServiceMethodActions = DataServiceFetchItemsAction;
 `);
     });
 
-    it('generates correct types for a controller with methods without JSDoc', async () => {
+    it('generates correct types for a controller with many methods without JSDoc', async () => {
       await fs.promises.writeFile(
         path.join(tmpDir, 'BarController.ts'),
         `
@@ -220,9 +207,8 @@ class BarController {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      await main(['--fix', tmpDir]);
-      consoleSpy.mockRestore();
+      const result = await runCLI(['--fix', tmpDir]);
+      expect(result.exitCode).toBe(0);
 
       const generatedFiles = await listGeneratedFiles(tmpDir);
       expect(generatedFiles).toStrictEqual([
@@ -262,7 +248,7 @@ export type BarControllerMethodActions = BarControllerEnableAction | BarControll
 `);
     });
 
-    it('generates correct types for a service with a single method', async () => {
+    it('generates AuthService-method-action-types.ts for a service with @param and @returns JSDoc', async () => {
       await fs.promises.writeFile(
         path.join(tmpDir, 'AuthService.ts'),
         `
@@ -283,9 +269,8 @@ class AuthService {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      await main(['--fix', tmpDir]);
-      consoleSpy.mockRestore();
+      const result = await runCLI(['--fix', tmpDir]);
+      expect(result.exitCode).toBe(0);
 
       const generatedFiles = await listGeneratedFiles(tmpDir);
       expect(generatedFiles).toStrictEqual([
@@ -343,9 +328,8 @@ class MyService {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      await main(['--fix', tmpDir]);
-      consoleSpy.mockRestore();
+      const result = await runCLI(['--fix', tmpDir]);
+      expect(result.exitCode).toBe(0);
 
       const generatedFiles = await listGeneratedFiles(tmpDir);
       expect(generatedFiles).toStrictEqual([
@@ -384,9 +368,8 @@ class NestedController {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      await main(['--fix', tmpDir]);
-      consoleSpy.mockRestore();
+      const result = await runCLI(['--fix', tmpDir]);
+      expect(result.exitCode).toBe(0);
 
       const generatedFiles = await listGeneratedFiles(tmpDir);
       expect(generatedFiles).toStrictEqual([
@@ -408,13 +391,9 @@ class NestedController {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      await main(['--fix', tmpDir]);
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('No controllers/services found'),
-      );
-      consoleSpy.mockRestore();
+      const result = await runCLI(['--fix', tmpDir]);
+      expect(result.exitCode).toBe(0);
+      expect(result.all).toContain('No controllers/services found');
 
       const generatedFiles = await listGeneratedFiles(tmpDir);
       expect(generatedFiles).toStrictEqual([]);
@@ -422,7 +401,7 @@ class NestedController {
   });
 
   describe('--check', () => {
-    it('passes when generated files are up to date', async () => {
+    it('exits 0 when generated files are up to date', async () => {
       await fs.promises.writeFile(
         path.join(tmpDir, 'TestController.ts'),
         `
@@ -434,18 +413,14 @@ class TestController {
         'utf8',
       );
 
-      const fixSpy = jest.spyOn(console, 'log').mockImplementation();
-      await main(['--fix', tmpDir]);
-      fixSpy.mockRestore();
+      await runCLI(['--fix', tmpDir]);
+      const result = await runCLI(['--check', tmpDir]);
 
-      const checkSpy = jest.spyOn(console, 'log').mockImplementation();
-      await main(['--check', tmpDir]);
-      checkSpy.mockRestore();
-
-      expect(globalThis.process.exitCode).toBeUndefined();
+      expect(result.exitCode).toBe(0);
+      expect(result.all).toContain('up to date');
     });
 
-    it('fails when generated files are out of date', async () => {
+    it('exits 1 when generated files are out of date', async () => {
       await fs.promises.writeFile(
         path.join(tmpDir, 'TestController.ts'),
         `
@@ -462,17 +437,13 @@ class TestController {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      await main(['--check', tmpDir]);
+      const result = await runCLI(['--check', tmpDir]);
 
-      expect(globalThis.process.exitCode).toBe(1);
-
-      consoleSpy.mockRestore();
-      consoleErrorSpy.mockRestore();
+      expect(result.exitCode).toBe(1);
+      expect(result.all).toContain('out of date');
     });
 
-    it('fails when generated files are missing', async () => {
+    it('exits 1 when generated files are missing', async () => {
       await fs.promises.writeFile(
         path.join(tmpDir, 'TestController.ts'),
         `
@@ -484,14 +455,17 @@ class TestController {
         'utf8',
       );
 
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      await main(['--check', tmpDir]);
+      const result = await runCLI(['--check', tmpDir]);
 
-      expect(globalThis.process.exitCode).toBe(1);
+      expect(result.exitCode).toBe(1);
+      expect(result.all).toContain('does not exist');
+    });
+  });
 
-      consoleSpy.mockRestore();
-      consoleErrorSpy.mockRestore();
+  describe('argument validation', () => {
+    it('exits 1 when neither --check nor --fix is provided', async () => {
+      const result = await runCLI([tmpDir]);
+      expect(result.exitCode).toBe(1);
     });
   });
 });

@@ -19,7 +19,7 @@ type CommandLineArguments = {
  * @param args - The arguments to parse.
  * @returns The parsed command line arguments.
  */
-export async function parseCommandLineArguments(
+async function parseCommandLineArguments(
   args: string[],
 ): Promise<CommandLineArguments> {
   const {
@@ -50,7 +50,6 @@ export async function parseCommandLineArguments(
       default: false,
     })
     .help()
-    .exitProcess(false)
     .check((argv) => {
       if (!argv.check && !argv.fix) {
         throw new Error('Either --check or --fix must be provided.\n');
@@ -70,7 +69,7 @@ export async function parseCommandLineArguments(
  *
  * @returns An ESLint object with instance and static methods, or null if unavailable.
  */
-export async function loadESLint(): Promise<ESLint | null> {
+async function loadESLint(): Promise<ESLint | null> {
   try {
     const { ESLint: ESLintClass } = await import('eslint');
     const instance = new ESLintClass({
@@ -83,18 +82,17 @@ export async function loadESLint(): Promise<ESLint | null> {
       getErrorResults: ESLintClass.getErrorResults.bind(ESLintClass),
     };
   } catch {
-    // istanbul ignore next: ESLint not available in all environments
     return null;
   }
 }
 
 /**
  * Main entry point for the CLI.
- *
- * @param args - The command line arguments to parse.
  */
-export async function main(args: string[]): Promise<void> {
-  const { fix, sourcePath } = await parseCommandLineArguments(args);
+async function main(): Promise<void> {
+  const { fix, sourcePath } = await parseCommandLineArguments(
+    globalThis.process.argv.slice(2),
+  );
 
   console.log(
     '🔍 Searching for controllers/services with MESSENGER_EXPOSED_METHODS...',
@@ -123,10 +121,7 @@ export async function main(args: string[]): Promise<void> {
   }
 }
 
-// istanbul ignore next: auto-invocation guard only runs when executed as a script
-if (globalThis.process.argv[1]?.includes('generate-action-types/cli')) {
-  main(globalThis.process.argv.slice(2)).catch((error) => {
-    console.error('❌ Script failed:', error);
-    globalThis.process.exitCode = 1;
-  });
-}
+main().catch((error) => {
+  console.error('❌ Script failed:', error);
+  globalThis.process.exitCode = 1;
+});
